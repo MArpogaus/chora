@@ -7,6 +7,9 @@ decisions-now.md 4,000. state.md has only the sections Now, RC, Lanes, Queue, Ne
 Run from the log worktree (or pass --root). Added lines come from the staged
 diff; only the entry stamp that starts a line is checked (later times in a line may be plans). The clock is the real UTC time; --now YYYY-MM-DDTHH:MM overrides it.
 Exit 1 and one line per problem when a rule is broken.
+
+Commit-msg stage (rule 2): `check_log.py --commit-msg MSGFILE` fails when the staged change touches
+vision-card.md or design/rc.md and the message lacks an `owner-ok:` line or a `cost:` line.
 """
 import argparse
 import re
@@ -161,6 +164,21 @@ def added_lines(root, name):
     return [l[1:] for l in out.splitlines() if l.startswith("+") and not l.startswith("+++")]
 
 
+OWNER_FILES = ("vision-card.md", "design/rc.md")
+
+
+def check_commit_msg(root, message):
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True, text=True
+    ).stdout.split()
+    touched = [n for n in OWNER_FILES if n in staged]
+    if not touched:
+        return
+    for key in ("owner-ok:", "cost:"):
+        if not re.search(rf"^{key}[ \t]*\S", message, re.M | re.I):
+            yield f"commit message: {' and '.join(touched)} changed but no '{key}' line (rule 2)"
+
+
 def run(root, now):
     root = Path(root)
     problems = []
@@ -186,7 +204,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=".")
     ap.add_argument("--now")
+    ap.add_argument("--commit-msg", metavar="MSGFILE")
+    ap.add_argument("files", nargs="*")
     args = ap.parse_args()
+    if args.commit_msg:
+        problems = list(check_commit_msg(args.root, Path(args.commit_msg).read_text()))
+        print("\n".join(problems))
+        return 1 if problems else 0
     now = datetime.fromisoformat(args.now).replace(tzinfo=timezone.utc) if args.now else datetime.now(timezone.utc)
     problems = run(args.root, now)
     print("\n".join(problems))

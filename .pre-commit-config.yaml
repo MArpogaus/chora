@@ -11,6 +11,11 @@ repos:
         files: ^(state|decisions-now|answers|rules|vision-card)\.md$
         pass_filenames: false
         stages: [pre-commit]
+      - id: owner-ok-cost
+        name: 'vision-card.md or design/rc.md change needs owner-ok and cost lines'
+        language: system
+        entry: python3 tools/check_log.py --commit-msg
+        stages: [commit-msg]
       - id: no-agent-trailers
         name: no Co-Authored-By, Claude-Session or "Generated with" in the message
         language: pygrep

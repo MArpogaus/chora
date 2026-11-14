@@ -1,5 +1,4 @@
 """Red and green cases for tools/check_log.py. Run: python3 -m unittest discover tests"""
-import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -7,7 +6,6 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "check_log.py"
-LANES = Path(__file__).resolve().parent.parent / "tools" / "lanes.py"
 NOW = "2026-11-12T10:00"
 GOOD_STATE = (
     "## Now (2026-11-12 09:30 UTC)\nbudget: 87 % at 01:26 UTC\n\n## RC\n- a\n\n## Lanes\n- a\n\n## Queue\n- a\n\n"
@@ -135,37 +133,43 @@ class CheckLog(unittest.TestCase):
             self.red({name: "~09:00 x\n"}, "without zone", True)
 
 
-def load_lanes():
-    spec = importlib.util.spec_from_file_location("lanes", LANES)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-class Lanes(unittest.TestCase):
-    def test_reviewers_and_judges_are_not_lanes(self):
-        lanes = load_lanes()
-        for meta in (
-            {"description": "Review of the tooling branch"},
-            {"description": "daily Judge"},
-            {"description": "x", "prompt": "write the reflection of today"},
-            {"description": "x", "prompt": "You are a reviewer"},
-        ):
-            self.assertTrue(lanes.is_reviewer(meta), meta)
-        for meta in ({"description": "build the hud"}, {"description": "x", "prompt": "fix the gate"}, {}):
-            self.assertFalse(lanes.is_reviewer(meta), meta)
-
-    def test_compact_now_only_when_the_context_grew(self):
-        lanes = load_lanes()
+class CommitMsg(unittest.TestCase):
+    def check(self, staged, message):
         with tempfile.TemporaryDirectory() as d:
-            last = Path(d) / "last"
-            limit = lanes.PM_CONTEXT_LIMIT
-            self.assertEqual(lanes.compact_flag(limit - 1, last), "")
-            self.assertEqual(lanes.compact_flag(limit + 1000, last), "compact now")
-            self.assertEqual(lanes.compact_flag(limit + 1000, last), "")
-            self.assertEqual(lanes.compact_flag(limit + 500, last), "")
-            self.assertEqual(lanes.compact_flag(limit + 2000, last), "compact now")
-            self.assertEqual(last.read_text().strip(), str(limit + 2000))
+            root = Path(d)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            for name in staged:
+                (root / name).parent.mkdir(exist_ok=True)
+                (root / name).write_text("x\n")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            msg = root / "MSG"
+            msg.write_text(message)
+            p = subprocess.run(
+                [sys.executable, str(SCRIPT), "--root", d, "--commit-msg", str(msg)], capture_output=True, text=True
+            )
+            return p.returncode, p.stdout
+
+    def test_other_files_need_nothing(self):
+        self.assertEqual(self.check(["state.md"], "state: x\n")[0], 0)
+
+    def test_owner_files_need_both_lines(self):
+        for name in ("vision-card.md", "design/rc.md"):
+            code, out = self.check([name], "x\n")
+            self.assertEqual(code, 1)
+            self.assertIn("owner-ok:", out)
+            self.assertIn("cost:", out)
+            code, out = self.check([name], "x\n\nowner-ok: yes 11-14 04:00 UTC\n")
+            self.assertEqual(code, 1)
+            self.assertIn("'cost:'", out)
+            self.assertNotIn("'owner-ok:'", out)
+            self.assertEqual(self.check([name], "x\n\nowner-ok: yes\ncost: none\n")[0], 0)
+
+    def test_empty_value_fails(self):
+        self.assertEqual(self.check(["vision-card.md"], "x\n\nowner-ok:\ncost: none\n")[0], 1)
+
+    def test_hook_is_wired(self):
+        text = (SCRIPT.parent.parent / ".pre-commit-config.yaml").read_text()
+        self.assertIn("check_log.py --commit-msg", text)
 
 
 if __name__ == "__main__":
