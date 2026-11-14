@@ -1133,7 +1133,7 @@ impl Chat {
                 DETAIL_BYTES / 1024
             ));
         }
-        let (result, always) = self.ask(prompt, detail, physical, out).await;
+        let (result, always) = self.ask(prompt, detail, out).await;
         crate::log::info(&format!(
             "confirm {name}: {}",
             result.as_ref().map_or_else(String::as_str, |()| "yes")
@@ -1149,22 +1149,22 @@ impl Chat {
     }
 
     /// Asks the user and waits for the answer; answers whether it had
-    /// an always word.
+    /// an always word. A spoken yes answers: the client asks the
+    /// questions that take a key, and their mark (`Tools::physical`)
+    /// stays as it is.
     async fn ask(
         &self,
         prompt: String,
         detail: String,
-        physical: bool,
         out: &(impl Fn(Event) + Sync),
     ) -> (Result<(), String>, bool) {
         let (answer, rx) = oneshot::channel();
         let always = Arc::new(AtomicBool::new(false));
-        self.tools.physical.store(physical, Ordering::Relaxed);
         out(Event::Confirm {
             prompt,
             detail,
             always: always.clone(),
-            physical,
+            physical: false,
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
@@ -1181,7 +1181,6 @@ impl Chat {
                 wait.as_secs()
             )),
         };
-        self.tools.physical.store(false, Ordering::Relaxed);
         (result, always.load(Ordering::Relaxed))
     }
 

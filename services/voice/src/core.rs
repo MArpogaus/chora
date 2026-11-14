@@ -297,8 +297,8 @@ pub struct Core {
     confirm: Option<oneshot::Sender<Option<bool>>>,
     /// Set before a yes with an always word to the confirmation.
     confirm_always: Arc<AtomicBool>,
-    /// Only a key of `confirm_keys` answers the confirmation: a voice,
-    /// a client and an injected text cannot.
+    /// Only a key of `confirm_keys` answers the confirmation of the
+    /// reply: a voice, a client and an injected text cannot.
     physical: bool,
     unclear: u32,
     /// The question of the confirmation, and until when it waits:
@@ -348,6 +348,9 @@ pub struct Core {
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
     sub_until: Instant,
+    /// Only a key answers the question of the sub-agent. A question of
+    /// the reply does not change it.
+    sub_physical: bool,
     /// The questions so far, the one on the screen, and since when it
     /// shows.
     confirms: u64,
@@ -426,6 +429,7 @@ impl Core {
             subs: BTreeMap::new(),
             sub_confirm: None,
             sub_until: now,
+            sub_physical: false,
             confirms: 0,
             shown: None,
             shown_at: now,
@@ -636,7 +640,7 @@ impl Core {
                 let name = note.ask.as_ref().map(|(name, _)| agents::title(name));
                 effects.extend(self.show((note.text, note.detail), note.physical, name));
             }
-            self.physical = note.physical;
+            self.sub_physical = note.physical;
             self.sub_confirm = note.ask;
             self.sub_until =
                 Instant::now() + Duration::from_secs(self.config.agent_permission_s.into());
@@ -838,6 +842,16 @@ impl Core {
     /// Whether a confirmation waits: of the reply or of a sub-agent.
     fn confirming(&self) -> bool {
         self.confirm.is_some() || self.sub_confirm.is_some()
+    }
+
+    /// Whether the confirmation that an answer goes to, that of the
+    /// reply first, takes only a key.
+    fn needs_key(&self) -> bool {
+        if self.confirm.is_some() {
+            self.physical
+        } else {
+            self.sub_confirm.is_some() && self.sub_physical
+        }
     }
 
     /// Answers the confirmation that waits, that of the reply first: yes,
@@ -1099,7 +1113,7 @@ impl Core {
     /// does not play again. A yes does not answer a question that waits
     /// for a key; for a question of a helper it hears `phrases.need_key`.
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
-        if yes && self.confirming() && self.physical {
+        if yes && self.needs_key() {
             crate::log::info("confirm: a yes without the key counts as nothing");
             let mut effects: Vec<Effect> = self.earcon(Earcon::Error).into_iter().collect();
             if self.confirm.is_none() {
@@ -1114,7 +1128,7 @@ impl Core {
     /// once the question showed for `KEY_DELAY`; an earlier press counts
     /// as nothing.
     fn confirm_key(&mut self, yes: bool) -> Vec<Effect> {
-        if !self.confirming() || !self.physical {
+        if !self.needs_key() {
             return Vec::new();
         }
         if self.shown_at.elapsed() < KEY_DELAY {
