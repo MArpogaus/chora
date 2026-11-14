@@ -89,12 +89,13 @@ wait_for count_is 3 '.owner == "tiling"'
 sleep 0.5
 surfaces >"$out/tiled.json"
 jq -e '
-  [.[] | .rects | to_entries[0].value | {x: .[0], y: .[1], w: .[2], h: .[3]}] as $r
+  (length == 3 and all(.[]; (.rects | length) > 0)) and
+  ([.[] | .rects | to_entries[0].value | {x: .[0], y: .[1], w: .[2], h: .[3]}] as $r
   | [range(0; $r | length) as $i | range($i + 1; $r | length) as $j
      | ($r[$i]) as $a | ($r[$j]) as $b
      | ($a.x < $b.x + $b.w and $b.x < $a.x + $a.w and
         $a.y < $b.y + $b.h and $b.y < $a.y + $a.h)]
-  | any | not' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
+  | any | not)' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
 test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and shows the free surfaces"
@@ -356,11 +357,6 @@ png "$out/frame.png" 0,0,255
 rpc "[{\"create\": {\"id\": \"frame\", \"kind\": \"image\", \"parent\": \"root\",
        \"props\": $(image_props "$out/frame.png")}}]" >"$out/image.json"
 all_results "$out/image.json" || fail "answers: $out/image.json"
-filtered_green_shows() {
-    local got
-    read -ra got <<<"$(pixel "$1" "$2")"
-    test "${got[1]}" -ge 100 -a "${got[1]}" -gt "${got[0]}" -a "${got[2]}" -le 8
-}
 # Succeeds when a pixel is within 8 of the color "r g b" in each channel;
 # texture filtering of the GPU may differ by a little.
 pixel_is() {
@@ -453,6 +449,16 @@ with open(sys.argv[1], "wb") as f:
     f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 2, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 EOF
+shear_frame_is_replaced() {
+    local got
+    read -ra got <<<"$(pixel 1100 760)"
+    test "${got[2]}" -ge 200
+}
+filtered_green_blend_shows() {
+    local got
+    read -ra got <<<"$(pixel "$1" "$2")"
+    test "${got[1]}" -ge 100 -a "${got[1]}" -gt "${got[0]}" -a "${got[2]}" -le 8
+}
 mesh() { echo "{\"cols\": 1, \"rows\": 1, \"points\": $1}"; }
 rpc "[{\"create\": {\"id\": \"layer\", \"kind\": \"group\", \"parent\": \"root\",
        \"props\": {\"size\": [300, 200], \"transform\": {\"translate\": [700, 450]},
@@ -474,7 +480,8 @@ rpc '[{"update": {"id": "layer", "props": {
        "transform": {"matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.01, 700, 450, 0, 1]}}}}]' \
     >"$out/depth.json"
 all_results "$out/depth.json" || fail "answers: $out/depth.json"
-wait_for filtered_green_shows 925 500
+wait_for shear_frame_is_replaced
+wait_for filtered_green_blend_shows 925 500
 pixel_is 775 500 "255 0 0" || fail "the near cell: $(pixel 775 500)"
 # A quarter turn without a mesh: x goes down, y goes left.
 rpc '[{"update": {"id": "layer", "props": {"mesh": {"cols": 1, "rows": 1, "points": []},
