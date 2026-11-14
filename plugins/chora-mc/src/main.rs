@@ -339,6 +339,11 @@ struct Mc {
     shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
+    /// The scene and the docked app that had the keyboard when the chat
+    /// opened.
+    docked_before_chat: Option<(String, String)>,
+    /// The surface that another client focused while the chat was open.
+    focused_under_chat: Option<String>,
     /// The window that a `drag` binding holds since its press.
     dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
@@ -522,6 +527,8 @@ impl Mc {
             shape: None,
             rendered: None,
             focused: None,
+            docked_before_chat: None,
+            focused_under_chat: None,
             dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,
@@ -550,8 +557,9 @@ const ASSISTANT: &str = "assistant";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 19] = [
     "voice.*",
+    "focus.changed",
     "node.key",
     "assistant.chat",
     "assistant.ready",
@@ -845,6 +853,12 @@ impl Plugin for Mc {
                 client,
                 data,
             } => self.emitted(&event, &client, data),
+            Event::FocusChanged { surface } => {
+                if self.chat == Chat::Open && surface.is_some() && surface != self.focused {
+                    self.focused_under_chat = surface;
+                }
+                Ok(())
+            }
             Event::NodeKey {
                 key,
                 state: PressState::Pressed,
@@ -1118,11 +1132,27 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
-        self.render()?;
         if open {
+            self.focused_under_chat = None;
+            self.docked_before_chat = self.current.clone().zip(self.focused.clone());
+        }
+        self.render()?;
+        let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
+        if open || still_open || self.focused_under_chat.is_some() {
             return Ok(());
         }
-        let commands = self.keyboard_back();
+        let docked = self.docked_before_chat.take().filter(|(scene, surface)| {
+            self.current.as_ref() == Some(scene) && self.docks.values().any(|d| d == surface)
+        });
+        let commands = match docked {
+            Some((_, surface)) => {
+                self.focused = Some(surface.clone());
+                vec![Command::Focus {
+                    surface: Some(surface),
+                }]
+            }
+            None => self.keyboard_back(),
+        };
         self.apply(commands)
     }
 
