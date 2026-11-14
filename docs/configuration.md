@@ -602,7 +602,8 @@ with `settings.reload`:
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
-  `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `keys`, `chat`, `lock`, `power`, `screenshot`, `volume: up|down|mute`,
+  `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
@@ -692,7 +693,7 @@ The `contents` are named. Their `kind` is one of:
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
 | `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
-| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest and `Esc`, in the words of the six rows. A thin space follows the plus before an arrow |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -710,8 +711,16 @@ preset or a scene shows starts its app when the settings load.
 The default bindings are `Super+a` for the chat (`chat` asks the HUD host
 to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
 scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
-header and the footer, and `Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
-needs the grant `input.grab-any`, so the key list is on `Super+F1`.
+header and the footer, and `Super+F1` for all keys, with `Super+slash` as a
+silent alias that has no row of its own. `Super+Space` starts the launcher,
+and its list has the entry Chat with a helper. `Super+Shift+Escape` locks the
+screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
+down) and `Super+Print` takes a screenshot; these three run the scripts that
+every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
+`XF86AudioMute` change the volume of the default sound output by 5 percent
+and show it in a notice. `F1` is no binding: it reaches the program. A binding
+of one key without Ctrl, Alt or Super needs the grant `input.grab-any`, so the
+key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows

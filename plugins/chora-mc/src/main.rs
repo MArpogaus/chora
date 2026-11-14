@@ -341,6 +341,8 @@ struct Mc {
     dock_focus: Option<String>,
     /// The text of each clock.
     clocks: BTreeMap<String, String>,
+    /// The worker that reads and changes the volume.
+    volume: chora_kit::volume::Mixer,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
     /// The agents of `agent.set`, in the order of their first report.
@@ -512,6 +514,7 @@ impl Mc {
             quiet: BTreeSet::new(),
             dock_focus: None,
             clocks: BTreeMap::new(),
+            volume: chora_kit::volume::Mixer::new(NAME),
             texts: BTreeMap::new(),
             agents: Vec::new(),
             agent_focus: None,
@@ -1403,7 +1406,7 @@ impl Mc {
         self.name_theme()?;
         self.grab_all()?;
         self.build()?;
-        self.grab_drags()?;
+        self.grab_claimed()?;
         let first = self.order().into_iter().next();
         let default = Some(self.settings.value.default_scene.clone())
             .filter(|v| self.scenes.contains_key(v))
@@ -1433,9 +1436,9 @@ impl Mc {
     /// only logs.
     #[allow(clippy::expect_used, reason = "the settings check their bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
-        self.grab_some(|action| *action != Action::Drag)?;
+        self.grab_some(|action| !needs_claim(action))?;
         if self.built {
-            self.grab_drags()?;
+            self.grab_claimed()?;
         }
         self.rt.give_keys(Some(|to| Action::Give(to.into())));
         self.rt
@@ -1454,14 +1457,15 @@ impl Mc {
         Ok(())
     }
 
-    /// Grabs the `drag` bindings, after the build that sets the claim:
-    /// only window managers with a claim share a pointer button (D55),
-    /// so mc grabs none unless it manages windows.
-    fn grab_drags(&mut self) -> Result<(), ClientError> {
+    /// Grabs the `drag` and `volume` bindings, after the build that sets
+    /// the claim: only window managers with a claim share a pointer button
+    /// (D55) and grab a media key without a grant, so mc grabs none unless
+    /// it manages windows.
+    fn grab_claimed(&mut self) -> Result<(), ClientError> {
         if !self.manage_windows {
             return Ok(());
         }
-        self.grab_some(|action| *action == Action::Drag)
+        self.grab_some(needs_claim)
     }
 
     /// The claim: the work area of an output, below the header and above
@@ -3054,9 +3058,46 @@ impl Mc {
     }
 
     pub fn act(&mut self, binding: &str) {
-        let Some(action) = self.rt.action(binding).cloned() else {
+        if let Some(action) = self.rt.action(binding).cloned() {
+            self.perform(action);
+        }
+    }
+
+    /// Runs a shared script as an app, or says that it is not installed.
+    fn run_shared(&mut self, script: &str, args: &[&str]) {
+        let Some(command) = chora_kit::shared::command(script, args) else {
+            self.notice(script, "The shared script is not installed.");
             return;
         };
+        let mint = self.rt.conn.activation_token();
+        let _ = launch(&command, mint.as_deref());
+    }
+
+    /// Runs the launcher with the shared entries of every look in its list.
+    fn launcher(command: &str) -> String {
+        let current = std::env::var("XDG_DATA_DIRS").ok();
+        match chora_kit::shared::data_dirs(current.as_deref()) {
+            Some(dirs) if command.starts_with("fuzzel") => {
+                format!("XDG_DATA_DIRS='{dirs}' {command}")
+            }
+            _ => command.to_owned(),
+        }
+    }
+
+    /// Runs the actions of the system: the locker, the power menu, the
+    /// screenshot and the volume.
+    fn system(&mut self, action: &Action) {
+        match action {
+            Action::Lock => self.run_shared("power", &["lock"]),
+            Action::Power => self.run_shared("power", &[]),
+            Action::Screenshot => self.run_shared("screenshot", &[]),
+            Action::Volume(change) => self.volume.change(*change, true),
+            _ => {}
+        }
+    }
+
+    pub fn perform(&mut self, action: Action) {
+        self.system(&action);
         let names = self.order();
         let at = self
             .current
@@ -3068,9 +3109,8 @@ impl Mc {
             Action::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
             Action::Scene(name) => name,
             Action::Run(command) => {
-                // The new window takes the keyboard.
                 let mint = self.rt.conn.activation_token();
-                let _ = launch(&command, mint.as_deref());
+                let _ = launch(&Self::launcher(&command), mint.as_deref());
                 return;
             }
             Action::Give(to) => {
@@ -3079,7 +3119,11 @@ impl Mc {
                 }
                 return;
             }
-            Action::Drag => return,
+            Action::Drag
+            | Action::Lock
+            | Action::Power
+            | Action::Screenshot
+            | Action::Volume(_) => return,
             Action::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {
                     eprintln!("chora-mc: toggle {}: {err}", region.name());
@@ -3108,6 +3152,11 @@ impl Mc {
             eprintln!("chora-mc: {next}: {}", err.message);
         }
     }
+}
+
+/// Whether an action is grabbed only with the claim of a window manager.
+fn needs_claim(action: &Action) -> bool {
+    matches!(action, Action::Drag | Action::Volume(_))
 }
 
 /// Keeps the regions over a scene group that was just created.

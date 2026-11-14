@@ -166,7 +166,10 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # {solo: {content: NAME, region: REGION}}, which shows the content alone
 # in the region over any scene; the next press hides it again, or keys,
 # which shows all keys in the key list of the right side, or six again,
-# or chat, which asks the HUD host to open the chat.
+# or chat, which asks the HUD host to open the chat, or lock, power (the
+# menu with Lock, Log out, Restart and Shut down) and screenshot, which run
+# the scripts that every look shares, or {volume: up|down|mute}, which
+# changes the volume of the default sound output.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
@@ -179,6 +182,13 @@ bindings:
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
   Super+F1: keys
+  Super+slash: keys
+  Super+Shift+Escape: lock
+  Super+Shift+e: power
+  Super+Print: screenshot
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
   Super+F12: {solo: {content: overlay, region: drawer}}
   Super+BTN_LEFT: drag
 # The states of an agent of agent.set: the sign and the color of each,

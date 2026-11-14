@@ -21,7 +21,7 @@ mkdir -p "$HOME" "$XDG_CONFIG_HOME/chora" "$XDG_CONFIG_HOME/data/chora/huds"
 printf 'theme: light\ntest_accept_injected_keys: true\nvoice_hud: host\n' >"$XDG_CONFIG_HOME/chora/chora-mc.yaml"
 printf 'enabled: true\nposition: null\nhud: mc\n' >"$XDG_CONFIG_HOME/chora/chora-assistant.yaml"
 cp -rL "$repo/plugins/chora-mc/hud" "$XDG_CONFIG_HOME/data/chora/huds/mc"
-CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-mc"
+CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-mc" --manage-windows
 grant screen.capture input.inject methods.call
 ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
 doors_voice || fail "voice does not answer"

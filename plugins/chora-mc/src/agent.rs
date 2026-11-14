@@ -580,6 +580,19 @@ impl Mc {
         }
     }
 
+    /// Tells the person that something did not work, as a critical
+    /// notification.
+    pub fn notice(&mut self, title: &str, body: &str) {
+        let push = Push {
+            title: title.to_owned(),
+            body: body.to_owned(),
+            urgency: Urgency::Critical,
+        };
+        if let Err(err) = self.push(push) {
+            eprintln!("chora-mc: notice {title}: {}", err.message);
+        }
+    }
+
     /// Adds a notification on top of the stack; a critical one also
     /// shows in red until the next one or `notify.clear`.
     pub fn push(&mut self, push: Push) -> Result<(), RpcError> {
