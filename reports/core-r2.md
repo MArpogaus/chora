@@ -50,3 +50,21 @@ merged in. Each fix has a test commit before it, run red first; the red output i
 - The three script failures above, all on the session branch.
 - From r1, still outside this brief: V01 audio.rs children inherit the key variables; K01
   `save --file PATH` (CR-7).
+
+## Round r3 (briefs/core-r3.md, review r2 FIX)
+
+Head 308d22dc, 6 commits on 78f28b2d, pushed.
+- V02 fixed, 50cd9108 test, 64133545 fix. Red: the info log held "Agenda" (queued), "größer"
+  (over the reply), the dropped ASR prompt and the `task` argument of a tool call. Now a tool
+  call logs `tool NAME Xms` at info; its arguments and result log at debug. Words over the
+  reply, queued words and the dropped echo text log at debug. docs/voice.md section 11 is updated.
+- C13 fixed: bde5f8b0 refactor (the cursor composition moves into render::screen_elements, no
+  change), 01aafece test, 4d3816f0 fix. Red: a cursor element covering the whole output came at
+  index 0, in front of the mark. Now the order is mark, cursor, then the rest. docs/architecture.md
+  is corrected.
+- C05: 308d22dc docs(voice) with a `BREAKING CHANGE:` footer that names output.configure,
+  output.reserve, configure_output and reserve_space. `cz changelog --dry-run` lists it.
+- Gate on 308d22dc: every step passed up to cube. The first cube run failed with the known F14
+  flake ("the construct does not answer while the window manager is deaf"; claude/flakes). Cube
+  then passed with `--only cube,pull,winit,wm-pane,walk,keys,pixels`, and every step of that run
+  passed. So there is no single full run where every step passed.
