@@ -65,6 +65,8 @@ chords() {
         | sort_by(.cap | tonumber) | map(.text) | join("+")'
 }
 node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].text // empty'; }
+island_word() { ctl query id:hud-state 2>/dev/null | jq -r '.[0].meta.text // empty'; }
+island_says() { [ "$(island_word)" = "$1" ]; }
 door_says() { [ "$(node_text "$1")" = "$2" ]; }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 
@@ -151,16 +153,14 @@ cell_launcher_chat() {
 }
 cell_helper_key() { walking_and_flown check_helper_key; }
 cell_helper_door() {
-    local state
-    state=$(node_text hud-state)
-    [ "$state" = "coder · idle" ] || return 1
-    click_node hud
+    [ -n "$(island_word)" ] || return 1
+    click_node hud-figure
     until_ok chat_open 20 && chat_close
 }
 cell_helper_none() {
     voice_stop
     doors_voice none || return 1
-    until_ok 'door_says hud-state "No helper"' 20 || return 1
+    until_ok 'island_says "No helper"' 20 || return 1
     key Super+a
     until_ok 'has_text "No helper is set up"' 20 && chat_close
 }
