@@ -73,7 +73,9 @@ input:
 - `choractl view save work` writes the nodes of `view-work` as they are
   now to `~/.config/chora/views/work.yaml`, or to `--file PATH`. It keeps
   the plugins and the `input` of the file that was there, not the live
-  settings of the core. A plugin or an
+  settings of the core. If that file does not parse, or if it has a
+  scene and the view is not loaded and so owns no nodes, the save fails
+  and the file stays as it is. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
 - A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or

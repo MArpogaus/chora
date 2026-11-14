@@ -247,7 +247,9 @@ pub fn unload(name: &str, confined: bool) -> Result<Value, String> {
 }
 
 /// Writes the current nodes of a view to its file, with the plugins of
-/// the file that was there. Returns the path.
+/// the file that was there. Returns the path. A file that does not
+/// parse, or a view that is not loaded while its file has a scene, is an
+/// error, and nothing is written.
 pub fn save(name: &str, file: Option<&str>, confined: bool) -> Result<Value, String> {
     check_name(name)?;
     let path = match file {
@@ -268,11 +270,20 @@ pub fn save(name: &str, file: Option<&str>, confined: bool) -> Result<Value, Str
 
 /// The view to write: the nodes that the view owns now, with the
 /// plugins and the input of the file that was there.
+///
+/// # Errors
+///
+/// The file that was there does not parse, or it has a scene and the
+/// view owns no nodes, so it is not loaded: the save would lose what
+/// the file holds.
 fn to_save(name: &str, old: Option<&Path>, nodes: &[Node]) -> Result<View, String> {
-    let (plugins, input) = old
-        .and_then(|p| read_yaml::<View>(p).ok())
-        .map(|v| (v.plugins, v.input))
-        .unwrap_or_default();
+    let old = old.map(read_yaml::<View>).transpose()?;
+    if nodes.is_empty() && old.as_ref().is_some_and(|v| !v.scene.is_empty()) {
+        return Err(format!(
+            "the view {name} is not loaded: it owns no nodes, and the scene of its file stays"
+        ));
+    }
+    let (plugins, input) = old.map(|v| (v.plugins, v.input)).unwrap_or_default();
     Ok(View {
         name: name.into(),
         plugins,
