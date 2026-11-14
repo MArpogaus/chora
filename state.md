@@ -26,10 +26,10 @@ session branch: 498d9dea (train 4). rc target: 11-20.
 | mc | cloud Fable ..QEL2G, claude/mc-fix 4feb4dc0 | briefs/mc-r1.md | done 16:49: 22/23, cube FAIL (construct deaf, not mc); to review |
 | xtc | done ..QVmwt, claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | to review |
 | doors | done ..N9VG6, claude/doors ea47e27b | briefs/doors-r1.md | to review; merges before mc, xtc |
-| ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | merging with docs (gate running) |
-| docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | merging with ci (gate running) |
+| ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
+| docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | waits with ci for F14 |
 | review t5 | cloud opus ..PHUkf, read-only | briefs/review-train5-r1.md | doors, xtc |
-| flakes | lost (local, died 10:35), claude/flakes 22b452ed | briefs/flakes-r1.md | restart as cloud Fable lane (1 of 2) |
+| flakes | cloud Fable (starting), claude/flakes 22b452ed | briefs/flakes-r2.md | F14 blocks every gate (cube step) |
 
 ## Queue
 0. Robustness: fail-open hooks, worktree guard, heartbeat, takeover.sh (friction 44).
