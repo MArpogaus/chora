@@ -575,7 +575,7 @@ fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
             local,
             modifiers,
             injected,
-            time: time.micros() / 1000,
+            time: u64::from(time.millis()),
         });
     }
 }
@@ -1500,7 +1500,7 @@ fn release_node(state: &mut State, button: u32, left_a_pane: bool, time: InputTi
         local,
         modifiers,
         injected,
-        time: time.micros() / 1000,
+        time: u64::from(time.millis()),
     });
 }
 
@@ -1934,6 +1934,22 @@ mod tests {
         let all = events(&mut xp, &mut core);
         assert_eq!(named(&all, "pointer.moved")[0]["time"], 81_234);
         assert_eq!(named(&all, "pointer.released")[0]["time"], 81_250);
+    }
+
+    #[test]
+    fn the_time_of_an_input_is_a_32_bit_count_of_milliseconds() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(
+            &mut xp,
+            &mut core,
+            &json!([{"update": {"id": "menu", "props": {"transform": {"translate": [400, 0]}}}}]),
+        );
+        let past_the_wrap = InputTime::from_micros(((1 << 32) + 5) * 1000);
+        move_to(&mut core, 450.0, 50.0);
+        click(&mut core, true);
+        super::move_pointer(&mut core.state, (460.0, 50.0).into(), past_the_wrap);
+        let all = events(&mut xp, &mut core);
+        assert_eq!(named(&all, "pointer.moved")[0]["time"], 5);
     }
 
     #[test]
