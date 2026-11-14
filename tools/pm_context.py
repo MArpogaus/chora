@@ -12,6 +12,7 @@ Modes:
 
 Hook input JSON on stdin is optional; its transcript_path is used to find unrecorded user messages.
 PM_HOOK_OFF=1 in the environment silences every mode (for other claude processes started in /home/user).
+PM_LOG overrides the log worktree (tests). Installed hooks run a stable copy via pm-hook.sh, which never blocks.
 """
 import json
 import os
@@ -20,7 +21,7 @@ import select
 import sys
 from pathlib import Path
 
-LOG = Path("/home/user/wt/log")
+LOG = Path(os.environ.get("PM_LOG", "/home/user/wt/log"))
 CAP = 9500
 DEFAULT_TRANSCRIPT = Path("/root/.claude/projects/-home-user/8a28ab73-2182-54dd-8448-69a0fbb58e8a.jsonl")
 

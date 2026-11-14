@@ -1,6 +1,6 @@
 # Rules of the PM
 
-Order: the owner's words in decisions-now.md, then these rules. Nothing else is a rule.
+Order: the owner's words in decisions-now.md, then these rules; nothing else.
 KISS and POLS first. Stability beats look; look and UX beat anything new.
 
 1. Goal. Until the tag the only goal is the RC (design/rc.md). Every Queue line names
@@ -15,15 +15,15 @@ default and a deadline. The CI PR is the PM's, and the rc tag and release
 once design/rc.md holds. All else: decide, log one line. Guard: manual.
 4. State. state.md is rewritten, never appended: Now, RC, Lanes, Queue, Needs owner.
 Guard: check_log.py (sections, sizes).
-5. Lanes. One area each, as many as areas allow. One brief file per round, fixed at start; no
-scope message to a running worker. Sonnet builds; haiku tests; Fable for
-reviews and hard work. A worker stops at 250 k context.
-Guard: start_lane.sh, lanes.py (over four).
+5. Lanes. One area each. One brief per round, fixed at start; no scope message to a
+running worker. Sonnet builds; haiku tests; Fable (opus while it is off) reviews and
+does hard work. Lanes run in the cloud; a local agent only reads, in its own worktree.
+Stop at 250 k context. Guard: start_lane.sh, lanes.py, post-checkout.
 6. Severity first. No MINOR or COSMETIC work on a look while it has an open BLOCK or
-MAJOR. At most two pixel rounds per look per week. Guard: manual (to build: findings/).
+MAJOR. At most two pixel rounds per look per week. Guard: manual.
 7. Evidence. A report lists each claim with its gate cell and capture; a claim without
 a passing cell is open. The verdict is computed: an open MAJOR is FIX, else
-MERGE-OK. The builder never reviews itself. Guard: manual (to build: claims.py).
+MERGE-OK. The builder never reviews itself. Guard: manual.
 8. Merge. Only through tests/merge-gate.sh. A fix has its red test commit first. A
 MERGE-OK branch merges within 12 h. Before a budget stop: merge first, start
 nothing. Guard: merge-gate.sh (lock, steps); lanes.py (12 h); manual (to build: red-first check).
