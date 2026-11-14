@@ -23,20 +23,20 @@ session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| review core | cloud Fable ..MFd4q, claude/review-core | briefs/review-core-r1.md | told 16:48: finish gate, hand over, stop |
-| mc | cloud Fable ..QEL2G, claude/mc-fix 4feb4dc0 | briefs/mc-r1.md | done 16:49: 22/23, cube FAIL (construct deaf, not mc); to review |
+| review core | done ..MFd4q, claude/review-core eff84702 | briefs/review-core-r1.md | 4 HIGH fixed; C05 C14 V02 C13 open; to review |
+| mc | done ..QEL2G, claude/mc-fix 4feb4dc0 | briefs/mc-r1.md | 22/23 (cube = F14); to review |
 | xtc | claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | MERGE-OK 17:16; merges after F14 |
-| doors | cloud Fable (starting), claude/doors ea47e27b | briefs/doors-r2.md | r1 FIX (dr-1, dr-2 BLOCK) |
+| doors | cloud Fable ..PjvUN, claude/doors ea47e27b | briefs/doors-r2.md | r1 FIX (dr-1, dr-2 BLOCK) |
 | ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
 | docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | waits with ci for F14 |
-| review t5 | done ..PHUkf | briefs/review-train5-r1.md | doors FIX, xtc MERGE-OK |
-| flakes | cloud Fable (starting), claude/flakes 22b452ed | briefs/flakes-r2.md | F14 blocks every gate (cube step) |
+| review t5 r2 | cloud opus (starting), read-only | briefs/review-train5-r2.md | mc, core |
+| flakes | cloud Fable ..MXy5q, claude/flakes 22b452ed | briefs/flakes-r2.md | F14 blocks every gate (cube step) |
 
 ## Queue
 0. Robustness: fail-open hooks, worktree guard, heartbeat, takeover.sh (friction 44).
 1. Train 5: ci-rc, docs (key fix), doors, mc, xtc, review-core; review each (opus), full gate per merge. (rc 1, 4, 6, 7, 8)
 2. Flakes r2 cloud (sonnet/opus): redo F13, cube flick under load. (rc 3)
-3. Verify BLOCK ti-1, co-1; plugins HIGH XP-B-01, MC-01, NO-01 fix lane. (rc 1, 6)
+3. Verify BLOCK ti-1, co-1; fix lane (opus): plugins HIGH XP-B-01, MC-01, NO-01; core C05 (gate + grant), C14 (injected input is no activity), V02 (utterances at debug), trace C13. (rc 1, 6)
 4. CI PR with packaging jobs. (rc 4, 5)
 5. Pixel pass per look, owner approval; persona round 4; logging audit. (rc 1b, 2, 9)
 6. Three greens on the candidate; tag. (rc 3)
