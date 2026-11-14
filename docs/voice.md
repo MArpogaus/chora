@@ -657,6 +657,10 @@ foot?"). No list of methods is kept in the agent. The methods
 `window.give`, `agent.set` and `notify.push` are privileged too. In a
 prompt, `{client}`, `{method}` and `{params}` name the plugin, the
 method and its params. The method is said with spaces ("app open").
+The tools `configure_output` and `reserve_space` need the grant
+`methods.privileged` of `voice-mcp` too: `choractl grant voice-mcp
+methods.privileged`. Without it, chora refuses them with code 4. Each
+of them asks with its own `confirm` rule.
 
 Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
 that each one can move to another provider. The key comes from the
