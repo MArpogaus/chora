@@ -36,7 +36,7 @@ until_ok bar_shows 80 || fail "no bar"
 
 bar_y=24
 apps_x=55
-helper_x=440
+helper_x=929
 clock_x=640
 volume_x=1018
 keys_x=1209
@@ -44,13 +44,15 @@ power_x=1247
 
 keys_open() { ctl query id:tiling-keys 2>/dev/null | jq -e '.[0].visible' >/dev/null; }
 keys_close() {
+    keys_open || return 0
     key Escape
-    until_ok '! keys_open' 20
+    until_ok '! keys_open'
 }
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 chat_close() {
+    chat_open || return 0
     key Escape
-    until_ok '! chat_open' 20
+    until_ok '! chat_open'
 }
 ink_at() {
     ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 || return 1
@@ -59,32 +61,41 @@ ink_at() {
     [ "$colours" -ge 3 ]
 }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
+why() {
+    echo "tiling: $*"
+    return 1
+}
 helper_says() { [ "$(module_text helper)" = "$1" ]; }
 module_text() { sh "$flavor/waybar/$1.sh" 2>/dev/null | jq -r .text; }
 
 cell_keys_key() {
+    keys_close
     key Super+F1
-    until_ok keys_open 20 && keys_close
+    until_ok keys_open && keys_close
 }
 cell_keys_alias() {
+    keys_close
     key Super+slash
-    until_ok keys_open 20 && keys_close
+    until_ok keys_open && keys_close
 }
 cell_keys_names() {
     local chord bad=0
+    keys_close
     key Super+F1
-    until_ok keys_open 20 || return 1
-    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print XF86AudioRaiseVolume; do
+    until_ok keys_open || return 1
+    for chord in Super+F1 Super+Space Super+a Super+Shift+Esc Super+Shift+e Super+Print "Volume keys"; do
         has_text "$chord" || bad=1
     done
     keys_close
     return "$bad"
 }
 cell_keys_door() {
+    keys_close
     click "$keys_x" "$bar_y"
-    until_ok keys_open 20 && keys_close
+    until_ok keys_open && keys_close
 }
 cell_f1_free() {
+    keys_close
     key F1
     got_key 59 && ! keys_open
 }
@@ -105,14 +116,18 @@ cell_launcher_chat() {
         grep -qx 'Name=Chat with a helper' "$repo/flavors/shared/applications/chora-chat.desktop"
 }
 cell_helper_key() {
+    chat_close
     key Super+a
-    until_ok chat_open 20 && chat_close
+    until_ok chat_open && chat_close
 }
 cell_helper_door() {
-    helper_says "coder · idle" || return 1
-    ink_at "$helper_x" || return 1
+    helper_says "coder · idle" || why "the helper word is $(module_text helper)" || return 1
+    ink_at "$helper_x" || why "no word in the bar at $helper_x" || return 1
+    chat_close
     click "$helper_x" "$bar_y"
-    until_ok chat_open 20 && chat_close
+    until_ok chat_open || why "the click opened no chat: $(tail -n 4 "$work/assistant.log" "$GATE_ENV")" || return 1
+    click_node hud-chat-close
+    until_ok '! chat_open' || why "Close did not close the chat"
 }
 cell_helper_none() {
     voice_stop

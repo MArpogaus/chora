@@ -1,11 +1,15 @@
-//! chora-chat: the opener of the chat, and with `--input` the text field
+//! chora-chat: the opener of the chat, with `--input` the text field
 //! of its view, a layer surface that the host starts (docs/voice.md,
-//! "The chat field"). The field sends text to a helper and answers no
+//! "The chat field"), and with `--door` the word of a helper door. The field sends text to a helper and answers no
 //! question.
 
 #![allow(
     clippy::print_stderr,
     reason = "the field is a program of the session: its log is stderr"
+)]
+#![allow(
+    clippy::print_stdout,
+    reason = "--door answers the panel that runs it on stdout"
 )]
 
 mod draw;
@@ -38,6 +42,10 @@ struct Args {
     /// surface; the host starts it.
     #[arg(long, value_name = "NAME", conflicts_with = "name")]
     input: Option<String>,
+    /// Prints the word of a helper door, `No helper` or the name and the
+    /// state of a helper, and opens nothing.
+    #[arg(long, conflicts_with_all = ["input", "name"])]
+    door: bool,
     /// The helper to chat with; the person picks from the list without it.
     name: Option<String>,
 }
@@ -46,6 +54,10 @@ fn main() -> ExitCode {
     let args = Args::parse();
     let result = match &args.input {
         Some(_) => field(),
+        None if args.door => {
+            println!("{}", opener::door_word(language(), &opener::helpers()));
+            Ok(())
+        }
         None => opener::open(args.name.as_deref()).map_err(|e| e.to_string()),
     };
     match result {

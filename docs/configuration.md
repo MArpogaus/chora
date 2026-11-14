@@ -255,11 +255,11 @@ hand-over fails, the window stays and goes back to the middle of its
 output.
 Mouse resizes of floating windows do not exist.
 
-The key list shows on `MOD+slash` and on the button **Keys** of the
+The key list shows on `MOD+F1`, on `MOD+slash` and on the button **Keys** of the
 panel: a glass panel as wide as its longest word and 24 px more, so the
 margin is 24 px left of the keycaps and right of the words, and as high as
 its rows and 24 px more, centred on the current output, with the heading "Keys", the line
-"Super+/ shows this list again. Esc closes it.", a line **Mouse** with the
+"Super+F1 shows this list again. Esc closes it.", a line **Mouse** with the
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows, Layouts, Tags, Programs and
@@ -274,10 +274,10 @@ descenders sit in the cap on the baseline of the words; every keycap has
 spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
 The option `labels` names a binding in its own words, by the binding as the
 file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
-one row, a binding with the words of another joins its row, and media keys
-are left out. The list is built each time it opens and again when the
+one row, a binding with the words of another joins its row, and the
+media keys of the volume take one row, "Volume keys". The list is built each time it opens and again when the
 settings reload, so a binding that the file gains shows at once. It takes
-the keyboard with `focus_node` while it shows: `Esc`, `MOD+slash` or a
+the keyboard with `focus_node` while it shows: `Esc`, `MOD+F1`, `MOD+slash` or a
 click outside closes it, and the window that had the keys gets them back.
 
 `MOD+Shift+space` goes to the next layout, `MOD+Ctrl+Shift+space` to the
@@ -334,7 +334,7 @@ later `settings.set` or `settings.reload` leaves it as it is.
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag, and shows the layout chip |
-| `show_keys` | none | `MOD+slash`: shows the key list, or hides it |
+| `show_keys` | none | `MOD+F1` and `MOD+slash`: shows the key list, or hides it |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
@@ -1532,6 +1532,9 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   why: `wpctl not found`, `No output device` or `No answer`, in German
   with a German locale. A click mutes or unmutes, and the wheel changes
   the volume.
+  The helper module runs `waybar/helper.sh` every 2 seconds, which prints
+  the word of `chora-chat --door`: `No helper`, or the name and the state
+  of a helper, such as `coder · idle`. A click opens the chat.
   The unit starts waybar through `waybar/waybar.sh`, which leaves out
   the outputs that are not tiling's, such as the output of `chora-xp`
   beside tiling. It reads the outputs again every 2 seconds and starts

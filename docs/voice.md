@@ -1388,11 +1388,15 @@ OpenAI-compatible provider, `permission.edit: ask`):
 
 ## 19. The chat field
 
-`chora-chat` has two modes (`services/voice/chat`).
+`chora-chat` has three modes (`services/voice/chat`).
 
 - `chora-chat [NAME]` is the opener for a launcher or a key. It calls
   `assistant chat.show {name, token}`, with the helper if one is named
   and the `XDG_ACTIVATION_TOKEN` of its environment. It draws nothing.
+- `chora-chat --door` prints the word of a helper door and opens
+  nothing: `No helper` when the voice agent names no helper or does not
+  answer, else the name and the state word of the first helper that is
+  not idle, such as `coder · working`. A panel shows it.
 - `chora-chat --input NAME` is the text field of the chat view with the
   helper NAME, a layer surface that the host starts, one at a time. It
   draws with `chora-draw` into `wl_shm`, in the font size of the body
