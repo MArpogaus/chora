@@ -27,8 +27,9 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    # The pixel tests render on the software driver of Mesa.
-    - run: xargs dnf install -y rustup mesa-dri-drivers git bubblewrap python3 < dist/fedora-build-requires.txt
+    # The pixel tests render on the software driver of Mesa. The text tests
+    # measure Inter and the DejaVu fallbacks; the image has no fonts.
+    - run: xargs dnf install -y rustup mesa-dri-drivers git bubblewrap python3 rsms-inter-fonts dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts < dist/fedora-build-requires.txt
     # rustup takes the toolchain of rust-toolchain.toml.
     - run: rustup-init -y --profile minimal --default-toolchain none
     - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
@@ -79,7 +80,8 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
       with:
         persist-credentials: false
-    - run: xargs dnf install -y rustup mesa-dri-drivers git jq bubblewrap < dist/fedora-build-requires.txt
+    # The fonts of the text tests, as in the check job.
+    - run: xargs dnf install -y rustup mesa-dri-drivers git jq bubblewrap rsms-inter-fonts dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts < dist/fedora-build-requires.txt
     - run: rustup-init -y --profile minimal --default-toolchain none
     - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
     - run: echo "$GITHUB_WORKSPACE/dist/sandbox" >>"$GITHUB_PATH"
