@@ -25,6 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | flakes | cloud Fable ..PL9EE, claude/flakes 55c527d4 | briefs/flakes-r3.md | r2 merged (R1 open, exception); r3: R1, F15, races |
+| ci r3 | cloud opus (starting), claude/ci-r3 | briefs/ci-r3.md | PR #106 coverage: 9 font tests |
 | doors | cloud Fable ..PZrjj, claude/doors dd8669a4 | briefs/doors-r3.md | dr2-1 BLOCK, dr2-2 MAJOR |
 
 ## Queue
