@@ -4063,6 +4063,17 @@ mod tests {
     }
 
     #[test]
+    fn a_key_name_with_a_nul_is_an_unknown_key() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let binding = json!({"binding": "Super+a\u{0}"});
+        let (_, message) = client.fails(&mut core, "input.grab", binding.clone());
+        assert_eq!(message, "unknown key \"a\\0\"");
+        let (_, message) = client.fails(&mut core, "input.ungrab", binding);
+        assert_eq!(message, "unknown key \"a\\0\"");
+    }
+
+    #[test]
     fn a_binding_has_one_grab_until_its_connection_closes() {
         let mut core = Core::new();
         let mut first = core.named("wm");

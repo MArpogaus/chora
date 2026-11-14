@@ -787,6 +787,19 @@ mod tests {
     }
 
     #[test]
+    fn a_key_name_with_a_nul_is_an_unknown_key() {
+        let mut core = Core::new();
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let bad = json!({"dry_run": true,
+            "events": [{"key": {"key": "a\u{0}", "state": "pressed"}}]});
+        let (_, message) = agent.fails(&mut core, "input.inject", bad);
+        assert!(message.contains("unknown key"), "{message}");
+    }
+
+    #[test]
     fn a_dry_run_checks_the_events_and_sends_nothing() {
         let mut core = Core::new();
         core.add_output("HDMI-1", (800, 600));
