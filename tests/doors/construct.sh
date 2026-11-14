@@ -5,7 +5,9 @@
 # (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock)
 # and the island of the HUD host, clicked at their nodes; the key list is
 # the panel construct-help, read cap by cap. The pane is the window of
-# chora-probe.
+# chora-probe. The check pane-corner flies into the pane and clicks where
+# the door Lock stood: the window gets the press, nothing locks, and the
+# strip is gone until the step out.
 #
 # Usage: tests/doors/construct.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -199,8 +201,31 @@ cell_clock_door() {
     ctl query id:construct-door-clock | jq -e '.[0].visible' >/dev/null
 }
 
+check_pane_corner() {
+    local at
+    at=$(center construct-door-lock) || return 1
+    into_pane || return 1
+    unmark
+    : >"$work/window"
+    # shellcheck disable=SC2086 # two words, X and Y
+    click $at
+    until_ok "grep -q '^press' \"$work/window\"" 12
+    local status=$?
+    ! grep -q '^swaylock' "$marks" || status=1
+    ! ctl query id:construct-doors | jq -e 'length > 0' >/dev/null || status=1
+    out_of_pane
+    until_ok "ctl query id:construct-door-lock | jq -e 'length > 0' >/dev/null" 20 || status=1
+    return "$status"
+}
+
 doors_run construct
 status=$?
+if check_pane_corner; then
+    echo "check construct pane-corner pass"
+else
+    echo "check construct pane-corner fail"
+    status=1
+fi
 layout_audit "construct doors" >/dev/null
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"
