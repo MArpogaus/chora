@@ -1305,6 +1305,34 @@ mod tests {
         );
     }
 
+    /// The mark draws above every node of the overlay, also above one
+    /// that a client puts there after the mark showed (C13).
+    #[test]
+    fn no_overlay_node_of_a_client_covers_the_mark() {
+        let mut core = Core::with_renderer();
+        let output = core.add_output("test-1", (64, 48));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut cover = core.named("cover");
+        let to = json!({"events": [{"pointer_move": {"position": [10.0, 10.0]}}]});
+        agent.ok(&mut core, "input.inject", to);
+        let props = json!({"size": [64, 48], "color": [1.0, 0.0, 0.0, 1.0]});
+        let create = json!({"id": "c", "kind": "rect", "parent": "screen:test-1", "props": props});
+        cover.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": create}]}),
+        );
+        let pixels = core.state.output_pixels(&output).unwrap();
+        let pixel = |x: usize, y: usize| {
+            let at = (y * pixels.width as usize + x) * 4;
+            pixels.rgba[at..at + 4].to_vec()
+        };
+        assert_eq!(pixel(2, 2), [255, 0, 0, 255], "the cover draws");
+        assert_eq!(pixel(22, 22), [255, 255, 0, 255], "the mark draws on top");
+    }
+
     #[test]
     fn the_list_of_held_keys_follows_presses_and_releases() {
         let mut down = Vec::new();
