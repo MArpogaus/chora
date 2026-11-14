@@ -12,7 +12,7 @@ packages. All logs are in the container under `/home/user/logs` and do not outli
 | 1. F14 construct deaf while xp is stopped | fixed | red `1156cbb2`, fix `41c1424b` |
 | 2. F13 click during a step of the cube | fixed | red `4971476a`, fix `57b1846a` |
 | 3. cube flick under load | fixed | red `52bebe0a`, fix `55c527d4` |
-| 3. "the window does not float during a turn" | not reproduced (0 of 28 loaded runs) | none |
+| 3. "the window does not float during a turn" | not reproduced (0 of 19 loaded runs) | none |
 | 4. F10/F11 | fixed in r1 on this branch (`df768e4b`, `7399d792`), not touched | none |
 | 4. F2, F3, C2 | already in the session branch (`cdaa648b`, `9e0842e0`, `wm::child_command`) | none |
 | 4. F7, A5, A17, F4 to F6 | not started: no context left after the gates | none |
@@ -20,7 +20,7 @@ packages. All logs are in the container under `/home/user/logs` and do not outli
 **F14.** Cause: after the step in, `Construct::land` asked every floating face in one round
 (two faces, 400 ms wait each), and the next round was due 500 ms after the *start* of the
 round, so it began at once. The construct handled one event per 800 ms. Evidence: with xp
-stopped, six `construct.list` calls took 2462 to 2553 ms each; the gate cell failed in 4 of 9
+stopped, six `construct.list` calls took 2462 to 2553 ms each; the gate cell failed in 4 of 8
 runs without load. Fix: the first face without an answer ends the round of the landing too,
 and the next round starts 500 ms after the wait. No timeout was raised; the cell now makes
 three timed calls. Green: 16 to 485 ms per call in 19 of 19 loaded runs that reached the cell.
