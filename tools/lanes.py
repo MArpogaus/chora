@@ -1,190 +1,161 @@
 #!/usr/bin/env python3
-"""Print the live lanes of the PM session (read-only): subagents, chora processes, merged worktrees, disk, PM context.
+"""PM guard report: one line per flag, or "lanes: ok". Exit 0 (a report) unless --strict and a flag.
 
-Usage: python3 tools/lanes.py [--all]   (--all lists finished subagents too)
-Exit status 1 when any flag is raised. Flags: fewer than two lanes (running local subagents plus the
-cloud workers under "Lanes:" of state.md Now), subagent context above 250k, opus or fable builders, chora process older than 1 h,
-worktree merged into the session branch, PM context above 400k and grown since the last run, stored in /tmp/lanes-pm-context ("compact now").
-Reviewer and judge agents (description or prompt with review, judge or reflection) are not lanes.
+Reads state.md (## Lanes table, ## Queue) and git. Flags:
+  rule 1  a lane row names no Queue item (queue N, its lane name in a Queue line) or criterion (rc N)
+  rule 1  a Queue line without an "(rc ...)" or "(process)" tag
+  rule 8  a Lanes row marked reviewed or MERGE-OK whose commit is not in the base branch and whose
+          review report (reports/pixel-*.md naming the commit or lane, or a time in the row) is over 12 h old
+  rule 9  more than 3 commits on claude/session-log in the last hour
+  rule 5  more than four lanes
+The fetch of the base branch is tolerant of no network (the local ref is used).
+Usage: python3 tools/lanes.py [--strict] [--root DIR] [--code DIR] [--now YYYY-MM-DDTHH:MM]
 """
 import argparse
-import json
-import os
-import shutil
-import sys
+import re
 import subprocess
-import time
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-SESSION = Path("/root/.claude/projects/-home-user/8a28ab73-2182-54dd-8448-69a0fbb58e8a")
-MAIN = SESSION.with_suffix(".jsonl")
-WT = Path("/home/user/wt")
+ROOT = Path(__file__).resolve().parent.parent
 CODE = Path("/home/user/chora")
-BASE = "origin/claude/autonomous-dev-session-3w-i33pg7"
-AGENT_CONTEXT_LIMIT = 250_000
-STATE = Path("/home/user/wt/log/state.md")
-MIN_LANES = 2
-PM_CONTEXT_LIMIT = 400_000
-PROCESS_AGE_LIMIT = 3600
-ACTIVE_WINDOW = 1800
-HEAVY = ("opus", "fable")
-REVIEW_WORDS = ("review", "judge", "reflection")
-LAST_CONTEXT = Path("/tmp/lanes-pm-context")
+BASE_BRANCH = "claude/autonomous-dev-session-3w-i33pg7"
+LOG_BRANCH = "claude/session-log"
+MAX_LANES = 4
+MAX_COMMITS_HOUR = 3
+REVIEW_MAX_AGE = timedelta(hours=12)
+TAG = re.compile(r"\((?:rc [^)]*|process)\)")
+REVIEWED = re.compile(r"(?<!un)reviewed|merge-ok", re.I)
+COMMIT = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b")
+TIME = re.compile(r"(?:(\d{4})-)?(\d{2})-(\d{2})[ T]+(\d{2}):(\d{2})")
 
 
-def ago(seconds):
-    if seconds < 3600:
-        return f"{int(seconds // 60)}m"
-    return f"{seconds / 3600:.1f}h"
-
-
-def last_turn(path):
-    model, context = "?", 0
-    with open(path, "rb") as f:
-        f.seek(max(0, os.path.getsize(path) - 400_000))
-        for raw in f.read().splitlines()[1:]:
-            try:
-                d = json.loads(raw)
-            except ValueError:
-                continue
-            msg = d.get("message")
-            if d.get("type") == "assistant" and isinstance(msg, dict) and msg.get("usage"):
-                u = msg["usage"]
-                context = u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
-                model = msg.get("model", model)
-    return model, context
-
-
-def is_reviewer(meta):
-    text = f"{meta.get('description') or ''} {meta.get('prompt') or ''}".lower()
-    return any(word in text for word in REVIEW_WORDS)
-
-
-def compact_flag(context, last_file=LAST_CONTEXT):
-    try:
-        last = int(Path(last_file).read_text())
-    except (OSError, ValueError):
-        last = 0
-    try:
-        Path(last_file).write_text(f"{context}\n")
-    except OSError:
-        pass
-    return "compact now" if context > PM_CONTEXT_LIMIT and context > last else ""
-
-
-def subagents(show_all):
-    rows, now = [], time.time()
-    for p in SESSION.glob("subagents/*.jsonl"):
-        meta = {}
-        try:
-            meta = json.loads(p.with_suffix(".meta.json").read_text())
-        except (OSError, ValueError):
-            pass
-        if is_reviewer(meta):
-            continue
-        idle = max(0, now - p.stat().st_mtime)
-        if meta.get("finished") and not show_all:
-            continue
-        if idle > ACTIVE_WINDOW and not show_all:
-            continue
-        model, ctx = last_turn(p)
-        desc = (meta.get("description") or p.stem)[:38]
-        flags = []
-        if ctx > AGENT_CONTEXT_LIMIT:
-            flags.append("CONTEXT>250k")
-        if any(h in model for h in HEAVY) and "build" in (meta.get("description") or "").lower():
-            flags.append("HEAVY BUILDER")
-        rows.append((idle, desc, model.replace("claude-", ""), ago(idle), f"{ctx // 1000}k", " ".join(flags)))
-    rows.sort()
-    return [r[1:] for r in rows]
-
-
-def chora_processes():
-    out = subprocess.run(["ps", "-eo", "pid,etimes,args"], capture_output=True, text=True).stdout
-    rows = []
-    for line in out.splitlines()[1:]:
-        pid, age, args = line.split(None, 2)
-        exe = args.split()[0]
-        if os.path.basename(exe).startswith("chora") and "flock" not in args:
-            flag = "OLDER THAN 1h" if int(age) > PROCESS_AGE_LIMIT else ""
-            rows.append((pid, ago(int(age)), os.path.basename(exe), flag))
-    return rows
-
-
-def merged_worktrees():
-    out = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=CODE, capture_output=True, text=True).stdout
-    rows = []
-    for block in out.split("\n\n"):
-        fields = dict(l.split(" ", 1) for l in block.splitlines() if " " in l)
-        path = fields.get("worktree", "")
-        if not path.startswith(str(WT)) or "branch" not in fields:
-            continue
-        head = fields["HEAD"]
-        branch = fields["branch"].replace("refs/heads/", "")
-        created = subprocess.run(
-            ["git", "reflog", "show", "--format=%H", fields["branch"]], cwd=CODE, capture_output=True, text=True
-        ).stdout.split()
-        merged = subprocess.run(["git", "merge-base", "--is-ancestor", head, BASE], cwd=CODE).returncode == 0
-        if created and created[-1] == head:
-            flag = "fresh lane"
-        else:
-            flag = "MERGED, remove" if merged else ""
-        rows.append((os.path.basename(path), branch, flag))
-    return rows
-
-
-def cloud_lanes():
-    try:
-        text = STATE.read_text()
-    except OSError:
-        return 0
-    count, on = 0, False
+def section(text, title):
+    out, on = [], False
     for line in text.splitlines():
-        if line.startswith("Lanes:"):
-            on = True
-        elif on and line.startswith("- "):
-            lower = line.lower()
-            count += "cloud" in lower and "done" not in lower
-        elif on and not line.strip():
-            break
-    return count
+        if line.startswith("## "):
+            on = line[3:].split(" (")[0].strip() == title
+        elif on:
+            out.append(line)
+    return out
 
 
-def pm_context():
-    model, ctx = last_turn(MAIN)
-    return model.replace("claude-", ""), ctx, compact_flag(ctx)
+def lane_rows(text):
+    rows = [[c.strip() for c in l.strip().strip("|").split("|")] for l in section(text, "Lanes") if l.lstrip().startswith("|")]
+    return [r for r in rows[1:] if not all(re.fullmatch(r":?-+:?", c) for c in r)]
 
 
-def table(title, header, rows):
-    print(f"\n{title}")
-    if not rows:
-        print("  none")
-        return 0
-    widths = [max(len(str(x)) for x in col) for col in zip(header, *rows)]
-    for r in (header, *rows):
-        print("  " + "  ".join(str(c).ljust(w) for c, w in zip(r, widths)).rstrip())
-    return sum(1 for r in rows if r[-1] and r[-1] != "fresh lane")
+def queue_lines(text):
+    return [l for l in section(text, "Queue") if re.match(r"\s*\d+\.\s", l)]
+
+
+def names_queue_or_criterion(row, queue):
+    joined = " ".join(row).lower()
+    if re.search(r"\b(?:queue|q)\s*#?\d+\b|\brc\s*\d+", joined):
+        return True
+    name = row[0].lower()
+    return bool(name) and any(name in q.lower() for q in queue)
+
+
+def row_time(row, now):
+    times = [
+        datetime(int(y or now.year), int(mo), int(d), int(h), int(mi), tzinfo=timezone.utc)
+        for y, mo, d, h, mi in TIME.findall(" ".join(row))
+    ]
+    return max(times) if times else None
+
+
+def flags(state, now, recent_commits, in_base, report_time):
+    """in_base(commit) -> bool; report_time(row, commits) -> datetime or None (pixel report time)."""
+    out = []
+    rows, queue = lane_rows(state), queue_lines(state)
+    for row in rows:
+        if not names_queue_or_criterion(row, queue):
+            out.append(f"rule 1: lane '{row[0]}' names no Queue item or criterion")
+    for line in queue:
+        if not TAG.search(line):
+            out.append(f"rule 1: Queue line without (rc ...) or (process): {line.strip()[:70]}")
+    for row in rows:
+        if not REVIEWED.search(" ".join(row)):
+            continue
+        commits = COMMIT.findall(" ".join(row))
+        open_commits = [c for c in commits if not in_base(c)]
+        if not open_commits:
+            continue
+        times = [t for t in (row_time(row, now), report_time(row, open_commits)) if t]
+        if not times:
+            out.append(f"rule 8: lane '{row[0]}' reviewed, {open_commits[0]} not in base, review time unknown")
+        elif now - max(times) > REVIEW_MAX_AGE:
+            hours = (now - max(times)).total_seconds() / 3600
+            out.append(f"rule 8: lane '{row[0]}' reviewed {hours:.0f} h ago, {open_commits[0]} not in base: merge")
+    last_hour = [t for t in recent_commits if now - t <= timedelta(hours=1)]
+    if len(last_hour) > MAX_COMMITS_HOUR:
+        out.append(f"rule 9: {len(last_hour)} commits on {LOG_BRANCH} in the last hour, limit {MAX_COMMITS_HOUR}")
+    if len(rows) > MAX_LANES:
+        out.append(f"rule 5: {len(rows)} lanes, limit {MAX_LANES}")
+    return out
+
+
+def git(root, *args, timeout=30):
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=timeout)
+
+
+def recent_commit_times(root):
+    ref = LOG_BRANCH if git(root, "rev-parse", "--verify", "-q", LOG_BRANCH).returncode == 0 else "HEAD"
+    out = git(root, "log", "-n", "50", "--format=%ct", ref).stdout.split()
+    return [datetime.fromtimestamp(int(t), timezone.utc) for t in out]
+
+
+def make_in_base(code):
+    try:
+        git(code, "fetch", "-q", "origin", BASE_BRANCH, timeout=20)
+    except (subprocess.TimeoutExpired, OSError):
+        pass  # no network: the local ref is used (rule 8)
+    base = f"origin/{BASE_BRANCH}"
+    return lambda commit: git(code, "merge-base", "--is-ancestor", commit, base).returncode == 0
+
+
+def make_report_time(root):
+    def report_time(row, commits):
+        keys = [c[:7] for c in commits] + [w for w in re.split(r"\W+", row[0].lower()) if len(w) > 2]
+        best = None
+        for path in (root / "reports").glob("pixel-*.md"):
+            try:
+                text = path.read_text().lower()
+            except OSError:
+                continue
+            if any(c[:7] in text or c[:7] in path.name for c in commits) or (
+                not commits and any(k in path.name.lower() for k in keys)
+            ):
+                moment = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+                best = max(best, moment) if best else moment
+        return best
+
+    return report_time
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--all", action="store_true")
+    ap.add_argument("--strict", action="store_true")
+    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--code", default=str(CODE))
+    ap.add_argument("--now")
     args = ap.parse_args()
-    flags = 0
-    agents = subagents(args.all)
-    flags += table("subagents (unfinished or active in 30 min)", ("agent", "model", "idle", "context", "flag"), agents)
-    flags += table("chora processes", ("pid", "age", "name", "flag"), chora_processes())
-    flags += table("worktrees", ("dir", "branch", "flag"), merged_worktrees())
-    free = shutil.disk_usage("/home").free / 2**30
-    print(f"\ndisk free: {free:.1f} GB" + ("  LOW" if free < 8 else ""))
-    flags += free < 10
-    model, ctx, flag = pm_context()
-    print(f"PM context: {ctx // 1000}k ({model}) {flag}".rstrip())
-    flags += bool(flag)
-    lanes = len(agents) + cloud_lanes()
-    print(f"lanes: {lanes} running (local subagents plus cloud workers in state.md)" + ("  FEWER THAN TWO LANES" if lanes < MIN_LANES else ""))
-    flags += lanes < MIN_LANES
-    return 1 if flags else 0
+    root = Path(args.root)
+    now = datetime.fromisoformat(args.now).replace(tzinfo=timezone.utc) if args.now else datetime.now(timezone.utc)
+    try:
+        state = (root / "state.md").read_text()
+    except OSError as e:
+        print(f"lanes: cannot read state.md: {e}")
+        return 1 if args.strict else 0
+    try:
+        recent = recent_commit_times(root)
+    except (subprocess.TimeoutExpired, OSError, ValueError):
+        recent = []
+    found = flags(state, now, recent, make_in_base(Path(args.code)), make_report_time(root))
+    print("\n".join(found) if found else "lanes: ok")
+    return 1 if found and args.strict else 0
 
 
 if __name__ == "__main__":
