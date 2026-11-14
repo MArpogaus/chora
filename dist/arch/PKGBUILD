@@ -11,17 +11,17 @@ url='https://github.com/MArpogaus/chora'
 # fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md),
 # chora-voice the MIT model of Silero VAD.
 license=('GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND MIT AND OFL-1.1 AND CC-BY-SA-4.0')
-depends=(gcc-libs glibc libdisplay-info libdrm libinput libxkbcommon mesa seatd systemd-libs wayland)
+depends=(fontconfig 'fuzzel>=1.11' gcc-libs glibc libdisplay-info libdrm libinput libxkbcommon mesa seatd systemd-libs wayland)
 makedepends=(cargo pkgconf)
 optdepends=(
   'uwsm: the sessions managed by uwsm'
   'foot: the terminal of the tiling flavor'
-  'fuzzel: the launcher of the tiling flavor (1.11 or later for the mouse)'
   'grim: the screenshots of the tiling flavor'
   'slurp: the area of a screenshot of the tiling flavor'
   'wl-clipboard: the clipboard copy of a screenshot of the tiling flavor'
   'libnotify: the notices of the tiling flavor (notify-send)'
   'inter-font: the labels of the tiling flavor and of chora-mc'
+  'ttf-dejavu: the fallback faces of chora-assistant (DejaVu Sans, Serif, Sans Mono)'
   'ttf-jetbrains-mono: the font of foot in the tiling flavor'
   'waybar: the panel of the tiling flavor'
   'mako: the notifications of the tiling flavor'
