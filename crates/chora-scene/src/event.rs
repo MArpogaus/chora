@@ -529,4 +529,19 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn a_move_and_a_release_carry_the_time_of_their_input() {
+        use super::Event;
+        for name in ["pointer.moved", "pointer.released"] {
+            let params = serde_json::json!({"event": name, "node": "face", "button": 272,
+                "position": [440.0, 400.0], "time": 81_234});
+            let event: Event = serde_json::from_value(params).expect("a pointer event");
+            assert_eq!(
+                serde_json::to_value(&event).unwrap()["time"],
+                81_234,
+                "{name} lost the time of the input"
+            );
+        }
+    }
 }
