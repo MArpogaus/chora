@@ -316,6 +316,29 @@ impl<A> Runtime<A> {
         Ok(())
     }
 
+    /// Starts a new set of grabs, which [`Self::end_grabs`] completes.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::ungrab_all`].
+    pub fn start_grabs(&mut self) -> Result<(), ClientError> {
+        self.ungrab_all()
+    }
+
+    /// Ends the set of grabs that [`Self::start_grabs`] started.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::ungrab_all`].
+    #[allow(
+        clippy::unnecessary_wraps,
+        clippy::unused_self,
+        reason = "the next commit lets the rest go here"
+    )]
+    pub fn end_grabs(&mut self) -> Result<(), ClientError> {
+        Ok(())
+    }
+
     /// The action of a grabbed binding, as the core names it.
     #[must_use]
     pub fn action(&self, binding: &str) -> Option<&A> {
@@ -737,6 +760,47 @@ mod tests {
         released.store(true, Ordering::SeqCst);
         rt.grab_give_keys().unwrap();
         assert_eq!(rt.action("Alt+Super+2"), Some(&"xp"));
+    }
+
+    #[test]
+    fn a_binding_of_the_old_and_the_new_set_of_grabs_is_never_free() {
+        use std::sync::{Arc, Mutex};
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&calls);
+        let (path, _core) = fake_core::serve(move |method, params| {
+            if method.starts_with("input.") {
+                let binding = params["binding"].as_str().unwrap_or_default();
+                seen.lock().unwrap().push(format!("{method} {binding}"));
+            }
+            match method {
+                "input.grab" => Answer::Result(params["binding"].clone()),
+                _ => Answer::Result(Value::Null),
+            }
+        });
+        let conn = Conn::connect_at("construct", &path).unwrap();
+        let mut rt: Runtime<u8> = Runtime::with(conn, "construct", Vec::new());
+        let binding = |key: &str| key.parse::<Binding>().unwrap();
+        rt.grab(binding("Alt+Escape"), 1).unwrap();
+        rt.grab(binding("Super+t"), 1).unwrap();
+        rt.start_grabs().unwrap();
+        rt.grab(binding("Alt+Escape"), 2).unwrap();
+        rt.grab(binding("Super+x"), 2).unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            *calls.lock().unwrap(),
+            [
+                "input.grab Alt+Escape",
+                "input.grab Super+t",
+                "input.grab Super+x",
+                "input.ungrab Super+t",
+            ]
+        );
+        assert_eq!(rt.action("Alt+Escape"), Some(&2));
+        assert_eq!(rt.action("Super+x"), Some(&2));
+        assert_eq!(rt.action("Super+t"), None);
     }
 
     struct Recorder {
