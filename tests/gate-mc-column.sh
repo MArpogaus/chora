@@ -46,7 +46,7 @@ shot() { ctl capture "${SHOTS:-/tmp}/mc-column-$1.png" >/dev/null || fail "captu
 
 until_ok 'has_text "AGENDA"' || fail "no first screen: $(texts | tr '\n' '|')"
 
-for t in "Super+F1" "All keys" "Super+ ← →" "Turn the page" "Super+Space" "Start a program" \
+for t in "Super+F1" "All keys" "← →" "Turn the page" "Super+Space" "Start a program" \
     "Super+n" "Hide this column" "Esc" "Back one step"; do
     has_text "$t" || fail "the key list lacks \"$t\" on the first screen"
 done

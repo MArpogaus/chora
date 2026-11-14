@@ -511,7 +511,7 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one also shows in red in the text `urgent` until the next one |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red in the text `urgent`, until the next one or a click on that line of the footer, which leaves it in `notify` |
 | `notify.clear` | none; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
@@ -605,7 +605,10 @@ with `settings.reload`:
   its place. First come the scenes of the list. The others follow in the
   order they appear, such as new scenes and those of `app.open`, so that
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
-  scene file may set its own `chapter.number`.
+  scene file may set its own `chapter.number`. On a page, which has no
+  program, Right and Left alone turn the page as well, and Escape goes
+  back one step: it closes the full key list, else it shows the page that
+  showed before.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as

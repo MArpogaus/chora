@@ -19,6 +19,7 @@ mod config;
 mod fonts;
 mod keys;
 mod manage;
+mod mic;
 mod region;
 mod scene;
 #[cfg(test)]
@@ -269,6 +270,8 @@ struct Mc {
     rt: Runtime<Action>,
     /// Whether mc claims its output (`--manage-windows`).
     manage_windows: bool,
+    /// Whether a page takes the keyboard for its plain keys.
+    page_keys: keys::PageKeys,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -291,6 +294,11 @@ struct Mc {
     current: Option<String>,
     /// The scene before the current one.
     previous: Option<String>,
+    /// The microphone of the voice agent, for the word of the state line.
+    mic: mic::Mic,
+    /// The scenes that showed before the current one, the last one last:
+    /// Escape on a page goes back along them.
+    trail: Vec<String>,
     /// The one output that the plugin fills.
     output: Option<OutputInfo>,
     /// Whether the nodes exist.
@@ -331,6 +339,9 @@ struct Mc {
     shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
+    /// The surface that has the keyboard focus of the core, from
+    /// `focus.changed`.
+    core_focus: Option<String>,
     /// The window that a `drag` binding holds since its press.
     dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
@@ -419,6 +430,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let rt = Runtime::connect(NAME, args.output.clone().into_iter().collect())?;
     let mut mc = Mc::new(rt, settings, dir, [shader, blur]);
     mc.manage_windows = args.manage_windows;
+    if args.output.is_some() {
+        mc.page_keys = keys::PageKeys::Bound;
+    }
     mc.start(methods)?;
     // The kit logged it; the defaults that apply show notify.
     if let Some(err) = mc.settings.broken() {
@@ -475,6 +489,7 @@ impl Mc {
         let mut mc = Self {
             rt,
             manage_windows: false,
+            page_keys: keys::PageKeys::Plain,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -486,6 +501,8 @@ impl Mc {
             launched: Vec::new(),
             current: None,
             previous: None,
+            mic: mic::Mic::default(),
+            trail: Vec::new(),
             output: None,
             built: false,
             hud: SetHud {
@@ -508,6 +525,7 @@ impl Mc {
             shape: None,
             rendered: None,
             focused: None,
+            core_focus: None,
             dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,
@@ -536,8 +554,10 @@ const ASSISTANT: &str = "assistant";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 17] = [
+const EVENTS: [&str; 19] = [
     "voice.*",
+    "focus.changed",
+    "node.key",
     "assistant.chat",
     "assistant.ready",
     "effects.dropped",
@@ -555,6 +575,9 @@ const EVENTS: [&str; 17] = [
     "output.changed",
     "output.removed",
 ];
+
+/// The most scenes that Escape goes back along.
+const TRAIL: usize = 32;
 
 /// The methods; those that start programs or write files are privileged
 /// (D62), because a caller with `methods.call` alone must not run commands.
@@ -802,9 +825,7 @@ impl Plugin for Mc {
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
-                self.claim_due = true;
-                self.claim_indicator(false);
-                Ok(())
+                self.voice_changed()
             }
             Event::InputKey {
                 binding,
@@ -829,6 +850,19 @@ impl Plugin for Mc {
                 client,
                 data,
             } => self.emitted(&event, &client, data),
+            Event::FocusChanged { surface } => {
+                self.core_focus = surface;
+                Ok(())
+            }
+            Event::NodeKey {
+                key,
+                state: PressState::Pressed,
+                modifiers,
+                ..
+            } => {
+                self.page_key(&key, &modifiers);
+                Ok(())
+            }
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             Event::PointerPressed {
                 node,
@@ -1010,6 +1044,10 @@ impl Mc {
             self.claim_indicator(true);
         }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
+        let own_state = client == VOICE && kind == Some("state") && data.get("name").is_none();
+        if own_state && self.mic_follows(mic::Mic::of(&data)) {
+            self.render()?;
+        }
         let host = client == VOICE && self.settings.value.voice_hud == config::VoiceHud::Host;
         let hosts_it = match kind {
             Some("confirm" | "say") => true,
@@ -1069,7 +1107,7 @@ impl Mc {
     /// A press of the pointer: on a column of a helper it opens the chat,
     /// else it is a click.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.click_agent(node, at) || self.click_hit(node) {
+        if self.click_agent(node, at) || self.click_mic(node, injected) || self.click_hit(node) {
             return Ok(());
         }
         self.click(node, at, injected)
@@ -1089,7 +1127,89 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
-        self.render()
+        self.render()?;
+        let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
+        let mut ours = self.windows.values().chain(self.docks.values());
+        let taken = (self.core_focus.as_ref()).is_some_and(|s| !ours.any(|o| o == s));
+        if open || still_open || taken {
+            return Ok(());
+        }
+        let commands = self.keyboard_back();
+        self.apply(commands)
+    }
+
+    /// Gives the keyboard to the page that shows, when no window and no
+    /// node has it: at the start and after the chat of the host closed,
+    /// so that the plain keys of a page work without a click.
+    fn take_free_keyboard(&mut self) -> Result<(), ClientError> {
+        let Some(name) = self.current.clone() else {
+            return Ok(());
+        };
+        if self.page_keys == keys::PageKeys::Bound || self.windows.contains_key(&name) {
+            return Ok(());
+        }
+        let query = Query {
+            selector: "*".into(),
+            filter: Some(chora_scene::ipc::Filter {
+                focused: true,
+                ..chora_scene::ipc::Filter::default()
+            }),
+        };
+        let focused: Vec<Value> = self.rt.conn.call("scene.query", query)?;
+        if !focused.is_empty() {
+            return Ok(());
+        }
+        self.apply(vec![Command::FocusNode {
+            node: Some(page_id(&name)),
+        }])
+    }
+
+    /// The voice agent came or went: its indicator is due again, and the
+    /// state of its microphone is unknown until its next state.
+    fn voice_changed(&mut self) -> Result<(), ClientError> {
+        self.claim_due = true;
+        self.claim_indicator(false);
+        if self.mic_follows(mic::Mic::Unknown) {
+            self.render()?;
+        }
+        Ok(())
+    }
+
+    /// A key without a modifier while a page has the keyboard: Right and
+    /// Left turn the page, Escape goes back one step.
+    fn page_key(&mut self, key: &str, modifiers: &[String]) {
+        let action = match key {
+            _ if !modifiers.is_empty() => return,
+            "Right" => Action::NextScene,
+            "Left" => Action::PreviousScene,
+            "Escape" => return self.back(),
+            _ => return,
+        };
+        self.turn(action);
+    }
+
+    /// One step back: the full key list closes; else the page that showed
+    /// before shows again, and at the end of that trail the first page.
+    fn back(&mut self) {
+        if self.keys == keys::List::All {
+            self.keys = keys::List::Six;
+            if let Err(err) = self.render() {
+                eprintln!("chora-mc: keys: {err}");
+            }
+            return;
+        }
+        let current = self.current.clone();
+        let known =
+            |name: &String| self.scenes.contains_key(name) && Some(name) != current.as_ref();
+        let mut trail = std::mem::take(&mut self.trail);
+        let back = std::iter::from_fn(|| trail.pop()).find(known);
+        let first = Some(self.settings.value.default_scene.clone()).filter(known);
+        if let Some(name) = back.or(first)
+            && let Err(err) = self.show(&name, true)
+        {
+            eprintln!("chora-mc: {name}: {}", err.message);
+        }
+        self.trail = trail;
     }
 
     /// Names the theme of mc to the HUD host, which colours its look by it.
@@ -1414,6 +1534,7 @@ impl Mc {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
         self.autostart();
+        self.take_free_keyboard()?;
         self.claim_indicator(false);
         let free: Vec<Value> = self
             .rt
@@ -2538,14 +2659,9 @@ impl Mc {
         }
         let window = self.windows.get(name).cloned();
         if user {
-            self.focused.clone_from(&window);
-            commands.push(Command::Focus {
-                surface: window.clone(),
-            });
+            commands.extend(self.keyboard_to(name, window.clone()));
         }
-        if self.current.as_deref() != Some(name) {
-            self.previous = self.current.replace(name.into());
-        }
+        self.step_to(name);
         commands.push(pane_tag_update(name));
         // The regions switch in the same transaction as the scene.
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
@@ -2559,6 +2675,45 @@ impl Mc {
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         Ok(())
+    }
+
+    /// The keyboard for a scene that the user shows: to its window, or to
+    /// the node of a page, so that the plain keys of the page arrive. An
+    /// open chat keeps the keyboard.
+    fn keyboard_to(&mut self, name: &str, window: Option<String>) -> Vec<Command> {
+        self.focused.clone_from(&window);
+        if self.chat == Chat::Open {
+            return Vec::new();
+        }
+        let plain = self.page_keys == keys::PageKeys::Plain;
+        let page = (plain && window.is_none()).then(|| Command::FocusNode {
+            node: Some(page_id(name)),
+        });
+        let focus = Command::Focus { surface: window };
+        std::iter::once(focus).chain(page).collect()
+    }
+
+    /// The keyboard for the scene that shows, after the chat closed: the
+    /// focus that `keyboard_to` held back while the chat had the keyboard,
+    /// or the docked app that had it.
+    fn keyboard_back(&mut self) -> Vec<Command> {
+        let Some(name) = self.current.clone() else {
+            return Vec::new();
+        };
+        let docked = (self.focused.clone()).filter(|f| self.docks.values().any(|d| d == f));
+        let window = docked.or_else(|| self.windows.get(&name).cloned());
+        self.keyboard_to(&name, window)
+    }
+
+    /// Makes `name` the current scene and puts the one before on the trail.
+    fn step_to(&mut self, name: &str) {
+        if self.current.as_deref() == Some(name) {
+            return;
+        }
+        self.previous = self.current.replace(name.into());
+        self.trail.extend(self.previous.clone());
+        let extra = self.trail.len().saturating_sub(TRAIL);
+        self.trail.drain(..extra);
     }
 
     /// Starts the app of a scene, whose window then fills its text block.
@@ -3057,6 +3212,11 @@ impl Mc {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
         };
+        self.turn(action);
+    }
+
+    /// Does an action of a binding.
+    fn turn(&mut self, action: Action) {
         let names = self.order();
         let at = self
             .current
@@ -3246,6 +3406,83 @@ mod tests {
         assert!(prev.slot < 0, "the previous page stands at the left");
     }
 
+    fn press_key(mc: &mut super::Mc, key: &str, modifiers: &[&str]) {
+        use chora_kit::runtime::Plugin as _;
+        mc.event(chora_scene::Event::NodeKey {
+            node: super::page_id("agenda"),
+            key: key.into(),
+            code: 0,
+            state: chora_scene::ipc::PressState::Pressed,
+            modifiers: modifiers.iter().map(|m| (*m).to_owned()).collect(),
+            text: None,
+        })
+        .unwrap();
+    }
+
+    /// On a page the arrows alone turn it, Escape goes back along the
+    /// pages that showed and first closes the full key list; a key with a
+    /// modifier is not a key of the page.
+    #[test]
+    fn plain_arrows_turn_the_page_and_escape_goes_back_one_step() {
+        let (mut mc, _model) = crate::testing::mc("plain-keys", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        press_key(&mut mc, "Right", &[]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Right", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agents"));
+        press_key(&mut mc, "Left", &[]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Right", &["Shift"]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agents"));
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        mc.keys = crate::keys::List::All;
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.keys, crate::keys::List::Six);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Escape", &[]);
+        press_key(&mut mc, "Escape", &[]);
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// A page that the user shows takes the keyboard with its node, so
+    /// that its plain keys arrive.
+    #[test]
+    fn a_page_that_the_user_shows_takes_the_keyboard() {
+        let (mut mc, model) = crate::testing::mc("page-keyboard", [1280, 800]);
+        mc.show("morning", true).unwrap();
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_node()
+            .map(str::to_owned);
+        assert_eq!(focused, Some(super::page_id("morning")));
+    }
+
+    /// Beside other window managers a page takes no keyboard, since the
+    /// node with the keyboard would draw their new windows to mc, and
+    /// the key list names the bindings.
+    #[test]
+    fn a_page_beside_other_window_managers_takes_no_keyboard() {
+        let (mut mc, model) = crate::testing::mc("page-no-keyboard", [1280, 800]);
+        mc.page_keys = crate::keys::PageKeys::Bound;
+        mc.show("morning", true).unwrap();
+        mc.take_free_keyboard().unwrap();
+        assert_eq!(model.lock().unwrap().scene.focused_node(), None);
+        let keys: Vec<String> = right_items(&mc)
+            .into_iter()
+            .filter_map(|item| item.props.text)
+            .collect();
+        assert!(
+            keys.contains(&"Super+\u{2009}←\u{2009}→".to_owned()),
+            "{keys:?}"
+        );
+    }
+
     fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {
         let name = mc.current.clone().unwrap();
         let mut plan = mc.items(&name);
@@ -3297,6 +3534,24 @@ mod tests {
             .find(|i| i.id.ends_with("-notify-title"))
             .unwrap();
         assert_eq!(head.props.text.as_deref(), Some("NOTIFICATIONS  0"));
+    }
+
+    /// An open chat keeps the keyboard; when it closes the page that
+    /// shows gets it, to its window or its node.
+    #[test]
+    fn the_keyboard_waits_for_the_chat_and_goes_to_the_page_after() {
+        let (mut mc, _) = crate::testing::mc("keyboard-chat", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.chat = crate::Chat::Open;
+        assert_eq!(mc.keyboard_to("agenda", None).len(), 0);
+        mc.chat = crate::Chat::Closed;
+        assert_eq!(mc.keyboard_back().len(), 2);
+        mc.windows.insert("agenda".into(), "s1".into());
+        let back = mc.keyboard_back();
+        assert!(matches!(
+            back.first(),
+            Some(Command::Focus { surface: Some(s) }) if s == "s1"
+        ));
     }
 
     /// With the voice HUD to the host the first line of the column stays
@@ -3555,6 +3810,74 @@ mod tests {
         assert_eq!(mc.chat_slot(), None);
         assert!(key_items(&mc, &first) > 0, "the key list is back");
         assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(Value::Null)));
+    }
+
+    /// A chat that moves to another output stays open and keeps the
+    /// keyboard: mc hands nothing back on its own output, neither when
+    /// the chat leaves nor when it closes there (review mc r4, C). The
+    /// host moves an open chat only when its output goes.
+    #[test]
+    fn a_chat_that_moves_to_another_output_keeps_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-moves", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let before = model.lock().unwrap().focuses.len();
+        mc.event(chat_event("assistant", true, "other")).unwrap();
+        mc.event(chat_event("assistant", false, "other")).unwrap();
+        assert_eq!(model.lock().unwrap().focuses.len(), before);
+    }
+
+    /// A window that the user clicked while the chat was open keeps the
+    /// keyboard when the chat closes.
+    #[test]
+    fn a_window_clicked_under_the_chat_keeps_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-click", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        mc.event(chora_scene::Event::FocusChanged {
+            surface: Some("s9".into()),
+        })
+        .unwrap();
+        let before = model.lock().unwrap().focuses.len();
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert_eq!(model.lock().unwrap().focuses.len(), before);
+    }
+
+    /// A window that the user clicked while the chat was open and that
+    /// closed leaves the keyboard to nobody: the page gets it back when
+    /// the chat closes.
+    #[test]
+    fn a_window_that_closes_under_the_chat_gives_the_keyboard_back() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-click-close", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        for surface in [Some("s9".to_owned()), None] {
+            mc.event(chora_scene::Event::FocusChanged { surface })
+                .unwrap();
+        }
+        let before = model.lock().unwrap().focuses.len();
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert!(model.lock().unwrap().focuses.len() > before);
+    }
+
+    /// A docked app that had the keyboard before the chat opened gets it
+    /// back when the chat closes.
+    #[test]
+    fn a_docked_app_gets_the_keyboard_back_when_the_chat_closes() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-dock", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.docks.insert("shell".into(), "dock1".into());
+        mc.focused = Some("dock1".into());
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert_eq!(
+            model.lock().unwrap().focuses.last(),
+            Some(&Some("dock1".to_owned()))
+        );
     }
 
     /// A page that is longer than the output scrolls (the mission scene
