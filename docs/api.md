@@ -1070,7 +1070,7 @@ in. `choractl clients create agent` prints its path:
     ends it.
   - A name that holds the focus of a node moves it to its other nodes
     without a press.
-  - No `create` or `move` puts a node under `screen:*` or below it.
+  - No `create`, `attach` or `move` puts a node under `screen:*` or below it.
   - No `camera` command works.
   - `attach`, `focus`, `close` and `configure` take only a window of its
     own `wayland.sock` or a surface that the name owns. `focus` needs a
