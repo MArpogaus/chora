@@ -24,11 +24,12 @@ rc target: 11-20 (was 11-18; recomputed 11-14 after W2-1). Next check: 11-16.
 |---|---|---|---|
 | flakes | local Fable, wt/flakes, claude/flakes | briefs/flakes-r1.md | queue 1; starting |
 | ci | cloud sonnet, claude/ci-rc | briefs/ci-r1.md | queue 2; starting |
+| doors | cloud Fable, claude/doors | briefs/doors-r1.md | queue 3; starting |
 
 ## Queue
 1. Flakes: core SIGSEGV pair, cube navigate-click, "xp runs already", construct deaf, chora-voice. (rc 3)
 2. CI draft PR, cargo deny, package build and install smoke. (rc 4, 5, 7)
-3. Findings ledgers, shared-doors decision, then main-path MAJOR fix lanes: xp, tiling, mc. (rc 1)
+3. Shared doors (findings/shared-doors.md, decided), then MAJOR fix lanes from findings/: mc, xp, tiling. (rc 1)
 4. Code review per area, core and security first; HIGH fixes. (rc 6)
 5. construct: MAJOR fixes only at d3843e0. (rc 1)
 6. One pixel pass per look, showcase stills, owner approval. (rc 1, 1b)

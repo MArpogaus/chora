@@ -26,4 +26,4 @@ RC bar: a visible way to start a program, the key list and the helper (mouse and
 - Each look adds one visible door per action in its own idiom: xp Start footer (Lock, Log Off fixed) and tray; tiling bar (add Helper); mc column foot; construct HUD corner.
 - Clock visible in all looks; "Chat with a helper" row in every launcher; the helper door always shows a state word, "No helper" included.
 - Cost: F1 no longer reaches clients (vim help); the actions come from the tiling scripts (power.sh, screenshot.sh) moved to a shared folder.
-Decision needed: key set above (yes/no) and F1 for clients. Then four fix lanes read sh-1..sh-11 once, not per look.
+PM decision 11-14: B, with one change: the key list opens on Super+F1 in every look (Super+/ silent alias); F1 is never grabbed and always reaches the client (POLS: F1 is app help; fixes xp-3). Lane: briefs/doors-r1.md.
