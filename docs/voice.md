@@ -235,7 +235,9 @@ digital gain control of WebRTC and turns off its noise suppression,
 the likely cause of the digital zero between the words (not yet
 verified on PipeWire).
 A transcript whose words match more than 80 % of the words spoken in the
-last 3 s is echo.
+last 3 s is echo. Echo is also no yes and no no to a question: a yes
+word at the end of the spoken question, heard again by the mic, answers
+nothing.
 
 Word matcher (no LLM):
 

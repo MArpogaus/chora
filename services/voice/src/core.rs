@@ -1091,6 +1091,10 @@ impl Core {
             }
             Some(Word::Sleep) => self.sleep(),
             Some(Word::Wake) => Vec::new(),
+            Some(Word::Always | Word::Yes | Word::No) if self.echo(&text) => {
+                crate::log::info("confirm: the echo of the question is no answer");
+                Vec::new()
+            }
             Some(Word::Always) => self.always(),
             Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
             None => self.text(text, answers),
