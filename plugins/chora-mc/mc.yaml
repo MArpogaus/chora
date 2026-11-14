@@ -166,7 +166,10 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # {solo: {content: NAME, region: REGION}}, which shows the content alone
 # in the region over any scene; the next press hides it again, or keys,
 # which shows all keys in the key list of the right side, or six again,
-# or chat, which asks the HUD host to open the chat.
+# or chat, which asks the HUD host to open the chat, or lock, power (the
+# menu with Lock, Log out, Restart and Shut down) and screenshot, which run
+# the scripts that every look shares, or {volume: up|down|mute}, which
+# changes the volume of the default sound output.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
@@ -179,6 +182,13 @@ bindings:
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
   Super+F1: keys
+  Super+slash: keys
+  Super+Shift+Escape: lock
+  Super+Shift+e: power
+  Super+Print: screenshot
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
   Super+F12: {solo: {content: overlay, region: drawer}}
   Super+BTN_LEFT: drag
 # The states of an agent of agent.set: the sign and the color of each,
@@ -211,7 +221,9 @@ regions:
 # agent.set, in the color of its state), text (lines of content.set and
 # content.add, with a title), app (a command docked in a side or the
 # drawer; {NAME} is the color NAME of the theme as RRGGBB; a scene's
-# app: can name such a content). Each may set a style. notify.push fills
+# app: can name such a content), chat (the door of the chat and its box),
+# keys (the key list) and doors (the launcher, lock, power, screenshot and
+# volume, two lines at the foot of a side). Each may set a style. notify.push fills
 # the texts notify and urgent; urgent shows in the middle of the footer,
 # where the header has no room left.
 contents:
@@ -233,6 +245,7 @@ contents:
   next: {kind: text}
   prev: {kind: text}
   keys: {kind: keys}
+  doors: {kind: doors}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
   # foot in the colors of the theme, also in the terminal scene, at 15
@@ -276,6 +289,7 @@ rules:
 - {content: notify, region: right, slot: 1}
 - {content: chat, region: right, slot: 5}
 - {content: keys, region: right, slot: 9}
+- {content: doors, region: right, slot: 10}
 # The arrangement of the regions: a name of presets. A preset sets which
 # regions show and its own rules; without rules, those above apply.
 #   quiet:  the header alone, the words of the agent in its middle
@@ -323,3 +337,4 @@ presets:
     - {content: notify, region: right, slot: 1}
     - {content: chat, region: right, slot: 5}
     - {content: keys, region: right, slot: 9}
+    - {content: doors, region: right, slot: 10}

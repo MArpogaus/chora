@@ -2,6 +2,8 @@
 //! with the words for what they do. Six rows show at the foot of the
 //! column; the key Super+F1 shows all of them.
 
+use chora_kit::volume::Change;
+
 use crate::config::{Action, Config};
 
 /// The words of an empty list of notifications.
@@ -86,11 +88,18 @@ pub fn short(config: &Config) -> Vec<Row> {
 /// Every binding as key and words, in the order of the tasks: the keys,
 /// the page, the scenes, programs, the chat, the column, the header and
 /// the footer, the rest, and Esc last. The two keys of the page are one
-/// row, as in the short list.
+/// row, as in the short list, and only the first key of the key list has
+/// a row: the others are aliases.
 pub fn all(config: &Config) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
+    let first_keys = (config.bindings.iter())
+        .find(|(_, a)| **a == Action::Keys)
+        .map(|(k, _)| k);
     for (key, action) in &config.bindings {
+        if *action == Action::Keys && Some(key) != first_keys {
+            continue;
+        }
         let (rank, at) = match action {
             Action::Keys => (0, 0),
             Action::NextScene => (1, 0),
@@ -101,6 +110,10 @@ pub fn all(config: &Config) -> Vec<Row> {
             Action::Toggle(region) => (6, usize::from(*region != crate::region::Region::Header)),
             Action::Solo { .. } => (7, 0),
             Action::Give(_) => (8, 0),
+            Action::Lock => (9, 0),
+            Action::Power => (9, 1),
+            Action::Screenshot => (9, 2),
+            Action::Volume(change) => (9, 3 + volume_order(*change)),
             Action::PreviousScene | Action::Drag => continue,
         };
         let row = match action {
@@ -138,10 +151,27 @@ fn words(action: &Action) -> Option<String> {
         Action::Solo { content, .. } => format!("Show the {content}"),
         Action::Keys => "All keys".to_owned(),
         Action::Chat => "Chat with a helper".to_owned(),
+        Action::Lock => "Lock the screen".to_owned(),
+        Action::Power => "Power menu".to_owned(),
+        Action::Screenshot => "Take a screenshot".to_owned(),
+        Action::Volume(Change::Up) => "Volume up".to_owned(),
+        Action::Volume(Change::Down) => "Volume down".to_owned(),
+        Action::Volume(Change::Mute) => "Mute or unmute".to_owned(),
+        Action::Volume(Change::Set(percent)) => format!("Set the volume to {percent}%"),
     })
 }
 
-/// A key as people read it: arrows for the arrow keys, a capital Space.
+fn volume_order(change: Change) -> usize {
+    match change {
+        Change::Up => 0,
+        Change::Down => 1,
+        Change::Mute => 2,
+        Change::Set(_) => 3,
+    }
+}
+
+/// A key as people read it: arrows for the arrow keys, a capital Space,
+/// and the labels of the volume keys as printed on a keyboard.
 /// A thin space after the plus keeps an arrow off it.
 pub fn human(key: &str) -> String {
     let mut out = String::new();
@@ -150,6 +180,9 @@ pub fn human(key: &str) -> String {
             "Left" => ("←", true),
             "Right" => ("→", true),
             "space" => ("Space", false),
+            "XF86AudioRaiseVolume" => ("Vol+", false),
+            "XF86AudioLowerVolume" => ("Vol-", false),
+            "XF86AudioMute" => ("Mute", false),
             other => (other, false),
         };
         if i > 0 {
@@ -202,10 +235,10 @@ mod tests {
     }
 
     #[test]
-    fn the_full_list_has_a_row_for_each_task_but_the_drag_and_one_for_the_page() {
+    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_alias_and_one_for_the_page() {
         let config = config();
         let rows = all(&config);
-        assert_eq!(rows.len(), config.bindings.len() - 1, "{rows:?}");
+        assert_eq!(rows.len(), config.bindings.len() - 2, "{rows:?}");
     }
 
     #[test]
@@ -223,9 +256,22 @@ mod tests {
             "Show or hide the header",
             "Show or hide the footer",
             "Show the overlay",
+            "Lock the screen",
+            "Power menu",
+            "Take a screenshot",
+            "Volume up",
+            "Volume down",
+            "Mute or unmute",
             "Back one step",
         ];
         assert_eq!(words, want);
+    }
+
+    #[test]
+    fn the_volume_keys_read_as_they_are_printed() {
+        assert_eq!(human("XF86AudioRaiseVolume"), "Vol+");
+        assert_eq!(human("XF86AudioLowerVolume"), "Vol-");
+        assert_eq!(human("XF86AudioMute"), "Mute");
     }
 
     #[test]

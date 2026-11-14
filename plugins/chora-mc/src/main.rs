@@ -61,6 +61,13 @@ const HUD: &str = "mc-hud";
 const TICK: &str = "mc-tick";
 /// The id of a hidden node whose empty animations time the clocks.
 const CLOCK: &str = "mc-clock";
+/// The id of a hidden node whose empty animations time the reading of the
+/// volume.
+const VOLUME: &str = "mc-volume";
+/// How often the plugin takes a reading of the volume, in milliseconds.
+const VOLUME_MS: f64 = 500.0;
+/// After how many timer runs the volume is read again by itself.
+const VOLUME_AGAIN: u32 = 10;
 /// The id of a hidden node whose empty animations time the look at the
 /// apps that started without a window yet.
 const WAIT: &str = "mc-wait";
@@ -341,10 +348,18 @@ struct Mc {
     dock_focus: Option<String>,
     /// The text of each clock.
     clocks: BTreeMap<String, String>,
+    /// The worker that reads and changes the volume.
+    volume: chora_kit::volume::Mixer,
+    /// The volume that the worker read last.
+    volume_reading: Option<chora_kit::volume::Reading>,
+    /// How often the volume timer ran.
+    volume_ticks: u32,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
+    /// The names of the helpers that voice reported.
+    voiced: Vec<String>,
     /// The agent that the agents scene shows alone, with its transcript.
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
@@ -512,8 +527,12 @@ impl Mc {
             quiet: BTreeSet::new(),
             dock_focus: None,
             clocks: BTreeMap::new(),
+            volume: chora_kit::volume::Mixer::new(NAME),
+            volume_reading: None,
+            volume_ticks: 0,
             texts: BTreeMap::new(),
             agents: Vec::new(),
+            voiced: Vec::new(),
             agent_focus: None,
             solo: None,
             keys: keys::List::default(),
@@ -799,9 +818,13 @@ impl Plugin for Mc {
                 node: Some(node), ..
             } => self.timer(&node),
             Event::EffectsDropped { client } if client == NAME => self.effects_dropped(),
-            Event::ClientConnected { name } | Event::ClientDisconnected { name }
-                if name == VOICE =>
-            {
+            Event::ClientDisconnected { name } if name == VOICE => {
+                self.voice_gone();
+                self.claim_due = true;
+                self.claim_indicator(false);
+                Ok(())
+            }
+            Event::ClientConnected { name } if name == VOICE => {
                 self.claim_due = true;
                 self.claim_indicator(false);
                 Ok(())
@@ -1024,6 +1047,9 @@ impl Mc {
                 if let Some(object) = data.as_object_mut() {
                     object.entry("name").or_insert_with(|| client.into());
                     object.retain(|key, _| agent::STATE_FIELDS.contains(&key.as_str()));
+                }
+                if client == VOICE {
+                    self.voiced(&data);
                 }
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
@@ -1302,12 +1328,29 @@ impl Mc {
                 self.apply(tick)?;
                 self.render()
             }
+            VOLUME => self.volume_tick(),
             PARKED => {
                 let late: Vec<String> = self.fitting.keys().cloned().collect();
                 late.iter().try_for_each(|surface| self.fit(surface))
             }
             _ => self.written(node),
         }
+    }
+
+    /// Takes the reading of the volume that the worker has, shows it when
+    /// it changed, and asks for a new one now and then.
+    fn volume_tick(&mut self) -> Result<(), ClientError> {
+        self.volume_ticks += 1;
+        if self.volume_ticks % VOLUME_AGAIN == 1 {
+            self.volume.refresh();
+        }
+        self.apply(vec![volume_wait()])?;
+        let reading = self.volume.take();
+        if reading.is_some_and(|r| Some(r) != self.volume_reading) {
+            self.volume_reading = reading;
+            self.render()?;
+        }
+        Ok(())
     }
 
     /// The watchdog of the core removed the effects of the plugin. An
@@ -1403,7 +1446,7 @@ impl Mc {
         self.name_theme()?;
         self.grab_all()?;
         self.build()?;
-        self.grab_drags()?;
+        self.grab_claimed()?;
         let first = self.order().into_iter().next();
         let default = Some(self.settings.value.default_scene.clone())
             .filter(|v| self.scenes.contains_key(v))
@@ -1433,9 +1476,9 @@ impl Mc {
     /// only logs.
     #[allow(clippy::expect_used, reason = "the settings check their bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
-        self.grab_some(|action| *action != Action::Drag)?;
+        self.grab_some(|action| !needs_claim(action))?;
         if self.built {
-            self.grab_drags()?;
+            self.grab_claimed()?;
         }
         self.rt.give_keys(Some(|to| Action::Give(to.into())));
         self.rt
@@ -1454,14 +1497,15 @@ impl Mc {
         Ok(())
     }
 
-    /// Grabs the `drag` bindings, after the build that sets the claim:
-    /// only window managers with a claim share a pointer button (D55),
-    /// so mc grabs none unless it manages windows.
-    fn grab_drags(&mut self) -> Result<(), ClientError> {
+    /// Grabs the `drag` and `volume` bindings, after the build that sets
+    /// the claim: only window managers with a claim share a pointer button
+    /// (D55) and grab a media key without a grant, so mc grabs none unless
+    /// it manages windows.
+    fn grab_claimed(&mut self) -> Result<(), ClientError> {
         if !self.manage_windows {
             return Ok(());
         }
-        self.grab_some(|action| *action == Action::Drag)
+        self.grab_some(needs_claim)
     }
 
     /// The claim: the work area of an output, below the header and above
@@ -1577,12 +1621,12 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
-        for id in [TICK, CLOCK, WAIT] {
+        for id in [TICK, CLOCK, WAIT, VOLUME] {
             commands.push(create(id, NodeKind::Group, NAME, PropsUpdate::default()));
         }
         // A build ends the wait of the old node.
         commands.extend((!self.launched.is_empty()).then(wait));
-        commands.extend(self.tick_clocks());
+        commands.extend(self.tick_clocks().into_iter().chain([volume_wait()]));
         commands.push(create(
             "mc-bg",
             NodeKind::Rect,
@@ -3054,9 +3098,46 @@ impl Mc {
     }
 
     pub fn act(&mut self, binding: &str) {
-        let Some(action) = self.rt.action(binding).cloned() else {
+        if let Some(action) = self.rt.action(binding).cloned() {
+            self.perform(action);
+        }
+    }
+
+    /// Runs a shared script as an app, or says that it is not installed.
+    fn run_shared(&mut self, script: &str, args: &[&str]) {
+        let Some(command) = chora_kit::shared::command(script, args) else {
+            self.notice(script, "The shared script is not installed.");
             return;
         };
+        let mint = self.rt.conn.activation_token();
+        let _ = launch(&command, mint.as_deref());
+    }
+
+    /// Runs the launcher with the shared entries of every look in its list.
+    fn launcher(command: &str) -> String {
+        let current = std::env::var("XDG_DATA_DIRS").ok();
+        match chora_kit::shared::data_dirs(current.as_deref()) {
+            Some(dirs) if command.starts_with("fuzzel") => {
+                format!("XDG_DATA_DIRS='{dirs}' {command}")
+            }
+            _ => command.to_owned(),
+        }
+    }
+
+    /// Runs the actions of the system: the locker, the power menu, the
+    /// screenshot and the volume.
+    fn system(&mut self, action: &Action) {
+        match action {
+            Action::Lock => self.run_shared("power", &["lock"]),
+            Action::Power => self.run_shared("power", &[]),
+            Action::Screenshot => self.run_shared("screenshot", &[]),
+            Action::Volume(change) => self.volume.change(*change, true),
+            _ => {}
+        }
+    }
+
+    pub fn perform(&mut self, action: Action) {
+        self.system(&action);
         let names = self.order();
         let at = self
             .current
@@ -3068,9 +3149,8 @@ impl Mc {
             Action::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
             Action::Scene(name) => name,
             Action::Run(command) => {
-                // The new window takes the keyboard.
                 let mint = self.rt.conn.activation_token();
-                let _ = launch(&command, mint.as_deref());
+                let _ = launch(&Self::launcher(&command), mint.as_deref());
                 return;
             }
             Action::Give(to) => {
@@ -3079,7 +3159,11 @@ impl Mc {
                 }
                 return;
             }
-            Action::Drag => return,
+            Action::Drag
+            | Action::Lock
+            | Action::Power
+            | Action::Screenshot
+            | Action::Volume(_) => return,
             Action::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {
                     eprintln!("chora-mc: toggle {}: {err}", region.name());
@@ -3110,6 +3194,11 @@ impl Mc {
     }
 }
 
+/// Whether an action is grabbed only with the claim of a window manager.
+fn needs_claim(action: &Action) -> bool {
+    matches!(action, Action::Drag | Action::Volume(_))
+}
+
 /// Keeps the regions over a scene group that was just created.
 fn regions_on_top() -> Command {
     Command::Move {
@@ -3121,6 +3210,15 @@ fn regions_on_top() -> Command {
 
 /// The empty animation after which the plugin looks at the apps that wait
 /// for their window.
+fn volume_wait() -> Command {
+    Command::Animate {
+        id: VOLUME.into(),
+        props: PropsUpdate::default(),
+        duration: VOLUME_MS,
+        easing: Easing::Linear,
+    }
+}
+
 fn wait() -> Command {
     Command::Animate {
         id: WAIT.into(),
@@ -3317,6 +3415,83 @@ mod tests {
         let items = right_items(&mc);
         let name = items.iter().find(|i| i.id.ends_with("-0-name")).unwrap();
         assert_eq!(name.props.text.as_deref(), Some("Atlas"));
+    }
+
+    fn text_of(items: &[crate::region::Item], suffix: &str) -> Option<String> {
+        let found = items.iter().find(|i| i.id.ends_with(suffix))?;
+        found.props.text.clone()
+    }
+
+    /// The column has a door for each action that has a key, and the
+    /// volume door says what the mixer read.
+    #[test]
+    fn the_column_has_a_door_for_each_action() {
+        use chora_kit::{
+            volume::{Reading, Volume},
+            words::{Language, Word},
+        };
+        let (mut mc, _) = crate::testing::mc("doors", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let items = right_items(&mc);
+        let doors: Vec<&str> = (items.iter())
+            .filter_map(|i| i.hit.as_deref())
+            .filter(|hit| hit.starts_with("door:"))
+            .collect();
+        assert_eq!(
+            doors,
+            [
+                "door:programs",
+                "door:lock",
+                "door:power",
+                "door:screenshot",
+                "door:volume"
+            ]
+        );
+        mc.volume_reading = Some(Reading::Level(Volume {
+            percent: 40,
+            muted: false,
+        }));
+        let title = Word::Volume.text(Language::of_session());
+        let volume = text_of(&right_items(&mc), "-doors-volume");
+        assert_eq!(volume, Some(format!("{title} 40%")));
+    }
+
+    /// A chat that cannot open says so in a red notice, not only in a log.
+    #[test]
+    fn a_chat_that_does_not_open_shows_a_notice() {
+        let (mut mc, model) = crate::testing::mc("chat-refused", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        model.lock().unwrap().refuse_calls = true;
+        mc.chat_with(None);
+        let urgent = mc.texts["urgent"].1.join(" ");
+        assert!(urgent.contains("The chat does not open"), "{urgent}");
+    }
+
+    /// The door of the chat has a state word: no helper, a helper, no
+    /// helper again when voice ends.
+    #[test]
+    fn the_state_word_of_the_helper_door_follows_voice() {
+        use chora_kit::words::{Language, Word};
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("helper-door", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let none = Word::NoHelperDoor.text(Language::of_session());
+        let state = text_of(&right_items(&mc), "-chat-state");
+        assert_eq!(state.as_deref(), Some(none));
+        mc.follow(
+            "voice.state",
+            "voice",
+            json!({"name": "Atlas", "state": "working"}),
+        )
+        .unwrap();
+        let state = text_of(&right_items(&mc), "-chat-state");
+        assert_eq!(state.as_deref(), Some("Working"));
+        let gone = chora_scene::Event::ClientDisconnected {
+            name: "voice".into(),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, gone).unwrap();
+        let state = text_of(&right_items(&mc), "-chat-state");
+        assert_eq!(state.as_deref(), Some(none));
     }
 
     /// The voice agent adds `seq`, `epoch`, `chat` and the steps to the

@@ -273,6 +273,27 @@ impl Mc {
         self.show_agents()
     }
 
+    /// Remembers the helper that a state of voice names.
+    pub fn voiced(&mut self, state: &Value) {
+        let name = state["name"].as_str().unwrap_or_default();
+        if !self.voiced.iter().any(|n| n == name) {
+            self.voiced.push(name.to_owned());
+        }
+    }
+
+    /// Removes the helpers of voice when voice ends: no helper runs
+    /// without it.
+    pub fn voice_gone(&mut self) {
+        let gone = std::mem::take(&mut self.voiced);
+        self.agents.retain(|a| !gone.contains(&a.name));
+        if (self.agent_focus.as_ref()).is_some_and(|focus| gone.contains(focus)) {
+            self.agent_focus = None;
+        }
+        if let Err(err) = self.show_agents() {
+            eprintln!("chora-mc: voice gone: {}", err.message);
+        }
+    }
+
     /// What `agent.list` answers.
     pub fn list_agents(&self) -> Value {
         serde_json::json!({"agents": self.agents})
@@ -434,6 +455,14 @@ impl Mc {
         let call = json!({"client": "assistant", "method": "chat.show", "params": params});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
             eprintln!("chora-mc: chat.show {}: {err}", chat_who(name));
+            self.notice(
+                "Chat",
+                "The chat does not open. The chat host does not answer.",
+            );
+            self.notice(
+                "Chat",
+                "The chat does not open. The chat host does not answer.",
+            );
         }
     }
 
@@ -577,6 +606,19 @@ impl Mc {
             title_style: Some(style("heading", title_color)),
             style: resting.then(|| style("body", "muted")),
             ..panel.clone()
+        }
+    }
+
+    /// Tells the person that something did not work, as a critical
+    /// notification.
+    pub fn notice(&mut self, title: &str, body: &str) {
+        let push = Push {
+            title: title.to_owned(),
+            body: body.to_owned(),
+            urgency: Urgency::Critical,
+        };
+        if let Err(err) = self.push(push) {
+            eprintln!("chora-mc: notice {title}: {}", err.message);
         }
     }
 

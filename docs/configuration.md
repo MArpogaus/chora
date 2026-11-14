@@ -602,7 +602,8 @@ with `settings.reload`:
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
-  `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `keys`, `chat`, `lock`, `power`, `screenshot`, `volume: up|down|mute`,
+  `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
@@ -691,8 +692,9 @@ The `contents` are named. Their `kind` is one of:
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
-| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
-| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest and `Esc`, in the words of the six rows. A thin space follows the plus before an arrow |
+| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat` with the state word of the first helper (`No helper` without one), `Esc  Close`, the words `No helper is set up.` when there is none, and the box of the chat while it is open. When the host does not answer, a red notice says so. The helpers of voice go when voice ends |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
+| `doors` | the doors of the actions that have a key, in two lines at the foot of a side under the key list: `Programs` (the launcher), `Lock`, `Power` (the power menu), `Screenshot` and the volume (`Volume 40%`, or `Muted` or the words of a failure). A click acts as the key; a click on the volume mutes or unmutes. The volume is read every 5 s and after each change |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -710,8 +712,16 @@ preset or a scene shows starts its app when the settings load.
 The default bindings are `Super+a` for the chat (`chat` asks the HUD host
 to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
 scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
-header and the footer, and `Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
-needs the grant `input.grab-any`, so the key list is on `Super+F1`.
+header and the footer, and `Super+F1` for all keys, with `Super+slash` as a
+silent alias that has no row of its own. `Super+Space` starts the launcher,
+and its list has the entry Chat with a helper. `Super+Shift+Escape` locks the
+screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
+down) and `Super+Print` takes a screenshot; these three run the scripts that
+every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
+`XF86AudioMute` change the volume of the default sound output by 5 percent
+and show it in a notice; the key list calls them `Vol+`, `Vol-` and `Mute`. `F1` is no binding: it reaches the program. A binding
+of one key without Ctrl, Alt or Super needs the grant `input.grab-any`, so the
+key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows
@@ -719,7 +729,7 @@ the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
-the key list at its foot. The state of the voice agent and the helpers
+the key list and the doors at its foot. The state of the voice agent and the helpers
 stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.

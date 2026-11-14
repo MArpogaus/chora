@@ -31,6 +31,8 @@ pub struct Core {
     pub called: Vec<Value>,
     /// The events that the plugin emitted through `events.emit`.
     pub emits: Vec<Value>,
+    /// `methods.call` fails, as when the client of the method is gone.
+    pub refuse_calls: bool,
 }
 
 /// The model of each connection, in the order of the connections.
@@ -94,6 +96,9 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
             let mut core = model.lock().unwrap();
             core.calls.push(method);
             core.called.push(params.clone());
+            if core.refuse_calls {
+                return Err((RpcError::REJECTED, "no such client".to_owned()));
+            }
             Ok(Value::Null)
         }
         "events.emit" => {

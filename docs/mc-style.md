@@ -111,7 +111,12 @@ change it there, not here.
     `Super+n`; `Super+F1` shows all keys in its place. The list is on
     `Super+F1`, not on `F1`, because a plain F1 belongs to a program in a
     scene and needs the grant `input.grab-any`.
-    The full list goes by task, in the words of the six rows.
+    The full list goes by task, in the words of the six rows. It names
+    the lock, the power menu, the screenshot and the volume keys too;
+    `Super+slash` is a silent alias of `Super+F1`.
+    Two lines of doors stand under the key list: `Programs`, `Lock`,
+    `Power`, `Screenshot` and the volume, each in `text` and clickable.
+    They stay while the chat is open.
 17. **One focus mark.** What a click acts on shows a bar of 2 by 20
     pixels in `text`, 12 pixels left of it, while the pointer is over it:
     no underline, no fill and no change of color. A word flush right in a

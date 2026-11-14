@@ -145,7 +145,7 @@ key Super+Home
 until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda to measure"
 sleep 1
 close_list
-expect_rect "right-keys-title-rule" "[888.0,574.0,336.0,1.0]"
+expect_rect "right-keys-title-rule" "[888.0,490.0,336.0,1.0]"
 expect_rect "right-edge" "[860.0,37.0,1.0,738.0]"
 ok "at 1280x800 the column stands at 888 to 1224 with its hairline at 860"
 
@@ -204,7 +204,7 @@ column_at() {
     ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start at $size"
     until_ok 'has_text "AGENDA"' || fail "no first screen at $size"
     sleep 1
-    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - 196 - 14)).0,$width.0,1.0]"
+    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - 280 - 14)).0,$width.0,1.0]"
     expect_rect "right-edge" "[$((left - 28)).0,37.0,1.0,$((h / 28 * 28 - 46)).0]"
     fits "$w" "$h"
     shot "$size"
@@ -219,9 +219,11 @@ until_ok '[ "$(current)" = agenda ]' 20 || fail "Super+Home does not show the ag
 key Super+a
 until_ok 'grep -q "chat.show" "$XDG_CONFIG_HOME/mc.log"' 20 || fail "Super+a does not ask the host for the chat"
 [ "$(current)" = agenda ] || fail "Super+a left the agenda for $(current)"
+until_ok 'texts | grep -q "^Chat: The chat does not open"' 20 || fail "no notice that the chat does not open"
+ctl call mc notify.clear '{}' >/dev/null || fail "notify.clear"
 drawer=$(ctl call mc region.list '{}' | jq -r '.regions.drawer.contents | length')
 [ "$drawer" = 0 ] || fail "the default setup still has contents in the drawer"
-ok "Super+a asks for the chat, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
+ok "Super+a asks for the chat and says so when the host is gone, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
 
 notices() { texts | grep -c '^Note [0-9]$'; }
 has_text "NOTIFICATIONS" || fail "no NOTIFICATIONS head on an empty column"

@@ -53,6 +53,14 @@ pub enum Action {
     Keys,
     /// Asks the HUD host to open the chat with a helper.
     Chat,
+    /// Locks the screen.
+    Lock,
+    /// Opens the power menu: Lock, Log out, Restart, Shut down.
+    Power,
+    /// Takes a screenshot of the output.
+    Screenshot,
+    /// Changes the volume of the default sound output.
+    Volume(chora_kit::volume::Change),
 }
 
 /// How an agent of `agent.set` shows in a state.
@@ -604,6 +612,23 @@ mod tests {
             config.bindings["Super+Return"],
             Action::Scene("terminal".into())
         );
+    }
+
+    /// Every look has the keys of the key list, the lock, the power menu,
+    /// the screenshot and the volume.
+    #[test]
+    fn the_default_has_the_shared_keys_of_every_look() {
+        use chora_kit::volume::Change;
+        let config = parse::<Config>(DEFAULT).unwrap();
+        let keys = &config.bindings;
+        assert_eq!(keys["Super+slash"], Action::Keys);
+        assert_eq!(keys["Super+Shift+Escape"], Action::Lock);
+        assert_eq!(keys["Super+Shift+e"], Action::Power);
+        assert_eq!(keys["Super+Print"], Action::Screenshot);
+        assert_eq!(keys["XF86AudioRaiseVolume"], Action::Volume(Change::Up));
+        assert_eq!(keys["XF86AudioLowerVolume"], Action::Volume(Change::Down));
+        assert_eq!(keys["XF86AudioMute"], Action::Volume(Change::Mute));
+        assert!(!keys.contains_key("F1"));
     }
 
     #[test]
