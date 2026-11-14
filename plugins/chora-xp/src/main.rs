@@ -81,6 +81,11 @@ struct Args {
 }
 
 fn main() -> ExitCode {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.first().is_some_and(|a| a == launch::RUN_BOX) {
+        launch::run_box(&words[1..]);
+        return ExitCode::SUCCESS;
+    }
     let args = Args::try_parse().unwrap_or_else(|err| {
         if err.kind() == clap::error::ErrorKind::UnknownArgument {
             eprintln!(

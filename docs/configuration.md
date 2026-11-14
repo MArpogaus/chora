@@ -2106,7 +2106,7 @@ that the file leaves out takes its default:
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
-| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
+| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |

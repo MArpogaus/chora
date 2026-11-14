@@ -2895,8 +2895,14 @@ impl Wm {
 
     /// Starts a program and follows it until its window shows.
     fn start_program(&mut self, command: &str) {
-        let command = launch::themed(command, &self.theme.path("fuzzel.ini"));
-        self.start_named(&command, launch::program_name(&command));
+        let exe = std::env::current_exe().unwrap_or_else(|_| "chora-xp".into());
+        let themed = launch::themed(
+            command,
+            &self.theme.path("fuzzel.ini"),
+            &exe.to_string_lossy(),
+            &self.settings.value.terminal,
+        );
+        self.start_named(&themed, launch::program_name(command));
     }
 
     /// Starts a program that the user knows by another name than its
