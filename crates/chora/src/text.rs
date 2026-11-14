@@ -745,6 +745,19 @@ mod tests {
         assert!(h2 > h1 * 1.5, "{h1} to {h2}");
     }
 
+    /// A node capture of a huge node shrinks the scale to nothing.
+    #[test]
+    fn a_scale_of_zero_lays_out_nothing() {
+        let node = text_node(Props {
+            text: Some("Hi".into()),
+            ..Props::default()
+        });
+        let key = super::props_key(&node).expect("the props of a text node");
+        let mut fonts = super::Fonts::new();
+        assert!(super::layout(&mut fonts, &key, 0.0).is_none());
+        assert!(super::layout(&mut fonts, &key, 1e-40).is_none());
+    }
+
     fn layout_of(node: &chora_scene::Node) -> [f64; 2] {
         Texts::default().size(node).expect("a layout")
     }
