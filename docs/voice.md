@@ -490,6 +490,8 @@ at most a short summary of it.
 | Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 
 The history commits per LLM round; an audio failure never rolls it back.
+An error text names a server by its URL without the userinfo and the
+query, which can carry a key.
 `voice.health` and the `health` of the state record show `asr`, `tts`,
 `llm`, `mcp` and `chora` as `ok`, `down` or `unknown` (before the first
 report), with the last error and its Unix time `error_at`. Each actor

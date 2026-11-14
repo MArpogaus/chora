@@ -101,6 +101,20 @@ pub fn install_tls() {
     let _ = rustls::crypto::ring::default_provider().install_default();
 }
 
+/// A URL for an error text or the log: scheme, host, port and path.
+/// The userinfo and the query can carry a key, and `voice.health`
+/// answers the text to any client.
+pub fn shown(url: &str) -> String {
+    let Some(mut url) = reqwest::Url::parse(url).ok().filter(reqwest::Url::has_host) else {
+        return "a URL that does not parse".into();
+    };
+    let _ = url.set_username("");
+    let _ = url.set_password(None);
+    url.set_query(None);
+    url.set_fragment(None);
+    url.into()
+}
+
 /// A websocket to the server `b`, with its headers.
 ///
 /// # Errors
@@ -108,7 +122,7 @@ pub fn install_tls() {
 /// A wrong URL or header, or no connection.
 pub async fn connect(b: &Backend) -> Result<Socket, String> {
     install_tls();
-    let fail = |e: &dyn std::fmt::Display| format!("{}: {e}", b.url);
+    let fail = |e: &dyn std::fmt::Display| format!("{}: {e}", shown(&b.url));
     let mut request = b.url.as_str().into_client_request().map_err(|e| fail(&e))?;
     for (name, value) in &b.headers {
         let name = HeaderName::from_bytes(name.as_bytes()).map_err(|e| fail(&e))?;
@@ -135,7 +149,7 @@ pub async fn probe(mut servers: tokio::sync::watch::Receiver<Probed>) {
             let result = match backend {
                 Ok(b) => tokio::time::timeout(Duration::from_secs(5), connect(&b))
                     .await
-                    .unwrap_or_else(|_| Err(format!("{}: no answer within 5 s", b.url))),
+                    .unwrap_or_else(|_| Err(format!("{}: no answer within 5 s", shown(&b.url)))),
                 Err(e) => Err(e),
             };
             match result {
@@ -199,6 +213,19 @@ mod tests {
         let record = record();
         assert_eq!(record.as_object().unwrap().len(), SERVERS.len());
         assert!(record["asr"]["status"].is_string());
+    }
+
+    #[test]
+    fn a_shown_url_has_no_userinfo_and_no_query() {
+        assert_eq!(
+            shown("https://user:pw@example.org:8443/v1?api_key=sk-1#x"),
+            "https://example.org:8443/v1"
+        );
+        assert_eq!(
+            shown("ws://127.0.0.1:8881/v1/realtime?intent=transcription"),
+            "ws://127.0.0.1:8881/v1/realtime"
+        );
+        assert_eq!(shown("user:pw@host?key=sk-1"), "a URL that does not parse");
     }
 
     /// The error of a server that is away names it without the key in

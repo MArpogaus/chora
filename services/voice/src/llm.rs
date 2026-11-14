@@ -118,7 +118,7 @@ impl Llm {
             .timeout(Duration::from_secs(5))
             .send()
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.without_url().to_string())?
             .bytes()
             .await
             .map_err(|e| e.to_string())
@@ -176,9 +176,10 @@ impl Llm {
             .map_err(|_| Error::Timeout(format!("no answer within {:?}", self.first)))?
             .map_err(|e| {
                 if e.is_connect() {
-                    Error::Connect(format!("{}: {e}", self.url))
+                    let url = crate::health::shown(&self.url);
+                    Error::Connect(format!("{url}: {}", e.without_url()))
                 } else {
-                    Error::Other(e.to_string())
+                    Error::Other(e.without_url().to_string())
                 }
             })?;
         let status = response.status();
