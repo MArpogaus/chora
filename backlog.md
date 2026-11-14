@@ -45,15 +45,15 @@ L1 | 11-11 | rc | logging audit per component (structured tracing, a target per 
 R4 | 11-12 | rc | release notes name the changed mc default keys (Super+a chat, Super+Return terminal scene).
 A8 | 11-09 | rc | document the watchdog node limit (about 14,600 nodes) in `docs/api.md`.
 
-## Later (not before the tag; cut list of reflections/2026-11-14-w2-1-fable.md section 6)
+## Later (sprints chosen by an idea round after the rc, owner 11-14 05:26; not before the tag; cut list of reflections/2026-11-14-w2-1-fable.md section 6)
 D4 | 11-12 | later | construct Host refactor: each cube face runs its own manager (XP, Tiling, Media center, XP 2); xp-only paths (windows.float, activate, pull) become per face.
 K4 | 11-11 | later | stand back from a cube face: use and navigate modes, a key and a visible control, turn keys, a stats method for "a still cube renders 0 passes".
 K12 | 11-11 | later | pull a window out of the stood-back cube by a drag on its floating plane; a window over the edge of its face is drawn in full, never clipped or wrapped; the lift grows until planes of neighbour faces clear.
 V1 | 11-11 | later | a spoken "step in" should give the keyboard back: the voice service marks a call as spoken by the person (By::Voice); design with security.
 V2 | 11-11 | later | a key-only question of voice's own turn gets only the earcon: speak "For this I need a key press or a click".
 P1 | 11-11 | later | the construct focus glow is a timed shader and redraws every frame (about 43 fps on llvmpipe): a static glow or animate only on a focus change. High after the tag (battery).
-A11 | 11-09 | sprint 1 | XP split (owner 11-14 05:25: theming apart from the stacking WM) X3-X7 (D73, roadmap "Track: XP split"; X1 4a13267 and X2 e5391bd are merged): chora-stack, chora-desk, chora-panel.
-N1 | 11-11 | sprint 1 | widget host: chora-panel hosts widgets (task list, start button and menu, tray, clock, dock) with a widget API in chora-kit; done when a second layout (dock plus top bar) runs from config only. Needs a design document and the owner's approval of mockups.
+A11 | 11-09 | later | XP split (owner 11-14 05:25: theming apart from the stacking WM; 05:26 no priority) X3-X7 (D73, roadmap "Track: XP split"; X1 4a13267 and X2 e5391bd are merged): chora-stack, chora-desk, chora-panel.
+N1 | 11-11 | later | widget host: chora-panel hosts widgets (task list, start button and menu, tray, clock, dock) with a widget API in chora-kit; done when a second layout (dock plus top bar) runs from config only. Needs a design document and the owner's approval of mockups.
 X8 | 11-12 | later | an XP Run dialog (icon, text, Open combo, OK/Cancel/Browse) instead of fuzzel for Start > Run.
 X9 | 11-12 | later | chora-xp-import (port of kde-plasma-winxp-launcher get-microsoft-files.sh, design/xp-reference.md) and the imported-asset pixel benchmark; pending the owner's answer to state.md Needs owner (b).
 PX1 | 11-14 | later | further MINOR and COSMETIC pixel rounds, full 2x reviews, more test swarms before the fix lanes land.

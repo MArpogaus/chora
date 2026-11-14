@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-14T05:25:00Z
+screened-through: 2026-11-14T05:26:00Z
 
 - 11-12 05:47Z "So stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority for our guidelines." -> priority; "Your job should be to collect those, put them in the backlog if they are feasible, push back if they conflict with any of our decisions or targets, and always keep the project goals into focus." -> ideas never redirect a lane; "You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation." -> name unreachable goals
 - 11-12 02:42Z "Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that." -> plan = backlog entry; "Really push back when you see that certain task is useless or not necessary right now." -> push back, also on his words
@@ -19,7 +19,7 @@ screened-through: 2026-11-14T05:25:00Z
 - 11-14 04:51Z "Fable 4, all 3. agree with decitions. Converge towards stabile release quickliy then New feature Sprints. Usw fable for hard lifting" -> defaults (a)-(d) accepted; RC fast, then sprints; Fable for hard work
 - 11-12 04:20Z "Xp goal is pixel perfect replication and ux similar yo original. Mc shall be a modern voice first computing experience where content shapes the view, following traditional typesetting rules."
 - 11-12 04:26Z "Everything else we are building shall focus on perfect behavior replication and a pixel-perfect experience when those assets are copied into place." -> MS assets: optional user import, never shipped; RC on fallback art (11-14)
-- 11-14 05:25Z "So the XP theme on the whole cube is all right for now. What I wanted to separate is the theming code from the stacking window manager logic and refactor taskbar start menu as general widget-like elements" -> no per-face looks; XP split + widget host (A11, N1): sprint 1 after the rc
+- 11-14 05:26Z "We had the idea initially to have sub-agents suggest new ideas and you rate them." -> sprints: idea round after the rc, PM rates; XP split no priority (05:25Z: xp on whole cube ok)
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like" it shall stay hackable and easy yo extend but we want stunning visuals in each view all with their own design philosophy and esthetics consequently followed." -> each look its own aesthetic
 - 11-11 12:45Z "Make it minimal yet complete. Avoid buttons." -> construct HUD: glass, bindings overlay
 - 11-12 04:16Z "These are the kind of visual defects we want to automatically capture." -> flaw class seen by eye: an audit cell; one pixel pass per look
