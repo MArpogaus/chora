@@ -32,6 +32,9 @@ const COLUMN: f64 = 416.0;
 /// The pitches of the rows that the panel tries, in order. The caps are 4
 /// px less high, and never less than [`CAP_MIN`].
 const PITCHES: [f64; 3] = [24.0, 22.0, 20.0];
+/// How close to the room the panel may come before it takes all of it, so
+/// that its top stands on the grid line under the bar.
+const SNAP: f64 = 8.0;
 /// The least height of a keycap: the keys in 13 px with their descenders
 /// and 2 px to spare above and below.
 const CAP_MIN: f64 = 18.0;
@@ -381,7 +384,7 @@ fn glass(id: &str, parent: &str, at: [f64; 2], size: [f64; 2], colors: &Colors) 
         PropsUpdate {
             transform: Some(Transform::translate(at[0], at[1], 0.0)),
             size: Some(size),
-            color: Some(color(channels(&colors.surface), 0.92)),
+            color: Some(color(channels(&colors.surface), 0.97)),
             radius: Some(14.0),
             border: Some(Some(Border {
                 width: 1.0,
@@ -448,7 +451,12 @@ pub fn plan(groups: &[(&str, Vec<(String, String)>)], room: f64) -> Plan {
         .find(|&p| TOP + tallest(&all, best_split(&all, p), p) + BOTTOM <= room)
         .unwrap_or(PITCHES[PITCHES.len() - 1]);
     let split = best_split(&all, pitch);
-    let height = TOP + tallest(&all, split, pitch) + BOTTOM;
+    let content = TOP + tallest(&all, split, pitch) + BOTTOM;
+    let height = if content >= room - SNAP {
+        room
+    } else {
+        content
+    };
     let line_gap = ((pitch - LINE) / 2.0).round();
     let mut items = Vec::new();
     for column in 0..2 {
@@ -472,7 +480,7 @@ pub fn plan(groups: &[(&str, Vec<(String, String)>)], room: f64) -> Plan {
             for (keys, label) in rows {
                 items.push(Item::Cap {
                     at: [x, y + ((pitch - cap_height) / 2.0).floor()],
-                    size: [cap_width(keys), cap_height],
+                    size: [widest, cap_height],
                     keys: keys.clone(),
                     text_y: y + line_gap + CAP_TEXT_DY,
                 });
@@ -519,6 +527,11 @@ fn best_split(all: &[&(&str, Vec<(String, String)>)], pitch: f64) -> u32 {
         .unwrap_or(0)
 }
 
+/// The alpha of the scrim in the `base` colour of the theme: little enough
+/// that the bar, which no scrim reaches, stays within a few levels of the
+/// surfaces below it.
+const SCRIM: f64 = 0.20;
+
 /// The commands that draw the key list centred on an output of the given
 /// size, under its screen root `parent`.
 #[must_use]
@@ -536,7 +549,7 @@ pub fn key_list(
     ];
     let scrim = PropsUpdate {
         size: Some(output),
-        color: Some([0.0, 0.0, 0.0, 0.25]),
+        color: Some(color(channels(&colors.base), SCRIM)),
         ..PropsUpdate::default()
     };
     let body = format!("{KEYS}-body");
@@ -631,7 +644,8 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
                     ..PropsUpdate::default()
                 };
                 commands.push(create(&format!("{id}-cap"), NodeKind::Rect, body, keycap));
-                let mut mono = Face::new([at[0] + CAP_PAD, *text_y], 13.0, 400, text_rgb);
+                let inset = (size[0] - cap_width(keys)) / 2.0 + CAP_PAD;
+                let mut mono = Face::new([at[0] + inset, *text_y], 13.0, 400, text_rgb);
                 mono.mono = true;
                 commands.push(text(&format!("{id}-k"), body, keys, &mono));
             }
@@ -698,7 +712,7 @@ const CHIP_PAD: [f64; 2] = [24.0, 16.0];
 
 /// Where the chip and its word go for a word of the size `measured`, which
 /// the renderer reports: the box of the chip, as big as the word and its
-/// padding and centred low on the output, and the place of the word in the
+/// padding and centred on the output, and the place of the word in the
 /// middle of it, on both axes.
 #[must_use]
 pub fn chip_places(output: [f64; 2], measured: [f64; 2]) -> ([f64; 2], [f64; 2], [f64; 2]) {
@@ -706,7 +720,10 @@ pub fn chip_places(output: [f64; 2], measured: [f64; 2]) -> ([f64; 2], [f64; 2],
         measured[0] + 2.0 * CHIP_PAD[0],
         measured[1] + 2.0 * CHIP_PAD[1],
     ];
-    let at = [(output[0] - size[0]) / 2.0, output[1] - size[1] - 96.0];
+    let at = [
+        (output[0] - size[0]) / 2.0,
+        ((output[1] - size[1]) / 2.0).floor(),
+    ];
     (at, size, [at[0] + CHIP_PAD[0], at[1] + CHIP_PAD[1]])
 }
 
@@ -832,13 +849,31 @@ mod tests {
     }
 
     #[test]
-    fn a_keycap_has_the_same_padding_left_and_right() {
-        for item in laid_out(1000.0).items {
-            if let Item::Cap { size, keys, .. } = item {
-                let text = px(keys.chars().count()) * MONO_ADVANCE;
-                assert!((size[0] - text - 2.0 * CAP_PAD).abs() < 1e-9, "{keys}");
+    fn the_caps_of_a_column_are_as_wide_as_its_widest_and_their_right_edges_meet() {
+        let plan = laid_out(1000.0);
+        for c in 0..2 {
+            let mut widths = Vec::new();
+            for item in &plan.items {
+                if let Item::Cap { at, size, keys, .. } = item
+                    && column(at[0]) == c
+                {
+                    let text = px(keys.chars().count()) * MONO_ADVANCE;
+                    assert!(size[0] >= text + 2.0 * CAP_PAD - 1e-9, "{keys}");
+                    widths.push(size[0]);
+                }
             }
+            assert!(
+                widths.windows(2).all(|w| (w[0] - w[1]).abs() < 1e-9),
+                "{widths:?}"
+            );
         }
+    }
+
+    #[test]
+    fn a_panel_that_nearly_fills_the_room_takes_all_of_it() {
+        let own = laid_out(2000.0).size[1];
+        assert!((laid_out(own + 4.0).size[1] - (own + 4.0)).abs() < 1e-9);
+        assert!((laid_out(own + 40.0).size[1] - own).abs() < 1e-9);
     }
 
     #[test]
@@ -1051,6 +1086,36 @@ mod tests {
             };
             assert_eq!(family.as_deref(), Some(want), "{id}");
         }
+    }
+
+    #[test]
+    fn the_scrim_is_tinted_from_the_base_token_of_each_theme() {
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            let list = key_list(
+                "screen:X",
+                [1280.0, 800.0],
+                &groups(),
+                &colors,
+                Language::En,
+            );
+            let color = list
+                .iter()
+                .find_map(|c| match c {
+                    Command::Create { id, props, .. } if id == "tiling-keys-scrim" => props.color,
+                    _ => None,
+                })
+                .expect("a scrim");
+            let [r, g, b] = channels(&colors.base);
+            assert_eq!(color, [r, g, b, SCRIM], "{scheme:?}");
+        }
+    }
+
+    #[test]
+    fn the_chip_stands_in_the_middle_of_the_output() {
+        let (at, size, _) = chip_places([1280.0, 800.0], [68.0, 24.0]);
+        assert!(((at[0] + size[0] / 2.0) - 640.0).abs() < 1e-9);
+        assert!(((at[1] + size[1] / 2.0) - 400.0).abs() <= 0.5);
     }
 
     #[test]

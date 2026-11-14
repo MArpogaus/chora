@@ -143,7 +143,7 @@ fn look_id(look: &Look) -> u64 {
 /// The style of the panel and of a box in it.
 pub fn style_of(look: &Look, colours: Colours) -> Style {
     let radius = match look.style {
-        ChatStyle::Plain => 0,
+        ChatStyle::Plain => look.radius.map_or(0, |r| i32::try_from(r).unwrap_or(0)),
         ChatStyle::Bubble => super::BALLOON_RADIUS,
         ChatStyle::Glass => 14,
     };
@@ -249,9 +249,11 @@ fn dimmed(colours: Colours) -> Colours {
 
 fn button(theme: &mut Theme, label: &str, colours: Colours) -> String {
     let [w, h] = BUTTON;
+    let plain = style_of(&Look::default(), colours);
     let style = Style {
-        radius: 4,
-        ..style_of(&Look::default(), colours)
+        radius: colours.radius.map_or(4, |r| (r - 2).max(0)),
+        fill: colours.well.unwrap_or(plain.fill),
+        ..plain
     };
     let picture = Picture::new(w, h)
         .svg(style.shape([w, h], 0))
@@ -1018,11 +1020,13 @@ fn plain_buttons(
     #[allow(clippy::cast_possible_truncation, reason = "a width of a few pixels")]
     let close = theme.text_width(CLOSE_LABEL, Font::Body).ceil() as i32;
     let mut commands = Vec::new();
-    for (n, (id, word)) in (0..).zip(parts.buttons) {
+    let shown: Vec<_> = parts
+        .buttons
+        .iter()
+        .filter(|(id, _)| *id != STOP || parts.running || parts.grey_stop)
+        .collect();
+    for (n, (id, word)) in (0..).zip(&shown) {
         let idle = *id == STOP && !parts.running;
-        if idle && !parts.grey_stop {
-            continue;
-        }
         let colours = if idle { dimmed(colours) } else { colours };
         let input = if idle {
             InputMode::Pass
@@ -1034,7 +1038,11 @@ fn plain_buttons(
             let (path, [width, _]) = link(theme, label, colours);
             (path, stop_at(w, close, width))
         } else {
-            let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
+            let from_right = i32::try_from(shown.len()).unwrap_or(1) - n;
+            let at = [
+                w - PAD - from_right * BUTTON[0] - (from_right - 1) * GAP,
+                parts.top_row,
+            ];
             (button(theme, label, colours), at)
         };
         commands.push(create(id, VIEW, image(path, at, label, input)));
@@ -1349,6 +1357,8 @@ mod tests {
             text: [0, 0, 0],
             name: [0, 0, 0],
             border: [0, 0, 0],
+            well: None,
+            radius: None,
         };
         assert_eq!(dimmed(colours).text, [127, 127, 127]);
         assert_eq!(dimmed(colours).fill, [255, 255, 255]);

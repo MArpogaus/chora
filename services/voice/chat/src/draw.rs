@@ -43,6 +43,8 @@ pub struct Look {
     pub border: [u8; 4],
     /// The hint, the status and the empty field.
     pub hint: [u8; 4],
+    /// The radius of the corners of the field; 0 is a square field.
+    pub radius: u32,
     /// The glass of the construct HUD: the field is a well of 48 with
     /// Inter 16 and the focus ring of the accent while it has the keyboard.
     pub glass: Option<Glass>,
@@ -97,6 +99,7 @@ impl Default for Look {
             text: [236, 238, 242, 255],
             border: [96, 104, 120, 255],
             hint: [160, 168, 182, 255],
+            radius: 0,
             glass: None,
             column: None,
         }
@@ -284,12 +287,16 @@ impl Painter {
         let Some(mut pixmap) = Pixmap::new(width.max(1), height.max(1)) else {
             return Vec::new();
         };
-        pixmap.fill(color(look.border));
-        fill(
-            &mut pixmap,
-            [1, 1, width.saturating_sub(2), height.saturating_sub(2)],
-            look.background,
-        );
+        if look.radius > 0 {
+            self.rounded_box(&mut pixmap, (width, height), look);
+        } else {
+            pixmap.fill(color(look.border));
+            fill(
+                &mut pixmap,
+                [1, 1, width.saturating_sub(2), height.saturating_sub(2)],
+                look.background,
+            );
+        }
         let text_color = if layout.placeholder {
             look.hint
         } else {
@@ -453,6 +460,27 @@ impl Painter {
             Err(error) => eprintln!("chora-chat: {error}"),
         }
         bgra(pixmap.data())
+    }
+
+    /// The box of a field with rounded corners: the ground and a hairline
+    /// inside the edge, with the corners left clear.
+    fn rounded_box(&self, pixmap: &mut Pixmap, (width, height): (u32, u32), look: &Look) {
+        let svg = rounded(
+            [0.5, 0.5, width as f32 - 1.0, height as f32 - 1.0],
+            look.radius as f32,
+            &format!(
+                "{} {} stroke-width=\"1\"",
+                paint("fill", look.background),
+                paint("stroke", look.border)
+            ),
+        );
+        let document = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">{svg}</svg>"#
+        );
+        match resvg::usvg::Tree::from_str(&document, self.fonts.options()) {
+            Ok(tree) => resvg::render(&tree, Transform::identity(), &mut pixmap.as_mut()),
+            Err(error) => eprintln!("chora-chat: {error}"),
+        }
     }
 
     fn line(&self, pixmap: &mut Pixmap, line: &str, rect: [i32; 4], color: [u8; 4]) {
@@ -635,6 +663,7 @@ mod tests {
             text: [0, 0, 0, 255],
             border: [200, 0, 0, 255],
             hint: [0, 0, 200, 255],
+            radius: 0,
             glass: None,
             column: Some(Column {
                 to: Some("Atlas".into()),
@@ -718,5 +747,22 @@ mod tests {
             |r: std::ops::Range<usize>| ink(&pixels, 336, r).iter().map(|p| p.0).min().unwrap();
         let (first, second) = (rows(2..28), rows(30..56));
         assert!(first.abs_diff(second) <= 1, "{first} and {second}");
+    }
+
+    #[test]
+    fn a_field_with_a_radius_leaves_its_corners_clear() {
+        let painter = Painter::new();
+        let session = Session::new(Language::En);
+        let square = Look::default();
+        let round = Look {
+            radius: 8,
+            ..Look::default()
+        };
+        let alpha = |look: &Look| {
+            let layout = painter.layout(&session, 300, look);
+            painter.paint(&layout, look, (300, 1), false)[3]
+        };
+        assert_eq!(alpha(&square), 255, "a square field fills its corner");
+        assert_eq!(alpha(&round), 0, "a round field leaves it clear");
     }
 }

@@ -128,7 +128,7 @@ impl Colors {
         };
         match scheme {
             Scheme::Ink => make([
-                "#11131a", "#1a1d27", "#242836", "#3a4054", "#e6e8ef", "#9aa1b4", "#a78bfa",
+                "#11131a", "#1a1d27", "#242836", "#2e3344", "#e6e8ef", "#9aa1b4", "#a78bfa",
                 "#11131a", "#5eead4", "#f87171", "#161922", "#86e0a0", "#f0cd6e", "#7aa2f7",
             ]),
             Scheme::Paper => make([
@@ -328,9 +328,13 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("fuzzel.ini", fuzzel(colors)),
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
-        ("icons/apps.svg", icon(&colors.text, APPS)),
-        ("icons/keys.svg", icon(&colors.text, KEYS_ICON)),
-        ("icons/power.svg", icon(&colors.muted, POWER)),
+        ("mako.conf", mako(colors)),
+        ("icons/apps.svg", icon(&colors.text, APPS, 16)),
+        ("icons/apps@2.svg", icon(&colors.text, APPS, 32)),
+        ("icons/keys.svg", icon(&colors.text, KEYS_ICON, 16)),
+        ("icons/keys@2.svg", icon(&colors.text, KEYS_ICON, 32)),
+        ("icons/power.svg", icon(&colors.text, POWER, 16)),
+        ("icons/power@2.svg", icon(&colors.text, POWER, 32)),
     ]
 }
 
@@ -341,9 +345,12 @@ const APPS: &str = r#"<g fill="C"><rect x="1.5" y="1.5" width="5.5" height="5.5"
 const KEYS_ICON: &str = r#"<rect x="1" y="3.5" width="14" height="9" rx="2.5" fill="none" stroke="C" stroke-width="1.5"/><g fill="C"><rect x="3.5" y="6" width="1.5" height="1.5" rx=".4"/><rect x="7.25" y="6" width="1.5" height="1.5" rx=".4"/><rect x="11" y="6" width="1.5" height="1.5" rx=".4"/><rect x="4.5" y="9" width="7" height="1.5" rx=".5"/></g>"#;
 const POWER: &str = r#"<path d="M4.6 4.2a5.5 5.5 0 1 0 6.8 0M8 1.5v6" fill="none" stroke="C" stroke-width="1.5" stroke-linecap="round"/>"#;
 
-fn icon(color: &str, shapes: &str) -> String {
+/// An icon drawn at `size` pixels of its 16 px grid: the panel takes the
+/// 16 px file at scale 1 and the 32 px file at a higher scale
+/// (`-gtk-scaled`), so that it is drawn at the scale of the output.
+fn icon(color: &str, shapes: &str, size: u32) -> String {
     format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 16 16\">{}</svg>\n",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{size}\" height=\"{size}\" viewBox=\"0 0 16 16\">{}</svg>\n",
         shapes.replace("\"C\"", &format!("\"{color}\""))
     )
 }
@@ -376,9 +383,50 @@ fn fuzzel(c: &Colors) -> String {
          \n\
          [border]\n\
          width=1\n\
-         radius=12\n"
+         radius=12\n\
+         selection-radius=8\n"
     )
 }
+
+fn mako(c: &Colors) -> String {
+    format!(
+        "# The notifications of the tiling flavor: an island in the palette, above\n\
+         # the dot of the helper and 12 inside the border of a tile. Written by\n\
+         # chora-tiling --apply-theme from the palette of chora-tiling.yaml.\n\
+         font=Inter 14\n\
+         layer=overlay\n\
+         anchor=bottom-right\n\
+         margin=24,24,62,24\n\
+         padding=12\n\
+         width=360\n\
+         border-size=1\n\
+         border-radius=10\n\
+         icons=0\n\
+         default-timeout=10000\n\
+         background-color={surface}\n\
+         text-color={text}\n\
+         border-color={line}\n\
+         progress-color=over {accent}\n\
+         \n\
+         [mode=chat]\n\
+         margin=24,{beside},62,24\n\
+         \n\
+         [urgency=high]\n\
+         border-color={urgent}\n\
+         default-timeout=0\n",
+        surface = c.surface,
+        text = c.text,
+        line = c.line,
+        accent = c.accent,
+        urgent = c.urgent,
+        beside = CHAT_BESIDE,
+    )
+}
+
+/// The right margin of a notification while the chat panel is open: the
+/// panel is 400 wide, 13 from the edge, and the notification stands 12
+/// left of it.
+const CHAT_BESIDE: i32 = 424;
 
 fn foot(c: &Colors) -> String {
     let b = bare;
@@ -722,6 +770,11 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
+        "mako" => line.extend(
+            find(&["mako.conf"])
+                .into_iter()
+                .flat_map(|f| ["--config".into(), f]),
+        ),
         "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
@@ -1000,7 +1053,37 @@ mod tests {
         let all = files(&ink);
         let text = |n: &str| all.iter().find(|(k, _)| *k == n).unwrap().1.clone();
         assert!(text("fuzzel.ini").contains("background=1a1d27ff"));
+        assert!(text("fuzzel.ini").contains("selection-radius=8"));
+        let mako = text("mako.conf");
+        assert!(mako.contains("background-color=#1a1d27"));
+        assert!(mako.contains("border-color=#2e3344"));
+        assert!(mako.contains("border-radius=10"));
         assert!(text("foot.ini").contains("pad=16x16"));
         assert!(text("foot.ini").contains("font=JetBrains Mono:size=10.5"));
+    }
+
+    #[test]
+    fn the_three_icons_of_the_panel_have_the_colour_of_its_text() {
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            for (name, svg) in files(&colors)
+                .iter()
+                .filter(|(k, _)| k.starts_with("icons/"))
+            {
+                assert!(
+                    svg.to_lowercase().contains(&colors.text.to_lowercase()),
+                    "{name} in {scheme:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_notifications_keep_clear_of_the_dot_and_the_border() {
+        let all = files(&Colors::of(Scheme::Ink));
+        let mako = &all.iter().find(|(k, _)| *k == "mako.conf").unwrap().1;
+        assert!(mako.contains("margin=24,24,62,24"));
+        assert!(mako.contains("[mode=chat]\nmargin=24,424,62,24"));
+        assert!(!mako.contains("max-icon-size"), "mako refuses a size of 0");
     }
 }

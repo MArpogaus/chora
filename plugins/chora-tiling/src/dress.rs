@@ -1,7 +1,7 @@
 //! What a window wears besides its surface: the shadows under it, the
 //! cross-fade of the focus mark and the motion of its group. The group of
 //! a window holds, from the bottom: `ts` the shadow of an unfocused
-//! window, `tf` the deeper shadow of the focused one, `tb` the border in
+//! window, `tf` the glow of the focused one in the accent colour, `tb` the border in
 //! the line colour (or urgent), `tg` the gradient of the focus, and `tc`
 //! the clip with the surface. `tf` and `tg` fade in and out with the mark.
 
@@ -25,8 +25,9 @@ pub const FADE: f64 = 140.0;
 const OPEN_SCALE: f64 = 0.94;
 
 /// Blur, offset down and opacity of the shadow of a window without the
-/// focus and of the one with it.
-const SHADES: [(f64, f64, f64); 2] = [(12.0, 4.0, 0.25), (28.0, 8.0, 0.45)];
+/// focus and of the glow of the one with it; the glow has the accent colour
+/// and no offset, so that it shows on a dark wallpaper too.
+const SHADES: [(f64, f64, f64); 2] = [(12.0, 4.0, 0.25), (24.0, 0.0, 0.5)];
 
 /// What `changes` needs besides the placement.
 #[derive(Clone, Copy, Default)]
@@ -49,7 +50,7 @@ pub fn shadow_of(surface: &str) -> String {
     format!("ts-{surface}")
 }
 
-/// The id of the deeper shadow of the focused window.
+/// The id of the glow of the focused window.
 #[must_use]
 pub fn glow_of(surface: &str) -> String {
     format!("tf-{surface}")
@@ -81,20 +82,21 @@ pub fn shadow_nodes(surface: &str, shader: &str, parent: &str) -> Vec<Command> {
     vec![node(shadow_of(surface), 1.0), node(glow_of(surface), 0.0)]
 }
 
-/// The updates of the geometry of the shadows around a placement.
+/// The updates of the geometry of the shadow and of the glow around a
+/// placement; `accent` is the colour of the glow.
 #[must_use]
-pub fn shadow_updates(placement: &Placement, on: bool) -> Vec<Command> {
+pub fn shadow_updates(placement: &Placement, on: bool, accent: [f64; 3]) -> Vec<Command> {
     let width = f64::from(placement.border);
     let show = on && placement.border > 0;
     let [fw, fh] = placement.frame.map(f64::from);
     let boxed = [fw + 2.0 * width, fh + 2.0 * width];
     let radius = f64::from(placement.radius) + width;
     [
-        (shadow_of(&placement.id), SHADES[0]),
-        (glow_of(&placement.id), SHADES[1]),
+        (shadow_of(&placement.id), SHADES[0], [0.0; 3]),
+        (glow_of(&placement.id), SHADES[1], accent),
     ]
     .into_iter()
-    .map(|(id, (blur, down, opacity))| {
+    .map(|(id, (blur, down, opacity), [r, g, b])| {
         let pad = (blur * 1.5).ceil();
         let size = [boxed[0] + 2.0 * pad, boxed[1] + 2.0 * pad];
         Command::Update {
@@ -104,10 +106,7 @@ pub fn shadow_updates(placement: &Placement, on: bool) -> Vec<Command> {
                 size: Some(size),
                 transform: Some(Transform::translate(-width - pad, -width - pad + down, 0.0)),
                 uniforms: Some(BTreeMap::from([
-                    (
-                        "color".to_owned(),
-                        Uniform::Vector(vec![0.0, 0.0, 0.0, opacity]),
-                    ),
+                    ("color".to_owned(), Uniform::Vector(vec![r, g, b, opacity])),
                     ("radius".to_owned(), Uniform::Float(radius)),
                     ("blur".to_owned(), Uniform::Float(blur)),
                     ("box".to_owned(), Uniform::Vector(boxed.to_vec())),
@@ -341,7 +340,7 @@ mod tests {
 
     #[test]
     fn the_shadows_are_as_the_design_has_them() {
-        let updates = shadow_updates(&placed(Some([0, 0]), Mark::Focus), true);
+        let updates = shadow_updates(&placed(Some([0, 0]), Mark::Focus), true, [0.5; 3]);
         let sizes: Vec<[f64; 2]> = updates
             .iter()
             .filter_map(|c| match c {
@@ -349,8 +348,8 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(sizes, [[140.0, 120.0], [188.0, 168.0]]);
-        let none = shadow_updates(&placed(Some([0, 0]), Mark::Focus), false);
+        assert_eq!(sizes, [[140.0, 120.0], [176.0, 156.0]]);
+        let none = shadow_updates(&placed(Some([0, 0]), Mark::Focus), false, [0.5; 3]);
         assert!(none.iter().all(|c| matches!(c,
             Command::Update { props, .. } if props.visible == Some(false))));
     }

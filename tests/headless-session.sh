@@ -69,7 +69,9 @@ trap 'exit 143' TERM HUP
 export LP_NUM_THREADS=${LP_NUM_THREADS:-4}
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 read -ra test_flags <<<"${CHORA_TEST_FLAGS:-}"
-env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET -u DBUS_SESSION_BUS_ADDRESS -u CHORA_TEST_FLAGS \
+no_bus=(-u DBUS_SESSION_BUS_ADDRESS)
+[[ -z ${CHORA_TEST_KEEP_BUS:-} ]] || no_bus=()
+env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET "${no_bus[@]}" -u CHORA_TEST_FLAGS \
     XDG_RUNTIME_DIR="$runtime" \
     setsid "$bin/chora" --headless "$outputs" "${test_flags[@]}" -- "$@" >"$log" 2>&1 &
 pid=$!

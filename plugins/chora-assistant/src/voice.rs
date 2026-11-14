@@ -398,14 +398,23 @@ impl Agent {
     /// What the card is drawn in: the page of the look where the folder
     /// names a slot, else the card of the host.
     fn card_ink(&self) -> (card::Ink, Option<chat::Face>) {
-        let chat = self.values.chat();
-        if chat.form == ChatForm::Xp {
-            return (card::Ink::XP, chat::Face::of(&chat));
+        let look = self.values.chat();
+        if look.form == ChatForm::Xp {
+            return (card::Ink::XP, chat::Face::of(&look));
         }
         if !self.values.slot {
+            if look.card == chora_kit::hud::CardLook::Chat {
+                let (fill, text, ..) = chat::page_ink(&look);
+                let border = chat::border_ink(&look);
+                let radius = look.radius.map_or(card::Ink::HOST.radius, |r| {
+                    i32::try_from(r).unwrap_or(card::Ink::HOST.radius)
+                });
+                let button = look.well.unwrap_or(fill);
+                return (card::Ink::themed(fill, border, text, button, radius), None);
+            }
             return (card::Ink::HOST, None);
         }
-        let (fill, text, muted, face) = chat::page_ink(&self.values.chat());
+        let (fill, text, muted, face) = chat::page_ink(&look);
         (card::Ink::page(fill, text, muted), face)
     }
 
@@ -679,6 +688,7 @@ impl Agent {
             self.card = Some(shown);
         }
         commands.extend(self.sync_badge()?);
+        commands.extend(self.sync_row()?);
         Ok(commands)
     }
 
@@ -702,6 +712,31 @@ impl Agent {
             return Ok(Vec::new());
         }
         self.chat.card_shown(origin[1], size[1]);
+        let mut commands = card::hide(&shown);
+        let (theme, language) = (&mut self.card_theme, self.language);
+        commands.extend(card::show(theme, &shown, language, output.size, true));
+        self.card = Some(shown);
+        Ok(commands)
+    }
+
+    /// A card that stays at the figure steps aside of an open chat panel
+    /// (x, y, width, height), as the figure does, and shows again at its
+    /// new place. A card in the view of the chat is the view's.
+    pub fn card_clears(&mut self, panel: Option<[i32; 4]>) -> Result<Vec<Command>, ClientError> {
+        let (Some(panel), None) = (panel, self.chat.card_top()) else {
+            return Ok(Vec::new());
+        };
+        let Some((output, _)) = self.output()? else {
+            return Ok(Vec::new());
+        };
+        let Some(mut shown) = self.card.take() else {
+            return Ok(Vec::new());
+        };
+        let size = card::size(&self.card_theme, &shown, self.language, output.size);
+        if !card::clear_of(&mut shown, size, panel) {
+            self.card = Some(shown);
+            return Ok(Vec::new());
+        }
         let mut commands = card::hide(&shown);
         let (theme, language) = (&mut self.card_theme, self.language);
         commands.extend(card::show(theme, &shown, language, output.size, true));

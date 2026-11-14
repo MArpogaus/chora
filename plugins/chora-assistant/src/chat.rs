@@ -415,6 +415,8 @@ struct Colours {
     text: [u8; 3],
     name: [u8; 3],
     border: [u8; 3],
+    well: Option<[u8; 3]>,
+    radius: Option<i32>,
 }
 
 fn colours(look: &Look) -> Colours {
@@ -427,6 +429,8 @@ fn colours(look: &Look) -> Colours {
         fill,
         text: pick(look.text, host.text, [32, 32, 32]),
         name: pick(look.name, host.name, [0, 80, 160]),
+        well: look.well,
+        radius: look.radius.map(|r| i32::try_from(r).unwrap_or(0)),
         border: if look.style == chora_kit::hud::ChatStyle::Glass {
             hairline(border, fill)
         } else {
@@ -460,6 +464,12 @@ pub fn page_ink(look: &Look) -> ([u8; 3], [u8; 3], [u8; 3], Option<Face>) {
     (colours.fill, colours.text, colours.name, Face::of(look))
 }
 
+/// The hairline colour of the view of a look.
+#[must_use]
+pub fn border_ink(look: &Look) -> [u8; 3] {
+    colours(look).border
+}
+
 fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
     [r, g, b, 255]
 }
@@ -477,14 +487,20 @@ pub fn field_place_for(frame: &Frame, token: Option<&str>, to: Option<&str>) -> 
         return glass_field_place(frame, token);
     }
     let [x, y, w, h] = frame.rect();
-    let inset = if frame.tail().is_some() { view::PAD } else { 0 };
+    let rounded = frame.look.radius.is_some_and(|r| r > 0);
+    let inset = if frame.tail().is_some() || rounded {
+        view::PAD
+    } else {
+        0
+    };
     let [x, w, h] = [x + inset, w - 2 * inset, h - inset];
     let colours = colours(&frame.look);
     let mut look = json!({
-        "background": rgba(colours.fill),
+        "background": rgba(frame.look.well.unwrap_or(colours.fill)),
         "text": rgba(colours.text),
         "border": rgba(colours.border),
         "hint": rgba(colours.name),
+        "radius": frame.look.radius.map_or(0, |r| r.saturating_sub(2)),
     });
     let mut width = w;
     if frame.look.form == chora_kit::hud::ChatForm::Xp {

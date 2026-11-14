@@ -289,7 +289,14 @@ impl Agent {
             (self.assistant.as_ref())
                 .and_then(|a| a.island_shown(!(open && frame.look.style == ChatStyle::Glass))),
         );
+        let (anchor, _) = frame.look.place();
+        let at_edge = matches!(anchor, Anchor::Left | Anchor::Right)
+            && frame.look.style == ChatStyle::Plain
+            && frame.slot.is_none();
+        let panel = (open && at_edge).then(|| frame.rect());
+        commands.extend((self.assistant.as_mut()).and_then(|a| a.clear_of(panel)));
         commands.extend(self.card_follows()?);
+        commands.extend(self.card_clears(panel)?);
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());
         let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);
@@ -595,8 +602,11 @@ impl Agent {
         let colours = colours(&chat_look(&self.values));
         let (fill, border) = self.values.row_box;
         let plain = style_of(&Look::default(), colours);
+        let radius = chat_look(&self.values)
+            .radius
+            .map_or(8, |r| i32::try_from(r).unwrap_or(8));
         let style = Style {
-            radius: 8,
+            radius,
             fill: fill.unwrap_or(plain.fill),
             border: border.unwrap_or(plain.border),
             ..plain

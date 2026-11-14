@@ -121,6 +121,8 @@ pub struct DarkChat {
     pub border: Option<[u8; 3]>,
     /// The glow of a glass chat.
     pub glow: Option<[u8; 3]>,
+    /// The well of the field and of the buttons of the card.
+    pub well: Option<[u8; 3]>,
 }
 
 /// The colours of a panel in the dark theme.
@@ -166,6 +168,7 @@ impl Hud {
         chat.name = over.chat.name.or(chat.name);
         chat.border = over.chat.border.or(chat.border);
         chat.glow = over.chat.glow.or(chat.glow);
+        chat.well = over.chat.well.or(chat.well);
         for panel in &mut hud.panels {
             let Some(own) = over.panels.get(&panel.id) else {
                 continue;
@@ -375,6 +378,13 @@ pub struct Chat {
     pub idle_stop: IdleStop,
     /// The form of the balloon: the plain one, or XP's.
     pub form: ChatForm,
+    /// The radius of the corners of a plain view, of the card and of the
+    /// rows, at most [`MAX_CHAT_RADIUS`]; the style decides if left out.
+    pub radius: Option<u32>,
+    /// The colour of the well of the field and of the buttons of the card.
+    pub well: Option<[u8; 3]>,
+    /// Where the question card takes its colours from.
+    pub card: CardLook,
 }
 
 /// The form of the parts of a balloon chat.
@@ -400,6 +410,20 @@ pub enum IdleStop {
     Grey,
 }
 
+/// Where the question card takes its fill, hairline and text from.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CardLook {
+    /// The light card of the host.
+    #[default]
+    Host,
+    /// The colours and the radius of the chat.
+    Chat,
+}
+
+/// The largest radius of the corners of a chat.
+pub const MAX_CHAT_RADIUS: u32 = 24;
+
 impl Default for Chat {
     fn default() -> Self {
         Self {
@@ -417,6 +441,9 @@ impl Default for Chat {
             glow: None,
             idle_stop: IdleStop::Hide,
             form: ChatForm::Plain,
+            radius: None,
+            well: None,
+            card: CardLook::Host,
         }
     }
 }
@@ -472,6 +499,11 @@ impl Chat {
             errors.push(format!(
                 "chat.margin: {} is not from 0 to {MAX_CHAT_MARGIN}",
                 self.margin
+            ));
+        }
+        if let Some(radius) = self.radius.filter(|r| *r > MAX_CHAT_RADIUS) {
+            errors.push(format!(
+                "chat.radius: {radius} is not from 0 to {MAX_CHAT_RADIUS}"
             ));
         }
         if let Some(slot) = self.slot.as_deref().filter(|slot| !plain_name(slot)) {
@@ -1429,6 +1461,16 @@ mod tests {
         ] {
             assert!(parse(&one_panel(good)).is_ok(), "{good}");
         }
+    }
+
+    #[test]
+    fn the_chat_takes_a_radius_a_well_and_a_card_look() {
+        let hud = parse("hud: 1\nchat: {radius: 10, well: [1, 2, 3], card: chat}\n").unwrap();
+        assert_eq!(hud.chat.radius, Some(10));
+        assert_eq!(hud.chat.well, Some([1, 2, 3]));
+        assert_eq!(hud.chat.card, CardLook::Chat);
+        assert_eq!(parse("hud: 1\n").unwrap().chat.card, CardLook::Host);
+        assert!(errors(parse("hud: 1\nchat: {radius: 25}\n")).contains("chat.radius"));
     }
 
     #[test]

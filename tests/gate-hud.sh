@@ -22,8 +22,8 @@
 #                           chat.size 10; exit 1, each error with its file
 #   list-huds, use-hud-writes-setting   --list-huds, --use-hud (A12)
 #   neutral-equals-today    the figure and the sentence of the neutral folder
-#                           against tests/hud/today: the sentence of 92e7539,
-#                           the dot drawn whole in its sheet
+#                           against tests/hud/today: the sentence and the dot
+#                           in the Ink tokens, the dot drawn whole in its sheet
 #   card-*                  the question card of a physical question (A1,
 #                           A2, A11)
 #   chat-*, typed-yes-held  the "Chat ..." row, chat.show and chat.hide,

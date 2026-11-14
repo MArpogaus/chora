@@ -69,8 +69,16 @@ const FADE: f64 = 160.0;
 const MAX_PLAIN: f64 = 420.0;
 /// The gap between the figure and a sentence without a box.
 const BESIDE: i32 = 8;
+/// The gap between the figure and an open chat panel.
+const PANEL_GAP: i32 = 12;
 /// The padding of the backing of a sentence without a box.
 const BACKING: i32 = 4;
+/// The height of the line of text of the state word, which has the size of
+/// text that a person reads.
+const WORD_LINE: i32 = 18;
+/// The padding and the corner radius of the chip of the state word.
+const WORD_PAD: i32 = 10;
+const WORD_RADIUS: i32 = 12;
 /// How far above and below the figure a balloon may reach.
 const BALLOON_REACH: i32 = 144;
 
@@ -279,6 +287,8 @@ pub struct Assistant {
     values: Values,
     /// The top-left corner of the picture, in output coordinates.
     origin: [i32; 2],
+    /// Where the corner is without a chat panel beside it.
+    home: [i32; 2],
     /// The width of the output.
     area: [i32; 4],
     /// The state of the voice agent, as [`context_state`] names it.
@@ -402,6 +412,7 @@ impl Assistant {
         let assistant = Self {
             values,
             origin,
+            home: origin,
             area,
             state,
             pose: pose(state),
@@ -649,7 +660,8 @@ impl Assistant {
         };
         let size = island::picture(theme, &content, self.values.dark).size;
         self.island_size = size;
-        self.origin = origin(self.values.anchor, self.area, size, self.values.margin);
+        self.home = origin(self.values.anchor, self.area, size, self.values.margin);
+        self.origin = self.home;
         let [x, y] = self.origin.map(f64::from);
         let mut commands = vec![
             Command::Update {
@@ -665,6 +677,39 @@ impl Assistant {
         commands.extend(self.island_backdrop(false));
         commands.extend(self.ring(false));
         commands
+    }
+
+    /// Moves the figure and its word clear of an open chat panel (x, y,
+    /// width, height), `PANEL_GAP` away from its side, and back to its
+    /// place when there is none; the move, if the place changed.
+    pub fn clear_of(&mut self, panel: Option<[i32; 4]>) -> Option<Command> {
+        let before = self.origin;
+        self.origin = self.home;
+        let mut origin = self.home;
+        if let Some([px, py, pw, ph]) = panel {
+            let [x, y, w, h] = self.with_word();
+            let meets =
+                x < px + pw + PANEL_GAP && px - PANEL_GAP < x + w && y < py + ph && py < y + h;
+            if meets {
+                origin[0] += if x + w / 2 >= px + pw / 2 {
+                    px - PANEL_GAP - (x + w)
+                } else {
+                    px + pw + PANEL_GAP - x
+                };
+            }
+        }
+        self.origin = origin;
+        (origin != before).then(|| Command::Update {
+            id: GROUP.into(),
+            props: PropsUpdate {
+                transform: Some(Transform::translate(
+                    f64::from(origin[0]),
+                    f64::from(origin[1]),
+                    0.0,
+                )),
+                ..PropsUpdate::default()
+            },
+        })
     }
 
     /// Shows or hides the island: an open glass chat is its expanded form
@@ -712,23 +757,26 @@ impl Assistant {
         }
         let template = self.values.word.as_deref()?;
         let text = chora_kit::hud::render(template, &serde_json::json!({ "state": label }));
-        let font = self.word_font();
+        let font = Font::Body;
         #[allow(
             clippy::cast_possible_truncation,
             reason = "a word is narrower than a screen"
         )]
         let size = [
-            theme.text_width(&text, font).ceil() as i32 + 2 * BACKING,
-            LINE + 2 * BACKING,
+            theme.text_width(&text, font).ceil() as i32 + 2 * WORD_PAD,
+            WORD_LINE + 2 * BACKING,
         ];
         self.word = size;
         let [x, y, ..] = self.word_at(size);
         let [red, green, blue] = self.values.speech.fill;
+        let [edge_red, edge_green, edge_blue] = self.values.speech.border;
         let [w, h] = size;
         let backing = format!(
-            r#"<rect width="{w}" height="{h}" rx="{BACKING}" fill="rgb({red},{green},{blue})"/>"#
+            r#"<rect x="0.5" y="0.5" width="{}" height="{}" rx="{WORD_RADIUS}" fill="rgb({red},{green},{blue})" stroke="rgb({edge_red},{edge_green},{edge_blue})"/>"#,
+            w - 1,
+            h - 1
         );
-        let place = [BACKING, BACKING, w - 2 * BACKING, LINE];
+        let place = [WORD_PAD, BACKING, w - 2 * WORD_PAD, WORD_LINE];
         let colour = self.values.word_ink.map_or_else(
             || self.values.speech.text_rgba(),
             |[red, green, blue]| [red, green, blue, 255],
@@ -747,17 +795,6 @@ impl Assistant {
             meta: Some([("text".to_owned(), text)].into()),
             ..PropsUpdate::default()
         })
-    }
-
-    /// The font of the state word: text that a person reads, 14 pixels,
-    /// where the folder names a slot; the small one of the status line
-    /// beside a figure otherwise.
-    fn word_font(&self) -> Font {
-        if self.values.slot {
-            Font::Body
-        } else {
-            Font::Ui
-        }
     }
 
     /// The rectangle of a word of `size` beside the figure, in the middle
@@ -1156,6 +1193,7 @@ mod tests {
         Assistant {
             values: values.clone(),
             origin: [800, 500],
+            home: [800, 500],
             area: [0, 0, 1024, 768],
             state,
             pose: pose(state),
@@ -1171,6 +1209,34 @@ mod tests {
             island_size: [0, 0],
             ring_shader: None,
         }
+    }
+
+    #[test]
+    fn an_open_chat_panel_never_covers_the_figure_and_its_word() {
+        let now = Instant::now();
+        let (_, values, _) = crate::tests::loaded("dodge");
+        let mut figure = assistant(&values, "listening", now);
+        figure.word = [80, 26];
+        figure.origin = [976, 740];
+        figure.home = [976, 740];
+        figure.area = [0, 0, 1000, 800];
+        let panel = [588, 12, 400, 776];
+        let before = figure.with_word();
+        assert!(
+            before[0] + before[2] > panel[0],
+            "the panel covers it: {before:?}"
+        );
+        let moved = figure.clear_of(Some(panel));
+        assert!(moved.is_some());
+        let [x, _, w, _] = figure.with_word();
+        assert_eq!(x + w, panel[0] - PANEL_GAP, "beside the panel, 12 away");
+        assert_eq!(figure.origin[1], 740, "at its height");
+        assert!(
+            figure.clear_of(Some(panel)).is_none(),
+            "nothing moved again"
+        );
+        assert!(figure.clear_of(None).is_some());
+        assert_eq!(figure.origin, [976, 740], "home again");
     }
 
     /// Inside a pane of the construct the island dims to 0.6 (HUD spec,
@@ -1375,14 +1441,14 @@ mod tests {
         };
         assert_eq!(
             place(&output, &mut theme),
-            [1240, 720, 24, 24],
+            [1232, 712, 24, 24],
             "a bar of 40 px below"
         );
         output.default_work_area = [0; 4];
         output.work_area = [1920, 40, 1280, 760];
         assert_eq!(
             place(&output, &mut theme),
-            [1240, 760, 24, 24],
+            [1232, 752, 24, 24],
             "a core without the default area"
         );
     }

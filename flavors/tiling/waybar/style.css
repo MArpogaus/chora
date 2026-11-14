@@ -22,7 +22,7 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-  background: alpha(@surface, 0.92);
+  background: @surface;
   border: 1px solid @line;
   border-radius: 10px;
   padding: 0 6px;
@@ -74,20 +74,19 @@ tooltip label {
 }
 
 #custom-apps {
-  background-image: url("icons/apps.svg");
+  background-image: -gtk-scaled(url("icons/apps.svg"), url("icons/apps@2.svg"));
 }
 
 #custom-keys {
-  background-image: url("icons/keys.svg");
+  background-image: -gtk-scaled(url("icons/keys.svg"), url("icons/keys@2.svg"));
 }
 
 #custom-power {
-  background-image: url("icons/power.svg");
+  background-image: -gtk-scaled(url("icons/power.svg"), url("icons/power@2.svg"));
   background-position: center;
   min-width: 16px;
   padding: 0 6px;
   font-weight: 400;
-  color: @muted;
 }
 
 #custom-sep1,
@@ -102,8 +101,10 @@ tooltip label {
 }
 
 #custom-layout {
-  min-width: 80px;
-  color: @muted;
+  background-color: @surface-2;
+  border-radius: 6px;
+  margin: 4px 0;
+  padding: 0 10px;
 }
 
 #custom-apps:hover,

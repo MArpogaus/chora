@@ -1,0 +1,188 @@
+#!/bin/bash
+# The layout audit of the tiling look (reports/pixel-tiling-v2.md of the
+# log, "Automatable checks"): tests/tiling-audit.py in each state, in each
+# theme and at each scale. Each cell prints `ok:` or `FAIL:` with the
+# findings of its flaw classes:
+#   tokens      a helper surface fill that is no token of the theme, an
+#               unfocused tile border that is not `line`
+#   radius      corners of the helper surfaces outside the radius family
+#   overlap     a helper surface under the bar or on a tile border
+#   fullscreen  the bar islands over a fullscreen window
+#   surface     the bar and the key list in the one `surface` fill
+#   chip, chat  the state word and its orb; Close and the input field
+#   terminal    the fill of the tiles is the `terminal` token
+#   look        the wallpaper, the glow of the focus and the shadows
+# The cells: desktop (two tiles and the "Chat ..." row), chat (the chat
+# open), question (the card), chatq (the chat open over the card), chattoast
+# (a notification with the chat open), toast (a notification of mako), keys (the key
+# list), layout (the chip of a layout change), tooltip (that of Keys),
+# launcher (fuzzel; before 1.11 without its `selection-radius`), fullscreen
+# (a fullscreen window).
+#
+# Usage: tests/gate-tiling-audit.sh   BIN: directory with the binaries
+#   SIZES   the outputs (default "1280x800 2560x1600@2")
+#   THEMES  the themes (default "ink paper")
+#   CELLS   a regular expression of the cells that run (default all)
+#   SHOTS   a directory that keeps a capture and the nodes of each cell
+set -u
+. "$(dirname "$0")/gate-lib.sh"
+need_bins chora choractl chora-tiling chora-assistant
+need foot
+need fuzzel
+need waybar
+need mako
+need gdbus
+need jq
+need mkfifo
+temp_config
+work=$XDG_CONFIG_HOME
+shots=${SHOTS:-$work/shots}
+mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
+cp -rL "$repo/plugins/chora-assistant/huds/neutral" "$work/data/chora/huds/neutral"
+export PATH=$bin:$PATH
+export CHORA_BIN=$bin
+flavor=$repo/flavors/tiling
+failed=0
+bus=$(dbus-daemon --session --print-address --fork 2>/dev/null | head -n 1 | cut -d, -f1)
+[ -n "$bus" ] || bus=
+export DBUS_SESSION_BUS_ADDRESS=$bus
+
+scaled() { awk -v a="$1" -v s="$scale" 'BEGIN { printf "%d", a * s }'; }
+notify() {
+    [[ toast =~ ^(${CELLS:-.*})$ ]] || return 0
+    gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications \
+        --method org.freedesktop.Notifications.Notify chora-audit 0 "" "Build finished" \
+        "All 14 checks passed in 3.2 s." '[]' '{}' 20000 >/dev/null 2>&1 || echo "FAIL: $tag: no notification daemon"
+}
+emit() { echo "$1 $2" >&3; }
+shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
+until_shows() {
+    for _ in $(seq 40); do
+        shows "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+
+audit() {
+    local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall='' lead=${5:-1} ref=${6:-}
+    [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
+    sleep "$lead"
+    ctl query '*' >"$shots/audit-$cell-$tag.json"
+    ctl capture "$shots/audit-$cell-$tag.png" >/dev/null 2>&1
+    [ -z "${wallpaper_pid:-}" ] || wall=wall
+    [ "$(pixel "$shots/audit-$cell-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/audit-$cell-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && bar=bar
+    if [ "$cell" != fullscreen ] && [ -z "$bar" ]; then
+        echo "FAIL: $cell $tag: the bar does not show"
+        failed=1
+    fi
+    if out=$(python3 -I "$repo/tests/tiling-audit.py" "$shots/audit-$cell-$tag.png" "$shots/audit-$cell-$tag.json" "$theme" "$scale" "$cell" $bar $wall ${ref:+ref=$ref}); then
+        ok "$cell $tag${bar:+ (bar)}"
+    else
+        echo "FAIL: $cell $tag:"
+        printf '  %s\n' "$out"
+        failed=1
+    fi
+}
+
+round() {
+    local theme=$1 size=$2 tag=$1-$2
+    scale=1
+    [[ $size == *@* ]] && scale=${size##*@}
+    mkdir -p "$work/chora"
+    printf 'enabled: true\nposition: null\nhud: neutral\nhuds: []\n' >"$work/chora/chora-assistant.yaml"
+    "$bin/chora-tiling" --print-config >"$work/chora/chora-tiling.yaml"
+    sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
+    CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
+    grant screen.capture input.inject methods.call
+    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
+    run_pid $!
+    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/wallpaper.sh" >/dev/null 2>&1 &
+    wallpaper_pid=$!
+    run_pid $wallpaper_pid
+    rm -f "$work/voice.in"
+    mkfifo "$work/voice.in"
+    python3 -I "$repo/tests/fake-voice.py" "$work/claims" <"$work/voice.in" >"$shots/voice-$tag.log" 2>&1 &
+    pids+=($!)
+    exec 3>"$work/voice.in"
+    XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant-$tag.log" 2>&1 &
+    pids+=($!)
+    for i in 1 2; do ctl run "$bin/chora-tiling" --launch foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$tag: foot"; done
+    ctl wait id:hud-row-chat --timeout 20 >/dev/null 2>&1
+    for _ in $(seq 30); do
+        sleep 1
+        ctl capture "$shots/probe-$tag.png" >/dev/null 2>&1 &&
+            [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && break
+    done
+    token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
+    [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
+        { echo "FAIL: tokens colors.css: line is ${token:-missing} in $theme"; failed=1; }
+    sleep 6
+    audit desktop "$tag" "$theme" "$scale"
+
+    "$bin/chora-tiling" --launch mako >"$shots/mako-$tag.log" 2>&1 &
+    pids+=($!)
+    sleep 2
+    emit voice.state '{"state": "question", "task": "Write file", "said": ""}'
+    emit voice.confirm '{"id": "51", "name": "Atlas", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/notes/notes.txt", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true, "timeout_s": 42}'
+    until_shows hud-card || echo "FAIL: $tag: no question card"
+    audit question "$tag" "$theme" "$scale"
+    ctl call assistant chat.show '{"name": "atlas"}' >/dev/null 2>&1
+    until_shows hud-chat || echo "FAIL: $tag: no chat"
+    audit chatq "$tag" "$theme" "$scale"
+    emit voice.confirm '{"id": "51", "done": true}'
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    sleep 0.5
+    audit chat "$tag" "$theme" "$scale"
+    notify
+    sleep 1.5
+    audit chattoast "$tag" "$theme" "$scale" 1 "$shots/audit-chat-$tag.png"
+    makoctl dismiss --all >/dev/null 2>&1
+    sleep 1
+    ctl call assistant chat.hide >/dev/null 2>&1
+    sleep 1
+    notify
+    sleep 1.5
+    audit toast "$tag" "$theme" "$scale"
+    makoctl dismiss --all >/dev/null 2>&1
+    echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
+    sleep 1.5
+    audit keys "$tag" "$theme" "$scale"
+    echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
+    sleep 1
+    ctl call tiling next_layout >/dev/null 2>&1
+    audit layout "$tag" "$theme" "$scale" 0.3
+    sleep 1
+    echo "[{\"pointer_move\": {\"position\": [1180, 24]}}]" | ctl inject - >/dev/null
+    sleep 0.3
+    echo "[{\"pointer_move\": {\"position\": [1182, 25]}}]" | ctl inject - >/dev/null
+    audit tooltip "$tag" "$theme" "$scale" 2.5
+    echo "[{\"pointer_move\": {\"position\": [640, 500]}}]" | ctl inject - >/dev/null
+    fuzzel_version=$(fuzzel --version 2>/dev/null | sed -n 's/^fuzzel version: \([0-9.]*\).*/\1/p')
+    if [ "$(printf '%s\n1.11\n' "${fuzzel_version:-0}" | sort -V | head -n 1)" != 1.11 ]; then
+        sed -i '/^selection-radius=/d' "$XDG_RUNTIME_DIR/chora-tiling/theme/fuzzel.ini"
+    fi
+    launcher=$(ctl run "$bin/chora-tiling" --launch fuzzel | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    [ -z "$launcher" ] || run_pid "$launcher"
+    audit launcher "$tag" "$theme" "$scale" 3
+    echo '[{"shortcut": {"keys": "Escape"}}]' | ctl inject - >/dev/null
+    [ -z "$launcher" ] || kill "$launcher" 2>/dev/null
+    sleep 1
+    ctl run "$bin/chora-tiling" --launch foot -F -T fullscreen sh -c 'printf "\\n\\n\\n\\n\\n\\n\\n\\n"; echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
+    sleep 3
+    audit fullscreen "$tag" "$theme" "$scale"
+    exec 3>&-
+    for p in "${pids[@]}" "${run_pids[@]}"; do kill "$p" 2>/dev/null; done
+    wait 2>/dev/null
+    pids=()
+    run_pids=()
+    wallpaper_pid=
+}
+
+for theme in ${THEMES:-ink paper}; do
+    for size in ${SIZES:-1280x800 2560x1600@2}; do
+        round "$theme" "$size"
+    done
+done
+[ "$failed" = 0 ] || fail "the layout audit found flaws"
+ok "the layout audit"

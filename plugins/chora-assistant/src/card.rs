@@ -117,6 +117,27 @@ impl Ink {
         }
     }
 
+    /// A card in the colours of a chat: its fill, hairline and text, the
+    /// fill of its buttons and the radius of its corners.
+    #[must_use]
+    pub const fn themed(
+        fill: [u8; 3],
+        border: [u8; 3],
+        text: [u8; 3],
+        button: [u8; 3],
+        radius: i32,
+    ) -> Self {
+        Self {
+            fill,
+            border,
+            text,
+            button,
+            radius,
+            page: None,
+            xp: false,
+        }
+    }
+
     fn style(self) -> Style {
         Style {
             fill: self.fill,
@@ -651,7 +672,11 @@ fn button(theme: &mut Theme, label: &str, shown: &Shown) -> String {
     }
     let flat = Style {
         fill: ink.button,
-        radius: ink.radius.min(4),
+        radius: if ink.radius > Ink::HOST.radius {
+            ink.radius - 2
+        } else {
+            ink.radius.min(4)
+        },
         ..ink.style()
     };
     let [w, h] = BUTTON;
@@ -830,6 +855,23 @@ pub fn follow(shown: &mut Shown, origin: [i32; 2]) -> bool {
         return false;
     }
     shown.origin = origin;
+    true
+}
+
+/// The gap between a card and an open chat panel.
+const PANEL_GAP: i32 = 12;
+
+/// Moves a card that an open chat panel (x, y, width, height) covers to the
+/// panel's left, `PANEL_GAP` away, as the figure steps aside of it. A re-
+/// layout is no new question: the guard of the buttons stays. True when the
+/// card moved.
+pub fn clear_of(shown: &mut Shown, [w, h]: [i32; 2], [px, py, pw, ph]: [i32; 4]) -> bool {
+    let [x, y] = shown.origin;
+    let meets = x < px + pw && px < x + w && y < py + ph && py < y + h;
+    if !meets {
+        return false;
+    }
+    shown.origin[0] = (px - PANEL_GAP - w).max(EDGE);
     true
 }
 
@@ -1243,6 +1285,22 @@ mod tests {
         card.max_width = Some(400);
         assert!(size(&theme, &card, Language::En, [1280, 720])[0] <= 400);
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn an_open_chat_panel_never_covers_the_card() {
+        let mut card = shown(&notes(), Instant::now());
+        card.origin = [696, 574];
+        let panel = [868, 52, 400, 736];
+        assert!(clear_of(&mut card, [560, 170], panel));
+        assert_eq!(
+            card.origin,
+            [868 - PANEL_GAP - 560, 574],
+            "beside the panel"
+        );
+        assert!(!clear_of(&mut card, [560, 170], panel), "it stays");
+        card.origin = [100, 574];
+        assert!(!clear_of(&mut card, [560, 170], panel), "clear of it");
     }
 
     #[test]

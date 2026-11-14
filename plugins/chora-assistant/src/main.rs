@@ -68,8 +68,9 @@ use crate::{
 /// The client name of the plugin, the prefix of its methods.
 const NAME: &str = "assistant";
 
-/// The font family of what the host draws itself.
-const HOST_FAMILY: &str = chora_draw::text::SANS_SERIF;
+/// The font family of what the host draws itself: Inter, as on every helper
+/// surface, never the sans of the system.
+const HOST_FAMILY: &str = chora_kit::glass::SANS;
 
 /// How long the loop waits for an event while nothing moves.
 const IDLE: Duration = Duration::from_secs(60);
@@ -655,6 +656,11 @@ fn load_folder(dir: &Path, context: &Context, cache: &Path) -> Result<(Theme, Va
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_card_of_the_host_is_set_in_inter() {
+        assert_eq!(HOST_FAMILY, "Inter");
+    }
     use super::*;
     use crate::config::Figure;
 
@@ -692,7 +698,7 @@ mod tests {
         let (_, values, cache) = loaded("neutral-rows");
         let (anchor, [_, top]) = values.rows;
         assert_eq!(anchor, chora_kit::hud::Anchor::TopRight);
-        assert!(top >= 48, "the islands of the bar reach y 40: {top}");
+        assert!(top >= 24, "the rows stand 12 below the tile top: {top}");
         let _ = std::fs::remove_dir_all(cache);
     }
 
@@ -704,7 +710,7 @@ mod tests {
             Figure::Sheet { size: [24, 24], .. }
         ));
         assert_eq!(values.anchor, chora_kit::hud::Anchor::BottomRight);
-        assert_eq!(values.margin, [16, 16]);
+        assert_eq!(values.margin, [24, 24]);
         assert_eq!(values.speech.tail, 0, "no tail");
         assert!(values.mutes);
         assert!(theme.confined());
