@@ -34,7 +34,7 @@ session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 | flakes | cloud Fable ..MXy5q, claude/flakes 22b452ed | briefs/flakes-r2.md | F14 fix pushed 17:45; F13 next |
 
 ## Queue
-0. Robustness: fail-open hooks, worktree guard, heartbeat, takeover.sh (friction 44).
+0. Robustness done 18:03: fail-open hooks, worktree guard, heartbeat verified, takeover.sh (friction 44, 45).
 1. Train 5: ci-rc, docs (key fix), doors, mc, xtc, review-core; review each (opus), full gate per merge. (rc 1, 4, 6, 7, 8)
 2. Flakes r2 cloud (sonnet/opus): redo F13, cube flick under load. (rc 3)
 3. Verify BLOCK ti-1, co-1; fix lane (opus): plugins HIGH XP-B-01, MC-01, NO-01; core C05 (gate + grant), C14 (injected input is no activity), V02 (utterances at debug), trace C13; CR-1 (URLs with userinfo in llm.rs logs), CR-6 (keep *_api_key_env). (rc 1, 6)
