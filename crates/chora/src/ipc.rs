@@ -353,6 +353,22 @@ impl Ipc {
         }
     }
 
+    /// Sends an event to one connection unless its output is too full:
+    /// `false` then, and the connection stays open. For an event that
+    /// another client causes, which must not close this one.
+    pub fn send_if_room(&mut self, conn: u64, event: &Event) -> bool {
+        let Some(c) = self.conns.get_mut(&conn) else {
+            return false;
+        };
+        let line = stamped(&Message::event(event), c.seq + 1);
+        if c.output.len() + line.len() > MAX_OUTPUT {
+            return false;
+        }
+        c.seq += 1;
+        c.push(&line);
+        true
+    }
+
     /// Sends a response to one connection. A result that does not fit in
     /// the output of the connection becomes an error, so that a large
     /// answer, for example of a query of all nodes, does not close it.

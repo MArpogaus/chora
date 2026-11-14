@@ -33,10 +33,6 @@ const MAX_EXPORTS: usize = 64;
 const MAX_PENDING: usize = 64;
 /// The most bytes of the description and the schema of one exported
 /// method.
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "the fix that follows enforces it")
-)]
 const MAX_EXPORT_BYTES: usize = 64 << 10;
 
 /// The exported methods and the calls that wait for their answers.
@@ -123,6 +119,18 @@ impl State {
                 "invalid method name {:?}: use a-z, 0-9, _, - and .",
                 bad.name()
             )));
+        }
+        let huge = |m: &&ExportMethod| {
+            serde_json::to_vec(m).map_or(true, |text| text.len() > MAX_EXPORT_BYTES)
+        };
+        if let Some(big) = export.names.iter().find(huge) {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the description and the schema of {} take over {MAX_EXPORT_BYTES} bytes",
+                    big.name()
+                ),
+            ));
         }
         let name = self.ipc.name(conn).unwrap_or_default().to_owned();
         let taken = export.names.iter().find(|m| {
@@ -212,8 +220,14 @@ impl State {
             confined,
             connection: conn,
         };
-        self.ipc.send_to(callee, &event);
-        Ok(())
+        if self.ipc.send_if_room(callee, &event) {
+            return Ok(());
+        }
+        self.methods.pending.remove(&number);
+        Err(RpcError::new(
+            RpcError::LIMIT_REACHED,
+            "the client of the method reads too slowly, call again later",
+        ))
     }
 
     fn return_method(&mut self, conn: u64, answer: MethodReturn) -> Result<Value, RpcError> {
