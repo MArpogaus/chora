@@ -34,7 +34,7 @@ terms and no synonyms.
 | **Construct** | A YAML file of `chora-construct` with the start pose of the camera, the leash radius and the panes of one space (D66). |
 | **Pane** | A flat area that stands in the space of `chora-construct` with a fixed turn, set to face the camera where it is placed or moved. It holds a program, a plugin, a nested desktop session or a prompt. "Pane" is not "view": a view is a declarative arrangement of the configuration (D66). |
 | **Focus border** | The 2 px border that `chora-tiling` draws outside each window: a gradient from the accent to the second accent on the focused window, the line colour on the others, the urgent colour on a window that asks for attention. |
-| **Key list** | The glass panel that `chora-tiling` shows on `MOD+slash` and on the Keys button of the panel: every binding with its words, built from the file. |
+| **Key list** | The glass panel that `chora-tiling` shows on `MOD+F1` and on the Keys button of the panel: every binding with its words, built from the file. |
 | **Layout chip** | The small glass chip that `chora-tiling` shows for 700 ms and that names the new layout. |
 | **Start card** | The glass card that `chora-construct` shows in the middle of the output while the space holds no pane: rows to start a terminal, the launcher or a cube, each with its key. It fades out when the first pane appears. |
 | **Face card** | The flat glass card that `chora-construct` shows on the face ahead of a cube while the window manager of the face starts (the working ring and `Starting Media center`) or failed to start (what failed, the reason in a data well, the next step). A click on it tries again. |

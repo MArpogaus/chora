@@ -293,6 +293,8 @@ pub struct Assistant {
     area: [i32; 4],
     /// The state of the voice agent, as [`context_state`] names it.
     state: &'static str,
+    /// The state in words, as the figure shows it.
+    label: String,
     pose: Pose,
     shut: bool,
     /// The next move of the pose.
@@ -415,6 +417,7 @@ impl Assistant {
             home: origin,
             area,
             state,
+            label: label.to_owned(),
             pose: pose(state),
             shut: false,
             step: 0,
@@ -872,9 +875,10 @@ impl Assistant {
         (state, label): (&'static str, &str),
         now: Instant,
     ) -> Vec<Command> {
-        if state == self.state {
+        if state == self.state && label == self.label {
             return Vec::new();
         }
+        label.clone_into(&mut self.label);
         self.state = state;
         self.pose = pose(state);
         self.step = 0;
@@ -1196,6 +1200,9 @@ mod tests {
             home: [800, 500],
             area: [0, 0, 1024, 768],
             state,
+            label: chora_kit::words::state(state)
+                .map(|word| word.text(chora_kit::words::Language::En).to_owned())
+                .unwrap_or_default(),
             pose: pose(state),
             shut: false,
             step: 0,
@@ -1334,6 +1341,12 @@ mod tests {
                 if id == STATE && props.meta.as_ref().is_some_and(|m| m["text"] == "Listening"))
         });
         assert!(said, "{commands:?}");
+        let commands = a.set_state(&mut theme, ("listening", "No helper"), now);
+        let said = commands.iter().any(|c| {
+            matches!(c, Command::Update { id, props }
+                if id == STATE && props.meta.as_ref().is_some_and(|m| m["text"] == "No helper"))
+        });
+        assert!(said, "the word changes while the state stays: {commands:?}");
     }
 
     #[test]

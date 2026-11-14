@@ -409,10 +409,14 @@ impl Construct {
         if let Some(act) = view.key(key) {
             return Some(Pressed::Act(act));
         }
-        let opens = matches!(
-            self.settings.value.action(key, modifiers),
-            Some(Action::Terminal | Action::Launcher | Action::Windows | Action::Help)
-        );
+        let opens = self
+            .settings
+            .value
+            .action(key, modifiers)
+            .is_some_and(|action| {
+                matches!(action, Action::Terminal | Action::Windows)
+                    || Action::SHARED.contains(&action)
+            });
         (view.mode() == Mode::Use && !opens).then_some(Pressed::Nothing)
     }
 

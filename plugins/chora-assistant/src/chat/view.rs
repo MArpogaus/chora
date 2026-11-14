@@ -534,6 +534,23 @@ fn tops(margin: bool, xp: bool) -> (i32, i32) {
 }
 
 impl Session {
+    /// The lines of the hint. In the margin of a client the card names
+    /// its keys itself, and a list without an entry says why here, since
+    /// the view has no header there.
+    fn hint_of(
+        &self,
+        theme: &Theme,
+        (language, margin): (Language, bool),
+        width: i32,
+    ) -> Vec<String> {
+        let empty = matches!(&self.mode, Mode::List(picks) if picks.is_empty());
+        (self.hint(language))
+            .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
+            .or_else(|| (margin && empty).then(|| self.header(language)))
+            .map(|hint| hint_lines(theme, &hint, width))
+            .unwrap_or_default()
+    }
+
     /// The room under the rows: the field, the hint and the card, each
     /// with its gap, which is half a line above the card in the margin.
     fn room_below(&self, frame: &Frame, hint: &[String]) -> i32 {
@@ -572,10 +589,7 @@ impl Session {
             width: &width_of,
         };
         let lines = self.lines(language, &measure);
-        let hint = (self.hint(language))
-            .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
-            .map(|hint| hint_lines(theme, &hint, rect[2] - 2 * inset))
-            .unwrap_or_default();
+        let hint = self.hint_of(theme, (language, margin), rect[2] - 2 * inset);
         let list = self.entries(language);
         let buttons = buttons(&self.mode, margin);
         let xp =
@@ -1494,6 +1508,48 @@ mod tests {
         assert_eq!(parts.top_row, XP_HEAD_Y);
         assert!(parts.body_top > XP_RULE_Y);
         assert!(parts.xp.is_some());
+    }
+
+    #[test]
+    fn an_empty_list_in_the_margin_of_a_client_says_that_no_helper_is_set_up() {
+        let (theme, _, cache) = crate::tests::loaded("margin-none");
+        let frame = Frame {
+            look: Look {
+                style: ChatStyle::Plain,
+                ..idle_frame(IdleStop::Grey).look
+            },
+            slot: Some([900, 100, 340, 600]),
+            ..idle_frame(IdleStop::Grey)
+        };
+        let mut session = Session::new();
+        session.mode = Mode::List(Vec::new());
+        let parts = session.parts(&theme, &frame, Language::En);
+        assert_eq!(parts.header, "", "the client has the head");
+        let hint = parts.hint.join(" ");
+        assert!(hint.starts_with("No helper is set up."), "{hint}");
+        session.mode = Mode::List(vec![crate::chat::Pick::Project("demo".into())]);
+        let parts = session.parts(&theme, &frame, Language::En);
+        assert!(parts.hint.is_empty(), "{:?}", parts.hint);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_glass_view_names_its_header_in_the_meta_of_its_node() {
+        let (mut theme, _, cache) = crate::tests::loaded("glass-header");
+        let frame = Frame {
+            look: Look {
+                style: ChatStyle::Glass,
+                ..idle_frame(IdleStop::Grey).look
+            },
+            ..idle_frame(IdleStop::Grey)
+        };
+        let mut session = Session::new();
+        session.mode = Mode::List(Vec::new());
+        let commands = session.glass_commands(&mut theme, &frame, Language::En);
+        let text = created(&commands, CHAT).and_then(|props| props.meta.as_ref());
+        let text = text.map(|meta| meta["text"].clone()).unwrap_or_default();
+        assert!(text.starts_with("No helper is set up"), "{text}");
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

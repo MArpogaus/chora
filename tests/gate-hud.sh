@@ -53,6 +53,10 @@
 #                           edges of the work area (H10, F9)
 #   voice-state-rate, layers-dropped-empty, host-idle-cpu   100 voice.state
 #                           in 5 s, then no dropped layers and under 1 % CPU
+#   helper-word             while voice rests the state word is `No helper`
+#                           without a helper, the state of voice with one,
+#                           and `No helper` again after the last one ended,
+#                           on one connection of voice
 #
 # The node ids that the cells read are part of the contract of the steps
 # H5 to H7: hud-figure, hud-state, hud-row-chat, hud-row-NAME, hud-card,
@@ -110,6 +114,7 @@ host-idle-cpu pass
 neutral-equals-today pass
 late-host-shows-figure pass
 reconnected-voice-shows-figure pass
+helper-word pass
 hung-voice-leaves-host-responsive pass
 '
 
@@ -627,15 +632,24 @@ cell_late_host_shows_figure() {
     waiting "$settle_s" node_has hud-state Thinking || return 1
     stop_assistant
     waiting "$grace_s" figure_gone || return 1
-    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    emit voice.state '{"state": "working", "task": "", "said": ""}'
     start_assistant || return 1
-    waiting "$settle_s" node_has hud-state Listening
+    waiting "$settle_s" node_has hud-state Working
 }
 cell_reconnected_voice_shows_figure() {
     stop_voice
     waiting "$settle_s" figure_gone || return 1
-    FAKE_VOICE_STATE_DELAY=1 FAKE_VOICE_STATE='{"state": "listening", "task": "", "said": ""}' start_voice
-    waiting "$settle_s" node_has hud-state Listening
+    FAKE_VOICE_STATE_DELAY=1 FAKE_VOICE_STATE='{"state": "working", "task": "", "said": ""}' start_voice
+    waiting "$settle_s" node_has hud-state Working
+}
+cell_helper_word() {
+    emit voice.remove '{"name": "Atlas"}'
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    waiting "$settle_s" node_has hud-state "No helper" || return 1
+    emit voice.state '{"name": "Atlas", "state": "idle", "task": "", "said": ""}'
+    waiting "$settle_s" node_has hud-state Listening || return 1
+    emit voice.remove '{"name": "Atlas"}'
+    waiting "$settle_s" node_has hud-state "No helper"
 }
 cell_hung_voice_leaves_host_responsive() {
     stop_voice
@@ -692,6 +706,7 @@ run_cell layers-dropped-empty cell_layers_dropped_empty session
 run_cell host-idle-cpu cell_host_idle_cpu session
 run_cell late-host-shows-figure cell_late_host_shows_figure session
 run_cell reconnected-voice-shows-figure cell_reconnected_voice_shows_figure session
+run_cell helper-word cell_helper_word session
 run_cell hung-voice-leaves-host-responsive cell_hung_voice_leaves_host_responsive session
 
 printf '\n%-34s %-9s %s\n' cell measured expected

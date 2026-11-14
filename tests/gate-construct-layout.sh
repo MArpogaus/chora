@@ -14,7 +14,7 @@
 #   chat-ask     the chat open while a question waits
 #   list         the window list (Tab)
 #   list-search  the window list filtered by typed letters
-#   help         the help (F1)
+#   help         the help (Super+F1)
 #   help-search  the help filtered by "pane"
 # The audit fails on helper surfaces that overlap, a surface or a text
 # outside the work area, an image that is not drawn pixel for pixel, and a
@@ -46,7 +46,7 @@
 #
 # The walk hints show only what applies, at most five, centred and 32 from
 # the bottom: with one pane `W A S D Walk`, `Fly in`, `Super T Terminal`
-# and `F1 All keys`, with three panes also `Tab Windows`. The last cells
+# and `Super F1 All keys`, with three panes also `Tab Windows`. The last cells
 # of a round use three panes: the hint and the rows of the window list
 # take a hover and a real press (a click on a row flies into its window, a
 # click on the hint Terminal starts a terminal that opens flown in), each
@@ -474,7 +474,7 @@ SCRIPT
     key Escape
     sleep 0.4
 
-    key F1
+    key Super+F1
     sleep 0.6
     audit help "$tag"
     help_contrast "$tag" "$size"

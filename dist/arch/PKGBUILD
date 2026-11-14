@@ -58,7 +58,7 @@ package() {
   # The X11 units of the flavors start it from this path.
   install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
   install -Dm644 dist/session/*.desktop -t "$pkgdir/usr/share/wayland-sessions/"
-  install -Dm644 services/voice/chat/chora-chat.desktop -t "$pkgdir/usr/share/applications/"
+  install -Dm644 flavors/shared/applications/chora-chat.desktop -t "$pkgdir/usr/share/applications/"
   install -Dm644 dist/session/env-chora -t "$pkgdir/etc/xdg/uwsm/"
   # Screen sharing through xdg-desktop-portal-wlr (D37).
   install -Dm644 dist/portal/chora-portals.conf -t "$pkgdir/usr/share/xdg-desktop-portal/"
@@ -83,6 +83,9 @@ package() {
   install -Dm644 flavors/tiling/*.service flavors/tiling/*.target flavors/tiling/*.ini \
     flavors/tiling/*.conf flavors/tiling/*.png -t "$pkgdir/usr/share/chora/flavors/tiling/"
   install -Dm755 flavors/tiling/*.sh -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm755 flavors/shared/*.sh -t "$pkgdir/usr/share/chora/flavors/shared/"
+  install -Dm644 flavors/shared/applications/* \
+    -t "$pkgdir/usr/share/chora/flavors/shared/applications/"
   install -Dm644 flavors/tiling/applications/* \
     -t "$pkgdir/usr/share/chora/flavors/tiling/applications/"
   install -Dm644 flavors/tiling/waybar/*.css flavors/tiling/waybar/*.jsonc flavors/tiling/waybar/*.jq \

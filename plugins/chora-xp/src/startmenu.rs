@@ -59,6 +59,10 @@ pub enum Action {
     Set(Setting),
     /// Opens Help and Support on its first topic.
     Help,
+    /// Locks the screen.
+    Lock,
+    /// Takes a screenshot.
+    Screenshot,
 }
 
 /// The column or the footer of an entry.
@@ -1026,6 +1030,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         ("", run(""), "", false),
         ("Help and Support", Action::Help, "help-browser", false),
         ("Run...", run(&config.launcher), "system-run", false),
+        ("Screenshot", Action::Screenshot, "camera-photo", false),
     ];
     let mut y = HEADER + 1 + 5;
     let mut entries = Vec::new();
@@ -1097,7 +1102,7 @@ fn right_height(places: &[Entry]) -> i32 {
     bottom(places) + 6
 }
 
-/// Log Off and Turn Off Computer at the right of the footer.
+/// Lock, Log Off and Turn Off Computer at the right of the footer.
 fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
     let y = height - FOOTER + 7;
     let button = |title: &str, icon: &str, action, x, w| Entry {
@@ -1111,6 +1116,13 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
         rect: [x, y, w, 30],
     };
     vec![
+        button(
+            "Lock",
+            "winxp/lock.svg",
+            Action::Lock,
+            WIDTH - 5 - 176 - 8 - 96 - 8 - 72,
+            72,
+        ),
         button(
             "Log Off",
             "winxp/log-off.svg",

@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use chora_kit::{
     ask::Question,
     hud::{Anchor, ChatForm},
-    words::{self, Word},
+    words::{self, Language, Word},
 };
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, ipc::ClientError};
 use serde_json::{Value, json};
@@ -136,7 +136,8 @@ impl Agent {
                 self.helper_gone(helper, now);
                 self.chat_voice(event, data);
             }
-            let mut commands = self.sync_row()?;
+            let mut commands = self.sync_assistant(now)?;
+            commands.extend(self.sync_row()?);
             commands.extend(self.sync_task());
             return Ok(commands);
         }
@@ -597,9 +598,7 @@ impl Agent {
 
     /// The words of a state, in the language of the screen.
     fn state_label(&self, state: &str) -> String {
-        words::state(state)
-            .map(|word| word.text(self.language).to_owned())
-            .unwrap_or_default()
+        door_label(self.language, state, self.helpers.is_empty())
     }
 
     /// Shows, moves into its state or removes the figure, as the agent,
@@ -869,6 +868,18 @@ impl Agent {
     }
 }
 
+/// The word of the figure for a state of the voice agent. While no helper
+/// runs and the agent rests, the word says so, as the helper door of
+/// every look does.
+fn door_label(language: Language, state: &str, no_helper: bool) -> String {
+    if no_helper && matches!(state, "asleep" | "listening" | "idle") {
+        return Word::NoHelperDoor.text(language).to_owned();
+    }
+    words::state(state)
+        .map(|word| word.text(language).to_owned())
+        .unwrap_or_default()
+}
+
 /// The anchor of a corner of the setting `position`.
 /// The helper that an event of the agent is about: the `name` of a state
 /// or a removal of a helper. A question names the helper that asks, for
@@ -909,6 +920,20 @@ mod tests {
         assert_eq!(helper_of(Some("remove"), &working, VOICE), Some("Atlas"));
         let own = serde_json::json!({"name": VOICE, "state": "working"});
         assert_eq!(helper_of(Some("state"), &own, VOICE), None);
+    }
+
+    #[test]
+    fn a_resting_agent_without_any_helper_says_no_helper() {
+        let en = Language::En;
+        assert_eq!(door_label(en, "listening", false), "Listening");
+        for rests in ["asleep", "listening", "idle"] {
+            assert_eq!(door_label(en, rests, true), "No helper", "{rests}");
+        }
+        for busy in ["thinking", "working", "speaking", "question"] {
+            let word = door_label(en, busy, false);
+            assert_eq!(door_label(en, busy, true), word, "{busy}");
+        }
+        assert_eq!(door_label(Language::De, "idle", true), "Kein Helfer");
     }
 
     #[test]

@@ -86,6 +86,8 @@ assets = [
   { source = "../../flavors/tiling/*.png", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
   { source = "../../flavors/tiling/*.sh", dest = "/usr/share/chora/flavors/tiling/", mode = "755" },
   { source = "../../flavors/tiling/applications/*", dest = "/usr/share/chora/flavors/tiling/applications/", mode = "644" },
+  { source = "../../flavors/shared/*.sh", dest = "/usr/share/chora/flavors/shared/", mode = "755" },
+  { source = "../../flavors/shared/applications/*", dest = "/usr/share/chora/flavors/shared/applications/", mode = "644" },
   { source = "../../flavors/tiling/waybar/*.css", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
   { source = "../../flavors/tiling/waybar/*.jsonc", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
   { source = "../../flavors/tiling/waybar/*.jq", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },

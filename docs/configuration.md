@@ -261,11 +261,11 @@ hand-over fails, the window stays and goes back to the middle of its
 output.
 Mouse resizes of floating windows do not exist.
 
-The key list shows on `MOD+slash` and on the button **Keys** of the
+The key list shows on `MOD+F1`, on `MOD+slash` and on the button **Keys** of the
 panel: a glass panel as wide as its longest word and 24 px more, so the
 margin is 24 px left of the keycaps and right of the words, and as high as
 its rows and 24 px more, centred on the current output, with the heading "Keys", the line
-"Super+/ shows this list again. Esc closes it.", a line **Mouse** with the
+"Super+F1 shows this list again. Esc closes it.", a line **Mouse** with the
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows, Layouts, Tags, Programs and
@@ -280,10 +280,11 @@ descenders sit in the cap on the baseline of the words; every keycap has
 spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
 The option `labels` names a binding in its own words, by the binding as the
 file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
-one row, a binding with the words of another joins its row, and media keys
-are left out. The list is built each time it opens and again when the
+one row, a binding with the words of another joins its row, and the
+media keys of the volume take one row, `Vol+ / Vol- / Mute` with the words
+"Volume up / Volume down / Mute". The list is built each time it opens and again when the
 settings reload, so a binding that the file gains shows at once. It takes
-the keyboard with `focus_node` while it shows: `Esc`, `MOD+slash` or a
+the keyboard with `focus_node` while it shows: `Esc`, `MOD+F1`, `MOD+slash` or a
 click outside closes it, and the window that had the keys gets them back.
 
 `MOD+Shift+space` goes to the next layout, `MOD+Ctrl+Shift+space` to the
@@ -340,7 +341,7 @@ later `settings.set` or `settings.reload` leaves it as it is.
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag, and shows the layout chip |
-| `show_keys` | none | `MOD+slash`: shows the key list, or hides it |
+| `show_keys` | none | `MOD+F1` and `MOD+slash`: shows the key list, or hides it |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
@@ -611,7 +612,8 @@ with `settings.reload`:
   showed before.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
-  `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `keys`, `chat`, `lock`, `power`, `screenshot`, `volume: up|down|mute`,
+  `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
@@ -700,8 +702,9 @@ The `contents` are named. Their `kind` is one of:
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
-| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
-| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest and `Esc`, in the words of the six rows. A thin space follows the plus before an arrow |
+| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat` with the state word of the first helper (`No helper` without one), `Esc  Close` and the box of the chat while it is open; the header of the host says `No helper is set up.` when there is none. When the host does not answer, a red notice says so. The helpers of voice go when voice ends |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
+| `doors` | the doors of the actions that have a key, in two lines at the foot of a side under the key list: `Programs` (the launcher), `Lock`, `Power` (the power menu), `Screenshot` and the volume (`Volume 40%`, or `Muted` or the words of a failure). A click acts as the key; a click on the volume mutes or unmutes. The volume is read every 5 s and after each change |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -719,8 +722,17 @@ preset or a scene shows starts its app when the settings load.
 The default bindings are `Super+a` for the chat (`chat` asks the HUD host
 to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
 scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
-header and the footer, and `Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
-needs the grant `input.grab-any`, so the key list is on `Super+F1`.
+header and the footer, and `Super+F1` for all keys, with `Super+slash` as a
+silent alias that has no row of its own. `Super+Space` starts the launcher,
+and its list has the entry Chat with a helper. `Super+Shift+Escape` locks the
+screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
+down) and `Super+Print` takes a screenshot; these three run the scripts that
+every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
+`XF86AudioMute` change the volume of the default sound output by 5 percent
+and show it in a notice; the key list calls them `Vol+`, `Vol-` and `Mute`, with
+the words "Volume up", "Volume down" and "Mute". `F1` is no binding: it reaches the program. A binding
+of one key without Ctrl, Alt or Super needs the grant `input.grab-any`, so the
+key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows
@@ -728,7 +740,7 @@ the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
-the key list at its foot. The state of the voice agent and the helpers
+the key list and the doors at its foot. The state of the voice agent and the helpers
 stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
@@ -900,7 +912,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+slash`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c`, `Super+a`, `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help`, `cube` (opens the cube of `cube_manager`), `chat` (runs `chora-chat`), `lock`, `power` (the power menu), `screenshot`, `volume_up`, `volume_down` or `mute`. `F1` is no binding: it reaches the program of a pane. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; with Shift, `Super+Shift+e` is tried first and then the key as the keymap shifts it, as in `Super+E`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -1077,17 +1089,20 @@ terminal inside them.
 
 ### The help panel
 
-`Super+/` and `F1`, the key `help`, show the help over a scrim: a glass panel at the
+`Super+F1` and `Super+/`, the key `help`, show the help over a scrim: a glass panel at the
 top centre, 880 wide in two columns, with the keys that work now in
-groups, the construct's own at the left (Walk, Panes, Cube while a cube
-is open) and those that every look shares at the right (Helper and chat,
-Give a window, Everywhere). Each key is a keycap. The keys come from the
+groups: Walk, Panes, Cube while a cube is open, and the groups that
+every look shares (Helper and chat, Give a window, Everywhere). The
+columns are cut between groups where the taller one is the least tall.
+Everywhere names `Super+Space`, `Super+F1`, `Super+Shift+Escape`,
+`Super+Shift+e`, `Super+Print` and the three volume keys, and Helper and
+chat names `Super+a`. Each key is a keycap. The keys come from the
 settings, so a change, for example `modifier: Alt`, shows at once, and a
-key that is not bound has no row. The row of `Super+/` stands in Everywhere, the row of `F1` in Walk. Typing searches the words and the key
+key that is not bound has no row. The row of `Super+F1` stands in Everywhere; `Super+/` is a silent alias. Typing searches the words and the key
 names: the panel is then 560 wide in one column, the found words are
 marked, `Up` and `Down` move the chosen row, and the footer counts the
-keys that match. `Escape` clears the search, then hides the help; `F1`
-hides it at once. While it shows, the keys search and do not walk. The
+keys that match. `Escape` clears the search, then hides the help; its own
+key hides it at once. While it shows, the keys search and do not walk. The
 voice agent shows it with the method `help.toggle`.
 
 ### Context hints
@@ -1096,7 +1111,7 @@ At the bottom centre a glass capsule shows the hints that apply, at
 most five, each the keycaps of a key and a word: walking, for 6 seconds
 after the start and after a fly-out, `W A S D Walk`, `Return Fly in`
 while a pane is ahead, `Tab Windows` from two windows, `Super T
-Terminal` and `F1 All keys`; in a
+Terminal` and `Super F1 All keys`; in a
 pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in;
 stood back from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and
 `Turn right Ctrl Alt →`, whose hints are the chips of the cube. The
@@ -1110,8 +1125,8 @@ card, opens flown in: its pane shows at 1:1 with the keyboard, and typed
 keys reach it during the fly-in too. `Alt+Escape` steps back at any time
 of the fly-in. `Super+t` in a pane steps back, opens a second terminal
 right of the first at the same distance and flies into it over 380 ms;
-the keys that start a terminal and carry a modifier are grabbed while
-the camera is in a pane. A terminal that `Super+t` starts from the walk
+the keys that start a terminal and the keys of every look, below, are
+grabbed while the camera is in a pane. A terminal that `Super+t` starts from the walk
 while a pane stands opens beside the panes at the same distance from the
 camera, not far off in the fog.
 
@@ -1125,6 +1140,37 @@ names the window manager by its display name (`XP`, `Tiling`, `Media
 center`, `Construct`) and the reason, as in `Tiling did not take the
 window: it is not running.`; the German words are `Tiling hat das
 Fenster nicht genommen: es läuft nicht.`.
+
+### The keys and doors of every look
+
+Every look has the same keys: `Super+F1` shows the key list (`Super+/`
+is a silent alias), `Super+Space` starts the launcher, `Super+a` opens
+the chat with a helper (it runs `chora-chat`), `Super+Shift+Escape`
+locks the screen, `Super+Shift+e` opens the power menu (Lock, Log out,
+Restart, Shut down), `Super+Print` takes a screenshot and
+`XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute`
+change the volume. The key list of every look shows these three keys as
+the caps `Vol+`, `Vol-` and `Mute` (the rule of `chora_kit::glass::cap`)
+with the words "Volume up", "Volume down" and "Mute". `F1` is no binding: it reaches the program of a pane.
+The power menu, the lock and the screenshot are the scripts of
+`flavors/shared`, and the launcher lists the entries of that folder,
+among them Chat with a helper. These keys work in the walk and while the
+camera is in a pane, where each is a grab. The key list is the one
+exception: from a pane its key first steps out, since the list takes the
+keyboard. A script or program that does not start gives a notice.
+
+Each key has a door that a click works. One glass capsule in the top
+left corner, 32 from the edges, shows the clock (`HH:MM`, local time,
+drawn again each minute) and the words `Programs`, `Keys`, `Lock`,
+`Power`, `Screenshot` and `Volume 50%`, in German `Programme`,
+`Tasten`, `Sperren`, `Ausschalten`, `Bildschirmfoto` and `Lautstärke
+50%`. The words are plain text without button chrome; the pointer over a
+word shows the hover fill. A click does what the key does, and a click
+on the volume word mutes. The capsule shows in the walk. It hides in a
+pane, whose window gets every click, and while the key list or the
+window list shows; the keys work there too. The helper door
+is the island of the HUD host at the top right: it shows the state word
+of the helper, and a click opens the chat.
 
 ### The pane label
 
@@ -1466,11 +1512,9 @@ The package installs the tiling flavor (D51):
 ├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
-├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
-├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
 ├── look.sh                           # Light look, Dark look and System look: look.theme at once
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
-├── applications/                     # the entries Screenshot, Screenshot of an area and the three looks
+├── applications/                     # the entries of the three looks
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
@@ -1543,6 +1587,9 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   why: `wpctl not found`, `No output device` or `No answer`, in German
   with a German locale. A click mutes or unmutes, and the wheel changes
   the volume.
+  The helper module runs `waybar/helper.sh` every 2 seconds, which prints
+  the word of `chora-chat --door`: `No helper`, or the name and the state
+  of a helper, such as `coder · idle`. A click opens the chat.
   The unit starts waybar through `waybar/waybar.sh`, which leaves out
   the outputs that are not tiling's, such as the output of `chora-xp`
   beside tiling. It reads the outputs again every 2 seconds and starts
@@ -1585,13 +1632,14 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   the flavor: `CHORA_FLAVOR_DIR`, `/usr/share/chora/flavors/tiling`, and the
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
-  `applications/` of the flavor too: **Screenshot**, **Screenshot of an
+  `applications/` of the flavor and of the shared folder too: **Chat with a
+  helper**, **Screenshot**, **Screenshot of an
   area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
   the panel open the menu of `power.sh`, the launcher in menu mode with the
-  prompt "Power" and four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
+  prompt "Power" and four words: Lock, Log out, Restart and Shut down (swaylock in the palette, with a notice when it does not start,
   `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
   that is not set, `systemctl reboot`, `systemctl poweroff`).
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
@@ -1601,7 +1649,11 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   names the file in a notice (`notify-send`, shown by mako). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config
-  files, `chora/tiling/` of the config directory first and the flavor last.
+  files, `chora/tiling/` of the config directory first, then the flavor, and
+  last the folder `shared` beside the flavors
+  (`/usr/share/chora/flavors/shared`, or `$CHORA_SHARED_DIR`), which every
+  look uses: it holds `power.sh`, `screenshot.sh` and `applications/` with
+  the entries Chat with a helper, Screenshot and Screenshot of an area.
   A script that is in none of them is an error on stderr and a notice
   ("Power menu not installed", "Screenshot not installed"), never a key
   that does nothing.
@@ -1708,7 +1760,7 @@ reads the insets of a slice in pixels of the file. The pictures:
   the comment of the account is empty), two pinned rows, Terminal with
   "Type commands" and Chat with a helper with "Ask the helper in your
   words", then the `programs` without subtitles, places, the Control Panel,
-  Help and Support, Run, Log Off and Turn Off Computer, and All Programs
+  Help and Support, Run, Screenshot, Lock, Log Off and Turn Off Computer, and All Programs
   with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
@@ -1932,7 +1984,10 @@ keyboard does not work it (D45):
   desktop buttons 1 to 4 are 24 by 24 pixels with the tooltip `Desktop 2
   of 4`, and the clock has the date. `wpctl` runs on a thread of its own,
   at most 2 seconds a call, after each change and every 5 seconds; a click
-  on the speaker mutes or unmutes. Group
+  on the speaker mutes or unmutes. The tooltip of the paperclip names the
+  first helper and its state, as in `coder · idle`, says `Voice off` while
+  the microphone is off, and says `No helper` while no helper runs. The nodes
+  of the clock and of the tooltips carry their text in `meta.text`. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
@@ -1994,19 +2049,24 @@ core. Cancel and the close button close it without a change:
   quality, Troubleshoot and Advanced are gray.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
-output, and the desktop behind them fades to gray in 1.5 seconds. They
-are modal: the start menu, the switcher and the system menu wait until
+output, and the desktop behind them fades to gray in 1.5 seconds. Super+Shift+e
+opens the Turn Off dialog too. It has the buttons Lock, Log Off, Stand By,
+Turn Off and Restart; the Log Off dialog has Switch User and Log Off. Lock
+in the footer of the start menu locks the screen at once. The dialogs are
+modal: the start menu, the switcher and the system menu wait until
 they close, and the method `start_menu` fails meanwhile. As on XP,
 they have no default button and take no keys: Return does nothing, a
 click chooses. Each button runs its command of the setting `session`
-(D63):
+(D63). Without a command (`null`), Lock, Log Off, Restart and Turn Off run the
+shared script `power.sh` with `lock`, `logout`, `restart` or `shutdown`, and a
+notice says so when the script is not installed:
 
 | Button | Default command | Without a command (`null`) |
 |--------|-----------------|----------------------------|
-| Turn Off | `systemctl poweroff` | ends `chora-xp` and shuts nothing down |
-| Restart | `systemctl reboot` | runs `chora-xp` again, as the method `restart` does |
+| Turn Off | `null` | `power.sh shutdown` |
+| Restart | `null` | `power.sh restart` |
 | Stand By | `systemctl suspend` | disabled |
-| Log Off | `choractl quit`, which ends chora through the core method `session.quit` | asks every window to close and ends `chora-xp` |
+| Log Off | `null` | `power.sh logout`, which ends the login session |
 
 Stand By is also disabled when the first word of its command is not on
 the `PATH`. A command such as `loginctl terminate-session
@@ -2065,7 +2125,10 @@ of another client changes nothing.
 | Super+d | show the desktop: puts the windows of the desktop away; pressed again, brings the same windows back |
 | Super+Space | open the launcher, the command of `launcher`, which is the Run box of the start menu |
 | Super+e | open the home folder in the file manager; when `file_manager` is not installed, a balloon says so and names the setting. It no longer starts the terminal |
-| F1, Super+F1 | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. Escape closes the window. A key without Ctrl, Alt or Super needs `choractl grant xp input.grab-any`; without the grant, Super+F1 works (the construct's F1 is the same) |
+| Super+F1, Super+/ | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. It names the lock, power, screenshot and volume keys. Super+/ has no row of its own. Escape closes the window. F1 is no binding of `chora-xp`: it reaches the focused window |
+| Super+Shift+Escape | lock the screen with `power.sh lock` |
+| Super+Shift+e | open the Turn Off dialog with Lock, Log Off, Stand By, Turn Off and Restart |
+| Super+Print | take a screenshot with the shared script `screenshot.sh`; a notice names the file. The entry Screenshot of the start menu does the same |
 | Super+a | open the chat (`chora-chat`), as on tiling |
 | XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
@@ -2090,7 +2153,7 @@ caller on a client socket needs `methods.privileged` besides
 | `start_menu` | `open`: whether the menu should be open afterwards | a click on the start button of the first output |
 | `minimize` | `surface` | a click on the task button of the active window |
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
-| `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
+| `restart` | none | `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button; nothing while all outputs are virtual ones |
 | `window.move` | `surface`, `output`: the name of an output that `chora-xp` manages, and optionally `at`: a point of that output | privileged. A drag of the title bar onto that output: with `at` the middle of the title bar goes to that point, as after a drop there; else the window goes to the same place there, as far as it fits. The window is raised and focused; an unknown surface or output fails with code 1 |
 | `windows.float` | `output`, a virtual output that `chora-xp` manages, and `on` | privileged. While `on`, the groups `xp-win-SURFACE` of the windows that show on the output have opacity 0, so the output shows the wallpaper, the icons and the taskbar without them; a node with opacity 0 still shows in a node texture, so the caller, such as the construct with its cube, shows each group on a plane of its own. Answers `output` and `windows`, the lowest of the stack first, each with `node`, `surface` and `rect`, its place on the output; the top 12 float. `chora-xp` emits the event `xp.floating` with the same data when the windows of a floating output change. A window that leaves the output, and every window when the output goes or `on` is false, gets its opacity back: the one that another client asked for it, else 1. The windows of all outputs land before a restart of `chora-xp`, and those of the outputs of a client when that client disconnects, so that no window stays hidden. Refused for a screen. The shape and the helpers are in `chora_kit::float`, for other window managers |

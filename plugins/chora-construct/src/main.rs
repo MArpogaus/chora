@@ -36,6 +36,7 @@ mod camera;
 mod command;
 mod config;
 mod cube;
+mod doors;
 mod faces;
 mod file;
 mod float;
@@ -44,6 +45,7 @@ mod glass;
 mod hints;
 mod hud;
 mod input;
+mod keys;
 mod list;
 mod methods;
 mod modes;
@@ -422,9 +424,9 @@ impl Waiting {
 enum Grab {
     Drag,
     FlyOut,
-    /// A key that starts a terminal, grabbed while the camera is in a
-    /// pane.
-    Terminal,
+    /// A key that starts a terminal or is a key of every look, grabbed
+    /// while the camera is in a pane.
+    Key(Action),
     Give(&'static str),
     /// With a cube: the step back from its face, and a turn of it.
     StepBack,
@@ -532,6 +534,10 @@ struct Construct {
     help_sel: usize,
     /// The context hints at the bottom centre.
     hints: hints::State,
+    /// The corner capsule with the clock and the doors.
+    doors: doors::State,
+    /// The mixer of the volume keys and the volume word.
+    mixer: chora_kit::volume::Mixer,
     /// The start card of the empty floor.
     start_card: start::State,
     /// The key of the card of the face ahead as drawn, none without one.
@@ -673,6 +679,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         help_query: String::new(),
         help_sel: 0,
         hints: hints::State::default(),
+        doors: doors::State::new(),
+        mixer: chora_kit::volume::Mixer::new(NAME),
         start_card: start::State::default(),
         face_card: None,
         face_place: None,
@@ -703,9 +711,10 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 21] = [
+const EVENTS: [&str; 22] = [
     "voice.*",
     "assistant.ready",
+    "assistant.chat",
     modes::SWITCHER,
     modes::FLOATING,
     "client.connected",

@@ -48,6 +48,7 @@ tooltip label {
 #custom-apps,
 #custom-layout,
 #custom-keys,
+#custom-helper,
 #custom-power,
 #custom-volume,
 #network,
@@ -110,6 +111,7 @@ tooltip label {
 #custom-apps:hover,
 #custom-layout:hover,
 #custom-keys:hover,
+#custom-helper:hover,
 #custom-power:hover,
 #custom-volume:hover {
   background-color: @surface-2;

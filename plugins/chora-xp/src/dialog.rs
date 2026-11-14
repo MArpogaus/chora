@@ -12,6 +12,7 @@
 
 use std::fmt::Write as _;
 
+use chora_draw::theme::Layer;
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
@@ -619,6 +620,7 @@ impl Content {
                 parent: self.prefix.clone(),
                 props: PropsUpdate {
                     image: Some(theme.render(body)),
+                    meta: Some(spoken(body)),
                     // A click on the face stays in the window.
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
@@ -669,7 +671,14 @@ impl Content {
         if old.body != self.page.body
             && let Some(body) = &self.page.body
         {
-            commands.push(update(self.id("body"), theme.render(body)));
+            commands.push(Command::Update {
+                id: self.id("body"),
+                props: PropsUpdate {
+                    image: Some(theme.render(body)),
+                    meta: Some(spoken(body)),
+                    ..PropsUpdate::default()
+                },
+            });
         }
         commands.extend(self.control_changes(theme, &old.controls));
         commands
@@ -1009,6 +1018,20 @@ const EDGE: i32 = 6;
 /// The frame around a client area of a size.
 pub fn outer([w, h]: [i32; 2]) -> [i32; 2] {
     decoration::outer([w, h], false)
+}
+
+/// The `text` of the body node: the lines of the picture, so that a
+/// query of the scene reads what the page says.
+fn spoken(body: &Picture) -> std::collections::BTreeMap<String, String> {
+    let lines: Vec<&str> = body
+        .layers
+        .iter()
+        .filter_map(|layer| match layer {
+            Layer::Text(text) => Some(text.line.as_str()),
+            _ => None,
+        })
+        .collect();
+    [("text".to_owned(), lines.join("\n"))].into()
 }
 
 fn update(id: String, image: String) -> Command {

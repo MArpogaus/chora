@@ -71,6 +71,7 @@ impl Plugin for Construct {
                 Ok(())
             }
             event if host_ready(&event) => self.name_theme(),
+            event if chat_closed(&event) => self.keyboard_back(),
             event => self.other(event),
         }
     }
@@ -233,4 +234,11 @@ impl Plugin for Construct {
 fn host_ready(event: &Event) -> bool {
     matches!(event, Event::Emitted { event, client, .. }
         if client == "assistant" && event == "assistant.ready")
+}
+
+/// Whether the event is `assistant.chat` of the HUD host with the chat
+/// closed.
+fn chat_closed(event: &Event) -> bool {
+    matches!(event, Event::Emitted { event, client, data }
+        if client == "assistant" && event == "assistant.chat" && data["open"] == false)
 }

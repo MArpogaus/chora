@@ -205,7 +205,11 @@ figure, toward the middle of the output, on the backing of a plain
 sentence: `text: '{state}'` shows `Listening` in the language of the
 screen. There `{state}` is the word of the word table, not the name of
 the state. The neutral and the mc folders show it, so the state never
-depends on a colour alone. The word is 11 pixels, next to a shape that
+depends on a colour alone. While the voice agent rests (asleep,
+listening or idle) and no helper runs, the word is `No helper`, in the
+island too: the host follows the helper events of the agent, so the
+word changes when the first helper starts and when the last one ends.
+The word is 11 pixels, next to a shape that
 shows the same state; in a folder that names a `slot` it is the 14
 pixels of text that a person reads, in the `accent` of the `colours` of
 the panel, and the margin that the folder gives keeps the word on the
@@ -370,7 +374,8 @@ field is a well of 48 with the focus ring while it has the keyboard; the
 key line under it names Return (send), Ctrl+. (stop) and Esc (close),
 and a click on the words of Stop or Close does the same, without a
 button. The island of the folder hides while the chat is open: the
-header takes its place. A question card in the chat keeps its place,
+header takes its place, and the meta `text` of the node `hud-chat`
+starts with the words of the header. A question card in the chat keeps its place,
 and the transcript flows under it. The text of a glass chat is checked
 against its `fill` over a black and over a white pane.
 
@@ -382,7 +387,9 @@ its edge.
 A plain view in a slot is the chat in the margin of a client: no box, only
 its fill, no header and no Close, which the client has in its head of the
 chat; Stop is a word without a box at the top right. The speaker stands on
-a line of its own over the message. What the person sends shows at once as
+a line of its own over the message. A list without an entry says why
+in the place of the hint: `No helper is set up.` or that voice does not
+answer. What the person sends shows at once as
 a line of the transcript, and goes when voice has the message. Stop asks
 voice to cancel and the header stops saying `working` until voice says
 otherwise. The chat takes the pointer over its box, so a hover or a click

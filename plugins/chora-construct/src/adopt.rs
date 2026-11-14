@@ -289,7 +289,8 @@ impl Construct {
     /// token, is no pane; the next window after it is.
     pub(crate) fn start_launcher(&mut self) {
         let mint = self.rt.conn.activation_token();
-        self.launcher = chora_kit::launch(&self.settings.value.launcher, mint.as_deref());
+        let command = chora_kit::shared::launcher(&self.settings.value.launcher);
+        self.launcher = chora_kit::launch(&command, mint.as_deref());
         self.launched = Some(Instant::now());
     }
 
