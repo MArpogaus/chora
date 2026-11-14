@@ -14,7 +14,7 @@ use crate::region::{self, Content, Preset, Region, Regions, Rule};
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 7] = [
+const NEEDED: [&str; 8] = [
     "chapter_number",
     "chapter",
     "running_head",
@@ -22,6 +22,7 @@ const NEEDED: [&str; 7] = [
     "body",
     "margin",
     "hud",
+    "label",
 ];
 /// The most styles that one style can build on, in a row.
 const MAX_DEPTH: usize = 8;
