@@ -30,7 +30,7 @@ session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 | ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
 | docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | waits with ci for F14 |
 | review t5 r2 | done ..LjDUA | briefs/review-train5-r2.md | mc FIX, core MERGE-OK |
-| core r2 | cloud opus (starting), claude/core-r2 | briefs/core-r2.md | C05 C14 V02 C13 CR-1 CR-6 CR-4/5 |
+| core r2 | claude/core-r2 78f28b2d | briefs/core-r2.md | 7/7 fixed, full gate green; in review |
 | flakes | cloud Fable ..MXy5q, claude/flakes 22b452ed | briefs/flakes-r2.md | F14 fix pushed 17:45; F13 next |
 
 ## Queue
