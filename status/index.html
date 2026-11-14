@@ -100,9 +100,9 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Sat 14 Nov, 12:25 Bangkok</span>
-      <span>Day 4 of 22</span>
-      <span>Release candidate: target 20 Nov; train 4 merged (498d9de)</span>
+      <span>Updated Sat 14 Nov, 17:10 UTC</span>
+      <span>Day 7 of 22</span>
+      <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
   </header>
 
@@ -119,23 +119,29 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Fixing the flaky tests until the merge gate passes three times in a row (Fable)</li>
-          <li>CI, dependency checks and package builds ready for the release-candidate pull request</li></ul>
+          <li>Merging CI checks and the docs (README, install guide, known issues) after the full merge gate</li>
+          <li>Independent review of the shared doors and the xp, tiling and construct fixes</li>
+          <li>Core code review: 8 of 12 fixes done, handing over</li></ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>One list of open MAJOR findings per look, then fix lanes for MAJORs only</li>
-          <li>Code review per area (core and security first), one picture pass per look, user test round 4</li>
-          <li>Release candidate target 20 Nov; burn-down checked 16 Nov</li>
+          <li>Merge the mc, doors, xp and core fixes; restart the flaky-test work in the cloud</li>
+          <li>Check the two open blockers (tiling Apps menu, construct panes after an mc drag)</li>
+          <li>Fix the 3 high findings of the plugin review; CI pull request with package builds</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>Nothing open (your 14 Nov answers recorded)</li>
+          <li>How the release candidate reaches dev and main (see chat)</li>
         </ul>
       </div>
+    </div>
+
+    <div class="panel">
+      <h3>Session 14 Nov</h3>
+      <p>The session manager stopped answering at 10:15 UTC: a helper switched its notes folder to a code branch, and its hooks then blocked every message. A new session took over at 16:30 UTC. The hooks now never block, the notes folder is guarded, and a heartbeat alerts the owner if the manager goes silent.</p>
     </div>
 
     <div class="panel bars">
@@ -143,8 +149,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">Moving windows between window managers</span><span class="pct">85 of 85</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="note">A hard requirement: every case passes by key, command, drag and voice, also across virtual screens and the cube.</span></div>
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
-      <div class="bar"><span class="name">Stability</span><span class="pct">catching up</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Crash reports, watchdog, stale-frame fix, render passes at zero when still. Open: three flaky test cells.</span></div>
-      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">criteria 2 of 11</span><div class="track"><div class="fill" style="width:18%"></div></div><span class="note">UX loop, code review, user round 4, CI and packaging still ahead. GitHub CI has not run on this work yet.</span></div>
+      <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Open: the core crash pair, the cube click and flick under load, the construct that stops answering. A lost fix (cube click) is redone.</span></div>
+      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">0 of 9 criteria met</span><div class="track"><div class="fill" style="width:25%"></div></div><span class="note">Dependency checks clean and docs ready (merging now). Open: about 35 major look findings, 2 blockers to check, flaky tests, CI never run, packages, user test round 4, owner approval of each look.</span></div>
     </div>
   </section>
 
@@ -177,6 +183,16 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
+      <summary><span>Sat 14 Nov</span><span>5 entries</span></summary>
+      <ul class="timeline">
+        <li><time>17:00</time><p><span class="tag info">plan</span>Fable is used up this week with at most two lanes at once, then none until next week.</p></li>
+        <li><time>16:50</time><p><span class="tag ok">fix</span>Hooks that never block, a guard on the notes folder, a takeover script and a heartbeat with a push to the owner.</p></li>
+        <li><time>16:49</time><p><span class="tag ok">tests</span>mc fixes done: arrows turn pages, Mute and Urgent words, a click removes one notification. 22 of 23 gate steps; the cube step fails on a known flaky cell.</p></li>
+        <li><time>16:30</time><p><span class="tag issue">outage</span>Session manager silent since 10:15 UTC; a new session took over. One lane's unpushed work was lost and is redone.</p></li>
+        <li><time>05:18</time><p><span class="tag ok">merged</span>Train 4: mc, construct, tiling and xp picture rounds, review fixes, test harness. Full gate green.</p></li>
+      </ul>
+    </details>
+    <details class="day">
       <summary><span>Thu 12 Nov</span><span>7 entries</span></summary>
       <ul class="timeline">
         <li><time>10:20</time><p><span class="tag ok">merged</span>xp look v2: its own start mark (no Windows flag), a Help window that shows every row, a Run box in xp colours, no false launch notes; plus guard tools and the packaging check. Two picture reviews, all 19 gate steps green.</p></li>
@@ -227,24 +243,23 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-plan" aria-label="Plan" hidden>
     <div class="panel">
-      <h3>Road to the release candidate</h3>
+      <h3>This week (dates UTC)</h3>
       <ol class="steps">
-        <li class="done">User test round 3 and its fixes</li>
-        <li class="now">UX/UI loop: fixes, then a second perfection-level pass</li>
-        <li>Code review per area: simplicity and readability first</li>
-        <li>Logging audit and the anonymised report script</li>
-        <li>Flaky tests closed, three clean merge gates in a row</li>
-        <li>GitHub CI and package builds (draft pull request)</li>
-        <li>User test round 4, then tag and publish the release candidate</li>
-        <li>After it: an extensive user test round, then the reflection with Fable</li>
+        <li class="now">Sat 14: merge CI, docs, doors, mc, xp/tiling/construct and core fixes; restart the flaky-test work</li>
+        <li>Sun 15: major look findings and the 3 high review findings fixed; blockers checked; CI pull request with package builds</li>
+        <li>Mon 16: burn-down check; one picture pass per look; your approval of each look</li>
+        <li>Tue 17 to Wed 18: user test round 4 and its fixes; logging audit; final review rounds until two in a row are clean</li>
+        <li>Thu 19: three green merge gates in a row on the candidate</li>
+        <li>Fri 20: tag the release candidate (target; a slip of 2 to 3 days is possible)</li>
+        <li>Sat 21 to Sun 22: extensive user test round, reflection with fresh Fable</li>
+        <li>Mon 23: idea round, then feature sprints: everyday system tasks, voice tools and grants, the report tool; one or two experiment lanes</li>
       </ol>
     </div>
     <div class="panel">
-      <h3>Next week (Fable)</h3>
+      <h3>Budget</h3>
       <ul class="plain">
-        <li>Voice sprint: tool plugins, layered context, everyday settings by voice, first sound under 1.5 s</li>
-        <li>Local model benchmark; fine-tuning only if the benchmark says so</li>
-        <li>Feature sprints once the release candidate is out</li>
+        <li>Fable: used up this week, at most two lanes at once; none after that until next week</li>
+        <li>Builds on Sonnet, tests on Haiku, the manager on Opus</li>
       </ul>
     </div>
   </section>
