@@ -3,7 +3,10 @@
 # text typed into the space starts and closes nothing, and the HUD says
 # that the keys walk in one line, also under the default voice_hud: host;
 # a give key without a window says so; Super+t starts the terminal, and
-# the camera flies into its new pane, which has the keyboard; a give key
+# the camera flies into its new pane, which has the keyboard; after
+# Alt+Escape, F1 shows the help, Escape hides it and d walks, and none
+# of these keys reaches the terminal, which keeps what it took before
+# (co-2; SHOTS keeps construct-keys-help.png); a give key
 # to a window manager that does not run says so, for the focused window
 # and, after Alt+Escape, for the pane ahead; Super+space starts the
 # launcher, whose own window shows without a pane, and the camera flies
@@ -30,7 +33,7 @@ mkdir -p "$work/chora"
 export PATH=$bin:$PATH
 font='DejaVu Sans Mono:size=10'
 cat >"$work/chora/chora-construct.yaml" <<EOF
-terminal: foot -a term -f '$font' sh -c 'sleep 600'
+terminal: foot -a term -f '$font' sh -c 'stty -icanon -echo; cat >"$work/typed"; sleep 600'
 launcher: foot -a launcher -f '$font' sh -c 'sleep 1; setsid foot -a launched -f "$font" sh -c "sleep 600" & sleep 2'
 EOF
 # fuzzel, where it is installed, finds these entries. For one of them it
@@ -92,6 +95,9 @@ until_ok 'test "$(panes)" = term' || fail "Super+t: the panes are '$(panes)'"
 ok "Super+t made the terminal the pane term"
 until_ok 'test "$(app_focused term)" = True' || fail "the new pane term has no keyboard"
 ok "the camera flew into the new pane term, which has the keyboard"
+typed() { od -An -c "$work/typed" 2>/dev/null | tr -d ' \n'; }
+until_ok 'echo "[{\"text\": {\"text\": \"k\"}}]" | ctl inject && test "$(typed)" != ""' ||
+    fail "the terminal of the pane term takes no typed text"
 
 key Super+Alt+2
 until_ok 'say | grep -q "XP did not take the window: it is not running."' ||
@@ -104,6 +110,22 @@ until_ok 'say | grep -q "Media center did not take the window: it is not running
     fail "a give of the pane ahead to mc, which does not run, said nothing: $(say)"
 [ "$(panes)" = term ] || fail "the refused gives lost the pane: $(panes)"
 ok "a give to a window manager that does not run says so, for the focused window and the pane ahead"
+
+before=$(typed)
+help_shown() { ctl query id:construct-help | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0].get("opacity") == 1.0 else 1)'; }
+camera_x() { ctl call construct construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["camera"]["x"])'; }
+key F1
+until_ok help_shown || fail "F1 after Alt+Escape shows no help: the terminal took '$(typed)'"
+[ -z "${SHOTS:-}" ] || { "$bin/choractl" grant agent screen.capture && ctl capture "$SHOTS/construct-keys-help.png" >/dev/null; } || fail "the capture of the help"
+key Escape
+until_ok '! help_shown' || fail "Escape after F1 keeps the help"
+x0=$(camera_x)
+echo '[{"key": {"key": "d", "state": "pressed"}}]' | ctl inject || fail "inject d"
+sleep 0.4
+echo '[{"key": {"key": "d", "state": "released"}}]' | ctl inject || fail "inject d"
+until_ok 'test "$(camera_x)" != "$x0"' || fail "d after Alt+Escape does not walk: the camera stays at x $x0"
+[ "$(typed)" = "$before" ] || fail "keys of the walk went into the terminal: '$before' became '$(typed)'"
+ok "after Alt+Escape, F1 shows the help, Escape hides it and d walks; the terminal took none of them"
 
 key Return
 sleep 0.1
