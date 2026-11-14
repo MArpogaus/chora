@@ -113,6 +113,15 @@ const BUTTONS: [(&str, u32); 7] = [
     ("BTN_BACK", 0x116),
 ];
 
+/// The keysym of a name, or no symbol: xkbcommon panics on a name with
+/// a NUL, and a client sends the name.
+pub(crate) fn keysym(name: &str, flags: xkb::KeysymFlags) -> Keysym {
+    if name.contains('\0') {
+        return Keysym::NoSymbol;
+    }
+    xkb::keysym_from_name(name, flags)
+}
+
 /// The key or the button of a binding, or the moves of `move`.
 fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     if binding.key == MOVE && binding.mods == Modifiers::default() {
@@ -124,7 +133,7 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     {
         return Ok(Trigger::Button(*code));
     }
-    let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
+    let sym = keysym(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
     if sym.raw() == 0 {
         return Err(RpcError::new(
             RpcError::INVALID_PARAMS,

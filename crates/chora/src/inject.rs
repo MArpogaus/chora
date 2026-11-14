@@ -29,7 +29,7 @@ use smithay::{
 
 use crate::{
     input,
-    ipc::{params_of, rejected},
+    ipc::{keysym, params_of, rejected},
     output::output_area,
     render::{node_size, node_under, project_point},
     state::State,
@@ -464,9 +464,9 @@ impl Keys {
 
     /// The key of a keysym name, without its modifiers.
     fn named(&self, name: &str) -> Result<Keycode, String> {
-        let mut sym = xkb::keysym_from_name(name, xkb::KEYSYM_NO_FLAGS);
+        let mut sym = keysym(name, xkb::KEYSYM_NO_FLAGS);
         if sym.raw() == 0 {
-            sym = xkb::keysym_from_name(name, xkb::KEYSYM_CASE_INSENSITIVE);
+            sym = keysym(name, xkb::KEYSYM_CASE_INSENSITIVE);
         }
         if sym.raw() == 0 {
             return Err(format!("unknown key {name:?}"));
