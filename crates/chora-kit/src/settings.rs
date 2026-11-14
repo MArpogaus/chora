@@ -710,4 +710,37 @@ pub(crate) mod tests {
         assert_eq!(std::fs::read_to_string(&path).unwrap(), STALE);
         std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
+
+    /// A value at a wrong place of the file, which may be a secret,
+    /// reaches neither the stored error nor the answer of a refused
+    /// `set`; the place or the kind of the fault stays.
+    #[test]
+    fn the_error_of_a_broken_file_has_no_value_of_the_file() {
+        let dir = dir("secret");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        for (text, fault) in [
+            (
+                "frame: \"Bearer sk-MARKER\"\n",
+                "invalid type: string, expected struct Frame",
+            ),
+            ("gap: sk-MARKER\n", "invalid type: string, expected u16"),
+            (
+                "bindings:\n  MOD+q: sk-MARKER\n",
+                "unknown variant, expected one of `close`",
+            ),
+            ("frame: {title: [sk-MARKER\n", "line 1"),
+        ] {
+            std::fs::write(&path, text).unwrap();
+            let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+            let err = file.broken().unwrap().to_owned();
+            assert!(!err.contains("MARKER"), "{err}");
+            assert!(err.contains(fault), "{err}");
+            let refused = file.set(json!({"gap": 8})).unwrap_err().message;
+            assert!(!refused.contains("MARKER"), "{refused}");
+            let reloaded = file.reload().unwrap_err().message;
+            assert!(!reloaded.contains("MARKER"), "{reloaded}");
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }
