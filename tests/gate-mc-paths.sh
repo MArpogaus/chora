@@ -11,7 +11,9 @@
 #                  step, and the key list names the same keys as the footer
 #   terminal-keys  on the terminal page the arrows belong to the shell, the
 #                  key list names Super with the arrows, and Super+Left
-#                  turns the page
+#                  turns the page; Ctrl+g after the plain Escape ends the
+#                  Meta prefix of the shell, which takes the next
+#                  character otherwise
 #   mouse-back     a click on the footer of page 2 turns back
 #   mute           the state line has the word Mute; a press on it mutes
 #                  the microphone, the badge of the host then turns it on,
@@ -178,6 +180,7 @@ cell_terminal_keys() {
     until_ok 'has_text "Super+ ← →"' 20 || fail "the key list of the terminal page does not name Super with the arrows: $(texts | grep -F '←' | tr '\n' '|')"
     key Left
     key Escape
+    key Ctrl+g
     sleep 1
     [ "$(current)" = terminal ] || fail "a plain key of the shell turned the page: $(current)"
     key Super+Left
@@ -229,7 +232,6 @@ cell_mute() {
 chat_has_sent() { ctl query "id:hud-chat" | jq -e --arg t "$1" '.[0].meta.text | endswith("You\n" + $t)' >/dev/null; }
 type_line() {
     local i
-    key space
     for ((i = 0; i < ${#1}; i++)); do
         case ${1:i:1} in
         " ") key space ;;
