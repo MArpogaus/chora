@@ -1,5 +1,8 @@
 # Rules for developers of the chora session (read all before starting)
 
+Also binding: /home/user/wt/log/conventions.md (the skills of agent_skills dev and
+the session overrides). Read it and the skills it names once per container.
+
 - Work only in your own worktree and on your own branch. Never touch
   /home/user/chora, other worktrees or the branch claude/session-log.
 - **Design.** design/hud-sprint.md and design/ux-hud-sprint.md in

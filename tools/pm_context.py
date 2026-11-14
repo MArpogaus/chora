@@ -4,6 +4,7 @@
 Modes:
   card       rules.md and state.md, whole
   vision     vision-card.md
+  conventions conventions.md (agent_skills dev plus the session overrides)
   decisions  decisions-now.md, plus user messages newer than its screened-through line
   decisions2 nothing (kept for the installed hooks)
   decisions3 nothing (kept for the installed hooks)
@@ -147,6 +148,7 @@ def main():
     builders = {
         "card": mode_card,
         "vision": lambda: "VISION CARD (hook):\n" + read("vision-card.md"),
+        "conventions": lambda: "CONVENTIONS (hook; skills of agent_skills dev plus overrides):\n" + read("conventions.md"),
         "decisions": lambda: mode_decisions(transcript),
         "precompact": lambda: mode_precompact(transcript),
     }

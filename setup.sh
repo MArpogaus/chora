@@ -49,6 +49,11 @@ if [ -d /home/user/chora/.git ]; then
     git -C /home/user/chora config --local core.bare false
     (cd /home/user/chora && pre-commit install -t pre-commit -t commit-msg >/dev/null 2>&1)
 fi
+if [ ! -d /home/user/agent_skills/.git ]; then
+    log "clone agent_skills"
+    git clone -q https://github.com/MArpogaus/agent_skills /home/user/agent_skills || log "FAILED clone agent_skills"
+fi
+git -C /home/user/agent_skills fetch -q origin dev 2>/dev/null || log "FAILED fetch agent_skills dev"
 missing=()
 for t in cargo pre-commit vale cz lychee sway swaybg foot grim jq gh; do
     command -v "$t" >/dev/null 2>&1 || missing+=("$t")
@@ -57,5 +62,6 @@ for c in deny machete; do cargo "$c" --version >/dev/null 2>&1 || missing+=("car
 pkg-config --exists libdisplay-info libdrm libinput libseat libudev wayland-server xkbcommon egl gbm || missing+=("build-packages")
 [ "$(git -C /home/user/chora config --local user.email 2>/dev/null)" = "38564291+MArpogaus@users.noreply.github.com" ] || missing+=("git-identity")
 [ -x /home/user/chora/.git/hooks/commit-msg ] || missing+=("hooks")
+git -C /home/user/agent_skills rev-parse -q --verify origin/dev >/dev/null 2>&1 || missing+=("agent_skills-dev")
 if [ "${#missing[@]}" -gt 0 ]; then log "MISSING: ${missing[*]}"; exit 1; fi
 log "done, all present"

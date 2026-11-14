@@ -1,7 +1,8 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-14T16:47:16Z
+screened-through: 2026-11-14T17:02:28Z
 
 - 11-14 16:54Z (fixes 16:47) "Fable darf gerne aufgebraucht werden. Ich löse den Reset aus." "...sollten wir weniger parallele Fable-Lanes fahren als bisher." -> use Fable up this week: max 2 Fable lanes, then none until next week
+- 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> agent_skills dev plus overrides = conventions.md (language and chat length there)
 - 11-14 16:43Z "...robuster gestalten, damit sowas nicht nochmal passiert." -> fail-open hooks, no local lanes, heartbeat; 16:47Z "Ja, das passt so." -> plan ok
 - 11-14 05:33Z "try to really parallelize what's possible" -> no rc cuts; parallel lanes
 - 11-12 05:47Z "So stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority for our guidelines." -> priority; "Your job should be to collect those, put them in the backlog if they are feasible, push back if they conflict with any of our decisions or targets, and always keep the project goals into focus." -> ideas never redirect a lane; "You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation." -> name unreachable goals
@@ -13,8 +14,6 @@ screened-through: 2026-11-14T16:47:16Z
 - 11-09 04:24Z "This shall never touch the main branches or dev branches." -> session files only on claude/session-log
 - 11-09 08:20Z "You shall use my github email and name as in all previous commits." -> his identity; no AI lines
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
-- 11-08 17:48Z "Antworte ab sofort immer english" -> log en; chat in German while he writes German (11-14 16:47)
-- 11-10 00:12Z "Keep summaries here to a minimum to save tokens." -> chat: two lines
 - 11-09 05:05Z "The user test shall include this "Push to limit" view without sacrificing the low tech views." -> both persona kinds
 - 11-09 05:11Z "All user agents shall report issues and draft feature request. You shall review rank and address them by iprtance." -> by severity
 - 11-14 04:51Z "agree with decitions." -> Needs owner defaults (a)-(d); 05:25Z: no construct preview

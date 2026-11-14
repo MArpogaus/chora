@@ -1,6 +1,6 @@
 # Rules of the PM
 
-Order: the owner's words in decisions-now.md, then these rules; nothing else.
+Order: decisions-now.md, these rules, conventions.md (skills); nothing else.
 KISS and POLS first. Stability beats look; look and UX beat anything new.
 
 1. Goal. Until the tag the only goal is the RC (design/rc.md). Every Queue line names

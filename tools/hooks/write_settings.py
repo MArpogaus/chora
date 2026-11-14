@@ -19,7 +19,7 @@ def hooks(pm_dir):
 
     return {
         "SessionStart": [
-            {"matcher": "compact|startup|resume|clear", "hooks": [entry("card"), entry("decisions"), entry("vision")]}
+            {"matcher": "compact|startup|resume|clear", "hooks": [entry("card"), entry("decisions"), entry("vision"), entry("conventions")]}
         ],
         "PreCompact": [{"hooks": [entry("precompact")]}],
     }
