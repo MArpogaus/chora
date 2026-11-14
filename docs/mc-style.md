@@ -112,6 +112,11 @@ change it there, not here.
     `Super+F1`, not on `F1`, because a plain F1 belongs to a program in a
     scene and needs the grant `input.grab-any`.
     The full list goes by task, in the words of the six rows.
+    On a page the row of the page names the plain arrows, `← →`: there
+    Right and Left turn the page without `Super`, and `Esc` goes back one
+    step: it closes the full list, else it shows the page that showed
+    before. In a scene of a program these keys belong to the program, and
+    the row names `Super` with the arrows.
 17. **One focus mark.** What a click acts on shows a bar of 2 by 20
     pixels in `text`, 12 pixels left of it, while the pointer is over it:
     no underline, no fill and no change of color. A word flush right in a

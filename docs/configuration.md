@@ -599,7 +599,10 @@ with `settings.reload`:
   its place. First come the scenes of the list. The others follow in the
   order they appear, such as new scenes and those of `app.open`, so that
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
-  scene file may set its own `chapter.number`.
+  scene file may set its own `chapter.number`. On a page, which has no
+  program, Right and Left alone turn the page as well, and Escape goes
+  back one step: it closes the full key list, else it shows the page that
+  showed before.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as

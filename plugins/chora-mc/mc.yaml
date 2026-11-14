@@ -167,6 +167,8 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # in the region over any scene; the next press hides it again, or keys,
 # which shows all keys in the key list of the right side, or six again,
 # or chat, which asks the HUD host to open the chat.
+# On a page, which has no program, Right and Left alone also turn the
+# page, and Escape goes back one step; these three keys are not bindings.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene

@@ -51,8 +51,20 @@ impl Row {
     }
 }
 
-/// The rows that always show.
-pub fn short(config: &Config) -> Vec<Row> {
+/// The keys of the page row: on a page the plain arrows turn it, so the
+/// row names them without their modifier; a program in a scene takes the
+/// plain arrows itself, and the row names the whole binding.
+fn page_keys(previous: &str, next: &str, plain: bool) -> String {
+    let both = pair(previous, next);
+    match both.rsplit_once('+') {
+        Some((_, arrows)) if plain => arrows.trim_start_matches(THIN).to_owned(),
+        _ => both,
+    }
+}
+
+/// The rows that always show; `plain` on a page, where the arrows alone
+/// turn it.
+pub fn short(config: &Config, plain: bool) -> Vec<Row> {
     let mut rows = Vec::new();
     let find = |want: &dyn Fn(&Action) -> bool| {
         config
@@ -68,7 +80,8 @@ pub fn short(config: &Config) -> Vec<Row> {
         find(&|a| *a == Action::NextScene),
         find(&|a| *a == Action::PreviousScene),
     ) {
-        rows.push(Row::new(pair(previous, next), "Turn the page", Some(next)));
+        let keys = page_keys(previous, next, plain);
+        rows.push(Row::new(keys, "Turn the page", Some(next)));
     }
     if let Some(key) = find(&|a| matches!(a, Action::Run(_))) {
         rows.push(Row::new(human(key), "Start a program", Some(key)));
@@ -87,7 +100,7 @@ pub fn short(config: &Config) -> Vec<Row> {
 /// the page, the scenes, programs, the chat, the column, the header and
 /// the footer, the rest, and Esc last. The two keys of the page are one
 /// row, as in the short list.
-pub fn all(config: &Config) -> Vec<Row> {
+pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
     for (key, action) in &config.bindings {
@@ -104,7 +117,7 @@ pub fn all(config: &Config) -> Vec<Row> {
             Action::PreviousScene | Action::Drag => continue,
         };
         let row = match action {
-            Action::NextScene => short_page(config, key),
+            Action::NextScene => short_page(config, key, plain),
             _ => words(action).map(|words| Row::new(human(key), &words, Some(key))),
         };
         found.extend(row.map(|row| (rank, at, row)));
@@ -115,11 +128,12 @@ pub fn all(config: &Config) -> Vec<Row> {
     rows
 }
 
-fn short_page(config: &Config, next: &str) -> Option<Row> {
+fn short_page(config: &Config, next: &str, plain: bool) -> Option<Row> {
     let previous = (config.bindings.iter())
         .find(|(_, a)| **a == Action::PreviousScene)
         .map(|(k, _)| k.as_str())?;
-    Some(Row::new(pair(previous, next), "Turn the page", Some(next)))
+    let keys = page_keys(previous, next, plain);
+    Some(Row::new(keys, "Turn the page", Some(next)))
 }
 
 /// What an action does, in words, the same words as the short list; none
@@ -191,7 +205,7 @@ mod tests {
 
     #[test]
     fn six_rows_name_the_keys_of_the_bindings() {
-        let rows = short(&config());
+        let rows = short(&config(), false);
         assert_eq!(rows.len(), 6, "{rows:?}");
         assert_eq!(rows[0].key, "Super+F1");
         assert_eq!(rows[0].words, "All keys");
@@ -204,13 +218,13 @@ mod tests {
     #[test]
     fn the_full_list_has_a_row_for_each_task_but_the_drag_and_one_for_the_page() {
         let config = config();
-        let rows = all(&config);
+        let rows = all(&config, false);
         assert_eq!(rows.len(), config.bindings.len() - 1, "{rows:?}");
     }
 
     #[test]
     fn the_full_list_goes_by_task_in_the_words_of_the_short_list() {
-        let words: Vec<String> = all(&config()).into_iter().map(|r| r.words).collect();
+        let words: Vec<String> = all(&config(), true).into_iter().map(|r| r.words).collect();
         let want = [
             "All keys",
             "Turn the page",
@@ -226,6 +240,15 @@ mod tests {
             "Back one step",
         ];
         assert_eq!(words, want);
+    }
+
+    #[test]
+    fn a_page_names_the_plain_arrows_and_keeps_the_binding_of_the_click() {
+        for rows in [short(&config(), true), all(&config(), true)] {
+            assert_eq!(rows[1].key, "←\u{2009}→", "{rows:?}");
+            assert_eq!(rows[1].words, "Turn the page");
+            assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
+        }
     }
 
     #[test]

@@ -1392,10 +1392,11 @@ impl Mc {
         }
         let config = &self.settings.value;
         let full = self.keys == crate::keys::List::All;
+        let plain = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
         let rows = if full {
-            crate::keys::all(config)
+            crate::keys::all(config, plain)
         } else {
-            crate::keys::short(config)
+            crate::keys::short(config, plain)
         };
         let id = format!("{}-{name}", self.region_id(region));
         let title = if full { "All keys" } else { "Keys" };

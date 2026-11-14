@@ -291,6 +291,9 @@ struct Mc {
     current: Option<String>,
     /// The scene before the current one.
     previous: Option<String>,
+    /// The scenes that showed before the current one, the last one last:
+    /// Escape on a page goes back along them.
+    trail: Vec<String>,
     /// The one output that the plugin fills.
     output: Option<OutputInfo>,
     /// Whether the nodes exist.
@@ -486,6 +489,7 @@ impl Mc {
             launched: Vec::new(),
             current: None,
             previous: None,
+            trail: Vec::new(),
             output: None,
             built: false,
             hud: SetHud {
@@ -536,8 +540,9 @@ const ASSISTANT: &str = "assistant";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 17] = [
+const EVENTS: [&str; 18] = [
     "voice.*",
+    "node.key",
     "assistant.chat",
     "assistant.ready",
     "effects.dropped",
@@ -555,6 +560,9 @@ const EVENTS: [&str; 17] = [
     "output.changed",
     "output.removed",
 ];
+
+/// The most scenes that Escape goes back along.
+const TRAIL: usize = 32;
 
 /// The methods; those that start programs or write files are privileged
 /// (D62), because a caller with `methods.call` alone must not run commands.
@@ -829,6 +837,17 @@ impl Plugin for Mc {
                 client,
                 data,
             } => self.emitted(&event, &client, data),
+            Event::NodeKey {
+                key,
+                state: PressState::Pressed,
+                modifiers,
+                ..
+            } => {
+                if modifiers.is_empty() {
+                    self.page_key(&key);
+                }
+                Ok(())
+            }
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             Event::PointerPressed {
                 node,
@@ -1089,7 +1108,73 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
-        self.render()
+        self.render()?;
+        if open {
+            return Ok(());
+        }
+        self.take_free_keyboard()
+    }
+
+    /// Gives the keyboard to the page that shows, when no window and no
+    /// node has it: at the start and after the chat of the host closed,
+    /// so that the plain keys of a page work without a click.
+    fn take_free_keyboard(&mut self) -> Result<(), ClientError> {
+        let Some(name) = self.current.clone() else {
+            return Ok(());
+        };
+        if self.windows.contains_key(&name) {
+            return Ok(());
+        }
+        let query = Query {
+            selector: "*".into(),
+            filter: Some(chora_scene::ipc::Filter {
+                focused: true,
+                ..chora_scene::ipc::Filter::default()
+            }),
+        };
+        let focused: Vec<Value> = self.rt.conn.call("scene.query", query)?;
+        if !focused.is_empty() {
+            return Ok(());
+        }
+        self.apply(vec![Command::FocusNode {
+            node: Some(page_id(&name)),
+        }])
+    }
+
+    /// A key without a modifier while a page has the keyboard: Right and
+    /// Left turn the page, Escape goes back one step.
+    fn page_key(&mut self, key: &str) {
+        let action = match key {
+            "Right" => Action::NextScene,
+            "Left" => Action::PreviousScene,
+            "Escape" => return self.back(),
+            _ => return,
+        };
+        self.turn(action);
+    }
+
+    /// One step back: the full key list closes; else the page that showed
+    /// before shows again, and at the end of that trail the first page.
+    fn back(&mut self) {
+        if self.keys == keys::List::All {
+            self.keys = keys::List::Six;
+            if let Err(err) = self.render() {
+                eprintln!("chora-mc: keys: {err}");
+            }
+            return;
+        }
+        let current = self.current.clone();
+        let known =
+            |name: &String| self.scenes.contains_key(name) && Some(name) != current.as_ref();
+        let mut trail = std::mem::take(&mut self.trail);
+        let back = std::iter::from_fn(|| trail.pop()).find(known);
+        let first = Some(self.settings.value.default_scene.clone()).filter(known);
+        if let Some(name) = back.or(first)
+            && let Err(err) = self.show(&name, true)
+        {
+            eprintln!("chora-mc: {name}: {}", err.message);
+        }
+        self.trail = trail;
     }
 
     /// Names the theme of mc to the HUD host, which colours its look by it.
@@ -1414,6 +1499,7 @@ impl Mc {
             eprintln!("chora-mc: {name}: {}", err.message);
         }
         self.autostart();
+        self.take_free_keyboard()?;
         self.claim_indicator(false);
         let free: Vec<Value> = self
             .rt
@@ -2538,14 +2624,9 @@ impl Mc {
         }
         let window = self.windows.get(name).cloned();
         if user {
-            self.focused.clone_from(&window);
-            commands.push(Command::Focus {
-                surface: window.clone(),
-            });
+            commands.extend(self.keyboard_to(name, window.clone()));
         }
-        if self.current.as_deref() != Some(name) {
-            self.previous = self.current.replace(name.into());
-        }
+        self.step_to(name);
         commands.push(pane_tag_update(name));
         // The regions switch in the same transaction as the scene.
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
@@ -2559,6 +2640,28 @@ impl Mc {
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         Ok(())
+    }
+
+    /// The keyboard for a scene that the user shows: to its window, or to
+    /// the node of a page, so that the plain keys of the page arrive.
+    fn keyboard_to(&mut self, name: &str, window: Option<String>) -> Vec<Command> {
+        self.focused.clone_from(&window);
+        let page = window.is_none().then(|| Command::FocusNode {
+            node: Some(page_id(name)),
+        });
+        let focus = Command::Focus { surface: window };
+        std::iter::once(focus).chain(page).collect()
+    }
+
+    /// Makes `name` the current scene and puts the one before on the trail.
+    fn step_to(&mut self, name: &str) {
+        if self.current.as_deref() == Some(name) {
+            return;
+        }
+        self.previous = self.current.replace(name.into());
+        self.trail.extend(self.previous.clone());
+        let extra = self.trail.len().saturating_sub(TRAIL);
+        self.trail.drain(..extra);
     }
 
     /// Starts the app of a scene, whose window then fills its text block.
@@ -3057,6 +3160,11 @@ impl Mc {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
         };
+        self.turn(action);
+    }
+
+    /// Does an action of a binding.
+    fn turn(&mut self, action: Action) {
         let names = self.order();
         let at = self
             .current
@@ -3244,6 +3352,63 @@ mod tests {
         assert_eq!(prev.props.text.as_deref(), Some("← 1  Agenda"));
         assert_eq!(prev.hit.as_deref(), Some("key:Super+Left"));
         assert!(prev.slot < 0, "the previous page stands at the left");
+    }
+
+    fn press_key(mc: &mut super::Mc, key: &str, modifiers: &[&str]) {
+        use chora_kit::runtime::Plugin as _;
+        mc.event(chora_scene::Event::NodeKey {
+            node: super::page_id("agenda"),
+            key: key.into(),
+            code: 0,
+            state: chora_scene::ipc::PressState::Pressed,
+            modifiers: modifiers.iter().map(|m| (*m).to_owned()).collect(),
+            text: None,
+        })
+        .unwrap();
+    }
+
+    /// On a page the arrows alone turn it, Escape goes back along the
+    /// pages that showed and first closes the full key list; a key with a
+    /// modifier is not a key of the page.
+    #[test]
+    fn plain_arrows_turn_the_page_and_escape_goes_back_one_step() {
+        let (mut mc, _model) = crate::testing::mc("plain-keys", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        press_key(&mut mc, "Right", &[]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Right", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agents"));
+        press_key(&mut mc, "Left", &[]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Right", &["Shift"]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agents"));
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        mc.keys = crate::keys::List::All;
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.keys, crate::keys::List::Six);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Escape", &[]);
+        press_key(&mut mc, "Escape", &[]);
+        press_key(&mut mc, "Escape", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// A page that the user shows takes the keyboard with its node, so
+    /// that its plain keys arrive.
+    #[test]
+    fn a_page_that_the_user_shows_takes_the_keyboard() {
+        let (mut mc, model) = crate::testing::mc("page-keyboard", [1280, 800]);
+        mc.show("morning", true).unwrap();
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_node()
+            .map(str::to_owned);
+        assert_eq!(focused, Some(super::page_id("morning")));
     }
 
     fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {
