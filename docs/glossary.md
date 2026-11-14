@@ -38,6 +38,8 @@ terms and no synonyms.
 | **Layout chip** | The small glass chip that `chora-tiling` shows for 700 ms and that names the new layout. |
 | **Start card** | The glass card that `chora-construct` shows in the middle of the output while the space holds no pane: rows to start a terminal, the launcher or a cube, each with its key. It fades out when the first pane appears. |
 | **Face card** | The flat glass card that `chora-construct` shows on the face ahead of a cube while the window manager of the face starts (the working ring and `Starting Media center`) or failed to start (what failed, the reason in a data well, the next step). A click on it tries again. |
+| **Look** | What a user sees and uses of chora: one of tiling, xp, mc and construct. A look is a plugin with its theme, its keys and its doors. |
+| **Door** | A way to reach one action in a look, for example the launcher, the key list, the helper, lock, power, volume or a screenshot. A door can be a key or a visible control. |
 | **Flavor** | A preconfigured bundle of views, plugins and services, for example "classic", "tiling" or "agentic". |
 | **Block** | A neutral plugin of the XP split that does one job for any flavor: notifications, assistant, desktop, panel or stacking window manager (D73). |
 | **Asset folder** | The folder from which a block loads its pictures and a few values. The block ships a neutral one, and a flavor ships another (D73). |

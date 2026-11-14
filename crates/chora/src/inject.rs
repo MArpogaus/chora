@@ -16,7 +16,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use chora_scene::{
-    Binding, Node, NodeKind, Transform,
+    Binding, MARK_SIDE, Node, NodeKind, Transform,
     ipc::{Capability, Inject, InjectEvent, Key, PressState, RpcError},
 };
 use serde_json::Value;
@@ -29,7 +29,7 @@ use smithay::{
 
 use crate::{
     input,
-    ipc::{params_of, rejected},
+    ipc::{keysym, params_of, rejected},
     output::output_area,
     render::{node_size, node_under, project_point},
     state::State,
@@ -124,14 +124,19 @@ impl State {
     }
 
     /// Shows the injection mark (D23): a small yellow rect of the core
-    /// next to the pointer, gone `MARK_FOR` after the last injected
+    /// next to the pointer and on its output, gone `MARK_FOR` after the
+    /// last injected
     /// event. The mark belongs to the core, so no client can remove it.
     fn mark_injection(&mut self) {
         let until = self.time.now() + MARK_FOR;
         self.inject_mark = Some(until);
         let _ = self.expire_at(until);
         if let Some(spot) = self.screen_spot(self.pointer_layout) {
-            let at = [spot.local.x + MARK_GAP, spot.local.y + MARK_GAP];
+            let size = output_area(&spot.output).size.to_f64();
+            let at = [
+                (spot.local.x + MARK_GAP).min(size.w - MARK_SIDE),
+                (spot.local.y + MARK_GAP).min(size.h - MARK_SIDE),
+            ];
             self.scene.show_injection(&spot.output.name(), at);
         }
     }
@@ -346,8 +351,6 @@ impl State {
     }
 
     fn run_steps(&mut self, steps: &[Step]) {
-        let seat = self.seat.clone();
-        self.idle_notifier_state.notify_activity(&seat);
         self.injecting = true;
         let mut keys_down = Vec::new();
         let mut buttons_down = Vec::new();
@@ -464,9 +467,9 @@ impl Keys {
 
     /// The key of a keysym name, without its modifiers.
     fn named(&self, name: &str) -> Result<Keycode, String> {
-        let mut sym = xkb::keysym_from_name(name, xkb::KEYSYM_NO_FLAGS);
+        let mut sym = keysym(name, xkb::KEYSYM_NO_FLAGS);
         if sym.raw() == 0 {
-            sym = xkb::keysym_from_name(name, xkb::KEYSYM_CASE_INSENSITIVE);
+            sym = keysym(name, xkb::KEYSYM_CASE_INSENSITIVE);
         }
         if sym.raw() == 0 {
             return Err(format!("unknown key {name:?}"));
@@ -650,6 +653,63 @@ mod tests {
         );
     }
 
+    /// Injected input is no activity for idle-notify: a client with
+    /// `input.inject` cannot keep the session from locking. Input of the
+    /// person still ends the idle state.
+    #[test]
+    fn injected_input_keeps_the_session_idle() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut wayland = Wayland::connect(&mut core);
+        let _notification = wayland.idle_notification(&mut core, 10);
+        let mut idled = Vec::new();
+        for _ in 0..400 {
+            idled = wayland.take_idle_events();
+            if !idled.is_empty() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            wayland.roundtrip(&mut core);
+        }
+        assert_eq!(idled, vec![true], "the session went idle");
+        let key = json!({"events": [{"shortcut": {"keys": "a"}}]});
+        agent.ok(&mut core, "input.inject", key);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.take_idle_events(), Vec::<bool>::new());
+        let seat = core.state.seat.clone();
+        core.state.idle_notifier_state.notify_activity(&seat);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.take_idle_events(), vec![false]);
+    }
+
+    /// The safety chords need Ctrl and Alt of the person: an injected
+    /// release lifts no modifier that the person holds.
+    #[test]
+    fn an_injected_release_leaves_the_modifier_of_the_person_down() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut voice = core.named("voice");
+        voice.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        let physical = |core: &mut Core, key: u32, state: KeyState| {
+            let key = Keycode::new(key + XKB_OFFSET);
+            crate::input::key(&mut core.state, key, state, InputTime::now(), false);
+        };
+        physical(&mut core, 56, KeyState::Pressed);
+        let release = json!({"events": [{"key": {"key": 56, "state": "released"}}]});
+        agent.ok(&mut core, "input.inject", release);
+        physical(&mut core, 21, KeyState::Pressed);
+        let events = voice.events_now(&mut core);
+        assert!(
+            events.iter().any(|e| e["params"]["event"] == "input.key"),
+            "Alt of the person still holds: {events:?}"
+        );
+    }
+
     /// A press of `input.inject` reaches the plugin of a node with
     /// `injected`, a physical press without.
     #[test]
@@ -784,6 +844,42 @@ mod tests {
         );
         assert_eq!(error_code, RpcError::LIMIT_REACHED);
         assert!(message.contains("at most"), "{message}");
+    }
+
+    #[test]
+    fn a_key_name_with_a_nul_is_an_unknown_key() {
+        let mut core = Core::new();
+        let mut ctl = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        ctl.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let bad = json!({"dry_run": true,
+            "events": [{"key": {"key": "a\u{0}", "state": "pressed"}}]});
+        let (_, message) = agent.fails(&mut core, "input.inject", bad);
+        assert!(message.contains("unknown key"), "{message}");
+    }
+
+    /// The mark stays on the output when the pointer is in its corner.
+    #[test]
+    fn the_mark_stays_on_the_output_at_its_edge() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let corner = json!({"events": [{"pointer_move": {"position": [799.0, 599.0]}}]});
+        agent.ok(&mut core, "input.inject", corner);
+        let mark = core
+            .state
+            .scene
+            .node(chora_scene::INJECTION)
+            .expect("a mark");
+        let side = mark.props.size.expect("a size")[0];
+        let (x, y) = mark.props.transform.translation_2d();
+        assert!(
+            x + side <= 800.0 && y + side <= 600.0,
+            "the mark at {x}, {y}"
+        );
     }
 
     #[test]
@@ -1207,6 +1303,75 @@ mod tests {
             core.state.scene.node(INJECTION).is_none(),
             "the mark goes 500 ms after the last event"
         );
+    }
+
+    /// The mark draws above every node of the overlay, also above one
+    /// that a client puts there after the mark showed (C13).
+    #[test]
+    fn no_overlay_node_of_a_client_covers_the_mark() {
+        let mut core = Core::with_renderer();
+        let output = core.add_output("test-1", (64, 48));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut cover = core.named("cover");
+        let to = json!({"events": [{"pointer_move": {"position": [10.0, 10.0]}}]});
+        agent.ok(&mut core, "input.inject", to);
+        let props = json!({"size": [64, 48], "color": [1.0, 0.0, 0.0, 1.0]});
+        let create = json!({"id": "c", "kind": "rect", "parent": "screen:test-1", "props": props});
+        cover.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": create}]}),
+        );
+        let pixels = core.state.output_pixels(&output).unwrap();
+        let pixel = |x: usize, y: usize| {
+            let at = (y * pixels.width as usize + x) * 4;
+            pixels.rgba[at..at + 4].to_vec()
+        };
+        assert_eq!(pixel(2, 2), [255, 0, 0, 255], "the cover draws");
+        assert_eq!(pixel(22, 22), [255, 255, 0, 255], "the mark draws on top");
+    }
+
+    /// The mark draws in front of the cursor too: a large cursor surface
+    /// of a client that sits on the mark does not cover it (C13).
+    #[test]
+    fn the_cursor_does_not_cover_the_mark() {
+        use smithay::backend::renderer::element::{
+            Element, Id, Kind,
+            solid::{SolidColorBuffer, SolidColorRenderElement},
+        };
+        let mut core = Core::with_renderer();
+        let output = core.add_output("test-1", (64, 48));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let to = json!({"events": [{"pointer_move": {"position": [10.0, 10.0]}}]});
+        agent.ok(&mut core, "input.inject", to);
+        let buffer = SolidColorBuffer::new((64, 48), [1.0, 0.0, 0.0, 1.0]);
+        let cursor = SolidColorRenderElement::from_buffer(&buffer, (0, 0), 1.0, 1.0, Kind::Cursor);
+        let cursor_id: Id = cursor.id().clone();
+        let state = &mut core.state;
+        let view = crate::render::View::of(state, &output);
+        let mut parts = crate::render::Parts {
+            scene: &state.scene,
+            windows: &state.windows,
+            assets: &mut state.assets,
+            lock: None,
+            depth: 0,
+        };
+        let backend = state.backend.as_mut().unwrap();
+        let ids = backend
+            .with_gles(|gles| {
+                let cursor = vec![crate::render::SceneElement::Solid(cursor)];
+                crate::render::screen_elements(&mut parts, gles, &output, &view, cursor)
+                    .iter()
+                    .map(|e| e.id().clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap();
+        let at = ids.iter().position(|id| *id == cursor_id);
+        assert_eq!(at, Some(1), "the mark first, then the cursor");
     }
 
     #[test]

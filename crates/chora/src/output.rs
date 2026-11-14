@@ -14,7 +14,7 @@ use std::{
 
 use chora_scene::{
     Event, OutputInfo, Transform,
-    ipc::{Edges, OutputConfigure, OutputTransform, Reserve, RpcError},
+    ipc::{Capability, Edges, OutputConfigure, OutputTransform, Reserve, RpcError},
 };
 use serde_json::Value;
 use smithay::{
@@ -262,8 +262,9 @@ impl State {
     }
 
     /// `output.configure`: scale and transform of an output, through the
-    /// same configuration as `wlr-output-management` (D44). Answers with
-    /// the output.
+    /// same configuration as `wlr-output-management` (D44). It changes
+    /// the whole session, so a client socket needs `methods.privileged`.
+    /// Answers with the output.
     pub fn ipc_output_configure(
         &mut self,
         conn: u64,
@@ -272,6 +273,7 @@ impl State {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        self.check_socket_grant(conn, Capability::MethodsPrivileged)?;
         let output = match &configure.output {
             Some(name) => self.outputs.iter().find(|o| o.name() == *name),
             None => self.outputs.first(),
@@ -294,11 +296,14 @@ impl State {
     }
 
     /// `output.reserve`: the work area of an output leaves space at its
-    /// edges until the connection closes. Answers with the output.
+    /// edges until the connection closes. It moves the windows of all
+    /// clients, so a client socket needs `methods.privileged`. Answers
+    /// with the output.
     pub fn ipc_reserve(&mut self, conn: u64, reserve: &Reserve) -> Result<Value, RpcError> {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        self.check_socket_grant(conn, Capability::MethodsPrivileged)?;
         let all = self.all_outputs();
         let output = match &reserve.output {
             Some(name) => all.iter().find(|o| o.name() == *name),

@@ -28,6 +28,10 @@ use wayland_client::{
         wl_surface::WlSurface,
     },
 };
+use wayland_protocols::ext::idle_notify::v1::client::{
+    ext_idle_notification_v1::{self, ExtIdleNotificationV1},
+    ext_idle_notifier_v1::ExtIdleNotifierV1,
+};
 use wayland_protocols::ext::image_capture_source::v1::client::{
     ext_image_capture_source_v1::ExtImageCaptureSourceV1,
     ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
@@ -85,6 +89,10 @@ struct App {
     activation: Option<XdgActivationV1>,
     layer_shell: Option<ZwlrLayerShellV1>,
     lock_manager: Option<ExtSessionLockManagerV1>,
+    idle_notifier: Option<ExtIdleNotifierV1>,
+    /// The events of the idle notifications in order: true for idled,
+    /// false for resumed.
+    idle_events: Vec<bool>,
     presentation: Option<WpPresentation>,
     /// How many presentation feedbacks the core sent as presented.
     presented: usize,
@@ -704,6 +712,23 @@ impl Wayland {
         self.app.locked
     }
 
+    /// Asks for an idle notification after `timeout_ms` without input,
+    /// as a screen locker does.
+    pub fn idle_notification(&mut self, core: &mut Core, timeout_ms: u32) -> ExtIdleNotificationV1 {
+        let notifier = self.app.idle_notifier.as_ref().expect("an idle notifier");
+        let seat = self.app.seat.as_ref().expect("a seat");
+        let notification =
+            notifier.get_idle_notification(timeout_ms, seat, &self.queue.handle(), ());
+        self.roundtrip(core);
+        notification
+    }
+
+    /// The idle events that no test took yet: true for idled, false for
+    /// resumed.
+    pub fn take_idle_events(&mut self) -> Vec<bool> {
+        std::mem::take(&mut self.app.idle_events)
+    }
+
     /// Asks for an interactive move of a toplevel, as a title bar does.
     pub fn request_move(&mut self, core: &mut Core, toplevel: &Toplevel, serial: u32) {
         let seat = self.app.seat.as_ref().expect("wl_seat");
@@ -843,6 +868,9 @@ impl Dispatch<WlRegistry, ()> for App {
             "zwlr_layer_shell_v1" => app.layer_shell = Some(registry.bind(name, version, qh, ())),
             "ext_session_lock_manager_v1" => {
                 app.lock_manager = Some(registry.bind(name, version, qh, ()));
+            }
+            "ext_idle_notifier_v1" => {
+                app.idle_notifier = Some(registry.bind(name, 1, qh, ()));
             }
             "wp_presentation" => app.presentation = Some(registry.bind(name, version, qh, ())),
             "zwp_text_input_manager_v3" => {
@@ -1046,6 +1074,24 @@ impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for App {
 }
 
 delegate_noop!(App: ZwlrScreencopyManagerV1);
+delegate_noop!(App: ExtIdleNotifierV1);
+
+impl Dispatch<ExtIdleNotificationV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ExtIdleNotificationV1,
+        event: ext_idle_notification_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            ext_idle_notification_v1::Event::Idled => app.idle_events.push(true),
+            ext_idle_notification_v1::Event::Resumed => app.idle_events.push(false),
+            _ => {}
+        }
+    }
+}
 delegate_noop!(App: ExtOutputImageCaptureSourceManagerV1);
 delegate_noop!(App: ExtImageCopyCaptureManagerV1);
 delegate_noop!(App: ExtImageCaptureSourceV1);

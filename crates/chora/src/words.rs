@@ -7,8 +7,10 @@
 //!
 //! A fault writes its fixed line first, from a buffer on the stack, and
 //! only then the backtrace, which needs malloc and the lock of the
-//! unwinder: after a fault inside malloc that can hang, so an alarm ends
-//! the core [`GIVE_UP_AFTER`] seconds later. The handlers run on the
+//! unwinder: after a fault inside malloc that can hang, so an alarm asks
+//! every [`GIVE_UP_AFTER`] milliseconds whether the handler got on, and
+//! ends the core with the signal of the fault when it did not. A slow
+//! backtrace, under load, is not stuck and goes on. The handlers run on the
 //! alternate signal stack of their thread, so a stack overflow has its
 //! words too, and a fault handler runs once: a second fault ends the
 //! core at once. The main thread and the hang watchdog, which aborts,
@@ -17,7 +19,12 @@
 //! `CHORA_TEST_PANIC` starts a thread that panics, for
 //! `tests/last-words.sh`.
 
-use std::{backtrace::Backtrace, fmt::Display, os::fd::RawFd};
+use std::{
+    backtrace::Backtrace,
+    fmt::Display,
+    os::fd::RawFd,
+    sync::atomic::{AtomicI32, AtomicI64, AtomicU32, Ordering},
+};
 
 /// The signals of a fault, with a backtrace.
 const FAULTS: [libc::c_int; 6] = [
@@ -40,8 +47,13 @@ const ENDS: [libc::c_int; 8] = [
     libc::SIGXFSZ,
 ];
 
-/// The seconds that a fault handler may take for the backtrace.
-const GIVE_UP_AFTER: libc::c_uint = 2;
+/// The milliseconds between two alarms of a fault handler, each of
+/// which asks whether the handler got on. A test sets a shorter time.
+static GIVE_UP_AFTER: AtomicU32 = AtomicU32::new(2000);
+
+/// The milliseconds after which a fault handler ends even when it gets
+/// on: a handler that spins never ends by itself.
+const GIVE_UP_AT_LAST: u64 = 60_000;
 
 /// The size of the signal stack of the main thread: the backtrace and
 /// its symbols need more than the few pages of the default.
@@ -99,20 +111,144 @@ fn default_action(sig: libc::c_int) {
     }
 }
 
-/// Ends the core with SIGALRM after some seconds, whatever the handler
-/// that runs then waits for.
-#[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
-fn give_up_after(seconds: libc::c_uint) {
-    // SAFETY: both calls are async signal safe.
+/// What the alarm of a fault handler knows of it: the signal of the
+/// fault, the thread of the handler with the clock of its CPU time, the
+/// CPU time at the last alarm, and the alarms so far.
+struct Watch {
+    signal: AtomicI32,
+    thread: AtomicI32,
+    clock: AtomicI32,
+    cpu_ns: AtomicI64,
+    alarms: AtomicU32,
+}
+
+static WATCH: Watch = Watch {
+    signal: AtomicI32::new(0),
+    thread: AtomicI32::new(0),
+    clock: AtomicI32::new(0),
+    cpu_ns: AtomicI64::new(0),
+    alarms: AtomicU32::new(0),
+};
+
+/// The CPU time of a thread by its clock, in nanoseconds.
+#[allow(unsafe_code, reason = "a libc call that a signal handler may make")]
+fn cpu_ns(clock: libc::clockid_t) -> i64 {
+    let mut time = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: the call is async signal safe and writes a live timespec.
     unsafe {
-        libc::signal(libc::SIGALRM, libc::SIG_DFL);
-        libc::alarm(seconds);
+        libc::clock_gettime(clock, &raw mut time);
+    }
+    time.tv_sec * 1_000_000_000 + time.tv_nsec
+}
+
+/// The state of a thread in a line of `/proc/<pid>/task/<tid>/stat`:
+/// the letter after the name in brackets, which may hold any byte.
+fn state_in(stat: &[u8]) -> Option<u8> {
+    let name_ends = stat.iter().rposition(|byte| *byte == b')')?;
+    stat.get(name_ends + 2).copied()
+}
+
+/// Whether the scheduler has a thread of this process as running or as
+/// ready to run, by `/proc`, read without malloc.
+#[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
+fn runnable(thread: libc::pid_t) -> bool {
+    use std::io::Write as _;
+    let mut path = std::io::Cursor::new([0_u8; 64]);
+    let _ = write!(path, "/proc/self/task/{thread}/stat\0");
+    let mut stat = [0_u8; 128];
+    // SAFETY: the path ends with a NUL and the buffer is live.
+    let read = unsafe {
+        let fd = libc::open(path.get_ref().as_ptr().cast(), libc::O_RDONLY);
+        if fd < 0 {
+            return false;
+        }
+        let read = libc::read(fd, stat.as_mut_ptr().cast(), stat.len());
+        libc::close(fd);
+        read
+    };
+    let read = usize::try_from(read).unwrap_or(0);
+    state_in(&stat[..read]) == Some(b'R')
+}
+
+/// Whether a fault handler that the alarm found at this point may go
+/// on: it used CPU time since the last alarm or waits only for a CPU,
+/// and it has not run for longer than [`GIVE_UP_AT_LAST`]. A handler
+/// that waits for a lock does neither.
+fn goes_on(used_cpu: bool, runnable: bool, ran_ms: u64) -> bool {
+    (used_cpu || runnable) && ran_ms < GIVE_UP_AT_LAST
+}
+
+/// The alarm of a fault handler. A handler that is slow goes on, so
+/// that load does not cut the backtrace; one that is stuck ends here,
+/// with the signal of its fault and not with SIGALRM.
+extern "C" fn stuck(_sig: libc::c_int, _info: *mut libc::siginfo_t, _ctx: *mut libc::c_void) {
+    let now = cpu_ns(WATCH.clock.load(Ordering::Relaxed));
+    let used_cpu = now > WATCH.cpu_ns.swap(now, Ordering::Relaxed);
+    let alarms = WATCH.alarms.fetch_add(1, Ordering::Relaxed) + 1;
+    let ran_ms = u64::from(alarms) * u64::from(GIVE_UP_AFTER.load(Ordering::Relaxed));
+    if goes_on(
+        used_cpu,
+        runnable(WATCH.thread.load(Ordering::Relaxed)),
+        ran_ms,
+    ) {
+        return;
+    }
+    let sig = WATCH.signal.load(Ordering::Relaxed);
+    say(format_args!(
+        "the handler of {} is stuck after {ran_ms} ms: no backtrace",
+        name(sig)
+    ));
+    end_with(sig);
+}
+
+/// Ends the core with a signal from inside a handler, where the signal
+/// may be blocked.
+#[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
+fn end_with(sig: libc::c_int) {
+    // SAFETY: the set is a live value and the calls are async signal safe.
+    unsafe {
+        let mut set: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(&raw mut set);
+        libc::sigaddset(&raw mut set, sig);
+        libc::pthread_sigmask(libc::SIG_UNBLOCK, &raw const set, std::ptr::null_mut());
+    }
+    default_action(sig);
+}
+
+/// Watches the fault handler of the calling thread: an alarm every
+/// [`GIVE_UP_AFTER`] milliseconds ends the core with the signal of the
+/// fault when the handler made no progress since the alarm before.
+#[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
+fn give_up_when_stuck(sig: libc::c_int) {
+    let ms = GIVE_UP_AFTER.load(Ordering::Relaxed);
+    let every = libc::timeval {
+        tv_sec: libc::time_t::from(ms / 1000),
+        tv_usec: libc::suseconds_t::from(ms % 1000 * 1000),
+    };
+    let timer = libc::itimerval {
+        it_interval: every,
+        it_value: every,
+    };
+    let mut clock: libc::clockid_t = libc::CLOCK_THREAD_CPUTIME_ID;
+    // SAFETY: the clock and the timer are live values.
+    unsafe {
+        libc::pthread_getcpuclockid(libc::pthread_self(), &raw mut clock);
+        WATCH.signal.store(sig, Ordering::Relaxed);
+        WATCH.thread.store(libc::gettid(), Ordering::Relaxed);
+        WATCH.clock.store(clock, Ordering::Relaxed);
+        WATCH.cpu_ns.store(cpu_ns(clock), Ordering::Relaxed);
+        WATCH.alarms.store(0, Ordering::Relaxed);
+        handle(&[libc::SIGALRM], stuck, libc::SA_RESTART);
+        libc::setitimer(libc::ITIMER_REAL, &raw const timer, std::ptr::null_mut());
     }
 }
 
 /// The fixed line comes first and needs no lock. The backtrace is best
 /// effort: `Backtrace::force_capture` is not async signal safe, so the
-/// alarm ends a handler that hangs in it, and a second fault inside it
+/// alarm ends a handler that is stuck in it, and a second fault inside it
 /// ends the core by the default action.
 #[allow(unsafe_code, reason = "reads the siginfo of the kernel")]
 extern "C" fn fault(sig: libc::c_int, info: *mut libc::siginfo_t, _ctx: *mut libc::c_void) {
@@ -126,7 +262,7 @@ extern "C" fn fault(sig: libc::c_int, info: *mut libc::siginfo_t, _ctx: *mut lib
         "{} at address {address:#x}, backtrace follows",
         name(sig)
     ));
-    give_up_after(GIVE_UP_AFTER);
+    give_up_when_stuck(sig);
     let text = format!("{}\n", Backtrace::force_capture());
     write_all(2, text.as_bytes());
     default_action(sig);
@@ -252,6 +388,31 @@ mod tests {
         assert!(!from_a_process(libc::SI_KERNEL));
     }
 
+    #[test]
+    fn a_handler_goes_on_while_it_works_or_waits_for_a_cpu() {
+        assert!(goes_on(true, false, 2000));
+        assert!(goes_on(false, true, 2000), "starved of the CPU, not stuck");
+        assert!(!goes_on(false, false, 2000), "it waits for a lock");
+        assert!(!goes_on(true, true, GIVE_UP_AT_LAST), "it spins");
+    }
+
+    #[test]
+    fn the_state_of_a_thread_follows_its_name() {
+        assert_eq!(state_in(b"7 (chora) R 1 7"), Some(b'R'));
+        assert_eq!(state_in(b"7 (a) R (b) S 1 7"), Some(b'S'));
+        assert_eq!(state_in(b"7 (chora"), None);
+        assert_eq!(state_in(b""), None);
+    }
+
+    #[test]
+    fn the_thread_that_asks_is_runnable() {
+        #[allow(unsafe_code, reason = "the id of the calling thread")]
+        // SAFETY: gettid has no arguments and cannot fail.
+        let thread = unsafe { libc::gettid() };
+        assert!(runnable(thread));
+        assert!(!runnable(0));
+    }
+
     /// Runs one test of this binary again in a child with a variable
     /// set, so that a fault or a hook of the whole process stays apart
     /// from the other tests; returns how the child ended and its stderr.
@@ -287,6 +448,47 @@ mod tests {
         let (status, words) = again("words::tests::a_stack_overflow_leaves_its_words", CHILD);
         assert!(words.contains("chora: SIGSEGV at address"), "{words}");
         assert_eq!(status.signal(), Some(libc::SIGSEGV), "{words}");
+    }
+
+    /// A backtrace that takes longer than the time of the alarm is slow,
+    /// not stuck: under load the alarm must not end the core with
+    /// SIGALRM in the middle of the backtrace (F10). The child gives the
+    /// handler 5 ms, which no backtrace of a deep stack meets.
+    #[test]
+    fn a_slow_backtrace_is_not_cut_by_the_alarm() {
+        use std::os::unix::process::ExitStatusExt as _;
+        const CHILD: &str = "CHORA_WORDS_SLOW";
+        if std::env::var_os(CHILD).is_some() {
+            GIVE_UP_AFTER.store(5, Ordering::Relaxed);
+            install();
+            overflow(0);
+        }
+        let test = "words::tests::a_slow_backtrace_is_not_cut_by_the_alarm";
+        let (status, words) = again(test, CHILD);
+        assert_eq!(status.signal(), Some(libc::SIGSEGV), "{words}");
+        assert!(words.contains("words::tests::overflow"), "{words}");
+    }
+
+    /// A handler that sleeps, as one that waits for the lock of malloc
+    /// does, is stuck: the alarm says so and ends the process with the
+    /// signal of the fault.
+    #[test]
+    fn a_stuck_handler_ends_with_the_signal_of_its_fault() {
+        use std::os::unix::process::ExitStatusExt as _;
+        const CHILD: &str = "CHORA_WORDS_STUCK";
+        if std::env::var_os(CHILD).is_some() {
+            GIVE_UP_AFTER.store(50, Ordering::Relaxed);
+            give_up_when_stuck(libc::SIGBUS);
+            std::thread::sleep(std::time::Duration::from_secs(30));
+            return;
+        }
+        let test = "words::tests::a_stuck_handler_ends_with_the_signal_of_its_fault";
+        let (status, words) = again(test, CHILD);
+        assert_eq!(status.signal(), Some(libc::SIGBUS), "{words}");
+        assert!(
+            words.contains("chora: the handler of SIGBUS is stuck after"),
+            "{words}"
+        );
     }
 
     /// The hook runs in a thread that is not the main thread, here in a

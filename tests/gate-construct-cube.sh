@@ -19,7 +19,7 @@
 #    and a turn key during a turn queues one turn. Alt+Escape steps back
 #    and takes the keyboard; Return steps in and the window of before
 #    takes typed text again, but not after a step into another face. A click on a face and a click on the chip
-#    STEP IN step in. In navigate mode the edge of the face under the
+#    STEP IN step in, and so does a click during the step back. In navigate mode the edge of the face under the
 #    pointer is lit, and a drag on a face turns the cube by one face.
 #    With the grant input.grab-any and fly_out Escape, Escape alone
 #    steps back; without the grant the chip names no key. After the
@@ -302,6 +302,11 @@ until_ok 'test "$(prop construct-mode-step-in visible)" = True' || fail "the hin
 inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, {"click": {}}]'
 until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
 ok "a click on a face and a click on the chip STEP IN step in"
+key Alt+Escape
+quick 'test "$(prop construct-cube-face-0 forward)" = False' || fail "Alt+Escape did not start a step back"
+inject '[{"pointer_move": {"position": [640, 400]}}, {"click": {}}]'
+until_ok "$stepped_in" 20 || fail "a click during the step back is lost"
+ok "a click on a face during the step back steps in"
 
 [ "$(prop construct-cube-edge visible)" != True ] || fail "the edge of a face is lit in use mode"
 key Alt+Escape
@@ -520,15 +525,20 @@ kill -STOP "$manager"
 call view.step_in >/dev/null || { kill -CONT "$manager"; fail "view.step_in with a deaf window manager"; }
 sleep 3
 deaf_plane=$(prop "construct-cube-float-0-$surface" visible)
-timeout 2 "$bin/choractl" --name agent call construct construct.list >/dev/null 2>&1
-deaf_answer=$?
+deaf_answer=0
+deaf_times=
+for _ in 1 2 3; do
+    deaf_start=$(now_ms)
+    timeout 2 "$bin/choractl" --name agent call construct construct.list >/dev/null 2>&1 || deaf_answer=1
+    deaf_times="$deaf_times $(($(now_ms) - deaf_start))"
+done
 kill -CONT "$manager"
-[ "$deaf_answer" = 0 ] || fail "the construct does not answer while the window manager is deaf"
+[ "$deaf_answer" = 0 ] || fail "the construct does not answer within 2 s while the window manager is deaf: three calls took$deaf_times ms"
 [ "$deaf_plane" = True ] || fail "the plane went although the window manager did not answer: the window shows nowhere ($deaf_plane)"
 until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1' 40 ||
     fail "the windows did not land after the window manager answered again: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface")"
 until_ok "$stepped_in" 20 || fail "no step in after the window manager answered again"
-ok "a window keeps its plane while the window manager does not answer, and lands when it does"
+ok "a window keeps its plane while the window manager does not answer, the construct answers three calls (after$deaf_times ms), and the window lands when it does"
 run_pid "$second_probe"
 kill "$second_probe"
 until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"

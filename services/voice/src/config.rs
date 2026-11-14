@@ -390,12 +390,24 @@ fn default_confirm() -> Vec<Confirm> {
         // A program can do all that the user can (D42).
         rule("run_program", "Shall I start the program {program}?"),
         rule("configure_output", "Shall I change the screen to {args}?"),
+        rule(
+            "reserve_space",
+            "Shall I keep space free on the screen: {args}?",
+        ),
         rule("*.restart", "Shall I restart the plugin?"),
         Confirm {
             method: Some("*restart".into()),
             ..rule("call_method", "Shall I restart the plugin {client}?")
         },
     ]
+}
+
+/// Takes the variables `keys` with the API keys (`Config::key_envs`)
+/// out of the environment of a child: no child needs them.
+pub fn without_keys(command: &mut std::process::Command, keys: &[String]) {
+    for key in keys {
+        command.env_remove(key);
+    }
 }
 
 /// The question before a privileged method (`phrases.privileged`).
@@ -409,6 +421,19 @@ impl Config {
             return cmd.to_vec();
         }
         self.sandbox_cmd.iter().chain(cmd).cloned().collect()
+    }
+
+    /// The names of the environment variables with the API keys.
+    pub fn key_envs(&self) -> Vec<String> {
+        [
+            &self.asr_api_key_env,
+            &self.tts_api_key_env,
+            &self.llm_api_key_env,
+        ]
+        .into_iter()
+        .filter(|name| !name.is_empty())
+        .cloned()
+        .collect()
     }
 
     /// The language of the TTS: `tts_language`, else the one of
@@ -713,7 +738,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 27] = [
+const GERMAN: [(&str, &str); 28] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -786,6 +811,10 @@ const GERMAN: [(&str, &str); 27] = [
     (
         "Shall I change the screen to {args}?",
         "Soll ich den Bildschirm auf {args} ändern?",
+    ),
+    (
+        "Shall I keep space free on the screen: {args}?",
+        "Soll ich auf dem Bildschirm Platz freihalten: {args}?",
     ),
     (
         "Shall I restart the plugin?",
@@ -1461,6 +1490,11 @@ mod tests {
         assert_eq!(
             question("configure_output", screen),
             "Shall I change the screen to output winit, scale 1.5?"
+        );
+        let edges = serde_json::json!({"output": "winit", "top": 40});
+        assert_eq!(
+            question("reserve_space", edges),
+            "Shall I keep space free on the screen: output winit, top 40?"
         );
         let view = serde_json::json!({"name": "desk"});
         assert_eq!(

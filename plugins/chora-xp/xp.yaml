@@ -16,6 +16,13 @@ launcher: fuzzel
 # start menu and the folders of the desktop; the folder follows it. When it
 # is not installed, Super+e says so in a balloon.
 file_manager: thunar
+# The shell command of the plain text editor, Notepad of the start menu
+# and of All Programs > Accessories. Without one (null), or when its
+# program is not installed, the first installed editor with a window
+# serves (gedit, mousepad, kate and others), else the editor of VISUAL or
+# EDITOR, nano, vim or vi in the terminal. Without any, there is no
+# Notepad.
+editor:
 # The programs of the start menu, at its top left below Terminal: the
 # title, the shell command and the name of the icon.
 programs: []

@@ -263,7 +263,27 @@ fn read<S: Settings>(path: &Path, default: &str) -> Result<S, String> {
     serde_saphyr::from_str_with_options(&text, options())
         .map_err(|e| e.to_string())
         .and_then(|v| complete(v, default))
-        .map_err(|e| format!("{}: {e}", path.display()))
+        .map_err(|e| format!("{}: {}", path.display(), without_value(&e)))
+}
+
+/// An error of a settings file without the value that it quotes: the
+/// kind of the value stays. A value at a wrong place may be a secret,
+/// and the error goes to the log and to the callers of `settings.set`.
+fn without_value(error: &str) -> String {
+    for fault in ["invalid type:", "invalid value:", "unknown variant"] {
+        let Some(start) = error.find(fault).map(|at| at + fault.len()) else {
+            continue;
+        };
+        let end = error[start..]
+            .rfind(", expected ")
+            .map_or(error.len(), |at| start + at);
+        let kind = error[start..end]
+            .split(['"', '`'])
+            .next()
+            .unwrap_or_default();
+        return format!("{}{}{}", &error[..start], kind.trim_end(), &error[end..]);
+    }
+    error.into()
 }
 
 /// Parses settings in YAML and checks them.
@@ -282,6 +302,7 @@ fn options() -> serde_saphyr::Options {
     let mut options = serde_saphyr::Options::default();
     options.strict_booleans = true;
     options.reject_unsupported_tags = true;
+    options.with_snippet = false;
     options
 }
 
@@ -709,5 +730,38 @@ pub(crate) mod tests {
         );
         assert_eq!(std::fs::read_to_string(&path).unwrap(), STALE);
         std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    /// A value at a wrong place of the file, which may be a secret,
+    /// reaches neither the stored error nor the answer of a refused
+    /// `set`; the place or the kind of the fault stays.
+    #[test]
+    fn the_error_of_a_broken_file_has_no_value_of_the_file() {
+        let dir = dir("secret");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        for (text, fault) in [
+            (
+                "frame: \"Bearer sk-MARKER\"\n",
+                "invalid type: string, expected struct Frame",
+            ),
+            ("gap: sk-MARKER\n", "invalid type: string, expected u16"),
+            (
+                "bindings:\n  MOD+q: sk-MARKER\n",
+                "unknown variant, expected one of `close`",
+            ),
+            ("frame: {title: [sk-MARKER\n", "line 1"),
+        ] {
+            std::fs::write(&path, text).unwrap();
+            let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+            let err = file.broken().unwrap().to_owned();
+            assert!(!err.contains("MARKER"), "{err}");
+            assert!(err.contains(fault), "{err}");
+            let refused = file.set(json!({"gap": 8})).unwrap_err().message;
+            assert!(!refused.contains("MARKER"), "{refused}");
+            let reloaded = file.reload().unwrap_err().message;
+            assert!(!reloaded.contains("MARKER"), "{reloaded}");
+        }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

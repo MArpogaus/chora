@@ -956,7 +956,8 @@ fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
 
 /// The programs of the desktop files that fill the left column when the
 /// settings list too few for it to reach the height of the right one:
-/// the first programs of All Programs, none that the settings list.
+/// Notepad, the plain text editor, then the first programs of All
+/// Programs, none that the settings list.
 fn fill_pool<'a>(config: &Config, apps: &'a [Node]) -> Vec<&'a Node> {
     fn flatten<'a>(nodes: &'a [Node], out: &mut Vec<&'a Node>) {
         for node in nodes {
@@ -970,6 +971,7 @@ fn fill_pool<'a>(config: &Config, apps: &'a [Node]) -> Vec<&'a Node> {
     let mut pool = Vec::new();
     flatten(apps, &mut pool);
     pool.retain(|n| !config.programs.iter().any(|p| p.title == n.title));
+    pool.sort_by_key(|n| n.title != apps::NOTEPAD);
     pool
 }
 
@@ -1412,6 +1414,26 @@ mod tests {
             icon: String::new(),
             kind: apps::Kind::Run(format!("run-{title}")),
         }
+    }
+
+    #[test]
+    fn notepad_is_the_first_program_below_the_pinned_rows() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-notepad");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let apps: Vec<Node> = vec![
+            Node {
+                title: "Accessories".into(),
+                icon: String::new(),
+                kind: apps::Kind::Group(vec![app("Calc"), app(apps::NOTEPAD), app("Zip")]),
+            },
+            app("Loose"),
+        ];
+        let menu = Menu::new(&config(), apps, &theme, &mut icons);
+        assert_eq!(menu.entries[2].title, "Notepad");
+        assert_eq!(menu.entries[2].kind, Kind::Program);
+        assert_eq!(menu.entries[2].action, Action::Run("run-Notepad".into()));
+        assert_eq!(menu.entries[3].title, "Calc");
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

@@ -247,7 +247,38 @@ fn refuse_lock() {
 mod tests {
     use smithay::output::Scale;
 
+    use smithay::{
+        backend::input::{InputTime, KeyState},
+        input::keyboard::Keycode,
+    };
+
     use crate::testing::{Core, wayland::Wayland};
+
+    /// Nobody at the lock screen ends or resets the session of the
+    /// person: the chords of the safety layer wait for the unlock.
+    #[test]
+    fn the_safety_chords_do_nothing_while_the_session_is_locked() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut plugin = core.named("wm");
+        let mut wayland = Wayland::connect(&mut core);
+        let lock = wayland.lock(&mut core);
+        wayland.lock_surface(&mut core, &lock);
+        let offset = 8;
+        for (key, state) in [
+            (29, KeyState::Pressed),
+            (56, KeyState::Pressed),
+            (1, KeyState::Pressed),
+            (1, KeyState::Released),
+        ] {
+            let key = Keycode::new(key + offset);
+            crate::input::key(&mut core.state, key, state, InputTime::now(), false);
+        }
+        assert!(
+            !plugin.closed(&mut core),
+            "the reset ran at the lock screen"
+        );
+    }
 
     #[test]
     fn a_lock_surface_follows_its_output_and_gets_the_pointer_at_once() {

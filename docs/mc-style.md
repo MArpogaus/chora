@@ -117,7 +117,21 @@ change it there, not here.
     Two lines of doors stand under the key list: `Programs`, `Lock`,
     `Power`, `Screenshot` and the volume, each in `text` and clickable.
     They stay while the chat is open.
-17. **One focus mark.** What a click acts on shows a bar of 2 by 20
+    On a page the row of the page names the plain arrows, `← →`: there
+    Right and Left turn the page without `Super`, and `Esc` goes back one
+    step: it closes the full list, else it shows the page that showed
+    before. In a scene of a program these keys belong to the program, and
+    the row names `Super` with the arrows. With `--output`, beside
+    other window managers, a page takes no keyboard: the node with the
+    keyboard would draw their new windows to mc.
+17. **The word Mute.** Once the voice agent told its state, the first
+    line of the column holds the word `Mute` in the style `margin`: at
+    the left edge beside the state word of the HUD host, flush right in
+    the line of the state word where mc draws it. A click of the person
+    mutes the microphone. While it is muted the badge of the host turns
+    it on; without the host the word is `Turn microphone on`. When the
+    agent does not switch, or the press was injected, the line says so.
+18. **One focus mark.** What a click acts on shows a bar of 2 by 20
     pixels in `text`, 12 pixels left of it, while the pointer is over it:
     no underline, no fill and no change of color. A word flush right in a
     head, `Esc  Close` and `Show`, takes its own box and its own bar, not

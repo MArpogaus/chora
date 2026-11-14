@@ -67,6 +67,8 @@ const GRACE: Duration = Duration::from_secs(10);
 const MAX_EMIT: usize = 64 << 10;
 /// The most events that one client name emits per `EMIT_WINDOW` (D65).
 const MAX_EMITS: u32 = 32;
+/// The most grabs of one connection.
+const MAX_GRABS: usize = 256;
 const EMIT_WINDOW: Duration = Duration::from_secs(1);
 
 /// The connections of the IPC socket.
@@ -113,6 +115,15 @@ const BUTTONS: [(&str, u32); 7] = [
     ("BTN_BACK", 0x116),
 ];
 
+/// The keysym of a name, or no symbol: xkbcommon panics on a name with
+/// a NUL, and a client sends the name.
+pub(crate) fn keysym(name: &str, flags: xkb::KeysymFlags) -> Keysym {
+    if name.contains('\0') {
+        return Keysym::NoSymbol;
+    }
+    xkb::keysym_from_name(name, flags)
+}
+
 /// The key or the button of a binding, or the moves of `move`.
 fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     if binding.key == MOVE && binding.mods == Modifiers::default() {
@@ -124,7 +135,7 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     {
         return Ok(Trigger::Button(*code));
     }
-    let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
+    let sym = keysym(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
     if sym.raw() == 0 {
         return Err(RpcError::new(
             RpcError::INVALID_PARAMS,
@@ -340,6 +351,22 @@ impl Ipc {
             c.seq += 1;
             c.push(&stamped(&Message::event(event), c.seq));
         }
+    }
+
+    /// Sends an event to one connection unless its output is too full:
+    /// `false` then, and the connection stays open. For an event that
+    /// another client causes, which must not close this one.
+    pub fn send_if_room(&mut self, conn: u64, event: &Event) -> bool {
+        let Some(c) = self.conns.get_mut(&conn) else {
+            return false;
+        };
+        let line = stamped(&Message::event(event), c.seq + 1);
+        if c.output.len() + line.len() > MAX_OUTPUT {
+            return false;
+        }
+        c.seq += 1;
+        c.push(&line);
+        true
     }
 
     /// Sends a response to one connection. A result that does not fit in
@@ -1433,6 +1460,12 @@ impl State {
         let shared = matches!(trigger, Trigger::Button(_)) && claims(conn);
         if holders.peek().is_some() && !(shared && holders.all(|c| c != conn && claims(c))) {
             return Err(rejected(format!("{binding} is grabbed already")));
+        }
+        if self.ipc.grabs.iter().filter(|(_, _, c)| *c == conn).count() >= MAX_GRABS {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a connection holds at most {MAX_GRABS} grabs"),
+            ));
         }
         let normal = binding.to_string();
         self.ipc.grabs.push((binding, trigger, conn));
@@ -3693,6 +3726,38 @@ mod tests {
         assert_eq!(text, "no backend");
     }
 
+    /// `output.configure` and `output.reserve` change the whole session,
+    /// so a confined connection needs `methods.privileged` for them (C05).
+    #[test]
+    fn output_changes_of_a_confined_client_are_privileged() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "voice-mcp", "confined": true}),
+        );
+        let configure = json!({"output": "DP-1", "scale": 1.0});
+        let reserve = json!({"output": "DP-1", "edges": {"top": 30}});
+        for (method, params) in [
+            ("output.configure", &configure),
+            ("output.reserve", &reserve),
+        ] {
+            let (error_code, text) = agent.fails(&mut core, method, params.clone());
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}: {text}");
+            assert!(text.contains("methods.privileged"), "{text}");
+        }
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.privileged"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        agent.ok(&mut core, "output.reserve", reserve);
+        let (error_code, text) = agent.fails(&mut core, "output.configure", configure);
+        assert_eq!(
+            (error_code, text.as_str()),
+            (RpcError::REJECTED, "no backend")
+        );
+    }
+
     #[test]
     fn the_reset_removes_the_client_sockets() {
         let (mut core, dir) = socket_dir("reset");
@@ -4060,6 +4125,36 @@ mod tests {
             message,
             "b needs Ctrl, Alt or Super or the capability input.grab-any"
         );
+    }
+
+    #[test]
+    fn a_key_name_with_a_nul_is_an_unknown_key() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let binding = json!({"binding": "Super+a\u{0}"});
+        let (_, message) = client.fails(&mut core, "input.grab", binding.clone());
+        assert_eq!(message, "unknown key \"a\\0\"");
+        let (_, message) = client.fails(&mut core, "input.ungrab", binding);
+        assert_eq!(message, "unknown key \"a\\0\"");
+    }
+
+    #[test]
+    fn a_connection_holds_at_most_max_grabs() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let mods = ["Super", "Ctrl", "Alt", "Super+Ctrl", "Super+Alt"];
+        let keys = "abcdefghijklmnopqrstuvwxyz0123456789";
+        let mut bindings = mods
+            .iter()
+            .flat_map(|m| [format!("{m}+"), format!("{m}+Shift+")])
+            .flat_map(|m| keys.chars().map(move |k| format!("{m}{k}")))
+            .chain((1..=12).map(|f| format!("Super+F{f}")));
+        for binding in bindings.by_ref().take(MAX_GRABS) {
+            client.ok(&mut core, "input.grab", json!({"binding": binding}));
+        }
+        let next = json!({"binding": bindings.next().unwrap()});
+        let (answer, message) = client.fails(&mut core, "input.grab", next);
+        assert_eq!(answer, RpcError::LIMIT_REACHED, "{message}");
     }
 
     #[test]

@@ -283,7 +283,7 @@ menu_visible() { test "$(query id:xp-menu | jq '.[0].visible')" = "$1"; }
 wait_for menu_visible true
 # The menu sits on the taskbar; its left column is white.
 menu_y=$(query id:xp-menu | jq -r '.[0].transform.matrix[13] | floor')
-wait_for pixel_is 100 $((menu_y + 250)) "$white"
+wait_for pixel_is 170 $((menu_y + 90)) "$white"
 pixel_is 200 $((menu_y + 30)) "$blue" || fail "header: $(pixel 200 $((menu_y + 30)))"
 grim "$out/menu.png"
 click 50 785 || fail "the click failed"

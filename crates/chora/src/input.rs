@@ -20,7 +20,9 @@ use smithay::{
     },
     desktop::PopupPointerGrab,
     input::{
-        keyboard::{FilterResult, Keycode, Keysym, KeysymHandle, ModifiersState, xkb},
+        keyboard::{
+            FilterResult, KeyboardSource, Keycode, Keysym, KeysymHandle, ModifiersState, xkb,
+        },
         pointer::{
             AxisFrame, ButtonEvent, Focus, GestureHoldBeginEvent, GestureHoldEndEvent,
             GesturePinchBeginEvent, GesturePinchEndEvent, GesturePinchUpdateEvent,
@@ -95,6 +97,19 @@ pub fn log_layout(state: &mut State) {
     );
 }
 
+/// The keyboard of `input.inject`: a source of its own, so that an
+/// injected release lifts no key or modifier that the person holds.
+const INJECTED: KeyboardSource = KeyboardSource::Auxiliary(0);
+
+/// The keyboard that a key comes from.
+fn source(injected: bool) -> KeyboardSource {
+    if injected {
+        INJECTED
+    } else {
+        KeyboardSource::MAIN
+    }
+}
+
 /// Releases every key that is down, for example when the window of a
 /// nested chora loses the focus and the host keeps the releases.
 pub fn release_keys(state: &mut State) {
@@ -120,7 +135,8 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     if key_state == KeyState::Pressed {
         state.track_press(serial, injected);
     }
-    let action = keyboard.input(
+    let action = keyboard.input_from_source(
+        source(injected),
         state,
         code,
         key_state,
@@ -399,7 +415,8 @@ pub fn modifier_names(mods: &ModifiersState) -> Vec<String> {
     .collect()
 }
 
-/// The fixed bindings of the safety layer (D23), then the grabs. The keymap
+/// The fixed bindings of the safety layer (D23), then the grabs. Quit,
+/// reset and revoke wait while the session is locked. The keymap
 /// turns Ctrl+Alt+F1 to F12 into the keys that switch the VT; only the
 /// modified keysyms show them.
 fn press_action(
@@ -418,7 +435,7 @@ fn press_action(
     {
         return Some(KeyAction::SwitchVt(i32::try_from(vt).ok()? + 1));
     }
-    if mods.ctrl && mods.alt {
+    if mods.ctrl && mods.alt && state.lock.is_none() {
         if syms.contains(&Keysym::BackSpace) {
             return Some(KeyAction::Quit);
         }
@@ -554,7 +571,7 @@ impl State {
 }
 
 /// The drag of a node goes to plugins only, with each new position.
-fn drag_node(state: &mut State, spot: &Spot) {
+fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
     let outputs = state.all_outputs();
     let Some(grab) = &mut state.node_grab else {
         return;
@@ -574,6 +591,7 @@ fn drag_node(state: &mut State, spot: &Spot) {
             local,
             modifiers,
             injected,
+            time: time.micros() / 1000,
         });
     }
 }
@@ -601,7 +619,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         state.ipc.send_to(conn, &event);
     }
     let under = if state.node_grab.is_some() {
-        drag_node(state, &spot);
+        drag_node(state, &spot, time);
         None
     } else if state.button_grab.is_some() {
         None
@@ -692,7 +710,7 @@ pub fn press_button(
         start_plane_grab(state, &pointer, code, serial);
     } else {
         note_input(state, pointer.current_focus(), serial, false);
-        release_node(state, code, left_a_pane);
+        release_node(state, code, left_a_pane, time);
     }
     pointer.button(
         state,
@@ -1475,7 +1493,7 @@ impl PointerGrab<State> for PlaneGrab {
 
 /// Ends the drag of a node when its button goes up. After a press through
 /// a pane, the release is on the screen and the node keeps its last point.
-fn release_node(state: &mut State, button: u32, left_a_pane: bool) {
+fn release_node(state: &mut State, button: u32, left_a_pane: bool, time: InputTime) {
     let Some(NodeGrab { node, local, .. }) = state.node_grab.take_if(|g| g.button == button) else {
         return;
     };
@@ -1496,6 +1514,7 @@ fn release_node(state: &mut State, button: u32, left_a_pane: bool) {
         local,
         modifiers,
         injected,
+        time: time.micros() / 1000,
     });
 }
 
@@ -1905,6 +1924,30 @@ mod tests {
         assert_eq!(named(&all, "pointer.pressed")[0]["modifiers"], ctrl);
         assert_eq!(named(&all, "pointer.moved")[0]["modifiers"], ctrl);
         assert_eq!(named(&all, "pointer.released")[0]["modifiers"], json!([]));
+    }
+
+    #[test]
+    fn a_move_and_a_release_carry_the_time_of_their_input() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(
+            &mut xp,
+            &mut core,
+            &json!([{"update": {"id": "menu", "props": {"transform": {"translate": [400, 0]}}}}]),
+        );
+        let at = InputTime::from_millis;
+        move_to(&mut core, 450.0, 50.0);
+        click(&mut core, true);
+        super::move_pointer(&mut core.state, (460.0, 50.0).into(), at(81_234));
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Released,
+            at(81_250),
+            false,
+        );
+        let all = events(&mut xp, &mut core);
+        assert_eq!(named(&all, "pointer.moved")[0]["time"], 81_234);
+        assert_eq!(named(&all, "pointer.released")[0]["time"], 81_250);
     }
 
     #[test]

@@ -650,7 +650,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
-| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local` and modifiers; `pointer.released` with the button. `injected: true` marks a move or a release that came from `input.inject`; a client that takes a drag for the user ignores it. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye, and each coordinate stops at 10^6 near the horizon of the plane; for a node with a mesh, `local` is the point of the flat quad of its size under its transform, in a press as in a drag |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local`, modifiers and `time`, the time of the input in milliseconds of the monotonic clock, from which a client takes the speed of a drag; `pointer.released` with the button. `injected: true` marks a move or a release that came from `input.inject`; a client that takes a drag for the user ignores it. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye, and each coordinate stops at 10^6 near the horizon of the plane; for a node with a mesh, `local` is the point of the flat quad of its size under its transform, in a press as in a drag |
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
@@ -784,7 +784,8 @@ grace time the socket cannot open (`clients.create` answers the
 that name. It reports both reasons and goes on with the remaining
 names. Without a file argument the first of
 `$XDG_CONFIG_HOME/chora/clients.yaml` and
-`~/.config/chora/clients.yaml` is read, `-` for stdin. The core
+`~/.config/chora/clients.yaml` is read, `-` for stdin. An empty or
+relative `$XDG_CONFIG_HOME` or `$HOME` does not count. The core
 answers every request.
 
 | Method | Purpose |
@@ -794,9 +795,9 @@ answers every request.
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
 | `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
-| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`, or the key is a media key below and the client is an unconfined window manager with a claim; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`, or the key is a media key below and the client is an unconfined window manager with a claim; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; a connection holds at most 256 grabs, and a further grab fails with code 6; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
-| `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
+| `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant; injected input is no activity for `ext-idle-notify`, so it does not keep the session from locking |
 | `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
 | `record.step(fps)`, `record.frame(output, pointer)`, `record.stop` | a recording with a stepped scene clock (see [Recording](#recording)); they work only on the admin socket and only on the headless backend, `choractl record` calls them |
@@ -805,13 +806,13 @@ answers every request.
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
 | `render.stats` | what rendering did for each output since it came, virtual outputs too: `outputs` maps each name to `frames`, `damaged_frames` and `passes`, the offscreen renders of its frames (node contents and shader passes; a capture and the blurs of backdrops do not count); the counters only grow, so a caller compares two answers, for example to check that a still scene draws nothing; a client socket or a confined connection gets code 9, since the counters tell when other clients draw; `choractl render-stats` calls it |
-| `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
-| `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
-| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them. With `virtual: true`, `output.add(spec, virtual)` works on every backend and adds a virtual output `WxH[@SCALE]` that no screen shows: the core names it `VIRTUAL-n` and places it left of and above the screens, `output.list` shows it with `virtual: true` and its `owner`, and it has a `wl_output`, a camera, a work area, an overlay root and layer surfaces, but no pointer, no lock surface that shows and no screen copy; a side has 1 to 4096 pixels, all virtual outputs together at most 2^26 pixels, and at most 16 are live, else code 6; only a free client of the main socket adds one, a client socket or a confined connection gets code 9; only its owner or the admin socket removes it, and it goes when its owner ends, after the grace time of a `resume`; a window whose centre lies in the scene area of the removed output, as its default camera showed it, stays with its window manager for 5 s; if its centre still lies there then, and neither a new virtual output nor a screen shows the window, the core sends its window manager `surface.detached`, removes the window in its name and hands it to the client that gave it to that window manager, else to another window manager, else shows it on the first screen; where the camera of the output looked does not count, and a hidden window in that area stays with its window manager |
+| `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; a client socket needs the capability `methods.privileged`; returns the output |
+| `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; a client socket needs the capability `methods.privileged`; returns the output |
+| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends and confined connections refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them. With `virtual: true`, `output.add(spec, virtual)` works on every backend and adds a virtual output `WxH[@SCALE]` that no screen shows: the core names it `VIRTUAL-n` and places it left of and above the screens, `output.list` shows it with `virtual: true` and its `owner`, and it has a `wl_output`, a camera, a work area, an overlay root and layer surfaces, but no pointer, no lock surface that shows and no screen copy; a side has 1 to 4096 pixels, all virtual outputs together at most 2^26 pixels, and at most 16 are live, else code 6; only a free client of the main socket adds one, a client socket or a confined connection gets code 9; only its owner or the admin socket removes it, and it goes when its owner ends, after the grace time of a `resume`; a window whose centre lies in the scene area of the removed output, as its default camera showed it, stays with its window manager for 5 s; if its centre still lies there then, and neither a new virtual output nor a screen shows the window, the core sends its window manager `surface.detached`, removes the window in its name and hands it to the client that gave it to that window manager, else to another window manager, else shows it on the first screen; where the camera of the output looked does not count, and a hidden window in that area stays with its window manager |
 | `clients.list` | list the connected client names and the methods that each exported |
-| `methods.export(names)` | offer methods of this client to other clients |
+| `methods.export(names)` | offer methods of this client to other clients; a connection exports at most 64 methods, each with at most 64 KiB of description and schema; more fails with code 6 |
 | `methods.list` | list the methods that clients exported, each with its description, input schema and privileged flag |
-| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged` |
+| `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged`; fails with code 6 when the caller waits for 64 calls or the output buffer of the exporter has no room for the call |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
 | `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined, is a connection that received the act (the connection of the grab, a connection of the owner of the node at the press), handles no method call of a confined caller, the act is under 2 s old and no token carries it yet, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
@@ -1041,7 +1042,8 @@ socket alone, with the gaps that [Client sockets](#client-sockets) lists.
 `hello` has `confined: true`. `choractl mcp` confines its connection,
 so its client name, `agent` by default, needs `methods.call` for
 `call_method` and the plugin tools, `methods.privileged` for
-privileged methods and `activation.token` for `run_program`.
+privileged methods, `reserve_space` and `configure_output`, and
+`activation.token` for `run_program`.
 
 ## Client sockets
 
@@ -1070,7 +1072,7 @@ in. `choractl clients create agent` prints its path:
     ends it.
   - A name that holds the focus of a node moves it to its other nodes
     without a press.
-  - No `create` or `move` puts a node under `screen:*` or below it.
+  - No `create`, `attach` or `move` puts a node under `screen:*` or below it.
   - No `camera` command works.
   - `attach`, `focus`, `close` and `configure` take only a window of its
     own `wayland.sock` or a surface that the name owns. `focus` needs a
@@ -1086,8 +1088,9 @@ in. `choractl clients create agent` prints its path:
   `clients.yaml` and run `choractl clients up`.
 - `methods.call` needs the capability `methods.call`,
   `activation.token` the capability `activation.token`,
-  `session.quit` the capability `session.quit` and `input.configure`
-  the capability `methods.privileged`. A `methods.call` of a privileged
+  `session.quit` the capability `session.quit`, and `input.configure`,
+  `output.configure` and `output.reserve` the capability
+  `methods.privileged`. A `methods.call` of a privileged
   method also needs `methods.privileged`: `settings.set` and
   `settings.reload` of any client, because plugin settings hold commands
   that the plugin runs and paths that it reads, and each method that its
@@ -1565,7 +1568,9 @@ the grants of the client name, for example
 still describes the scene. No tool grants anything (D40). On a client
 socket, `call_method` and the tools of plugin methods need the capability
 `methods.call`, and privileged methods, such as `settings.set` and
-`settings.reload`, also `methods.privileged`. `run_program` needs the grant `activation.token` on
+`settings.reload`, also `methods.privileged`. `reserve_space` and
+`configure_output` need `methods.privileged` too, and their tools carry
+`"privileged": true` in `_meta`. `run_program` needs the grant `activation.token` on
 every socket, because a started program can do all that the user can.
 On the main socket, `choractl grant agent activation.token` gives it; a
 client socket lists it in `clients.yaml`. The program starts where the

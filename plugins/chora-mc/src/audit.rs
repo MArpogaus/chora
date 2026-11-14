@@ -671,6 +671,27 @@ mod tests {
         assert!(mc.texts["urgent"].1.is_empty(), "the click clears the line");
     }
 
+    /// A critical notification says `Urgent` in the column and in the
+    /// footer, the footer line is not under 14 pixels, and a click on it
+    /// leaves the notification in the column.
+    #[test]
+    fn a_critical_notification_says_urgent_and_stays_in_the_column() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("audit-urgent-word", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let push = serde_json::json!({"title": "Disk is full", "urgency": "critical"});
+        mc.method("notify.push", push).unwrap();
+        let item = (mc.items("agenda").into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id.ends_with("-urgent"))
+            .expect("the urgent line");
+        assert_eq!(item.props.text.as_deref(), Some("Urgent: Disk is full"));
+        assert!(item.props.font_size.unwrap() >= 14.0, "the footer line");
+        assert!(mc.click_hit(&format!("{}-hit", item.id)));
+        assert_eq!(mc.texts["notify"].1.len(), 1, "the column keeps it");
+        assert!(mc.texts["notify"].1[0].ends_with("Urgent: Disk is full"));
+    }
+
     #[test]
     fn every_sign_of_a_state_is_a_shape_and_not_a_thin_letter() {
         let (mc, _) = crate::testing::mc("audit-signs", [1280, 800]);

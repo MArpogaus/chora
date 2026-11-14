@@ -8,7 +8,9 @@ a small mark shows the state of the voice agent with its state word at 14
 pixels in `accent`, and the sentence stands beside them as plain text
 without a box. The helpers are mc's own rows in its column, in its colours
 of state, and the door of the chat is its line `Chat with a helper ...`:
-the host draws no row and no pill there. A click on the mark mutes the mic.
+the host draws no row and no pill there. A click on the mark mutes the mic,
+and so does a click on the word `Mute`, which mc draws at the left of that
+line; the badge of the host turns the mic on again.
 The chat is a plain page in the colours of mc, set in TeX Gyre Pagella 18
 (a serif of the system where the host does not have it), the speakers in
 `muted` on lines of their own; the question card takes its fill and its

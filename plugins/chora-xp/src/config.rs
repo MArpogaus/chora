@@ -111,6 +111,11 @@ pub struct Config {
     /// the start menu and the folders of the desktop; the folder follows
     /// it.
     pub file_manager: String,
+    /// The shell command of the plain text editor, Notepad of the start
+    /// menu. Without it, or when its program is not installed, the first
+    /// installed editor serves.
+    #[serde(default)]
+    pub editor: Option<String>,
     /// The programs at the top left of the start menu, below the
     /// terminal.
     pub programs: Vec<Program>,
@@ -134,6 +139,7 @@ impl Settings for Config {
             ("terminal", Some(&self.terminal)),
             ("launcher", Some(&self.launcher)),
             ("file_manager", Some(&self.file_manager)),
+            ("editor", self.editor.as_ref()),
             ("session.turn_off", session.turn_off.as_ref()),
             ("session.restart", session.restart.as_ref()),
             ("session.stand_by", session.stand_by.as_ref()),
