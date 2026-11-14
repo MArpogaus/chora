@@ -245,6 +245,15 @@ cell_terminal_chat() {
         has_text "Back one step" || fail "the chat closed with the page turn, but the key list is not back"
     fi
     [ "$(rect_of right-edge)" = "[860.0,37.0,1.0,738.0]" ] || fail "after the page turn the hairline of the column is gone"
+    node_exists hud-chat || key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat"
+    key Super+Right
+    until_ok '[ "$(current)" = terminal ]' 20 || fail "Super+Right does not turn the page with the chat open: $(current)"
+    sleep 1
+    key h
+    key i
+    until_ok 'says "hi"' 20 || fail "after the page turn typed text does not reach the chat field: $(texts | tr '\n' '|')"
+    key Escape
 }
 
 cell_all_keys() {
