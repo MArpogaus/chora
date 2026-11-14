@@ -2542,6 +2542,19 @@ mod tests {
         assert!(no_ask(&effects), "{effects:?}");
     }
 
+    /// The end of a question, heard again by the mic, is no answer to
+    /// it; a yes in other words is.
+    #[test]
+    fn the_echo_of_a_question_does_not_answer_it() {
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Soll ich das löschen, ja oder nein?");
+        say(&mut core, "Ja.");
+        assert!(rx.try_recv().is_err(), "the echo of the question");
+        assert_eq!(core.state(), State::Confirming);
+        say(&mut core, "Bitte.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
     #[test]
     fn the_key_records_asleep_and_its_text_gets_a_reply() {
         let mut core = Core::new(Config::default());
