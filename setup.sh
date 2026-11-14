@@ -60,8 +60,12 @@ for t in cargo pre-commit vale cz lychee sway swaybg foot grim jq gh; do
 done
 for c in deny machete; do cargo "$c" --version >/dev/null 2>&1 || missing+=("cargo-$c"); done
 pkg-config --exists libdisplay-info libdrm libinput libseat libudev wayland-server xkbcommon egl gbm || missing+=("build-packages")
-[ "$(git -C /home/user/chora config --local user.email 2>/dev/null)" = "38564291+MArpogaus@users.noreply.github.com" ] || missing+=("git-identity")
-[ -x /home/user/chora/.git/hooks/commit-msg ] || missing+=("hooks")
+if [ -d /home/user/chora/.git ]; then
+    [ "$(git -C /home/user/chora config --local user.email 2>/dev/null)" = "38564291+MArpogaus@users.noreply.github.com" ] || missing+=("git-identity")
+    [ -x /home/user/chora/.git/hooks/commit-msg ] || missing+=("hooks")
+else
+    log "no /home/user/chora: repo checks skipped (a session without the repo, such as the heartbeat)"
+fi
 git -C /home/user/agent_skills rev-parse -q --verify origin/dev >/dev/null 2>&1 || missing+=("agent_skills-dev")
 if [ "${#missing[@]}" -gt 0 ]; then log "MISSING: ${missing[*]}"; exit 1; fi
 log "done, all present"
