@@ -3829,7 +3829,9 @@ mod tests {
     }
 
     /// A chat that moves to another output stays open and keeps the
-    /// keyboard: the close on this output hands nothing back.
+    /// keyboard: mc hands nothing back on its own output, neither when
+    /// the chat leaves nor when it closes there (review mc r4, C). The
+    /// host moves an open chat only when its output goes.
     #[test]
     fn a_chat_that_moves_to_another_output_keeps_the_keyboard() {
         use chora_kit::runtime::Plugin as _;
@@ -3838,6 +3840,7 @@ mod tests {
         mc.event(chat_event("assistant", true, "test")).unwrap();
         let before = model.lock().unwrap().focuses.len();
         mc.event(chat_event("assistant", true, "other")).unwrap();
+        mc.event(chat_event("assistant", false, "other")).unwrap();
         assert_eq!(model.lock().unwrap().focuses.len(), before);
     }
 
@@ -3856,6 +3859,24 @@ mod tests {
         let before = model.lock().unwrap().focuses.len();
         mc.event(chat_event("assistant", false, "test")).unwrap();
         assert_eq!(model.lock().unwrap().focuses.len(), before);
+    }
+
+    /// A window that the user clicked while the chat was open and that
+    /// closed leaves the keyboard to nobody: the page gets it back when
+    /// the chat closes.
+    #[test]
+    fn a_window_that_closes_under_the_chat_gives_the_keyboard_back() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-click-close", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        for surface in [Some("s9".to_owned()), None] {
+            mc.event(chora_scene::Event::FocusChanged { surface })
+                .unwrap();
+        }
+        let before = model.lock().unwrap().focuses.len();
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert!(model.lock().unwrap().focuses.len() > before);
     }
 
     /// A docked app that had the keyboard before the chat opened gets it

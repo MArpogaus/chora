@@ -21,6 +21,12 @@
 #                  outside the column; after Super+a and Super+Right the
 #                  typed text still reaches the chat field, after Escape it reaches
 #                  the terminal, and not the hidden terminal after a page turn
+#   chat-click-turn   with the chat open a click on a window of mc, a page
+#                  turn, and the chat closes: the hidden window gets no
+#                  key, the page gets the keyboard
+#   chat-click-close  (a second output with chora-tiling) with the chat
+#                  open a click on a window of tiling, that window closes,
+#                  the chat closes: the page of mc gets the keyboard
 #   all-keys       with notifications the full key list stays in the
 #                  column and on the screen, and its rule crosses no text
 #   urgent         a critical notification is named Urgent in the column
@@ -36,7 +42,7 @@
 #          mc-paths-CELL.png
 # shellcheck disable=SC2016 # until_ok evaluates its first argument
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-mc chora-assistant chora-chat
+need_bins chora choractl chora-mc chora-assistant chora-chat chora-tiling
 need jq
 need python3
 need foot
@@ -294,6 +300,75 @@ cell_terminal_chat() {
     return 0
 }
 
+side_window() {
+    ctl call mc app.open "{\"command\": \"foot --app-id=mcside\"}" >/dev/null || fail "app.open"
+    until_ok 'side_alive' 40 || fail "no window of app.open"
+    sleep 2
+    move_to 400 400
+    sleep 0.3
+    echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
+        ctl inject >/dev/null || fail "inject click"
+    sleep 1
+}
+side_alive() { pgrep -f -- "--app-id=mcside" >/dev/null; }
+side_end() {
+    local pid
+    for pid in $(pgrep -f -- "--app-id=mcside"); do kill "$pid"; done
+    until_ok '! side_alive' 20
+}
+cell_chat_click_turn() {
+    local mark=mcclickhidden
+    rmdir $mark 2>/dev/null
+    key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat"
+    sleep 1
+    side_window
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || { side_end; fail "Super+Home does not turn the page with the chat open: $(current)"; }
+    ctl call assistant chat.hide '{}' >/dev/null || { side_end; fail "chat.hide"; }
+    until_ok '! node_exists hud-chat' 40 || { side_end; fail "the chat does not close"; }
+    sleep 2
+    type_line "mkdir $mark"
+    sleep 2
+    side_end
+    terminal_got $mark && { rmdir $mark; fail "after the chat closed on another page typed text reached the hidden window"; }
+    key Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "after the chat closed the page gets no keys: $(current)"
+}
+
+chat_output() { ctl query "id:hud-chat" | jq -r '.[0].rects | keys | join(",")'; }
+tiling_alive() { pgrep -f -- "--app-id=mctiled" >/dev/null; }
+tiling_window() {
+    echo '[{"pointer_move": {"position": [600, 400], "output": "HEADLESS-2"}},
+        {"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
+        ctl inject >/dev/null || fail "inject click on the second output"
+    foot --app-id=mctiled &
+    until_ok '[ "$(ctl query "kind:surface owner:tiling" | jq length)" -ge 1 ]' 40 ||
+        fail "no window of tiling: $(ctl query kind:surface | jq -c '[.[] | [.id, .owner]]')"
+    sleep 2
+}
+tiling_end() {
+    local pid
+    for pid in $(pgrep -f -- "--app-id=mctiled"); do kill "$pid"; done
+    until_ok '! tiling_alive' 20
+}
+cell_chat_click_close() {
+    key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat"
+    sleep 1
+    [ "$(chat_output)" = HEADLESS-1 ] || fail "the chat does not open on the output of mc: $(chat_output)"
+    tiling_window
+    type_line "exit"
+    until_ok '! tiling_alive' 20 || { tiling_end; fail "the clicked window of tiling does not get the keys"; }
+    [ "$(chat_output)" = HEADLESS-1 ] || fail "the chat left the output of mc: $(chat_output)"
+    move_to 400 400
+    ctl call assistant chat.hide '{}' >/dev/null || fail "chat.hide"
+    until_ok '! node_exists hud-chat' 40 || fail "the chat does not close"
+    sleep 2
+    key Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "after the window of tiling and the chat closed the page gets no keys: $(current)"
+}
+
 cell_all_keys() {
     local rule over crossed
     for n in 1 2 3; do
@@ -347,9 +422,17 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page arrows terminal-keys mouse-back mute terminal-chat all-keys urgent; do
+for name in first-page arrows terminal-keys mouse-back mute terminal-chat chat-click-turn all-keys urgent; do
     run_cell "$name"
 done
+if [[ chat-click-close =~ ${CELLS:-.} ]]; then
+    ctl add-output 1280x800+1280+0 >/dev/null || fail "add-output"
+    "$bin/chora-tiling" --output HEADLESS-2 >"$work/tiling.log" 2>&1 &
+    pids+=($!)
+    until_ok '[ "$(ctl query kind:group | jq -r "[.[] | select(.claim) | .owner] | index(\"tiling\")")" != null ]' 80 ||
+        fail "tiling holds no claim on the second output"
+    run_cell chat-click-close
+fi
 
 if [[ terminal-keys =~ ${CELLS:-.} ]]; then
     [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "window audit: the terminal of the terminal page is gone"
