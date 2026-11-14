@@ -19,6 +19,8 @@ theme:
 
 nav:
 - Home: index.md
+- Install: install.md
+- Known issues: known-issues.md
 - Concept:
   - Vision and principles: vision.md
   - Design principles: design-principles.md

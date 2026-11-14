@@ -73,7 +73,9 @@ input:
 - `choractl view save work` writes the nodes of `view-work` as they are
   now to `~/.config/chora/views/work.yaml`, or to `--file PATH`. It keeps
   the plugins and the `input` of the file that was there, not the live
-  settings of the core. A plugin or an
+  settings of the core. If that file does not parse, or if it has a
+  scene and the view is not loaded and so owns no nodes, the save fails
+  and the file stays as it is. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
 - A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
@@ -98,7 +100,9 @@ input:
 
 `choractl` looks for `NAME.yaml` in `$XDG_CONFIG_HOME/chora/views/` first
 (`~/.config/chora/views/` by default), and then in
-`/usr/share/chora/views/`.
+`/usr/share/chora/views/`. An empty or relative `$XDG_CONFIG_HOME` or
+`$HOME` does not count, so no view or manifest comes from the current
+directory by accident.
 
 ### Strict YAML
 
@@ -115,7 +119,9 @@ update removed a key, the plugin does not stop. It starts with its
 default settings, writes the error to its log and does not change the
 file. `chora-mc` also shows the error as a critical notification.
 `chora-voice` does not start on a broken file. It writes the error to
-its log.
+its log. The error names the kind of the wrong value or the line of the
+wrong YAML. It does not quote the value or the line, because a value at
+a wrong place may be a secret.
 
 While the file is broken, `settings.set` and each other save of the
 settings fail with an error that names the file. Thus no save writes the
@@ -505,7 +511,7 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one also shows in red in the text `urgent` until the next one |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red in the text `urgent`, until the next one or a click on that line of the footer, which leaves it in `notify` |
 | `notify.clear` | none; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
@@ -599,7 +605,10 @@ with `settings.reload`:
   its place. First come the scenes of the list. The others follow in the
   order they appear, such as new scenes and those of `app.open`, so that
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
-  scene file may set its own `chapter.number`.
+  scene file may set its own `chapter.number`. On a page, which has no
+  program, Right and Left alone turn the page as well, and Escape goes
+  back one step: it closes the full key list, else it shows the page that
+  showed before.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
@@ -1577,7 +1586,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor too: **Screenshot**, **Screenshot of an
-  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
@@ -2106,8 +2115,9 @@ that the file leaves out takes its default:
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
-| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
+| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
+| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Without it, or when its program is not installed, the first installed editor with a window serves (gnome-text-editor, gedit, mousepad, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad, geany), else the editor of `VISUAL` or `EDITOR`, nano, vim or vi in the terminal. Without any of them the menu has no Notepad. All Programs lists only desktop files whose program is installed |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |

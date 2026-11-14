@@ -167,6 +167,10 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # in the region over any scene; the next press hides it again, or keys,
 # which shows all keys in the key list of the right side, or six again,
 # or chat, which asks the HUD host to open the chat.
+# On a page, which has no program, Right and Left alone also turn the
+# page, and Escape goes back one step; these three keys are not bindings.
+# With --output, beside other window managers, a page takes no keyboard
+# and only the bindings turn it.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
@@ -211,9 +215,12 @@ regions:
 # agent.set, in the color of its state), text (lines of content.set and
 # content.add, with a title), app (a command docked in a side or the
 # drawer; {NAME} is the color NAME of the theme as RRGGBB; a scene's
-# app: can name such a content). Each may set a style. notify.push fills
+# app: can name such a content). Each may set a style. In a side, state
+# also holds the word Mute for the microphone of the voice agent. notify.push fills
 # the texts notify and urgent; urgent shows in the middle of the footer,
-# where the header has no room left.
+# where the header has no room left. A critical notification starts with
+# the word Urgent in both, and a click on the line of the footer takes
+# that line away; the notification stays in notify.
 contents:
   head: {kind: head}
   clock: {kind: clock, format: '%A %-d %B  %H:%M'}
@@ -223,7 +230,7 @@ contents:
   hud: {kind: hud}
   agents: {kind: agents, title: Helpers}
   notify: {kind: text, title: Notifications, empty: true, folds: true, style: {base: body}}
-  urgent: {kind: text, style: {base: running_head, color: red}}
+  urgent: {kind: text, style: {base: margin, color: red}}
   # The chat of the HUD host in the margin column: a door while it is
   # closed, and the box that mc names to the host while it is open.
   chat: {kind: chat}

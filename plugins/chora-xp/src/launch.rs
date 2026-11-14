@@ -292,16 +292,41 @@ fn missing(command: &str, on_path: impl Fn(&str) -> bool) -> bool {
 
 /// The launcher command in the look of xp: `fuzzel` with the `file` of
 /// the flavor as its configuration, unless the command names one or the
-/// file is missing. Another command stays as it is.
+/// file is missing. `fuzzel` alone is the Run box, [`RUN_BOX`] of `exe`
+/// with the file and the terminal. Another command stays as it is.
 #[must_use]
-pub fn themed(command: &str, file: &std::path::Path) -> String {
+pub fn themed(command: &str, file: &std::path::Path, exe: &str, terminal: &str) -> String {
     let mut words = command.split_whitespace();
     let named = words.clone().any(|w| w == "--config" || w == "-c");
     if words.next() != Some("fuzzel") || named || !file.is_file() {
         return command.to_owned();
     }
     let rest = command.trim_start().trim_start_matches("fuzzel");
-    format!("fuzzel --config '{}'{rest}", file.display())
+    let file = quoted(&file.to_string_lossy());
+    if rest.trim().is_empty() {
+        return format!("{} {RUN_BOX} {file} {}", quoted(exe), quoted(terminal));
+    }
+    format!("fuzzel --config {file}{rest}")
+}
+
+/// The argument of chora-xp that shows the Run box.
+pub const RUN_BOX: &str = "--run-box";
+
+/// A word in single quotes for the shell.
+fn quoted(word: &str) -> String {
+    format!("'{}'", word.replace('\'', "'\\''"))
+}
+
+/// The Run box, `chora-xp --run-box FILE TERMINAL`: fuzzel with the
+/// config file of the flavor lists the installed programs, sorted, and
+/// says when text finds nothing, as [`chora_kit::launcher`] does.
+pub fn run_box(args: &[String]) {
+    let [file, terminal] = args else {
+        eprintln!("usage: chora-xp {RUN_BOX} FILE TERMINAL");
+        return;
+    };
+    let fuzzel = ["fuzzel", "--config", file].map(String::from);
+    chora_kit::launcher::run(&fuzzel, terminal, None);
 }
 
 /// The name of the program of a shell command: its first word without
@@ -531,15 +556,27 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("fuzzel.ini");
         std::fs::write(&file, "[main]\n").unwrap();
-        let line = themed("fuzzel", &file);
-        assert_eq!(line, format!("fuzzel --config '{}'", file.display()));
-        assert!(themed("fuzzel --dmenu", &file).ends_with(" --dmenu"));
+        let themed = |command: &str, file: &std::path::Path| {
+            super::themed(command, file, "/opt/it's/chora-xp", "foot")
+        };
+        let line = themed("fuzzel --dmenu", &file);
+        assert_eq!(
+            line,
+            format!("fuzzel --config '{}' --dmenu", file.display())
+        );
         assert_eq!(
             themed("fuzzel --config /x.ini", &file),
             "fuzzel --config /x.ini"
         );
         assert_eq!(themed("rofi -show run", &file), "rofi -show run");
         assert_eq!(themed("fuzzel", &dir.join("none.ini")), "fuzzel");
+        assert_eq!(
+            themed("fuzzel", &file),
+            format!(
+                "'/opt/it'\\''s/chora-xp' --run-box '{}' 'foot'",
+                file.display()
+            )
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 

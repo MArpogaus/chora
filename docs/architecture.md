@@ -345,6 +345,9 @@ Limits keep a buggy client from exhausting the core:
 | line length | 1 MiB | the core answers with an error and closes the connection |
 | output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
+| grabs of a connection | 256 | the core rejects the `input.grab` |
+| exported methods of a connection | 64, each with at most 64 KiB of description and schema | the core rejects the `methods.export` |
+| waiting calls of a connection | 64 | the core rejects the `methods.call`, also when the output buffer of the exporter has no room for it |
 | nodes other than surfaces | 16,384 | the core rejects the `create` |
 | levels of nodes below the root | 64 | the core rejects the `create`, `attach` or `move` |
 | cameras | 64 | the core rejects the `camera` |
@@ -467,6 +470,8 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).
+  While the session is locked, only the VT switch works: nobody at the
+  lock screen ends or resets the session. SIGUSR1 still resets.
 - **Revoke binding.** Ctrl+Alt+i takes every capability away from every
   client and drops the unused activation tokens of no client. It also
   ends the grabs that need no modifier and disconnects the Wayland
@@ -475,6 +480,8 @@ The safety layer is the only built-in behavior (see
 - **Injection mark.** While a client injects input, the core shows a
   small yellow rect of its own next to the pointer. It goes 500 ms after
   the last injected event. No client owns the mark or can remove it.
+  The core draws it in front of the cursor, the layer surfaces and the
+  overlay, so no cursor, node or window of a client covers it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
 - **Last words.** No end of the core is silent. A faulting signal

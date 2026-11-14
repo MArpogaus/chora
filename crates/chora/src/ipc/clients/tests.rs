@@ -771,6 +771,33 @@ fn a_client_socket_adopts_no_foreign_window() {
     assert_eq!(mine.as_deref(), Some("agent"));
 }
 
+/// `attach` follows the rule of `create` and `move`: no window of a
+/// client socket goes under an overlay root.
+#[test]
+fn a_client_socket_attaches_no_window_to_the_screen_overlay() {
+    let (mut core, dir, mut agent, wayland) = agent_ipc("attach-screen");
+    let mut own = Wayland::connect_to(&mut core, &wayland);
+    own.toplevel(&mut core, "own");
+    let attach = json!([{"attach": {"surface": "s1", "parent": "screen:A"}}]);
+    let answer = agent.call(&mut core, "scene.apply", apply(&attach));
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let message = answer.expect_err("the attach is refused")["message"].to_string();
+    assert!(message.contains("no screen:"), "{message}");
+}
+
+/// A confined connection adds no output of the headless backend, as it
+/// adds no virtual output.
+#[test]
+fn a_client_socket_adds_no_headless_output() {
+    let (mut core, dir, mut agent, _) = agent_ipc("headless-output");
+    let answer = agent.call(&mut core, "output.add", json!({"spec": "640x480"}));
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let message = answer.expect_err("the output is refused")["message"].to_string();
+    assert!(message.contains("adds and removes no output"), "{message}");
+}
+
 /// A click at a point of the scene, down and up.
 fn click(core: &mut Core, at: (f64, f64)) {
     crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());

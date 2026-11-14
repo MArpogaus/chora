@@ -24,6 +24,13 @@
 # 150 s of the 240 s that it may take. The table can mark a cell `skip`,
 # which runs nothing; no cell is one now.
 #
+# Two cells look at the panes of the construct after a drag from mc onto
+# its output: `leak` asks that the dragged window has its pane, and
+# `panes` gives the construct three more windows with panes, drags the
+# window from mc three times and asks each time that all four windows
+# are there and that none of the construct is without a pane. Its
+# capture is $SHOTS/matrix-panes.png.
+#
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
 # is lost or the whole run, startup and last cell included, takes more
@@ -124,6 +131,7 @@ construct xp mcp pass
 construct xp voice pass
 construct mc key pass
 mc construct leak pass
+mc construct panes pass
 construct mc drag pass
 construct mc give pass
 construct mc cgive pass
@@ -481,6 +489,46 @@ leak_cell() {
     [ "$result" = "$want" ] || mismatches+=("mc construct leak: measured $result, expected $want")
 }
 
+construct_windows() { ctl call construct window.list 2>/dev/null | jq -c '[.windows[] | {name, owner, pane}]'; }
+
+panes_cell() {
+    local want result=pass i first names lost
+    want=$(expected_of mc construct panes)
+    [ -n "$want" ] || fail "no EXPECTED line for mc construct panes"
+    for i in 1 2 3; do
+        foot -f "DejaVu Sans Mono:size=10" -a "filler$i" sh -c 'sleep 900' >>"$shots/foot.log" 2>&1 &
+        run_pid $!
+        ctl wait "app_id:filler$i kind:surface" --timeout 20 >/dev/null || fail "filler$i does not show"
+        for _ in $(seq 50); do
+            first=$(ctl query "app_id:filler$i kind:surface" | jq -r '.[0].owner // "none"')
+            [ "$first" != none ] && break
+            sleep 0.2
+        done
+        if [ "$first" != construct ]; then
+            ctl call "$first" window.give "{\"surface\": \"$(ctl query "app_id:filler$i kind:surface" | jq -r '.[0].id')\", \"to\": \"construct\"}" >/dev/null 2>&1 ||
+                fail "filler$i starts with $first and does not go to the construct"
+        fi
+        ctl wait "app_id:filler$i kind:surface owner:construct" --timeout 20 >/dev/null || fail "filler$i does not show in the construct"
+        ctl call construct window.show "{\"name\": \"filler$i\"}" >/dev/null 2>&1 || fail "filler$i gets no pane"
+        sleep 1
+    done
+    key Alt+Escape
+    for i in 1 2 3; do
+        place mc
+        super_drag construct mc
+        arrived construct 5 10 || result=gap
+        sleep 1
+        names=$(construct_windows)
+        lost=$(jq -c '[.[] | select(.owner == "construct" and .pane == "none") | .name]' <<<"$names")
+        [ "$(jq length <<<"$names")" = 4 ] && [ "$lost" = "[]" ] || result=gap
+        echo "mc construct panes round $i: $names" >>"$log"
+    done
+    ctl capture --output "${out_of[construct]}" "$shots/matrix-panes.png" >/dev/null 2>&1
+    got["mc construct panes"]=$result
+    echo "mc construct panes $result" >>"$log"
+    [ "$result" = "$want" ] || mismatches+=("mc construct panes: measured $result, expected $want: $names")
+}
+
 pairs=()
 for s in tiling xp construct mc; do
     for d in tiling xp mc construct; do
@@ -499,6 +547,9 @@ for path in "${paths[@]}"; do
         leak_cell
     fi
 done
+if [[ "mc construct panes" =~ ^(${ONLY:-.*})$ ]]; then
+    panes_cell
+fi
 
 printf '\n%-22s' pair
 printf '%-9s' "${paths[@]}"

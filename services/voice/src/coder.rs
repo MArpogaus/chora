@@ -226,7 +226,7 @@ impl Coder {
         let source = project.map(|p| self.data.join("inventory").join(p));
         let started = format!("the coding task started in {}", dir.display());
         let (coder, cmd, task) = (self.clone(), inner.cmd.clone(), task.to_owned());
-        crate::log::info(&format!("coder: task in {}: {task}", dir.display()));
+        crate::log::debug(&format!("coder: task in {}: {task}", dir.display()));
         let _ = self.tx.send(Input::Code(Event::Started(task.clone())));
         tokio::spawn(async move {
             let run = async {
@@ -260,7 +260,7 @@ impl Coder {
         } else {
             format!("The coding task in {name} {state}. {}", detail.trim())
         };
-        crate::log::info(&format!("coder: {}", inner.last));
+        crate::log::debug(&format!("coder: {}", inner.last));
         let said = inner.last.clone();
         let _ = self.tx.send(Input::Code(Event::Done { ok, said }));
     }
@@ -561,8 +561,27 @@ mod tests {
         let _ = std::fs::remove_dir_all(&data);
     }
 
+    /// The harness keeps the variables with the API keys: it may use the
+    /// same key as the voice LLM.
+    #[tokio::test]
+    async fn the_harness_keeps_the_api_key_variables() {
+        assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
+        let data = temp("coder-keys");
+        let (tx, rx) = mpsc::channel();
+        let script = r#"echo "${HOME-unset}" > home.txt"#;
+        let coder = Coder::new(sh(script), data.clone(), tx);
+        coder.call("code_task", &json!({"task": "warte"}));
+        tokio::task::spawn_blocking(move || events(&rx))
+            .await
+            .unwrap();
+        let home = std::fs::read_to_string(data.join("worktrees/1/home.txt")).unwrap();
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+    }
+
     #[tokio::test]
     async fn a_task_runs_in_a_clone_without_origin_and_logs_next_to_it() {
+        let (_guard, lines) = crate::log::capture::info();
         let data = temp("coder");
         let project = data.join("inventory/demo");
         git(&["init", "--quiet", &project.to_string_lossy()])
@@ -617,6 +636,9 @@ mod tests {
                 .unwrap()
                 .ends_with("Alles gut.")
         );
+        let log = lines.text();
+        assert!(!log.contains("schön"), "no task at info: {log}");
+        assert!(!log.contains("Alles gut"), "no result at info: {log}");
         let _ = std::fs::remove_dir_all(&data);
     }
 

@@ -2,7 +2,8 @@
 //! session: `input.inject`, `screen.capture` and `input.grab-any`. A
 //! client socket also needs `methods.call` to call plugin methods,
 //! `methods.privileged` to call privileged methods, such as
-//! `settings.set`, `settings.reload` and methods that run commands,
+//! `settings.set`, `settings.reload` and methods that run commands, and
+//! to change the outputs with `output.configure` and `output.reserve`,
 //! `activation.token` to start programs with `choractl run` and
 //! `session.quit` to end chora. The main socket may always do these,
 //! unless its `hello` confined it, as `choractl mcp` does.

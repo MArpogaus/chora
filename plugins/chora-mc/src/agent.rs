@@ -203,6 +203,9 @@ enum Urgency {
 const NOTIFY: &str = "notify";
 /// The content of the last critical notification.
 const URGENT: &str = "urgent";
+/// The word before a critical notification, in the column and in the
+/// footer, so that the red is not its only sign.
+const URGENT_WORD: &str = "Urgent";
 /// The content of a spoken confirmation: its prompt as the title, its
 /// detail in mono.
 const CONFIRM: &str = "confirm";
@@ -580,8 +583,9 @@ impl Mc {
         }
     }
 
-    /// Adds a notification on top of the stack; a critical one also
-    /// shows in red until the next one or `notify.clear`.
+    /// Adds a notification on top of the stack; a critical one starts
+    /// with the word `Urgent` and also shows in red in `urgent`, until the
+    /// next one, a click on that line or `notify.clear`.
     pub fn push(&mut self, push: Push) -> Result<(), RpcError> {
         let Push {
             title,
@@ -592,6 +596,11 @@ impl Mc {
             title
         } else {
             format!("{title}: {body}")
+        };
+        let text = if urgency == Urgency::Critical {
+            format!("{URGENT_WORD}: {text}")
+        } else {
+            text
         };
         let line = format!("{}  {}", region::date("%H:%M"), text.replace('\n', " "));
         if urgency == Urgency::Critical {
@@ -792,6 +801,12 @@ impl Mc {
             eprintln!("chora-mc: confirm.answer: {err}");
         }
         true
+    }
+
+    /// Takes the urgent line of the footer away; the notification stays
+    /// in the column.
+    pub fn clear_urgent(&mut self) -> Result<(), RpcError> {
+        self.set_text(URGENT, None, |_| Vec::new())
     }
 
     /// Empties the notifications.

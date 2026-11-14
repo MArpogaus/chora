@@ -480,8 +480,11 @@ impl Chat {
         };
         self.llm = Llm::new(&self.config);
         if self.config.chora_mcp != old.chora_mcp {
-            self.tools
-                .restart(self.config.chora_mcp.clone(), &self.name);
+            self.tools.restart(
+                self.config.chora_mcp.clone(),
+                self.config.key_envs(),
+                &self.name,
+            );
         }
         if let Some(coder) = &self.tools.coder {
             coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
@@ -686,7 +689,7 @@ impl Chat {
             return;
         }
         for text in std::mem::take(&mut self.heard) {
-            crate::log::info(&format!("heard in the turn: {text:?}"));
+            crate::log::debug(&format!("heard in the turn: {text:?}"));
             self.history.push(json!({"role": "user", "content": text}));
             self.requests.push(text.clone());
             out(Event::Heard(text));
@@ -794,7 +797,7 @@ impl Chat {
         silent: bool,
         out: &impl Fn(Event),
     ) -> &'static str {
-        crate::log::info(&format!("llm: {} {:?}", round.finish, round.text));
+        crate::log::debug(&format!("llm: {} {:?}", round.finish, round.text));
         let text = strip_notes(&round.text);
         if !text.trim().is_empty() {
             self.answer = Some(self.history.len());
@@ -871,7 +874,7 @@ impl Chat {
                     && r.calls.is_empty() && cut(&strip_notes(&r.text)));
             let rest = splitter.finish();
             if cut {
-                crate::log::info(&format!("llm: cut answer, dropped {rest:?}"));
+                crate::log::debug(&format!("llm: cut answer, dropped {rest:?}"));
             }
             // The words before the tool calls are spoken while they run.
             if let Some(sentence) = rest.filter(|s| !cut && !skip.contains(s)) {
@@ -994,11 +997,9 @@ impl Chat {
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
                 let (logged, result) = journal(&call.name, &args, &text_of(&content));
-                crate::log::info(&format!(
-                    "tool {} {logged} {}ms -> {result}",
-                    call.name,
-                    start.elapsed().as_millis(),
-                ));
+                let ms = start.elapsed().as_millis();
+                crate::log::info(&format!("tool {} {ms}ms", call.name));
+                crate::log::debug(&format!("tool {} {logged} {ms}ms -> {result}", call.name));
                 self.guard(&call.name, &args, content)
             };
             results.push(json!({"role": "tool", "tool_call_id": call.id, "content": content}));
@@ -1127,7 +1128,7 @@ impl Chat {
                 DETAIL_BYTES / 1024
             ));
         }
-        let (result, always) = self.ask(prompt, detail, physical, out).await;
+        let (result, always) = self.ask(prompt, detail, out).await;
         crate::log::info(&format!(
             "confirm {name}: {}",
             result.as_ref().map_or_else(String::as_str, |()| "yes")
@@ -1143,22 +1144,22 @@ impl Chat {
     }
 
     /// Asks the user and waits for the answer; answers whether it had
-    /// an always word.
+    /// an always word. A spoken yes answers: the client asks the
+    /// questions that take a key, and their mark (`Tools::physical`)
+    /// stays as it is.
     async fn ask(
         &self,
         prompt: String,
         detail: String,
-        physical: bool,
         out: &(impl Fn(Event) + Sync),
     ) -> (Result<(), String>, bool) {
         let (answer, rx) = oneshot::channel();
         let always = Arc::new(AtomicBool::new(false));
-        self.tools.physical.store(physical, Ordering::Relaxed);
         out(Event::Confirm {
             prompt,
             detail,
             always: always.clone(),
-            physical,
+            physical: false,
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
@@ -1175,7 +1176,6 @@ impl Chat {
                 wait.as_secs()
             )),
         };
-        self.tools.physical.store(false, Ordering::Relaxed);
         (result, always.load(Ordering::Relaxed))
     }
 
@@ -1323,7 +1323,8 @@ impl Chat {
         }
     }
 
-    /// Writes the last `saved_requests` requests to the history file.
+    /// Writes the last `saved_requests` requests to the history file,
+    /// which only the user reads (mode 0600).
     fn save(&mut self) {
         let keep = self.config.saved_requests as usize;
         let skip = self.requests.len().saturating_sub(keep);
@@ -1341,7 +1342,7 @@ impl Chat {
         let result = file
             .parent()
             .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(&part, Value::from(words).to_string()))
+            .and_then(|()| write_private(&part, &Value::from(words).to_string()))
             .and_then(|()| std::fs::rename(&part, file));
         if let Err(e) = result {
             crate::log::warn(&format!("{}: {e}", file.display()));
@@ -1356,6 +1357,18 @@ struct Timed {
     /// The answer stopped mid-sentence; its last words did not go out,
     /// and it does not go into the history.
     cut: bool,
+}
+
+/// Writes `text` to a new file with the mode 0600.
+fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    std::fs::File::options()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?
+        .write_all(text.as_bytes())
 }
 
 /// `$XDG_STATE_HOME/chora/voice-history.json`.
@@ -1425,9 +1438,11 @@ fn unwrap_patch(args: &mut Value) {
     }
 }
 
-/// The arguments and the result of a tool call for the journal,
-/// without secrets: of `read` only the path and the byte count, and no
-/// value of a key such as `llm_headers` or `tts_api_key_file`.
+/// The start of the arguments and of the result of a tool call for
+/// the journal, without secrets: of `read` only the path and the byte
+/// count, no value of a key such as `llm_headers` or
+/// `tts_api_key_file`, and not the text that `inject_input` types,
+/// which can be a password.
 fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     if tool == "read" {
         let path = args["path"].as_str().unwrap_or_default();
@@ -1435,6 +1450,11 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     }
     let mut args = args.clone();
     hide(&mut args);
+    if tool == "inject_input"
+        && let Some(text) = args.get_mut("text")
+    {
+        *text = "(hidden)".into();
+    }
     // A result that is JSON, such as the answer of `settings.set`.
     let result = serde_json::from_str::<Value>(result).map_or_else(
         |_| result.to_owned(),
@@ -1443,7 +1463,7 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
             v.to_string()
         },
     );
-    (args.to_string(), short(&result, 300))
+    (short(&args.to_string(), 300), short(&result, 300))
 }
 
 /// Hides the value of each key such as `llm_headers`, `token`,
@@ -1634,6 +1654,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_turn_runs_the_tool_calls_and_speaks_the_answer() {
+        let (_guard, lines) = crate::log::capture::info();
         let script = vec![
             Reply::Tool("echo", r#"{"a": 1}"#),
             Reply::Text("Fertig. Alles gut."),
@@ -1674,6 +1695,26 @@ mod tests {
             (&json!("tool"), &json!(r#"{"a":1}"#))
         );
         assert_eq!(chat.history.len(), 4, "user, call, result, answer");
+        let log = lines.text();
+        assert!(log.contains("tool echo"), "the stages still log: {log}");
+        assert!(!log.contains("Mach was"), "no request at info: {log}");
+        assert!(!log.contains("Alles gut"), "no reply at info: {log}");
+    }
+
+    /// The arguments of a tool call carry text of the person, such as a
+    /// coding task: the info log names the tool only.
+    #[tokio::test]
+    async fn the_arguments_of_a_tool_call_stay_out_of_the_info_log() {
+        let (_guard, lines) = crate::log::capture::info();
+        let script = vec![
+            Reply::Tool("echo", r#"{"task": "Kennwort Zwiebel"}"#),
+            Reply::Text("Fertig."),
+        ];
+        let (mut chat, _server) = chat(script, Config::default()).await;
+        turn(&mut chat, "Mach was.", true).await;
+        let log = lines.text();
+        assert!(log.contains("tool echo"), "the tool still logs: {log}");
+        assert!(!log.contains("Zwiebel"), "no arguments at info: {log}");
     }
 
     #[tokio::test]
@@ -2517,6 +2558,22 @@ mod tests {
         );
     }
 
+    /// The journal gets no typed text, which can be a password, and
+    /// only the start of long arguments.
+    #[test]
+    fn the_journal_hides_typed_text_and_cuts_the_arguments() {
+        let typed = json!({"text": "hunter2", "keys": ["Return"]});
+        let (args, _) = journal("inject_input", &typed, "ok");
+        assert!(!args.contains("hunter2"), "{args}");
+        assert!(
+            args.contains("(hidden)") && args.contains("Return"),
+            "{args}"
+        );
+        let long = json!({"commands": "x".repeat(1000)});
+        let (args, _) = journal("apply_commands", &long, "ok");
+        assert_eq!(args.chars().count(), 300);
+    }
+
     /// Review rc3 round 2, 4.4, the user's decision: a security setting
     /// asks for a key press, never for a spoken yes. Review A1, high 2:
     /// the client thread asks it for every caller, so the chat asks only
@@ -2568,6 +2625,38 @@ mod tests {
         ] {
             assert!(crate::config::security_key(key), "{key}");
         }
+    }
+
+    /// A question of the chat leaves the mark of a key question that
+    /// shows (`Tools::physical`): `inject_input` stays refused.
+    #[tokio::test]
+    async fn a_chat_question_keeps_the_mark_of_a_key_question() {
+        let script = vec![
+            Reply::Tool("voice__settings__set", r#"{"patch": {"barge_in_ms": 300}}"#),
+            Reply::Text("Erledigt."),
+        ];
+        let server = fake::llm(script).await;
+        let (mut tools, _) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        chat.tools.physical.store(true, Ordering::SeqCst);
+        let open = chat.tools.physical.clone();
+        let asked = Mutex::new(Vec::new());
+        chat.turn("Stell das um.", &|event| {
+            if let Event::Confirm { answer, .. } = event {
+                asked.lock().unwrap().push(open.load(Ordering::SeqCst));
+                let _ = answer.send(Some(true));
+            }
+        })
+        .await;
+        assert_eq!(asked.into_inner().unwrap(), [true]);
+        assert!(chat.tools.physical.load(Ordering::SeqCst));
     }
 
     /// The LLM wraps the patch of another plugin's `settings.set` as in
@@ -2875,6 +2964,20 @@ mod tests {
         }
         assert_eq!(section("# A\n\n## B\nb\n## C\nc", "B"), Some("## B\nb"));
         assert_eq!(section("x", "B"), None);
+    }
+
+    /// The history file has the requests of the user: only the user
+    /// reads it.
+    #[tokio::test]
+    async fn the_history_file_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let file = temp("history-mode.json");
+        let _ = std::fs::remove_file(&file);
+        let (mut chat, _server) = chat(vec![], Config::default()).await;
+        chat.file = Some(file.clone());
+        turn(&mut chat, "eins", true).await;
+        let mode = std::fs::metadata(&file).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
     }
 
     #[tokio::test]

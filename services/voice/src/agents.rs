@@ -8,6 +8,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex, mpsc::Sender},
@@ -1302,8 +1303,8 @@ fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
 }
 
 /// Starts the agent in its own process group, so that a stop ends the
-/// sandbox and its children, with stderr and the messages in `log`;
-/// sends `initialize`.
+/// sandbox and its children, with stderr and the messages in `log`
+/// (mode 0600); sends `initialize`.
 async fn spawn(
     command: &[String],
     dir: &Path,
@@ -1315,6 +1316,7 @@ async fn spawn(
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
+        .mode(0o600)
         .open(log)
         .map_err(|e| format!("{}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
@@ -1666,6 +1668,39 @@ exec cat >/dev/null"#;
         let _ = std::fs::remove_dir_all(&data);
     }
 
+    /// The agent keeps the variables that the settings name for the API
+    /// keys: a harness may use the same key as the voice LLM.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_agent_keeps_the_api_key_variables() {
+        assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
+        let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = r#"echo "${HOME-unset}" > seen.tmp; mv seen.tmp seen; exec cat >/dev/null"#;
+        let config = Config {
+            agent_cmd: vec!["sh".into(), "-c".into(), script.into()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            llm_api_key_env: "HOME".into(),
+            ..Config::default()
+        };
+        let (tx, _rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        assert!(agents.start("demo", Some("keys"), None).contains("starts"));
+        let seen = project.join("seen");
+        for _ in 0..100 {
+            if seen.exists() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        let home = std::fs::read_to_string(&seen).unwrap_or_default();
+        agents.stop("keys");
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+    }
+
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its
     /// question with a yes, its answer in short; a stop ends its
     /// process.
@@ -1794,6 +1829,17 @@ exec cat >/dev/null"#;
         agents.start("demo", Some("coder"), None);
         let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
         (agents, rx, data)
+    }
+
+    /// The log of an agent has its messages: only the user reads it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_log_of_an_agent_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let (agents, _rx, data) = idle_agent("log-mode").await;
+        let log = std::fs::metadata(data.join("agents/coder.log")).unwrap();
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(log.permissions().mode() & 0o777, 0o600);
     }
 
     fn roles(read: &Value) -> Vec<(u64, String)> {
