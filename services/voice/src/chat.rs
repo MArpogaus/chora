@@ -1328,7 +1328,8 @@ impl Chat {
         }
     }
 
-    /// Writes the last `saved_requests` requests to the history file.
+    /// Writes the last `saved_requests` requests to the history file,
+    /// which only the user reads (mode 0600).
     fn save(&mut self) {
         let keep = self.config.saved_requests as usize;
         let skip = self.requests.len().saturating_sub(keep);
@@ -1346,7 +1347,7 @@ impl Chat {
         let result = file
             .parent()
             .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(&part, Value::from(words).to_string()))
+            .and_then(|()| write_private(&part, &Value::from(words).to_string()))
             .and_then(|()| std::fs::rename(&part, file));
         if let Err(e) = result {
             crate::log::warn(&format!("{}: {e}", file.display()));
@@ -1361,6 +1362,18 @@ struct Timed {
     /// The answer stopped mid-sentence; its last words did not go out,
     /// and it does not go into the history.
     cut: bool,
+}
+
+/// Writes `text` to a new file with the mode 0600.
+fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    std::fs::File::options()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?
+        .write_all(text.as_bytes())
 }
 
 /// `$XDG_STATE_HOME/chora/voice-history.json`.

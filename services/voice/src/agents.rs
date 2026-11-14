@@ -8,6 +8,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex, mpsc::Sender},
@@ -1306,8 +1307,8 @@ fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
 }
 
 /// Starts the agent in its own process group, so that a stop ends the
-/// sandbox and its children, with stderr and the messages in `log` and
-/// without the variables `keys`; sends `initialize`.
+/// sandbox and its children, with stderr and the messages in `log`
+/// (mode 0600) and without the variables `keys`; sends `initialize`.
 async fn spawn(
     command: &[String],
     keys: &[String],
@@ -1320,6 +1321,7 @@ async fn spawn(
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
+        .mode(0o600)
         .open(log)
         .map_err(|e| format!("{}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
