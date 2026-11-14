@@ -601,7 +601,8 @@ pub fn signal(pid: u32, name: &str) {
 
 /// The directories that hold the config of a program, first the one
 /// that wins: the copy of the user in `chora/tiling` of the config
-/// directory, the files that [`apply`] wrote, and the flavor.
+/// directory, the files that [`apply`] wrote, the flavor, and the folder
+/// that all looks share (`power.sh`, `screenshot.sh`).
 #[must_use]
 pub fn config_dirs() -> Vec<std::path::PathBuf> {
     let mut dirs = Vec::new();
@@ -612,6 +613,7 @@ pub fn config_dirs() -> Vec<std::path::PathBuf> {
     dirs.extend(config.map(|c| c.join("chora").join("tiling")));
     dirs.extend(default_dir());
     dirs.extend(flavor_dirs());
+    dirs.extend(chora_kit::shared::dirs());
     dirs
 }
 
@@ -639,16 +641,25 @@ pub fn flavor_dirs() -> Vec<std::path::PathBuf> {
 }
 
 /// The value of `XDG_DATA_DIRS` that lets the launcher list the
-/// `applications` folder of the flavor (the entries Screenshot, Screenshot
-/// of an area and the looks): the first directory that has one, in front
-/// of what `current` says, or of the default of the specification.
+/// `applications` folders of the flavor (the looks) and of the shared
+/// folder (Chat with a helper, Screenshot and Screenshot of an area):
+/// every directory that has one, in front of what `current` says, or of
+/// the default of the specification.
 #[must_use]
 pub fn data_dirs(dirs: &[std::path::PathBuf], current: Option<&str>) -> Option<String> {
-    let flavor = dirs.iter().find(|d| d.join("applications").is_dir())?;
+    let mut found: Vec<String> = dirs
+        .iter()
+        .filter(|d| d.join("applications").is_dir())
+        .map(|d| d.display().to_string())
+        .collect();
+    found.dedup();
+    if found.is_empty() {
+        return None;
+    }
     let rest = current
         .filter(|c| !c.is_empty())
         .unwrap_or("/usr/local/share:/usr/share");
-    Some(format!("{}:{rest}", flavor.display()))
+    Some(format!("{}:{rest}", found.join(":")))
 }
 
 /// The directory of the flavor in an installed system.
@@ -704,11 +715,11 @@ impl LaunchError {
         match (program.as_str(), german) {
             ("power", false) => (
                 "Power menu not installed",
-                "The file power.sh of the tiling flavor was not found.",
+                "The file power.sh of the shared folder was not found.",
             ),
             ("power", true) => (
                 "Ausschaltmenü nicht installiert",
-                "Die Datei power.sh des Tiling-Flavors fehlt.",
+                "Die Datei power.sh des gemeinsamen Ordners fehlt.",
             ),
             ("look", false) => (
                 "Look switch not installed",
@@ -720,11 +731,11 @@ impl LaunchError {
             ),
             (_, false) => (
                 "Screenshot not installed",
-                "The file screenshot.sh of the tiling flavor was not found.",
+                "The file screenshot.sh of the shared folder was not found.",
             ),
             (_, true) => (
                 "Bildschirmfoto nicht installiert",
-                "Die Datei screenshot.sh des Tiling-Flavors fehlt.",
+                "Die Datei screenshot.sh des gemeinsamen Ordners fehlt.",
             ),
         }
     }
@@ -733,7 +744,7 @@ impl LaunchError {
 /// The command line of a program of the flavor with its config file:
 /// `foot -c FILE`, `fuzzel --config FILE`, `swaylock -C FILE` and `swaybg
 /// -i WALLPAPER -m fill`, `screenshot` and `power` as `sh screenshot.sh`
-/// and `sh power.sh` of the flavor, then the arguments of the caller; the program
+/// and `sh power.sh` of the shared folder, then the arguments of the caller; the program
 /// alone when no file exists. The wallpaper of a scheme is
 /// `wallpaper.png` for Ink and `wallpaper-paper.png` for Paper; a
 /// `wallpaper.png` of the user, found first, serves both.
@@ -1009,7 +1020,11 @@ mod tests {
         );
         assert_eq!(data_dirs(&dirs[..1], None), None);
         std::fs::remove_dir_all(temp).unwrap();
-        let apps = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/applications");
+        let flavors = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors");
+        let both = [flavors.join("tiling"), flavors.join("shared")];
+        let listed = data_dirs(&both, Some("/a")).unwrap();
+        assert_eq!(listed.split(':').count(), 3, "{listed}");
+        let apps = flavors.join("shared/applications");
         let shot = std::fs::read_to_string(apps.join("chora-screenshot.desktop")).unwrap();
         assert!(shot.contains("\nName=Screenshot\n"));
         assert!(shot.contains("\nExec=chora-tiling --launch screenshot\n"));
@@ -1018,6 +1033,7 @@ mod tests {
             ("chora-look-dark.desktop", "Dark look", "dark"),
             ("chora-look-system.desktop", "System look", "system"),
         ] {
+            let apps = flavors.join("tiling/applications");
             let entry = std::fs::read_to_string(apps.join(file)).unwrap();
             assert!(entry.contains(&format!("\nName={name}\n")), "{file}");
             assert!(
@@ -1041,10 +1057,7 @@ mod tests {
     #[test]
     fn the_checkout_of_the_binary_is_a_flavor_directory() {
         let dirs = flavor_dirs();
-        assert!(
-            dirs.iter().any(|d| d.join("power.sh").is_file()),
-            "{dirs:?}"
-        );
+        assert!(dirs.iter().any(|d| d.join("look.sh").is_file()), "{dirs:?}");
     }
 
     #[test]

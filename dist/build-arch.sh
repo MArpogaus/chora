@@ -38,6 +38,8 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
     usr/share/wayland-sessions/chora-construct.desktop \
     etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \
+    usr/share/chora/flavors/shared/power.sh usr/share/chora/flavors/shared/screenshot.sh \
+    usr/share/chora/flavors/shared/applications/chora-chat.desktop \
     usr/share/xdg-desktop-portal/chora-portals.conf etc/xdg/xdg-desktop-portal-wlr/chora \
     usr/share/chora/flavors/xp/theme/winxp \
     usr/share/icons/ModernXP/index.theme usr/share/licenses/chora/LICENSE; do

@@ -240,6 +240,11 @@ fn launch(argv: &[String]) -> ExitCode {
     };
     let mut command = std::process::Command::new(&line[0]);
     command.args(&line[1..]);
+    if program == "power" {
+        command
+            .env("CHORA_MENU", "chora-tiling --launch fuzzel")
+            .env("CHORA_LOCKER", "chora-tiling --launch swaylock -f");
+    }
     if program == "fuzzel" {
         let current = std::env::var("XDG_DATA_DIRS").ok();
         if let Some(data) = theme::data_dirs(&dirs, current.as_deref()) {
@@ -3189,7 +3194,7 @@ exec sleep 30"#;
         let marks = "echo \"$@\" >>\"$(dirname \"$0\")/marks\"";
         let bin = bin("logout", false, &[("loginctl", marks)]);
         let power = |session: Option<&str>| {
-            let mut run = command(&bin, "../power.sh", &["logout"], "C");
+            let mut run = command(&bin, "../../shared/power.sh", &["logout"], "C");
             run.env("USER", "zed");
             if let Some(id) = session {
                 run.env("XDG_SESSION_ID", id);
@@ -3213,7 +3218,7 @@ exec sleep 30"#;
             false,
             &[("grim", grim), ("xdg-user-dir", pictures)],
         );
-        let mut run = command(&bin, "../screenshot.sh", &[], "C");
+        let mut run = command(&bin, "../../shared/screenshot.sh", &[], "C");
         run.env("HOME", &bin)
             .env("XDG_PICTURES_DIR", bin.join("env"));
         assert!(run.status().expect("sh runs").success());

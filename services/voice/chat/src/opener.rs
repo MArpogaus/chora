@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn the_launcher_entry_carries_the_words_of_the_table() {
-        let entry = include_str!("../chora-chat.desktop");
+        let entry = include_str!("../../../../flavors/shared/applications/chora-chat.desktop");
         let line = |key: &str| entry.lines().find_map(|l| l.strip_prefix(key));
         assert_eq!(line("Name="), Some(Word::ChatLauncher.text(Language::En)));
         assert_eq!(

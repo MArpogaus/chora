@@ -1457,11 +1457,9 @@ The package installs the tiling flavor (D51):
 ├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
-├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
-├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
 ├── look.sh                           # Light look, Dark look and System look: look.theme at once
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
-├── applications/                     # the entries Screenshot, Screenshot of an area and the three looks
+├── applications/                     # the entries of the three looks
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
@@ -1576,13 +1574,14 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   the flavor: `CHORA_FLAVOR_DIR`, `/usr/share/chora/flavors/tiling`, and the
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
-  `applications/` of the flavor too: **Screenshot**, **Screenshot of an
+  `applications/` of the flavor and of the shared folder too: **Chat with a
+  helper**, **Screenshot**, **Screenshot of an
   area**, **Light look**, **Dark look** and **System look** are the way for the mouse. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
   the panel open the menu of `power.sh`, the launcher in menu mode with the
-  prompt "Power" and four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
+  prompt "Power" and four words: Lock, Log out, Restart and Shut down (swaylock in the palette, with a notice when it does not start,
   `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
   that is not set, `systemctl reboot`, `systemctl poweroff`).
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
@@ -1592,7 +1591,11 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   names the file in a notice (`notify-send`, shown by mako). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config
-  files, `chora/tiling/` of the config directory first and the flavor last.
+  files, `chora/tiling/` of the config directory first, then the flavor, and
+  last the folder `shared` beside the flavors
+  (`/usr/share/chora/flavors/shared`, or `$CHORA_SHARED_DIR`), which every
+  look uses: it holds `power.sh`, `screenshot.sh` and `applications/` with
+  the entries Chat with a helper, Screenshot and Screenshot of an area.
   A script that is in none of them is an error on stderr and a notice
   ("Power menu not installed", "Screenshot not installed"), never a key
   that does nothing.

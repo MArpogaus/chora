@@ -3,7 +3,7 @@
 # Apps runs the launcher, a click on tag 2 views tag 2, a click on the
 # layout word goes to the next layout, and the power icon opens the power menu, whose Lock locks. The clicks
 # are injected pointer clicks on the waybar of a headless session; the
-# launcher and `loginctl` are stand-ins that leave a marker.
+# launcher and `swaylock` are stand-ins that leave a marker.
 #
 # Usage: tests/gate-tiling-doors.sh   BIN: directory with the binaries
 set -u
@@ -15,7 +15,7 @@ flavor=$repo/flavors/tiling
 fake=$(mktemp -d /tmp/gate-doors.XXXXXX)
 marks=$fake/marks
 : >"$marks"
-for what in fuzzel loginctl; do
+for what in fuzzel swaylock; do
     printf '#!/bin/sh\necho %s "$@" >>"%s"\n' "$what" "$marks" >"$fake/$what"
     chmod +x "$fake/$what"
 done
@@ -72,5 +72,5 @@ marked fuzzel || fail "Apps did not run the launcher"
 ok "Apps runs the launcher"
 
 click 1250
-marked loginctl || fail "the power icon did not lock"
+marked swaylock || fail "the power icon did not lock"
 ok "the power icon opens the menu, and Lock locks"

@@ -98,8 +98,8 @@ grep -q '^notify.*Screenshot saved' "$marks" || fail "Super+Print showed no noti
 ok "Super+Print writes $(basename "$file") and notifies"
 
 : >"$marks"
-if [ -f "$flavor/applications/chora-screenshot.desktop" ]; then
-    grep -q '^Name=Screenshot$' "$flavor/applications/chora-screenshot.desktop" || fail "the entry is not named Screenshot"
+if [ -f "$repo/flavors/shared/applications/chora-screenshot.desktop" ]; then
+    grep -q '^Name=Screenshot$' "$repo/flavors/shared/applications/chora-screenshot.desktop" || fail "the entry is not named Screenshot"
 else
     fail "no Apps entry Screenshot in the flavor"
 fi
@@ -130,8 +130,8 @@ ok "a missing script is an error and a notice"
 stub=$(mktemp -d "$fake/stub.XXXXXX")
 printf '#!/bin/sh\necho "$@" >"%s/args"\ncat >/dev/null\n' "$stub" >"$stub/fuzzel"
 chmod +x "$stub/fuzzel"
-PATH=$stub:$PATH sh "$flavor/power.sh" >/dev/null 2>&1
+PATH=$stub:$PATH sh "$repo/flavors/shared/power.sh" >/dev/null 2>&1
 grep -q -- '--prompt Power' "$stub/args" || fail "the power menu has no prompt: $(cat "$stub/args" 2>/dev/null)"
-LANG=de_DE.UTF-8 PATH=$stub:$PATH sh "$flavor/power.sh" >/dev/null 2>&1
+LANG=de_DE.UTF-8 PATH=$stub:$PATH sh "$repo/flavors/shared/power.sh" >/dev/null 2>&1
 grep -q -- '--prompt Ausschalten' "$stub/args" || fail "the German power menu has no prompt: $(cat "$stub/args" 2>/dev/null)"
 ok "the power menu shows a prompt, in German too"

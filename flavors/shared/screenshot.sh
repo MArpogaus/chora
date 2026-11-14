@@ -1,5 +1,5 @@
 #!/bin/sh
-# A screenshot of the tiling flavor: the whole output, or with `area` the
+# A screenshot in every look: the whole output, or with `area` the
 # part that slurp lets you select. The file goes to Screenshots in the
 # pictures folder (`xdg-user-dir PICTURES` when that is installed, else
 # XDG_PICTURES_DIR, else ~/Pictures), a copy goes to the clipboard when wl-copy is there, and
