@@ -4,7 +4,7 @@
 Usage: tokens.py [DAY] [--carry CACHE_READ,OUTPUT]   (plain integers, no separators)
   DAY as YYYY-MM-DD in Asia/Bangkok, default today. --carry adds the
   totals of earlier containers of the same day (the `carry` column of
-  ledger.md) before the estimate.
+  archive/ledger.md) before the estimate.
 
 Prints the totals of the day so far, not a delta. The estimate of the
 used percent of the weekly limit comes from the calibration in

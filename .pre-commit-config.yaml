@@ -5,10 +5,10 @@ repos:
   - repo: local
     hooks:
       - id: check-log
-        name: session log state, decisions, answers and rules
+        name: session log notes (sizes, sections, times)
         language: system
         entry: python3 tools/check_log.py
-        files: ^(state|decisions-now|answers|rules)\.md$
+        files: ^(state|decisions-now|answers|rules|vision-card)\.md$
         pass_filenames: false
         stages: [pre-commit]
       - id: no-agent-trailers

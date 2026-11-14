@@ -1,102 +1,25 @@
-# Release candidate readiness (plan of 11-11)
+# Release candidate: criteria and state
 
-User, 11-11 17:10: after the UX/UI loop is clean, finalize the
-foundational work and review the code until it is ready for an rc
-release; feature sprints only after that.
+All criteria must hold. Then the PM opens the pull request that CI needs, tags the rc
+and publishes it (owner 11-11 10:31 UTC: "You may released when all clean."). The state
+column is rewritten with state.md; plans and history are in git.
 
-## Criteria (all must hold)
+| # | Criterion | State 2026-11-14 |
+|---|---|---|
+| 1 | UX loop: no BLOCK or MAJOR finding open in any look; an independent pass confirms. | open: about 35 MAJOR |
+| 1b | The owner approves each look from the showcase captures. | not asked |
+| 2 | Persona round 4 on the candidate: every basic task reached by mouse, keyboard and voice (Erika, Kemal, Lena, Max). | not started |
+| 3 | Merge gate green three times in a row on the candidate (no flake); the opt-in gates (battle, starved watchdog, shader hang, mc scale, construct-hud, construct-keys, demo) green once. | no: 5 known flakes |
+| 4 | GitHub CI green (check, msrv, e2e, coverage, docs, pre-commit) on a pull request. | never run |
+| 5 | Packaging: the release workflow builds the RPM, the Arch package and the distrobox image; installed, a session starts (smoke). | never run |
+| 6 | Code review per area (core, kit, xp, tiling, mc, construct, assistant, voice): simplicity and readability first, then correctness, security, dead code, docs. Every HIGH and every security MEDIUM fixed; other MEDIUM findings go to the known issues with a reason. | not started |
+| 7 | cargo-deny and cargo-machete clean; dependency updates applied. | deny red |
+| 8 | Docs: README, install, configuration, glossary, nav, CHANGELOG with an rc entry; an honest known-issues list. | not started |
+| 9a | Logging audit per component and the `chora-report` script (backlog L1). | not started |
+| 9 | Flakes closed or explained; no known window loss; the 30-day stability gate restarts with the rc as the new base. | open: backlog "Flakes and gates" |
+| 10 | Not needed for the rc: a real-hardware tty smoke beyond what CI and an owner run give (the owner runs it before 1.0). | waived |
 
-1b. The user approves each look from the showcase captures.
-1. UX loop: no block or major finding open; a second designer pass
-   confirms.
-2. Persona round 4 on the rc candidate: every basic task reached by
-   mouse, keyboard and voice (Erika, Kemal, Lena, Max).
-3. Merge gate green three times in a row on the candidate (no flake);
-   the opt-in gates (battle, starved watchdog, shader hang, mc scale,
-   construct-hud, construct-keys, demo) green once.
-4. GitHub CI green (check, msrv, e2e, coverage, docs, pre-commit): needs
-   a push to dev/main or a pull request, which the user must allow.
-5. Packaging: the release workflow builds the RPM and the Arch package
-   and the distrobox image; installed, a session starts (smoke).
-6. Whole-piece code review per area (core, kit, xp, tiling, mc,
-   construct, assistant, voice): correctness, security, dead code,
-   docs; findings HIGH and MEDIUM fixed. Fable on Monday if the week's
-   budget is spent; opus before.
-7. cargo-deny and cargo-machete clean; dependency updates applied.
-8. Docs: README, install, configuration, glossary, nav, CHANGELOG with
-   an rc entry; a known-issues list (honest, P5).
-9a. Logging audit per component and the `chora-report` script
-    (backlog L1), so the post-rc user round yields usable reports.
-9. Backlog: flakes F5-F7 closed or explained; no known window loss; the
-   30-day stability gate restarts with the rc as the new base.
-10. Not needed for rc: real-hardware tty smoke beyond what CI and a
-    user run give (the user runs it on his machine before 1.0).
-
-## Order
-
-UX loop fixes -> UX pass 2 -> code review per area (parallel, read
-only) -> fix lanes -> persona round 4 -> CI and packaging -> rc tag
-(the user tags or approves the tag).
-
-## User decision of 11-11 ~17:20
-
-"You may release when all clean. Review code for simplicity and
-readability." So: when every criterion holds, the PM opens the pull
-request that CI needs, tags the rc and publishes the release without
-asking again. The code review per area judges simplicity and
-readability first (KISS: dead code, needless layers, long functions,
-unclear names, duplication), then correctness and security.
-
-## User, 11-11 ~18:00
-
-"After the release candidate, we need an extensive user testing round
-to really ensure that everything is going smoothly." Plan: after the rc
-tag, persona round 5 at full breadth: all four looks, all personas
-(low-tech, keyboard-only, voice-only in English and German, ricer),
-two screens, every basic task, the cube and the panes, a long session
-(hours) for leaks and stalls, plus the opt-in battle script. Findings
-are fixed before 1.0; the rc stays the base of the 30-day gate.
-
-## User, 11-11 ~18:20
-
-After the rc gates pass: an intense reflection loop, then sharpen the
-charter, the dev rules and the plan for the next days. Plan: the Fable
-judge (fresh pool next week) reviews the whole session so far (what
-worked, what wasted time or tokens, review findings by kind, merge
-conflicts, flakes, worker handoffs, the 5-hour pacing); I add my own
-critique; the user's readings and decisions are the yardstick. Output:
-reflections/2026-11-rc.md, a charter diff (rules added, rules removed),
-dev-rules and brief templates updated, and the plan of the next days.
-
-## After the 11-11 reflection
-
-- CI and packaging move up: a draft pull request (CI) and a release dry
-  run start on 11-12, beside the code review, not last.
-- Flakes F5-F8 first, or three greens in a row will not hold.
-- Scope: fix every HIGH and every security MEDIUM; other MEDIUM findings
-  go to the known-issues list with a reason.
-- Estimate: rc on Wed 11-18 (range 11-17 to 11-20).
-
-## After reflection 2
-
-The rc date of 11-18 holds only with one helper surface per look
-(collapsed and expanded); otherwise 11-20. Paste upload (L1 item 4) and
-further status page work wait until after the rc.
-
-## Screencast and swarm (user, 11-11 ~22:30)
-
-After the construct HUD rework merges:
-1. One sonnet worker records a long, slow screencast (choractl record,
-   30 fps, arrow pointer, deliberate pacing): every look (xp, tiling, mc,
-   construct), every transition through the construct (panes, manager
-   panes, the cube, pull-out and back), several window drags between
-   looks and screens, chat and the key overlay; plus a timeline file
-   (time, act, expected result) and stills at each step.
-2. A Haiku swarm (6-8 agents, cheap) each reviews one segment of the
-   timeline and stills against design/looks/*, the review checklist and
-   principles 1, 3, 6, 11: same act same result, least surprise,
-   visible way in, calm. Each reports findings with time stamps.
-3. One opus pass merges the findings into a consistency report
-   (reports/journey-1.md) with a ranked fix list.
-Budget: sonnet for recording, haiku for the swarm, opus only for the
-merge; no Fable.
+Order: land, flakes, CI and packaging, main-path MAJOR fixes, code review per area,
+one pixel pass per look, persona round 4 and docs, three greens, tag (state.md Queue).
+After the tag: persona round 5 at full breadth, then the reflection loop, then feature
+sprints (decisions-now.md).

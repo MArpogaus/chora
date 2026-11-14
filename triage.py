@@ -3,7 +3,7 @@
 
 Usage: triage.py
 Prints each finding of feedback/*.md whose status is still `new`, with
-its age in days, and OVERDUE when one is older than a day (charter
+its age in days, and OVERDUE when one is older than a day (archive/charter.md
 section 8). A run file with no finding of kind `ux` and no line
 `ux: none seen, because ...` is reported as MISSING UX, from 2026-11-10 on.
 """

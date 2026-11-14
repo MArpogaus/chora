@@ -9,8 +9,11 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "check_log.py"
 LANES = Path(__file__).resolve().parent.parent / "tools" / "lanes.py"
 NOW = "2026-11-12T10:00"
-GOOD_STATE = "## Now (2026-11-12 09:30 UTC)\nbudget: 87 % at 01:26 UTC, rate 1.8/h\n\n## Queue\n- a\n\n## Blocked\n- none\n"
-GOOD_DECISIONS = "intro\nscreened-through: 2026-11-12T09:00:00Z\n## PM process\n- x\n"
+GOOD_STATE = (
+    "## Now (2026-11-12 09:30 UTC)\nbudget: 87 % at 01:26 UTC\n\n## RC\n- a\n\n## Lanes\n- a\n\n## Queue\n- a\n\n"
+    "## Needs owner (defaults hold after 2026-11-13 12:00 UTC)\n- none\n"
+)
+GOOD_DECISIONS = "intro\nscreened-through: 2026-11-12T09:00:00Z\n- x\n"
 GOOD_RULES = "1. One.\n   Guard: a\n2. Two.\n   Guard: b\n"
 
 
@@ -51,8 +54,19 @@ class CheckLog(unittest.TestCase):
     def test_state_section(self):
         self.red({"state.md": GOOD_STATE + "\n## Done\n"}, "section not allowed")
 
-    def test_state_long(self):
-        self.red({"state.md": GOOD_STATE + "- x\n" * 80}, "limit 80")
+    def test_state_section_missing(self):
+        self.red({"state.md": GOOD_STATE.replace("## Lanes", "## Queue")}, "no '## Lanes' section")
+
+    def test_state_bytes_and_line(self):
+        self.red({"state.md": GOOD_STATE + "- x\n" * 800}, "state.md: 3361 bytes, limit 3000")
+        self.red({"state.md": GOOD_STATE + "x" * 301 + "\n"}, "301 characters, limit 300")
+        self.assertEqual(run({"state.md": GOOD_STATE + "x" * 300 + "\n"})[0], 0)
+
+    def test_sizes_are_bytes(self):
+        self.red({"vision-card.md": "\u00e4" * 1251}, "vision-card.md: 2502 bytes, limit 2500")
+        self.red({"rules.md": "x" * 3001}, "rules.md: 3001 bytes, limit 3000")
+        self.red({"decisions-now.md": GOOD_DECISIONS + "x" * 4000}, "limit 4000")
+        self.assertEqual(run({"vision-card.md": "x" * 2500, "rules.md": "x" * 3000})[0], 0)
 
     def test_now_future(self):
         self.red({"state.md": GOOD_STATE.replace("09:30", "10:30")}, "later than now")
@@ -82,13 +96,8 @@ class CheckLog(unittest.TestCase):
         new = {"state.md": GOOD_STATE + "session branch: bbb\n"}
         self.red(new, "nothing under status/", True, head=head)
         self.assertEqual(run({**new, "status/index.html": "x"}, True, head=head)[0], 0)
-
-    def test_reflection_needs_answers(self):
-        body = "## Ranked\n\n### 1. A point\n\ntext\n\n### 2. Another\n\nAnswer: built\n"
-        self.red({"reflections/2026-11-12-x.md": body}, "point 1 has no", now="2026-11-14T00:00")
-        self.assertEqual(run({"reflections/2026-11-12-x.md": body}, now="2026-11-12T20:00")[0], 0)
-        listed = body + "\n## Answers\n\n1. Answer: built\n"
-        self.assertEqual(run({"reflections/2026-11-12-x.md": listed}, now="2026-11-14T00:00")[0], 0)
+        reworded = {"state.md": GOOD_STATE + "session branch: aaa (merged)\n"}
+        self.assertEqual(run(reworded, True, head=head)[0], 0)
 
     def test_rules_may_not_grow(self):
         head = {"rules.md": GOOD_RULES}
@@ -105,23 +114,23 @@ class CheckLog(unittest.TestCase):
     def test_screened_future(self):
         self.red({"decisions-now.md": GOOD_DECISIONS.replace("09:00", "10:56")}, "screened-through")
 
-    def test_decisions_part_long(self):
-        self.red({"decisions-now.md": "a" * 9001 + "\n## PM process\n"}, "before ## PM process")
-        self.red({"decisions-now.md": "a\n## PM process\n" + "b" * 9001}, "from ## PM process")
+    def test_screened_missing(self):
+        self.red({"decisions-now.md": "intro\n- x\n"}, "no 'screened-through:' line")
 
     def test_rules(self):
         self.red({"rules.md": GOOD_RULES + "3. No guard here.\n"}, "without a Guard")
-        many = "".join(f"{i}. r\n   Guard: g\n" for i in range(1, 22))
-        self.red({"rules.md": many}, "21 numbered rules")
+        many = "".join(f"{i}. r\n   Guard: g\n" for i in range(1, 12))
+        self.red({"rules.md": many}, "11 numbered rules")
+        self.assertEqual(run({"rules.md": "1. One. Guard: manual.\n"})[0], 0)
 
-    def test_routines_and_rules_stamps_checked(self):
-        for name in ("routines.md", "rules.md"):
+    def test_rules_and_vision_stamps_checked(self):
+        for name in ("vision-card.md", "rules.md"):
             self.red({name: "- 11-12 10:30 UTC: x\n"}, "later than now", True)
             self.red({name: "- 09:00 x\n"}, "without zone", True)
             self.assertEqual(run({name: "- 11-12 09:00 UTC: x\n"}, True)[0], 0)
 
     def test_tilde_stamp_in_every_checked_file(self):
-        for name in ("state.md", "decisions-now.md", "answers.md", "routines.md", "rules.md"):
+        for name in ("state.md", "decisions-now.md", "answers.md", "vision-card.md", "rules.md"):
             self.red({name: "- 2026-11-12 ~10:30 UTC: x\n"}, "later than now", True)
             self.red({name: "~09:00 x\n"}, "without zone", True)
 

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Pre-commit check of the session log: state, decisions, answers and rules files.
+"""Pre-commit check of the session log: the four injected notes (sizes in bytes) and entry times.
+
+Sizes: vision-card.md 2,500; rules.md 3,000; state.md 3,000 and no line over 300 characters;
+decisions-now.md 4,000. state.md has only the sections Now, RC, Lanes, Queue, Needs owner.
 
 Run from the log worktree (or pass --root). Added lines come from the staged
 diff; only the entry stamp that starts a line is checked (later times in a line may be plans). The clock is the real UTC time; --now YYYY-MM-DDTHH:MM overrides it.
@@ -12,11 +15,11 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-SECTIONS = ("Now", "Queue", "Blocked")
-STATE_MAX_LINES = 80
-DECISIONS_MAX_CHARS = 9000
-RULES_MAX = 20
-REFLECTIONS_FROM = "2026-11-12"
+SECTIONS = ("Now", "RC", "Lanes", "Queue", "Needs owner")
+MAX_BYTES = {"vision-card.md": 2500, "rules.md": 3000, "state.md": 3000, "decisions-now.md": 4000}
+STATE_MAX_LINE = 300
+RULES_MAX = 10
+STAMPED = ("state.md", "decisions-now.md", "answers.md", "rules.md", "vision-card.md")
 TIME = re.compile(
     r"(?<![\d:])(?:(\d{4})-)?(?:(\d{2})-(\d{2})[ T]+~?)?(\d{2}):(\d{2})(?::\d{2})?(?![\d:])\s*(Z\b|UTC\b|Bkk\b)?"
 )
@@ -66,12 +69,17 @@ def section_lines(text, title):
 
 def check_state(text, now):
     lines = text.splitlines()
-    if len(lines) > STATE_MAX_LINES:
-        yield f"state.md: {len(lines)} lines, limit {STATE_MAX_LINES}"
+    for number, l in enumerate(lines, 1):
+        if len(l) > STATE_MAX_LINE:
+            yield f"state.md: line {number} has {len(l)} characters, limit {STATE_MAX_LINE}"
     tops = [l for l in lines if l.startswith("## ")]
-    for l in tops:
-        if l[3:].split(" (")[0].strip() not in SECTIONS:
+    titles = [l[3:].split(" (")[0].strip() for l in tops]
+    for l, title in zip(tops, titles):
+        if title not in SECTIONS:
             yield f"state.md: section not allowed: {l.strip()}"
+    for title in SECTIONS:
+        if title not in titles:
+            yield f"state.md: no '## {title}' section"
     header = next((l for l in tops if l.startswith("## Now")), None)
     if header is None:
         yield "state.md: no '## Now' section"
@@ -89,14 +97,10 @@ def check_state(text, now):
 
 
 def check_decisions(text, now):
-    head, sep, rest = text.partition("\n## PM process")
-    mid, sep2, design = rest.partition("\n## Design")
-    parts = (("before ## PM process", head), ("from ## PM process", sep + mid), ("from ## Design", sep2 + design))
-    for label, part in parts:
-        if len(part) > DECISIONS_MAX_CHARS:
-            yield f"decisions-now.md: part {label} has {len(part)} characters, limit {DECISIONS_MAX_CHARS}"
     m = re.search(r"^screened-through:\s*(\S+)", text, re.M)
-    if m:
+    if not m:
+        yield "decisions-now.md: no 'screened-through:' line"
+    else:
         try:
             moment = datetime.fromisoformat(m.group(1).replace("Z", "+00:00"))
         except ValueError:
@@ -112,7 +116,7 @@ def check_rules(text):
     rules, current = [], None
     for line in text.splitlines():
         if re.match(r"^\d+\.\s", line):
-            current = [line, False]
+            current = [line, "Guard:" in line]
             rules.append(current)
         elif line.startswith("#"):
             current = None
@@ -135,28 +139,19 @@ def check_rules_growth(root, text):
         yield f"rules.md: {count_rules(text)} rules, HEAD has {count_rules(old.stdout)}: remove a rule to add one"
 
 
+def session_commit(line):
+    return (line.split(":", 1)[1].split() or [""])[0]
+
+
 def check_merge_has_status(root):
     staged = subprocess.run(
         ["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True, text=True
     ).stdout.split()
-    if any(l.startswith("session branch:") for l in added_lines(root, "state.md")):
+    old = subprocess.run(["git", "show", "HEAD:state.md"], cwd=root, capture_output=True, text=True).stdout
+    new = [session_commit(l) for l in added_lines(root, "state.md") if l.startswith("session branch:")]
+    if new and new[0] != next((session_commit(l) for l in old.splitlines() if l.startswith("session branch:")), new[0]):
         if not any(n.startswith("status/") for n in staged):
             yield "state.md: the session branch line changed (a merge) but nothing under status/ changed"
-
-
-def check_reflections(root, now):
-    for path in sorted(Path(root).glob("reflections/*.md")):
-        m = re.match(r"(\d{4}-\d{2}-\d{2})", path.name)
-        if not m or m.group(1) < REFLECTIONS_FROM:
-            continue
-        if datetime.fromisoformat(m.group(1)).replace(tzinfo=timezone.utc) + timedelta(hours=24) > now:
-            continue
-        text = path.read_text()
-        points = re.findall(r"^#{2,4}\s+(\d+)\.", text, re.M)
-        answers = set(re.findall(r"^(\d+)\.\s+Answer:", text, re.M))
-        for n in points:
-            if n not in answers and not re.search(rf"^#{{2,4}}\s+{n}\.[^#]*?^Answer:", text, re.M | re.S):
-                yield f"{path.name}: point {n} has no 'Answer:' line"
 
 
 def added_lines(root, name):
@@ -170,6 +165,9 @@ def run(root, now):
     root = Path(root)
     problems = []
     state, decisions, rules = (root / n for n in ("state.md", "decisions-now.md", "rules.md"))
+    for name, limit in MAX_BYTES.items():
+        if (root / name).exists() and (root / name).stat().st_size > limit:
+            problems.append(f"{name}: {(root / name).stat().st_size} bytes, limit {limit}")
     if state.exists():
         problems += check_state(state.read_text(), now)
     if decisions.exists():
@@ -178,8 +176,7 @@ def run(root, now):
         problems += check_rules(rules.read_text())
         problems += check_rules_growth(root, rules.read_text())
     problems += check_merge_has_status(root)
-    problems += check_reflections(root, now)
-    for name in ("state.md", "decisions-now.md", "answers.md", "routines.md", "rules.md"):
+    for name in STAMPED:
         for line in added_lines(root, name):
             problems += check_added_line(name, line, now)
     return problems

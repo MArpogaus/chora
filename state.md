@@ -1,47 +1,43 @@
 # State
 
-pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
+## Now (2026-11-14 04:25 UTC)
+budget: reset 2026-11-14 04:00 UTC; no owner reading yet
+session branch: 8f358fa (merged 11-12 03:08 UTC). Train 4 is merging in wt/train4.
+rc target: 11-20 (was 11-18; recomputed 11-14 after W2-1). Next check: 11-16.
 
-## Now (2026-11-14 04:09 UTC)
+## RC (design/rc.md)
+| # | Criterion | State |
+|---|---|---|
+| 1 | UX: no BLOCK or MAJOR open | open: about 35 MAJOR (reports/swarm-6.md, ux-deep-*.md, ux-cross-look.md) |
+| 1b | Owner approves each look | not asked |
+| 2 | Persona round 4 | not started |
+| 3 | Three greens in a row | no: 5 known flakes |
+| 4 | CI green | never run; cargo deny red |
+| 5 | Packaging smoke | never run |
+| 6 | Code review per area | not started |
+| 7 | deny, machete | deny red |
+| 8 | Docs, CHANGELOG, known issues | not started |
+| 9 | Logging audit, flakes closed | not started |
 
-budget: weekly limit reset 2026-11-14 04:00 UTC (Fable round available); no user reading yet.
-Resume after the weekly reset (04:06 UTC). Cloud workers construct r6 and xp review r5 died at the limit with no push; archived. tiling r5 (N1) never started work. Train 4 integration agent running in wt/train4: mc 10eb3a7f, construct d3843e0, tiling f9dabd84, xp a836cbd6 (r4, reviewed; r5 d102940f waits for its review), swarm5-fixes 9644cc05, persona-harness 8ca9802; first merge conflicts in chora-assistant chat. W2-1 Fable judge running (reflections/2026-11-14-w2-1-fable.md). Next: train 4 result, then W2-1 actions (prune notes), then reruns of construct r6, xp review r5, tiling N1.
-
-Earlier, 2026-11-12 09:39 UTC: budget 96 % at 2026-11-12 05:48 UTC (user; the 69 % at 05:47 was likely a misread); no new lanes; pre-stop at 97 %; reset Sat 11-14 03:59 UTC.
-session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
-last_reviewed: per-merge reviews only; the per-area review of the whole range a03be22..HEAD is due (Fable, Saturday).
-
-Lanes:
-- construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: the first worker never left PENDING (02:47 to 04:15 UTC, archived; friction 41); round 2 done 05:23 UTC (83c44f81, M1-M7 fixed with tests and cube cells, full gate 19/19; worker archived); review MERGE-OK 05:25 UTC (reports/pixel-construct-r2.md: M1-M7 fixed, 0 MAJOR, 6 MINOR, 3 COSMETIC; gaps: no 2x, with-pane capture empty). In train 4. Round 3 done 06:40 UTC (4ba0950b: neighbour labels, yaw 22 deg, floor mirror, step-in dim, 1x/2x captures; 1736 tests; gate run in parts, cube flake 'construct does not answer while the wm is deaf' once: full gate again at train 4; worker archived); review r3 FIX 06:42 UTC (reports/pixel-construct-r3.md: 2 MAJOR: neighbour labels and with-pane not visible in captures; stepped-into 2x black; 2 MINOR mirror edges, side panes clipped). Train 4 takes r2 head 83c44f81 (MERGE-OK) unless r4 passes review. Round 4 done 07:35 UTC (15fa10e: neighbour-label fade bug fixed, 2x black was capture timing, mirror feather, new gate step pixels red first). Gate regression fixed 08:12 UTC (fc98954: the 22 deg rest showed more faces and sync_float waited 400 ms per deaf face, list took 2.8 s; first unanswered face now ends the round, 8 ms; full gate 21/21 in one go); review r4 07:37 UTC (reports/pixel-construct-r4.md: both r3 MAJORs fixed, new 0/3/3; reviewer wrote FIX, by rules.md 8 that is MERGE-OK). Round 5 done 09:00 UTC (d3843e0: beside panes whole on screen, mirror 240 px feathered, hairline capsule; full gate 21/21 in one go; worker archived); review r5 MERGE-OK 09:01 UTC (reports/pixel-construct-r5.md: r4 M1-M3 fixed; new 0/3/3: 2x capsule missing, 2x failed face no floor, failed card spills; stray yellow square in pull). Train 4 takes d3843e0. Round 6 cloud session_016iS3kLp4gaV5JVrFED8LyS from 09:01 UTC (start check 6 min). Train 4 keeps 83c44f81 unless both are green. Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
-- swarm5-fixes: ready for train 4 (9644cc05: merged claude/pkg, both HIGH were covered by pkg, packaging-files.py 0 gaps in 141 files; MEDIUMs fixed; full gate passed on the 2nd run, flake in cube "a client xp runs already" added to the Saturday flake list). Worker archived.
-- full pixel reviews done (rules.md 8 new, user 04:16 UTC): xp 6/10/8 (user's Start user picture and tray confirmed), mc 3/13/8 (user's text-height bar confirmed), tiling 5/10/5 (helper surfaces unthemed, fullscreen islands); reports/pixel-{xp,mc,tiling}-v2.md.
-- pixel polish workers (sonnet, cloud; each adds audit cells red first; mc round 1 done 04:57 UTC e6cc46c, bars cap-to-baseline, F1 fits, terminal page; MINORs 3-19 running before the review; xp round 1 done 05:05 UTC 9442761, 4 of 6 MAJORs fixed with red-first tests, round 2: imported assets, 2x captures, MAJOR 6, MINORs 7-16): xp round 2 done 05:53 UTC (449b8326: asset hook CHORA_XP_ASSETS + tests/xp-assets.sh, 2x black taskbar fixed, MAJOR 6, icon-size and clip audits; open: MINOR 9, 14-16; full gate passed); review r2 FIX 05:57 UTC (reports/pixel-xp-pixel-r2.md; assets and fallback both 2/5/4). Round 3 done 07:09 UTC (2e33b071, gate green with --base 8f358fa; worker archived; asset captures stayed in the worker: the asset benchmark is owed at train 4 on the merged build); review r3 MERGE-OK on fallback 07:12 UTC (reports/pixel-xp-pixel-r3.md 0/5/6; Normal metrics measured right at 1x/2x; balloon and Large default FIXED); in train 4. Round 4 done 07:54 UTC (a836cbd6: menu header gap, sparse-icon generic, balloon band, no product names; gate 19/19 run 2; worker archived). Review r4 08:17 UTC (reports/pixel-xp-pixel-r4.md): fallback MERGE-OK 0/2/5; assets FIX 3/5/3 (A1 header 65 vs 54 and flat user tile; A2 title not Trebuchet Bold 13; A3 Run = fuzzel, PM: backlog X8, week 2). Round 5 done 09:33 UTC (d102940f: header 54 + rule, framed user tile, real Trebuchet Bold 13 titles, no (...) suffix; skipped A4/A5/A7/A8 art; gate 19/19 on run 3, chora-voice test flaked once: Saturday flake list; worker archived). Review r5 with assets cloud session_016iS3kPtQTPVvqhF2db77mN from 09:33 UTC. Round 4 scope was: menu header gap, fragment icon, balloon band, neutral update copy; asset captures and self-check kept in the worker (start check 6 min). Backlog: an XP Run dialog (today Run = fuzzel). Round 3 scope was: N1 chat balloon at 2x (234 px instead of 409 logical; card over it, header and Stop gone); N2 PM decision per the brief (user 04:20): default chrome is XP Normal at 96 DPI (taskbar 30 px, 11 px Tahoma), XP Large (120 DPI) an option, not the default; icon holes (title/task icon 16 px, missing app art, speaker); captures of submenu, dialog and Run; was: local sonnet agent in wt/xp-v2 (claude/xp-pixel; cloud worker stuck PENDING again 05:06 to 05:14 UTC, archived; friction 41 twice today), mc: rounds 1-2 done (b50159dd; worker archived at its context limit 05:18 UTC); review r2 FIX 0/12/10 (reports/pixel-mc-pixel-r2.md); round 3 done 06:28 UTC (cd5ae779: one grid phase, column top, terminal 15 px, field, label width 112, gate green; open: 5, 8 urgent x glyph, COSMETICs; tests/mc-capture.sh); review r3 MERGE-OK 06:32 UTC (reports/pixel-mc-pixel-r3.md, 0/3/14, no regressions); in train 4. Round 4 done 06:53 UTC (72527394: widow, hint in card, drawn 14 px X, muted >= 7:1; full gate timed out, last four steps run alone and green: full gate again at train 4); review r4 MERGE-OK 06:57 UTC (reports/pixel-mc-pixel-r4.md, 0/2/14, all 24 PNGs incl. dark and 2x; new N1 accent < 7:1, N2 no voice hint on the empty screen). Round 5 done 07:27 UTC (efa3569c: every text colour >= 7:1, voice hint on the empty agenda; full gate green); review r5 MERGE-OK 07:29 UTC (reports/pixel-mc-pixel-r5.md 0/2/15: dark Listening still 5.23:1, worker claim partly false; hint names no field). Round 6 done 07:45 UTC (10eb3a7f: dark Listening 7.12:1, mc 7:1 test, hint names Super+a; gate green); review r6 PASS 07:47 UTC (reports/pixel-mc-pixel-r6.md 0/0/15: rules.md 8 met; mc lane DONE at 10eb3a7f, in train 4; wt/mc-pixel removed, disk 14 GB), tiling round 1 done 05:25 UTC (5ec90579, 7 of 20 fixed, new tiling-audit gate step, 17/17; mako toast unverified; worker archived); review MERGE-OK 05:27 UTC (reports/pixel-tiling-pixel-r1.md: 5 fixed, 10 open, 5 unverified, new 0/4/3); in train 4. Round 2 done 07:13 UTC (cbdf1eba, 1762 tests, full gate green; captures on wallpaper with glow, mako toast; open #8 or-caps, #12, keyboard glyph, new: chat field over the dot); review r2 MERGE-OK 07:16 UTC (reports/pixel-tiling-pixel-r2.md: 14 fixed, 11 open, 4 unverified, new 0/1/4; MINORs R1 chat panel hides chips, #7 scrim). Round 3 done 08:39 UTC (b39f5d8a: chips step aside of the chat panel, scrim = base token 0.20, launcher/chip/tooltip/1.25 captures; gate 18/18); review r3 MERGE-OK 08:43 UTC (reports/pixel-tiling-pixel-r3.md: 19 of 27 fixed, new 0/2/5; R6 soft bar icons at 2x/1.25, R7 question card not Inter, R13 chat vs card unverified). Round 4 done 09:37 UTC (f9dabd84: per-scale SVG bar icons, Inter question card, chat moves card and toast; full gate green; known: a toast started while chat is open does not step aside); review r4 MERGE-OK 09:39 UTC (reports/pixel-tiling-pixel-r4.md: R6, R7, R13 fixed; new 0/1/2: N1 toast started under an open chat is hidden). Train 4 takes f9dabd84. Round 5 local sonnet from 09:39 UTC for N1 only. Round 2 scope was: chips #14 in tokens and 14 px, chat Close and round field, one Paper value, captures with wallpaper and focus glow (black backdrop hides the Hyprland look), toast capture with mako. Four heavy lanes with construct: the maximum; then a full pixel review of each before train 4.
-- persona harness: done (claude/persona-harness 8ca9802, smoke red then green on all four looks; bug (a) did not reproduce, the gaps were huds and voice); merges in train 4.
-- swarm 6 done (reports/swarm-6.md): 6 new main-path MAJORs (helper never answers and no no-helper state; typed text dropped before picking a helper; mc arrows and Escape; mc no on-screen launcher; tiling bar Keys/Chat buttons dead; xp no volume icon). Kept for week-2 fix lanes by area (PM: no fix now, the next train is after 17:00 UTC and the budget stop is near; they would collide with swarm5-fixes in mc and tiling).
-- deep UX xp + cross-look done (3d12b22; reports/ux-deep-xp.md 6 MAJOR: no lock, Log Off silent, Run bare and silent on no match, first F1 leaks "OP" into the terminal, no-helper balloon cut, notify balloon over the paperclip; reports/ux-cross-look.md: lock missing in all looks, mc has no power/volume/screenshot, F1 key list only in xp, launchers lack "Chat with a helper", tiling Chat pill dead on click). Worker archived. Week 2: one shared-doors decision (lock, power, volume, screenshot, F1 = key list in every look) before the fix lanes.
-
-Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz every 2 h at :15; self-check trig_01X5NqMSsvxMSpYFJxo5Wxsg at 00:50, 06:50, 12:50, 18:50 UTC (routines.md); resume after reset trig_01Cbw7Sgz7WRVpTnjsN1zdwq (Sat 04:05 UTC); the old three-runs task trig_012VGJoVzsJ81hFa6AufBc9S disabled (replaced by the watchdog).
+## Lanes
+| Lane | Where | Branch and commit | State |
+|---|---|---|---|
+| train 4 | local sonnet agent, wt/train4 | mc 10eb3a7f, tiling f9dabd84, xp a836cbd6 (r5 d102940f unreviewed, not taken), construct d3843e0, swarm5 9644cc05, harness 8ca9802 | running; conflicts in chora-assistant chat |
 
 ## Queue
+1. Train 4 lands; one full gate; worktrees removed. (rc 1, 3)
+2. Notes prune (in PM review) and the guards of rules.md in one sonnet lane. (process)
+3. Flakes: core SIGSEGV pair, cube navigate-click, "xp runs already", construct deaf, chora-voice. (rc 3)
+4. CI draft PR, cargo deny, package build and install smoke. (rc 4, 5, 7)
+5. Findings ledgers, shared-doors decision, then main-path MAJOR fix lanes: xp, tiling, mc. (rc 1)
+6. Code review per area, core and security first; HIGH fixes. (rc 6)
+7. construct: MAJOR fixes only at d3843e0. (rc 1)
+8. One pixel pass per look, showcase stills, owner approval. (rc 1, 1b)
+9. Persona round 4; docs; logging audit. (rc 2, 8, 9)
+10. Hardware smoke by the owner; tag. (rc 10)
 
-Deep UX tiling (reports/ux-deep-tiling.md): 4 MAJOR for next week: no visible chat entry; helper surfaces (pill, Listening dot, card, 400 px chat panel) white in a system font, not Ink, 1 px under the bar (this is the "floating chat button" the user saw: confirmed real, not old); no notification daemon in the tiling flavor; launcher preselects Screenshot. Deep UX mc (reports/ux-deep-mc.md): 6 MAJOR for next week: the Terminal scene drops the column (boxed chat, orphaned Stop and card on page turn); no visible Mute; all-keys list overflows the column; Super+F1 vs F1 in docs; terminal text 11 px; critical notification only a red line with a dead 7 px close. Harness bug before swarm 6: persona session.sh never starts chora-assistant (command -v before PATH) and the assistant needs an installed huds folder.
-
-
-End of week (user 02:17 UTC): finish the running lanes and merge (construct, pkg, tooling, swarm5-fixes; xp if ready), then intensive UX/UI reviews of all four looks with fresh captures at 1x and 2x (one opus reviewer per look plus a cross-look consistency reviewer against design/looks/shared.md) and swarm 6 on the merged build: data for next week, fixes only for main-path blockers.
-
-
-1. construct-v2: code fixes by the tour worker (then it waits); UI review 1 says FIX (7 main-path flaws, reports/review-construct-v2.md): a fresh cloud worker fixes them after the code fixes; UI review 2 confirm-only; then train 3 with claude/pkg; then the tour worker records tour-v3.
-2. tooling: merge in train 3 with xp-v2 (its gate needs the xp paperclip fix).
-3. swarm5-fixes: review, merge (next train).
-4. xp-v2: layout audit green, UI review 1 (taste and the look document only), fix round fresh, review 2 confirm-only, merge.
-5. tour-v3 screencast and 6 to 10 stills of the new looks onto the status page (user 11-12).
-6. Dropped today (PM push-back, user 02:43): no further reflection round this week; folded into the Saturday Fable reflection.
-6b. Stale merged branches: the PM's delete was refused by the permission check (2026-11-12); list and command in reports/stale-branches.md; low priority, for the user on return.
-7. Before the stop: week-1 report checked by the PM; Saturday briefs written below.
-Week 2 (sonnet): chora-xp-import, a port of kde-plasma-winxp-launcher get-microsoft-files.sh (design/xp-reference.md); xp audit cells with and without the imported assets.
-Saturday 11-14 from 04:05 UTC (Fable): first a big, very critical reflection on setup and progress (backlog W2-1, user 02:43); then per-area code review of a03be22..HEAD (core and security paths first, read-only, then HIGH fixes); construct Host refactor so each cube face runs its own manager (D4); rc reflection loop on Fable. Sonnet: fix lanes by area; swarm 6 on the four v2 looks with launcher fixes (start tests/fake-voice.py, a notify-send stub, a fake loginctl running swaylock). Then flakes (core SIGSEGV tests under load), three greens in a row, CI draft PR, packaging smoke, persona round 4; rc 11-18 to 11-20.
-
-## Blocked
-
-
-- Deleting 46 merged claude/* branches on origin: refused by the permission check; reports/stale-branches.md.
+## Needs owner (defaults hold after 2026-11-15 12:00 UTC)
+- (a) RC cuts: construct ships as a preview with xp faces; voice is tested by fake-voice. Default: cut.
+- (b) xp in the RC is judged on the fallback art; the imported-asset benchmark comes after the tag. This departs from your order of 11-12 04:29 UTC "use them in all your tests and screenshots". Default: asset captures only in the final pixel pass.
+- (c) Delete 46 merged branches: command in reports/stale-branches.md. Default: they stay.
+- (d) One session on real hardware before the tag (10 minutes). Default: tag without it (design/rc.md 10).

@@ -1,75 +1,45 @@
-# Rules of the PM (from 2026-11-12 01:55 UTC)
+# Rules of the PM
 
-Precedence: the user's words in `decisions-now.md`, then these rules, then the
-reference pages (`charter.md`, `dev-rules.md`, `design/`). `charter.md` holds
-background and reference; where it states a rule that differs from one here,
-this file wins. At most 20 rules, each with its guard; a rule in means a rule
-out (11-12 judge, point 13). `tools/check_log.py` and `tools/lanes.py` are the
-two guard scripts.
+Order: the owner's words in decisions-now.md, then these rules. Nothing else is a rule.
+KISS and POLS first. Stability beats look; look and UX beat anything new.
 
-1. **Truth.** `state.md` has only `## Now (date UTC)`, `## Queue`, `## Blocked`;
-   it is rewritten at every event, never appended. One log commit per wake.
-   Guard: check_log.py (sections, at most 80 lines, Now time not in the future).
-2. **User words.** Every user message goes verbatim into `decisions-now.md` the
-   same turn, with its transcript time, then `screened-through` moves to that
-   time; each half of the file stays under 9,000 characters. Guard:
-   check_log.py; the decisions hook lists unrecorded messages first.
-3. **Times.** Every written time comes from `date -u` or the transcript and names
-   its zone (UTC in the log files, Bangkok on the status page). Guard:
-   check_log.py rejects a future time or one without a zone.
-4. **Routines.** The time and condition routines of `routines.md` run: the
-   hourly watchdog, the 3-hourly self-check with its questions, the daily
-   judge, the weekly report and the reset resume; scheduled prompts point only
-   to the Queue of `state.md` and to `routines.md`. Guard: lanes.py at each
-   wake; the self-check log shows a block every 3 h.
-5. **Never idle.** While the week has budget at least two lanes run, and the PM
-   never ends a turn with a Queue item that needs no user. Guard: lanes.py idle
-   check at each watchdog wake.
-6. **Lanes and context.** At most four heavy lanes, one area per lane, cloud
-   workers first. Builders, fix rounds and reviews are sonnet, swarms and
-   triage haiku; opus only for a design pass the user asks for; Fable for the
-   items `decisions-now.md` names after a reset. Every agent and worker stays
-   under 250 k context: at most 3 build steps or one fix round, then a handover
-   note and a fresh agent. Workers message the PM only when done or blocked;
-   agents run gates in the foreground. The PM keeps its own context small (short
-   turns, one log commit per wake). Guard: lanes.py (context over 250 k, model
-   per lane, PM context).
-7. **Merge.** Only through `tests/merge-gate.sh`: lock, red first, pre-commit
-   over the range, one full gate per train, at most three trains a day; lanes
-   use `--worker`; a merged worktree and its target go in the same step.
-   Guard: the script; lanes.py flags merged worktrees.
-8. **UI.** Before UI review 1 the look's gate with the layout audit is green.
-   Every remake of a look's pixels gets a full pixel review at 1x and 2x by an
-   independent reviewer (never confirm-only), down to icon glitches, bar
-   heights and alignment; rounds repeat until one finds nothing above
-   COSMETIC (user 11-12 04:16 UTC: "visual reviews for every remake until
-   it's polished to perfection"). A visible main-path flaw blocks the merge;
-   each flaw class found by eye gets an automated layout-audit cell where
-   possible. Guard: the review template's main-path table; the builder
-   never reviews its own pixels; a check_log.py cell (no look merge without
-   a full review file of that day) is queued for Saturday, manual until then.
-9. **Status page.** After every merge and notable event: header time, Running,
-   Next and Needs you match `state.md`; a UI merge ships reviewed captures, and
-   each picture names its build. Guard: check_log.py (merge without status/
-   change); manual check of pictures.
-10. **Budget.** The meter is the user's latest reading; between readings the
-    estimate is reading plus (local `usage.py` units plus cloud worker units)
-    since, at 5.4 M weighted units per point (token analysis of week 1), given as
-    a range. No throttle below the week's end; the only cap is the 85 % swarm
-    limit. `state.md` Now carries `budget: <reading> at <time>, estimate
-    <range>, stop about <time>`. Guard: check_log.py.
-11. **Questions.** Only security policy, licensing and outward acts that the
-    user has not authorized go to the user, batched under "Needs you"; taste and
-    everything reversible is the PM's. Guard: manual (guards.md).
-12. **Scope.** Until the rc tag only rc criteria and RC requirements with a
-    source (user, swarm or review finding) merge. Guard: manual check in the
-    train (merge message names the requirement).
-13. **Commits.** Stage by name; no attribution lines; never `--no-verify`; the
-    user's author identity; session files only on `claude/session-log`. Guard:
-    the repo and log hooks; merge-gate pre-commit over the range.
-14. **Reflection.** Each judge point gets an "Answer:" line within 24 h: built
-    (commit), scheduled (date) or rejected (reason); a point raised twice goes to
-    `friction.md`; the loop repeats until a round brings only LOW points. Guard:
-    check_log.py.
-15. **Rules.** This file has at most 20 rules, each with a Guard line; a new
-    rule removes one. Guard: check_log.py counts.
+1. Goal. Until the tag the only goal is the RC (design/rc.md). Every Queue line names
+its criterion. Guard: manual (to build: lanes.py).
+2. Owner input. Classify each message in the reply: reading, question, bug, idea, goal
+change, order. Bug: findings ledger. Idea: backlog. Goal change: reply with the cost,
+apply after a yes, at the next lane start. Conflict with a decision or the RC: say
+so at once. Guard: manual (to build: check_log.py `owner-ok:`).
+3. Ask or decide. Ask the owner only for: goal or RC changes, a slip over two days,
+legal, branch deletion, force push, environment. Batch under Needs owner with a
+default and a deadline. The CI PR is the PM's, and the rc tag and release
+once design/rc.md holds. All else: decide, log one line. Guard: manual.
+4. State. state.md is rewritten, never appended: Now, RC, Lanes, Queue, Needs owner.
+Guard: check_log.py (sections, sizes).
+5. Lanes. At most four, one area each. One brief file per round, fixed at start; no
+scope message to a running worker. Sonnet builds; haiku tests; Fable for
+reviews and hard work. A worker stops at 250 k context.
+Guard: manual (to build: start_lane.sh, lanes.py).
+6. Severity first. No MINOR or COSMETIC work on a look while it has an open BLOCK or
+MAJOR. At most two pixel rounds per look per week. Guard: manual (to build: findings/, lanes.py).
+7. Evidence. A report lists each claim with its gate cell and capture; a claim without
+a passing cell is open. The verdict is computed: an open MAJOR is FIX, else
+MERGE-OK. The builder never reviews itself. Guard: manual (to build: claims.py).
+8. Merge. Only through tests/merge-gate.sh. A fix has its red test commit first. A
+MERGE-OK branch merges within 12 h. Before a budget stop: merge first, start
+nothing. Guard: merge-gate.sh (lock, steps); manual (to build: red-first check,
+lanes.py).
+9. Budget and context. The meter is the owner's reading; between readings give a
+range. The PM compacts at 300 k, wakes on done or blocked, says nothing when
+nothing changed, commits the log once per merge or hour.
+Guard: manual (to build: lanes.py).
+10. Rules. Ten rules, 3,000 bytes. A Guard names a check that exists or says manual
+(to build: tool). A new rule removes one. A rule changes at a merge boundary,
+never in the turn an owner message arrives. Guard: check_log.py.
+
+Routines: watchdog every 2 h (lanes.py; finished or stuck workers). Once a day the
+self-check: am I on the RC burn-down? is a reviewed branch unmerged > 12 h? is anything
+running that is not in the Queue?
+Commits: stage by name; the owner's identity; no attribution lines; never --no-verify;
+session files only on claude/session-log. Times: only from `date -u`, in UTC.
+Chat: two lines; end with done, running, next, blocked, budget.
+After a compaction: run lanes.py; do the first Queue line.

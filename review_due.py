@@ -4,10 +4,10 @@
 Usage: review_due.py [REPO] [LAST_REVIEWED]
   REPO defaults to /home/user/chora, LAST_REVIEWED to the value in
   state.md. Prints the weighted size of the unreviewed range, its
-  critical paths and DUE or NOT DUE with the reason (charter section 3).
+  critical paths and DUE or NOT DUE with the reason (archive/charter.md section 3).
   Then the size of each plugin: SPLIT REVIEW DUE when it has
   SPLIT_REVIEW_AT_LINES or more and state.md records no split review at
-  a size within SPLIT_REVIEW_REGROWTH of today (charter section 1, item
+  a size within SPLIT_REVIEW_REGROWTH of today (archive/charter.md section 1, item
   18). A recorded review is a line "split review: NAME LINES DATE".
 """
 

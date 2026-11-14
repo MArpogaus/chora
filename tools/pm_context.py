@@ -2,9 +2,11 @@
 """Print PM context for Claude Code hooks; each mode stays under the 10,000-character hook cap.
 
 Modes:
-  card       pm-card.md, the "Now" section of state.md, the newest lines of answers.md
-  decisions  decisions-now.md up to its PM process section, plus user messages newer than its screened-through line
-  decisions2 decisions-now.md from its PM process section on (two hooks keep each under the cap)
+  card       rules.md and state.md, whole
+  vision     vision-card.md
+  decisions  decisions-now.md, plus user messages newer than its screened-through line
+  decisions2 nothing (kept for the installed hooks)
+  decisions3 nothing (kept for the installed hooks)
   precompact instructions for the compaction summary (PreCompact stdout)
   prompt     one reminder line (UserPromptSubmit)
 
@@ -37,22 +39,6 @@ def hook_input():
     except (ValueError, OSError):
         pass
     return {}
-
-
-def state_now(max_lines=60):
-    lines = read("state.md").splitlines()
-    out, inside = [], False
-    for line in lines:
-        if line.startswith("## "):
-            inside = line.startswith(("## Now", "## Queue", "## Blocked"))
-        if inside:
-            out.append(line)
-    return "\n".join(out[:max_lines])
-
-
-def answers_newest(max_lines=12):
-    lines = [l for l in read("answers.md").splitlines() if l.strip()]
-    return "\n".join(lines[-max_lines:])
 
 
 def screened_through():
@@ -118,26 +104,11 @@ def capped(text):
 
 
 def mode_card():
-    return (
-        "PM CARD (hook; read before acting):\n" + read("pm-card.md")
-        + "\nstate.md, Now, Queue and Blocked:\n" + state_now()
-        + "\n\nanswers.md, newest lines:\n" + answers_newest()
-    )
-
-
-def decisions_part(part):
-    text = read("decisions-now.md")
-    head, sep, rest = text.partition("\n## PM process")
-    mid, sep2, design = rest.partition("\n## Design")
-    if part == 1:
-        return head + "\n"
-    if part == 2:
-        return "decisions-now.md, continued:" + sep + mid
-    return "decisions-now.md, design part:" + sep2 + design
+    return "PM RULES (hook; read before acting):\n" + read("rules.md") + "\nSTATE:\n" + read("state.md")
 
 
 def mode_decisions(transcript):
-    text = decisions_part(1)
+    text = read("decisions-now.md")
     messages = unrecorded_messages(transcript, screened_through())
     if messages:
         text = (
@@ -153,7 +124,7 @@ def mode_precompact(transcript):
     text = (
         "Summary rules for this PM session: quote every user decision, rule, limit or correction word for word,"
         " never paraphrase numbers or their scope (friction 36: '85 % for the haiku swarms while they find new"
-        " issues' became 'this week's cap'). Name decisions-now.md and pm-card.md as the source of truth for"
+        " issues' became 'this week's cap'). Name decisions-now.md and rules.md as the source of truth for"
         " standing decisions and rules; the summary is not the plan. List the pending items as open work to"
         " resume at once, with the running lanes (session ids, background commands) and the last pushed commit."
     )
@@ -169,13 +140,13 @@ def main():
     if mode == "prompt":
         print("PM: a user decision in this prompt goes verbatim into decisions-now.md and answers.md this turn; reply in 1-2 lines.")
         return
+    if mode in ("decisions2", "decisions3"):
+        return
     transcript = hook_input().get("transcript_path", "")
     builders = {
         "card": mode_card,
         "vision": lambda: "VISION CARD (hook):\n" + read("vision-card.md"),
         "decisions": lambda: mode_decisions(transcript),
-        "decisions2": lambda: decisions_part(2),
-        "decisions3": lambda: decisions_part(3),
         "precompact": lambda: mode_precompact(transcript),
     }
     if mode not in builders:
