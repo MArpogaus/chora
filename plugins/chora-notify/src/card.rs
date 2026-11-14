@@ -24,6 +24,10 @@ use crate::{
 
 /// The widest line of the text.
 const MAX_TEXT: f64 = 300.0;
+/// The most lines of the body that a card shows.
+const MAX_LINES: usize = 8;
+/// The most bytes of the body that are laid out.
+const MAX_BYTES: usize = 1024;
 const PAD: i32 = 10;
 const TOP: i32 = 8;
 const ICON: i32 = 16;
@@ -193,6 +197,22 @@ pub fn layout(icon: bool, title: f64, lines: &[f64]) -> Layout {
     }
 }
 
+/// The wrapped lines of a body that fit the card.
+fn body_lines(body: &str, width: impl Fn(&str) -> f64) -> Vec<String> {
+    let mut end = body.len().min(MAX_BYTES);
+    while !body.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut lines = wrap(&body[..end], MAX_TEXT, width);
+    if end < body.len() || lines.len() > MAX_LINES {
+        lines.truncate(MAX_LINES);
+        if let Some(last) = lines.last_mut() {
+            last.push('…');
+        }
+    }
+    lines
+}
+
 /// A card on the overlay root of an output.
 pub struct Card {
     output: String,
@@ -214,7 +234,7 @@ impl Card {
         let style = &values.card;
         let color = style.text_rgba();
         let width = |s: &str| theme.text_width(s, Font::Ui);
-        let lines = wrap(&note.body, MAX_TEXT, width);
+        let lines = body_lines(&note.body, width);
         let widths: Vec<f64> = lines.iter().map(|l| width(l)).collect();
         let layout = layout(
             icon.is_some(),
@@ -363,6 +383,21 @@ mod tests {
         assert_eq!(long.size, [320, 29 + 26 + 10]);
         assert_eq!(long.close, [320 - 20, 6, 14, 14]);
         assert!(long.icon.is_none());
+    }
+
+    fn chars_wide(s: &str) -> f64 {
+        f64::from(u32::try_from(s.chars().count()).unwrap_or(u32::MAX)) * 6.0
+    }
+
+    #[test]
+    fn an_unbounded_body_is_cut_to_a_few_lines_with_an_ellipsis() {
+        let body = "word ".repeat(200_000);
+        let lines = body_lines(&body, chars_wide);
+        assert!(lines.len() <= MAX_LINES, "{} lines", lines.len());
+        assert!(lines.last().is_some_and(|l| l.ends_with('…')));
+        let one_line = "x".repeat(1_000_000);
+        let lines = body_lines(&one_line, chars_wide);
+        assert!(lines.iter().map(String::len).sum::<usize>() <= MAX_BYTES + MAX_LINES * 4);
     }
 
     #[test]

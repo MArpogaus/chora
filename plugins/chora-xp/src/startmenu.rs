@@ -772,6 +772,9 @@ impl Menu {
         if matches!(self.pressed, Some(Press::Row(l, _)) if l >= level) {
             self.pressed = None;
         }
+        if matches!(self.pending, Some((_, Press::Row(l, _))) if l >= level) {
+            self.pending = None;
+        }
         let mut commands = commands;
         match level.checked_sub(1) {
             None => commands.push(self.look(theme, self.root)),
@@ -1628,6 +1631,33 @@ mod tests {
         key(&mut menu, "Escape");
         assert!(menu.cascades.is_empty());
         assert!(matches!(key(&mut menu, "Escape"), Key::Close));
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_hover_that_is_pending_when_its_cascade_closes_does_not_panic() {
+        let (mut theme, cache) = crate::dialog::tests::theme("pendingrow");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let run = |title: &str| Node {
+            title: title.into(),
+            icon: String::new(),
+            kind: apps::Kind::Run(title.into()),
+        };
+        let apps = vec![Node {
+            title: "Accessories".into(),
+            icon: String::new(),
+            kind: apps::Kind::Group(vec![run("calc")]),
+        }];
+        let mut menu = Menu::new(&config(), apps, &theme, &mut icons);
+        menu.key(&mut theme, &mut icons, "Down");
+        down_to_all_programs(&mut menu, &mut theme, &mut icons);
+        menu.key(&mut theme, &mut icons, "Right");
+        assert_eq!(menu.cascades.len(), 1);
+        menu.hover(&mut theme, "xp-menu-row-0-0", true);
+        let due = menu.due().expect("a row waits");
+        menu.key(&mut theme, &mut icons, "Escape");
+        assert!(menu.cascades.is_empty());
+        menu.rest(&mut theme, &mut icons, due);
         let _ = std::fs::remove_dir_all(cache);
     }
 
