@@ -1659,6 +1659,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_turn_runs_the_tool_calls_and_speaks_the_answer() {
+        let (_guard, lines) = crate::log::capture::info();
         let script = vec![
             Reply::Tool("echo", r#"{"a": 1}"#),
             Reply::Text("Fertig. Alles gut."),
@@ -1699,6 +1700,10 @@ mod tests {
             (&json!("tool"), &json!(r#"{"a":1}"#))
         );
         assert_eq!(chat.history.len(), 4, "user, call, result, answer");
+        let log = lines.text();
+        assert!(log.contains("tool echo"), "the stages still log: {log}");
+        assert!(!log.contains("Mach was"), "no request at info: {log}");
+        assert!(!log.contains("Alles gut"), "no reply at info: {log}");
     }
 
     #[tokio::test]

@@ -588,6 +588,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_task_runs_in_a_clone_without_origin_and_logs_next_to_it() {
+        let (_guard, lines) = crate::log::capture::info();
         let data = temp("coder");
         let project = data.join("inventory/demo");
         git(&["init", "--quiet", &project.to_string_lossy()])
@@ -643,6 +644,9 @@ mod tests {
                 .unwrap()
                 .ends_with("Alles gut.")
         );
+        let log = lines.text();
+        assert!(!log.contains("schön"), "no task at info: {log}");
+        assert!(!log.contains("Alles gut"), "no result at info: {log}");
         let _ = std::fs::remove_dir_all(&data);
     }
 

@@ -545,6 +545,7 @@ mod tests {
 
     #[tokio::test]
     async fn playback_waits_for_a_buffer_or_the_end_of_the_sentence() {
+        let (_guard, lines) = crate::log::capture::info();
         let server = fake::tts(fake::Tts::Speak).await;
         let config = Config {
             tts_url: server.url,
@@ -575,6 +576,8 @@ mod tests {
             start.elapsed() >= Duration::from_millis(1300),
             "speak ends with the sound"
         );
+        let log = lines.text();
+        assert!(!log.contains("Zwanzig"), "no reply sentence at info: {log}");
     }
 
     /// Speaks two sentences, pauses at the first sound and resumes; the

@@ -1853,6 +1853,29 @@ mod tests {
         );
     }
 
+    /// What the person says reaches the log at debug only: the default
+    /// level keeps no utterance, also none to a sub-agent.
+    #[test]
+    fn utterances_stay_out_of_the_info_log() {
+        let (_guard, lines) = crate::log::capture::info();
+        let mut core = with_coder();
+        let mut effects = speak(&mut core, 10);
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects
+            .iter()
+            .find_map(|e| match e {
+                Effect::Utterance { turn, .. } => Some(*turn),
+                _ => None,
+            })
+            .expect("an utterance");
+        core.handle(text(turn, true, Ok("Mein Kennwort ist Zwiebel")));
+        core.handle(text(turn, false, Ok("Mein Kennwort ist Zwiebel")));
+        say(&mut core, "Koder, nimm Zwiebel.");
+        let log = lines.text();
+        assert!(log.contains("turn="), "the stages still log: {log}");
+        assert!(!log.contains("Zwiebel"), "{log}");
+    }
+
     #[test]
     fn speech_records_an_utterance_and_its_text_starts_a_reply() {
         let mut core = Core::new(Config::default());
