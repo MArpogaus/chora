@@ -7,8 +7,8 @@ column is rewritten with state.md; plans and history are in git.
 | # | Criterion | State 2026-11-14 |
 |---|---|---|
 | 1 | UX loop: no BLOCK or MAJOR finding open in any look; an independent pass confirms. | open: about 35 MAJOR |
-| 1b | The owner approves each look from the showcase captures. | not asked |
-| 2 | Persona round 4 on the candidate: every basic task reached by mouse, keyboard and voice (Erika, Kemal, Lena, Max). | not started |
+| 1b | The owner approves each look from the showcase captures; xp on fallback art; construct ships as a preview with xp faces. | not asked |
+| 2 | Persona round 4 on the candidate: every basic task reached by mouse, keyboard and voice via fake-voice (Erika, Kemal, Lena, Max). | not started |
 | 3 | Merge gate green three times in a row on the candidate (no flake); the opt-in gates (battle, starved watchdog, shader hang, mc scale, construct-hud, construct-keys, demo) green once. | no: 5 known flakes |
 | 4 | GitHub CI green (check, msrv, e2e, coverage, docs, pre-commit) on a pull request. | never run |
 | 5 | Packaging: the release workflow builds the RPM, the Arch package and the distrobox image; installed, a session starts (smoke). | never run |
