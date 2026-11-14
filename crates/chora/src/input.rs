@@ -1934,6 +1934,37 @@ mod tests {
     }
 
     #[test]
+    fn a_refresh_during_a_press_keeps_the_time_of_the_last_input() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        let translate = |x: i32| json!([{"update": {"id": "menu", "props": {"transform": {"translate": [x, 0]}}}}]);
+        apply(&mut xp, &mut core, &translate(400));
+        let at = InputTime::from_millis;
+        move_to(&mut core, 450.0, 50.0);
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Pressed,
+            at(81_200),
+            false,
+        );
+        apply(&mut xp, &mut core, &translate(410));
+        super::move_pointer(&mut core.state, (460.0, 50.0).into(), at(81_234));
+        apply(&mut xp, &mut core, &translate(420));
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Released,
+            at(81_250),
+            false,
+        );
+        let all = events(&mut xp, &mut core);
+        let times: Vec<Value> = (named(&all, "pointer.moved").iter())
+            .map(|moved| moved["time"].clone())
+            .collect();
+        assert_eq!(times, [81_200, 81_234, 81_234]);
+    }
+
+    #[test]
     fn scrolling_over_a_node_goes_to_its_owner_and_over_a_surface_to_its_client() {
         let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
         wayland.attach(&mut core, &window, (100, 100));
