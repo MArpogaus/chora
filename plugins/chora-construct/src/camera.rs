@@ -449,7 +449,8 @@ impl Construct {
     /// drag, which another client may hold or the core refuses for Shift
     /// (D45), a press with the modifier on the empty space or on a pane
     /// that shows a node texture still moves a pane, and one on a window
-    /// of the construct reaches the window.
+    /// of the construct reaches the window. A binding that stays is not
+    /// let go in between, so its key never reaches a window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {
@@ -460,7 +461,7 @@ impl Construct {
         self.rt
             .accept_injected(self.settings.value.test_accept_injected_keys);
         self.rt.give_keys(serves.then_some(Grab::Give));
-        self.rt.ungrab_all()?;
+        self.rt.start_grabs();
         if self.active && !self.overlay {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
@@ -482,7 +483,7 @@ impl Construct {
             }
         }
         self.grab_cube_keys();
-        Ok(())
+        self.rt.end_grabs()
     }
 
     /// Puts the window back into its pane and gives the keys back to the
