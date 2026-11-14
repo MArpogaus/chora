@@ -569,9 +569,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&data);
     }
 
-    /// The harness does not get the variables with the API keys.
+    /// The harness keeps the variables with the API keys: it may use the
+    /// same key as the voice LLM.
     #[tokio::test]
-    async fn the_harness_does_not_see_the_api_keys() {
+    async fn the_harness_keeps_the_api_key_variables() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
         let data = temp("coder-keys");
         let (tx, rx) = mpsc::channel();
@@ -583,7 +584,7 @@ mod tests {
             .unwrap();
         let home = std::fs::read_to_string(data.join("worktrees/1/home.txt")).unwrap();
         let _ = std::fs::remove_dir_all(&data);
-        assert_eq!(home.trim(), "unset");
+        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
     }
 
     #[tokio::test]

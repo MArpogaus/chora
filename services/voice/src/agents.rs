@@ -1675,10 +1675,10 @@ exec cat >/dev/null"#;
         let _ = std::fs::remove_dir_all(&data);
     }
 
-    /// The agent does not get the variables that the settings name for
-    /// the API keys.
+    /// The agent keeps the variables that the settings name for the API
+    /// keys: a harness may use the same key as the voice LLM.
     #[tokio::test(flavor = "multi_thread")]
-    async fn the_agent_does_not_see_the_api_keys() {
+    async fn the_agent_keeps_the_api_key_variables() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
         let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&data);
@@ -1705,7 +1705,7 @@ exec cat >/dev/null"#;
         let home = std::fs::read_to_string(&seen).unwrap_or_default();
         agents.stop("keys");
         let _ = std::fs::remove_dir_all(&data);
-        assert_eq!(home.trim(), "unset");
+        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
     }
 
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its
