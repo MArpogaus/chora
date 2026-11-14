@@ -5,7 +5,9 @@
 # a look in a headless session, with stand-ins for swaylock, loginctl,
 # systemctl, wpctl, grim and notify-send. The gate prints the table
 # action x look and fails on a cell that is not `pass`, and on a line
-# `check LOOK NAME fail` of a look, a check beside its cells.
+# `check LOOK NAME fail` of a look, a check beside its cells. The strip
+# of construct is narrow enough for a small screen: its cell file runs a
+# second time at 1024x768 for the checks pane-corner and layout-SIZE.
 #
 # Usage: tests/gate-doors.sh [LOOK...]   BIN: directory with the binaries
 #   LOOK  xp, tiling, mc, construct (default all)
@@ -23,6 +25,8 @@ for look in $looks; do
         continue
     }
     bash "$repo/tests/doors/$look.sh" >"$out/$look.log" 2>&1
+    [ "$look" != construct ] ||
+        SIZE=1024x768 ONLY=clock-door bash "$repo/tests/doors/$look.sh" >"$out/$look-1024.log" 2>&1
 done
 bad=0
 # shellcheck disable=SC2086 # one word per look
@@ -44,7 +48,11 @@ for look in $looks; do
     while read -r line; do
         echo "$line"
         bad=$((bad + 1))
-    done < <(grep -E "^check $look .* fail$" "$out/$look.log")
+    done < <(cat "$out/$look.log" "$out/$look-1024.log" 2>/dev/null | grep -E "^check $look .* fail$")
+    [ "$look" != construct ] || grep -q '^check construct layout-1024x768 pass$' "$out/$look-1024.log" || {
+        echo "check construct layout-1024x768 missing"
+        bad=$((bad + 1))
+    }
 done
 if [ "$bad" != 0 ]; then
     for look in $looks; do

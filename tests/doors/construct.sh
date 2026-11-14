@@ -4,14 +4,18 @@
 # into a pane; the doors are the words of the corner strip at the top left
 # (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock),
 # which shows in the walk only and comes back after a step out of a pane,
-# and the island of the HUD host, clicked at their nodes; the key list is
+# and the island of the HUD host, clicked at its node: it says the state
+# word of the voice agent, and the list that it opens names the helper
+# with its state; the key list is
 # the panel construct-help, read cap by cap. The pane is the window of
 # chora-probe. The check pane-corner flies into the pane and clicks where
 # the door Lock stood: the window gets the press, nothing locks, and the
-# strip is gone until the step out.
+# strip is gone until the step out. The check layout-SIZE is the layout
+# audit of tests/hud-audit.py with the strip and the island on the screen.
 #
 # Usage: tests/doors/construct.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
+#   SIZE  the size of the output (default 1280x800)
 # shellcheck disable=SC2329 # doors_run calls the cells by name
 set -u
 . "$(dirname "$0")/lib.sh"
@@ -24,7 +28,8 @@ export CHORA_FLAVOR_DIR=$repo/flavors/construct HOME=$fakes/home XDG_PICTURES_DI
 mkdir -p "$HOME" "$XDG_CONFIG_HOME/chora"
 printf 'test_accept_injected_keys: true\n' >"$XDG_CONFIG_HOME/chora/chora-construct.yaml"
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
-CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-construct"
+size=${SIZE:-1280x800}
+CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/chora-construct"
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
 doors_assistant || fail "the HUD host does not start"
@@ -71,6 +76,7 @@ node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].text // empty'; }
 island_word() { ctl query id:hud-state 2>/dev/null | jq -r '.[0].meta.text // empty'; }
 island_says() { [ "$(island_word)" = "$1" ]; }
 click_door() { until_ok "center $1 >/dev/null" 20 && click_node "$1"; }
+pick_says() { [ "$(ctl query id:hud-chat-pick-1 2>/dev/null | jq -r '.[0].meta.text // empty')" = "$1" ]; }
 door_says() { [ "$(node_text "$1")" = "$2" ]; }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 
@@ -159,9 +165,13 @@ cell_launcher_chat() {
 }
 cell_helper_key() { walking_and_flown check_helper_key; }
 cell_helper_door() {
-    [ -n "$(island_word)" ] || return 1
+    island_says Listening || return 1
     click_node hud-figure
-    until_ok chat_open 20 && chat_close
+    until_ok chat_open 20 || return 1
+    until_ok 'pick_says "1  coder · idle"' 20
+    local status=$?
+    chat_close
+    return "$status"
 }
 cell_helper_none() {
     voice_stop
@@ -231,6 +241,13 @@ else
     echo "check construct pane-corner fail"
     status=1
 fi
-layout_audit "construct doors" >/dev/null
+if (layout_audit "construct doors") >"$work/audit" 2>&1; then
+    result=pass
+else
+    result=fail
+    status=1
+fi
+cat "$work/audit"
+echo "check construct layout-$size $result"
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"
