@@ -24,7 +24,7 @@ session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | review core | claude/review-core eff84702 | briefs/review-core-r1.md | MERGE-OK 18:01 (CR-1..7 MINOR); merges after F14 |
-| mc | cloud sonnet ..QFuGg, claude/mc-fix a39fbdb7 | briefs/mc-r3.md | r2 FIX: MC-1a stuck focus |
+| mc | cloud opus ..PoeDb, claude/mc-fix 39ceb8cb | briefs/mc-r5.md | r5 done 19:30 (one rule, 3 green runs); in review |
 | xtc | claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | MERGE-OK 17:16; merges after F14 |
 | doors | cloud Fable ..PNz8e, claude/doors ea47e27b | briefs/doors-r2.md | r1 FIX (dr-1, dr-2 BLOCK) |
 | ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
