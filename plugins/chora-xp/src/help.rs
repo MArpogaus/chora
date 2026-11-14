@@ -11,7 +11,7 @@
 
 use std::fmt::Write as _;
 
-use chora_kit::give;
+use chora_kit::{give, volume};
 
 use crate::{
     dialog::{Control, Dialog, Hit, Page},
@@ -30,20 +30,20 @@ const NAVY: [u8; 4] = [0, 60, 116, 255];
 const LINK: [u8; 4] = [33, 93, 198, 255];
 const INK: [u8; 4] = [0, 0, 0, 255];
 const GREY: [u8; 4] = [77, 77, 77, 255];
-const CAP_HEIGHT: i32 = 24;
+const CAP_HEIGHT: i32 = 22;
 const ROW: i32 = 32;
 const TABLE_TOP: i32 = 100;
 const GROUP_GAP: i32 = 8;
 /// The width of the word between two chords of one binding.
 const OR_WIDTH: i32 = 16;
-const GROUP_ROW: i32 = 26;
+const GROUP_ROW: i32 = 22;
 const BOTTOM: i32 = 16;
-const MIN_ROW: i32 = 26;
+const MIN_ROW: i32 = 22;
 const PAGE_LEFT: i32 = PANE + 24;
 const PAGE_WIDTH: i32 = SIZE[0] - PANE - 48;
 
-/// The topics of the task pane, in order. The last is the page that F1
-/// opens.
+/// The topics of the task pane, in order. The last is the page that
+/// Super+F1 opens.
 pub const TOPICS: [&str; 5] = [
     "Start a program",
     "Find a window",
@@ -52,11 +52,11 @@ pub const TOPICS: [&str; 5] = [
     "Keyboard shortcuts",
 ];
 
-/// The topic that F1 opens.
+/// The topic that Super+F1 opens.
 pub const KEYBOARD: usize = 4;
 
 /// The groups of the table of keys, in order.
-pub const GROUPS: [&str; 3] = ["Start and find", "The helper", "Windows"];
+pub const GROUPS: [&str; 4] = ["Start and find", "The helper", "Windows", "The computer"];
 
 /// One line of the table: the chords that do one thing.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -105,7 +105,18 @@ fn about(key: Key) -> Option<(&'static str, &'static str)> {
         Key::Carry(-1) => (GROUPS[2], "Carry the window to the left"),
         Key::Carry(_) => (GROUPS[2], "Carry the window to the right"),
         Key::Cube => (GROUPS[2], "Turn the desktop cube with the pointer"),
-        Key::Switch(_) | Key::Volume(_) | Key::Give(_) => return None,
+        Key::Lock => (GROUPS[3], "Lock the screen"),
+        Key::Power => (
+            GROUPS[3],
+            "Open the Turn Off dialog: lock, log off, restart",
+        ),
+        Key::Screenshot => (GROUPS[3], "Take a screenshot"),
+        Key::Volume(volume::Change::Up) => (GROUPS[3], "Raise the volume"),
+        Key::Volume(volume::Change::Down) => (GROUPS[3], "Lower the volume"),
+        Key::Volume(volume::Change::Mute) => (GROUPS[3], "Mute the volume"),
+        Key::Volume(volume::Change::Set(_)) | Key::Switch(_) | Key::HelpAlias | Key::Give(_) => {
+            return None;
+        }
     })
 }
 
@@ -336,9 +347,9 @@ impl HelpDialog {
                     group_now,
                     Font::BodyBold,
                     NAVY,
-                    [PAGE_LEFT, y, PAGE_WIDTH, 24],
+                    [PAGE_LEFT, y, PAGE_WIDTH, GROUP_ROW],
                 );
-                y += 26;
+                y += GROUP_ROW;
                 canvas.rule(y, "#7F9DB9");
             }
             let mut x = PAGE_LEFT;
@@ -456,7 +467,7 @@ mod tests {
                 );
             }
         }
-        assert!(shown.iter().any(|k| k == "F1"), "{shown:?}");
+        assert!(!shown.iter().any(|k| k == "F1"), "{shown:?}");
         assert!(
             shown.iter().any(|k| k.starts_with("Super+Alt+1 ... 4")),
             "{shown:?}"
@@ -503,6 +514,7 @@ mod tests {
         assert_eq!(name("Super+e"), "Super+E");
         assert_eq!(name("Ctrl+Escape"), "Ctrl+Escape");
         assert_eq!(name("Alt+F4"), "Alt+F4");
-        assert_eq!(name("F1"), "F1");
+        assert_eq!(name("Super+F1"), "Super+F1");
+        assert_eq!(name("Super+Shift+e"), "Super+Shift+E");
     }
 }
