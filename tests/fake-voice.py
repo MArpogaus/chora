@@ -26,7 +26,10 @@ argument plus `.chat`.
 
 The agent exports `state` too: it answers the data of the last
 `voice.state` without a name that it emitted, or FAKE_VOICE_STATE (a
-JSON object) before the first, or `{}`. FAKE_VOICE_STATE_DELAY (seconds)
+JSON object) before the first, or `{}`. It exports `mute` as well: a call
+sets `muted` of that state, goes as a line of JSON to the file of the
+first argument plus `.mute`, and the state goes out again as
+`voice.state`. FAKE_VOICE_STATE_DELAY (seconds)
 exports `state` that long after the other methods, and
 FAKE_VOICE_HANG_STATE=1 never answers a call of it.
 """
@@ -110,6 +113,13 @@ def serve():
                 with open(claims_file + ".answers", "a", encoding="utf-8") as f:
                     f.write(json.dumps(params.get("params"), sort_keys=True) + "\n")
             result = {}
+            if params.get("method") == "mute" and claims_file != os.devnull:
+                muted = dict(state.get("muted") or {})
+                muted.update(params.get("params") or {})
+                state["muted"] = muted
+                with open(claims_file + ".mute", "a", encoding="utf-8") as f:
+                    f.write(json.dumps(muted, sort_keys=True) + "\n")
+                send("events.emit", {"event": "voice.state", "data": state})
             if params.get("method") == "state":
                 if os.environ.get("FAKE_VOICE_HANG_STATE") == "1":
                     continue
@@ -126,7 +136,7 @@ send("hello", {"name": os.environ.get("FAKE_VOICE_NAME", "voice")})
 privileged = os.environ.get("FAKE_VOICE_PRIVILEGED") == "1"
 send(
     "methods.export",
-    {"names": [{"name": n, "privileged": True} if privileged else n for n in ["indicator.claim", "confirm.answer"] + ([] if state_delay else ["state"]) + (CHAT_METHODS if entries_file else [])]},
+    {"names": [{"name": n, "privileged": True} if privileged else n for n in ["indicator.claim", "confirm.answer", "mute"] + ([] if state_delay else ["state"]) + (CHAT_METHODS if entries_file else [])]},
 )
 if os.environ.get("FAKE_VOICE_KEYS") == "1":
     for binding in ("Alt+y", "Alt+n"):
