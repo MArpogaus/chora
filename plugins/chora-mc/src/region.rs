@@ -1599,7 +1599,7 @@ impl Mc {
             Some(("chat", "open")) => self.chat_with(None),
             Some(("chat", "close")) => self.chat_close(),
             Some(("urgent", "clear")) => {
-                if let Err(err) = self.clear_notifications() {
+                if let Err(err) = self.clear_urgent() {
                     eprintln!("chora-mc: urgent: {}", err.message);
                 }
             }
