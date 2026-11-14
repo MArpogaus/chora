@@ -8,6 +8,7 @@
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
+    ffi::OsString,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -97,15 +98,23 @@ fn is_default(props: &PropsUpdate) -> bool {
 /// The directories of a kind of file, for example `views`: the one in
 /// `$XDG_CONFIG_HOME/chora/` first, then the one of the package.
 fn dirs(kind: &str) -> Vec<PathBuf> {
-    let config = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")));
+    let config = config_home(
+        std::env::var_os("XDG_CONFIG_HOME"),
+        std::env::var_os("HOME"),
+    );
     let mut dirs: Vec<PathBuf> = config
         .map(|c| c.join("chora").join(kind))
         .into_iter()
         .collect();
     dirs.push(Path::new("/usr/share/chora").join(kind));
     dirs
+}
+
+/// The configuration directory of the user: `$XDG_CONFIG_HOME`, else
+/// `$HOME/.config`.
+fn config_home(xdg: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
+    xdg.map(PathBuf::from)
+        .or_else(|| home.map(|h| PathBuf::from(h).join(".config")))
 }
 
 /// The file of a name: a path as it is, or `NAME.yaml` in the first
@@ -598,6 +607,22 @@ mod tests {
             "a path stays a path"
         );
         assert!(find("views", "..").is_err());
+    }
+
+    /// An empty or relative `$XDG_CONFIG_HOME` or `$HOME` would read
+    /// views and manifests from the current directory.
+    #[test]
+    fn empty_and_relative_directories_do_not_count() {
+        let some = |s: &str| Some(OsString::from(s));
+        assert_eq!(config_home(some("/c"), some("/h")), Some("/c".into()));
+        assert_eq!(config_home(None, some("/h")), Some("/h/.config".into()));
+        assert_eq!(config_home(some(""), some("/h")), Some("/h/.config".into()));
+        assert_eq!(
+            config_home(some("c"), some("/h")),
+            Some("/h/.config".into())
+        );
+        assert_eq!(config_home(some(""), some("")), None);
+        assert_eq!(config_home(None, some("h")), None);
     }
 
     #[test]
