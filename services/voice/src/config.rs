@@ -390,6 +390,10 @@ fn default_confirm() -> Vec<Confirm> {
         // A program can do all that the user can (D42).
         rule("run_program", "Shall I start the program {program}?"),
         rule("configure_output", "Shall I change the screen to {args}?"),
+        rule(
+            "reserve_space",
+            "Shall I keep space free on the screen: {args}?",
+        ),
         rule("*.restart", "Shall I restart the plugin?"),
         Confirm {
             method: Some("*restart".into()),
@@ -734,7 +738,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 27] = [
+const GERMAN: [(&str, &str); 28] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -807,6 +811,10 @@ const GERMAN: [(&str, &str); 27] = [
     (
         "Shall I change the screen to {args}?",
         "Soll ich den Bildschirm auf {args} ändern?",
+    ),
+    (
+        "Shall I keep space free on the screen: {args}?",
+        "Soll ich auf dem Bildschirm Platz freihalten: {args}?",
     ),
     (
         "Shall I restart the plugin?",

@@ -643,6 +643,7 @@ confirm:
   - {tool: agent_start, prompt: "Shall I start a helper for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
   - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
+  - {tool: reserve_space, prompt: "Shall I keep space free on the screen: {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
   - {tool: call_method, method: "*restart", prompt: "Shall I restart the plugin {client}?"}
 ```
