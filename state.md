@@ -1,46 +1,44 @@
 # State
 
-## Now (2026-11-14 16:48 UTC)
-pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (old PM ..QmmQ6 dead 10:15-16:30, friction 44; archived)
-budget: Fable 71 %, all 37 % (16:44); Fable used up this week, max 2 lanes (16:54); non-Fable use low double digits
+## Now (2026-11-14 20:17 UTC)
+pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
+budget: Fable 71 % at 16:44, near its limit now (workers report overage); use it up, max 2 lanes; then opus
 session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
+train 5 gate running (flakes, ci-rc, docs, xtc, core-r2, mc, changelog revert); burn-down check 11-16.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | open: ~35 MAJOR; BLOCK ti-1 (Apps menu clicks), co-1 (panes lost after mc drag) to verify |
-| 1b | Owner sees looks in the 11 screencast | not started |
+| 1 | UX: no BLOCK or MAJOR open | ~35 MAJOR; doors r3 (shared bar) running; mc MC-1 fixed; ti-1, co-1 to verify |
+| 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
-| 3 | Three greens in a row | no: flakes; F13 fix lost (unpushed) |
-| 4 | CI green | ci-rc MERGE-OK (10:09 review); CI PR not opened |
-| 5 | Packaging smoke | via GitHub Actions jobs (16:47) |
-| 6 | Code review per area | core r1 8/12 fixed; plugins r1: 433 findings, 3 HIGH |
-| 7 | deny, machete | clean on ci-rc |
-| 8 | Docs, CHANGELOG, known issues | docs MERGE-OK, README keys wrong (Super+space) |
-| 9 | Logging audit, flakes closed | not started |
-| 11 | Visual acceptance screencast | tour tooling on claude/tour 48fc05b5; rewrite from Mon |
+| 3 | Three greens in a row | flakes: F14, F13, flick fixed; 3 in a row on claude/flakes; new: xp cascade race, construct-layout 2560 |
+| 4 | CI green | ci-rc in train 5; CI PR not opened |
+| 5 | Packaging smoke | GitHub Actions jobs in the CI PR |
+| 6 | Code review per area | core r1-r3 done (in train 5); plugins r1: 3 HIGH open |
+| 7 | deny, machete | clean (ci-rc) |
+| 8 | Docs, CHANGELOG, known issues | docs in train 5; changelog by cz at the tag |
+| 9 | Logging audit, flakes closed | V02 done; audit not started |
+| 11 | Visual acceptance screencast | tour tooling claude/tour 48fc05b5; rewrite from Mon |
 
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| review core | claude/review-core eff84702 | briefs/review-core-r1.md | MERGE-OK 18:01 (CR-1..7 MINOR); merges after F14 |
-| mc | claude/mc-fix 39ceb8cb | briefs/mc-r5.md | MERGE-OK 19:5x; merges after F14 |
-| xtc | claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | MERGE-OK 17:16; merges after F14 |
-| doors | cloud Fable (starting), claude/doors dd8669a4 | briefs/doors-r3.md | r2 FIX: dr2-1 BLOCK, dr2-2 MAJOR |
-| ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
-| docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | waits with ci for F14 |
-| review t5 r2 | done ..LjDUA | briefs/review-train5-r2.md | mc FIX, core MERGE-OK |
-| core r2 | claude/core-r2 308d22dc | briefs/core-r3.md | MERGE-OK 19:4x (includes review-core); merges after F14 |
-| flakes | cloud Fable ..MXy5q, claude/flakes 22b452ed | briefs/flakes-r2.md | F14 fix pushed 17:45; F13 next |
+| train 5 | local gate, wt/train5 | rules.md 8 | full gate running since 20:16 |
+| flakes | done ..MXy5q, claude/flakes 55c527d4 | briefs/flakes-r2.md | in train 5; review running |
+| doors | cloud Fable ..PZrjj, claude/doors dd8669a4 | briefs/doors-r3.md | dr2-1 BLOCK, dr2-2 MAJOR |
+| mc | claude/mc-fix 39ceb8cb | briefs/mc-r5.md | MERGE-OK; in train 5 |
+| core | claude/core-r2 308d22dc | briefs/core-r3.md | MERGE-OK; in train 5 |
+| xtc, ci, docs | claude/xtc-fix, ci-rc, docs | briefs | MERGE-OK; in train 5 |
 
 ## Queue
-0. Robustness done 18:03: fail-open hooks, worktree guard, heartbeat verified, takeover.sh (friction 44, 45).
-1. Train 5: ci-rc, docs (key fix), doors, mc, xtc, review-core; review each (opus), full gate per merge. (rc 1, 4, 6, 7, 8)
-2. Flakes r2 cloud (sonnet/opus): redo F13, cube flick under load. (rc 3)
-3. Verify BLOCK ti-1, co-1; fix lane (opus): plugins HIGH XP-B-01, MC-01, NO-01; core C05 (gate + grant), C14 (injected input is no activity), V02 (utterances at debug), trace C13; CR-1 (URLs with userinfo in llm.rs logs), CR-6 (keep *_api_key_env). (rc 1, 6)
-4. CI PR with packaging jobs. (rc 4, 5)
-5. Pixel pass per look, owner approval; persona round 4; logging audit. (rc 1b, 2, 9)
-6. Three greens on the candidate; tag. (rc 3)
+1. Train 5 green and pushed; status page. (rc 1, 3, 4, 6, 7, 8)
+2. Fix lane (opus): plugins HIGH XP-B-01, MC-01, NO-01; verify ti-1, co-1. (rc 1, 6)
+3. Flakes r3: xp cascade race, construct-layout 2560, F15 lost first key, F7, A5, A17. (rc 3)
+4. CI PR with packaging jobs; merge-gate --locked; fuzzel 1.11 in setup. (rc 4, 5, 7)
+5. MAJOR fix lanes per look from findings/; pixel pass per look. (rc 1)
+6. Persona round 4; logging audit; screencast rewrite (Mon). (rc 2, 9, 11)
+7. Final review rounds (two clean), three greens, tag. (rc 3)
 
 ## Needs owner
 - none
