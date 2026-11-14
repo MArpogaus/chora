@@ -16,7 +16,7 @@
 # open), question (the card), chatq (the chat open over the card), chattoast
 # (a notification with the chat open), toast (a notification of mako), keys (the key
 # list), layout (the chip of a layout change), tooltip (that of Keys),
-# launcher (fuzzel; before 1.11 without its `selection-radius`), fullscreen
+# launcher (fuzzel), fullscreen
 # (a fullscreen window).
 #
 # Usage: tests/gate-tiling-audit.sh   BIN: directory with the binaries
@@ -158,10 +158,6 @@ round() {
     echo "[{\"pointer_move\": {\"position\": [1182, 25]}}]" | ctl inject - >/dev/null
     audit tooltip "$tag" "$theme" "$scale" 2.5
     echo "[{\"pointer_move\": {\"position\": [640, 500]}}]" | ctl inject - >/dev/null
-    fuzzel_version=$(fuzzel --version 2>/dev/null | sed -n 's/^fuzzel version: \([0-9.]*\).*/\1/p')
-    if [ "$(printf '%s\n1.11\n' "${fuzzel_version:-0}" | sort -V | head -n 1)" != 1.11 ]; then
-        sed -i '/^selection-radius=/d' "$XDG_RUNTIME_DIR/chora-tiling/theme/fuzzel.ini"
-    fi
     launcher=$(ctl run "$bin/chora-tiling" --launch fuzzel | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
     [ -z "$launcher" ] || run_pid "$launcher"
     audit launcher "$tag" "$theme" "$scale" 3
