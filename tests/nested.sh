@@ -89,8 +89,7 @@ wait_for count_is 3 '.owner == "tiling"'
 sleep 0.5
 surfaces >"$out/tiled.json"
 jq -e '
-  [.[] | {x: .transform.matrix[12], y: .transform.matrix[13],
-          w: .surface.size[0], h: .surface.size[1]}] as $r
+  [.[] | .rects | to_entries[0].value | {x: .[0], y: .[1], w: .[2], h: .[3]}] as $r
   | [range(0; $r | length) as $i | range($i + 1; $r | length) as $j
      | ($r[$i]) as $a | ($r[$j]) as $b
      | ($a.x < $b.x + $b.w and $b.x < $a.x + $a.w and
