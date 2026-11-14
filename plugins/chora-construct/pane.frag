@@ -28,6 +28,8 @@ uniform float facing;  // cosine of the view angle, negative from behind
 uniform vec3 fog;
 uniform vec4 edge;     // the accent, and 1 for the focused pane
 uniform float reach;   // the focal length over the leash radius
+uniform vec3 fade;     // the distance where the haze starts, how fast it
+                       // grows, and its most
 varying vec2 v_uv;
 
 void main() {
@@ -36,7 +38,7 @@ void main() {
     float w = texels(p);
     float d = min(min(p.x, p.y), min(size.x - p.x, size.y - p.y));
     float far = max(depth - 1.0, 0.0) * reach;
-    float haze = edge.w > 0.0 ? 0.0 : (1.0 - exp(-far * 1.5)) * 0.9;
+    float haze = edge.w > 0.0 ? 0.0 : (1.0 - exp(-max(far - fade.x, 0.0) * fade.y)) * fade.z;
     c = vec4(mix(c.rgb, fog * c.a, haze), c.a);
     if (edge.w > 0.0) {
         float width = max(1.5 * depth, 1.0) * scale;

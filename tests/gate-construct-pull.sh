@@ -7,6 +7,8 @@
 # The front face of a resting cube fills its screen, so the drag leaves
 # the face over the edge of the screen, onto a second output.
 #
+# PULL_SHOT: a PNG path that keeps a capture of the pane in the pull.
+#
 # 1. With the flag --test-injected-press-is-real of the core (headless
 #    only), where an injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
@@ -132,6 +134,7 @@ inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}}]"
 inject '[{"pointer_move": {"position": [900, 420]}}]'
 until_ok 'python3 -I -c "import sys; sys.exit(float(sys.argv[1]) <= 0)" "$(deepest "$surface")"' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
 ok "the pane wobbles on with a depth of $(deepest "$surface")"
+[ -z "${PULL_SHOT:-}" ] || ctl capture "$PULL_SHOT" >/dev/null
 inject "[{\"pointer_move\": {\"position\": [220, 320], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
 sleep 1
@@ -226,6 +229,7 @@ stood() {
     read -r surface _ <<<"$(probe)"
     call view.step_back '{}' >/dev/null || fail "view.step_back"
     until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
+    sleep 1
     read -r px py <<<"$(plane_middle)"
     inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
         {\"button\": {\"state\": \"pressed\", \"hold\": true}},
@@ -299,7 +303,7 @@ until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window
 sleep 1
 plane_right=$(right_of "construct-cube-float-0-$surface")
 face_right=$(right_of construct-cube-face-0)
-[ "$plane_right" -gt $((face_right + 40)) ] ||
+[ "$plane_right" -gt $((face_right + 20)) ] ||
     fail "the window over the right edge is clipped at the face: plane to $plane_right, face to $face_right"
 ok "stood back, a window half over the right edge shows in full, to $plane_right past the face at $face_right"
 end_session

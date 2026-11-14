@@ -261,9 +261,17 @@ impl Construct {
             })
             .into();
         commands.extend(self.styled().groups(NAME));
+        commands.extend(self.neighbours.keys().map(|k| Command::Remove {
+            id: hud::neighbour_id(*k),
+            to: None,
+        }));
         self.rt.conn.try_apply(commands)?;
+        self.neighbours.clear();
         self.labelled = None;
         self.label_drawn = false;
+        self.start_card.up = false;
+        self.face_card = None;
+        self.face_place = None;
         self.draw_hud()?;
         self.draw_ask()?;
         if self.list.is_some() {
@@ -388,7 +396,7 @@ impl Construct {
 /// The notice of the construct under the island of the host.
 const NOTICE: &str = "construct-notice";
 /// The widest notice, and its top: under the island, 8 below it.
-const NOTICE_WIDTH: f64 = 360.0;
+const NOTICE_WIDTH: f64 = 520.0;
 const NOTICE_TOP: f64 = 80.0;
 
 /// Where a point `delta` from the camera is for the person who looks along
@@ -433,7 +441,7 @@ fn close_word(query: &str, language: chora_kit::words::Language) -> String {
 impl Construct {
     /// The notice of the construct, with the HUD of the host: one line of
     /// `text` on a glass capsule under the island at the top right, at
-    /// most 360 wide, for its 4 seconds (construct HUD spec, section 5).
+    /// most 520 wide, for its 4 seconds (construct HUD spec, section 5).
     pub(crate) fn draw_notice(&mut self) -> Result<(), ClientError> {
         use chora_kit::glass::{CAPSULE, Type, margin};
         let mut commands = Vec::new();
@@ -485,24 +493,34 @@ impl Construct {
     /// of its hints.
     fn hint_set(&mut self) -> Option<crate::hints::Set> {
         use crate::hints::{FLOWN, Set, WALK};
+        use chora_kit::modes::Mode;
         let now = Instant::now();
-        let flown = self.flown.is_some();
+        let flown = self.in_pane();
+        let in_face = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
+        let engaged = flown || in_face;
         if !self.hints.started || flown != self.hints.flown {
             self.hints.announce = true;
-            self.hints.started = true;
-            self.hints.flown = flown;
-            self.hints.until = Some(now + if flown { FLOWN } else { WALK });
         }
+        if !self.hints.started || engaged != self.hints.engaged {
+            self.hints.started = true;
+            self.hints.until = Some(now + if engaged { FLOWN } else { WALK });
+        }
+        self.hints.flown = flown;
+        self.hints.engaged = engaged;
         if self.hints.until.is_some_and(|t| t <= now) {
             self.hints.until = None;
         }
         let stood_back = self.cube.as_ref().is_some_and(|c| !c.view().forwards());
-        let busy = self.list.is_some()
+        let busy = self.shows_start()
+            || self.list.is_some()
             || self.help
             || self.asked
             || self.moving.is_some()
-            || self.glide.is_some()
-            || self.cube_turns()
+            || (self.glide.is_some() && !self.flying_into())
+            || self
+                .cube
+                .as_ref()
+                .is_some_and(crate::cube::Host::hides_hints)
             || self.effects.animating();
         if busy || !self.active {
             return None;
@@ -510,12 +528,20 @@ impl Construct {
         if stood_back {
             return Some(Set::Cube);
         }
-        let timed = self.hints.until.is_some();
-        match (flown, self.cube.is_some()) {
-            (true, _) if timed => Some(Set::Flown),
-            (false, false) if timed || self.hints.low => Some(Set::Walk),
-            _ => None,
-        }
+        crate::hints::resting_set(crate::hints::Resting {
+            engaged,
+            has_cube: self.cube.is_some(),
+            timed: self.hints.until.is_some(),
+            low: self.hints.low,
+        })
+    }
+
+    /// The caps of the key of an action: a one-letter key if it has one.
+    pub(crate) fn keys_of(&self, action: crate::config::Action) -> Vec<String> {
+        let bound = || (self.settings.value.keys.iter()).filter(|(_, a)| **a == action);
+        (bound().find(|(k, _)| k.chars().count() == 1))
+            .or_else(|| bound().next())
+            .map_or_else(Vec::new, |(k, _)| crate::glass::chord(k))
     }
 
     /// The hints of a set, with the keys of the settings.
@@ -523,17 +549,11 @@ impl Construct {
         use crate::{
             config::Action,
             glass::chord,
-            hints::{HINT, Item, Set},
+            hints::{HINT, Item, Set, Walking},
         };
         use chora_kit::words::{Language, Word};
         let language = Language::of_session();
-        let keys = &self.settings.value.keys;
-        let key = |action: Action| {
-            let bound = || keys.iter().filter(|(_, a)| **a == action);
-            (bound().find(|(k, _)| k.chars().count() == 1))
-                .or_else(|| bound().next())
-                .map_or_else(Vec::new, |(k, _)| chord(k))
-        };
+        let key = |action: Action| self.keys_of(action);
         let item = |keys: Vec<String>, word: Word, hit: &str| Item {
             keys,
             word: word.text(language).to_owned(),
@@ -543,38 +563,62 @@ impl Construct {
         };
         match set {
             Set::Walk => {
-                let walk = [Action::Forward, Action::Left, Action::Back, Action::Right]
+                let walk: Vec<String> =
+                    [Action::Forward, Action::Left, Action::Back, Action::Right]
+                        .into_iter()
+                        .flat_map(key)
+                        .collect();
+                let ahead = self.pane_ahead().is_some();
+                crate::hints::walking(self.panes.len(), ahead)
                     .into_iter()
-                    .flat_map(key)
-                    .collect();
-                vec![
-                    item(walk, Word::Walk, "walk"),
-                    item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
-                    item(key(Action::Windows), Word::WindowsHint, "windows"),
-                    item(key(Action::Help), Word::AllKeys, "keys"),
-                    item(key(Action::Cube), Word::Cube, "cube"),
-                ]
+                    .map(|hint| match hint {
+                        Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
+                        Walking::FlyIn => item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
+                        Walking::Windows => {
+                            item(key(Action::Windows), Word::WindowsHint, "windows")
+                        }
+                        Walking::Terminal => Item {
+                            word: crate::hints::terminal_word(language).to_owned(),
+                            ..item(key(Action::Terminal), Word::Walk, "terminal")
+                        },
+                        Walking::Keys => item(key(Action::Help), Word::AllKeys, "keys"),
+                    })
+                    .collect()
             }
             Set::Flown => vec![item(
                 chord(&self.settings.value.fly_out),
                 Word::StepBack,
                 "step-back",
             )],
-            Set::Cube => {
-                let chip = |keys: Vec<String>, word: Word, last: bool| Item {
-                    keys,
-                    word: word.text(language).to_owned(),
-                    keys_last: last,
-                    hit: crate::modes::chip_node(word),
-                    chip: true,
-                };
-                vec![
-                    chip(chord("Ctrl+Alt+Left"), Word::TurnLeft, false),
-                    chip(chord("Return"), Word::StepIn, false),
-                    chip(chord("Ctrl+Alt+Right"), Word::TurnRight, true),
-                ]
-            }
+            Set::Cube => self.cube_hints(language),
         }
+    }
+
+    /// The hints of the cube stood back: the turn keys, and Return, which
+    /// steps in or, while the face ahead failed, tries again.
+    fn cube_hints(&self, language: chora_kit::words::Language) -> Vec<crate::hints::Item> {
+        use crate::{glass::chord, hints::Item};
+        use chora_kit::words::Word;
+        let chip = |keys: Vec<String>, word: Word, last: bool| Item {
+            keys,
+            word: word.text(language).to_owned(),
+            keys_last: last,
+            hit: crate::modes::chip_node(word),
+            chip: true,
+        };
+        let failed = self
+            .cube
+            .as_ref()
+            .is_some_and(crate::cube::Host::front_failed);
+        let middle = Item {
+            word: crate::hints::middle_word(language, failed),
+            ..chip(chord("Return"), Word::StepIn, false)
+        };
+        vec![
+            chip(chord("Ctrl+Alt+Left"), Word::TurnLeft, false),
+            middle,
+            chip(chord("Ctrl+Alt+Right"), Word::TurnRight, true),
+        ]
     }
 
     /// The hints anew when their set or the hint of the pointer changed.
@@ -582,17 +626,26 @@ impl Construct {
         if self.output.is_none() {
             return Ok(());
         }
+        self.draw_start()?;
+        self.draw_face_card()?;
         let set = self.hint_set();
+        self.hint_hover = self.hint_hover.take().filter(|_| set.is_some());
         if std::mem::take(&mut self.hints.announce) {
             let view = chora_kit::hud::view_event(NAME, self.hints.flown);
             if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", view) {
                 eprintln!("chora-construct: emit the view: {err}");
             }
         }
-        let front = self.cube.as_ref().map_or(0, |c| c.front_face().0);
-        let wanted = set.map(|s| (s, self.hint_hover.clone(), front));
+        let stamp = match set {
+            Some(crate::hints::Set::Walk) => {
+                self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
+            }
+            _ => self.cube_stamp(),
+        };
+        let wanted = set.map(|s| (s, self.hovered_hint(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
-            return Ok(());
+            self.follow_label()?;
+            return self.turn_dots();
         }
         let had = self.hints.shown.take();
         let mut commands = if had.is_some() {
@@ -603,19 +656,14 @@ impl Construct {
         if let Some(set) = set {
             let items = self.hint_items(set);
             let out = [self.lens.w, self.lens.h];
-            let hover = self.hint_hover.clone();
-            commands.extend(self.fitted(|s| {
-                let look = s.styled();
-                let mut commands = crate::hints::draw(&look, &items, out, hover.as_deref());
-                let places = crate::hints::places(&look, &items, out);
-                for (item, at) in items.iter().zip(places).filter(|(i, _)| i.chip) {
-                    commands.push(crate::hints::chip_word(&look, item, at));
-                }
-                commands
-            })?);
+            let hover = self.hovered_hint();
+            commands.extend(self.hint_capsule(set, &items, hover.as_deref())?);
             if set == crate::hints::Set::Cube {
                 let corner = crate::hints::origin(&self.styled(), &items, out);
                 commands.extend(self.face_label(corner)?);
+                if self.cube.as_ref().is_some_and(crate::cube::Host::turning) {
+                    commands.extend(crate::hints::dim(&items[1]));
+                }
                 commands.push(Command::Move {
                     id: crate::modes::MODES.into(),
                     parent: None,
@@ -624,16 +672,155 @@ impl Construct {
             }
         }
         self.hints.shown = wanted;
+        self.hints.weights.clear();
+        self.rt.conn.apply(commands)?;
+        self.turn_dots()
+    }
+
+    /// The capsule of the hints of `set`: the glass, the hits and the
+    /// words of the chips; over a program or a face the dark glass.
+    fn hint_capsule(
+        &mut self,
+        set: crate::hints::Set,
+        items: &[crate::hints::Item],
+        hover: Option<&str>,
+    ) -> Result<Vec<Command>, ClientError> {
+        let over = set == crate::hints::Set::Flown;
+        let out = [
+            self.lens.w,
+            self.lens.h - if over { crate::hints::LIFT } else { 0.0 },
+        ];
+        self.fitted(|s| {
+            let base = s.styled();
+            let look = if over {
+                crate::hints::over_content(&base)
+            } else {
+                base
+            };
+            let mut commands = crate::hints::draw(&look, items, out, hover, over);
+            let places = crate::hints::places(&look, items, out);
+            for (item, at) in items.iter().zip(places).filter(|(i, _)| i.chip) {
+                commands.push(crate::hints::chip_word(&look, item, at));
+            }
+            commands
+        })
+    }
+
+    /// The hint with the hover fill: the one under the pointer, or Step
+    /// in while the pointer lights the edge of a face.
+    fn hovered_hint(&self) -> Option<String> {
+        let lit = self
+            .cube
+            .as_ref()
+            .is_some_and(crate::cube::Host::lights_edge);
+        let step_in = crate::modes::chip_node(chora_kit::words::Word::StepIn);
+        crate::hints::hovered(self.hint_hover.as_deref(), lit, &step_in)
+    }
+
+    /// What the hints of the cube show of its face: the face that the
+    /// label names, whether it failed, and whether the cube turns.
+    fn cube_stamp(&self) -> usize {
+        let Some(host) = self.cube.as_ref() else {
+            return 0;
+        };
+        let face = host.label_face();
+        let failed = matches!(host.health_of(face), crate::faces::Health::Failed(_));
+        (face * 2 + usize::from(failed)) * 2 + usize::from(host.turning())
+    }
+
+    /// While the cube turns, the dots of the label fill with the turn:
+    /// the dot of the face before the angle loses what the next one gains.
+    fn turn_dots(&mut self) -> Result<(), ClientError> {
+        let shown = matches!(self.hints.shown, Some((crate::hints::Set::Cube, ..)));
+        let weights = (self.cube.as_ref())
+            .filter(|c| shown && c.turning() && c.works())
+            .map(crate::cube::Host::dot_weights);
+        let Some(weights) = weights else {
+            self.hints.weights.clear();
+            return Ok(());
+        };
+        if weights == self.hints.weights {
+            return Ok(());
+        }
+        let commands = crate::hints::dot_updates(&self.styled().glass, &weights);
+        self.hints.weights = weights;
         self.rt.conn.apply(commands)
     }
 
-    /// The face label under the front face of the cube stood back.
-    fn face_label(&mut self, [hx, hy]: [f64; 2]) -> Result<Vec<Command>, ClientError> {
-        use chora_kit::words::{Language, Word, say};
-        let Some((front, faces)) = self.cube.as_ref().map(crate::cube::Host::front_face) else {
-            return Ok(Vec::new());
-        };
-        let node = crate::cube::face_id(front);
+    /// Whether the start card shows: the floor is empty and nothing else
+    /// takes the screen.
+    pub(crate) fn shows_start(&self) -> bool {
+        self.active
+            && !self.overlay
+            && self.output.is_some()
+            && self.panes.is_empty()
+            && self.cube.is_none()
+            && self.list.is_none()
+            && !self.help
+            && !self.asked
+            && self.launcher_window.is_none()
+    }
+
+    /// The start card made anew when it appears or its output changes,
+    /// faded out when it stops showing.
+    pub(crate) fn draw_start(&mut self) -> Result<(), ClientError> {
+        use crate::{config::Action, start};
+        use chora_kit::words::Language;
+        let wanted = self.shows_start();
+        let out = [self.lens.w, self.lens.h];
+        if !wanted {
+            self.start_card.hover = None;
+            if std::mem::take(&mut self.start_card.up) {
+                self.rt.conn.try_apply(start::hide())?;
+            }
+            return Ok(());
+        }
+        let same = (self.start_card.out.iter().zip(out)).all(|(a, b)| (a - b).abs() < 0.5);
+        if self.start_card.up && same {
+            return Ok(());
+        }
+        let words = start::words(Language::of_session());
+        let keys = [Action::Terminal, Action::Launcher, Action::Cube].map(|a| self.keys_of(a));
+        let help = self.keys_of(Action::Help);
+        let hovered = self.start_card.hover;
+        let mut commands = Vec::new();
+        if !self
+            .rt
+            .conn
+            .query(&format!("id:{}", start::START))?
+            .is_empty()
+        {
+            commands.push(Command::Remove {
+                id: start::START.into(),
+                to: None,
+            });
+        }
+        commands.extend(self.fitted(|s| {
+            let model = start::Model {
+                words: &words,
+                keys: keys.clone(),
+                help: help.clone(),
+                hovered,
+            };
+            start::draw(&s.styled(), &model, out)
+        })?);
+        commands.push(crate::panes::update(
+            start::START,
+            PropsUpdate {
+                opacity: Some(0.0),
+                ..PropsUpdate::default()
+            },
+        ));
+        commands.push(hud::fade(start::START, 1.0, hud::FADE_IN));
+        self.rt.conn.apply(commands)?;
+        self.start_card.up = true;
+        self.start_card.out = out;
+        Ok(())
+    }
+
+    /// The box of face `face` on the screen, if the core projects it.
+    fn face_rect(&mut self, face: usize) -> Result<Option<[f64; 4]>, ClientError> {
+        let node = crate::cube::face_id(face);
         let nodes: Vec<Value> = self
             .rt
             .conn
@@ -641,30 +828,144 @@ impl Construct {
         let rect = nodes
             .first()
             .and_then(|n| n["rects"].as_object()?.values().next()?.as_array().cloned());
-        let Some(rect) = rect.filter(|r| r.len() == 4) else {
+        let sides: Vec<f64> = rect.iter().flatten().filter_map(Value::as_f64).collect();
+        Ok(<[f64; 4]>::try_from(sides).ok())
+    }
+
+    /// The face label under the front face of the cube stood back. It
+    /// names the face nearest to the front while the cube turns, and it
+    /// hangs under the middle of the projected bottom edge of that face.
+    fn face_label(&mut self, [hx, hy]: [f64; 2]) -> Result<Vec<Command>, ClientError> {
+        use chora_kit::words::{Language, Word, say};
+        let Some(host) = self.cube.as_ref() else {
             return Ok(Vec::new());
         };
-        let r: Vec<f64> = rect.iter().filter_map(Value::as_f64).collect();
-        let at = [r[0] + r[2] / 2.0 - hx, r[1] + r[3] - hy];
-        let manager = self.settings.value.cube_manager.clone();
-        let manager = manager
-            .strip_prefix("chora-")
-            .unwrap_or(&manager)
-            .to_owned();
-        let (face, count) = ((front + 1).to_string(), faces.to_string());
-        let words = say(
-            Language::of_session(),
-            Word::Face,
-            &[("face", &face), ("faces", &count)],
+        let Some(anchor) = host.label_anchor(&self.lens, &self.pose) else {
+            return Ok(Vec::new());
+        };
+        let faces = host.front_face().1;
+        let (named, language) = (host.label_face(), Language::of_session());
+        let manager = host.manager_name().to_owned();
+        let failed = |i: usize| matches!(host.health_of(i), crate::faces::Health::Failed(_));
+        let hollow: Vec<bool> = (0..faces).map(failed).collect();
+        let (face, count) = ((named + 1).to_string(), faces.to_string());
+        let words = if hollow.get(named) == Some(&true) {
+            crate::faces::label_words(language).to_owned()
+        } else {
+            say(language, Word::Face, &[("face", &face), ("faces", &count)])
+        };
+        let at = [anchor[0] - hx, anchor[1] - hy];
+        let (commands, width) = self.fitted(|s| {
+            let look = s.styled();
+            let title = crate::names::face_title(&manager, named, faces);
+            let said = (title.as_str(), format!("\u{b7} {words}"));
+            let width = crate::hints::face_label_width(&look, (said.0, &said.1), faces);
+            let drawn =
+                crate::hints::face_label(&look, (said.0, &said.1), (named, faces), at, &hollow);
+            (drawn, width)
+        })?;
+        self.hints.label = Some(crate::hints::Label {
+            width,
+            corner: [hx, hy],
+            at: crate::hints::face_label_place(width, at),
+        });
+        Ok(commands)
+    }
+
+    /// The face label follows the front face of the cube: where the face
+    /// has gone since the label was drawn, it moves.
+    fn follow_label(&mut self) -> Result<(), ClientError> {
+        let (Some(label), Some(host)) = (self.hints.label, self.cube.as_ref()) else {
+            return Ok(());
+        };
+        let Some(anchor) = host.label_anchor(&self.lens, &self.pose) else {
+            return Ok(());
+        };
+        let at = crate::hints::face_label_place(
+            label.width,
+            [anchor[0] - label.corner[0], anchor[1] - label.corner[1]],
         );
-        self.fitted(|s| {
-            crate::hints::face_label(
-                &s.styled(),
-                (&manager, &format!("· {words}")),
-                (front, faces),
-                at,
-            )
-        })
+        if at.iter().zip(label.at).all(|(a, b)| (a - b).abs() < 0.5) {
+            return Ok(());
+        }
+        self.hints.label = Some(crate::hints::Label { at, ..label });
+        self.rt.conn.apply(vec![crate::hints::face_label_move(at)])
+    }
+
+    /// The face whose card shows now: the face ahead while the cube
+    /// rests and its window manager is not up, with its health, the name
+    /// of its manager and whether another face works.
+    fn card_wanted(&self) -> Option<(usize, crate::faces::Health, String)> {
+        let hidden = !self.active
+            || self.flown.is_some()
+            || self.help
+            || self.list.is_some()
+            || self.asked
+            || self.output.is_none();
+        let host = (self.cube.as_ref()).filter(|c| !hidden && c.rests())?;
+        let front = host.front_face().0;
+        let health = host.health_of(front);
+        (health != crate::faces::Health::Up)
+            .then(|| (front, health, host.manager_name().to_owned()))
+    }
+
+    /// The card of the face ahead while its window manager starts or
+    /// failed: flat, centred on the face, drawn anew when its words or
+    /// its place change, faded out when it is not needed.
+    fn draw_face_card(&mut self) -> Result<(), ClientError> {
+        use crate::faces::{self, Health};
+        use chora_kit::words::Language;
+        let ahead = self.card_wanted();
+        let out = [self.lens.w, self.lens.h];
+        let stood_back = self.cube.as_ref().is_some_and(|c| !c.view().forwards());
+        let placed = match ahead {
+            Some((front, ref health, _)) => {
+                let inputs = format!("{front}{health:?}{out:?}{stood_back}");
+                let mut cache = self.face_place.take();
+                let placed = faces::cached(&mut cache, &inputs, || self.face_rect(front));
+                self.face_place = cache;
+                placed?
+            }
+            None => None,
+        };
+        let (Some((front, health, name)), Some(rect)) = (ahead, placed) else {
+            if self.face_card.take().is_some() {
+                self.rt.conn.try_apply(faces::hide())?;
+            }
+            return Ok(());
+        };
+        let key = format!("{front}{health:?}{rect:?}{out:?}{stood_back}");
+        if self.face_card.as_deref() == Some(&key) {
+            return Ok(());
+        }
+        let words = faces::words(Language::of_session(), &name, &health);
+        let centre = [rect[0] + rect[2] / 2.0, rect[1] + rect[3] / 2.0];
+        let mut commands = Vec::new();
+        if !self
+            .rt
+            .conn
+            .query(&format!("id:{}", faces::CARD))?
+            .is_empty()
+        {
+            commands.push(Command::Remove {
+                id: faces::CARD.into(),
+                to: None,
+            });
+        }
+        commands.extend(self.fitted(|s| {
+            faces::draw(&s.styled(), &words, health == Health::Starting, centre, out)
+        })?);
+        commands.push(crate::panes::update(
+            faces::CARD,
+            PropsUpdate {
+                opacity: Some(0.0),
+                ..PropsUpdate::default()
+            },
+        ));
+        commands.push(hud::fade(faces::CARD, 1.0, hud::FADE_IN));
+        self.rt.conn.apply(commands)?;
+        self.face_card = Some(key);
+        Ok(())
     }
 
     /// The pointer rests low or not: the hints of the walk follow it.
@@ -687,8 +988,12 @@ impl Construct {
         };
         match name {
             "fly-in" => self.act(crate::config::Action::FlyIn),
+            "terminal" => self.start_terminal(),
             "windows" => self.open_list()?,
             "keys" => self.toggle_help()?,
+            "step-back" if self.flown.is_none() && self.cube.is_some() => {
+                self.mode_act(chora_kit::modes::Act::StepBack, crate::modes::By::Person)?;
+            }
             "step-back" => self.fly_out()?,
             "cube" => self.cube_key()?,
             _ => {}

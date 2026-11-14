@@ -92,8 +92,11 @@ rule 5. `plans/construct-hud.md` adds the section.
    screen root. They never turn or scale with the camera. The stack from
    the back is: panes, pane labels, voice HUD, window list, question.
 10. **Labels sit in the space, drawn flat.** A pane label sits 8 below
-    the projected bottom edge of its pane, centred. It is a flat node at
-    that point, not a projected one, so it stays sharp. Only the pane
+    the projected bottom edge of its pane, its middle within half a pixel
+    of the middle of that edge, also for a turned pane. It is a flat node
+    at that point, not a projected one, so it stays sharp. The face label
+    of a cube hangs the same way under its front face and follows it while
+    the cube turns. Only the pane
     ahead and the pane under the pointer show a label.
 11. **Text only on glass.** Text never sits on the bare space or on a
     pane. Every text stays inside its panel, within the padding, as
@@ -173,7 +176,9 @@ mockups rendered over real captures.
     runs along the top edge inside, an outer hairline of 1 px sets the
     surface off the space, and a soft long shadow lifts it. Panels and
     cards have a radius of 24, rows and fields 16, keycaps 6, and
-    capsules are fully round.
+    capsules are fully round. A capsule up to 40 high takes a short
+    shadow, 0 1 2 at 0.06 and 0 4 12 at 0.08, since the long shadow of a
+    panel shows under a label as a grey smudge three times its height.
 19. **The tint adapts.** Where the space behind a surface is too dark
     for the light theme, or too bright for the dark, the tint rises to
     0.82 or 0.84 over 240 ms, so the contrast of rule 5 holds over any
@@ -196,8 +201,10 @@ mockups rendered over real captures.
     The conversation lives in the right column: the island expands
     into the chat in place, and the question card sits under the
     island and keeps its place when the chat opens. Commands sit in the
-    centre over a light scrim: the window list and the help, each with
-    a search line that filters as the person types.
+    centre over a scrim of 0.48 (light) or 0.56 (dark) alpha, on a strong
+    tint of 0.92 so that nothing of the space reads through: the window
+    list and the help, each with a search line that filters as the
+    person types. Pane labels hide while one of them shows.
 23. **Four sizes.** `label` 11, `small` 14 for keys and the pane label,
     `data` 14 in DejaVu Sans Mono, `text` 16, and `display` 24 only for
     the search line of the window list and the help.
@@ -212,3 +219,24 @@ mockups rendered over real captures.
     that does not work. Each look draws it in its own style: glass here,
     a classic help window in xp, a page in large type in mc, and a dense
     list in tiling.
+26. **The start card.** While no pane exists, one glass card stands
+    where the first pane will appear: ahead and centred in the output,
+    drawn flat, strong tint, 448 wide, radius 24. It has the head
+    `Nothing is open yet` in `text`, the line `Start a program. It
+    opens here, in front of you.` in `small` and muted, three rows of
+    48 high with radius 16 (`Terminal`, `All programs`, `A cube of
+    desktops`, each with the keycaps of its key), and a footer with
+    `Click a row or press its keys.` and `F1 All keys`. The row under
+    the pointer has the hover fill at once; a click on a row does what
+    its key does. No hint bar shows while the card does. The card fades
+    out over 120 ms when the first pane appears, and also while the
+    window list, the help, a question, the launcher or a cube shows.
+27. **A pane is never a slab, and a label is never an id.** A pane whose
+    window has no first buffer shows a glass placeholder the size of the
+    pane with the working ring and the name of the window, until the
+    buffer comes. The pane label is the window title; while the title is
+    empty or only names the program it reads `Terminal` for the terminal
+    that the construct started, else the app id as a name, never the id.
+    A label fades out over 120 ms with its pane, and no label shows in
+    use mode. A refused give says `Tiling did not take the window:
+    <reason>.` with the display name of the manager.

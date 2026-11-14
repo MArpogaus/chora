@@ -29,6 +29,17 @@ pub(crate) fn launchers_own_by(
             && process(window).is_some_and(|(parent, _)| parent == launcher))
 }
 
+/// The size that a pane takes from a window whose buffer is now `buffer`:
+/// the size of the buffer, so that the frame of the pane is never larger
+/// or smaller than what the window shows. None while the window has no
+/// buffer, and for a change of less than half a pixel.
+#[must_use]
+pub(crate) fn follows_buffer(pane: [f64; 2], buffer: [f64; 2]) -> Option<[f64; 2]> {
+    let has_buffer = buffer[0] > 0.0 && buffer[1] > 0.0;
+    let same = pane.iter().zip(buffer).all(|(a, b)| (a - b).abs() < 0.5);
+    (has_buffer && !same).then_some(buffer)
+}
+
 /// The names of the shells that wrap a launcher.
 pub(crate) const SHELLS: [&str; 3] = ["sh", "dash", "bash"];
 
@@ -100,6 +111,7 @@ impl Construct {
             attached: hold == Hold::Own,
         };
         let mut commands = self.pane_nodes(&pane);
+        self.add_placeholder(&mut commands, &pane)?;
         if pane.attached {
             let fresh = !self.hidden.contains(&surface.to_string());
             self.hidden.retain(|s| s != surface);
@@ -133,6 +145,43 @@ impl Construct {
         }
         self.panes.push(pane);
         self.frame()
+    }
+
+    /// Whether the window has no buffer yet: the core knows no size of it.
+    fn no_buffer(&mut self, surface: &str) -> bool {
+        let size = (self.rt.conn.query(&format!("id:{surface}")).ok())
+            .and_then(|nodes| nodes.into_iter().next()?.surface?.size);
+        size.is_none_or(|[w, h]| w <= 0 || h <= 0)
+    }
+
+    /// Puts the placeholder of the pane into its commands, right after
+    /// the node of the pane, so that it lies under the window, unless the
+    /// window has its first buffer.
+    fn add_placeholder(
+        &mut self,
+        commands: &mut Vec<Command>,
+        pane: &Pane,
+    ) -> Result<(), ClientError> {
+        if !self.no_buffer(&pane.source) {
+            return Ok(());
+        }
+        self.unfilled.push(pane.source.clone());
+        let command = match &pane.content {
+            Content::Window { command } => command.clone(),
+            _ => None,
+        };
+        let name = self.window_label(&pane.source, command.as_deref());
+        let node = pane.node();
+        let wait = self.fitted(|s| {
+            crate::placeholder::draw(&s.styled(), pane.size, &node, &pane.source, &name)
+        })?;
+        let after = (commands.iter())
+            .position(|c| matches!(c, Command::Create { id, .. } if *id == node))
+            .map_or(commands.len(), |at| at + 1);
+        for (k, command) in wait.into_iter().enumerate() {
+            commands.insert(after + k, command);
+        }
+        Ok(())
     }
 
     /// A new window: the launcher's own window, a pane of the construct,
@@ -209,6 +258,13 @@ impl Construct {
     /// Starts the program of the key `terminal`; its window becomes a
     /// pane ahead, as a program pane of a construct.
     pub(crate) fn start_terminal(&mut self) {
+        let spot = (!self.panes.is_empty()).then(|| self.beside_spot(self.target()));
+        self.start_terminal_at(spot);
+    }
+
+    /// Starts the terminal; its pane stands at the place and yaw `spot`,
+    /// or where a new pane goes.
+    pub(crate) fn start_terminal_at(&mut self, spot: Option<([f64; 2], f64)>) {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
         let mint = self.rt.conn.activation_token();
@@ -219,8 +275,8 @@ impl Construct {
             plugin: None,
             scene: None,
             manager: None,
-            at: None,
-            yaw: None,
+            at: spot.map(|(at, _)| at),
+            yaw: spot.map(|(_, yaw)| yaw),
             size: None,
         };
         self.waiting.push(Waiting {
@@ -250,13 +306,21 @@ impl Construct {
         if self.launcher_window.as_deref() == Some(surface) {
             return self.rt.conn.apply(vec![self.snap_place(size, surface)]);
         }
+        if size[0] > 0.0 && size[1] > 0.0 && self.unfilled.iter().any(|s| s == surface) {
+            self.unfilled.retain(|s| s != surface);
+            let gone = Command::Remove {
+                id: crate::placeholder::id(surface),
+                to: None,
+            };
+            self.rt.conn.try_apply(vec![gone])?;
+        }
         let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
         let pane = &mut self.panes[i];
-        if pane.size.iter().zip(size).all(|(a, b)| (a - b).abs() < 0.5) {
+        let Some(size) = follows_buffer(pane.size, size) else {
             return Ok(());
-        }
+        };
         pane.size = size;
         let pane = &self.panes[i];
         let mut commands = self.placed(pane);
@@ -281,6 +345,7 @@ impl Construct {
             return Ok(());
         };
         let pane = self.panes.remove(i);
+        self.unfilled.retain(|s| s != surface);
         self.rt.conn.apply(pane.remove().into())?;
         if let Some(flown) = self.flown.take_if(|f| f.surface == surface) {
             self.unsnap(None, walk)?;

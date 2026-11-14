@@ -4,7 +4,7 @@
 use super::{
     Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
     LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value, json,
-    space, update,
+    space, stride, update,
 };
 
 /// The surface that the camera is in or on its way into.
@@ -73,10 +73,26 @@ pub(crate) fn ahead(panes: &[Pane], lens: &space::Lens, pose: &Pose, far: f64) -
         .map(|(i, _)| i)
 }
 
+/// The flight into a pane that `glide` is on, taken out of it; a glide
+/// that goes nowhere into a pane stays.
+pub(crate) fn take_flight(glide: &mut Option<Glide>) -> Option<Flown> {
+    glide.take_if(|g| g.into.is_some()).and_then(|g| g.into)
+}
+
 impl Construct {
     /// The leash radius: the construct file's, or the settings'.
     pub(crate) fn radius(&self) -> f64 {
         self.radius.unwrap_or(self.settings.value.radius)
+    }
+
+    /// Whether the camera is in a pane or on its way into one.
+    pub(crate) fn in_pane(&self) -> bool {
+        self.flown.is_some() || self.flying_into()
+    }
+
+    /// Whether the camera glides into a pane.
+    pub(crate) fn flying_into(&self) -> bool {
+        self.glide.as_ref().is_some_and(|g| g.into.is_some())
     }
 
     /// The target of the walk: the end of the glide, or the pose.
@@ -85,6 +101,9 @@ impl Construct {
     }
 
     pub(crate) fn glide_to(&mut self, to: Pose, ms: f64, into: Option<Flown>) {
+        if into.is_some() {
+            self.stride = None;
+        }
         self.glide = Some(Glide {
             from: self.pose,
             to,
@@ -104,6 +123,7 @@ impl Construct {
                 "the camera is in a pane; fly out first",
             ));
         }
+        self.stride = None;
         let finite = [to.x, to.z, to.yaw, to.pitch, ms]
             .iter()
             .all(|v| v.is_finite());
@@ -150,6 +170,7 @@ impl Construct {
                     yaw,
                     pitch: 0.0,
                 };
+                self.stride = None;
                 return self.glide_to(home, FLY_MS, None);
             }
             Action::Terminal
@@ -168,6 +189,80 @@ impl Construct {
             }
         }
         self.glide_to(t, STEP_MS, None);
+    }
+
+    /// A walk key went down: one pane step in a tap, more while it is
+    /// held. A repeat of the key that is down changes nothing.
+    pub(crate) fn stride_press(&mut self, key: &str, action: Action) {
+        let (ahead, aside) = match action {
+            Action::Forward => (1.0, 0.0),
+            Action::Back => (-1.0, 0.0),
+            Action::Left => (0.0, -1.0),
+            Action::Right => (0.0, 1.0),
+            _ => return,
+        };
+        if self.in_pane() {
+            return;
+        }
+        if self
+            .stride
+            .as_ref()
+            .is_some_and(|s| s.held() && s.key == key)
+        {
+            return;
+        }
+        let now = chora_kit::clock::now();
+        let from = self
+            .stride
+            .as_ref()
+            .map_or([self.pose.x, self.pose.z], |s| s.at(now).0);
+        let [fx, fz] = self.pose.forward();
+        let dir = [fx * ahead + fz * aside, fz * ahead - fx * aside];
+        self.stride = Some(stride::Stride::new(key, dir, from, now));
+    }
+
+    /// A walk key went up.
+    pub(crate) fn stride_release(&mut self, key: &str) {
+        if let Some(stride) = self.stride.as_mut().filter(|s| s.key == key) {
+            stride.release(chora_kit::clock::now());
+        }
+    }
+
+    /// One frame of the walk: the place of the camera on the leash.
+    pub(crate) fn step_stride(&mut self) -> Result<(), ClientError> {
+        if let Some(stride) = self.stride.as_mut() {
+            stride.expire(chora_kit::clock::now());
+        }
+        let Some((key, held)) = self.stride.as_ref().map(|s| (s.key.clone(), s.held())) else {
+            return Ok(());
+        };
+        if held && (self.help || self.list.is_some() || self.in_pane()) {
+            self.stride_release(&key);
+        }
+        let Some(stride) = &self.stride else {
+            return Ok(());
+        };
+        let (at, done) = stride.at(chora_kit::clock::now());
+        let radius = self.radius();
+        let length = at[0].hypot(at[1]);
+        let at = if length > radius {
+            [at[0] * radius / length, at[1] * radius / length]
+        } else {
+            at
+        };
+        [self.pose.x, self.pose.z] = at;
+        if let Some(glide) = self.glide.as_mut().filter(|g| g.into.is_none()) {
+            for pose in [&mut glide.from, &mut glide.to] {
+                [pose.x, pose.z] = at;
+            }
+        }
+        if done {
+            self.stride = None;
+        }
+        if self.glide.is_none() {
+            return self.frame();
+        }
+        Ok(())
     }
 
     /// Walks `ahead` forward and `aside` to the right, on the leash.
@@ -252,12 +347,12 @@ impl Construct {
         };
         let window = matches!(pane.content, Content::Window { .. }).then(|| pane.source.clone());
         self.glide_to(to, FLY_MS, into);
-        match window {
-            Some(surface) => self.rt.conn.apply(vec![Command::Focus {
+        if let Some(surface) = window {
+            self.rt.conn.apply(vec![Command::Focus {
                 surface: Some(surface),
-            }]),
-            None => Ok(()),
+            }])?;
         }
+        self.regrab()
     }
 
     pub(crate) fn step_glide(&mut self) -> Result<(), ClientError> {
@@ -379,9 +474,12 @@ impl Construct {
             }
         }
         self.rt.grab_give_keys()?;
-        if self.flown.is_some() {
+        if self.in_pane() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
+            for key in self.terminal_keys() {
+                self.rt.grab(parse(key)?, Grab::Terminal)?;
+            }
         }
         self.grab_cube_keys();
         Ok(())
@@ -426,13 +524,54 @@ impl Construct {
         self.regrab()
     }
 
+    /// Steps back out of the pane that the camera is in, or on its way
+    /// into: the window goes back into its pane and the camera glides to
+    /// where the fly-in began.
     pub(crate) fn fly_out(&mut self) -> Result<(), ClientError> {
-        let Some(flown) = self.flown.take() else {
+        let flown = self.flown.take().or_else(|| take_flight(&mut self.glide));
+        let Some(flown) = flown else {
             return Ok(());
         };
         self.unsnap(flown.attached.then_some(&flown.surface), true)?;
         self.draw_hud()?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
+    }
+
+    /// The keys that start a terminal and carry a modifier: the keys that
+    /// a program in the pane never gets, so that they work from use mode.
+    fn terminal_keys(&self) -> Vec<String> {
+        (self.settings.value.keys.iter())
+            .filter(|(key, action)| **action == Action::Terminal && key.contains('+'))
+            .map(|(key, _)| key.clone())
+            .collect()
+    }
+
+    /// The place right of the panes for a new pane, as seen from `from`, at
+    /// the distance of the panes, and the yaw that faces `from`.
+    pub(crate) fn beside_spot(&self, from: Pose) -> ([f64; 2], f64) {
+        let size = [self.lens.w, self.lens.h];
+        let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
+        let at = space::beside(
+            &self.lens,
+            &from,
+            self.settings.value.pane_distance,
+            size[0],
+            &others,
+        );
+        (at, space::facing([from.x, from.z], at))
+    }
+
+    /// A terminal from use mode: steps back, then starts the terminal
+    /// to open right of the pane that the camera stood in, at the same
+    /// distance from where the fly-in began, and fly into it.
+    pub(crate) fn terminal_beside(&mut self) -> Result<(), ClientError> {
+        let back = (self.flown.as_ref())
+            .or_else(|| self.glide.as_ref().and_then(|g| g.into.as_ref()))
+            .map(|f| f.back);
+        self.fly_out()?;
+        let spot = back.map(|back| self.beside_spot(back));
+        self.start_terminal_at(spot);
+        Ok(())
     }
 }

@@ -58,7 +58,11 @@ impl Construct {
     pub(crate) fn serve(&mut self) -> Result<(), ClientError> {
         loop {
             let plugins = self.waiting.iter().any(|w| w.pane.kind != Kind::Program);
-            let wait = if self.glide.is_some() || self.effects.animating() || self.cube_turns() {
+            let wait = if self.glide.is_some()
+                || self.stride.is_some()
+                || self.effects.animating()
+                || self.cube_turns()
+            {
                 FRAME
             } else if plugins {
                 RETRY
@@ -86,6 +90,9 @@ impl Construct {
     /// One frame of the glide of the camera, of the wobbles and of the
     /// turn of the cube.
     pub(crate) fn animation_frame(&mut self) -> Result<(), ClientError> {
+        if self.stride.is_some() {
+            self.step_stride()?;
+        }
         if self.glide.is_some() {
             self.step_glide()?;
         }
@@ -111,6 +118,7 @@ impl Construct {
             self.focus_before = self.focused_surface()?;
         }
         self.glide = None;
+        self.stride = None;
         let overlay = self.overlay;
         let (kept, gone): (Vec<Pane>, Vec<Pane>) = std::mem::take(&mut self.panes)
             .into_iter()
@@ -171,6 +179,7 @@ impl Construct {
         }
         self.list = None;
         self.labelled = None;
+        self.neighbours.clear();
         self.label_drawn = false;
         self.rt.ungrab_all()?;
         self.active = false;
@@ -183,6 +192,7 @@ impl Construct {
         self.backs.clear();
         self.flown = None;
         self.glide = None;
+        self.stride = None;
         self.moving = None;
         self.drag = None;
         Ok(())
@@ -315,6 +325,7 @@ impl Construct {
             "current": self.current,
             "overlay": self.overlay,
             "shown": self.active,
+            "camera": self.pose,
             "panes": panes,
             "waiting": waiting,
         })

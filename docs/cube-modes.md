@@ -115,6 +115,7 @@ The voice agent says what happened in the same words: "I stepped back",
 | type in a terminal on a face, press `Escape` in an editor | the editor gets `Escape`; the view stays |
 | a still cube in navigate mode | the method `render.stats` counts no pass for any output between two looks |
 | a turn | no face takes a click while it runs |
+| a slow drag across a face in navigate mode | the yaw changes in every frame; a release at 30 degrees returns and at 50 degrees goes on, both within 320 ms |
 
 ## Hover, drag, voice and plain Escape
 
@@ -123,10 +124,65 @@ The four acts that complete the flows above. Each has a second path
 
 | Act | The person does | The person sees | Rules |
 |-----|-----------------|-----------------|-------|
-| find the face to step into | in navigate mode, moves the pointer over a face or over a window that floats in front of it | the edge of that face lit in the accent colour, 2 px; it goes out when the pointer leaves | not during a turn and not in use mode; the keyboard needs no edge, as `Return` always steps into the front face |
-| turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube turns by one face in the direction of the drag when the pointer moved a third of the width of the view, and again for each further third from where the cube took the turn; during a turn one more turn is queued, as with the keys | a press that moves less than 8 px in any direction is a click and steps in on the release, and a shorter drag does nothing; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected press, move or release does nothing outside a test session, and an injected move during a press of the person ends that press |
+| find the face to step into | in navigate mode, moves the pointer over a face or over a window that floats in front of it | the edge of that face lit in the accent colour, 2 px on the screen at any depth of the cube, with a glow that reaches 16 px out at 0.35, and the hint `Return Step in` with its hover fill; all light at once and go out over 120 ms when the pointer leaves | not during a turn or a drag, where they are out at once, and not in use mode; the keyboard needs no edge, as `Return` always steps into the front face |
+| turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube follows the hand: a drag over the width of the view is a quarter turn, from the press, without a threshold and without lag; at the release it settles on the nearest face over 320 ms, eased out, or on the next face when the drag went past 45 degrees or the hand flicked faster than 1.5 widths of the view a second | a press that moves less than 8 px in any direction is a click and steps in on the release; a press while the cube turns does nothing; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected press, move or release does nothing outside a test session, and an injected move during a press of the person ends that press, which settles the cube |
 | speak | says "step back", "step in", "turn left" or "turn right", or the German words of the table of words | the same states as with the chips; the agent answers "I stepped back", "I stepped in", "I turned the cube to the left" | the agent calls `view.step_back`, `view.step_in` and `cube.turn` as its other plugin tools; the keyboard stays where it is |
 | step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and steps in again in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
+
+## Turning
+
+A turn by `Ctrl+Alt+Left`, `Ctrl+Alt+Right` or a chip takes 360 ms,
+eased out; a second press during a turn queues one more turn, and a
+third does nothing. A turn by hand shows every pixel of the drag: no
+turn waits for the release. A drag that starts on a floating window
+moves that window and does not turn the cube.
+
+While the cube turns in navigate mode the hints stay. The face label
+names the face nearest to the front, so it changes at 45 degrees; the
+dot of the face before the angle loses the accent that the dot of the
+next face gains; and the hint `Step in` dims to an opacity of 0.6. In
+use mode the hints stay hidden while the cube turns.
+
+## The cube at rest
+
+Stood back, the cube rests 14 degrees off square, turned toward the next
+face, so that its depth and a sliver of the next face show at the
+right. The faces stand to the right in the order of their numbers: a
+drag to the left, like the key `Ctrl+Alt+Right`, brings the next face. The camera
+stays at the mid height of the cube, and the cube stands back far enough
+that the next face shows at that angle. The turn by key or by hand
+starts from this pose and keeps it. A step in glides the 14 degrees away
+with the step, over 380 ms, so that in use mode the face is square and
+at 1:1: a 1 px line of the face is 1 px on the screen. The cube has the
+floor shadow and the mirror image in the floor that every pane has; a
+face that looks away has no mirror image, and none shows in use mode.
+
+## Starting and failed faces
+
+A face whose window manager is starting shows its plain fill, never a
+black frame, and a flat glass card over it: the working ring and
+`Starting Media center`, with the display name of the manager (`XP`,
+`Tiling`, `Media center`, `Construct`; any other program is its name
+with a capital). The card shows within 300 ms of `cube.open`, centred on
+the face ahead, in use mode and stood back. It hides while the cube
+turns or steps and while a command surface shows.
+
+The faces fail when the manager exits before it connected, or has not
+connected within 10 s. The card then says what failed and the next step:
+`Media center did not start.`, the reason in a data well, such as
+`chora-mc stopped after 2 s: it needs foot 1.26 or later.` (the program
+and the last line it wrote to its error output) or `chora-mc did not
+connect within 10 s.`, and `Click or press Return to try again.`. The
+face label says `did not start`, the dot of the face is a hollow ring, and the
+middle hint reads `Return Try again`. No red shows anywhere: the word
+and the hollow dot carry the failure. The cube stays, with its virtual
+outputs, and the error shows on the face only.
+
+A click on the card or on the face, `Return` and a click on the middle
+hint try again: the manager starts anew, the card reads `Starting`
+again, and the faces work when it connects. A face
+that does not work forwards no pointer input. A manager that connected
+and then ends still closes the cube with its outputs, as before.
 
 ## What the construct does today
 

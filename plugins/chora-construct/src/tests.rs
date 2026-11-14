@@ -351,3 +351,49 @@ fn the_floor_renders_finer_on_a_gpu() {
     assert!((fog_scale(false) - 2.0).abs() < f64::EPSILON);
     assert!((fog_scale(true) - 4.0).abs() < f64::EPSILON);
 }
+
+/// The frame of a pane is the buffer of its window: it takes the size of
+/// every new buffer, and no size of a window that has none yet or that
+/// changed by less than half a pixel.
+#[test]
+fn the_frame_of_a_pane_takes_the_size_of_the_buffer() {
+    let pane = [1280.0, 720.0];
+    assert_eq!(follows_buffer(pane, [700.0, 500.0]), Some([700.0, 500.0]));
+    assert_eq!(follows_buffer(pane, [1276.0, 704.0]), Some([1276.0, 704.0]));
+    assert_eq!(follows_buffer(pane, [0.0, 0.0]), None, "no buffer yet");
+    assert_eq!(follows_buffer(pane, [1280.0, 0.0]), None);
+    assert_eq!(
+        follows_buffer(pane, [1280.2, 719.8]),
+        None,
+        "under half a pixel"
+    );
+}
+
+/// Taking the flight into a pane leaves a plain glide of the walk
+/// alone.
+#[test]
+fn taking_the_flight_into_a_pane_keeps_a_plain_glide() {
+    let glide = |into| Glide {
+        from: Pose::default(),
+        to: Pose::default(),
+        start: std::time::Instant::now(),
+        ms: 380.0,
+        into,
+        smooth: false,
+    };
+    let flown = Flown {
+        surface: "s1".into(),
+        back: Pose::default(),
+        attached: false,
+        plugin: None,
+    };
+    let mut plain = Some(glide(None));
+    assert!(take_flight(&mut plain).is_none());
+    assert!(plain.is_some(), "a plain glide stays");
+    let mut flying = Some(glide(Some(flown)));
+    assert_eq!(
+        take_flight(&mut flying).map(|f| f.surface),
+        Some("s1".into())
+    );
+    assert!(flying.is_none());
+}

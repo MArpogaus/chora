@@ -848,6 +848,13 @@ panes overlap, the nearer one gets the click. Each pane draws through
 the effect `pane.frag`, which reads `depth` and `facing` for the haze
 and the edge of the focus, so a walk updates no pane.
 
+While the space holds no pane, the start card stands in the middle of
+the output (rule 26 of the style guide): a click on its row `Terminal`
+starts the terminal like `Super+t`, `All programs` starts the launcher
+like `Super+space`, and `A cube of desktops` opens the cube like
+`Super+c`. The card fades out when the first pane appears, and the hint
+bar stays away while it shows.
+
 A press on the empty space gives the keyboard back to the walk, so its
 keys need no modifier. A drag there looks around, and the wheel there or
 over a pane that shows the window of another client or a plugin walks;
@@ -855,7 +862,9 @@ over a window of the construct, the wheel scrolls the window.
 A walk slows down in the outer quarter of the leash radius and stops at
 it. `Return` flies into the pane nearest the middle of the view, and a
 click on a pane that shows the window of another client or a plugin
-flies into that pane. At the end of the fly-in, the window itself shows
+flies into that pane. The frame of a pane is the buffer of its window: the
+pane takes the size of every new buffer, so no strip of the frame shows
+beside the window. At the end of the fly-in, the window itself shows
 at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
 flies back to the pose before. `tests/gate-construct-3d.sh` checks the
 direct input.
@@ -882,7 +891,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+slash`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -998,15 +1007,15 @@ windows of the other flavor.
 |--------|------------|
 | `construct.load` | privileged. `name`: loads the file and starts its programs. An overlay takes the output; the flavor keeps its windows as panes. The panes of the construct before go. Answers as `construct.list` |
 | `construct.save` | privileged. `name`: writes the camera, R and the panes. A window that the construct did not start has no command and stays out |
-| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at`, `yaw` and `size`, and the panes that still wait |
+| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `camera` pose (`x`, `z`, `yaw`, `pitch`), the `panes` with `name`, `kind`, content, `at`, `yaw` and `size`, and the panes that still wait |
 | `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
 | `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash. The pane then faces the camera; answers the new `at` |
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.manager` | privileged. `manager`, a key of the setting `managers`, and `size`, `[width, height]` in logical pixels, 1024 x 768 by default and at most the view: adds a virtual output of that size, starts the window manager on it as a child with `--output NAME`, and shows the output in a pane ahead. The pane passes the pointer into the output at any place and turn (D69), so the windows of the manager take clicks; the modifier with a drag moves the pane. One pane per manager: refused while a client of that name runs, in a pane, on the cube or by itself. While the construct has the keyboard, a new window under the pane goes to its manager; while a window in a pane has it, to the manager of that window (D55). A manager that ends, or does not connect within 10 s, takes its pane and its output with it; `pane.remove` ends it, and the child gets `SIGTERM` when the construct ends. The windows on the output then go back to the window manager that gave them, else to a screen (D69). Answers the `name` of the pane and its `output`. `tests/gate-construct-wm-pane.sh` checks it |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
-| `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
-| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat |
+| `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends after it connected. A window manager that exits or does not connect within 10 s leaves the cube open: its faces show a card that says what failed, and a click on the face, `Return` or the hint `Try again` starts it again (see [cube modes](cube-modes.md#starting-and-failed-faces)). Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
+| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 360 a quarter turn by default, eased out; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat |
 | `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
 | `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
 | `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
@@ -1059,13 +1068,13 @@ terminal inside them.
 
 ### The help panel
 
-`F1`, the key `help`, shows the help over a scrim: a glass panel at the
+`Super+/` and `F1`, the key `help`, show the help over a scrim: a glass panel at the
 top centre, 880 wide in two columns, with the keys that work now in
 groups, the construct's own at the left (Walk, Panes, Cube while a cube
 is open) and those that every look shares at the right (Helper and chat,
 Give a window, Everywhere). Each key is a keycap. The keys come from the
 settings, so a change, for example `modifier: Alt`, shows at once, and a
-key that is not bound has no row. Typing searches the words and the key
+key that is not bound has no row. The row of `Super+/` stands in Everywhere, the row of `F1` in Walk. Typing searches the words and the key
 names: the panel is then 560 wide in one column, the found words are
 marked, `Up` and `Down` move the chosen row, and the footer counts the
 keys that match. `Escape` clears the search, then hides the help; `F1`
@@ -1074,22 +1083,54 @@ voice agent shows it with the method `help.toggle`.
 
 ### Context hints
 
-At the bottom centre a glass capsule shows two to four hints, each the
-keycaps of a key and a word: walking, `W A S D Walk`, `Return Fly in`,
-`Tab Windows`, `F1 All keys` and, without a cube, `Super C Cube`, for 6
-seconds after the start and after a fly-out; in a
-pane, `Alt Esc Step back` for 3 seconds after the fly-in; stood back
-from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and `Turn right
-Ctrl Alt →`, whose hints are the chips of the cube. A click on a hint
-does its act. The hints hide while the window list or the help shows, a
+At the bottom centre a glass capsule shows the hints that apply, at
+most five, each the keycaps of a key and a word: walking, for 6 seconds
+after the start and after a fly-out, `W A S D Walk`, `Return Fly in`
+while a pane is ahead, `Tab Windows` from two windows, `Super T
+Terminal` and `F1 All keys`; in a
+pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in;
+stood back from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and
+`Turn right Ctrl Alt →`, whose hints are the chips of the cube. The
+keys of the hints are those of the settings. A click on a hint
+does its act: the capsule lets a click through, and the node of each
+hint takes it. The hints hide while the window list or the help shows, a
 question waits or a pane moves.
+
+A program that the person starts, with `Super+t` or a click on the start
+card, opens flown in: its pane shows at 1:1 with the keyboard, and typed
+keys reach it during the fly-in too. `Alt+Escape` steps back at any time
+of the fly-in. `Super+t` in a pane steps back, opens a second terminal
+right of the first at the same distance and flies into it over 380 ms;
+the keys that start a terminal and carry a modifier are grabbed while
+the camera is in a pane. A terminal that `Super+t` starts from the walk
+while a pane stands opens beside the panes at the same distance from the
+camera, not far off in the fog.
 
 ### Notices
 
 A notice of the construct, such as a refused give or the hint that the
 keys walk, shows for 4 seconds as one line of text on a glass capsule
-under the island at the top right, 32 from the edge and at most 360
-wide, while the host draws the HUD (`voice_hud: host`).
+under the island at the top right, 32 from the edge and at most 520
+wide, while the host draws the HUD (`voice_hud: host`). A refused give
+names the window manager by its display name (`XP`, `Tiling`, `Media
+center`, `Construct`) and the reason, as in `Tiling did not take the
+window: it is not running.`; the German words are `Tiling hat das
+Fenster nicht genommen: es läuft nicht.`.
+
+### The pane label
+
+The pane label is the title of the window of the pane. While the title
+is empty or only names the program, as `foot` does, the terminal that
+the construct started is `Terminal`, and any other program is its app id
+as a name, such as `Gedit` for `org.gnome.gedit`; the app id itself is
+never the label. The label changes when the title does, fades out over
+120 ms with its pane or when another pane takes it, and does not show
+in use mode.
+
+A pane whose window has no first buffer yet shows a placeholder: a glass
+fill the size of the pane with the working ring and the name of the
+window, under the window. It goes with the first buffer, so that the
+pane never shows a grey slab.
 
 ### The window list
 

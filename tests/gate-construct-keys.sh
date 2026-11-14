@@ -10,7 +10,9 @@
 # into the pane of the program that it starts;
 # Super+x asks the window of the pane ahead to close, and its pane goes;
 # pane.remove asks as well, and a window that refuses stays a pane; a
-# radius of settings.set leashes the panes at once.
+# radius of settings.set leashes the panes at once; a Super press during
+# the flight into a pane ends it and leaves Alt+Escape and Super+t free
+# in walk mode; a window audit checks that no window is lost.
 # The launcher here is a foot window that starts a second foot; where
 # fuzzel is installed, the programs that it starts become panes too.
 #
@@ -62,7 +64,7 @@ import json, sys
 print(any(n.get("focused") and (n.get("surface") or {}).get("app_id") == sys.argv[1] for n in json.load(sys.stdin)))' "$1"
 }
 flown_in() { ctl query id:construct-look | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0]["visible"])' | grep -qx False; }
-say() { ctl query id:construct-hud-say | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("text", "") if n else "")'; }
+say() { ctl query id:construct-notice-text | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("text", "") if n else "")'; }
 # until_ok CODE: waits up to 10 s for the shell code to succeed.
 until_ok() {
     for _ in $(seq 40); do
@@ -75,8 +77,7 @@ until_ok() {
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 echo '[{"text": {"text": "text x "}}]' | ctl inject || fail "inject text"
 until_ok 'say | grep -q "keys walk"' ||
-    fail "typed text got no notice: $(ctl query id:construct-hud-say)"
-ctl query id:construct-hud-state | grep -q NOTICE && fail "the notice has a label"
+    fail "typed text got no notice: $(say)"
 sleep 1
 [ -z "$(panes)" ] || fail "typed text made panes: $(panes)"
 ctl query kind:surface | grep -q '"term"' && fail "typed text started the terminal"
@@ -93,16 +94,32 @@ until_ok 'test "$(app_focused term)" = True' || fail "the new pane term has no k
 ok "the camera flew into the new pane term, which has the keyboard"
 
 key Super+Alt+2
-until_ok 'say | grep -q "xp did not take the window"' ||
+until_ok 'say | grep -q "XP did not take the window: it is not running."' ||
     fail "a give of the focused window to xp, which does not run, said nothing: $(say)"
 until_ok flown_in || fail "the camera is in no pane"
 key Alt+Escape
 until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
 key Super+Alt+3
-until_ok 'say | grep -q "mc did not take the window"' ||
+until_ok 'say | grep -q "Media center did not take the window: it is not running."' ||
     fail "a give of the pane ahead to mc, which does not run, said nothing: $(say)"
 [ "$(panes)" = term ] || fail "the refused gives lost the pane: $(panes)"
 ok "a give to a window manager that does not run says so, for the focused window and the pane ahead"
+
+key Return
+sleep 0.1
+echo '[{"pointer_move": {"position": [640, 400]}}, {"key": {"key": "Super_L", "state": "pressed"}}, {"button": {"state": "pressed", "hold": true}}]' | ctl inject >/dev/null || fail "inject the Super press during the flight"
+until_ok 'test "$(focused id:construct-look)" = True' || fail "a Super press during the flight into the pane gave the walk no keyboard"
+grabs_free=$(mcp_py <<'PYEND'
+import sys
+from gate_mcp import Mcp
+mcp = Mcp(stderr=sys.stderr)
+result = mcp.call("subscribe_events", {"keys": ["Alt+Escape", "Super+t"]})
+print("free" if not result.get("isError") else "held: " + str(result["content"]))
+PYEND
+)
+echo '[{"button": {"state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]' | ctl inject >/dev/null || fail "inject the release"
+[ "$grabs_free" = free ] || fail "a Super press that ended the flight into a pane left keys grabbed: $grabs_free"
+ok "a Super press during the flight into a pane ended it, and Alt+Escape and Super+t are free in walk mode"
 
 key Super+space
 until_ok 'ctl query kind:surface | grep -q \"launcher\"' ||
@@ -143,6 +160,10 @@ ok "settings.set radius 1000 leashed the pane at $far"
 
 kill "$probe"
 until_ok '! panes | grep -qw chora-probe' || fail "the pane of chora-probe stays: $(panes)"
+
+until_ok 'test "$(ctl query kind:surface | jq length)" = "$(panes | wc -w)"' ||
+    fail "a window is lost or left: $(ctl query kind:surface | jq length) windows for the panes '$(panes)'"
+ok "window audit: every window is a pane, and no pane has lost its window"
 
 # fuzzel, a layer-shell launcher, may pass its own token on to the
 # program that it starts; that program's window is a pane all the same.

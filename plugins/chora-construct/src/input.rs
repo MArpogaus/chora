@@ -1,6 +1,7 @@
 //! Pointer, key and drag input: press, move, release, drop, the list
 //! keys.
 
+use crate::camera::take_flight;
 use chora_kit::words::{Language, Word, say};
 
 use super::{
@@ -8,6 +9,13 @@ use super::{
     KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL,
     cube, give, hud, space, window_flown_into,
 };
+
+/// The notice of a window manager that did not take a window, with the
+/// reason from the error.
+fn refusal(language: Language, manager: &str, error: &str) -> String {
+    let reason = crate::names::reason(error, language);
+    crate::names::refused(language, manager, &reason)
+}
 
 /// The text of a typed key that a search takes: printable text without
 /// Ctrl, Alt or Super.
@@ -61,7 +69,7 @@ impl Construct {
             {
                 eprintln!("chora-construct: give to {to}: {err}");
                 let language = Language::of_session();
-                let words = say(language, Word::GiveRefused, &[("manager", to)]);
+                let words = refusal(language, to, &err.to_string());
                 self.voice.notice(&words, Instant::now());
                 return self.draw_hud();
             }
@@ -82,7 +90,7 @@ impl Construct {
                 Ok(_) => return Ok(()),
                 Err(err) => {
                     eprintln!("chora-construct: give to {to}: {}", err.message);
-                    say(language, Word::GiveRefused, &[("manager", to)])
+                    refusal(language, to, &err.message)
                 }
             },
         };
@@ -154,7 +162,18 @@ impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     pub(crate) fn input(&mut self, event: Event) -> Result<(), ClientError> {
-        if self.hint_input(&event)?
+        if let Event::NodeKey {
+            node,
+            key,
+            state: PressState::Released,
+            ..
+        } = &event
+            && node == LOOK
+        {
+            self.stride_release(key);
+        }
+        if self.start_input(&event)?
+            || self.hint_input(&event)?
             || self.help_input(&event)?
             || self.list_input(&event)?
             || self.modes_input(&event)?
@@ -176,6 +195,9 @@ impl Construct {
                 Some(Action::Windows) => return self.open_list(),
                 Some(Action::Help) => return self.toggle_help(),
                 Some(Action::Cube) => return self.cube_key(),
+                Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
+                    self.stride_press(&key, action);
+                }
                 Some(action) => self.act(action),
                 None if text.is_some() => return self.keys_walk(),
                 None => {}
@@ -185,10 +207,11 @@ impl Construct {
                 state: PressState::Pressed,
                 ..
             } => {
-                if let Some(&Grab::Give(to)) = self.rt.action(&binding) {
-                    return self.give_key(to);
-                }
-                return self.fly_out();
+                return match self.rt.action(&binding) {
+                    Some(&Grab::Give(to)) => self.give_key(to),
+                    Some(Grab::Terminal) => self.terminal_beside(),
+                    _ => self.fly_out(),
+                };
             }
             Event::InputButton {
                 state, position, ..
@@ -357,11 +380,12 @@ impl Construct {
         if self.flown.is_some() {
             return self.fly_out();
         }
-        if let Some(into) = self.glide.take().and_then(|g| g.into) {
+        if let Some(into) = take_flight(&mut self.glide) {
             self.glide_to(into.back, FLY_MS, None);
-            return self.rt.conn.apply(vec![Command::FocusNode {
+            self.rt.conn.apply(vec![Command::FocusNode {
                 node: Some(LOOK.into()),
-            }]);
+            }])?;
+            return self.regrab();
         }
         Ok(())
     }
@@ -451,6 +475,52 @@ impl Construct {
             }
         }
         self.frame()
+    }
+
+    /// The pointer over a row of the start card fills it, and a click on
+    /// it starts what its keys start; whether the card took the event.
+    fn start_input(&mut self, event: &Event) -> Result<bool, ClientError> {
+        use crate::start::{Act, act, row_of};
+        if !self.start_card.up {
+            return Ok(false);
+        }
+        match event {
+            Event::PointerPressed {
+                node,
+                button,
+                injected,
+                ..
+            } if *button == BTN_LEFT && row_of(node).is_some() => {
+                if *injected && !self.rt.accepts_injected() {
+                    return Ok(true);
+                }
+                match row_of(node).and_then(act) {
+                    Some(Act::Terminal) => self.start_terminal(),
+                    Some(Act::Programs) => self.start_launcher(),
+                    Some(Act::Cube) => self.cube_key()?,
+                    None => {}
+                }
+                Ok(true)
+            }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+                if row_of(node).is_some() =>
+            {
+                let row = row_of(node);
+                let over = matches!(event, Event::PointerEntered { .. });
+                let hovered = if over {
+                    row
+                } else {
+                    self.start_card.hover.filter(|h| Some(*h) != row)
+                };
+                if hovered != self.start_card.hover {
+                    self.start_card.hover = hovered;
+                    let commands = crate::start::hover(&self.styled(), hovered);
+                    self.rt.conn.apply(commands)?;
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     /// A click on a hint, the pointer over a hint, and the pointer at the
@@ -587,7 +657,7 @@ impl Construct {
         if node != LOOK {
             return Ok(false);
         }
-        let own = self.settings.value.keys.get(key) == Some(&Action::Help);
+        let own = self.settings.value.action(key, modifiers) == Some(Action::Help);
         match key.as_str() {
             "Escape" if !self.help_query.is_empty() => {
                 self.help_query.clear();

@@ -207,6 +207,20 @@ pub fn pane_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: 
     to_screen(lens, pose, &model(at, size, yaw))
 }
 
+/// The matrix for the `transform` of a node whose place in the camera
+/// group is the column-major `world`, as [`pane_matrix`] gives it for a
+/// pane: it takes the point (u, v) of the node to the output.
+#[must_use]
+pub fn screen_matrix(lens: &Lens, pose: &Pose, world: &[f64; 16]) -> [f64; 16] {
+    let mut rows = [[0.0; 4]; 4];
+    for (c, column) in world.as_chunks::<4>().0.iter().enumerate() {
+        for (r, cell) in column.iter().enumerate() {
+            rows[r][c] = *cell;
+        }
+    }
+    to_screen(lens, pose, &rows)
+}
+
 /// The projection of a model to the output, column-major.
 fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
     let proj = [
@@ -226,6 +240,17 @@ pub fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
     let y = m[1] * u + m[5] * v + m[13];
     let w = m[3] * u + m[7] * v + m[15];
     [x / w, y / w]
+}
+
+/// The middle of the projected bottom edge of a node of `size` that the
+/// column-major matrix `m` of [`pane_matrix`] puts on the output: the
+/// middle of the two projected bottom corners, which for a turned node
+/// is not the projection of the middle of the edge.
+#[must_use]
+pub fn bottom_middle(m: &[f64; 16], [w, h]: [f64; 2]) -> [f64; 2] {
+    let [ax, ay] = project(m, 0.0, h);
+    let [bx, by] = project(m, w, h);
+    [ax.midpoint(bx), ay.midpoint(by)]
 }
 
 /// The depth of a point in front of the camera, in camera space.
@@ -423,9 +448,20 @@ pub fn place(
 /// The place of a pane of `width` that must come although no spot in
 /// the view is free, such as a pane of a construct file: `distance`
 /// ahead of the camera, or beside the panes in the way, right first,
-/// then left. `others` are the centres and widths of the panes.
+/// then left. `others` are the centres and widths of the panes. The
+/// spot goes farther out along its line of sight until the whole pane
+/// is on the screen of `lens`, so that no pane stands cut by the edge.
+/// A fixed search of 16 slots, each moved out along the line of sight and
+/// toward or past the slot; a crowded space past them stacks the pane on
+/// the last slot.
 #[must_use]
-pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]) -> [f64; 2] {
+pub fn beside(
+    lens: &Lens,
+    pose: &Pose,
+    distance: f64,
+    width: f64,
+    others: &[([f64; 2], f64)],
+) -> [f64; 2] {
     let [fx, fz] = pose.forward();
     let ahead = [pose.x + fx * distance, pose.z + fz * distance];
     let gap = width * 0.1;
@@ -434,18 +470,52 @@ pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]
             .iter()
             .all(|(q, w)| (p[0] - q[0]).hypot(p[1] - q[1]) >= (width + w) / 2.0 + gap)
     };
-    // ponytail: a fixed search of 16 slots; a crowded space past them
-    // stacks the pane on the last slot.
-    let mut spot = ahead;
-    for k in 0..16_i32 {
-        let side = f64::from((k + 1) / 2) * if k % 2 == 1 { 1.0 } else { -1.0 };
-        let shift = side * (width + gap);
-        spot = [ahead[0] + fz * shift, ahead[1] - fx * shift];
-        if free(spot) {
-            break;
-        }
-    }
-    spot
+    let size = [width, width * lens.h / lens.w];
+    let from = [pose.x, pose.z];
+    let boxes: Vec<[f64; 4]> = (others.iter())
+        .filter_map(|(q, w)| {
+            screen_box(lens, pose, *q, [*w, w * lens.h / lens.w], facing(from, *q))
+        })
+        .collect();
+    let seen = |p: [f64; 2]| {
+        let clear = |b: [f64; 4]| {
+            b[0] >= 0.0
+                && b[2] <= lens.w
+                && boxes
+                    .iter()
+                    .all(|o| b[2] + 8.0 <= o[0] || o[2] + 8.0 <= b[0])
+        };
+        screen_box(lens, pose, p, size, facing(from, p)).is_some_and(clear) && free(p)
+    };
+    let slot = |k: i32| {
+        let sign = if k % 2 == 1 { 1.0 } else { -1.0 };
+        let shift = f64::from((k + 1) / 2) * sign * (width + gap);
+        [ahead[0] + fz * shift, ahead[1] - fx * shift]
+    };
+    let moved = |spot: [f64; 2], m: f64, s: f64| {
+        let slot = [
+            ahead[0] + (spot[0] - ahead[0]) * s,
+            ahead[1] + (spot[1] - ahead[1]) * s,
+        ];
+        [
+            from[0] + (slot[0] - from[0]) * m,
+            from[1] + (slot[1] - from[1]) * m,
+        ]
+    };
+    let nearest = |spot: [f64; 2]| {
+        (0..=30_i32)
+            .flat_map(|k| {
+                [
+                    0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8, 9, -9, 10, -10,
+                ]
+                .map(|j| (1.0 + f64::from(k) * 0.1, 1.0 + f64::from(j) * 0.1))
+            })
+            .map(|(m, s)| moved(spot, m, s))
+            .find(|&p| seen(p))
+    };
+    (0..16_i32)
+        .find_map(|k| nearest(slot(k)))
+        .unwrap_or_else(|| slot(15))
 }
 
 /// Where the ray through the screen point `p` hits a pane of `size` at
@@ -825,5 +895,36 @@ mod tests {
         let b = Pose { yaw: -3.0, ..a };
         let mid = a.lerp(&b, 0.5);
         assert!((mid.yaw - (3.0 + (std::f64::consts::TAU - 6.0) / 2.0)).abs() < 1e-9);
+    }
+
+    /// The label of a turned pane hangs at the middle of its projected
+    /// bottom edge, which is not the projection of the middle of the edge.
+    #[test]
+    fn the_label_of_a_turned_pane_hangs_at_the_middle_of_its_projected_bottom_edge() {
+        let size = [1280.0, 800.0];
+        let pose = Pose::default();
+        let yaw = facing([0.0, 0.0], [300.0, 1500.0]) + 0.8;
+        let m = pane_matrix(&LENS, &pose, [300.0, 1500.0], size, yaw);
+        let [ax, ay] = project(&m, 0.0, size[1]);
+        let [bx, by] = project(&m, size[0], size[1]);
+        let [x, y] = bottom_middle(&m, size);
+        assert!((x - ax.midpoint(bx)).abs() < 1e-9, "{x}");
+        assert!((y - ay.midpoint(by)).abs() < 1e-9, "{y}");
+        let [mx, _] = project(&m, size[0] / 2.0, size[1]);
+        assert!((mx - x).abs() > 0.5, "the two middles differ: {mx} and {x}");
+    }
+
+    #[test]
+    fn panes_beside_stand_whole_on_the_screen_and_clear_of_each_other() {
+        let lens = Lens::new(1280.0, 800.0);
+        let pose = Pose::default();
+        let size = [1280.0, 800.0];
+        let mut others: Vec<([f64; 2], f64)> = Vec::new();
+        for n in 0..3 {
+            let at = beside(&lens, &pose, 2000.0, size[0], &others);
+            let b = screen_box(&lens, &pose, at, size, facing([0.0, 0.0], at)).unwrap();
+            assert!(b[0] >= 0.0 && b[2] <= lens.w, "pane {n} is cut: {b:?}");
+            others.push((at, size[0]));
+        }
     }
 }

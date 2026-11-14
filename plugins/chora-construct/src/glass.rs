@@ -174,15 +174,25 @@ pub fn surface(look: &Look, m: &Material, s: &Surface<'_>) -> Vec<Command> {
             ..PropsUpdate::default()
         },
     ));
-    let inset = r - (r * r - (r - 1.0).powi(2)).max(0.0).sqrt();
     commands.push(rect(
         &format!("{id}-hi"),
         id,
-        [inset, 0.0, w - 2.0 * inset, 1.0],
+        highlight(w, r),
         0.0,
         m.highlight,
     ));
     commands
+}
+
+/// The highlight along the top edge of a surface `w` wide with corner
+/// radius `r`: one pixel high, inside the inner ring, and as wide as
+/// the rounded rect is there, less a pixel, so that it never reaches
+/// out of the capsule.
+#[must_use]
+pub fn highlight(w: f64, r: f64) -> [f64; 4] {
+    let inner = (r - 1.0).max(0.0);
+    let inset = 1.0 + r - ((inner * inner) - (r - 1.5).powi(2)).max(0.0).sqrt();
+    [inset, 1.0, (w - 2.0 * inset).max(0.0), 1.0]
 }
 
 /// The blur of the core behind a surface, while `chora_kit::glass` asks
@@ -195,9 +205,20 @@ pub fn backdrop(m: &Material) -> Option<chora_scene::Backdrop> {
     })
 }
 
+/// The tallest surface that takes the short shadow of a capsule, and its
+/// three layers: offset down, deviation and alpha. 0 1 2 at 0.06 and 0 4
+/// 12 at 0.08; a capsule has no third layer. A tall panel shadow under a
+/// label shows as a grey smudge three times its height.
+const CAPSULE_MAX: f64 = 40.0;
+const CAPSULE_SHADOW: [[f64; 3]; 3] = [[1.0, 1.0, 0.06], [4.0, 6.0, 0.08], [0.0, 1.0, 0.0]];
+
 /// The shadow node of a surface of `[w, h, r]`.
 fn shadow(look: &Look, m: &Material, id: &str, parent: &str, [w, h, r]: [f64; 3]) -> Command {
     let layer = |k: usize| {
+        if h <= CAPSULE_MAX {
+            let [y, deviation, alpha] = CAPSULE_SHADOW[k];
+            return Uniform::Vector(vec![y, deviation, alpha, 0.0]);
+        }
         let l = m.shadows[k];
         Uniform::Vector(vec![l.y, l.blur / 2.0, l.alpha, 0.0])
     };
@@ -310,6 +331,20 @@ mod tests {
     use crate::{config::Config, hud::Metrics};
 
     #[test]
+    fn the_highlight_lies_inside_the_rounded_rect_by_a_pixel() {
+        for (w, r) in [(154.0, 16.0), (448.0, 24.0), (90.0, 16.0)] {
+            let [x, y, width, h] = highlight(w, r);
+            assert!(y >= 1.0 && h <= 1.0, "inside the ring: {y}");
+            let (cx, cy) = (r, r);
+            let reach = |px: f64| ((px - cx).hypot(y + h / 2.0 - cy)).max(0.0);
+            assert!(reach(x) <= r - 1.0 + 1e-9, "left end {x} of {w}x{r}");
+            let right = x + width;
+            let mirrored = (w - right).abs() - x;
+            assert!(mirrored.abs() < 1e-9, "symmetric");
+        }
+    }
+
+    #[test]
     fn a_surface_is_its_shadow_hairline_tint_and_highlight_named_for_the_audit() {
         let config: Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
         let metrics = Metrics::default();
@@ -360,5 +395,58 @@ mod tests {
         );
         assert_eq!(props.backdrop.unwrap().map(|b| b.blur), Some(40.0));
         assert_eq!(props.radius, Some(20.0));
+    }
+
+    fn layers(commands: &[Command], id: &str) -> Vec<Vec<f64>> {
+        let shadow = commands.iter().find_map(|c| match c {
+            Command::Create { id: i, props, .. } if i == id => props.uniforms.as_ref(),
+            _ => None,
+        });
+        let layer = |name: &str| match shadow.and_then(|u| u.get(name)) {
+            Some(Uniform::Vector(v)) => v.clone(),
+            other => panic!("no layer {name}: {other:?}"),
+        };
+        vec![layer("near"), layer("mid"), layer("far")]
+    }
+
+    fn surface_of(height: f64) -> Vec<Command> {
+        let config: Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: Material::of(false),
+            metrics: &metrics,
+        };
+        let s = Surface {
+            id: "capsule",
+            parent: crate::NAME,
+            rect: [0.0, 0.0, 200.0, height],
+            radius: height / 2.0,
+            strong: false,
+            name: "capsule",
+            input: InputMode::Pass,
+        };
+        surface(&look, &Material::of(false), &s)
+    }
+
+    #[test]
+    fn a_capsule_up_to_40_high_has_the_short_shadow_and_a_panel_keeps_its_own() {
+        for height in [24.0, 32.0, 40.0] {
+            let l = layers(&surface_of(height), "capsule-shadow");
+            assert_eq!(l[0], [1.0, 1.0, 0.06, 0.0], "0 1 2 at 0.06 for {height}");
+            assert_eq!(l[1], [4.0, 6.0, 0.08, 0.0], "0 4 12 at 0.08 for {height}");
+            assert!(l[2][2].abs() < 1e-12, "no third layer for {height}");
+        }
+        let panel = layers(&surface_of(48.0), "capsule-shadow");
+        let own = Material::of(false).shadows;
+        assert!(
+            (panel[0][2] - own[0].alpha).abs() < 1e-12,
+            "a panel keeps its shadow"
+        );
+        assert!((panel[2][2] - own[2].alpha).abs() < 1e-12);
     }
 }

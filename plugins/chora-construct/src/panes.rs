@@ -109,8 +109,20 @@ pub(crate) fn pane_effect(shader: &str, look: &PaneLook, focused: bool) -> Shade
                 Uniform::Vector(vec![r, g, b, if focused { 1.0 } else { 0.0 }]),
             ),
             ("reach".into(), Uniform::Float(look.reach)),
+            ("fade".into(), Uniform::Vector(HAZE.to_vec())),
         ]),
     }
+}
+
+/// The haze of a pane in the distance: it starts at half of the
+/// leash radius, so the neighbours of a pane in the walk keep their
+/// colours, grows by `HAZE[1]` and reaches `HAZE[2]` at most.
+pub(crate) const HAZE: [f64; 3] = [0.5, 3.0, 0.9];
+
+/// How much of the fog covers a pane at `far` of the leash radius.
+#[cfg(test)]
+pub(crate) fn haze_at(far: f64) -> f64 {
+    (1.0 - (-(far - HAZE[0]).max(0.0) * HAZE[1]).exp()) * HAZE[2]
 }
 
 /// The pane of a window that another window manager hands over (D55):
@@ -132,6 +144,17 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
     }
 }
 
+/// The soft edge of the mirror image of a pane, in texture pixels.
+pub(crate) const PANE_FEATHER: f64 = 60.0;
+/// How far the mirror image of a pane reaches below it, in texture
+/// pixels: a reflection with a body, not a stripe.
+pub(crate) const PANE_FALL: f64 = 240.0;
+/// The soft edge of the mirror image of a cube face, in texture pixels:
+/// the faces meet on their edges.
+pub(crate) const CUBE_FEATHER: f64 = 3.0;
+/// How far the mirror image of a cube face reaches below it.
+pub(crate) const CUBE_FALL: f64 = 60.0;
+
 /// The roughness of the polished floor in a mirror image (mirror.frag):
 /// the blur in pixels of its texture at the contact line and at the top,
 /// the stretch of the blur along the view, and the waver of the bumps.
@@ -139,12 +162,19 @@ pub(crate) const ROUGH: [f64; 4] = [0.6, 10.0, 1.6, 1.2];
 
 /// The uniforms of a mirror image: the pane's node, the gloss of the
 /// floor, the distances of the haze and the fresnel, and the roughness.
-pub(crate) fn mirror_uniforms(win: Uniform, look: &PaneLook) -> BTreeMap<String, Uniform> {
+pub(crate) fn mirror_uniforms(
+    win: Uniform,
+    look: &PaneLook,
+    (feather, fall): (f64, f64),
+) -> BTreeMap<String, Uniform> {
     BTreeMap::from([
+        ("feather".into(), Uniform::Float(feather)),
+        ("fall".into(), Uniform::Float(fall)),
         ("win".into(), win),
         ("rough".into(), Uniform::Vector(ROUGH.to_vec())),
         ("gloss".into(), Uniform::Float(look.gloss)),
         ("reach".into(), Uniform::Float(look.reach)),
+        ("fade".into(), Uniform::Vector(HAZE.to_vec())),
         ("ground".into(), Uniform::Float(look.ground)),
     ])
 }
@@ -273,7 +303,9 @@ impl Construct {
                 self.backs.clear();
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
+                self.neighbours.clear();
                 self.label_drawn = false;
+                self.start_card = crate::start::State::default();
             }
             Some(node) if node.parent.as_deref() != Some(root.as_str()) => {
                 commands.push(Command::Move {
@@ -351,7 +383,7 @@ impl Construct {
         at.or_else(|| space::place(&self.lens, &self.pose, distance, size, &others))
             .or_else(|| {
                 let widths: Vec<_> = others.iter().map(|(at, size, _)| (*at, size[0])).collect();
-                force.then(|| space::beside(&self.pose, distance, size[0], &widths))
+                force.then(|| space::beside(&self.lens, &self.pose, distance, size[0], &widths))
             })
     }
 
@@ -381,7 +413,11 @@ impl Construct {
             update(
                 &pane.mirror(),
                 PropsUpdate {
-                    uniforms: Some(mirror_uniforms(pane.reads(), look)),
+                    uniforms: Some(mirror_uniforms(
+                        pane.reads(),
+                        look,
+                        (PANE_FEATHER, PANE_FALL),
+                    )),
                     ..PropsUpdate::default()
                 },
             ),
@@ -445,7 +481,11 @@ impl Construct {
                 PropsUpdate {
                     size: Some(mirror),
                     shader: Some(self.mirror_shader.clone()),
-                    uniforms: Some(mirror_uniforms(pane.reads(), &look)),
+                    uniforms: Some(mirror_uniforms(
+                        pane.reads(),
+                        &look,
+                        (PANE_FEATHER, PANE_FALL),
+                    )),
                     transform: Some(Transform::from_matrix(space::mirror_model(
                         &self.lens, pane.at, pane.size, pane.yaw, k,
                     ))),
@@ -481,5 +521,22 @@ impl Construct {
             ));
         }
         commands
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_neighbour_in_the_walk_keeps_its_colours_and_a_far_pane_still_fades() {
+        let dark_terminal = 0.14_f64;
+        let fog = 0.93_f64;
+        for far in [0.0, 0.2, 0.36, 0.5] {
+            let seen = dark_terminal + (fog - dark_terminal) * haze_at(far);
+            assert!(seen <= dark_terminal + 0.01, "far {far}: grey {seen}");
+        }
+        assert!(haze_at(1.0) > 0.6, "at the leash radius it is mostly fog");
+        assert!(haze_at(0.7) < haze_at(1.0), "it grows with the distance");
     }
 }

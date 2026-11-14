@@ -385,6 +385,16 @@ impl Config {
         let letters =
             |actions: &[Action]| -> Vec<String> { actions.iter().flat_map(|a| one(*a)).collect() };
         let second = |action: Action| bound(action).into_iter().nth(1).unwrap_or_default();
+        let help = bound(Action::Help);
+        let shared_help = (help
+            .iter()
+            .find(|k| k.first().is_some_and(|m| m == "Super")))
+        .or_else(|| help.first())
+        .cloned()
+        .unwrap_or_default();
+        let walk_help = (help.iter().find(|k| **k != shared_help))
+            .cloned()
+            .unwrap_or_default();
         let walk = KeyGroup {
             head: "Walk".into(),
             shared: false,
@@ -407,6 +417,7 @@ impl Config {
                 row("Back to the start", one(Action::Home), Vec::new()),
                 row("Fly into the pane ahead", one(Action::FlyIn), Vec::new()),
                 row("Show the windows", one(Action::Windows), Vec::new()),
+                row("Show the keys of the walk", walk_help, Vec::new()),
                 row(
                     "Open the cube",
                     if cube { Vec::new() } else { one(Action::Cube) },
@@ -469,12 +480,12 @@ impl Config {
                     ("tiling", "1"),
                     ("xp", "2"),
                     ("mc", "3"),
-                    ("the construct", "4"),
+                    ("construct", "4"),
                 ]
                 .into_iter()
                 .map(|(to, n)| {
                     row(
-                        &format!("Give it to {to}"),
+                        &format!("Give it to {}", crate::names::manager_name(to)),
                         chord(&format!("Super+Alt+{n}")),
                         Vec::new(),
                     )
@@ -486,7 +497,7 @@ impl Config {
                 shared: true,
                 rows: vec![
                     row("Back out one step", chord("Escape"), Vec::new()),
-                    row("Show these keys", one(Action::Help), Vec::new()),
+                    row("Show these keys", shared_help, Vec::new()),
                 ],
             },
         ]);
@@ -547,6 +558,14 @@ mod tests {
         assert_eq!(config.keys["Tab"], Action::Windows);
         assert_eq!(config.voice_hud, VoiceHud::Host, "one voice indicator");
         assert_eq!(config.style.font, "Inter");
+    }
+
+    #[test]
+    fn the_terminal_of_the_default_file_pads_its_text_12_by_12() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let words: Vec<&str> = config.terminal.split_whitespace().collect();
+        assert_eq!(words.first(), Some(&"foot"));
+        assert!(words.contains(&"pad=12x12"), "{:?}", config.terminal);
     }
 
     /// A key that starts or closes something takes the modifier, so
@@ -740,11 +759,55 @@ mod tests {
             keys(&config, "Walk forward, back, sideways").unwrap(),
             ["W", "A", "S", "D"]
         );
-        assert_eq!(keys(&config, "Show these keys").unwrap(), ["F1"]);
+        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "/"]);
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.keys.remove("h");
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Alt"]);
         assert_eq!(keys(&config, "Back to the start"), None);
+    }
+
+    /// Polish 15: `Super /` is in the shared group Everywhere and `F1`
+    /// in Walk, and no row stands twice.
+    #[test]
+    fn super_slash_shows_the_help_in_everywhere_and_f1_in_walk() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.keys.get("Super+slash"), Some(&Action::Help));
+        assert_eq!(config.keys.get("F1"), Some(&Action::Help));
+        let groups = config.help_groups(false);
+        let keys_of = |head: &str| -> Vec<Vec<String>> {
+            (groups.iter().filter(|g| g.head == head))
+                .flat_map(|g| g.rows.iter().map(|r| r.keys.clone()))
+                .collect()
+        };
+        assert!(keys_of("Everywhere").contains(&vec!["Super".to_owned(), "/".to_owned()]));
+        assert!(!keys_of("Everywhere").contains(&vec!["F1".to_owned()]));
+        assert!(keys_of("Walk").contains(&vec!["F1".to_owned()]));
+        let mut whats: Vec<&str> = (groups.iter())
+            .flat_map(|g| g.rows.iter().map(|r| r.what.as_str()))
+            .collect();
+        let rows = whats.len();
+        whats.sort_unstable();
+        whats.dedup();
+        assert_eq!(whats.len(), rows, "a row stands twice");
+    }
+
+    /// Polish 14: the help names the window managers as people read them.
+    #[test]
+    fn the_help_gives_a_window_to_managers_by_their_display_names() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let gives: Vec<String> = (config.help_groups(false).into_iter())
+            .filter(|g| g.head == "Give a window")
+            .flat_map(|g| g.rows.into_iter().map(|r| r.what))
+            .collect();
+        assert_eq!(
+            gives,
+            [
+                "Give it to Tiling",
+                "Give it to XP",
+                "Give it to Media center",
+                "Give it to Construct"
+            ]
+        );
     }
 }

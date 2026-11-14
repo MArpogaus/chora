@@ -36,6 +36,8 @@ terms and no synonyms.
 | **Focus border** | The 2 px border that `chora-tiling` draws outside each window: a gradient from the accent to the second accent on the focused window, the line colour on the others, the urgent colour on a window that asks for attention. |
 | **Key list** | The glass panel that `chora-tiling` shows on `MOD+slash` and on the Keys button of the panel: every binding with its words, built from the file. |
 | **Layout chip** | The small glass chip that `chora-tiling` shows for 700 ms and that names the new layout. |
+| **Start card** | The glass card that `chora-construct` shows in the middle of the output while the space holds no pane: rows to start a terminal, the launcher or a cube, each with its key. It fades out when the first pane appears. |
+| **Face card** | The flat glass card that `chora-construct` shows on the face ahead of a cube while the window manager of the face starts (the working ring and `Starting Media center`) or failed to start (what failed, the reason in a data well, the next step). A click on it tries again. |
 | **Flavor** | A preconfigured bundle of views, plugins and services, for example "classic", "tiling" or "agentic". |
 | **Block** | A neutral plugin of the XP split that does one job for any flavor: notifications, assistant, desktop, panel or stacking window manager (D73). |
 | **Asset folder** | The folder from which a block loads its pictures and a few values. The block ships a neutral one, and a flavor ships another (D73). |

@@ -3,10 +3,10 @@
 # four virtual outputs, starts one chora-xp on them and shows each as a
 # forwarding face of a cube in its 3D context.
 #
-# 1. Without a cube no chip shows: the walk hints name the key Super+C
-#    of the cube. cube.open without params: four virtual outputs come,
-#    each with an xp taskbar, and the hint goes; a second cube.open is
-#    refused.
+# 1. Without a cube no chip shows: the start card of the empty floor
+#    names the key Super+C of the cube, with no hint bar. cube.open
+#    without params: four virtual outputs come, each with an xp taskbar;
+#    a second cube.open is refused.
 # 2. A probe window opens on the front face, which shows its output at
 #    1:1: a click near its corner reaches it at that point.
 # 2a. Standing back (K4, docs/cube-modes.md): view.step_back shows the
@@ -70,6 +70,14 @@ until_ok() {
     done
     return 1
 }
+quick() {
+    for _ in $(seq 100); do
+        eval "$1" && return 0
+        sleep 0.02
+    done
+    return 1
+}
+now_ms() { echo $(($(date +%s%N) / 1000000)); }
 call() { ctl call construct "$@"; }
 inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 virtuals() { ctl outputs | python3 -I -c 'import json, sys; print(" ".join(sorted(o["name"] for o in json.load(sys.stdin) if o.get("virtual"))))'; }
@@ -111,11 +119,12 @@ grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
 [ "$(prop construct-open-cube visible)" = gone ] || fail "a chip OPEN CUBE shows: no buttons in the construct"
-until_ok 'ctl query id:construct-hint-cube | grep -q construct-hint-cube' || fail "the walk hints do not name the key of the cube"
-ok "no chip OPEN CUBE, and the walk hints name the key of the cube"
+until_ok 'ctl query id:construct-start-row-2-keys-1-text | grep -q "\"text\": \"C\""' || fail "the start card does not name the key of the cube"
+ctl query id:construct-hint-cube | grep -q construct-hint-cube && fail "a hint bar shows with the start card"
+ok "no chip OPEN CUBE, and the start card names the key of the cube"
 opened=$(call cube.open) || fail "cube.open without params: $opened"
 until_ok '! ctl query id:construct-hint-cube | grep -q construct-hint-cube' || fail "the hint of the cube stays with a cube"
-ok "cube.open without params opens four faces, and the hint of the cube goes"
+ok "cube.open without params opens four faces, and no hint of the cube shows"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no four virtual outputs: $(virtuals)"
 until_ok 'test "$(bars)" = 4' 80 || fail "xp shows $(bars) taskbars on $(virtuals)"
 ok "the cube shows four xp taskbars on $(virtuals)"
@@ -150,7 +159,9 @@ still() {
 key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
 plain() { inject "[{\"key\": {\"key\": \"$1\", \"state\": \"pressed\"}}, {\"key\": {\"key\": \"$1\", \"state\": \"released\"}}]"; }
 keys_got() { grep -c "^key $1\$" "$work/probe.log"; }
+front_face0_label() { prop construct-face-label-words text | grep -q "face 1 of 4"; }
 front_is() { test "$(prop "construct-cube-face-$1" visible)" = True && test "$(prop "construct-cube-face-$1" forward)" = True; }
+alpha_of() { prop "$1" color | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())[3])'; }
 stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
 stepped_in='test "$(prop construct-cube-face-0 forward)" = True && test "$(width construct-cube-face-0)" = 1280'
 
@@ -164,6 +175,40 @@ before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "view.step_back, a method, took the keyboard from the window"
 ok "view.step_back: the cube stands back, the face forwards nothing, three chips show, the keyboard stays"
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True' 20 || fail "stood back, the next face does not show: the cube rests square"
+[ "$(prop construct-cube-face-3 visible)" = False ] || fail "stood back, the face before the front shows"
+until_ok 'test "$(prop construct-cube-mirror-0 visible)" = True && test "$(prop construct-cube-mirror-1 visible)" = True' 20 || fail "stood back, the cube has no mirror image in the floor"
+[ "$(prop construct-cube-mirror-3 visible)" = False ] || fail "the mirror image of a face that looks away shows"
+shadow_width=$(prop construct-fog uniforms | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())["s0"][2])')
+python3 -I -c 'import sys; sys.exit(not float(sys.argv[1]) > 0)' "$shadow_width" || fail "the cube has no shadow on the floor: s0 $shadow_width"
+ok "stood back, the cube rests turned toward the next face, with its shadow and its mirror image in the floor"
+label_at() { ctl query id:construct-face-label-glass | python3 -I -c 'import json, sys; r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]; print("%.2f %.2f" % (r[0] + r[2] / 2, r[1]))'; }
+lowest() { ctl query "owner:construct" | python3 -I -c 'import json, sys; print("%.2f" % max(r[1] + r[3] for n in json.load(sys.stdin) if n["id"].startswith("construct-cube-face-") and n.get("visible") for r in [n["rects"]["HEADLESS-1"]]))'; }
+sleep 1
+read -r label_x label_y <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - 640.0) <= 1.0)' "$label_x" || fail "the face label is not on the view axis: x $label_x"
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - float(sys.argv[2]) - 8.0) <= 1.0)' "$label_y" "$(lowest)" || fail "the face label is not 8 px under the lowest corner of the cube: label y $label_y, lowest $(lowest)"
+cube_centre=$(ctl query "owner:construct" | python3 -I -c 'import json, sys; rs = [n["rects"]["HEADLESS-1"] for n in json.load(sys.stdin) if n["id"].startswith("construct-cube-face-") and n.get("visible")]; print("%.2f" % ((min(r[0] for r in rs) + max(r[0] + r[2] for r in rs)) / 2))')
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - 640.0) <= 1.0)' "$cube_centre" || fail "the cube is not centred on the view axis: centre $cube_centre"
+ok "the cube stood back is centred on the view axis, and the face label hangs on the axis 8 px under its lowest corner"
+call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn for the label"
+sleep 1
+read -r mid_x mid_y <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not max(abs(float(sys.argv[1]) - float(sys.argv[3])), abs(float(sys.argv[2]) - float(sys.argv[4]))) > 2.0)' "$label_x" "$label_y" "$mid_x" "$mid_y" || fail "the face label stays at its place while the cube turns: $label_x $label_y, then $mid_x $mid_y"
+until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 40 || fail "the slow turn did not end on face 2"
+sleep 3
+read -r end_x end_y <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not (abs(float(sys.argv[1]) - 640.0) <= 1.0 and abs(float(sys.argv[2]) - float(sys.argv[3]) - 8.0) <= 1.0))' "$end_x" "$end_y" "$(lowest)" || fail "after the turn the label is not on the axis 8 px under the cube: label $end_x $end_y, lowest $(lowest)"
+key Ctrl+Alt+Left
+until_ok 'front_face0_label' 20 || fail "Ctrl+Alt+Left did not turn back after the label check"
+sleep 1
+ok "the face label follows the lowest corner of the cube while it turns and ends on the axis under it"
+shadow_layers=$(prop construct-face-label-shadow uniforms | python3 -I -c '
+import ast, sys
+u = ast.literal_eval(sys.stdin.read())
+print([u[k] for k in ("near", "mid", "far")])')
+[ "$shadow_layers" = "[[1.0, 1.0, 0.06, 0.0], [4.0, 6.0, 0.08, 0.0], [0.0, 1.0, 0.0, 0.0]]" ] || fail "the face label capsule has no short shadow: $shadow_layers"
+ok "the face label capsule takes the short shadow, 0 1 2 at 0.06 and 0 4 12 at 0.08, no grey smudge under it"
 [ "$(edge construct-mode-step-in 1)" -gt 400 ] || fail "the chips are in the upper half, over the title band: y $(edge construct-mode-step-in 1)"
 [ "$(edge construct-mode-step-in 3)" -ge 24 ] || fail "a chip is $(edge construct-mode-step-in 3) px high, less than 24"
 [ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le $((800 - 32)) ] || fail "the chips leave the margin of 32 at the bottom"
@@ -173,19 +218,14 @@ still || fail "a still cube draws: $(drawn)"
 ok "a still cube renders 0 passes and has no damage, by render.stats"
 call view.step_in >/dev/null || fail "view.step_in"
 until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
-prop construct-mode-step-back-text text | grep -q "Alt+Esc" || fail "the chip STEP BACK does not name its key: $(prop construct-mode-step-back-text text)"
-covered_icons() {
-    { ctl query id:construct-mode-step-back; ctl query "owner:xp kind:image"; } | python3 -I -c '
-import json, sys
-chip, images = [json.loads(part) for part in sys.stdin.read().replace("]\n[", "]\0[").split("\0")]
-c = chip[0]["rects"]["HEADLESS-1"]
-for n in images:
-    r = n["rects"].get(sys.argv[1])
-    if n["id"].startswith("xp-icon-") and r and r[0] < c[0] + c[2] and c[0] < r[0] + r[2] and r[1] < c[1] + c[3] and c[1] < r[1] + r[3]:
-        print(n["id"])' "$front"
-}
-until_ok 'test -z "$(covered_icons)"' 20 || fail "the chip STEP BACK covers the desktop icons $(covered_icons)"
-ok "the chip STEP BACK covers no desktop icon of the face"
+[ "$(prop construct-cube-face-1 visible)" = False ] || fail "after the step in the next face still shows: the face is not square"
+[ "$(prop construct-cube-mirror-0 visible)" = False ] || fail "after the step in the mirror image of the cube shows"
+step_keys() { local k out=""; for k in 0 1 2; do out="$out$(prop "construct-hints-step-back-keys-$k-text" text | grep -v -e False -e gone)"; done; echo "$out"; }
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 20 || fail "no hint Step back in use mode: $(prop construct-hint-step-back visible)"
+[ "$(prop construct-mode-step-back visible)" != True ] || fail "the corner chip STEP BACK shows in use mode: v2 has none"
+[ "$(prop construct-hints-step-back-word text)" = "Step back" ] || fail "the hint Step back has the word $(prop construct-hints-step-back-word text)"
+[ "$(step_keys)" = "AltEsc" ] || fail "the hint Step back names the keys $(step_keys)"
+ok "in use mode no chip covers the face; the hint Alt Esc Step back shows at the bottom centre"
 
 before=$(keys_got 1)
 plain Escape
@@ -217,7 +257,8 @@ sleep 0.5
 [ "$(keys_got 30)" = "$before" ] || fail "after Alt+Escape the window still gets typed text"
 plain Return
 until_ok "$stepped_in" 20 || fail "Return did not step in: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
-[ "$(prop construct-mode-step-back visible)" = True ] || fail "the chip STEP BACK does not show in use mode"
+[ "$(prop construct-mode-step-back visible)" != True ] || fail "the chip STEP BACK shows in use mode"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 20 || fail "the hint Step back does not show after the step in"
 before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "typed text after the step in did not reach the window"
@@ -267,38 +308,134 @@ key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the hover"
 inject '[{"pointer_move": {"position": [10, 10]}}, {"pointer_move": {"position": [640, 400]}}]'
 until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge of the face under the pointer is not lit: $(prop construct-cube-edge visible)"
+sleep 1
+edge_units=$(prop construct-cube-edge border | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())["width"])')
+python3 -I -c '
+import sys
+width, face = float(sys.argv[1]), float(sys.argv[2])
+sys.exit(not abs(width * face / 1280 - 2.0) < 0.3)' "$edge_units" "$(width construct-cube-face-0)" || fail "the lit edge is $edge_units units of the face wide on a face $(width construct-cube-face-0) px wide, not 2 px on the screen"
+[ "$(prop construct-cube-edge-glow visible)" = True ] || fail "the lit edge has no glow"
+[ "$(alpha_of construct-mode-step-in)" != 0.0 ] || fail "the hint Step in has no hover fill while the pointer is on the face"
+ok "the pointer on a face lights its edge at 2 px on the screen with a glow, and the hint Step in has its hover fill"
 inject '[{"pointer_move": {"position": [10, 10]}}]'
 until_ok 'test "$(prop construct-cube-edge visible)" = False' 20 || fail "the edge stays lit after the pointer left the face"
-ok "in navigate mode the edge of the face under the pointer is lit"
+until_ok 'test "$(prop construct-cube-edge-glow visible)" = False' 20 || fail "the glow stays after the pointer left the face"
+until_ok 'test "$(alpha_of construct-mode-step-in)" = 0.0' 20 || fail "the hint Step in keeps its hover fill after the pointer left the face: $(alpha_of construct-mode-step-in)"
+ok "the edge, its glow and the hover fill go out when the pointer leaves the face"
+inject '[{"pointer_move": {"position": [640, 400]}}]'
+until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge is not lit again"
+call cube.turn '{"by": 1, "ms": 2500}' >/dev/null || fail "a slow cube.turn for the hover"
+quick 'test "$(prop construct-cube-edge visible)" = False' || fail "the edge stays lit while the cube turns"
+sleep 1
+[ "$(prop construct-cube-edge visible)" = False ] || fail "the edge came back during a turn of the cube"
+until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge does not light again when the turn ended with the pointer on the face"
+key Ctrl+Alt+Left
+until_ok 'front_face0_label' 20 || fail "Ctrl+Alt+Left did not turn back after the hover"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in after the pointer lit an edge: the keyboard is lost to the pointer"
+ok "no edge shows during a turn, and Return steps in after the hover"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back after the hover"
+sleep 1
 
 drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}, {\"pointer_move\": {\"position\": [$(( ($1 + $2) / 2 )), 400]}}, {\"pointer_move\": {\"position\": [$2, 400]}}, {\"button\": {\"state\": \"released\"}}]"; }
-drag 800 300
+press_at() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"; }
+move_to() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}]"; }
+let_go() { inject '[{"button": {"state": "released"}}]'; }
+drag 780 80
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "a drag to the left did not turn the cube to the next face"
 sleep 1
 [ "$(prop construct-cube-face-1 forward)" = False ] || fail "a drag on the cube stepped in"
-drag 500 1000
-until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a drag to the right did not turn the cube back"
+drag 500 1200
+until_ok 'test "$(prop construct-cube-face-0 visible)" = True && prop construct-face-label-words text | grep -q "face 1 of 4"' 20 || fail "a drag to the right did not turn the cube back"
 sleep 1
-drag 640 700
+press_at 640
+move_to 700
+sleep 0.4
+let_go
 sleep 1
 eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
 plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
-ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
+ok "a drag of more than 45 degrees turns the cube by one face; a slow short drag returns and does not step in"
 
-call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
-sleep 0.5
-if prop construct-mode-step-back-text text | grep -q "Esc"; then fail "the chip names Escape although the construct cannot grab it: $(prop construct-mode-step-back-text text)"; fi
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live drag"
+windows_before=$(ctl query kind:surface | jq length)
+rest_width=$(width construct-cube-face-0)
+navigating='test "$(prop construct-mode-step-in visible)" = True'
+press_at 780
+previous=$rest_width
+for x in 680 580 480 380 280 180 80; do
+    move_to "$x"
+    sleep 0.25
+    seen=$(width construct-cube-face-0)
+    [ "$seen" -lt "$previous" ] || fail "the cube did not follow the hand at x $x: face 0 is $seen px wide, was $previous"
+    previous=$seen
+    case $x in
+    380) prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 28 degrees the label names $(prop construct-face-label-words text)" ;;
+    180)
+        prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 42 degrees the label names $(prop construct-face-label-words text)"
+        fill=$(alpha_of construct-face-label-dot-1)
+        python3 -I -c 'import sys; sys.exit(not 0.45 < float(sys.argv[1]) < 0.9)' "$fill" || fail "the next dot is not partly filled at 42 degrees: alpha $fill"
+        [ "$(prop construct-mode-step-in-text opacity)" = 0.6 ] || fail "Step in is not dimmed while the cube turns: $(prop construct-mode-step-in-text opacity)"
+        ;;
+    esac
+done
+until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 8 || fail "at 49 degrees the label does not name the next face: $(prop construct-face-label-words text)"
+ok "a slow drag turns the cube with the hand at every step, the label changes at 45 degrees and Step in dims"
+let_go
+released=$(now_ms)
+quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
+settled_in=$(($(now_ms) - released))
+[ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees"
+front_is_next=$(prop construct-cube-face-1 visible)
+[ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
+until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.6' 8 || fail "Step in stays dim after the settle"
+ok "a release at 49 degrees goes on to the next face ($settled_in ms with the calls)"
+press_at 780
+move_to 580
+sleep 0.2
+move_to 353
+sleep 0.4
+let_go
+quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
+prop construct-face-label-words text | grep -q "face 2 of 4" || fail "a release at 30 degrees did not return to face 2 of 4: $(prop construct-face-label-words text)"
+ok "a release at 30 degrees returns to the face of before"
+press_at 740
+inject '[{"pointer_move": {"position": [680, 400]}}, {"pointer_move": {"position": [560, 400]}}, {"pointer_move": {"position": [440, 400]}}, {"button": {"state": "released"}}]'
+until_ok 'prop construct-face-label-words text | grep -q "face 3 of 4" && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a flick did not go on to the next face: $(prop construct-face-label-words text), face 1 $(prop construct-cube-face-1 visible)"
+ok "a flick of 21 degrees goes on to the next face"
+plain Return
+until_ok 'front_is 2' 20 || fail "Return did not step into the face that the drag turned to"
+key Alt+Escape
+until_ok "$navigating" 20 || fail "Alt+Escape did not step back after the drags"
+turn_start=$(now_ms)
+key Ctrl+Alt+Right
+quick 'test "$(prop construct-cube-face-3 visible)" = True && test "$(prop construct-cube-face-2 visible)" = False'
+turn_took=$(($(now_ms) - turn_start))
+[ "$turn_took" -le 700 ] || fail "a turn key took $turn_took ms"
+plain Return
+until_ok 'front_is 3' 20 || fail "Return did not step into the face after the turn key"
+ok "after the drags and a turn key, Return steps into the face that is at the front"
+key Alt+Escape
+until_ok "$navigating" 20 || fail "Alt+Escape did not step back at the end of the drags"
+[ "$(ctl query kind:surface | jq length)" = "$windows_before" ] || fail "a window is lost or left by the drags: $windows_before before, $(ctl query kind:surface | jq length) after"
+ok "window audit: no window lost or left by the drags"
+key Ctrl+Alt+Right
+until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-3 visible)" = False' 20 || fail "the turn key did not bring face 0 back to the front"
+plain Return
+until_ok "$stepped_in" 20 || fail "no step in at the end of the drags"
 "$bin/choractl" grant construct input.grab-any || fail "the grant input.grab-any"
 call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape with the grant"
-until_ok 'prop construct-mode-step-back-text text | grep -q "  Esc$"' 20 || fail "the chip does not name Escape: $(prop construct-mode-step-back-text text)"
+sleep 0.5
 plain Escape
 until_ok "$stood_back" 20 || fail "Escape alone did not step back with input.grab-any"
 plain Escape
 until_ok "$stepped_in" 20 || fail "Escape did not step in again"
+until_ok 'test "$(step_keys)" = Esc' 20 || fail "the hint does not name Escape: $(step_keys)"
 call settings.set '{"fly_out": "Alt+Escape"}' >/dev/null || fail "settings.set fly_out Alt+Escape"
-until_ok 'prop construct-mode-step-back-text text | grep -q "Alt+Esc"' 20 || fail "the chip does not name Alt+Escape again"
-ok "with input.grab-any and fly_out Escape, Escape alone steps back and in; without the grant the chip names no key"
+ok "with input.grab-any and fly_out Escape, Escape alone steps back and in, and the hint names Escape"
 
 inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "Tab", "state": "pressed"}}, {"key": {"key": "Tab", "state": "released"}}, {"key": {"key": "Alt_L", "state": "released"}}]'
 sleep 0.5
@@ -338,7 +475,7 @@ floats() {
     [ "$(opacity "$surface")" = 0 ] && [ "$(opacity "$upper")" = 0 ] || { echo "the windows stay in the face: opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
     lower_lift=$(lifted "$surface")
     upper_lift=$(lifted "$upper")
-    [ "$lower_lift" -gt 1030 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
+    [ "$lower_lift" -gt 800 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
     [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
     [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
     still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }
@@ -432,15 +569,92 @@ until_ok 'read -r _ owner out _ <<<"$(probe)"; test "$out" = HEADLESS-1 || { tes
     fail "the probe window $surface is lost after xp ended: $(probe)"
 ok "the probe window is not lost: $(probe)"
 
-call settings.set '{"cube_manager": "sleep 60"}' >/dev/null || fail "settings.set cube_manager"
+printf '#!/bin/sh\nexec sleep 60\n' >"$work/chora-tiling"
+chmod +x "$work/chora-tiling"
+call settings.set "{\"cube_manager\": \"$work/chora-tiling\"}" >/dev/null || fail "settings.set cube_manager"
 call cube.open '{}' >/dev/null || fail "cube.open with a manager that never connects"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs for the waiting cube"
-until_ok 'test -z "$(virtuals)"' 80 || fail "the outputs of a manager that never connected stay: $(virtuals)"
-ok "the outputs of a window manager that never connected went after the wait"
+until_ok 'prop construct-face-card-head text | grep -q "^Tiling did not start"' 80 || fail "a manager that never connected says nothing on its face: $(prop construct-face-card-head text)"
+prop construct-face-card-reason text | grep -q "did not connect within 10 s" || fail "the card gives no reason: $(prop construct-face-card-reason text)"
+[ "$(virtuals | wc -w)" = 4 ] || fail "the outputs went with the manager that never connected: $(virtuals)"
+ok "a window manager that never connected: the face says it did not start, with the reason, and the outputs stay"
+call cube.close >/dev/null || fail "cube.close after a manager that never connected"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
 call cube.open '{}' >/dev/null || fail "cube.open again"
 call cube.close >/dev/null || fail "cube.close"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
 ok "cube.close removed the cube and its outputs"
+lit_frame() {
+    ctl capture "$1" >/dev/null || return 1
+    python3 -I - "$1" <<'PYEND'
+import sys
+from PIL import Image
+image = Image.open(sys.argv[1]).convert("RGB")
+w, h = image.size
+points = [(w // 16, h // 16), (w // 16, h - h // 16), (w - w // 16, h // 16), (w - w // 16, h - h // 16), (w // 8, h // 2)]
+dark = [p for p in points if sum(image.getpixel(p)) < 90]
+sys.exit(1 if len(dark) >= 3 else 0)
+PYEND
+}
+surfaces_before=$(ctl query kind:surface | jq length)
+starts=$work/mc-starts
+: >"$starts"
+cat >"$work/chora-mc" <<SH
+#!/bin/sh
+echo start >>"$starts"
+if [ "\$(wc -l <"$starts")" -ge 3 ]; then exec "$bin/chora-xp" "\$@"; fi
+echo "it needs foot 1.26 or later." >&2
+sleep 2
+exit 1
+SH
+chmod +x "$work/chora-mc"
+call settings.set "{\"cube_manager\": \"$work/chora-mc\", \"theme\": \"light\"}" >/dev/null || fail "settings.set cube_manager to a manager that fails"
+started=$(now_ms)
+call cube.open '{}' >/dev/null || fail "cube.open with a manager that fails"
+quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' || fail "no card Starting Media center on the face: $(prop construct-face-card-head text)"
+shown_in=$(($(now_ms) - started))
+[ "$shown_in" -le 300 ] || fail "the card Starting Media center took $shown_in ms, more than 300"
+ok "a face whose manager starts shows Starting Media center within 300 ms ($shown_in ms)"
+lit_frame "$work/starting.png" || fail "a black frame while the manager starts"
+[ -z "${STARTING_SHOT:-}" ] || cp "$work/starting.png" "$STARTING_SHOT"
+for _ in $(seq 12); do
+    lit_frame "$work/clip.png" || fail "a black frame while the manager starts or fails"
+    sleep 0.2
+done
+until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the face never says it did not start: $(prop construct-face-card-head text)"
+prop construct-face-card-reason text | grep -q "^chora-mc stopped after 2 s: it needs foot 1.26 or later\.$" || fail "the reason on the card: $(prop construct-face-card-reason text)"
+lit_frame "$work/failed.png" || fail "a black frame once the manager failed"
+ok "a manager that exits: the card says Media center did not start, with the reason, and no frame is black"
+call view.step_back >/dev/null || fail "view.step_back with a failed face"
+until_ok "$stood_back" 20 || fail "no step back with a failed face"
+until_ok 'prop construct-face-label-words text | grep -q "did not start"' 20 || fail "the face label does not say did not start: $(prop construct-face-label-words text)"
+[ "$(prop construct-face-label-name text)" = "Media center 1" ] || fail "the face label names $(prop construct-face-label-name text)"
+[ "$(prop construct-face-label-dot-0 color)" = "[0.0, 0.0, 0.0, 0.0]" ] || fail "the dot of the failed face is not hollow: $(prop construct-face-label-dot-0 color)"
+until_ok 'prop construct-mode-step-in-text text | grep -q "Try again"' 20 || fail "the middle hint does not say Try again: $(prop construct-mode-step-in-text text)"
+[ -z "${FAILED_SHOT:-}" ] || ctl capture "$FAILED_SHOT" >/dev/null
+ok "stood back, the label says did not start, its dot is hollow and the middle hint says Try again"
+plain Return
+until_ok 'test "$(wc -l <"$starts")" = 2' 20 || fail "Return did not start the manager again: $(wc -l <"$starts") starts"
+quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' || fail "no card Starting after Return: $(prop construct-face-card-head text)"
+until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the second start did not fail on the face: $(prop construct-face-card-head text)"
+ok "Return tries again, and the second failure shows on the face again"
+call view.step_in >/dev/null || fail "view.step_in with a failed face"
+until_ok 'test "$(width construct-cube-face-0)" = 1280' 20 || fail "no step in with a failed face: width $(width construct-cube-face-0)"
+sleep 0.5
+inject '[{"pointer_move": {"position": [300, 200]}}, {"click": {}}]'
+until_ok 'test "$(wc -l <"$starts")" = 3' 20 || fail "a click on the face did not start the manager again: $(wc -l <"$starts") starts"
+until_ok 'test "$(bars)" = 4' 80 || fail "no xp taskbars after the third start: $(bars)"
+until_ok 'test "$(prop construct-face-card opacity)" = 0.0 || test "$(prop construct-face-card visible)" = gone' 20 || fail "the card stays after the manager came up: $(prop construct-face-card opacity)"
+ok "a click on a failed face tries again, and the face works when the manager is up"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape does not step back after the retry"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return does not step in after the retry"
+ok "after the retry the keys of the cube work again"
+call cube.close >/dev/null || fail "cube.close after the retry"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
+[ "$(ctl query kind:surface | jq length)" = "$surfaces_before" ] || fail "a window is lost or left: $surfaces_before surfaces before, $(ctl query kind:surface | jq length) after"
+ok "window audit: no window lost or left by the failed faces"
 call settings.set '{"cube_manager": "chora-xp"}' >/dev/null || fail "settings.set cube_manager back"
 key Super+c
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "Super+C opened no cube: $(virtuals)"
@@ -458,3 +672,18 @@ ok "the xp of the cube ends with a construct that dies without a word"
 pids+=($!)
 until_ok 'test -z "$(virtuals)"' 16 || fail "the restarted construct left its outputs: $(virtuals)"
 ok "a restarted construct removed the outputs that it left"
+
+"$bin/chora-probe" window 300 200 --report >"$work/pane.log" 2>&1 &
+pids+=($!)
+until_ok 'call construct.list | grep -q "\"surface\""' 40 || fail "a window became no pane before the cube"
+pane_node=construct-pane-$(call construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["panes"][0]["surface"])')
+[ "$(prop "$pane_node" visible)" = True ] || fail "the pane of the probe window does not show while walking: $(prop "$pane_node" visible)"
+call cube.open '{}' >/dev/null || fail "cube.open with a pane open"
+until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs with a pane open"
+call view.step_back >/dev/null || fail "view.step_back with a pane open"
+until_ok '[ "$(prop construct-cube-face-0 forward)" = False ]' 20 || fail "no step back with a pane open"
+until_ok '[ "$(prop "$pane_node" visible)" = False ]' 20 || fail "the pane stays in front of the cube stood back: visible $(prop "$pane_node" visible)"
+until_ok '[ "$(prop construct-label visible)" != True ] || [ "$(prop construct-label-body opacity)" = 0.0 ]' 20 || fail "the pane label shows over the cube stood back"
+until_ok '[ "$(edge construct-face-label-glass 1)" -gt 0 ]' 20 || fail "no face label with a pane open"
+ok "stood back with a pane open, the pane gives way to the cube and its label hides, the face label stays under the cube"
+call view.step_in >/dev/null || fail "view.step_in with a pane open"

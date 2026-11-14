@@ -16,9 +16,9 @@
 //!
 //! Files: `plugin` (the `Plugin` impl), `input`, `panes`, `scene`,
 //! `adopt`, `camera`, `frame`, `list` (window list and give menu),
-//! `overlay` (HUD glue), `voice` (voice glue), `methods` (the
-//! `construct.*` methods), `space` (camera math), `hud`, `config`
-//! and `file`.
+//! `overlay` (HUD glue), `faces` (the card of a face that starts or
+//! failed), `voice` (voice glue), `methods` (the `construct.*`
+//! methods), `space` (camera math), `hud`, `config` and `file`.
 //!
 //! Step K2b: a window list shows the windows without a visible pane, and
 //! a choice flies to the pane or takes the window of another client as a
@@ -36,6 +36,7 @@ mod camera;
 mod command;
 mod config;
 mod cube;
+mod faces;
 mod file;
 mod float;
 mod frame;
@@ -46,12 +47,16 @@ mod input;
 mod list;
 mod methods;
 mod modes;
+mod names;
 mod overlay;
 mod panes;
+mod placeholder;
 mod plugin;
 mod pull;
 mod scene;
 mod space;
+mod start;
+mod stride;
 mod voice;
 mod wm;
 mod wobble;
@@ -417,6 +422,9 @@ impl Waiting {
 enum Grab {
     Drag,
     FlyOut,
+    /// A key that starts a terminal, grabbed while the camera is in a
+    /// pane.
+    Terminal,
     Give(&'static str),
     /// With a cube: the step back from its face, and a turn of it.
     StepBack,
@@ -499,6 +507,8 @@ struct Construct {
     fog_scale: f64,
     pose: Pose,
     glide: Option<Glide>,
+    /// The walk of the key that is down, or still stopping.
+    stride: Option<stride::Stride>,
     panes: Vec<Pane>,
     /// The look of the panes as last sent; `None` sends it again.
     sent: Option<PaneLook>,
@@ -522,12 +532,23 @@ struct Construct {
     help_sel: usize,
     /// The context hints at the bottom centre.
     hints: hints::State,
+    /// The start card of the empty floor.
+    start_card: start::State,
+    /// The key of the card of the face ahead as drawn, none without one.
+    face_card: Option<String>,
+    /// The place of the face ahead with the inputs it was fetched for.
+    face_place: Option<(String, Option<[f64; 4]>)>,
     /// A question of the voice agent waits: the hints hide.
     asked: bool,
     /// The hint under the pointer.
     hint_hover: Option<String>,
     /// The capsule of the pane label exists.
     label_drawn: bool,
+    /// The text of the label that is drawn.
+    label_text: String,
+    /// The windows of the panes that have no buffer yet, which show the
+    /// placeholder.
+    unfilled: Vec<String>,
     /// The notice under the island exists.
     notice_drawn: bool,
     claim: Claim,
@@ -539,6 +560,9 @@ struct Construct {
     pointer: Option<[f64; 2]>,
     /// The pane that the label names, if it shows.
     labelled: Option<String>,
+    /// The labels of the panes beside it, by pane index: the pane's name,
+    /// the text drawn and the width of the capsule.
+    neighbours: std::collections::BTreeMap<usize, (String, String, f64)>,
     /// The window of a pane under the pointer, from `pointer.entered`:
     /// the focus and the label follow it.
     hovered: Option<String>,
@@ -636,6 +660,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         lens: Lens::new(1280.0, 800.0),
         pose: start,
         glide: None,
+        stride: None,
         panes: Vec::new(),
         sent: None,
         flown: None,
@@ -648,14 +673,20 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         help_query: String::new(),
         help_sel: 0,
         hints: hints::State::default(),
+        start_card: start::State::default(),
+        face_card: None,
+        face_place: None,
         asked: false,
         hint_hover: None,
         label_drawn: false,
+        label_text: String::new(),
+        unfilled: Vec::new(),
         notice_drawn: false,
         claim: Claim { due: true },
         glass: Glass::default(),
         pointer: None,
         labelled: None,
+        neighbours: std::collections::BTreeMap::new(),
         hovered: None,
         backs: std::collections::BTreeSet::new(),
         glow: None,

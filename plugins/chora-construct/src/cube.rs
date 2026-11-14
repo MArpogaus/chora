@@ -10,7 +10,9 @@
 use std::{
     collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
-    process::Child,
+    io::{BufRead, BufReader},
+    process::{Child, Stdio},
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -18,13 +20,14 @@ use chora_kit::{
     float::{self, Floating},
     geometry::{Cube, Matrix, Turn},
     modes::{Act, View},
+    words::Language,
 };
 use chora_scene::{Border, Event, InputMode, NodeKind, OutputInfo, OutputTexture};
 use serde_json::{Value, json};
 
 use super::{
     BTreeMap, ClientError, Command, Construct, FLY_MS, PANES, Pose, PropsUpdate, RpcError,
-    Transform, Uniform, create, update,
+    Transform, Uniform, create, faces::Health, update,
 };
 
 /// The group of the cube in the camera group, and the prefix of a face.
@@ -38,15 +41,37 @@ const FACE: &str = "construct-cube-face-";
 const EDGE: &str = "construct-cube-edge";
 const EDGE_WIDTH: f64 = 2.0;
 const EDGE_LIFT: f64 = 1.0;
+/// The glow around the lit edge: its node, its strength, and how long the
+/// edge and the glow take to go out.
+const EDGE_GLOW: &str = "construct-cube-edge-glow";
+pub(crate) const LIT_GLOW: f64 = 0.35;
+pub(crate) const EDGE_OUT: f64 = 120.0;
 /// How far the pointer moves at most between the press and the release
 /// of a click on a face.
 const CLICK: f64 = 8.0;
 /// The client name of the window manager of the cube.
 pub(crate) const MANAGER: &str = "xp";
 /// How long a quarter turn takes, by default.
-const TURN: Duration = Duration::from_millis(500);
-/// How long the window manager may take to connect.
-const CONNECT: Duration = Duration::from_secs(10);
+pub(crate) const TURN: Duration = Duration::from_millis(360);
+/// How long the cube takes to settle on a face after a drag.
+pub(crate) const SETTLE: Duration = Duration::from_millis(320);
+/// How fast a flick is, in widths of the view per second.
+pub(crate) const FLICK: f64 = 1.5;
+/// The plain fill of a face whose window manager is not up, and how far
+/// it lies in front of the face.
+const FILL: &str = "construct-cube-fill-";
+const FILL_LIFT: f64 = 0.5;
+/// How often the construct looks whether a starting manager exited.
+const POLL: Duration = Duration::from_millis(100);
+/// How far the cube turns off square toward the next face when it
+/// stands back, in radians: 22 degrees, so that the next face
+/// shows as a sliver of 25 px or more, enough to know it by.
+pub(crate) const REST: f64 = 22.0 * std::f64::consts::PI / 180.0;
+/// Which way the cube turns more for the angle at which the eye sees its
+/// centre, so that it shows the same side as before it moved aside.
+const LEAN: f64 = -1.0;
+/// The mirror image of a face in the floor.
+const MIRROR: &str = "construct-cube-mirror-";
 /// The most faces: the side faces of a cube.
 pub(crate) const FACES: usize = 4;
 /// The most that a window lifts off its face to clear the planes of a
@@ -54,16 +79,24 @@ pub(crate) const FACES: usize = 4;
 const CLEAR_CAP: f64 = 2.0 * float::LIFT;
 const CLEAR_GAP: f64 = 8.0;
 /// How far the cube stands back in navigate mode, in focal lengths: the
-/// front face shows at 1 / (1 + STAND) of its size.
-const STAND: f64 = 0.6;
+/// front face shows at 1 / (1 + STAND) of its size. Far enough that the
+/// next face shows at the rest pose: the eye is farther than the half
+/// width over the sine of `REST` from the centre.
+const STAND: f64 = 2.0;
 
 /// The cube that the construct hosts: its outputs in face order, the
 /// process of the window manager, where it stands and how it is turned.
 pub(crate) struct Host {
     outputs: Vec<String>,
-    /// The window manager, and until it connects, the time it has.
+    /// The window manager, how it was started, when, the last line it
+    /// wrote to its error output, and the health of each face.
     child: Child,
-    connect_by: Option<Instant>,
+    command: String,
+    program: String,
+    name: String,
+    since: Instant,
+    tail: Tail,
+    health: Vec<Health>,
     cube: Cube,
     /// The centre on the ground, (x, z), and the yaw of the cube: face 0
     /// looks back along it.
@@ -83,6 +116,11 @@ pub(crate) struct Host {
     view: View,
     far: f64,
     stand: f64,
+    /// How far the cube stands to the side of the view axis, so that
+    /// its corners on the screen are centred on it, and how far it
+    /// turns more, so that it still shows the same side to the eye.
+    shift: f64,
+    lean: f64,
     step: Option<Turn>,
     /// The pose that shows the front face at 1:1, and the window that
     /// had the keyboard before the step back.
@@ -102,7 +140,9 @@ pub(crate) struct Host {
     /// in navigate mode, and the binding that steps back while the
     /// construct holds it.
     hover: Option<usize>,
+    lit: Option<usize>,
     press: Option<Press>,
+    live: Option<Live>,
     step_back_key: Option<String>,
     /// The faces whose window manager owes an answer, when the construct
     /// asks again, and the faces that stay flat until the cube rests.
@@ -111,59 +151,161 @@ pub(crate) struct Host {
     denied: BTreeSet<usize>,
 }
 
+/// The face of the geometry of the kit that shows face `i`: the four sides
+/// run the other way round.
+fn mirrored(i: usize) -> usize {
+    if i < 4 { (4 - i) % 4 } else { i }
+}
+
+/// The last line that a window manager wrote to its error output.
+type Tail = Arc<Mutex<String>>;
+
+/// Starts `command` with its error output piped: each line goes on to
+/// the log of the construct, and the last one is the reason if the
+/// manager fails.
+fn launch(command: &str) -> std::io::Result<(Child, Tail)> {
+    let mut child = super::wm::child_command(command)
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let tail = Tail::default();
+    if let Some(pipe) = child.stderr.take() {
+        let last = Arc::clone(&tail);
+        std::thread::spawn(move || {
+            for line in BufReader::new(pipe).lines().map_while(Result::ok) {
+                eprintln!("chora-construct: cube manager: {line}");
+                if let (false, Ok(mut kept)) = (line.trim().is_empty(), last.lock()) {
+                    *kept = line;
+                }
+            }
+        });
+    }
+    Ok((child, tail))
+}
+
+/// The id of the plain fill of face `i`.
+fn fill_id(i: usize) -> String {
+    format!("{FILL}{i}")
+}
+
 /// A press on a face in navigate mode: the face, the window whose
-/// floating plane took the press, where the pointer was at the press,
-/// its x at the last turn of the drag, and whether the pointer went
-/// farther than a click does.
+/// floating plane took the press, where the pointer was at the press, and
+/// whether the pointer went farther than a click does.
 #[derive(Clone)]
 struct Press {
     face: usize,
     window: Option<String>,
     start: [f64; 2],
-    from: f64,
     dragged: bool,
 }
 
 /// What a move of the pointer during a press on a face does.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Dragged {
     Nothing,
-    Turn(i32),
+    /// The cube follows the hand: the drag so far in x.
+    Yaw(f64),
     /// The drag on the floating plane of a window pulls the window out.
     Pull(String),
 }
 
-/// A move of the pointer to `at` during a press: after each `third` of
-/// the width of the view from the last turn, the cube turns by one face;
-/// a drag to the left brings the next face. A press on the floating plane
-/// of a window pulls the window out once it moved farther than a click. The drag goes on from `at`
-/// only after [`turned_at`], when the cube took the turn.
-fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
+/// A move of the pointer to `at` during a press: once it went farther
+/// than a click, the cube follows the hand from the press; a press on the
+/// floating plane of a window pulls the window out instead.
+fn drag_of(press: &mut Option<Press>, at: [f64; 2]) -> Dragged {
     let Some(press) = press else {
         return Dragged::Nothing;
     };
     let far = (at[0] - press.start[0]).hypot(at[1] - press.start[1]);
     press.dragged |= far > CLICK;
-    if let Some(window) = press.window.clone().filter(|_| press.dragged) {
-        return Dragged::Pull(window);
-    }
-    let moved = at[0] - press.from;
-    if moved.abs() < third {
+    if !press.dragged {
         return Dragged::Nothing;
     }
-    Dragged::Turn(if moved < 0.0 { 1 } else { -1 })
+    match press.window.clone() {
+        Some(window) => Dragged::Pull(window),
+        None => Dragged::Yaw(at[0] - press.start[0]),
+    }
 }
 
-/// The cube took the turn of a drag at `x`: the next third counts from
-/// there.
-fn turned_at(press: &mut Option<Press>, x: f64) {
-    if let Some(press) = press {
-        press.from = x;
+/// The cube while the hand holds it: the angle at the press, the width
+/// of the view, and the last positions of the hand for its speed.
+struct Live {
+    base: f64,
+    width: f64,
+    samples: Vec<(Instant, f64)>,
+}
+
+/// How far back the speed of the hand looks, and the least time that it
+/// divides by.
+const SAMPLED: Duration = Duration::from_millis(120);
+const LEAST: f64 = 0.005;
+
+impl Live {
+    /// The speed of the hand at `now` in widths per second, to the right
+    /// positive; none when it rested.
+    fn velocity(&self, now: Instant) -> f64 {
+        let recent: Vec<&(Instant, f64)> = (self.samples.iter())
+            .filter(|(at, _)| now.saturating_duration_since(*at) <= SAMPLED)
+            .collect();
+        let (Some(first), Some(last)) = (recent.first(), recent.last()) else {
+            return 0.0;
+        };
+        let seconds = last.0.saturating_duration_since(first.0).as_secs_f64();
+        (last.1 - first.1) / self.width / seconds.max(LEAST)
     }
+}
+
+/// The yaw of the cube for a drag of `dx` over a view `width` wide: the
+/// whole width is a quarter turn.
+pub(crate) fn yaw_of(dx: f64, width: f64) -> f64 {
+    dx / width * FRAC_PI_2
+}
+
+/// By how many faces the cube turns when the hand lets go with the cube
+/// at `yaw` off its face, moving at `velocity` widths per second (to the
+/// right is positive): to the nearest face, and on to the next one when
+/// the hand flicks.
+pub(crate) fn settle_by(yaw: f64, velocity: f64) -> i32 {
+    let nearest = (-yaw / FRAC_PI_2).round();
+    let towards = if velocity < 0.0 { 1.0 } else { -1.0 };
+    let by = if velocity.abs() >= FLICK && nearest * towards < 1.0 {
+        towards
+    } else {
+        nearest
+    };
+    #[allow(clippy::cast_possible_truncation, reason = "a few faces")]
+    let by = by as i32;
+    by
+}
+
+/// The face that the label names for the cube at `angle`: the nearest
+/// one.
+pub(crate) fn nearest_face(angle: f64, faces: usize) -> usize {
+    #[allow(clippy::cast_possible_truncation, reason = "a few faces")]
+    let nearest = (-angle / FRAC_PI_2).round() as i32;
+    next_front(0, nearest, faces)
+}
+
+/// How much of the front dot each of `faces` dots has at `angle`: the
+/// face before the angle has the rest of what the next one has not yet.
+pub(crate) fn dot_weights(angle: f64, faces: usize) -> Vec<f64> {
+    let place = -angle / FRAC_PI_2;
+    let before = place.floor();
+    #[allow(clippy::cast_possible_truncation, reason = "a few faces")]
+    let before_face = next_front(0, before as i32, faces);
+    let after_face = next_front(before_face, 1, faces);
+    let mut weights = vec![0.0; faces];
+    weights[before_face] += 1.0 - (place - before);
+    weights[after_face] += place - before;
+    weights
 }
 
 pub(crate) fn face_id(i: usize) -> String {
     format!("{FACE}{i}")
+}
+
+/// The id of the mirror image of face `i`.
+pub(crate) fn mirror_id(i: usize) -> String {
+    format!("{MIRROR}{i}")
 }
 
 /// The face of a node id of a face.
@@ -207,6 +349,35 @@ fn turned(angle: f64) -> f64 {
 /// face, stays as far as a face at rest, with a margin.
 fn step_back(angle: f64, depth: f64) -> f64 {
     (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * turned(angle)
+}
+
+const IDENTITY: Matrix = [
+    1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+];
+
+/// What the lit edge does in a frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Edge {
+    /// Nothing: the edge is out and stays out.
+    Off,
+    /// The edge and its glow light face `face`; one pixel of the screen is
+    /// `scale` units of the face.
+    Lit { face: usize, scale: f64 },
+    /// The pointer left: the edge goes out over `EDGE_OUT`.
+    Fade,
+    /// A turn or a step began: the edge goes out at once.
+    Hide,
+}
+
+/// The product of two column-major matrices: `b` first, then `a`.
+fn mul4(a: &Matrix, b: &Matrix) -> Matrix {
+    let mut m = [0.0; 16];
+    for c in 0..4 {
+        for r in 0..4 {
+            m[c * 4 + r] = (0..4).map(|k| a[k * 4 + r] * b[c * 4 + k]).sum();
+        }
+    }
+    m
 }
 
 /// A floating window and its lift at full float.
@@ -257,17 +428,180 @@ impl Host {
         rests && self.view.forwards() && super::space::depth(pose, at) > self.front_depth(pose)
     }
 
+    /// Face `i` of the cube at `angle`. The faces stand to the right in
+    /// the order of their numbers, so that the next face comes from the
+    /// right when a drag to the left turns the cube: the geometry of the
+    /// kit puts them at the left, so the sides and the turn are mirrored.
+    pub(crate) fn face_at(&self, i: usize, angle: f64) -> Matrix {
+        self.cube.face(mirrored(i), -angle)
+    }
+
+    /// A plane lifted over face `i` at `angle`, as `Cube::lifted`.
+    pub(crate) fn lifted_at(&self, i: usize, angle: f64, at: [f64; 2], lift: f64) -> Matrix {
+        self.cube.lifted(mirrored(i), -angle, at, lift)
+    }
+
+    /// How squarely face `i` at `angle` looks at the eye.
+    pub(crate) fn facing_at(&self, i: usize, angle: f64, eye: [f64; 3]) -> f64 {
+        self.cube.facing(mirrored(i), -angle, eye)
+    }
+
+    /// Whether face `i` at `angle` shows its front to the eye.
+    pub(crate) fn faces_eye_at(&self, i: usize, angle: f64, eye: [f64; 3]) -> bool {
+        self.facing_at(i, angle, eye) > 0.0
+    }
+
+    /// The angle at which the faces show: the angle of the turn, and the
+    /// rest pose of a cube that stands back.
+    pub(crate) fn drawn_angle(&self) -> f64 {
+        self.angle - REST * self.stand + self.lean
+    }
+
+    /// The shadows of the cube on the floor, in the form of the shadows of
+    /// panes: centre x and z, half width, and the lift with the yaw.
+    pub(crate) fn shadows(&self, ground: f64) -> Vec<[f64; 4]> {
+        let [x, z] = self.centre();
+        let lift = (ground - self.cube.size[1] / 2.0).max(0.0);
+        let face = self.world(0);
+        let yaw = face[8].atan2(face[10]);
+        [yaw, yaw + FRAC_PI_2]
+            .map(|yaw| [x, z, self.cube.size[0] / 2.0, super::shadow_w(lift, yaw)])
+            .to_vec()
+    }
+
+    /// Where the face label hangs: on the view axis, at the lowest
+    /// corner of the cube on the screen; the label stands 8 below it.
+    pub(crate) fn label_anchor(&self, lens: &super::space::Lens, pose: &Pose) -> Option<[f64; 2]> {
+        let (_, low) = self.outline(lens, pose)?;
+        Some([lens.w / 2.0, low])
+    }
+
+    /// The place of face `i` in the camera group: the cube group over the
+    /// face.
+    pub(crate) fn world(&self, i: usize) -> Matrix {
+        mul4(
+            &placement(self.centre(), self.yaw),
+            &self.face_at(i, self.drawn_angle()),
+        )
+    }
+
+    /// The place of the mirror image of face `i` in the floor, `ground`
+    /// below the eye, for a node of the face's size divided by its scale.
+    pub(crate) fn mirror_world(&self, i: usize, ground: f64) -> Matrix {
+        let mut flip = IDENTITY;
+        flip[5] = -1.0;
+        flip[13] = -2.0 * ground;
+        let size = self.cube.size_of(i);
+        let k = size[0] / super::panes::mirror_size(size)[0];
+        let mut scale = IDENTITY;
+        scale[0] = k;
+        scale[5] = k;
+        mul4(&flip, &mul4(&self.world(i), &scale))
+    }
+
     /// The centre now: the place, stepped back along the view of the open.
     fn centre(&self) -> [f64; 2] {
         let back = step_back(self.angle, self.cube.size[0]) + self.stand * self.far;
         let (s, c) = self.yaw.sin_cos();
-        [self.at[0] + s * back, self.at[1] + c * back]
+        [
+            self.at[0] + s * back + c * self.shift,
+            self.at[1] + c * back - s * self.shift,
+        ]
+    }
+
+    /// The corners of the cube on the screen of `lens` and `pose`; none
+    /// while a corner is behind the eye.
+    fn corners(&self, lens: &super::space::Lens, pose: &Pose) -> Option<Vec<[f64; 2]>> {
+        let mut corners = Vec::new();
+        for i in 0..self.outputs.len() {
+            let m = super::space::screen_matrix(lens, pose, &self.world(i));
+            let [w, h] = self.cube.size_of(i);
+            for (u, v) in [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)] {
+                if m[3] * u + m[7] * v + m[15] <= 1e-6 {
+                    return None;
+                }
+                corners.push(super::space::project(&m, u, v));
+            }
+        }
+        Some(corners)
+    }
+
+    /// The range of x that the cube covers on the screen, and its lowest
+    /// y.
+    fn outline(&self, lens: &super::space::Lens, pose: &Pose) -> Option<([f64; 2], f64)> {
+        let corners = self.corners(lens, pose)?;
+        let x = corners.iter().fold([f64::MAX, f64::MIN], |x, c| {
+            [x[0].min(c[0]), x[1].max(c[0])]
+        });
+        let low = corners.iter().map(|c| c[1]).fold(f64::MIN, f64::max);
+        (x[0] <= x[1]).then_some((x, low))
+    }
+
+    /// The box `[left, top, right, bottom]` that the cube covers on the
+    /// screen.
+    pub(crate) fn screen_box(&self, lens: &super::space::Lens, pose: &Pose) -> Option<[f64; 4]> {
+        let corners = self.corners(lens, pose)?;
+        let fold = |k: usize, f: fn(f64, f64) -> f64, from: f64| {
+            corners.iter().map(|c| c[k]).fold(from, f)
+        };
+        Some([
+            fold(0, f64::min, f64::MAX),
+            fold(1, f64::min, f64::MAX),
+            fold(0, f64::max, f64::MIN),
+            fold(1, f64::max, f64::MIN),
+        ])
+    }
+
+    /// How far the middle of the cube is from `pose`, along the view.
+    pub(crate) fn depth_of(&self, pose: &Pose) -> f64 {
+        super::space::depth(pose, self.centre())
+    }
+
+    /// Aims the cube that stands back: it moves sideways, across the
+    /// view, until the corners that it covers on the screen are centred
+    /// on the view axis, at the rest pose and in every turn. In use mode
+    /// the face fills the view and nothing shifts.
+    pub(crate) fn aim(&mut self, lens: &super::space::Lens, pose: &Pose) {
+        self.shift = 0.0;
+        self.lean = 0.0;
+        if self.stand <= 0.0 {
+            return;
+        }
+        for _ in 0..3 {
+            self.centre_on_axis(lens, pose);
+            let depth = super::space::depth(pose, self.centre()).max(1.0);
+            self.lean = LEAN * self.shift.atan2(depth);
+        }
+        self.centre_on_axis(lens, pose);
+    }
+
+    /// Moves the cube sideways until its corners on the screen are
+    /// centred on the view axis.
+    fn centre_on_axis(&mut self, lens: &super::space::Lens, pose: &Pose) {
+        let off = |host: &mut Self, shift: f64| {
+            host.shift = shift;
+            host.outline(lens, pose)
+                .map(|([lo, hi], _)| lo.midpoint(hi) - lens.w / 2.0)
+        };
+        let limit = self.cube.size[0];
+        let mut shift = self.shift;
+        for _ in 0..5 {
+            let (Some(here), Some(next)) = (off(self, shift), off(self, shift + 1.0)) else {
+                break;
+            };
+            let slope = next - here;
+            if slope.abs() < 1e-9 {
+                break;
+            }
+            shift = (shift - here / slope).clamp(-limit, limit);
+        }
+        self.shift = shift;
     }
 
     /// The updates of the cube at the angle now: its place, the transform
     /// of each face, whether it shows, sent on a change, and whether it
     /// forwards, which it does only while the cube rests.
-    pub(crate) fn faces(&mut self, eye: [f64; 2]) -> Vec<Command> {
+    pub(crate) fn faces(&mut self, eye: [f64; 2], ground: f64) -> Vec<Command> {
         let eye = self.eye(eye);
         self.seen_from = eye;
         let mut commands = vec![update(
@@ -278,51 +612,167 @@ impl Host {
             },
         )];
         for i in 0..self.outputs.len() {
-            let shows = self.cube.faces_eye(i, self.angle, eye);
+            let shows = self.faces_eye_at(i, self.drawn_angle(), eye);
             let changed = self.shown.get(i) != Some(&shows);
             if let Some(slot) = self.shown.get_mut(i) {
                 *slot = shows;
             }
+            let up = self.health.get(i) == Some(&Health::Up);
             commands.push(update(
                 &face_id(i),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(self.cube.face(i, self.angle))),
+                    transform: Some(Transform::from_matrix(self.face_at(i, self.drawn_angle()))),
                     visible: changed.then_some(shows),
-                    forward: Some(self.view.forwards() && self.stand <= 0.0),
+                    forward: Some(up && self.view.forwards() && self.stand <= 0.0),
                     ..PropsUpdate::default()
                 },
             ));
+            commands.push(update(
+                &fill_id(i),
+                PropsUpdate {
+                    transform: Some(Transform::from_matrix(self.lifted_at(
+                        i,
+                        self.drawn_angle(),
+                        [0.0, 0.0],
+                        FILL_LIFT,
+                    ))),
+                    visible: Some(shows && !up),
+                    ..PropsUpdate::default()
+                },
+            ));
+            commands.push(self.mirror(i, shows && self.stand > 0.0, ground));
             commands.extend(self.planes(i, shows));
         }
-        commands.push(self.edge());
         commands
     }
 
-    /// The update of the lit edge: over the face under the pointer while
-    /// the cube rests in navigate mode.
-    fn edge(&self) -> Command {
-        let rests = self.turn.is_none() && !self.view.forwards() && self.step.is_none();
-        let face = self
-            .hover
-            .filter(|i| rests && self.shown.get(*i) == Some(&true));
-        let placed = face.map(|i| {
-            let plane = self.cube.lifted(i, self.angle, [0.0, 0.0], EDGE_LIFT);
-            (Transform::from_matrix(plane), self.cube.size_of(i))
-        });
+    /// The update of the mirror image of face `i`: in place while it
+    /// shows, which it does for a face that shows while the cube stands
+    /// back.
+    fn mirror(&self, i: usize, shows: bool, ground: f64) -> Command {
         update(
-            EDGE,
+            &mirror_id(i),
             PropsUpdate {
-                transform: placed.map(|(transform, _)| transform),
-                size: placed.map(|(_, size)| size),
-                visible: Some(face.is_some()),
+                transform: shows.then(|| Transform::from_matrix(self.mirror_world(i, ground))),
+                visible: Some(shows),
                 ..PropsUpdate::default()
             },
         )
     }
 
+    /// What the lit edge does now: it lights the face under the pointer
+    /// while the cube rests in navigate mode, fades out when the pointer
+    /// leaves, and is out at once when the cube turns or steps.
+    pub(crate) fn edge_plan(&mut self) -> Edge {
+        let face = self.lights();
+        let was = std::mem::replace(&mut self.lit, face);
+        match (face, was) {
+            (Some(face), _) => Edge::Lit {
+                face,
+                scale: self.edge_scale(face),
+            },
+            (None, Some(_)) if self.rests() => Edge::Fade,
+            (None, Some(_)) => Edge::Hide,
+            (None, None) => Edge::Off,
+        }
+    }
+
+    /// The face whose edge the pointer lights: the face under it while
+    /// the cube rests in navigate mode.
+    fn lights(&self) -> Option<usize> {
+        let rests = self.rests() && !self.view.forwards();
+        (self.hover).filter(|i| rests && self.shown.get(*i) == Some(&true))
+    }
+
+    /// Whether the pointer lights the edge of a face now.
+    pub(crate) fn lights_edge(&self) -> bool {
+        self.lights().is_some()
+    }
+
+    /// How many units of face `face` one pixel of the screen is at its
+    /// middle: the distance of the eye over the focal length.
+    fn edge_scale(&self, face: usize) -> f64 {
+        let m = self.face_at(face, self.drawn_angle());
+        let [w, h] = self.cube.size_of(face);
+        let centre = [0, 1, 2].map(|r| m[r] * w / 2.0 + m[4 + r] * h / 2.0 + m[12 + r]);
+        let reach = (0..3)
+            .map(|k| (centre[k] - self.seen_from[k]).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        reach / super::space::Lens::new(self.cube.size[0], self.cube.size[1]).focal
+    }
+
+    /// The health of face `i`.
+    pub(crate) fn health_of(&self, face: usize) -> Health {
+        self.health.get(face).cloned().unwrap_or(Health::Up)
+    }
+
+    /// Whether every face works.
+    pub(crate) fn works(&self) -> bool {
+        self.health.iter().all(|h| *h == Health::Up)
+    }
+
+    /// Whether the face at the front failed to start.
+    pub(crate) fn front_failed(&self) -> bool {
+        matches!(self.health.get(self.front), Some(Health::Failed(_)))
+    }
+
+    /// The display name of the window manager of the faces.
+    pub(crate) fn manager_name(&self) -> &str {
+        &self.name
+    }
+
+    /// The window manager connected: every face works.
+    fn connected(&mut self) {
+        self.health.fill(Health::Up);
+    }
+
+    /// The face fails, with a reason.
+    fn fail(&mut self, reason: &str) {
+        self.health.fill(Health::Failed(reason.to_owned()));
+    }
+
+    /// When the construct looks again at a manager that starts: at the
+    /// end of its time, or soon, to see whether it exited.
+    fn start_deadline(&self, now: Instant) -> Option<Instant> {
+        let starting = self.health.contains(&Health::Starting);
+        starting.then(|| (self.since + crate::faces::LIMIT).min(now + POLL))
+    }
+
+    /// Looks whether the manager that starts exited or is late; then its
+    /// process ends, the faces fail, and the reason comes back.
+    fn check_start(&mut self, language: Language, now: Instant) -> Option<String> {
+        if !self.health.contains(&Health::Starting) {
+            return None;
+        }
+        let exited = matches!(self.child.try_wait(), Ok(Some(_)));
+        if exited {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let last = self.tail.lock().map(|t| t.clone()).unwrap_or_default();
+        let waited = now.saturating_duration_since(self.since);
+        let reason = crate::faces::failure(language, &self.program, waited, exited, &last)?;
+        end(&mut self.child);
+        self.fail(&reason);
+        Some(reason)
+    }
+
+    /// Starts the window manager again after it failed. Answers why it
+    /// could not start.
+    fn restart(&mut self, now: Instant) -> Result<(), String> {
+        end(&mut self.child);
+        let (child, tail) =
+            launch(&self.command).map_err(|e| format!("cannot start {:?}: {e}", self.command))?;
+        self.child = child;
+        self.tail = tail;
+        self.since = now;
+        self.health.fill(Health::Starting);
+        Ok(())
+    }
+
     /// Whether the cube rests: no turn and no step runs.
     pub(crate) fn rests(&self) -> bool {
-        self.turn.is_none() && self.step.is_none()
+        self.turn.is_none() && self.step.is_none() && self.live.is_none()
     }
 
     /// The pointer is over a face, or over none.
@@ -338,38 +788,62 @@ impl Host {
     }
 
     /// A press on a face, or on the floating plane of `window` on it, in
-    /// navigate mode at a point of the screen.
+    /// navigate mode at a point of the screen. A press while the cube
+    /// turns does nothing.
     pub(crate) fn press(&mut self, face: usize, window: Option<String>, at: [f64; 2]) {
-        self.press = Some(Press {
+        self.press = self.rests().then_some(Press {
             face,
             window,
             start: at,
-            from: at[0],
             dragged: false,
         });
     }
 
-    /// The pointer moved to `at` during a press: after each `third` of
-    /// the width of the view the cube turns by one face, with the drag.
-    pub(crate) fn drag(&mut self, at: [f64; 2], third: f64) -> Dragged {
-        drag_of(&mut self.press, at, third)
+    /// The pointer moved to `at` during a press: once it went farther
+    /// than a click, the cube follows the hand, a view `width` wide being
+    /// a quarter turn, without a threshold and without lag.
+    pub(crate) fn drag(&mut self, at: [f64; 2], width: f64, now: Instant) -> Dragged {
+        let dragged = drag_of(&mut self.press, at);
+        if let Dragged::Yaw(dx) = dragged {
+            let live = self.live.get_or_insert_with(|| Live {
+                base: self.angle,
+                width,
+                samples: Vec::new(),
+            });
+            live.samples
+                .retain(|(t, _)| now.saturating_duration_since(*t) <= SAMPLED);
+            live.samples.push((now, at[0]));
+            let reach = 2.0 * width;
+            self.angle = live.base + yaw_of(dx.clamp(-reach, reach), width);
+            self.view.act(Act::Turn(1));
+        }
+        dragged
     }
 
-    /// The cube took the turn of the drag at `x`.
-    pub(crate) fn drag_turned(&mut self, x: f64) {
-        turned_at(&mut self.press, x);
+    /// The hand lets go: the cube settles on the nearest face over 320 ms,
+    /// or goes on to the next one when the hand flicked.
+    fn settle(&mut self, now: Instant) {
+        let Some(live) = self.live.take() else {
+            return;
+        };
+        let by = settle_by(self.angle - live.base, live.velocity(now));
+        self.front = next_front(self.front, by, self.outputs.len());
+        let to = Cube::turn_of(self.front);
+        self.turn = Some(Turn::new(self.angle, to, now, SETTLE));
     }
 
     /// Forgets the press: after injected input during it, which is not
-    /// the person.
-    pub(crate) fn forget_press(&mut self) {
+    /// the person. A cube that the hand held settles.
+    pub(crate) fn forget_press(&mut self, now: Instant) {
         self.press = None;
+        self.settle(now);
     }
 
-    /// The release of a press: answers the face of a click, a press that
-    /// did not move.
-    pub(crate) fn release(&mut self) -> Option<usize> {
+    /// The release of a press: the cube settles if the hand held it, and
+    /// the face of a click, a press that did not move, comes back.
+    pub(crate) fn release(&mut self, now: Instant) -> Option<usize> {
         let press = self.press.take()?;
+        self.settle(now);
         (!press.dragged).then_some(press.face)
     }
 
@@ -391,7 +865,7 @@ impl Host {
     /// eye, so that a face at a grazing angle floats them flat and no
     /// plane shows as a sliver beside the cube.
     fn float_share(&self, i: usize, eye: [f64; 3]) -> f64 {
-        let facing = self.cube.facing(i, self.angle, eye).clamp(0.0, 1.0);
+        let facing = self.facing_at(i, self.drawn_angle(), eye).clamp(0.0, 1.0);
         self.stand.max(turned(self.angle)) * facing
     }
 
@@ -427,9 +901,12 @@ impl Host {
             update(
                 &super::float::plane_id(i, &window.surface),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(
-                        self.cube.lifted(i, self.angle, at, lift),
-                    )),
+                    transform: Some(Transform::from_matrix(self.lifted_at(
+                        i,
+                        self.drawn_angle(),
+                        at,
+                        lift,
+                    ))),
                     visible: Some(shows),
                     ..PropsUpdate::default()
                 },
@@ -452,7 +929,7 @@ impl Host {
     /// Not before the window manager connected.
     pub(crate) fn wants_float(&self) -> bool {
         let moves = self.turn.is_some() || self.step.is_some() || self.stand > 0.0;
-        self.connect_by.is_none() && (moves || !self.view.forwards())
+        self.health.iter().all(|h| *h == Health::Up) && (moves || !self.view.forwards())
     }
 
     /// Whether the windows of a face float now: windows float, the face
@@ -559,6 +1036,7 @@ impl Host {
         let changed = self.view.act(act);
         if changed {
             self.press = None;
+            self.settle(now);
             let to = if act == Act::StepBack { 1.0 } else { 0.0 };
             #[allow(
                 clippy::cast_possible_truncation,
@@ -587,6 +1065,29 @@ impl Host {
     /// The face at the front and the number of faces.
     pub(crate) fn front_face(&self) -> (usize, usize) {
         (self.front, self.outputs.len())
+    }
+
+    /// The face that the label names: the nearest one while the cube
+    /// turns, else the one at the front.
+    pub(crate) fn label_face(&self) -> usize {
+        nearest_face(self.angle, self.outputs.len())
+    }
+
+    /// Whether the cube turns, by a key or by the hand.
+    pub(crate) fn turning(&self) -> bool {
+        self.turn.is_some() || self.live.is_some()
+    }
+
+    /// How much of the accent each dot of the label has now.
+    pub(crate) fn dot_weights(&self) -> Vec<f64> {
+        dot_weights(self.angle, self.outputs.len())
+    }
+
+    /// Whether the hints stay hidden: while the cube steps, while a
+    /// turn of use mode runs, and while the planes of windows land.
+    pub(crate) fn hides_hints(&self) -> bool {
+        let turns_in_use = self.turn.is_some() && self.view.mode() == chora_kit::modes::Mode::Use;
+        self.step.is_some() || self.waits() || turns_in_use
     }
 
     /// The output of the face at the front.
@@ -647,14 +1148,11 @@ impl Construct {
         let size = [self.lens.w, self.lens.h];
         let outputs = self.add_outputs(faces, size)?;
         let flags: Vec<String> = outputs.iter().map(|o| format!("--output {o}")).collect();
-        let command = format!(
-            "exec {} {}",
-            self.settings.value.cube_manager,
-            flags.join(" ")
-        );
-        let spawned = super::wm::child_command(&command).spawn();
-        let child = match spawned {
-            Ok(child) => child,
+        let manager = self.settings.value.cube_manager.clone();
+        let command = format!("exec {manager} {}", flags.join(" "));
+        let spawned = launch(&command);
+        let (child, tail) = match spawned {
+            Ok(started) => started,
             Err(err) => {
                 self.remove_outputs(&outputs);
                 return refuse(format!("cannot start {command:?}: {err}"));
@@ -663,11 +1161,11 @@ impl Construct {
         self.glide = None;
         self.pose.pitch = 0.0;
         let cube = Cube { size, caps: false };
-        let mut host = self.host(outputs.clone(), child, cube);
+        let mut host = self.host(outputs.clone(), (child, tail), (&manager, &command), cube);
         let mut commands = vec![create(CUBE, NodeKind::Group, PANES, PropsUpdate::default())];
         commands.extend(self.face_nodes(&outputs, &cube));
-        commands.push(self.edge_node());
-        commands.extend(host.faces([self.pose.x, self.pose.z]));
+        commands.extend(self.edge_nodes());
+        commands.extend(host.faces([self.pose.x, self.pose.z], self.lens.ground));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
             end(&mut host.child);
             self.remove_outputs(&outputs);
@@ -680,16 +1178,28 @@ impl Construct {
     }
 
     /// The host of a new cube ahead of the camera, in use mode.
-    fn host(&self, outputs: Vec<String>, child: Child, cube: Cube) -> Host {
+    fn host(
+        &self,
+        outputs: Vec<String>,
+        (child, tail): (Child, Tail),
+        (manager, command): (&str, &str),
+        cube: Cube,
+    ) -> Host {
         let [fx, fz] = self.pose.forward();
         let reach = self.lens.focal + cube.size[0] / 2.0;
+        let faces = outputs.len();
         let mut host = Host {
-            shown: vec![false; outputs.len()],
+            shown: vec![false; faces],
             seen_from: [0.0; 3],
-            floats: vec![None; outputs.len()],
+            floats: vec![None; faces],
             outputs,
             child,
-            connect_by: Some(Instant::now() + CONNECT),
+            command: command.to_owned(),
+            program: super::names::program_of(manager).to_owned(),
+            name: super::names::cube_manager_name(manager),
+            since: Instant::now(),
+            tail,
+            health: vec![Health::Starting; faces],
             cube,
             at: [self.pose.x + fx * reach, self.pose.z + fz * reach],
             yaw: self.pose.yaw,
@@ -699,6 +1209,8 @@ impl Construct {
             view: View::default(),
             far: STAND * self.lens.focal,
             stand: 0.0,
+            shift: 0.0,
+            lean: 0.0,
             step: None,
             home: self.pose,
             focus: None,
@@ -706,7 +1218,9 @@ impl Construct {
             switching: false,
             landing: None,
             hover: None,
+            lit: None,
             press: None,
+            live: None,
             step_back_key: None,
             owing: BTreeSet::new(),
             again: None,
@@ -730,31 +1244,49 @@ impl Construct {
             return self.close_cube();
         }
         if let Some(host) = &mut self.cube {
-            host.connect_by = None;
+            host.connected();
         }
-        Ok(())
+        self.frame()
     }
 
-    /// The time by which the window manager must connect.
+    /// The time by which the construct looks again at a window manager.
     pub(crate) fn cube_deadline(&self) -> Option<Instant> {
-        let cube = self.cube.as_ref().and_then(|c| c.connect_by);
+        let cube = self
+            .cube
+            .as_ref()
+            .and_then(|c| c.start_deadline(Instant::now()));
         let panes = self.manager_deadline();
         cube.into_iter().chain(panes).min()
     }
 
-    /// Closes the cube when its window manager did not connect in time.
+    /// The faces fail when their window manager exited or did not connect
+    /// in time; the cube stays, and the card says why.
     pub(crate) fn check_cube(&mut self) -> Result<(), ClientError> {
         self.check_managers()?;
-        let late = self.cube.as_ref().and_then(|c| c.connect_by);
-        if late.is_some_and(|t| t <= Instant::now()) {
-            eprintln!("chora-construct: the window manager of the cube did not connect");
-            return self.close_cube();
+        let language = Language::of_session();
+        let failed = (self.cube.as_mut()).and_then(|c| c.check_start(language, Instant::now()));
+        if let Some(reason) = failed {
+            eprintln!("chora-construct: the window manager of the cube failed: {reason}");
+            self.frame()?;
         }
         Ok(())
     }
 
+    /// Tries again: the window manager of the faces that failed starts
+    /// anew.
+    pub(crate) fn retry_cube(&mut self) -> Result<(), ClientError> {
+        let Some(host) = &mut self.cube else {
+            return Ok(());
+        };
+        if let Err(reason) = host.restart(Instant::now()) {
+            eprintln!("chora-construct: the window manager of the cube: {reason}");
+            host.fail(&reason);
+        }
+        self.frame()
+    }
+
     /// Turns the cube by `by` quarter turns in `ms`, a quarter turn in
-    /// 500 ms by default. A turn while one runs is ignored; with `queue`,
+    /// 360 ms by default. A turn while one runs is ignored; with `queue`,
     /// for the keys, the chips and the drag of a person, one such turn
     /// goes on from the running one. Answers whether the cube took the
     /// turn.
@@ -803,10 +1335,45 @@ impl Construct {
         self.sync_float()
     }
 
-    /// The updates of the faces of the cube for the pose now.
+    /// The updates of the faces of the cube for the pose now, and of the
+    /// lit edge.
     pub(crate) fn cube_faces(&mut self) -> Vec<Command> {
         let eye = [self.pose.x, self.pose.z];
-        self.cube.as_mut().map(|h| h.faces(eye)).unwrap_or_default()
+        let ground = self.lens.ground;
+        let (lens, pose) = (self.lens, self.pose);
+        let Some(host) = self.cube.as_mut() else {
+            return Vec::new();
+        };
+        host.aim(&lens, &pose);
+        let mut commands = host.faces(eye, ground);
+        let plan = host.edge_plan();
+        commands.extend(self.edge_commands(plan));
+        commands
+    }
+
+    /// The effects of the mirror images of the faces for `look`.
+    pub(crate) fn cube_mirror_looks(&self, look: &super::panes::PaneLook) -> Vec<Command> {
+        let Some(host) = &self.cube else {
+            return Vec::new();
+        };
+        (host.outputs.iter().enumerate())
+            .map(|(i, output)| {
+                let win = Uniform::Output(OutputTexture {
+                    output: output.clone(),
+                });
+                update(
+                    &mirror_id(i),
+                    PropsUpdate {
+                        uniforms: Some(super::panes::mirror_uniforms(
+                            win,
+                            look,
+                            (super::panes::CUBE_FEATHER, super::panes::CUBE_FALL),
+                        )),
+                        ..PropsUpdate::default()
+                    },
+                )
+            })
+            .collect()
     }
 
     /// Whether the cube turns or steps and needs frames.
@@ -822,57 +1389,182 @@ impl Construct {
         };
         end(&mut host.child);
         self.remove_outputs(&host.outputs);
-        self.rt.conn.try_apply(vec![Command::Remove {
-            id: CUBE.into(),
-            to: None,
-        }])?;
+        let removed = (0..host.outputs.len())
+            .map(mirror_id)
+            .chain([CUBE.to_owned()])
+            .map(|id| Command::Remove { id, to: None })
+            .collect();
+        self.rt.conn.try_apply(removed)?;
         self.close_modes()
     }
 
     /// The shader nodes of the faces, hidden until the first frame: each
     /// reads its output.
     fn face_nodes(&self, outputs: &[String], cube: &Cube) -> Vec<Command> {
+        let [r, g, b, _] = self.styled().glass.strong;
+        let look = self.current_look();
         (outputs.iter().enumerate())
-            .map(|(i, output)| {
+            .flat_map(|(i, output)| {
                 let win = Uniform::Output(OutputTexture {
                     output: output.clone(),
                 });
-                create(
-                    &face_id(i),
-                    NodeKind::Shader,
-                    CUBE,
-                    PropsUpdate {
-                        size: Some(cube.size_of(i)),
-                        shader: Some(self.source_shader.clone()),
-                        uniforms: Some(BTreeMap::from([("win".into(), win)])),
-                        visible: Some(false),
-                        ..PropsUpdate::default()
-                    },
-                )
+                [
+                    create(
+                        &mirror_id(i),
+                        NodeKind::Shader,
+                        super::MIRRORS,
+                        PropsUpdate {
+                            size: Some(super::panes::mirror_size(cube.size_of(i))),
+                            shader: Some(self.mirror_shader.clone()),
+                            uniforms: Some(super::panes::mirror_uniforms(
+                                win.clone(),
+                                &look,
+                                (super::panes::CUBE_FEATHER, super::panes::CUBE_FALL),
+                            )),
+                            visible: Some(false),
+                            ..PropsUpdate::default()
+                        },
+                    ),
+                    create(
+                        &face_id(i),
+                        NodeKind::Shader,
+                        CUBE,
+                        PropsUpdate {
+                            size: Some(cube.size_of(i)),
+                            shader: Some(self.source_shader.clone()),
+                            uniforms: Some(BTreeMap::from([("win".into(), win)])),
+                            visible: Some(false),
+                            ..PropsUpdate::default()
+                        },
+                    ),
+                    create(
+                        &fill_id(i),
+                        NodeKind::Rect,
+                        CUBE,
+                        PropsUpdate {
+                            size: Some(cube.size_of(i)),
+                            color: Some([r, g, b, 1.0]),
+                            visible: Some(false),
+                            input: Some(InputMode::Pass),
+                            ..PropsUpdate::default()
+                        },
+                    ),
+                ]
             })
             .collect()
     }
 
-    /// The lit edge of a face, hidden: a border in the accent colour that
-    /// passes the pointer to the face behind it.
-    fn edge_node(&self) -> Command {
+    /// The glow and the lit edge of a face, hidden: the glow in the accent
+    /// colour, and a border in it; both pass the pointer to the face
+    /// behind them.
+    fn edge_nodes(&self) -> [Command; 2] {
         let [r, g, b] = self.settings.value.style.accent;
-        create(
-            EDGE,
-            NodeKind::Rect,
-            CUBE,
-            PropsUpdate {
-                size: Some([1.0, 1.0]),
-                color: Some([0.0; 4]),
-                border: Some(Some(Border {
-                    width: EDGE_WIDTH,
-                    color: [r, g, b, 1.0],
-                })),
-                visible: Some(false),
-                input: Some(InputMode::Pass),
-                ..PropsUpdate::default()
-            },
-        )
+        let hidden = PropsUpdate {
+            visible: Some(false),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        };
+        [
+            create(
+                EDGE_GLOW,
+                NodeKind::Shader,
+                CUBE,
+                PropsUpdate {
+                    size: Some([1.0, 1.0]),
+                    shader: Some(self.glow_shader.clone()),
+                    ..hidden.clone()
+                },
+            ),
+            create(
+                EDGE,
+                NodeKind::Rect,
+                CUBE,
+                PropsUpdate {
+                    size: Some([1.0, 1.0]),
+                    color: Some([0.0; 4]),
+                    border: Some(Some(Border {
+                        width: EDGE_WIDTH,
+                        color: [r, g, b, 1.0],
+                    })),
+                    ..hidden
+                },
+            ),
+        ]
+    }
+
+    /// The edge and the glow lit around face `face`, `scale` units of it
+    /// to a pixel of the screen.
+    fn lit_edge(&self, host: &Host, face: usize, scale: f64) -> Vec<Command> {
+        let style = &self.settings.value.style;
+        let [r, g, b] = style.accent;
+        let size = host.cube.size_of(face);
+        let angle = host.drawn_angle();
+        let lit = PropsUpdate {
+            visible: Some(true),
+            opacity: Some(1.0),
+            ..PropsUpdate::default()
+        };
+        let edge = PropsUpdate {
+            transform: Some(Transform::from_matrix(host.lifted_at(
+                face,
+                angle,
+                [0.0, 0.0],
+                EDGE_LIFT,
+            ))),
+            size: Some(size),
+            border: Some(Some(Border {
+                width: EDGE_WIDTH * scale,
+                color: [r, g, b, 1.0],
+            })),
+            ..lit.clone()
+        };
+        let reach = style.glow * scale;
+        let k = super::FOCUS_SCALE;
+        let inner = [size[0] / k, size[1] / k];
+        let mut uniforms = self
+            .styled()
+            .glow_uniforms(inner, 0.0, reach / k, [0.0; 4], 0.0);
+        uniforms.insert("accent".into(), Uniform::Vector(vec![r, g, b, LIT_GLOW]));
+        let mut grown = IDENTITY;
+        (grown[0], grown[5], grown[12], grown[13]) = (k, k, -reach, -reach);
+        let place = mul4(
+            &host.lifted_at(face, angle, [0.0, 0.0], EDGE_LIFT / 2.0),
+            &grown,
+        );
+        let glow = PropsUpdate {
+            transform: Some(Transform::from_matrix(place)),
+            size: Some([inner[0] + 2.0 * reach / k, inner[1] + 2.0 * reach / k]),
+            uniforms: Some(uniforms),
+            ..lit
+        };
+        vec![update(EDGE_GLOW, glow), update(EDGE, edge)]
+    }
+
+    /// What the lit edge and its glow do in this frame (`Host::edge_plan`).
+    /// Lit, the edge is 2 px wide on the screen and the glow reaches 16 px
+    /// out at 0.35, however far the cube stands.
+    fn edge_commands(&self, plan: Edge) -> Vec<Command> {
+        let Some(host) = &self.cube else {
+            return Vec::new();
+        };
+        let shown = |id: &str, visible: bool| {
+            update(
+                id,
+                PropsUpdate {
+                    visible: Some(visible),
+                    ..PropsUpdate::default()
+                },
+            )
+        };
+        match plan {
+            Edge::Off => Vec::new(),
+            Edge::Hide => vec![shown(EDGE_GLOW, false), shown(EDGE, false)],
+            Edge::Fade => vec![
+                crate::hud::fade(EDGE_GLOW, 0.0, EDGE_OUT),
+                crate::hud::fade(EDGE, 0.0, EDGE_OUT),
+            ],
+            Edge::Lit { face, scale } => self.lit_edge(host, face, scale),
+        }
     }
 
     /// Removes the virtual outputs that the construct added before it
@@ -944,28 +1636,21 @@ mod tests {
         face: 0,
         window: None,
         start: [600.0, 300.0],
-        from: 600.0,
         dragged: false,
     };
 
     #[test]
-    fn a_drag_turns_once_per_third_that_the_cube_took() {
+    fn a_drag_beyond_a_click_is_the_yaw_from_the_press() {
         let mut held = Some(PRESS.clone());
-        assert_eq!(drag_of(&mut held, [500.0, 300.0], 400.0), Dragged::Nothing);
-        assert_eq!(drag_of(&mut held, [190.0, 300.0], 400.0), Dragged::Turn(1));
+        assert_eq!(drag_of(&mut held, [605.0, 300.0]), Dragged::Nothing);
+        assert_eq!(drag_of(&mut held, [560.0, 300.0]), Dragged::Yaw(-40.0));
         assert_eq!(
-            drag_of(&mut held, [180.0, 300.0], 400.0),
-            Dragged::Turn(1),
-            "the cube did not take it: the drag asks again"
+            drag_of(&mut held, [602.0, 300.0]),
+            Dragged::Yaw(2.0),
+            "once it is a drag it stays one, from the press and not from the last move"
         );
-        turned_at(&mut held, 180.0);
-        assert_eq!(drag_of(&mut held, [100.0, 300.0], 400.0), Dragged::Nothing);
-        assert_eq!(drag_of(&mut held, [-230.0, 300.0], 400.0), Dragged::Turn(1));
-        let mut back = Some(PRESS.clone());
-        assert_eq!(
-            drag_of(&mut back, [1010.0, 300.0], 400.0),
-            Dragged::Turn(-1)
-        );
+        let mut none = None;
+        assert_eq!(drag_of(&mut none, [0.0, 0.0]), Dragged::Nothing);
     }
 
     #[test]
@@ -974,9 +1659,9 @@ mod tests {
             window: Some("s1".into()),
             ..PRESS.clone()
         });
-        assert_eq!(drag_of(&mut held, [605.0, 300.0], 400.0), Dragged::Nothing);
+        assert_eq!(drag_of(&mut held, [605.0, 300.0]), Dragged::Nothing);
         assert_eq!(
-            drag_of(&mut held, [100.0, 300.0], 400.0),
+            drag_of(&mut held, [100.0, 300.0]),
             Dragged::Pull("s1".into())
         );
     }
@@ -1021,7 +1706,7 @@ mod tests {
         let eye = host.eye([0.0, 0.0]);
         let first = (1..90)
             .map(|k| -f64::from(k) * FRAC_PI_2 / 90.0)
-            .find(|angle| host.cube.faces_eye(1, *angle, eye))
+            .find(|angle| host.faces_eye_at(1, *angle, eye))
             .expect("face 1 comes into view");
         host.angle = first;
         let share = host.float_share(1, host.eye([0.0, 0.0]));
@@ -1029,7 +1714,7 @@ mod tests {
         host.angle = 0.0;
         host.stand = 1.0;
         let front = host.float_share(0, host.eye([0.0, 0.0]));
-        assert!(front > 0.9, "the front face stood back: {front}");
+        assert!(front > 0.85, "the front face stood back: {front}");
         let _ = host.child.wait();
     }
 
@@ -1037,7 +1722,7 @@ mod tests {
     fn a_click_stays_within_eight_pixels_on_both_axes() {
         let dragged = |at: [f64; 2]| {
             let mut held = Some(PRESS.clone());
-            drag_of(&mut held, at, 400.0);
+            drag_of(&mut held, at);
             held.is_some_and(|p| p.dragged)
         };
         assert!(!dragged([603.0, 297.0]));
@@ -1047,35 +1732,48 @@ mod tests {
     }
 
     fn host_at_rest() -> Host {
+        host_of(1)
+    }
+
+    fn host_of(faces: usize) -> Host {
         let child = std::process::Command::new("true").spawn().expect("true");
         let cube = Cube {
             size: [1280.0, 800.0],
             caps: false,
         };
         Host {
-            outputs: vec!["VIRTUAL-1".into()],
+            outputs: (1..=faces).map(|i| format!("VIRTUAL-{i}")).collect(),
             child,
-            connect_by: None,
+            command: String::new(),
+            program: String::new(),
+            name: String::new(),
+            since: Instant::now(),
+            tail: Tail::default(),
+            health: vec![Health::Up; faces],
             cube,
             at: [0.0, 832.0 + 640.0],
             yaw: 0.0,
             front: 0,
             angle: 0.0,
             turn: None,
-            shown: vec![true],
+            shown: vec![true; faces],
             seen_from: [0.0; 3],
             view: View::default(),
-            far: 500.0,
+            far: STAND * 832.0,
             stand: 0.0,
+            shift: 0.0,
+            lean: 0.0,
             step: None,
             home: Pose::default(),
             focus: None,
             queued: false,
             switching: false,
-            floats: vec![None],
+            floats: vec![None; faces],
             landing: None,
             hover: None,
+            lit: None,
             press: None,
+            live: None,
             step_back_key: None,
             owing: BTreeSet::new(),
             again: None,
@@ -1093,5 +1791,464 @@ mod tests {
         host.stand = 1.0;
         assert!(!host.covers(&pose, [0.0, 2000.0]), "stood back");
         let _ = host.child.wait();
+    }
+
+    const QUARTER: f64 = FRAC_PI_2;
+
+    fn degrees(d: f64) -> f64 {
+        d.to_radians()
+    }
+
+    #[test]
+    fn the_cube_follows_the_hand_by_the_width_of_the_view() {
+        assert!(
+            (yaw_of(1280.0, 1280.0) - QUARTER).abs() < 1e-9,
+            "a width is 90 degrees"
+        );
+        assert!((yaw_of(-640.0, 1280.0) + QUARTER / 2.0).abs() < 1e-9);
+        assert!(
+            yaw_of(1.0, 1280.0) > 0.0,
+            "no threshold: one pixel turns it"
+        );
+        assert!(yaw_of(-1.0, 1280.0) < 0.0);
+    }
+
+    #[test]
+    fn a_release_settles_on_the_nearest_face_and_a_flick_goes_on() {
+        assert_eq!(settle_by(degrees(-30.0), 0.0), 0, "30 degrees returns");
+        assert_eq!(settle_by(degrees(-44.0), 0.0), 0);
+        assert_eq!(settle_by(degrees(-50.0), 0.0), 1, "50 degrees goes on");
+        assert_eq!(
+            settle_by(degrees(50.0), 0.0),
+            -1,
+            "to the right, the face before"
+        );
+        assert_eq!(settle_by(degrees(-10.0), -1.6), 1, "a flick to the left");
+        assert_eq!(settle_by(degrees(-10.0), -1.4), 0, "too slow for a flick");
+        assert_eq!(settle_by(degrees(10.0), 1.6), -1, "a flick to the right");
+        assert_eq!(
+            settle_by(degrees(-50.0), -2.0),
+            1,
+            "a flick past 45 degrees goes one face"
+        );
+    }
+
+    #[test]
+    fn the_label_names_the_nearest_face_and_the_next_dot_fills_with_the_turn() {
+        assert_eq!(nearest_face(degrees(-44.0), 4), 0);
+        assert_eq!(nearest_face(degrees(-46.0), 4), 1);
+        assert_eq!(nearest_face(degrees(30.0), 4), 0);
+        assert_eq!(
+            nearest_face(degrees(50.0), 4),
+            3,
+            "to the right of face 0 is face 3"
+        );
+        let close = |a: Vec<f64>, b: [f64; 4]| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-9);
+        assert!(close(dot_weights(0.0, 4), [1.0, 0.0, 0.0, 0.0]));
+        assert!(close(dot_weights(-QUARTER, 4), [0.0, 1.0, 0.0, 0.0]));
+        assert!(close(dot_weights(-QUARTER / 2.0, 4), [0.5, 0.5, 0.0, 0.0]));
+        assert!(close(dot_weights(QUARTER / 2.0, 4), [0.5, 0.0, 0.0, 0.5]));
+    }
+
+    #[test]
+    fn a_turn_by_key_takes_360_ms_and_the_settle_of_a_drag_320_ms() {
+        assert_eq!(TURN, Duration::from_millis(360));
+        assert_eq!(SETTLE, Duration::from_millis(320));
+        assert!((FLICK - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_drag_on_a_face_turns_the_cube_with_the_hand_and_settles_on_release() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([560.0, 300.0], 1280.0, at);
+        assert!(
+            (host.angle - yaw_of(-40.0, 1280.0)).abs() < 1e-9,
+            "the cube follows at once: {}",
+            host.angle
+        );
+        host.drag([100.0, 300.0], 1280.0, at + ms(400));
+        assert!(
+            (host.angle - yaw_of(-500.0, 1280.0)).abs() < 1e-9,
+            "from the press, no lag"
+        );
+        let released = at + ms(900);
+        assert_eq!(host.release(released), None, "a drag is no click");
+        assert_eq!(host.front, 0, "35 degrees returns to the face of before");
+        let turn = host.turn.expect("the cube settles");
+        assert!(!turn.done(released + ms(300)));
+        assert!(turn.done(released + ms(320)), "within 320 ms");
+        assert!(turn.at(released + ms(320)).abs() < 1e-9, "back on face 0");
+    }
+
+    #[test]
+    fn a_drag_past_45_degrees_settles_on_the_next_face() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([-111.0, 300.0], 1280.0, at);
+        let released = at + ms(900);
+        host.release(released);
+        assert_eq!(host.front, 1, "50 degrees goes on to the next face");
+        let turn = host.turn.expect("the cube settles");
+        assert!(turn.done(released + ms(320)));
+        assert!((turn.at(released + ms(320)) - Cube::turn_of(1)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_flick_goes_on_to_the_next_face_and_a_click_does_not_turn() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([540.0, 300.0], 1280.0, at + ms(10));
+        host.drag([440.0, 300.0], 1280.0, at + ms(60));
+        host.release(at + ms(70));
+        assert_eq!(
+            host.front, 1,
+            "160 px in 50 ms is faster than 1.5 widths a second"
+        );
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([604.0, 300.0], 1280.0, at);
+        assert_eq!(
+            host.release(at + ms(50)),
+            Some(0),
+            "a press that stays is a click"
+        );
+        assert!(host.turn.is_none() && host.angle == 0.0);
+    }
+
+    fn lens_of(host: &Host) -> super::super::space::Lens {
+        super::super::space::Lens::new(host.cube.size[0], host.cube.size[1])
+    }
+
+    fn visibility(commands: &[Command], id: &str) -> Option<bool> {
+        commands.iter().find_map(|c| match c {
+            Command::Update { id: i, props } if i == id => props.visible,
+            _ => None,
+        })
+    }
+
+    fn at_point(m: &Matrix, [u, v]: [f64; 2]) -> [f64; 3] {
+        [0, 1, 2].map(|r| m[r] * u + m[4 + r] * v + m[12 + r])
+    }
+
+    #[test]
+    fn a_cube_that_stands_back_rests_22_degrees_off_square_toward_the_next_face() {
+        let mut host = host_of(4);
+        assert!(
+            (REST - degrees(22.0)).abs() < 1e-12,
+            "the rest pose is 22 degrees"
+        );
+        assert!(host.drawn_angle().abs() < 1e-12, "in use mode it is square");
+        host.stand = 1.0;
+        assert!(
+            ((host.drawn_angle() - host.angle).abs() - REST).abs() < 1e-9,
+            "stood back it is turned by 22 degrees: {}",
+            host.drawn_angle()
+        );
+        let eye = host.eye([0.0, 0.0]);
+        assert!(host.faces_eye_at(0, host.drawn_angle(), eye), "the front");
+        assert!(
+            host.faces_eye_at(1, host.drawn_angle(), eye),
+            "the next face"
+        );
+        assert!(
+            !host.faces_eye_at(3, host.drawn_angle(), eye),
+            "not the one before"
+        );
+        host.stand = 0.5;
+        assert!(
+            ((host.drawn_angle() - host.angle).abs() - REST / 2.0).abs() < 1e-9,
+            "the step glides the offset away with the stand"
+        );
+    }
+
+    #[test]
+    fn the_rest_pose_goes_with_a_turn_by_key_or_by_hand() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let rest = host.drawn_angle() - host.angle;
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([560.0, 300.0], 1280.0, Instant::now());
+        assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
+        assert!(host.angle < 0.0, "the hand still turns the cube");
+        host.angle = Cube::turn_of(1);
+        assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
+        let eye = host.eye([0.0, 0.0]);
+        assert!(
+            host.faces_eye_at(2, host.drawn_angle(), eye),
+            "the next face of face 1 shows"
+        );
+        let _ = host.child.wait();
+    }
+
+    #[test]
+    fn a_cube_that_stepped_in_shows_its_face_at_one_to_one() {
+        let host = host_of(4);
+        let lens = lens_of(&host);
+        let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(0));
+        let [x0, y0] = super::super::space::project(&m, 0.0, 0.0);
+        let [x1, y1] = super::super::space::project(&m, lens.w, lens.h);
+        for (got, want) in [(x0, 0.0), (y0, 0.0), (x1, lens.w), (y1, lens.h)] {
+            assert!((got - want).abs() < 1e-6, "{got} is not {want}");
+        }
+    }
+
+    #[test]
+    fn the_cube_has_the_floor_shadow_of_a_pane() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let ground = 560.0;
+        let shadows = host.shadows(ground);
+        assert_eq!(shadows.len(), 2, "two ovals across each other");
+        let centre = host.centre();
+        for s in &shadows {
+            assert!((s[0] - centre[0]).abs() < 1e-9 && (s[1] - centre[1]).abs() < 1e-9);
+            assert!((s[2] - 640.0).abs() < 1e-9, "half the width of a face");
+            assert!(s[3] >= 0.0 && s[3] < 1e6);
+        }
+        let yaw = |w: f64| (w.fract() / 0.99 - 0.5) * std::f64::consts::TAU;
+        let across = (yaw(shadows[1][3]) - yaw(shadows[0][3])).rem_euclid(std::f64::consts::PI);
+        assert!(
+            (across - FRAC_PI_2).abs() < 1e-2,
+            "a quarter apart: {across}"
+        );
+        let face = host.world(0);
+        let towards = face[8].atan2(face[10]);
+        let off = (yaw(shadows[0][3]) - towards).rem_euclid(FRAC_PI_2);
+        assert!(
+            off < 1e-2 || FRAC_PI_2 - off < 1e-2,
+            "turned with the cube: {off}"
+        );
+    }
+
+    #[test]
+    fn the_mirror_image_of_a_face_hangs_under_the_floor() {
+        let host = host_of(4);
+        let ground = 560.0;
+        let (face, mirror) = (host.world(0), host.mirror_world(0, ground));
+        let k = 2.0;
+        for p in [[0.0, 0.0], [1280.0, 0.0], [300.0, 800.0], [1280.0, 800.0]] {
+            let (a, b) = (at_point(&face, p), at_point(&mirror, [p[0] / k, p[1] / k]));
+            assert!((a[0] - b[0]).abs() < 1e-6 && (a[2] - b[2]).abs() < 1e-6);
+            assert!((b[1] - (-2.0 * ground - a[1])).abs() < 1e-6, "{a:?} {b:?}");
+        }
+    }
+
+    #[test]
+    fn the_mirror_images_of_the_faces_that_show_come_with_the_step_back() {
+        let mut host = host_of(4);
+        host.shown = vec![false; 4];
+        let in_use = host.faces([0.0, 0.0], 560.0);
+        assert_ne!(
+            visibility(&in_use, &mirror_id(0)),
+            Some(true),
+            "in use mode"
+        );
+        host.stand = 1.0;
+        let back = host.faces([0.0, 0.0], 560.0);
+        assert_eq!(visibility(&back, &mirror_id(0)), Some(true));
+        assert_eq!(
+            visibility(&back, &mirror_id(1)),
+            Some(true),
+            "the next face"
+        );
+        assert_ne!(
+            visibility(&back, &mirror_id(3)),
+            Some(true),
+            "a face that looks away"
+        );
+    }
+
+    fn navigating_host() -> Host {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        host.view.act(Act::StepBack);
+        host.faces([0.0, 0.0], 560.0);
+        host
+    }
+
+    #[test]
+    fn a_face_under_the_pointer_lights_its_edge_at_2_px_with_a_16_px_glow_on_the_screen() {
+        assert!((LIT_GLOW - 0.35).abs() < 1e-12, "the glow is 0.35");
+        assert!((EDGE_OUT - 120.0).abs() < 1e-12, "it goes out in 120 ms");
+        assert!((EDGE_WIDTH - 2.0).abs() < 1e-12, "the edge is 2 px");
+        let mut host = navigating_host();
+        host.set_hover(Some(0));
+        let Edge::Lit { face, scale } = host.edge_plan() else {
+            panic!("the pointer on face 0 lights its edge");
+        };
+        assert_eq!(face, 0);
+        let lens = lens_of(&host);
+        let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(0));
+        let [x0, y0] = super::super::space::project(&m, 640.0, 400.0);
+        let [x1, y1] = super::super::space::project(&m, 640.0, 401.0);
+        let px_of_unit = (x1 - x0).hypot(y1 - y0);
+        assert!(
+            (scale * px_of_unit - 1.0).abs() < 0.06,
+            "a unit of the face is {px_of_unit} px, and the plan counts {scale} units a px"
+        );
+    }
+
+    #[test]
+    fn the_lit_edge_goes_out_in_120_ms_when_the_pointer_leaves() {
+        let mut host = navigating_host();
+        assert_eq!(host.edge_plan(), Edge::Off, "no pointer on a face");
+        host.set_hover(Some(0));
+        assert!(matches!(host.edge_plan(), Edge::Lit { .. }));
+        host.set_hover(None);
+        assert_eq!(host.edge_plan(), Edge::Fade, "the pointer left");
+        assert_eq!(host.edge_plan(), Edge::Off, "and it is out");
+    }
+
+    #[test]
+    fn the_lit_edge_is_out_at_once_in_a_turn_and_does_not_come_back() {
+        let mut host = navigating_host();
+        host.set_hover(Some(0));
+        assert!(matches!(host.edge_plan(), Edge::Lit { .. }));
+        host.turn = Some(Turn::new(0.0, -QUARTER, Instant::now(), TURN));
+        assert_eq!(host.edge_plan(), Edge::Hide, "a turn puts it out at once");
+        assert_eq!(host.edge_plan(), Edge::Off, "and it does not come back");
+        host.turn = None;
+        host.live = Some(Live {
+            base: 0.0,
+            width: 1280.0,
+            samples: Vec::new(),
+        });
+        assert_eq!(host.edge_plan(), Edge::Off, "not while the hand turns it");
+    }
+
+    #[test]
+    fn the_edge_does_not_light_in_use_mode() {
+        let mut in_use = host_of(4);
+        in_use.set_hover(Some(0));
+        assert_eq!(in_use.edge_plan(), Edge::Off);
+    }
+
+    fn bottom_of(host: &Host, face: usize) -> [f64; 2] {
+        let lens = lens_of(host);
+        let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(face));
+        super::super::space::bottom_middle(&m, host.cube.size_of(face))
+    }
+
+    #[test]
+    fn the_next_face_stands_at_the_right_and_a_drag_to_the_left_follows_the_hand() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let front = bottom_of(&host, 0)[0];
+        assert!(
+            bottom_of(&host, 1)[0] > front,
+            "the next face is at the right of the front face"
+        );
+        assert!(
+            bottom_of(&host, 3)[0] < front,
+            "the face before is at the left"
+        );
+        host.angle = yaw_of(-100.0, 1280.0);
+        assert!(
+            bottom_of(&host, 0)[0] < front,
+            "a drag to the left moves the front face to the left"
+        );
+        host.angle = yaw_of(100.0, 1280.0);
+        assert!(bottom_of(&host, 0)[0] > front, "a drag to the right, right");
+    }
+
+    fn aimed(host: &mut Host) -> super::super::space::Lens {
+        let lens = lens_of(host);
+        host.aim(&lens, &Pose::default());
+        lens
+    }
+
+    #[test]
+    fn the_cube_stood_back_is_centred_on_the_view_axis_at_every_face_and_turn() {
+        for front in 0..4 {
+            for turn in [0.0, 0.2, -0.3, QUARTER / 2.0] {
+                let mut host = host_of(4);
+                host.stand = 1.0;
+                host.angle = QUARTER * f64::from(front) + turn;
+                let lens = aimed(&mut host);
+                let ([lo, hi], _) = host.outline(&lens, &Pose::default()).expect("outline");
+                assert!(
+                    (lo.midpoint(hi) - lens.w / 2.0).abs() < 0.5,
+                    "face {front} turn {turn}: {lo} to {hi}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_cube_rests_turned_the_same_way_at_every_face() {
+        for turns in 0..4_u8 {
+            let front = usize::from(turns);
+            let mut host = host_of(4);
+            host.stand = 1.0;
+            host.angle = -QUARTER * f64::from(turns);
+            host.front = front;
+            aimed(&mut host);
+            let next = (front + 1) % 4;
+            assert!(
+                bottom_of(&host, next)[0] > bottom_of(&host, front)[0],
+                "the next face shows at the right of face {front}"
+            );
+        }
+    }
+
+    fn side_width(host: &Host, lens: &super::super::space::Lens) -> f64 {
+        let ([_, hi], _) = host.outline(lens, &Pose::default()).expect("outline");
+        let m = super::super::space::screen_matrix(lens, &Pose::default(), &host.world(0));
+        let [right, _] = super::super::space::project(&m, host.cube.size_of(0)[0], 0.0);
+        hi - right
+    }
+
+    #[test]
+    fn centred_on_the_axis_the_cube_still_shows_its_next_face_as_before() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let lens = lens_of(&host);
+        let before = side_width(&host, &lens);
+        host.aim(&lens, &Pose::default());
+        let after = side_width(&host, &lens);
+        assert!(before > 10.0, "the next face shows: {before}");
+        assert!(
+            (after - before).abs() < 0.2 * before,
+            "{after} px of the next face, {before} before"
+        );
+    }
+
+    #[test]
+    fn a_cube_in_use_mode_is_not_shifted() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        aimed(&mut host);
+        assert!(host.shift.abs() > 1.0, "stood back it shifts sideways");
+        host.stand = 0.0;
+        aimed(&mut host);
+        assert_eq!(host.shift, 0.0, "stepped in the face fills the view");
+    }
+
+    #[test]
+    fn the_face_label_hangs_8_under_the_lowest_corner_on_the_view_axis() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        for front in 0..4_u8 {
+            host.angle = QUARTER * f64::from(front);
+            let lens = aimed(&mut host);
+            let at = host
+                .label_anchor(&lens, &Pose::default())
+                .expect("an anchor");
+            let (_, low) = host.outline(&lens, &Pose::default()).expect("outline");
+            assert!((at[0] - lens.w / 2.0).abs() < 1e-9, "on the view axis");
+            assert!((at[1] - low).abs() < 1e-9, "at the lowest corner");
+            let place = crate::hints::face_label_place(200.0, at);
+            assert!(
+                (place[1] - low.round() - 8.0).abs() < 1e-9,
+                "8 px below: {place:?} {low}"
+            );
+        }
     }
 }

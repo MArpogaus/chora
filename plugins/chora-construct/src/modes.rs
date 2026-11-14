@@ -16,6 +16,7 @@ use serde_json::{Value, json};
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, FLY_MS, Grab, InputMode, LOOK, NAME,
     NodeKind, PropsUpdate, Query, RpcError, create, cube,
+    faces::{self, Health},
 };
 
 /// The group of the chips, and the prefix of a chip.
@@ -130,7 +131,11 @@ fn cube_bindings(mode: Mode, switching: bool, step_back: Option<&String>) -> Vec
 /// The chips that show: those of the mode, and none while the camera is
 /// in a pane, where the keys of the cube do not hold.
 fn chips_of(view: View, flown: bool) -> &'static [Word] {
-    if flown { &[] } else { view.controls() }
+    if flown || view.mode() == Mode::Use {
+        &[]
+    } else {
+        view.controls()
+    }
 }
 
 /// The right edge of the chips in the row `[top, bottom]` of a view
@@ -397,6 +402,10 @@ impl Construct {
     /// mode the keys of the walk do nothing, so that the face stays at
     /// 1:1; the keys that open something go on.
     fn key_act(&self, view: View, key: &str, modifiers: &[String]) -> Option<Pressed> {
+        let front_failed = self.cube.as_ref().is_some_and(cube::Host::front_failed);
+        if front_failed && key == "Return" {
+            return Some(Pressed::Retry);
+        }
         if let Some(act) = view.key(key) {
             return Some(Pressed::Act(act));
         }
@@ -427,10 +436,10 @@ impl Construct {
         Some(pressed)
     }
 
-    /// The pointer moved during a press on a face: a drag turns the
-    /// cube, and goes on from there when the cube took the turn; a drag
-    /// on the floating plane of a window pulls the window out. An
-    /// injected move ends the press: it is not the hand of the person.
+    /// The pointer moved during a press on a face: the cube follows the
+    /// hand; a drag on the floating plane of a window pulls the window
+    /// out. An injected move ends the press: it is not the hand of the
+    /// person.
     fn drag_act(
         &mut self,
         node: &str,
@@ -440,24 +449,22 @@ impl Construct {
             return Ok(None);
         }
         let ignored = injected && !self.rt.accepts_injected();
-        let third = self.lens.w / 3.0;
+        let width = self.lens.w;
+        let now = chora_kit::clock::now();
         let Some(host) = &mut self.cube else {
             return Ok(None);
         };
         if ignored {
-            host.forget_press();
+            host.forget_press(now);
             return Ok(Some(Pressed::Nothing));
         }
-        match host.drag(at, third) {
-            cube::Dragged::Turn(by) => {
-                if self.turn_cube(by, None, true)?
-                    && let Some(host) = &mut self.cube
-                {
-                    host.drag_turned(at[0]);
-                }
+        match host.drag(at, width, now) {
+            cube::Dragged::Yaw(_) => {
+                self.frame()?;
+                self.sync_float()?;
             }
             cube::Dragged::Pull(window) => {
-                host.forget_press();
+                host.forget_press(now);
                 self.pull_plane(&window, at)?;
             }
             cube::Dragged::Nothing => {}
@@ -468,14 +475,64 @@ impl Construct {
     /// The release of a press on a face: a click steps into the face,
     /// when the cube rests in navigate mode. Not an injected release.
     fn release_act(&mut self, view: View, node: &str, injected: bool) -> Option<Pressed> {
-        cube::face_of(node)?;
+        let hit = cube::face_of(node)?;
         let ignored = injected && !self.rt.accepts_injected();
-        let face = self.cube.as_mut()?.release().filter(|_| !ignored);
+        let face = self
+            .cube
+            .as_mut()?
+            .release(chora_kit::clock::now())
+            .filter(|_| !ignored);
+        if view.mode() == Mode::Use && !ignored && self.failed_face(hit) {
+            return Some(Pressed::Retry);
+        }
         let rests = view.mode() == Mode::Navigate && !view.turning();
         Some(
             face.filter(|_| rests)
                 .map_or(Pressed::Nothing, Pressed::Face),
         )
+    }
+
+    /// What a step in on a face that failed to start does instead: it
+    /// tries again.
+    fn retrying(&self, pressed: Option<Pressed>) -> Option<Pressed> {
+        let front_failed = self.cube.as_ref().is_some_and(cube::Host::front_failed);
+        match pressed {
+            Some(Pressed::Act(Act::StepIn)) if front_failed => Some(Pressed::Retry),
+            Some(Pressed::Face(face)) if self.failed_face(face) => Some(Pressed::Retry),
+            other => other,
+        }
+    }
+
+    /// Whether the window manager of a face failed to start.
+    fn failed_face(&self, face: usize) -> bool {
+        let failed = |host: &cube::Host| matches!(host.health_of(face), Health::Failed(_));
+        self.cube.as_ref().is_some_and(failed)
+    }
+
+    /// The act of a press or a release on the card of a failed face: the
+    /// release tries again, an injected one outside a test session not.
+    fn card_act(&self, event: &Event) -> Option<Pressed> {
+        match event {
+            Event::PointerPressed { node, button, .. }
+                if *button == BTN_LEFT && node.starts_with(faces::CARD) =>
+            {
+                Some(Pressed::Nothing)
+            }
+            Event::PointerReleased {
+                node,
+                button,
+                injected,
+                ..
+            } if *button == BTN_LEFT && node.starts_with(faces::CARD) => {
+                let ignored = *injected && !self.rt.accepts_injected();
+                Some(if ignored {
+                    Pressed::Nothing
+                } else {
+                    Pressed::Retry
+                })
+            }
+            _ => None,
+        }
     }
 
     /// The pointer came over a face or left it: the edge of the face
@@ -494,6 +551,7 @@ impl Construct {
         };
         if host.set_hover(now) {
             self.frame()?;
+            self.draw_hints()?;
         }
         Ok(true)
     }
@@ -505,16 +563,15 @@ impl Construct {
         let Some(view) = self.cube.as_ref().map(cube::Host::view) else {
             return Ok(false);
         };
-        if let Some(done) = self.manager_event(event) {
-            return done.map(|()| true);
-        }
-        if let Some(done) = self.plane_drag(event) {
+        if let Some(done) = self.manager_event(event).or_else(|| self.plane_drag(event)) {
             return done.map(|()| true);
         }
         if view.mode() == Mode::Navigate && self.press_on_a_pane(event)? {
             return Ok(true);
         }
+        let card = self.card_act(event);
         let pressed = match event {
+            _ if card.is_some() => card,
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -554,7 +611,8 @@ impl Construct {
             Event::PointerLeft { node } => return self.hover_act(node, false),
             _ => None,
         };
-        match pressed {
+        match self.retrying(pressed) {
+            Some(Pressed::Retry) => self.retry_cube()?,
             Some(Pressed::Act(act)) => self.mode_act(act, By::Person)?,
             Some(Pressed::Face(face)) => self.step_into(face)?,
             Some(Pressed::Nothing) => {}
@@ -657,6 +715,7 @@ fn press_of(chip: Option<Word>, face: Option<usize>, ignored: bool) -> Option<Pr
 enum Pressed {
     Act(Act),
     Face(usize),
+    Retry,
     Nothing,
 }
 
@@ -714,7 +773,7 @@ mod tests {
     #[test]
     fn no_chip_shows_while_the_camera_is_in_a_pane() {
         let mut view = View::default();
-        assert_eq!(chips_of(view, false), &[Word::StepBack]);
+        assert_eq!(chips_of(view, false), [], "use mode has no corner chip");
         assert_eq!(chips_of(view, true), []);
         view.act(Act::StepBack);
         assert_eq!(chips_of(view, false).len(), 3);
