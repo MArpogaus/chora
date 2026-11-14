@@ -20,7 +20,9 @@ use smithay::{
     },
     desktop::PopupPointerGrab,
     input::{
-        keyboard::{FilterResult, Keycode, Keysym, KeysymHandle, ModifiersState, xkb},
+        keyboard::{
+            FilterResult, KeyboardSource, Keycode, Keysym, KeysymHandle, ModifiersState, xkb,
+        },
         pointer::{
             AxisFrame, ButtonEvent, Focus, GestureHoldBeginEvent, GestureHoldEndEvent,
             GesturePinchBeginEvent, GesturePinchEndEvent, GesturePinchUpdateEvent,
@@ -95,6 +97,19 @@ pub fn log_layout(state: &mut State) {
     );
 }
 
+/// The keyboard of `input.inject`: a source of its own, so that an
+/// injected release lifts no key or modifier that the person holds.
+const INJECTED: KeyboardSource = KeyboardSource::Auxiliary(0);
+
+/// The keyboard that a key comes from.
+fn source(injected: bool) -> KeyboardSource {
+    if injected {
+        INJECTED
+    } else {
+        KeyboardSource::MAIN
+    }
+}
+
 /// Releases every key that is down, for example when the window of a
 /// nested chora loses the focus and the host keeps the releases.
 pub fn release_keys(state: &mut State) {
@@ -120,7 +135,8 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     if key_state == KeyState::Pressed {
         state.track_press(serial, injected);
     }
-    let action = keyboard.input(
+    let action = keyboard.input_from_source(
+        source(injected),
         state,
         code,
         key_state,
