@@ -1,9 +1,10 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-14T17:02:28Z
+screened-through: 2026-11-14T17:17:00Z
 
 - 11-14 16:54Z (fixes 16:47) "Fable darf gerne aufgebraucht werden. Ich löse den Reset aus." "...sollten wir weniger parallele Fable-Lanes fahren als bisher." -> use Fable up this week: max 2 Fable lanes, then none until next week
-- 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> agent_skills dev plus overrides = conventions.md (language and chat length there)
-- 11-14 16:43Z "...robuster gestalten, damit sowas nicht nochmal passiert." -> fail-open hooks, no local lanes, heartbeat; 16:47Z "Ja, das passt so." -> plan ok
+- 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
+- 11-14 17:17Z "Du bist der Projektmanager." -> no owner feedback: decide all, rc changes too
+- 11-14 16:43Z "...robuster gestalten, damit sowas nicht nochmal passiert." -> fail-open hooks, cloud lanes, heartbeat
 - 11-14 05:33Z "try to really parallelize what's possible" -> no rc cuts; parallel lanes
 - 11-12 05:47Z "So stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority for our guidelines." -> priority; "Your job should be to collect those, put them in the backlog if they are feasible, push back if they conflict with any of our decisions or targets, and always keep the project goals into focus." -> ideas never redirect a lane; "You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation." -> name unreachable goals
 - 11-12 02:42Z "Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that." -> plan = backlog; "Really push back when you see that certain task is useless or not necessary right now." -> push back, also on his words

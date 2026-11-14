@@ -9,8 +9,8 @@ its criterion. Guard: lanes.py (lane or Queue tags).
 change, order. Bug: findings ledger. Idea: backlog. Goal change: reply with the cost,
 apply after a yes, at the next lane start. Conflict with a decision or the RC: say
 so at once. Guard: check_log.py (commit-msg `owner-ok:`, `cost:`).
-3. Ask or decide. Ask the owner only for: goal or RC changes, a slip over two days,
-legal, branch deletion, force push, environment. Batch under Needs owner with a
+3. Ask or decide. Ask the owner only for: legal, branch deletion, force push,
+environment (11-14 17:17: decide the rest, goal and RC changes too). Batch under Needs owner with a
 default and a deadline. The CI PR is the PM's, and the rc tag and release
 once design/rc.md holds. All else: decide, log one line. Guard: manual.
 4. State. state.md is rewritten, never appended: Now, RC, Lanes, Queue, Needs owner.

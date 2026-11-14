@@ -3,13 +3,13 @@
 ## Now (2026-11-14 16:48 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (old PM ..QmmQ6 dead 10:15-16:30, friction 44; archived)
 budget: Fable 71 %, all 37 % (16:44); Fable used up this week, max 2 lanes (16:54); non-Fable use low double digits
-session branch: 498d9dea (train 4). rc target: 11-20.
+session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | open: ~35 MAJOR; BLOCK ti-1 (Apps menu clicks), co-1 (panes lost after mc drag) to verify |
-| 1b | Owner approves each look | not asked |
+| 1b | Owner sees looks in the 11 screencast | not started |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | no: flakes; F13 fix lost (unpushed) |
 | 4 | CI green | ci-rc MERGE-OK (10:09 review); CI PR not opened |
@@ -18,6 +18,7 @@ session branch: 498d9dea (train 4). rc target: 11-20.
 | 7 | deny, machete | clean on ci-rc |
 | 8 | Docs, CHANGELOG, known issues | docs MERGE-OK, README keys wrong (Super+space) |
 | 9 | Logging audit, flakes closed | not started |
+| 11 | Visual acceptance screencast | tour tooling on claude/tour 48fc05b5; rewrite from Mon |
 
 ## Lanes
 | Lane | Where | Brief | State |

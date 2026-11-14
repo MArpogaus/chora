@@ -61,7 +61,7 @@ T4 | 11-11 | later | tiling v2 leftovers: 68 px empty after "Tile"; one keycap h
 R3 | 11-11 | later | tiling code review LOW: layout words duplicated in waybar/layout.sh and keys.rs; locale case repeated in 5 scripts and theme.rs; runtime_shader re-implements theme::runtime_dir; LaunchError one-variant enum matching strings; tags 10-16 allowed but the bar has 9 fixed modules.
 R5 | 11-12 | later | mc code review LOW: `empty` is a string on scene panels and a bool on contents; key labels English only, short and full lists disagree on Run; sent echo removed only on exact text match; wraps "run." and "Stop" alone on a line.
 L1b | 11-11 | later | chora-report asks a few questions, uploads the bundle to a paste service after an explicit yes and prints a ready GitHub issue text; `--no-upload` keeps the file-only report.
-M1 | 11-12 | later | tour-v3 screencast, status page rework, website and USPs on claude/website (one headline, two paths, every claim backed by a demo), announcement in German and English.
+M1 | 11-12 | later | status page rework, website and USPs on claude/website (one headline, two paths, every claim backed by a demo), announcement in German and English.
 D1 | 11-10 | later | demo media, Reddit-ready: `demo/record.sh` (30 fps frames, GIF under 10 MB, MP4); construct walk, 3D wobble, cube turn, pull-out; captions name the machine.
 D2 | 11-10 | later | demo polish: a capture clock in `choractl record`; the pane frame, glow and shadow follow the wobble mesh; a demo scene with real content.
 D3 | 11-11 | later | demo glitches: slivers of floating planes during a cube turn; a pane dragged over an angled face vanishes for some frames; the pulled pane is smaller than its window; light theme only.
