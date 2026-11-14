@@ -154,8 +154,7 @@ cell_launcher_chat() {
     settle
     unmark
     key Super+space
-    marked "^data .*$repo/flavors/shared" &&
-        grep -qx 'Name=Chat with a helper' "$repo/flavors/shared/applications/chora-chat.desktop" || return 1
+    marked '^row Chat with a helper$' || return 1
     menu_show || return 1
     has_text "Chat with a helper"
     local status=$?

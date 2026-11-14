@@ -112,8 +112,7 @@ cell_launcher_door() {
 cell_launcher_chat() {
     unmark
     key Super+space
-    marked "^data .*$repo/flavors/shared" &&
-        grep -qx 'Name=Chat with a helper' "$repo/flavors/shared/applications/chora-chat.desktop"
+    marked '^row Chat with a helper$'
 }
 cell_helper_key() {
     chat_close

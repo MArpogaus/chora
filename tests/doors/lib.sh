@@ -17,7 +17,9 @@
 #   f1-free         F1 is no binding of the look: it reaches the client
 #   launcher-key    Super+Space opens the launcher
 #   launcher-door   a visible door opens the launcher by a click
-#   launcher-chat   the launcher has the row Chat with a helper
+#   launcher-chat   the launcher has the row Chat with a helper: a look
+#                   that gives fuzzel its rows has that row, another
+#                   gives fuzzel the shared folder in XDG_DATA_DIRS
 #   helper-key      Super+a opens the chat with a helper
 #   helper-door     a visible helper door shows a state word
 #   helper-none     without a helper the door says No helper, and Super+a
