@@ -1,5 +1,5 @@
 # tiling findings (train 4, tiling f9dabd84) | id | severity | source:line | state | text | helper door, lock, power, volume, key list: see shared.md
-ti-1 | BLOCK | fb-swarm5-t5m:8 | verify | Apps menu: click and hover leave the selection on Screenshot, no program starts by mouse (fuzzel 1.9.2 suspected); RC: start a program by click
+ti-1 | BLOCK | fb-swarm5-t5m:8; doors-r3 | open (reproduced 11-14 with plain fuzzel 1.9.2: hover and click choose nothing; needs fuzzel 1.11 or a fix) | Apps menu: click and hover leave the selection on Screenshot, no program starts by mouse (fuzzel 1.9.2 suspected); RC: start a program by click
 ti-2 | MAJOR | ux-deep-tiling:57 | open | Apps launcher: Screenshot first and pre-selected (Apps then Enter takes a screenshot); no sort; empty search shows an empty panel with no word
 ti-3 | MAJOR | swarm-6:25 | verify | Bar Keys and Chat buttons do nothing on click (haiku lead); Keys click worked in ux-deep, Chat button no longer exists: recheck on train 4
 ti-4 | MAJOR | ux-deep-tiling:51 | verify | Screenshot gives no notice: screenshot.sh needs a notification daemon; mako unit now ships (chora-tiling-mako), confirm the notice shows

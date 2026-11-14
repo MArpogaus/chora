@@ -17,3 +17,4 @@ mc-15 | COSMETIC | ux-deep-mc:132,136,140 | open | Yes/No hover thickens the rim
 mc-16 | COSMETIC | pixel-mc-r6:26,27,29 | open | Yes/No 32 px off grid; notification wraps with "a" at line end; duplicate head: "1 AGENDA" above the page title
 mc-17 | COSMETIC | pixel-mc-r6:30-39,47 | open | Serif/sans baseline and numeral indent ±1 px, Listening dot 3 px short of the edge, caret, Stop/Esc/Close gaps, 15 vs 14 px mono, thin 7:1 margins
 mc-18 | COSMETIC | ux-deep-mc:141; pixel-mc-r6:34 | open | Light terminal is a black block on cream (foot rejects colors-dark here); the question is stated 3 times in the column
+mc-30 | MAJOR | doors-r3 (capture doors-r3-mc-keys.png) | open | At 1280x800 with voice and a host: helper name, the word Mute, the date and the island overlap in the mc header
