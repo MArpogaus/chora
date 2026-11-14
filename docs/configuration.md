@@ -891,7 +891,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). `F1` is no binding: it reaches the program of a pane. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c`, `Super+a`, `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help`, `cube` (opens the cube of `cube_manager`), `chat` (runs `chora-chat`), `lock`, `power` (the power menu), `screenshot`, `volume_up`, `volume_down` or `mute`. `F1` is no binding: it reaches the program of a pane. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; with Shift, `Super+Shift+e` is tried first and then the key as the keymap shifts it, as in `Super+E`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -1070,9 +1070,12 @@ terminal inside them.
 
 `Super+F1` and `Super+/`, the key `help`, show the help over a scrim: a glass panel at the
 top centre, 880 wide in two columns, with the keys that work now in
-groups, the construct's own at the left (Walk, Panes, Cube while a cube
-is open) and those that every look shares at the right (Helper and chat,
-Give a window, Everywhere). Each key is a keycap. The keys come from the
+groups: Walk, Panes, Cube while a cube is open, and the groups that
+every look shares (Helper and chat, Give a window, Everywhere). The
+columns are cut between groups where the taller one is the least tall.
+Everywhere names `Super+Space`, `Super+F1`, `Super+Shift+Escape`,
+`Super+Shift+e`, `Super+Print` and the three volume keys, and Helper and
+chat names `Super+a`. Each key is a keycap. The keys come from the
 settings, so a change, for example `modifier: Alt`, shows at once, and a
 key that is not bound has no row. The row of `Super+F1` stands in Everywhere; `Super+/` is a silent alias. Typing searches the words and the key
 names: the panel is then 560 wide in one column, the found words are
@@ -1101,8 +1104,8 @@ card, opens flown in: its pane shows at 1:1 with the keyboard, and typed
 keys reach it during the fly-in too. `Alt+Escape` steps back at any time
 of the fly-in. `Super+t` in a pane steps back, opens a second terminal
 right of the first at the same distance and flies into it over 380 ms;
-the keys that start a terminal and carry a modifier are grabbed while
-the camera is in a pane. A terminal that `Super+t` starts from the walk
+the keys that start a terminal and the keys of every look, below, are
+grabbed while the camera is in a pane. A terminal that `Super+t` starts from the walk
 while a pane stands opens beside the panes at the same distance from the
 camera, not far off in the fog.
 
@@ -1116,6 +1119,22 @@ names the window manager by its display name (`XP`, `Tiling`, `Media
 center`, `Construct`) and the reason, as in `Tiling did not take the
 window: it is not running.`; the German words are `Tiling hat das
 Fenster nicht genommen: es läuft nicht.`.
+
+### The keys of every look
+
+Every look has the same keys: `Super+F1` shows the key list (`Super+/`
+is a silent alias), `Super+Space` starts the launcher, `Super+a` opens
+the chat with a helper (it runs `chora-chat`), `Super+Shift+Escape`
+locks the screen, `Super+Shift+e` opens the power menu (Lock, Log out,
+Restart, Shut down), `Super+Print` takes a screenshot and
+`XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute`
+change the volume. `F1` is no binding: it reaches the program of a pane.
+The power menu, the lock and the screenshot are the scripts of
+`flavors/shared`, and the launcher lists the entries of that folder,
+among them Chat with a helper. These keys work in the walk and while the
+camera is in a pane, where each is a grab. The key list is the one
+exception: from a pane its key first steps out, since the list takes the
+keyboard. A script or program that does not start gives a notice.
 
 ### The pane label
 

@@ -159,6 +159,18 @@ impl Construct {
         }
     }
 
+    /// The chat of the HUD host closed and took the keyboard with it: the
+    /// walk gets it back. In a pane the window of the pane gets it from
+    /// the core, and a cube keeps its own.
+    pub(crate) fn keyboard_back(&mut self) -> Result<(), ClientError> {
+        if !self.active || self.in_pane() || self.cube.is_some() {
+            return Ok(());
+        }
+        self.rt.conn.apply(vec![Command::FocusNode {
+            node: Some(LOOK.into()),
+        }])
+    }
+
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     pub(crate) fn input(&mut self, event: Event) -> Result<(), ClientError> {
@@ -190,10 +202,11 @@ impl Construct {
                 ..
             } if node == LOOK => match self.settings.value.action(&key, &modifiers) {
                 Some(Action::Terminal) => self.start_terminal(),
-                Some(Action::Launcher) => self.start_launcher(),
+                Some(action) if Action::SHARED.contains(&action) => {
+                    return self.shared_key(action);
+                }
                 Some(Action::Close) => return self.close_ahead(),
                 Some(Action::Windows) => return self.open_list(),
-                Some(Action::Help) => return self.toggle_help(),
                 Some(Action::Cube) => return self.cube_key(),
                 Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
                     self.stride_press(&key, action);
@@ -209,7 +222,8 @@ impl Construct {
             } => {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
-                    Some(Grab::Terminal) => self.terminal_beside(),
+                    Some(&Grab::Key(Action::Terminal)) => self.terminal_beside(),
+                    Some(&Grab::Key(action)) => self.grabbed_key(action),
                     _ => self.fly_out(),
                 };
             }

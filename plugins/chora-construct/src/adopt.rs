@@ -289,7 +289,16 @@ impl Construct {
     /// token, is no pane; the next window after it is.
     pub(crate) fn start_launcher(&mut self) {
         let mint = self.rt.conn.activation_token();
-        self.launcher = chora_kit::launch(&self.settings.value.launcher, mint.as_deref());
+        let launcher = &self.settings.value.launcher;
+        let command =
+            match chora_kit::shared::data_dirs(std::env::var("XDG_DATA_DIRS").ok().as_deref()) {
+                Some(dirs) => format!(
+                    "export XDG_DATA_DIRS='{}'; {launcher}",
+                    dirs.replace('\'', "'\\''")
+                ),
+                None => launcher.clone(),
+            };
+        self.launcher = chora_kit::launch(&command, mint.as_deref());
         self.launched = Some(Instant::now());
     }
 

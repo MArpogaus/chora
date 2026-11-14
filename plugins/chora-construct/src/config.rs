@@ -37,6 +37,36 @@ pub enum Action {
     Help,
     /// Opens the cube of the setting `cube_manager`.
     Cube,
+    /// Opens the chat with a helper: runs `chora-chat`.
+    Chat,
+    /// Locks the screen, as the shared `power.sh lock`.
+    Lock,
+    /// Opens the power menu of the shared `power.sh`.
+    Power,
+    /// Takes a screenshot with the shared `screenshot.sh`.
+    Screenshot,
+    /// One step louder.
+    VolumeUp,
+    /// One step quieter.
+    VolumeDown,
+    /// Mutes or unmutes the sound.
+    Mute,
+}
+
+impl Action {
+    /// The actions of the keys that every look has. A key of them works
+    /// in the walk and, as a grab, while the camera is in a pane.
+    pub const SHARED: [Self; 9] = [
+        Self::Launcher,
+        Self::Help,
+        Self::Chat,
+        Self::Lock,
+        Self::Power,
+        Self::Screenshot,
+        Self::VolumeUp,
+        Self::VolumeDown,
+        Self::Mute,
+    ];
 }
 
 /// Light or dark.
@@ -331,16 +361,30 @@ impl Settings for Config {
 
 impl Config {
     /// The action of a key that the space got: the key with its Ctrl,
-    /// Alt and Super in that order, as in `Super+t`. Shift is part of
-    /// the key, as in `T`.
+    /// Alt and Super in that order, as in `Super+t`. With Shift held, the
+    /// name `Super+Shift+e` is tried first, then the key as the keymap
+    /// shifts it, as in `Super+E`.
     #[must_use]
     pub fn action(&self, key: &str, modifiers: &[String]) -> Option<Action> {
+        let held = |name: &str| modifiers.iter().any(|m| m == name);
         let mut name: Vec<&str> = ["Ctrl", "Alt", "Super"]
             .into_iter()
-            .filter(|m| modifiers.iter().any(|held| held == m))
+            .filter(|m| held(m))
             .collect();
-        name.push(key);
-        self.keys.get(&name.join("+")).copied()
+        let plain = [name.as_slice(), &[key]].concat().join("+");
+        if held("Shift") {
+            name.push("Shift");
+            let shifted = if key.chars().count() == 1 {
+                key.to_lowercase()
+            } else {
+                key.to_owned()
+            };
+            let with_shift = [name.as_slice(), &[shifted.as_str()]].concat().join("+");
+            if let Some(action) = self.keys.get(&with_shift) {
+                return Some(*action);
+            }
+        }
+        self.keys.get(&plain).copied()
     }
 
     /// The warnings of a configuration that works but surprises: a key
@@ -426,7 +470,6 @@ impl Config {
             shared: false,
             rows: vec![
                 row("Open a terminal", one(Action::Terminal), Vec::new()),
-                row("Start a program", one(Action::Launcher), Vec::new()),
                 row("Close the pane ahead", one(Action::Close), Vec::new()),
                 KeyRow {
                     what: "Move or resize a pane".into(),
@@ -442,9 +485,6 @@ impl Config {
             ],
         };
         let mut groups = vec![walk, panes];
-        for group in &mut groups {
-            group.rows.retain(|r| !r.keys.is_empty());
-        }
         if cube {
             groups.push(KeyGroup {
                 head: "Cube".into(),
@@ -464,8 +504,8 @@ impl Config {
                 head: "Helper and chat".into(),
                 shared: true,
                 rows: vec![
-                    row("Answer yes to a question", chord("Alt+y"), Vec::new()),
-                    row("Answer no to a question", chord("Alt+n"), Vec::new()),
+                    row("Chat with a helper", one(Action::Chat), Vec::new()),
+                    row("Answer a question", chord("Alt+y"), chord("Alt+n")),
                     row("Stop the helper", chord("Ctrl+period"), Vec::new()),
                 ],
             },
@@ -493,10 +533,20 @@ impl Config {
                 shared: true,
                 rows: vec![
                     row("Back out one step", chord("Escape"), Vec::new()),
+                    row("Start a program", one(Action::Launcher), Vec::new()),
                     row("Show these keys", shared_help, Vec::new()),
+                    row("Lock the screen", one(Action::Lock), Vec::new()),
+                    row("Open the power menu", one(Action::Power), Vec::new()),
+                    row("Take a screenshot", one(Action::Screenshot), Vec::new()),
+                    row("Volume up", one(Action::VolumeUp), Vec::new()),
+                    row("Volume down", one(Action::VolumeDown), Vec::new()),
+                    row("Mute the sound", one(Action::Mute), Vec::new()),
                 ],
             },
         ]);
+        for group in &mut groups {
+            group.rows.retain(|r| !r.keys.is_empty());
+        }
         groups
     }
 
@@ -787,6 +837,43 @@ mod tests {
         whats.sort_unstable();
         whats.dedup();
         assert_eq!(whats.len(), rows, "a row stands twice");
+    }
+
+    /// The keys of every look are bound, Shift names itself where the key
+    /// has no shifted form, and every one is in a shared group of the help.
+    #[test]
+    fn the_keys_of_every_look_are_bound_and_named_in_the_help() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let held =
+            |names: &[&str]| -> Vec<String> { names.iter().map(|n| (*n).to_owned()).collect() };
+        let super_shift = held(&["Shift", "Super"]);
+        assert_eq!(config.action("Escape", &super_shift), Some(Action::Lock));
+        assert_eq!(config.action("E", &super_shift), Some(Action::Power));
+        assert_eq!(config.action("Escape", &held(&["Super"])), None);
+        assert_eq!(config.action("a", &held(&["Super"])), Some(Action::Chat));
+        assert_eq!(config.action("a", &[]), Some(Action::Left));
+        assert_eq!(
+            config.action("Print", &held(&["Super"])),
+            Some(Action::Screenshot)
+        );
+        assert_eq!(config.action("XF86AudioMute", &[]), Some(Action::Mute));
+        let groups = config.help_groups(false);
+        let shared: Vec<String> = (groups.iter().filter(|g| g.shared))
+            .flat_map(|g| g.rows.iter().map(|r| r.keys.join("+")))
+            .collect();
+        for chord in [
+            "Super+F1",
+            "Super+Space",
+            "Super+A",
+            "Super+Shift+Esc",
+            "Super+Shift+E",
+            "Super+Print",
+            "XF86AudioRaiseVolume",
+            "XF86AudioLowerVolume",
+            "XF86AudioMute",
+        ] {
+            assert!(shared.contains(&chord.to_owned()), "{chord} in {shared:?}");
+        }
     }
 
     /// Polish 14: the help names the window managers as people read them.

@@ -587,13 +587,29 @@ pub fn help(
     commands
 }
 
-/// The two columns of the help: the groups of the look at the left, the
-/// shared ones at the right.
+/// The two columns of the help: the first groups at the left and the
+/// rest at the right, cut where the taller column is the least tall.
 type Shown<'a> = Vec<(&'a KeyGroup, Vec<&'a KeyRow>)>;
 
-fn split(shown: Shown<'_>) -> Vec<Shown<'_>> {
-    let (left, right): (Vec<_>, Vec<_>) = shown.into_iter().partition(|(g, _)| !g.shared);
-    vec![left, right]
+#[allow(clippy::cast_precision_loss, reason = "a few rows")]
+fn split(mut shown: Shown<'_>) -> Vec<Shown<'_>> {
+    let heights: Vec<f64> = (shown.iter())
+        .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
+        .collect();
+    let total: f64 = heights.iter().sum();
+    let mut left = 0.0;
+    let mut cut = 1;
+    let mut best = f64::INFINITY;
+    for (k, height) in heights.iter().enumerate() {
+        left += height;
+        let taller = left.max(total - left);
+        if taller < best {
+            best = taller;
+            cut = k + 1;
+        }
+    }
+    let right = shown.split_off(cut.min(shown.len()));
+    vec![shown, right]
 }
 
 fn head(
@@ -788,6 +804,22 @@ mod tests {
             "a key name matches whole"
         );
         assert_eq!(find("Close the pane ahead", "PANE"), Some((10, 4)));
+    }
+
+    #[test]
+    fn the_help_cuts_its_columns_where_the_taller_one_is_the_least_tall() {
+        let group = |rows: usize| KeyGroup {
+            head: "Group".into(),
+            shared: false,
+            rows: (0..rows)
+                .map(|k| row(&format!("row {k}"), &["X"]))
+                .collect(),
+        };
+        let groups: Vec<KeyGroup> = [7, 4, 3, 4, 9].into_iter().map(group).collect();
+        let columns = split(found(&groups, ""));
+        assert_eq!(columns.iter().map(Vec::len).collect::<Vec<_>>(), [3, 2]);
+        let one = split(found(&groups[..1], ""));
+        assert_eq!(one.iter().map(Vec::len).collect::<Vec<_>>(), [1, 0]);
     }
 
     fn alpha_of(commands: &[Command], id: &str) -> f64 {

@@ -178,7 +178,14 @@ impl Construct {
             | Action::Close
             | Action::Windows
             | Action::Help
-            | Action::Cube => return,
+            | Action::Cube
+            | Action::Chat
+            | Action::Lock
+            | Action::Power
+            | Action::Screenshot
+            | Action::VolumeUp
+            | Action::VolumeDown
+            | Action::Mute => return,
             Action::FlyIn => {
                 if let Some(i) = self.pane_ahead()
                     && let Err(err) = self.fly_in(i)
@@ -477,8 +484,8 @@ impl Construct {
         if self.in_pane() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
-            for key in self.terminal_keys() {
-                self.rt.grab(parse(key)?, Grab::Terminal)?;
+            for (key, action) in self.grab_keys() {
+                self.rt.grab(parse(key)?, Grab::Key(action))?;
             }
         }
         self.grab_cube_keys();
@@ -538,12 +545,16 @@ impl Construct {
         self.frame()
     }
 
-    /// The keys that start a terminal and carry a modifier: the keys that
-    /// a program in the pane never gets, so that they work from use mode.
-    fn terminal_keys(&self) -> Vec<String> {
+    /// The keys that start a terminal or are keys of every look and carry
+    /// a modifier, or are media keys: the keys that a program in the pane
+    /// never gets, so that they work from use mode.
+    fn grab_keys(&self) -> Vec<(String, Action)> {
         (self.settings.value.keys.iter())
-            .filter(|(key, action)| **action == Action::Terminal && key.contains('+'))
-            .map(|(key, _)| key.clone())
+            .filter(|(key, action)| {
+                (**action == Action::Terminal || Action::SHARED.contains(action))
+                    && (key.contains('+') || key.starts_with("XF86"))
+            })
+            .map(|(key, action)| (key.clone(), *action))
             .collect()
     }
 
