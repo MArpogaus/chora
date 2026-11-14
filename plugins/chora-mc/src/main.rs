@@ -339,11 +339,9 @@ struct Mc {
     shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
-    /// The scene and the docked app that had the keyboard when the chat
-    /// opened.
-    docked_before_chat: Option<(String, String)>,
-    /// The surface that another client focused while the chat was open.
-    focused_under_chat: Option<String>,
+    /// The surface that has the keyboard focus of the core, from
+    /// `focus.changed`.
+    core_focus: Option<String>,
     /// The window that a `drag` binding holds since its press.
     dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
@@ -527,8 +525,7 @@ impl Mc {
             shape: None,
             rendered: None,
             focused: None,
-            docked_before_chat: None,
-            focused_under_chat: None,
+            core_focus: None,
             dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,
@@ -854,9 +851,7 @@ impl Plugin for Mc {
                 data,
             } => self.emitted(&event, &client, data),
             Event::FocusChanged { surface } => {
-                if self.chat == Chat::Open && surface.is_some() && surface != self.focused {
-                    self.focused_under_chat = surface;
-                }
+                self.core_focus = surface;
                 Ok(())
             }
             Event::NodeKey {
@@ -1132,27 +1127,14 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
-        if open {
-            self.focused_under_chat = None;
-            self.docked_before_chat = self.current.clone().zip(self.focused.clone());
-        }
         self.render()?;
         let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
-        if open || still_open || self.focused_under_chat.is_some() {
+        let mut ours = self.windows.values().chain(self.docks.values());
+        let taken = (self.core_focus.as_ref()).is_some_and(|s| !ours.any(|o| o == s));
+        if open || still_open || taken {
             return Ok(());
         }
-        let docked = self.docked_before_chat.take().filter(|(scene, surface)| {
-            self.current.as_ref() == Some(scene) && self.docks.values().any(|d| d == surface)
-        });
-        let commands = match docked {
-            Some((_, surface)) => {
-                self.focused = Some(surface.clone());
-                vec![Command::Focus {
-                    surface: Some(surface),
-                }]
-            }
-            None => self.keyboard_back(),
-        };
+        let commands = self.keyboard_back();
         self.apply(commands)
     }
 
@@ -2712,12 +2694,14 @@ impl Mc {
     }
 
     /// The keyboard for the scene that shows, after the chat closed: the
-    /// focus that `keyboard_to` held back while the chat had the keyboard.
+    /// focus that `keyboard_to` held back while the chat had the keyboard,
+    /// or the docked app that had it.
     fn keyboard_back(&mut self) -> Vec<Command> {
         let Some(name) = self.current.clone() else {
             return Vec::new();
         };
-        let window = self.windows.get(&name).cloned();
+        let docked = (self.focused.clone()).filter(|f| self.docks.values().any(|d| d == f));
+        let window = docked.or_else(|| self.windows.get(&name).cloned());
         self.keyboard_to(&name, window)
     }
 
