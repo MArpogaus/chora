@@ -299,32 +299,31 @@ pub struct Parts<'a> {
     pub depth: u8,
 }
 
-/// The render elements of a screen, front first: the elements of the
-/// cursor, then [`output_elements`].
+/// The render elements of one output without a cursor, as
+/// [`screen_elements`] gives them.
+pub fn output_elements<R>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    output: &Output,
+    view: &View,
+) -> Vec<SceneElement<R>>
+where
+    R: MeshRenderer,
+{
+    screen_elements(parts, renderer, output, view, Vec::new())
+}
+
+/// The render elements of a screen, front first: the injection mark,
+/// the elements of the `cursor`, the layer surfaces above the scene, the
+/// overlay, the scene, and the layer surfaces below it. No cursor and no
+/// node of a client covers the mark (D23). A locked session shows only
+/// the cursor and the lock surface.
 pub fn screen_elements<R>(
     parts: &mut Parts<'_>,
     renderer: &mut R,
     output: &Output,
     view: &View,
     cursor: Vec<SceneElement<R>>,
-) -> Vec<SceneElement<R>>
-where
-    R: MeshRenderer,
-{
-    let mut elements = cursor;
-    elements.extend(output_elements(parts, renderer, output, view));
-    elements
-}
-
-/// The render elements of one output, front first: the injection mark,
-/// the layer surfaces above the scene, the overlay, the scene, and the
-/// layer surfaces below it. No node of a client covers the mark (D23). A
-/// locked session shows only the lock surface.
-pub fn output_elements<R>(
-    parts: &mut Parts<'_>,
-    renderer: &mut R,
-    output: &Output,
-    view: &View,
 ) -> Vec<SceneElement<R>>
 where
     R: MeshRenderer,
@@ -344,7 +343,7 @@ where
             .collect()
         });
         parts.assets.stats.count(&elements);
-        return elements;
+        return cursor.into_iter().chain(elements).collect();
     }
     crate::offscreen::render_virtuals(parts, renderer.gles(), output);
     let passes_before = parts.assets.stats.offscreen();
@@ -365,6 +364,7 @@ where
         .into_iter()
         .partition(|placed| placed.node.id == chora_scene::INJECTION);
     let mut out = elements(parts, renderer, &mark, &screen);
+    let marks = out.len();
     out.extend(layer_elements(renderer, output, &layers::ABOVE, view.scale));
     out.extend(elements(parts, renderer, &overlay, &screen));
     let list = scene.layer_list(chora_scene::ROOT);
@@ -390,6 +390,7 @@ where
             .or_default()
             .passes += passes;
     }
+    out.splice(marks..marks, cursor);
     out
 }
 
