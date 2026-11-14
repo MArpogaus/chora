@@ -18,7 +18,8 @@
 #                  the word comes back, and the arrows still turn the page
 #   terminal-chat  the terminal page keeps the column; the chat opens in it
 #                  and a page turn with the chat open leaves no part of it
-#                  outside the column
+#                  outside the column; after Super+a and Super+Right the
+#                  typed text still reaches the chat field
 #   all-keys       with notifications the full key list stays in the
 #                  column and on the screen, and its rule crosses no text
 #   urgent         a critical notification is named Urgent in the column
@@ -218,6 +219,7 @@ cell_mute() {
     until_ok 'has_text "Mute"' 20 || fail "Mute does not come back"
 }
 
+chat_has_sent() { ctl query "id:hud-chat" | jq -e --arg t "$1" '.[0].meta.text | endswith("You\n" + $t)' >/dev/null; }
 in_column() { jq -ne --argjson c "$1" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56 and $c[1] + $c[3] <= 786' >/dev/null; }
 cell_terminal_chat() {
     local chat
@@ -245,14 +247,19 @@ cell_terminal_chat() {
         has_text "Back one step" || fail "the chat closed with the page turn, but the key list is not back"
     fi
     [ "$(rect_of right-edge)" = "[860.0,37.0,1.0,738.0]" ] || fail "after the page turn the hairline of the column is gone"
-    node_exists hud-chat || key Super+a
+    ctl call assistant chat.hide '{}' >/dev/null || fail "chat.hide"
+    until_ok '! node_exists hud-chat' 40 || fail "the chat does not close"
+    key Super+a
     until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat"
+    sleep 1
     key Super+Right
     until_ok '[ "$(current)" = terminal ]' 20 || fail "Super+Right does not turn the page with the chat open: $(current)"
     sleep 1
     key h
     key i
-    until_ok 'says "hi"' 20 || fail "after the page turn typed text does not reach the chat field: $(texts | tr '\n' '|')"
+    key Return
+    sleep 2
+    until_ok 'chat_has_sent hi' 20 || fail "after the page turn typed text does not reach the chat field"
     key Escape
 }
 
