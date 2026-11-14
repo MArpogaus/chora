@@ -115,7 +115,9 @@ update removed a key, the plugin does not stop. It starts with its
 default settings, writes the error to its log and does not change the
 file. `chora-mc` also shows the error as a critical notification.
 `chora-voice` does not start on a broken file. It writes the error to
-its log.
+its log. The error names the kind of the wrong value or the line of the
+wrong YAML. It does not quote the value or the line, because a value at
+a wrong place may be a secret.
 
 While the file is broken, `settings.set` and each other save of the
 settings fail with an error that names the file. Thus no save writes the
