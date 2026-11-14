@@ -772,6 +772,9 @@ impl Menu {
         if matches!(self.pressed, Some(Press::Row(l, _)) if l >= level) {
             self.pressed = None;
         }
+        if matches!(self.pending, Some((_, Press::Row(l, _))) if l >= level) {
+            self.pending = None;
+        }
         let mut commands = commands;
         match level.checked_sub(1) {
             None => commands.push(self.look(theme, self.root)),
