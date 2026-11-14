@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Sat 14 Nov, 17:10 UTC</span>
+      <span>Updated Sat 14 Nov, 20:40 UTC (03:40 Bangkok)</span>
       <span>Day 7 of 22</span>
       <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
@@ -119,22 +119,22 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merging CI checks and the docs (README, install guide, known issues) after the full merge gate</li>
-          <li>Independent review of the shared doors and the xp, tiling and construct fixes</li>
-          <li>Core code review: 8 of 12 fixes done, handing over</li></ul>
+          <li>Shared doors in every look: key list, launcher, helper, lock, power, screenshot, volume, clock (third round)</li>
+          <li>Flaky tests round 3: a flick timing gap under load, a lost first key, two races</li>
+          <li>Three crash fixes from the plugin review (xp Start menu, mc settings, long notifications)</li></ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Merge the mc, doors, xp and core fixes; restart the flaky-test work in the cloud</li>
-          <li>Check the two open blockers (tiling Apps menu, construct panes after an mc drag)</li>
-          <li>Fix the 3 high findings of the plugin review; CI pull request with package builds</li>
+          <li>Merge the shared doors after review; check the two open blockers (tiling Apps menu, construct panes after an mc drag)</li>
+          <li>CI pull request with package builds; major look findings per look</li>
+          <li>Mon: rewrite the screencast tour for the visual acceptance</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>How the release candidate reaches dev and main (see chat)</li>
+          <li>Nothing open</li>
         </ul>
       </div>
     </div>
@@ -183,8 +183,10 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sat 14 Nov</span><span>5 entries</span></summary>
+      <summary><span>Sat 14 Nov</span><span>7 entries</span></summary>
       <ul class="timeline">
+        <li><time>20:38</time><p><span class="tag ok">merged</span>Train 5: CI checks, docs, the xp/tiling/construct fixes, core security review with its fixes, the mc keyboard around the chat, and the fix for the test that blocked every merge. All 24 gate steps green.</p></li>
+        <li><time>18:03</time><p><span class="tag ok">fix</span>New workers hung at start: the setup script failed on a missing helper repo; now only a warning. Heartbeat verified.</p></li>
         <li><time>17:00</time><p><span class="tag info">plan</span>Fable is used up this week with at most two lanes at once, then none until next week.</p></li>
         <li><time>16:50</time><p><span class="tag ok">fix</span>Hooks that never block, a guard on the notes folder, a takeover script and a heartbeat with a push to the owner.</p></li>
         <li><time>16:49</time><p><span class="tag ok">tests</span>mc fixes done: arrows turn pages, Mute and Urgent words, a click removes one notification. 22 of 23 gate steps; the cube step fails on a known flaky cell.</p></li>
