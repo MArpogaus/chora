@@ -79,14 +79,16 @@ pub struct Tools {
     pub physical: Arc<AtomicBool>,
 }
 
-/// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
-pub fn child(cmd: Vec<String>, name: String) -> Connect {
+/// `CMD --name NAME mcp` as a child process without the variables
+/// `keys`; its stderr goes to ours.
+pub fn child(cmd: Vec<String>, keys: Vec<String>, name: String) -> Connect {
     Box::new(move || {
-        let (cmd, name) = (cmd.clone(), name.clone());
+        let (cmd, keys, name) = (cmd.clone(), keys.clone(), name.clone());
         Box::pin(async move {
             let (program, args) = cmd.split_first().ok_or("chora_mcp is empty")?;
             let mut command = tokio::process::Command::new(program);
             command.args(args).args(["--name", &name, "mcp"]);
+            crate::config::without_keys(command.as_std_mut(), &keys);
             let transport =
                 TokioChildProcess::new(command).map_err(|e| format!("{program}: {e}"))?;
             ().serve(transport)
@@ -100,7 +102,7 @@ impl Tools {
     /// The tools of `choractl mcp` under the client name `name`.
     pub fn chora(config: &crate::config::Config, name: &str) -> Self {
         Self::new(
-            child(config.chora_mcp.clone(), name.to_owned()),
+            child(config.chora_mcp.clone(), config.key_envs(), name.to_owned()),
             config.skipped_tools.clone(),
             Duration::from_secs(config.tool_timeout_s.into()),
         )
@@ -197,9 +199,9 @@ impl Tools {
 
     /// A new `chora_mcp`: the running child ends and the next refresh
     /// starts the new command.
-    pub fn restart(&mut self, cmd: Vec<String>, name: &str) {
+    pub fn restart(&mut self, cmd: Vec<String>, keys: Vec<String>, name: &str) {
         crate::log::info(&format!("mcp: restart with {cmd:?}"));
-        self.connect = child(cmd, name.to_owned());
+        self.connect = child(cmd, keys, name.to_owned());
         self.service = None;
         self.backoff = Duration::ZERO;
         self.retry_at = Instant::now();
@@ -1004,13 +1006,14 @@ pub mod tests {
         let (tx, _rx) = std::sync::mpsc::channel();
         let coder = Coder::new(
             Vec::new(),
+            Vec::new(),
             std::env::temp_dir().join("chora-voice-none"),
             tx,
         );
         tools.coder = Some(coder.clone());
         tools.refresh().await;
         assert_eq!(tools.specs.len(), 6, "no harness, no coding tools");
-        coder.set_cmd(vec!["true".into()]);
+        coder.set_cmd(vec!["true".into()], Vec::new());
         tools.refresh().await;
         tools.refresh().await;
         let names: Vec<_> = tools.specs[6..]

@@ -398,6 +398,14 @@ fn default_confirm() -> Vec<Confirm> {
     ]
 }
 
+/// Takes the variables `keys` with the API keys (`Config::key_envs`)
+/// out of the environment of a child: no child needs them.
+pub fn without_keys(command: &mut std::process::Command, keys: &[String]) {
+    for key in keys {
+        command.env_remove(key);
+    }
+}
+
 /// The question before a privileged method (`phrases.privileged`).
 const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}{params}?";
 
@@ -409,6 +417,19 @@ impl Config {
             return cmd.to_vec();
         }
         self.sandbox_cmd.iter().chain(cmd).cloned().collect()
+    }
+
+    /// The names of the environment variables with the API keys.
+    pub fn key_envs(&self) -> Vec<String> {
+        [
+            &self.asr_api_key_env,
+            &self.tts_api_key_env,
+            &self.llm_api_key_env,
+        ]
+        .into_iter()
+        .filter(|name| !name.is_empty())
+        .cloned()
+        .collect()
     }
 
     /// The language of the TTS: `tts_language`, else the one of

@@ -480,11 +480,17 @@ impl Chat {
         };
         self.llm = Llm::new(&self.config);
         if self.config.chora_mcp != old.chora_mcp {
-            self.tools
-                .restart(self.config.chora_mcp.clone(), &self.name);
+            self.tools.restart(
+                self.config.chora_mcp.clone(),
+                self.config.key_envs(),
+                &self.name,
+            );
         }
         if let Some(coder) = &self.tools.coder {
-            coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
+            coder.set_cmd(
+                self.config.spawn(&self.config.coder_cmd),
+                self.config.key_envs(),
+            );
         }
         if let Some(agents) = &self.tools.agents {
             agents.configure(&self.config);

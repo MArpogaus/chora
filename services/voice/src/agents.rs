@@ -103,6 +103,8 @@ struct Inner {
 struct Settings {
     /// The command with the sandbox; empty turns the tools off.
     cmd: Vec<String>,
+    /// The variables with the API keys, which no agent gets.
+    keys: Vec<String>,
     projects: BTreeMap<String, String>,
     voices: Vec<String>,
     said_chars: usize,
@@ -117,6 +119,7 @@ impl Settings {
     fn new(config: &Config) -> Self {
         Self {
             cmd: config.spawn(&config.agent_cmd),
+            keys: config.key_envs(),
             projects: config.agent_projects.clone(),
             voices: config.agent_voices.clone(),
             said_chars: config.agent_said_chars as usize,
@@ -972,7 +975,8 @@ impl Actor {
         log: &Path,
         mut cmds: mpsc::UnboundedReceiver<Cmd>,
     ) -> Result<bool, String> {
-        let (mut child, mut rpc) = spawn(command, dir, log).await?;
+        let keys = self.agents.lock().settings.keys.clone();
+        let (mut child, mut rpc) = spawn(command, &keys, dir, log).await?;
         let _group = Group::new(child.id());
         let pid = child.id();
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
@@ -1302,10 +1306,11 @@ fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
 }
 
 /// Starts the agent in its own process group, so that a stop ends the
-/// sandbox and its children, with stderr and the messages in `log`;
-/// sends `initialize`.
+/// sandbox and its children, with stderr and the messages in `log` and
+/// without the variables `keys`; sends `initialize`.
 async fn spawn(
     command: &[String],
+    keys: &[String],
     dir: &Path,
     log: &Path,
 ) -> Result<(tokio::process::Child, Rpc), String> {
@@ -1319,7 +1324,9 @@ async fn spawn(
         .map_err(|e| format!("{}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
     let (program, args) = command.split_first().ok_or("agent_cmd is empty")?;
-    let mut child = tokio::process::Command::new(program)
+    let mut command = tokio::process::Command::new(program);
+    crate::config::without_keys(command.as_std_mut(), keys);
+    let mut child = command
         .args(args)
         .current_dir(dir)
         .process_group(0)
