@@ -3466,6 +3466,11 @@ mod tests {
         mc.chat_with(None);
         let urgent = mc.texts["urgent"].1.join(" ");
         assert!(urgent.contains("The chat does not open"), "{urgent}");
+        let notes = &mc.texts["notify"].1;
+        let said = notes
+            .iter()
+            .filter(|line| line.contains("The chat does not open"));
+        assert_eq!(said.count(), 1, "{notes:?}");
     }
 
     /// The door of the chat has a state word: no helper, a helper, no

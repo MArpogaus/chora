@@ -459,10 +459,6 @@ impl Mc {
                 "Chat",
                 "The chat does not open. The chat host does not answer.",
             );
-            self.notice(
-                "Chat",
-                "The chat does not open. The chat host does not answer.",
-            );
         }
     }
 
