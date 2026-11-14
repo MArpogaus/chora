@@ -15,7 +15,7 @@ default and a deadline. The CI PR is the PM's, and the rc tag and release
 once design/rc.md holds. All else: decide, log one line. Guard: manual.
 4. State. state.md is rewritten, never appended: Now, RC, Lanes, Queue, Needs owner.
 Guard: check_log.py (sections, sizes).
-5. Lanes. At most four, one area each. One brief file per round, fixed at start; no
+5. Lanes. One area each, as many as areas allow. One brief file per round, fixed at start; no
 scope message to a running worker. Sonnet builds; haiku tests; Fable for
 reviews and hard work. A worker stops at 250 k context.
 Guard: start_lane.sh, lanes.py (over four).
