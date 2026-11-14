@@ -52,8 +52,8 @@ K12 | 11-11 | later | pull a window out of the stood-back cube by a drag on its 
 V1 | 11-11 | later | a spoken "step in" should give the keyboard back: the voice service marks a call as spoken by the person (By::Voice); design with security.
 V2 | 11-11 | later | a key-only question of voice's own turn gets only the earcon: speak "For this I need a key press or a click".
 P1 | 11-11 | later | the construct focus glow is a timed shader and redraws every frame (about 43 fps on llvmpipe): a static glow or animate only on a focus change. High after the tag (battery).
-A11 | 11-09 | later | XP split X3-X7 (D73, roadmap "Track: XP split"; X1 4a13267 and X2 e5391bd are merged): chora-stack, chora-desk, chora-panel.
-N1 | 11-11 | later | widget host: chora-panel hosts widgets (task list, start button and menu, tray, clock, dock) with a widget API in chora-kit; done when a second layout (dock plus top bar) runs from config only. Needs a design document and the owner's approval of mockups.
+A11 | 11-09 | sprint 1 | XP split (owner 11-14 05:25: theming apart from the stacking WM) X3-X7 (D73, roadmap "Track: XP split"; X1 4a13267 and X2 e5391bd are merged): chora-stack, chora-desk, chora-panel.
+N1 | 11-11 | sprint 1 | widget host: chora-panel hosts widgets (task list, start button and menu, tray, clock, dock) with a widget API in chora-kit; done when a second layout (dock plus top bar) runs from config only. Needs a design document and the owner's approval of mockups.
 X8 | 11-12 | later | an XP Run dialog (icon, text, Open combo, OK/Cancel/Browse) instead of fuzzel for Start > Run.
 X9 | 11-12 | later | chora-xp-import (port of kde-plasma-winxp-launcher get-microsoft-files.sh, design/xp-reference.md) and the imported-asset pixel benchmark; pending the owner's answer to state.md Needs owner (b).
 PX1 | 11-14 | later | further MINOR and COSMETIC pixel rounds, full 2x reviews, more test swarms before the fix lanes land.
