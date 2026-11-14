@@ -200,4 +200,26 @@ mod tests {
         assert_eq!(record.as_object().unwrap().len(), SERVERS.len());
         assert!(record["asr"]["status"].is_string());
     }
+
+    /// The error of a server that is away names it without the key in
+    /// its URL: `voice.health` answers the text to any client.
+    #[tokio::test]
+    async fn a_connect_error_has_no_key_of_the_url() {
+        let backend = Backend {
+            url: "ws://user:hunter2@127.0.0.1:1/v1/realtime?api_key=sk-1".into(),
+            model: String::new(),
+            headers: Vec::new(),
+        };
+        let Err(error) = connect(&backend).await else {
+            panic!("nothing listens");
+        };
+        assert!(
+            error.starts_with("ws://127.0.0.1:1/v1/realtime: "),
+            "{error}"
+        );
+        assert!(
+            !error.contains("sk-1") && !error.contains("hunter2"),
+            "{error}"
+        );
+    }
 }
