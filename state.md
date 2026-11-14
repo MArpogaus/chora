@@ -24,12 +24,13 @@ session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | review core | claude/review-core eff84702 | briefs/review-core-r1.md | MERGE-OK 18:01 (CR-1..7 MINOR); merges after F14 |
-| mc | cloud sonnet (starting), claude/mc-fix 4feb4dc0 | briefs/mc-r2.md | r1 FIX: MC-1 MAJOR |
+| mc | cloud sonnet ..QFuGg, claude/mc-fix 4feb4dc0 | briefs/mc-r2.md | r1 FIX: MC-1 MAJOR |
 | xtc | claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | MERGE-OK 17:16; merges after F14 |
 | doors | cloud Fable ..PNz8e, claude/doors ea47e27b | briefs/doors-r2.md | r1 FIX (dr-1, dr-2 BLOCK) |
 | ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
 | docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | waits with ci for F14 |
 | review t5 r2 | done ..LjDUA | briefs/review-train5-r2.md | mc FIX, core MERGE-OK |
+| core r2 | cloud opus (starting), claude/core-r2 | briefs/core-r2.md | C05 C14 V02 C13 CR-1 CR-6 CR-4/5 |
 | flakes | cloud Fable ..MXy5q, claude/flakes 22b452ed | briefs/flakes-r2.md | F14 fix pushed 17:45; F13 next |
 
 ## Queue
