@@ -1703,6 +1703,22 @@ mod tests {
         assert!(!log.contains("Alles gut"), "no reply at info: {log}");
     }
 
+    /// The arguments of a tool call carry text of the person, such as a
+    /// coding task: the info log names the tool only.
+    #[tokio::test]
+    async fn the_arguments_of_a_tool_call_stay_out_of_the_info_log() {
+        let (_guard, lines) = crate::log::capture::info();
+        let script = vec![
+            Reply::Tool("echo", r#"{"task": "Kennwort Zwiebel"}"#),
+            Reply::Text("Fertig."),
+        ];
+        let (mut chat, _server) = chat(script, Config::default()).await;
+        turn(&mut chat, "Mach was.", true).await;
+        let log = lines.text();
+        assert!(log.contains("tool echo"), "the tool still logs: {log}");
+        assert!(!log.contains("Zwiebel"), "no arguments at info: {log}");
+    }
+
     #[tokio::test]
     async fn the_last_round_has_no_tools_and_asks_for_a_summary() {
         let script = vec![

@@ -2109,6 +2109,7 @@ mod tests {
     /// yes waits for a question.
     #[test]
     fn a_request_during_a_reply_goes_into_its_next_round() {
+        let (_guard, lines) = crate::log::capture::info();
         let mut core = asking();
         core.handle(reply(1, chat::Event::Tool("query".into())));
         let effects = say(&mut core, "Zeig mir lieber die Agenda.");
@@ -2122,6 +2123,8 @@ mod tests {
         assert_eq!(call(&mut core, Call::State).1["queued"], 1);
         let effects = core.handle(Input::Reply(1, Reply::Done("Rot.".into())));
         assert_eq!(asks(&effects), [(2, "Ja.")]);
+        let log = lines.text();
+        assert!(!log.contains("Agenda"), "no queued text at info: {log}");
     }
 
     /// New words while the agent speaks stop the reply as a barge-in
@@ -2129,6 +2132,7 @@ mod tests {
     /// 2026-10-31: they waited until the reply ended).
     #[test]
     fn new_words_over_the_speech_stop_the_reply() {
+        let (_guard, lines) = crate::log::capture::info();
         let mut core = asking();
         say(&mut core, "Mach es rot.");
         core.handle(sound(1, 5000));
@@ -2137,6 +2141,11 @@ mod tests {
         assert!(effects.contains(&stop()), "{effects:?}");
         assert_eq!(asks(&effects), [(2, "Mach es rot. Und größer.")]);
         assert_eq!(core.state(), State::Thinking);
+        let log = lines.text();
+        assert!(
+            !log.contains("größer"),
+            "no text over the reply at info: {log}"
+        );
     }
 
     /// Reply 1 asks `prompt`, and its sound starts now.
