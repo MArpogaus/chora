@@ -1,0 +1,18 @@
+{
+ "03-01-start": "mc starts on 1 AGENDA: cream page, small-caps head, times in the margin and seven entries (set by panel.set before the run); header with Atlas, Vega, Orion, date and time; the Chat ... pill at the top right.",
+ "03-02-next-scene-2": "Super+Right: 2 THE MORNING with lead, weather and the day; the lower row (mail, overnight, reading) is blank.",
+ "03-03-next-scene-3": "3 AGENTS: columns for Atlas (working, task, plan) and Vega (thinking); Orion idle in a band below.",
+ "03-04-next-scene-4": "4 MISSION CONTROL: only the headings LOAD, BUSY and JOURNAL, ERRORS TODAY, no data.",
+ "03-05-next-scene-5": "5 TERMINAL: a foot terminal prints about 20 lines of errors: override: [colors-dark] ... invalid section name: colors-dark (in both themes), then the prompt.",
+ "03-06-next-scene-6": "6 OVERVIEW: the list 1 | Agenda to 6 | Overview.",
+ "03-07-next-scene-7": "A sixth press wraps to 1 AGENDA.",
+ "03-08-overview": "Super+o shows the overview.",
+ "03-09-agenda": "Super+a shows the agenda.",
+ "03-10-drawer": "Super+Return slides a terminal drawer into the lower half; it shows the same colors-dark errors.",
+ "03-11-drawer-cat": "cat friday.md prints the Friday list in the drawer, below the errors.",
+ "03-12-drawer-closed": "Super+Return again closes the drawer.",
+ "03-13-right": "Super+n shows the right side: only the headings NOTES and NOTIFICATIONS, both empty.",
+ "03-14-chat-drawer": "A click on the Chat ... pill opens the chat drawer in the lower part: Chat with a helper, Close, 1 Atlas working, a field with the caret; the pill and the helper row are hidden, Listening and a dot show at the top right.",
+ "03-15-picked": "1 and Return pick Atlas: header Atlas working Tidy notes (1/2), Stop, Close, transcript.",
+ "03-16-chat-closed": "Escape closes the drawer; the Chat ... pill and the row Atlas working Tidy notes (1/2) are back."
+}

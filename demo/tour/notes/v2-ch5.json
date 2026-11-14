@@ -1,0 +1,12 @@
+{
+ "05-01-start": "Construct with an xp pane (small, ahead, labelled xp) and a tiling pane (dark grey, to the right); no OPEN CUBE chip in this build.",
+ "05-02-xp-view": "After a camera glide (a method call, not a walk) the xp desktop fills about a third of the screen; the tiling pane is black at the right edge.",
+ "05-03-xp-start-menu": "A click on Start inside the pane opens the xp Start menu there (no fly-in needed); only Terminal is in its program list.",
+ "05-04-xp-terminal": "Terminal opens inside the xp pane and fills the pane.",
+ "05-05-xp-typed": "echo hello from xp: the shell answers hello from xp in the xp terminal.",
+ "05-06-tiling-view": "Glide to the tiling pane: it is black (empty, no bar).",
+ "05-07-tiling-click": "A click into the tiling pane lights its blue edge.",
+ "05-08-tiling-terminal": "Super+Return inside the pane opens a terminal in tiling that fills the pane. The camera moves by itself, so the pane is at the left of the picture afterwards.",
+ "05-09-tiling-typed": "echo hello from tiling: the shell answers in the tiling terminal.",
+ "05-10-both": "Glide back: both panes in view with their terminals (xp small and bright, tiling grey)."
+}

@@ -1,0 +1,14 @@
+{
+ "08-01-desktop": "xp desktop with taskbar and no paperclip (no voice state yet).",
+ "08-02-voice-said": "After voice.state listening and voice.say the paperclip shows at the bottom right with a small balloon: Opening the chat.",
+ "08-03-chat-by-voice": "The voice agent's chat.show opens the chat balloon: Chat with a helper, Close, 1 Atlas working, the last sentence Opening the chat. in bold, a field with placeholder.",
+ "08-04-pick-by-keys-no-click": "Keys 1 and Return pressed without clicking first do nothing visible: the chat stays on the helper list, no helper is picked, no hint. (No window had focus, so the keys went nowhere.) A chat opened by voice does not take the keyboard.",
+ "08-05-pick-by-click": "A click on the row 1 Atlas picks the helper: header Atlas working Tidy notes (1/2), Stop and Close, the transcript; long lines cut with an ellipsis.",
+ "08-06-field": "Click into the field: the caret shows.",
+ "08-07-typed": "Please also add Monday. shows in the field at 6 characters a second.",
+ "08-08-sent": "After Return the field empties and shows the caret; the transcript shows no line for the sent message (the fake agent does not echo it); the helper received it (agent_say in the agent log).",
+ "08-09-question": "Card Question for you: Atlas wants to write the file notes.txt, detail, Alt+Y or Alt+N, Yes and No; the hint Typing does not answer. and the field says A question is waiting.",
+ "08-10-alt-y": "Alt+y pressed: nothing changes, the card stays. The fake voice agent received an input.key event for Alt+y (marked injected: true), so the key is grabbed and sent on, but the fake agent only logs it and answers nothing, so the card cannot close by itself here.",
+ "08-11-stop": "Click on Stop: the pointer is on Stop; the picture does not change (header still Atlas working 2/2). The agent log shows agent.cancel for atlas, so the call went out; no visible sign of stopping.",
+ "08-12-end": "End state: chat open, header still working; no visible effect of Stop."
+}
