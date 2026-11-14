@@ -655,6 +655,38 @@ mod tests {
         );
     }
 
+    /// Injected input is no activity for idle-notify: a client with
+    /// `input.inject` cannot keep the session from locking. Input of the
+    /// person still ends the idle state.
+    #[test]
+    fn injected_input_keeps_the_session_idle() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut wayland = Wayland::connect(&mut core);
+        let _notification = wayland.idle_notification(&mut core, 10);
+        let mut idled = Vec::new();
+        for _ in 0..400 {
+            idled = wayland.take_idle_events();
+            if !idled.is_empty() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            wayland.roundtrip(&mut core);
+        }
+        assert_eq!(idled, vec![true], "the session went idle");
+        let key = json!({"events": [{"shortcut": {"keys": "a"}}]});
+        agent.ok(&mut core, "input.inject", key);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.take_idle_events(), Vec::<bool>::new());
+        let seat = core.state.seat.clone();
+        core.state.idle_notifier_state.notify_activity(&seat);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.take_idle_events(), vec![false]);
+    }
+
     /// The safety chords need Ctrl and Alt of the person: an injected
     /// release lifts no modifier that the person holds.
     #[test]
