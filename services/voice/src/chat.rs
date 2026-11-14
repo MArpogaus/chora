@@ -1431,9 +1431,11 @@ fn unwrap_patch(args: &mut Value) {
     }
 }
 
-/// The arguments and the result of a tool call for the journal,
-/// without secrets: of `read` only the path and the byte count, and no
-/// value of a key such as `llm_headers` or `tts_api_key_file`.
+/// The start of the arguments and of the result of a tool call for
+/// the journal, without secrets: of `read` only the path and the byte
+/// count, no value of a key such as `llm_headers` or
+/// `tts_api_key_file`, and not the text that `inject_input` types,
+/// which can be a password.
 fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     if tool == "read" {
         let path = args["path"].as_str().unwrap_or_default();
@@ -1441,6 +1443,11 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     }
     let mut args = args.clone();
     hide(&mut args);
+    if tool == "inject_input"
+        && let Some(text) = args.get_mut("text")
+    {
+        *text = "(hidden)".into();
+    }
     // A result that is JSON, such as the answer of `settings.set`.
     let result = serde_json::from_str::<Value>(result).map_or_else(
         |_| result.to_owned(),
@@ -1449,7 +1456,7 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
             v.to_string()
         },
     );
-    (args.to_string(), short(&result, 300))
+    (short(&args.to_string(), 300), short(&result, 300))
 }
 
 /// Hides the value of each key such as `llm_headers`, `token`,
