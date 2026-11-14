@@ -24,8 +24,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| flakes | claude/flakes 17f98f8a | briefs/flakes-r3.md | r3 MERGE-OK; train 7 |
-| ci r3 | claude/ci-r3 e93b54a8 | briefs/ci-r3.md | MERGE-OK (fonts in CI); train 7 |
+| ci r4 | cloud opus ..MJWhG, claude/ci-r4 | briefs/ci-r4.md | 2 mc audit tests still red in CI |
 | ci e2e | claude/ci-e2e 46d66f06 | briefs/ci-e2e-r2.md | MERGE-OK; train 8 |
 | doors | claude/doors 57df3822 | briefs/doors-r4.md | MERGE-OK; train 8 |
 
