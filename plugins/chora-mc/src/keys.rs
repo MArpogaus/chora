@@ -12,6 +12,17 @@ pub fn nothing_new(language: chora_kit::words::Language) -> &'static str {
     }
 }
 
+/// The keys of a page, which has no program.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PageKeys {
+    /// The page takes the keyboard: Right and Left alone turn it and
+    /// Escape goes back.
+    Plain,
+    /// Only the bindings: beside other window managers (`--output`) the
+    /// node with the keyboard would draw their new windows to mc (D55).
+    Bound,
+}
+
 /// How much of the key list shows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum List {

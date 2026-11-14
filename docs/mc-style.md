@@ -116,7 +116,9 @@ change it there, not here.
     Right and Left turn the page without `Super`, and `Esc` goes back one
     step: it closes the full list, else it shows the page that showed
     before. In a scene of a program these keys belong to the program, and
-    the row names `Super` with the arrows.
+    the row names `Super` with the arrows. With `--output`, beside
+    other window managers, a page takes no keyboard: the node with the
+    keyboard would draw their new windows to mc.
 17. **The word Mute.** Once the voice agent told its state, the first
     line of the column holds the word `Mute` in the style `margin`: at
     the left edge beside the state word of the HUD host, flush right in

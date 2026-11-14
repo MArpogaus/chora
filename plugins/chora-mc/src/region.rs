@@ -1431,7 +1431,8 @@ impl Mc {
         }
         let config = &self.settings.value;
         let full = self.keys == crate::keys::List::All;
-        let plain = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
+        let page = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
+        let plain = self.page_keys == crate::keys::PageKeys::Plain && page;
         let rows = if full {
             crate::keys::all(config, plain)
         } else {

@@ -270,6 +270,8 @@ struct Mc {
     rt: Runtime<Action>,
     /// Whether mc claims its output (`--manage-windows`).
     manage_windows: bool,
+    /// Whether a page takes the keyboard for its plain keys.
+    page_keys: keys::PageKeys,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -425,6 +427,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let rt = Runtime::connect(NAME, args.output.clone().into_iter().collect())?;
     let mut mc = Mc::new(rt, settings, dir, [shader, blur]);
     mc.manage_windows = args.manage_windows;
+    if args.output.is_some() {
+        mc.page_keys = keys::PageKeys::Bound;
+    }
     mc.start(methods)?;
     // The kit logged it; the defaults that apply show notify.
     if let Some(err) = mc.settings.broken() {
@@ -481,6 +486,7 @@ impl Mc {
         let mut mc = Self {
             rt,
             manage_windows: false,
+            page_keys: keys::PageKeys::Plain,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -1126,7 +1132,7 @@ impl Mc {
         let Some(name) = self.current.clone() else {
             return Ok(());
         };
-        if self.windows.contains_key(&name) {
+        if self.page_keys == keys::PageKeys::Bound || self.windows.contains_key(&name) {
             return Ok(());
         }
         let query = Query {
@@ -2662,7 +2668,8 @@ impl Mc {
     /// the node of a page, so that the plain keys of the page arrive.
     fn keyboard_to(&mut self, name: &str, window: Option<String>) -> Vec<Command> {
         self.focused.clone_from(&window);
-        let page = window.is_none().then(|| Command::FocusNode {
+        let plain = self.page_keys == keys::PageKeys::Plain;
+        let page = (plain && window.is_none()).then(|| Command::FocusNode {
             node: Some(page_id(name)),
         });
         let focus = Command::Focus { surface: window };
@@ -3425,6 +3432,26 @@ mod tests {
             .focused_node()
             .map(str::to_owned);
         assert_eq!(focused, Some(super::page_id("morning")));
+    }
+
+    /// Beside other window managers a page takes no keyboard, since the
+    /// node with the keyboard would draw their new windows to mc, and
+    /// the key list names the bindings.
+    #[test]
+    fn a_page_beside_other_window_managers_takes_no_keyboard() {
+        let (mut mc, model) = crate::testing::mc("page-no-keyboard", [1280, 800]);
+        mc.page_keys = crate::keys::PageKeys::Bound;
+        mc.show("morning", true).unwrap();
+        mc.take_free_keyboard().unwrap();
+        assert_eq!(model.lock().unwrap().scene.focused_node(), None);
+        let keys: Vec<String> = right_items(&mc)
+            .into_iter()
+            .filter_map(|item| item.props.text)
+            .collect();
+        assert!(
+            keys.contains(&"Super+\u{2009}←\u{2009}→".to_owned()),
+            "{keys:?}"
+        );
     }
 
     fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {
