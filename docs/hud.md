@@ -206,9 +206,10 @@ sentence: `text: '{state}'` shows `Listening` in the language of the
 screen. There `{state}` is the word of the word table, not the name of
 the state. The neutral and the mc folders show it, so the state never
 depends on a colour alone. While the voice agent rests (asleep,
-listening or idle) and its `agent_list` names no helper and no project,
-the word is `No helper`, in the island too: the host asks the agent
-once for each connection. The word is 11 pixels, next to a shape that
+listening or idle) and no helper runs, the word is `No helper`, in the
+island too: the host follows the helper events of the agent, so the
+word changes when the first helper starts and when the last one ends.
+The word is 11 pixels, next to a shape that
 shows the same state; in a folder that names a `slot` it is the 14
 pixels of text that a person reads, in the `accent` of the `colours` of
 the panel, and the margin that the folder gives keeps the word on the
