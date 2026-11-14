@@ -118,7 +118,11 @@ The unit tests of the core run a core without a backend in the test
 process. `crates/chora/src/testing.rs` gives them IPC clients on socket
 pairs, a Wayland client, outputs, and a time that the test moves forward.
 Pixel tests render with the software driver of Mesa, from
-`mesa-dri-drivers` on Fedora.
+`mesa-dri-drivers` on Fedora. Text tests measure the system fonts Inter
+and DejaVu Sans, Serif and Sans Mono: `rsms-inter-fonts`,
+`dejavu-sans-fonts`, `dejavu-serif-fonts` and `dejavu-sans-mono-fonts` on
+Fedora, `fonts-inter` and `fonts-dejavu` on Debian. Without them, these
+tests fail.
 
 All testing runs headless: `chora --headless OUTPUTS -- STARTUP` runs a
 whole session on virtual outputs, without a host display, GPU or seat.
