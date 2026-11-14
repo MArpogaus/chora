@@ -27,7 +27,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | flakes | claude/flakes 17f98f8a | briefs/flakes-r3.md | r3 MERGE-OK; train 7 |
 | ci r3 | claude/ci-r3 e93b54a8 | briefs/ci-r3.md | MERGE-OK (fonts in CI); train 7 |
 | ci e2e | claude/ci-e2e 46d66f06 | briefs/ci-e2e-r2.md | MERGE-OK; train 8 |
-| doors | cloud Fable ..MVWzg, claude/doors cb203c68 | briefs/doors-r4.md | r3 FIX: dr3-1 helper word rule |
+| doors | claude/doors 57df3822 | briefs/doors-r4.md | MERGE-OK; train 8 |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
