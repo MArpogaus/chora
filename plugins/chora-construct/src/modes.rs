@@ -627,7 +627,7 @@ impl Construct {
                 injected,
                 time,
                 ..
-            } => self.drag_act(node, (*position, *injected), Duration::from_millis(*time))?,
+            } => self.drag_act(node, (*position, *injected), cube::input_time(*time))?,
             Event::PointerReleased {
                 node,
                 button,
@@ -635,7 +635,7 @@ impl Construct {
                 time,
                 ..
             } if *button == BTN_LEFT => {
-                self.release_act(view, node, *injected, Duration::from_millis(*time))
+                self.release_act(view, node, *injected, cube::input_time(*time))
             }
             _ => None,
         })

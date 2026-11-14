@@ -77,6 +77,9 @@ pub struct Runtime<A> {
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, A)>,
+    /// The bindings of the set before [`Self::start_grabs`] that the
+    /// core still holds for the plugin.
+    old_grabs: Vec<String>,
     /// The bindings whose refusal was logged, so that each logs once.
     refused: std::collections::HashSet<String>,
     /// Makes the action of a give key; none when the plugin has no give
@@ -130,6 +133,7 @@ impl<A> Runtime<A> {
             name: name.into(),
             outputs,
             grabs: Vec::new(),
+            old_grabs: Vec::new(),
             refused: std::collections::HashSet::new(),
             give_keys: None,
             give_tried: None,
@@ -267,6 +271,10 @@ impl<A> Runtime<A> {
             held.1 = action;
             return Ok(true);
         }
+        if let Some(i) = self.old_grabs.iter().position(|b| *b == text) {
+            self.grabs.push((self.old_grabs.swap_remove(i), action));
+            return Ok(true);
+        }
         match self.conn.call::<_, String>("input.grab", Grab { binding }) {
             Ok(normal) => {
                 self.grabs.push((normal, action));
@@ -294,6 +302,16 @@ impl<A> Runtime<A> {
     /// The socket fails, the core refuses an ungrab, or the core named a
     /// grabbed binding that does not parse.
     pub fn ungrab_all(&mut self) -> Result<(), ClientError> {
+        self.start_grabs();
+        self.end_grabs()
+    }
+
+    /// Starts a new set of grabs, which [`Self::end_grabs`] completes. A
+    /// [`Self::grab`] of a binding of the old set keeps it with the core,
+    /// so that a binding of both sets is never free between them and no
+    /// key of it reaches a window. The give keys stay as in
+    /// [`Self::ungrab_all`].
+    pub fn start_grabs(&mut self) {
         let keep = |normal: &str, serves: bool| {
             serves
                 && crate::give::KEYS
@@ -302,11 +320,22 @@ impl<A> Runtime<A> {
                     .any(|b| b.to_string() == normal)
         };
         let serves = self.give_keys.is_some();
-        let (kept, dropped): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
+        let (kept, old): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
             .into_iter()
             .partition(|(normal, _)| keep(normal, serves));
         self.grabs = kept;
-        for (normal, _) in dropped {
+        self.old_grabs
+            .extend(old.into_iter().map(|(normal, _)| normal));
+    }
+
+    /// Lets the bindings go that the plugin held at [`Self::start_grabs`]
+    /// and did not grab since.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::ungrab_all`].
+    pub fn end_grabs(&mut self) -> Result<(), ClientError> {
+        for normal in std::mem::take(&mut self.old_grabs) {
             let binding = normal.parse().map_err(|err| {
                 RpcError::new(RpcError::INVALID_PARAMS, format!("{normal}: {err}"))
             })?;
@@ -737,6 +766,47 @@ mod tests {
         released.store(true, Ordering::SeqCst);
         rt.grab_give_keys().unwrap();
         assert_eq!(rt.action("Alt+Super+2"), Some(&"xp"));
+    }
+
+    #[test]
+    fn a_binding_of_the_old_and_the_new_set_of_grabs_is_never_free() {
+        use std::sync::{Arc, Mutex};
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&calls);
+        let (path, _core) = fake_core::serve(move |method, params| {
+            if method.starts_with("input.") {
+                let binding = params["binding"].as_str().unwrap_or_default();
+                seen.lock().unwrap().push(format!("{method} {binding}"));
+            }
+            match method {
+                "input.grab" => Answer::Result(params["binding"].clone()),
+                _ => Answer::Result(Value::Null),
+            }
+        });
+        let conn = Conn::connect_at("construct", &path).unwrap();
+        let mut rt: Runtime<u8> = Runtime::with(conn, "construct", Vec::new());
+        let binding = |key: &str| key.parse::<Binding>().unwrap();
+        rt.grab(binding("Alt+Escape"), 1).unwrap();
+        rt.grab(binding("Super+t"), 1).unwrap();
+        rt.start_grabs();
+        rt.grab(binding("Alt+Escape"), 2).unwrap();
+        rt.grab(binding("Super+x"), 2).unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            *calls.lock().unwrap(),
+            [
+                "input.grab Alt+Escape",
+                "input.grab Super+t",
+                "input.grab Super+x",
+                "input.ungrab Super+t",
+            ]
+        );
+        assert_eq!(rt.action("Alt+Escape"), Some(&2));
+        assert_eq!(rt.action("Super+x"), Some(&2));
+        assert_eq!(rt.action("Super+t"), None);
     }
 
     struct Recorder {

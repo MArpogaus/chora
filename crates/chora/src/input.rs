@@ -564,9 +564,10 @@ fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEv
 
 impl State {
     /// Tells the surface under the pointer after the scene moved under it,
-    /// for example after a transaction or a camera change.
+    /// for example after a transaction or a camera change, with the time
+    /// of the last input of the pointer: the scene moved, not the hand.
     pub fn refresh_pointer(&mut self) {
-        move_pointer(self, self.pointer_layout, InputTime::now());
+        move_pointer(self, self.pointer_layout, self.pointer_time);
     }
 }
 
@@ -591,7 +592,7 @@ fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
             local,
             modifiers,
             injected,
-            time: time.micros() / 1000,
+            time: u64::from(time.millis()),
         });
     }
 }
@@ -601,6 +602,7 @@ fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
 pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
     let moved = state.pointer_layout != layout;
     state.pointer_layout = layout;
+    state.pointer_time = time;
     let Some(spot) = state.spot(layout) else {
         return;
     };
@@ -672,6 +674,7 @@ pub fn press_button(
     time: InputTime,
     injected: bool,
 ) {
+    state.pointer_time = time;
     if injected {
         cancel_client_drag(state);
     }
@@ -1514,7 +1517,7 @@ fn release_node(state: &mut State, button: u32, left_a_pane: bool, time: InputTi
         local,
         modifiers,
         injected,
-        time: time.micros() / 1000,
+        time: u64::from(time.millis()),
     });
 }
 
@@ -1948,6 +1951,53 @@ mod tests {
         let all = events(&mut xp, &mut core);
         assert_eq!(named(&all, "pointer.moved")[0]["time"], 81_234);
         assert_eq!(named(&all, "pointer.released")[0]["time"], 81_250);
+    }
+
+    #[test]
+    fn the_time_of_an_input_is_a_32_bit_count_of_milliseconds() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(
+            &mut xp,
+            &mut core,
+            &json!([{"update": {"id": "menu", "props": {"transform": {"translate": [400, 0]}}}}]),
+        );
+        let past_the_wrap = InputTime::from_micros(((1 << 32) + 5) * 1000);
+        move_to(&mut core, 450.0, 50.0);
+        click(&mut core, true);
+        super::move_pointer(&mut core.state, (460.0, 50.0).into(), past_the_wrap);
+        let all = events(&mut xp, &mut core);
+        assert_eq!(named(&all, "pointer.moved")[0]["time"], 5);
+    }
+
+    #[test]
+    fn a_refresh_during_a_press_keeps_the_time_of_the_last_input() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        let translate = |x: i32| json!([{"update": {"id": "menu", "props": {"transform": {"translate": [x, 0]}}}}]);
+        apply(&mut xp, &mut core, &translate(400));
+        let at = InputTime::from_millis;
+        move_to(&mut core, 450.0, 50.0);
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Pressed,
+            at(81_200),
+            false,
+        );
+        apply(&mut xp, &mut core, &translate(410));
+        super::move_pointer(&mut core.state, (460.0, 50.0).into(), at(81_234));
+        apply(&mut xp, &mut core, &translate(420));
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Released,
+            at(81_250),
+            false,
+        );
+        let all = events(&mut xp, &mut core);
+        let times: Vec<Value> = (named(&all, "pointer.moved").iter())
+            .map(|moved| moved["time"].clone())
+            .collect();
+        assert_eq!(times, [81_200, 81_234, 81_234]);
     }
 
     #[test]

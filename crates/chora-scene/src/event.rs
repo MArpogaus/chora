@@ -234,7 +234,9 @@ pub enum Event {
         injected: bool,
         /// The time of the input in milliseconds of the monotonic clock,
         /// for the speed of a drag: the time between two events is the
-        /// time between their inputs, not between their deliveries.
+        /// time between their inputs, not between their deliveries. It
+        /// is a 32-bit count, which starts again at 0 after about 49.7
+        /// days. 0 also stands for a time that the sender does not know.
         #[serde(default)]
         time: u64,
     },
@@ -263,7 +265,9 @@ pub enum Event {
         injected: bool,
         /// The time of the input in milliseconds of the monotonic clock,
         /// for the speed of a drag: the time between two events is the
-        /// time between their inputs, not between their deliveries.
+        /// time between their inputs, not between their deliveries. It
+        /// is a 32-bit count, which starts again at 0 after about 49.7
+        /// days. 0 also stands for a time that the sender does not know.
         #[serde(default)]
         time: u64,
     },
