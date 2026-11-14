@@ -413,6 +413,50 @@ mod tests {
         assert!(seen[0].get("tools").is_none(), "no tools, no key");
     }
 
+    /// A server that reads each request and then sends `answer` and
+    /// closes; its URL carries a key in the userinfo and in the query.
+    async fn cutting(answer: &'static str) -> String {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                let mut seen = Vec::new();
+                let mut buffer = [0; 4096];
+                while !seen.windows(4).any(|w| w == b"\r\n\r\n") {
+                    match socket.read(&mut buffer).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => seen.extend_from_slice(&buffer[..n]),
+                    }
+                }
+                let _ = socket.write_all(answer.as_bytes()).await;
+            }
+        });
+        format!("http://user:sk-userinfo@127.0.0.1:{port}/v1?key=sk-query")
+    }
+
+    /// No error of a request names the URL with its userinfo or its
+    /// query: the texts reach the log and `voice.health`.
+    #[tokio::test]
+    async fn errors_name_no_key_of_the_url() {
+        let cut = "HTTP/1.1 200 OK\r\ncontent-length: 1000\r\n\r\ndata: {";
+        let llm = llm(&cutting(cut).await);
+        let body = llm.body(&[], &[]);
+        let errors = [
+            match llm.chat(&body, |_| ()).await {
+                Err(Error::Other(e)) => e,
+                other => panic!("a cut stream: {other:?}"),
+            },
+            llm.info().await.unwrap_err(),
+            self::llm(&cutting("").await)
+                .warm("system", &[])
+                .await
+                .unwrap_err(),
+        ];
+        let leaks: Vec<&String> = errors.iter().filter(|e| e.contains("sk-")).collect();
+        assert!(leaks.is_empty(), "{leaks:?}");
+    }
+
     #[tokio::test]
     async fn refusals_and_silence_are_errors_of_their_kind() {
         let server = fake::llm(vec![
