@@ -83,7 +83,7 @@ cell_keys_names() {
     keys_close
     key Super+F1
     until_ok keys_open || return 1
-    for chord in Super+F1 Super+Space Super+a Super+Shift+Esc Super+Shift+e Super+Print "Volume keys"; do
+    for chord in Super+F1 Super+Space Super+a Super+Shift+Esc Super+Shift+e Super+Print Vol+ Vol- Mute "Volume up" "Volume down"; do
         has_text "$chord" || bad=1
     done
     keys_close

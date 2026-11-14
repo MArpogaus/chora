@@ -66,9 +66,10 @@ cell_keys_names() {
     local chord bad=0
     key Super+F1
     until_ok keys_open 20 || return 1
-    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print Vol+ Vol- Mute; do
+    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print Vol+ Vol- Mute "Volume up" "Volume down"; do
         shows "$chord" || bad=1
     done
+    ! shows "Mute or unmute" || bad=1
     keys_close
     return "$bad"
 }

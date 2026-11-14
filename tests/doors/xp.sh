@@ -111,7 +111,7 @@ cell_keys_names() {
     local chord bad=0
     key Super+F1
     until_ok help_open || return 1
-    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print XF86AudioRaiseVolume XF86AudioLowerVolume XF86AudioMute; do
+    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print Vol+ Vol- Mute "Volume up" "Volume down"; do
         has_text_any_case "$chord" || bad=1
     done
     help_close

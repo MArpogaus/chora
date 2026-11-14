@@ -121,9 +121,11 @@ cell_keys_names() {
     key Super+F1
     until_ok keys_open 20 || return 1
     seen=$(chords)
-    for chord in Super+F1 Super+Space Super+A Super+Shift+Esc Super+Shift+E Super+Print XF86AudioRaiseVolume XF86AudioLowerVolume XF86AudioMute; do
+    for chord in Super+F1 Super+Space Super+A Super+Shift+Esc Super+Shift+E Super+Print Vol+ Vol- Mute; do
         grep -qx -- "$chord" <<<"$seen" || bad=1
     done
+    has_text "Volume up" && has_text "Volume down" || bad=1
+    ! has_text "Mute the sound" || bad=1
     keys_close
     return "$bad"
 }
