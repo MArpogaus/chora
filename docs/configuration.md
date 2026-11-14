@@ -1577,7 +1577,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor too: **Screenshot**, **Screenshot of an
-  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
@@ -2106,8 +2106,9 @@ that the file leaves out takes its default:
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
-| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
+| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
+| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Without it, or when its program is not installed, the first installed editor with a window serves (gnome-text-editor, gedit, mousepad, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad, geany), else the editor of `VISUAL` or `EDITOR`, nano, vim or vi in the terminal. Without any of them the menu has no Notepad. All Programs lists only desktop files whose program is installed |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |

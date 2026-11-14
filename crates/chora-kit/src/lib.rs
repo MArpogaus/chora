@@ -21,6 +21,7 @@ pub mod glass;
 pub mod hud;
 pub mod icons;
 pub mod lamp;
+pub mod launcher;
 pub mod modes;
 pub mod notify;
 pub mod runtime;
