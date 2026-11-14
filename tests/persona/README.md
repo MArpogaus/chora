@@ -12,9 +12,17 @@ driver here gives it exactly that.
   program is installed. `xp` gets `chora-notify` on a session bus of its
   own, so that the balloons of a program that cannot start show; `mc` and
   `construct` have none.
+- Every session also gets what a real desktop has: `chora-assistant`
+  (pill, chat entry, figure) with the shipped huds linked into
+  `$PERSONA_DIR/data/chora/huds` (`XDG_DATA_HOME` points there),
+  `tests/fake-voice.py` as the voice agent, a `notify-send` that logs to
+  `$PERSONA_DIR/fake/calls.log` (and, on `xp`, also reaches `chora-notify`
+  on the session bus) and a `loginctl` that logs `lock-session` and runs
+  `swaylock` when it is installed.
 - `act.py` is the only command of the persona: `look`, `click`, `move`,
   `drag`, `type`, `key`, `scroll`. It logs every action.
-- `smoke.sh` checks the driver on a tiling session.
+- `smoke.sh` checks the driver on a tiling session and that each of the four
+  looks has the assistant, the voice, `notify-send` and `lock-session`.
 
 ## Start a session (PM)
 

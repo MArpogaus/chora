@@ -74,8 +74,37 @@ rm -f "$dir/last_look.json"
 dir=$(cd "$dir" && pwd)
 env_file=$dir/session.env
 
+fakes=$dir/fake
+mkdir -p "$fakes" "$dir/voice" "$dir/data/chora/huds"
+marks=$fakes/calls.log
+: >"$marks"
+cat >"$fakes/notify-send" <<EOF
+#!/bin/sh
+echo "notify-send \$*" >>"$marks"
+if [ -n "\${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v gdbus >/dev/null; then
+    gdbus call --session --dest org.freedesktop.Notifications \\
+        --object-path /org/freedesktop/Notifications \\
+        --method org.freedesktop.Notifications.Notify notify-send 0 '' "\${1:-}" "\${2:-}" '[]' '{}' 5000 >/dev/null
+fi
+exit 0
+EOF
+cat >"$fakes/loginctl" <<EOF
+#!/bin/sh
+echo "loginctl \$*" >>"$marks"
+if [ "\${1:-}" = lock-session ] && command -v swaylock >/dev/null; then
+    setsid swaylock --color 000000 >>"$fakes/swaylock.log" 2>&1 </dev/null &
+fi
+exit 0
+EOF
+chmod +x "$fakes/notify-send" "$fakes/loginctl"
+for hud in "$repo"/plugins/chora-assistant/huds/*/; do
+    ln -sfn "${hud%/}" "$dir/data/chora/huds/$(basename "$hud")"
+done
+echo '[]' >"$dir/voice/entries.json"
+
 # The plugins start apps with `choractl run` from PATH (D42).
-export PATH="$bin:$PATH"
+export PATH="$fakes:$bin:$PATH"
+export XDG_DATA_HOME=$dir/data
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 unset DBUS_SESSION_BUS_ADDRESS
 # A private config home: the settings of the user stay out of the run.
@@ -133,6 +162,7 @@ out=$dir/headless.out
 session=
 companion_units=()
 bus_pid=
+voice_pid=
 companion_pids=()
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
@@ -145,6 +175,9 @@ cleanup() {
             sleep 0.1
         done
         kill -KILL "$session" 2>/dev/null || true
+    fi
+    if [[ -n $voice_pid ]]; then
+        kill -TERM "$voice_pid" 2>/dev/null || true
     fi
     if [[ -n $bus_pid ]]; then
         kill -TERM "$bus_pid" 2>/dev/null || true
@@ -197,9 +230,19 @@ core=$(pgrep -P "$session" -x chora | head -n 1 || true)
 # The admin socket grants; persona gets these two and nothing else.
 CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona screen.capture input.inject >/dev/null
 
+mkfifo "$dir/voice/in"
+exec 4<>"$dir/voice/in"
+CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime FAKE_VOICE_ENTRIES=$dir/voice/entries.json \
+    python3 -I "$repo/tests/fake-voice.py" "$dir/voice/claims" <&4 >"$dir/voice/voice.log" 2>&1 &
+voice_pid=$!
+echo 'voice.state {"state": "listening", "task": "", "said": ""}' >&4
+
 for line in "${companions[@]}"; do
     read -ra argv <<<"$line"
-    command -v "${argv[0]}" >/dev/null || continue
+    command -v "${argv[0]}" >/dev/null || {
+        echo "companion ${argv[0]} not found" >>"$dir/companions.log"
+        continue
+    }
     session_wrapper=(dbus-run-session --)
     if [[ $flavor == xp ]]; then
         session_wrapper=()
@@ -227,6 +270,8 @@ done
     echo "PATH=$PATH"
     echo "CHORA_CORE_PID=$core"
     echo "PERSONA_SESSION_PID=$$"
+    echo "PERSONA_CALLS=$marks"
+    echo "PERSONA_VOICE=$dir/voice"
 } >"$env_file"
 echo "PERSONA_ENV=$env_file"
 
