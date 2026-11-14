@@ -1666,6 +1666,39 @@ exec cat >/dev/null"#;
         let _ = std::fs::remove_dir_all(&data);
     }
 
+    /// The agent does not get the variables that the settings name for
+    /// the API keys.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_agent_does_not_see_the_api_keys() {
+        assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
+        let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = r#"echo "${HOME-unset}" > seen.tmp; mv seen.tmp seen; exec cat >/dev/null"#;
+        let config = Config {
+            agent_cmd: vec!["sh".into(), "-c".into(), script.into()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            llm_api_key_env: "HOME".into(),
+            ..Config::default()
+        };
+        let (tx, _rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        assert!(agents.start("demo", Some("keys"), None).contains("starts"));
+        let seen = project.join("seen");
+        for _ in 0..100 {
+            if seen.exists() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        let home = std::fs::read_to_string(&seen).unwrap_or_default();
+        agents.stop("keys");
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(home.trim(), "unset");
+    }
+
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its
     /// question with a yes, its answer in short; a stop ends its
     /// process.
