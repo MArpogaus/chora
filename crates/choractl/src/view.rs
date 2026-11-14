@@ -111,10 +111,16 @@ fn dirs(kind: &str) -> Vec<PathBuf> {
 }
 
 /// The configuration directory of the user: `$XDG_CONFIG_HOME`, else
-/// `$HOME/.config`.
+/// `$HOME/.config`; `None` without an absolute one.
 fn config_home(xdg: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
-    xdg.map(PathBuf::from)
-        .or_else(|| home.map(|h| PathBuf::from(h).join(".config")))
+    absolute(xdg).or_else(|| absolute(home).map(|h| h.join(".config")))
+}
+
+/// The directory of an environment variable, if it is an absolute path.
+/// Empty and relative values do not count, as the XDG specification
+/// says, so that no path resolves against the current directory.
+pub fn absolute(value: Option<OsString>) -> Option<PathBuf> {
+    value.map(PathBuf::from).filter(|p| p.is_absolute())
 }
 
 /// The file of a name: a path as it is, or `NAME.yaml` in the first

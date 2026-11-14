@@ -1047,13 +1047,14 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
 }
 
 /// The files that `clients up` reads without an argument: the first
-/// that exists counts.
+/// that exists counts. Only an absolute `$XDG_CONFIG_HOME` or `$HOME`
+/// gives one.
 fn clients_files(
     xdg: Option<std::ffi::OsString>,
     home: Option<std::ffi::OsString>,
 ) -> Vec<std::path::PathBuf> {
-    let xdg = xdg.map(std::path::PathBuf::from);
-    let home = home.map(|h| std::path::PathBuf::from(h).join(".config"));
+    let xdg = view::absolute(xdg);
+    let home = view::absolute(home).map(|h| h.join(".config"));
     xdg.into_iter()
         .chain(home)
         .map(|d| d.join("chora/clients.yaml"))

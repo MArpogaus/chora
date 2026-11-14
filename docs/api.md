@@ -784,7 +784,8 @@ grace time the socket cannot open (`clients.create` answers the
 that name. It reports both reasons and goes on with the remaining
 names. Without a file argument the first of
 `$XDG_CONFIG_HOME/chora/clients.yaml` and
-`~/.config/chora/clients.yaml` is read, `-` for stdin. The core
+`~/.config/chora/clients.yaml` is read, `-` for stdin. An empty or
+relative `$XDG_CONFIG_HOME` or `$HOME` does not count. The core
 answers every request.
 
 | Method | Purpose |

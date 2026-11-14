@@ -98,7 +98,9 @@ input:
 
 `choractl` looks for `NAME.yaml` in `$XDG_CONFIG_HOME/chora/views/` first
 (`~/.config/chora/views/` by default), and then in
-`/usr/share/chora/views/`.
+`/usr/share/chora/views/`. An empty or relative `$XDG_CONFIG_HOME` or
+`$HOME` does not count, so no view or manifest comes from the current
+directory by accident.
 
 ### Strict YAML
 
