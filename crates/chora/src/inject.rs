@@ -824,6 +824,29 @@ mod tests {
         assert!(message.contains("unknown key"), "{message}");
     }
 
+    /// The mark stays on the output when the pointer is in its corner.
+    #[test]
+    fn the_mark_stays_on_the_output_at_its_edge() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let corner = json!({"events": [{"pointer_move": {"position": [799.0, 599.0]}}]});
+        agent.ok(&mut core, "input.inject", corner);
+        let mark = core
+            .state
+            .scene
+            .node(chora_scene::INJECTION)
+            .expect("a mark");
+        let side = mark.props.size.expect("a size")[0];
+        let (x, y) = mark.props.transform.translation_2d();
+        assert!(
+            x + side <= 800.0 && y + side <= 600.0,
+            "the mark at {x}, {y}"
+        );
+    }
+
     #[test]
     fn a_dry_run_checks_the_events_and_sends_nothing() {
         let mut core = Core::new();
