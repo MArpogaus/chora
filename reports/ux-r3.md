@@ -31,9 +31,28 @@ thunar, pipewire, desktop-file-validate, xwayland-satellite).
   (the plain chat is 400 wide and the glass chat at least 400 at both sizes) and the probes above.
 
 ## ti-1
-Not run. `fuzzel --version` 1.9.2; fuzzel 1.11 needs meson, fcft and tllist, none of them here; the brief
-and conventions override 9 make that a blocker. Asked the PM: allow a $HOME-only build (pip meson, fcft,
-tllist, fuzzel tarballs) in this lane, or add it to setup.sh. No gate cell added yet.
+Not run. `fuzzel --version` 1.9.2. The PM chose a $HOME-only build (05:33); this lane's permission
+check refused the download and build (06:35: no user approval in this session), so nothing was
+built and no gate cell was added. Missing here: meson, tllist, fcft and wayland-protocols (fuzzel 1.11 needs
+>= 1.32); harfbuzz, utf8proc, librsvg and scdoc are absent too but optional. Present: freetype2 26.1,
+fontconfig 2.15, pixman 0.42.2, wayland-client 1.22, xkbcommon 1.6, cairo 1.18, libpng 1.6.43,
+wayland-scanner, ninja, gcc.
+Commands for setup.sh or a lane with the owner's approval (not run):
+```
+P=$HOME/opt/fuzzel; python3 -m venv $HOME/opt/meson-venv; $HOME/opt/meson-venv/bin/pip install meson
+export PATH=$HOME/opt/meson-venv/bin:$PATH PKG_CONFIG_PATH=$P/lib/pkgconfig:$P/lib/x86_64-linux-gnu/pkgconfig:$P/share/pkgconfig
+curl -fLO https://gitlab.freedesktop.org/wayland/wayland-protocols/-/releases/1.38/downloads/wayland-protocols-1.38.tar.xz
+curl -fLO https://codeberg.org/dnkl/tllist/archive/1.1.0.tar.gz
+curl -fLO https://codeberg.org/dnkl/fcft/archive/3.1.8.tar.gz
+curl -fLO https://codeberg.org/dnkl/fuzzel/archive/1.11.1.tar.gz
+# each unpacked: meson setup build --prefix=$P --buildtype=release [opts]; ninja -C build install
+#   wayland-protocols: -Dtests=false
+#   fcft: -Dgrapheme-shaping=disabled -Drun-shaping=disabled -Ddocs=disabled -Dtest-text-shaping=false
+#   fuzzel: -Denable-cairo=enabled -Dpng-backend=libpng -Dsvg-backend=nanosvg
+# then PATH=$P/bin:$PATH for the tiling launcher cell
+```
+Next for ti-1 once fuzzel >= 1.11 is there: click a program in the tiling launcher at 1x and 2x; a gate
+cell that skips with its reason when fuzzel < 1.11 and fails when CI=true.
 
 ## Captures at 1x (media/2026-11-15/ux-r3/)
 xp-, tiling-, mc-, construct-nohelper-1280x800.png and -1024x768.png. Seen in passing (MINOR, not entered):
