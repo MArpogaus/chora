@@ -68,5 +68,24 @@ if ! grep -q '^gate: waits for' "$work/out"; then
     echo "FAIL: a gate script that waits for the lock does not say so: $(cat "$work/out")"
     failures=$((failures + 1))
 fi
+mkdir "$work/own" "$work/other"
+cp "$(command -v sleep)" "$work/gl-probe"
+XDG_RUNTIME_DIR=$work/other "$work/gl-probe" 30 &
+other=$!
+XDG_RUNTIME_DIR=$work/own "$work/gl-probe" 30 &
+own=$!
+sleep 0.3
+found=$(CHORA_GATE_LOCK_HELD=1 XDG_RUNTIME_DIR=$work/own bash -c '. "$1/tests/gate-lib.sh"; session_pids -x gl-probe' gate "$repo" 2>&1)
+CHORA_GATE_LOCK_HELD=1 XDG_RUNTIME_DIR=$work/none bash -c '. "$1/tests/gate-lib.sh"; session_pids -x gl-probe' gate "$repo" >/dev/null 2>&1
+none=$?
+kill "$own" "$other" 2>/dev/null
+if [ "$found" != "$own" ]; then
+    echo "FAIL: session_pids finds $found, not only the program of its own runtime directory $own (other $other)"
+    failures=$((failures + 1))
+fi
+if [ "$none" != 1 ]; then
+    echo "FAIL: session_pids exits $none, not 1, when its runtime directory has no such program"
+    failures=$((failures + 1))
+fi
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"

@@ -244,7 +244,11 @@ kill_case() {
 
 kill_case "the newest core of the machine" fail 'core=\x24(pgrep -x chora | tail -1)\n'
 kill_case "the core of the own session" pass 'core=\x24(pgrep -P "\x24session" -x chora)\n'
-kill_case "a plugin by its name is no core" pass 'pgrep -x chora-tiling\n'
+kill_case "a plugin by its name machine-wide" fail 'pgrep -x chora-tiling\n'
+kill_case "a plugin as a child of the own core" pass 'pgrep -P "\x24chora_pid" -x chora-xp\n'
+kill_case "a command line machine-wide" fail 'pgrep -f -- "--app-id=mcside"\n'
+kill_case "pidof" fail 'pidof chora-xp\n'
+kill_case "the processes of the own runtime directory" pass 'session_pids -f -- "--app-id=mcside"\n'
 kill_case "pkill by name" fail 'pkill -f chora-tiling\n'
 kill_case "pkill of the children of a pid" pass 'pkill -P "\x24voice" -x foot\n'
 kill_case "pkill in the own process group" pass 'pkill -g "\x24group" -f heartbeat\n'

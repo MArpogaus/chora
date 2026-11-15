@@ -61,7 +61,7 @@ wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
 CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
-wait_for pgrep -x chora-tiling
+wait_for pgrep -P "$chora_pid" -x chora-tiling
 
 surfaces() { "$bin/choractl" query kind:surface; }
 # Prints the color of a pixel of a new screenshot as "r g b".

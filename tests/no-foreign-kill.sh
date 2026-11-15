@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # pre-commit hook: a test script must not signal or pick a process by its
-# name alone. Other sessions run their own cores on the same machine, and
-# `pkill`, `killall` and a `pgrep -x chora` without a parent (-P), a
-# session (-s) or a process group (-g) reach them. tests/last-words.sh once took the newest
+# name alone. Other sessions and the parallel steps of the merge gate
+# (--jobs) run the same programs on the same machine, and `pkill`,
+# `killall`, `pidof` and a `pgrep -x` or `pgrep -f` without a parent (-P),
+# a session (-s) or a process group (-g) reach them. session_pids of
+# tests/gate-lib.sh finds the programs of the own runtime directory. tests/last-words.sh once took the newest
 # `chora` of the machine and sent it SIGSEGV; the core of a gate of
 # another session died, and that gate said "no core".
 #
@@ -15,8 +17,8 @@ for file in "$@"; do
         {
             parts = split($0, command, /[;|&]/)
             for (i = 1; i <= parts; i++) {
-                named = command[i] ~ /(^|[^[:alnum:]_-])(pkill|killall)([^[:alnum:]_-]|$)/ ||
-                    command[i] ~ /(^|[^[:alnum:]_-])pgrep[[:space:]].*-x chora([^-[:alnum:]_]|$)/
+                named = command[i] ~ /(^|[^[:alnum:]_-])(pkill|killall|pidof)([^[:alnum:]_-]|$)/ ||
+                    command[i] ~ /(^|[^[:alnum:]_-])pgrep[[:space:]](.*[[:space:]])?-[[:alpha:]]*[xf]/
                 scoped = command[i] ~ /[[:space:]]-(P|s|g)([[:space:]]|$)/
                 if (named && !scoped) {
                     print FILENAME ":" FNR ":" $0
@@ -29,7 +31,8 @@ for file in "$@"; do
     echo "$found"
 done
 if [ "$status" != 0 ]; then
-    echo "a test script names its processes by pid, parent (-P), session (-s) or group (-g):"
+    echo "a test script names its processes by pid, parent (-P), session (-s), group (-g)"
+    echo "or session_pids of tests/gate-lib.sh (its own runtime directory):"
     echo "another session's processes carry the same names."
 fi
 exit "$status"

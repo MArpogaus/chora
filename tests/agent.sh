@@ -72,7 +72,7 @@ wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
 CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
-wait_for pgrep -x chora-tiling
+wait_for pgrep -P "$chora_pid" -x chora-tiling
 ctl() { "$bin/choractl" --name agent "$@"; }
 surfaces() { ctl query kind:surface; }
 count_is() { test "$(surfaces | jq "[.[] | select($2)] | length")" = "$1"; }
@@ -367,7 +367,7 @@ wait_for xs_are "0 0 0"
 step "18. exit: an MCP client describes the screen, sets the layout, sees it, and waits for events"
 # Two windows in one color each instead of the terminals.
 # Every foot of this core: the steps started some through choractl run.
-for p in $(pgrep -x foot); do
+for p in $(pgrep -s 0 -x foot) $(pgrep -P "$chora_pid" -x foot); do
     grep -qzx "WAYLAND_DISPLAY=$inner" "/proc/$p/environ" 2>/dev/null && kill "$p"
 done
 wait_for count_is 0 'true'
