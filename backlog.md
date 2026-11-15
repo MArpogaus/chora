@@ -134,3 +134,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - PK2 (env, ux r3): setup.sh builds fuzzel >= 1.11 (meson via pip, tllist, fcft) under $HOME, so every lane can click the tiling launcher (ti-1).
 - F21 (flake, harness r3): gate-construct-pull.sh:150 reads the pane width once after sleep 1; under --jobs 3 it is 168/193 px of 200 (2 of 3 runs). Fix: until_ok on shown_width.
 - R12 (harness, review-harness-r3 M1): guards.sh has no case with a quoted substitution; every guard regex gets a selftest table of refused and passed lines (incl. "$(...)").
+- W16-1 (battle w16 step 1, logging r2): mc shows no No button on a confirm, then every turn lags one step; same on be205f89. Check severity in persona round 4.

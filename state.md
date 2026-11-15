@@ -27,7 +27,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | ux r3 | cloud opus ..P9v5i, claude/ux-r3 | briefs/ux-r3.md | starting |
 | harness r4 | cloud opus ..LBkdU, claude/harness | briefs/harness-r4.md | r3 FIX (M1 quoted subst, M2 commit on session branch) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
-| logging r2 | cloud opus ..NQNi8 (fresh; r1 worker at 200 k), claude/logging-r1 | briefs/logging-r2.md | r1 FIX (M1 live log rotated, M2 YAML secrets) |
+| logging r2 | cloud opus ..NQNi8, claude/logging-r1 48b68820 | briefs/logging-r2.md | handed back 06:27 (gate 28/28); opus review running |
 
 ## Queue
 1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)
