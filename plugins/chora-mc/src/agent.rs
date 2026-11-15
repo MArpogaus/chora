@@ -212,6 +212,9 @@ const CONFIRM: &str = "confirm";
 /// The text contents that mc writes itself, from `notify.push` and
 /// `voice.confirm`: `content.set` and `content.add` refuse them.
 pub const OWN_TEXTS: [&str; 3] = [NOTIFY, URGENT, CONFIRM];
+/// The scenes whose panels mc writes itself, from the agents and the
+/// scenes: `panel.set` refuses them.
+pub const OWN_SCENES: [&str; 2] = [SCENE, crate::manage::OVERVIEW];
 
 /// Whom a `chat.show` was for, for its error line: never an empty name.
 fn chat_who(name: Option<&str>) -> String {

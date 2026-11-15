@@ -3122,6 +3122,11 @@ impl Mc {
             title,
             lines,
         } = set;
+        if agent::OWN_SCENES.contains(&scene.as_str()) {
+            return Err(invalid(format!(
+                "the panels of {scene} are written by mc alone"
+            )));
+        }
         let found = (self.scenes.get(&scene))
             .and_then(|v| v.panels.iter().find(|p| p.id == panel))
             .ok_or_else(|| invalid(format!("no panel {panel} in scene {scene}")))?;
