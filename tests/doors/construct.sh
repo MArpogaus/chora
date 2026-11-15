@@ -14,6 +14,9 @@
 # while voice stays connected: the island says No helper, and Listening
 # again when the helper is back. The check layout-SIZE is the layout
 # audit of tests/hud-audit.py with the strip and the island on the screen.
+# The check cube-doors opens a cube of xp: in a face the strip is gone,
+# stood back from the cube it shows the clock and its door Lock locks,
+# and after the step in it is gone again.
 #
 # Usage: tests/doors/construct.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -22,7 +25,7 @@
 set -u
 . "$(dirname "$0")/lib.sh"
 need jq
-need_bins chora choractl chora-construct chora-voice chora-assistant chora-chat chora-probe
+need_bins chora choractl chora-construct chora-xp chora-voice chora-assistant chora-chat chora-probe
 temp_config
 doors_fakes
 fuzzel_stand_in
@@ -250,6 +253,21 @@ check_helper_exit() {
     return "$status"
 }
 
+strip_shows() { ctl query id:construct-door-clock | jq -e '.[0].visible' >/dev/null; }
+check_cube_doors() {
+    ctl call construct cube.open >/dev/null || return 1
+    until_ok "ctl query '*' | grep -q '\"xp-bar-'" 80 || return 1
+    until_ok '! strip_shows' 20 || return 1
+    ctl call construct view.step_back >/dev/null || return 1
+    until_ok strip_shows 20 || return 1
+    cell_clock_door || return 1
+    unmark
+    click_door construct-door-lock
+    marked '^swaylock' || return 1
+    ctl call construct view.step_in >/dev/null || return 1
+    until_ok '! strip_shows' 20
+}
+
 status=0
 if check_helper_exit; then
     echo "check construct helper-exit pass"
@@ -272,5 +290,11 @@ else
 fi
 cat "$work/audit"
 echo "check construct layout-$size $result"
+if check_cube_doors; then
+    echo "check construct cube-doors pass"
+else
+    echo "check construct cube-doors fail"
+    status=1
+fi
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"
