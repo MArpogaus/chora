@@ -514,7 +514,7 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
 | `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red in the text `urgent`, until the next one or a click on that line of the footer, which leaves it in `notify` |
-| `notify.clear` | none; empties `notify` and `urgent` |
+| `notify.clear` | privileged; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
 outlines line by line, and the fill follows. This happens when a scene

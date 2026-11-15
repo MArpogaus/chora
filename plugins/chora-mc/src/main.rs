@@ -775,7 +775,12 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["title"],
         )),
-        runtime::method("notify.clear", "Empties the notifications.", json!({}), &[]),
+        runtime::privileged(runtime::method(
+            "notify.clear",
+            "Empties the notifications.",
+            json!({}),
+            &[],
+        )),
         chora_kit::give::method(),
     ]
 }
