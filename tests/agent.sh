@@ -21,7 +21,6 @@ set -euo pipefail
 bin=$(realpath "$1")
 # The plugins start apps with `choractl run` from PATH (D42).
 export PATH="$bin:$PATH"
-export CHORA_TEST_ACCEPT_INJECTED_KEYS=1
 tests=$(realpath "$(dirname "$0")")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
@@ -67,7 +66,7 @@ step "1. chora -- chora-tiling starts nested with two windows"
 "$bin/chora-tiling" --print-config | sed 's/^gap: 4$/gap: 0/; s/^  animations: true$/  animations: false/' >"$out/tiling.yaml"
 grep -q '^gap: 0$' "$out/tiling.yaml" || fail "the configuration has no gap option"
 grep -q '^  animations: false$' "$out/tiling.yaml" || fail "the configuration has no animations option"
-"$bin/chora" -- "$bin/chora-tiling" --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
+CHORA_TEST_ACCEPT_INJECTED_KEYS=1 "$bin/chora" -- "$bin/chora-tiling" --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"

@@ -219,13 +219,14 @@ def free_apply(commands):
 
 
 def panel(mcp, out):
-    """The panel test: a panel of the agent moves the camera.
+    """The panel test: a panel of the agent beside a camera of the user.
 
     The client puts a shader, reserves the top of the output, draws the
     panel as a rounded shader node with two buttons, and waits for a click.
     tests/agent.sh clicks the right button once OUT_DIR/panel-ready.txt
-    exists. The client then moves the camera with an animation and waits
-    for its end.
+    exists. A camera command of the confined client is refused. A free
+    client named user then moves the camera with an animation, and the
+    client waits for its end.
     """
     content = mcp.tool("put_asset", {"name": "panel.frag", "text": CYAN})
     shader = json.loads(content[0]["text"])["path"]
@@ -274,8 +275,16 @@ def panel(mcp, out):
         "duration": 300,
         "easing": "ease_in_out",
     }
+    denied = mcp.request(
+        "tools/call", {"name": "apply_commands", "arguments": {"commands": [{"camera": camera}]}}
+    )
+    if not denied.get("isError") or "no camera commands" not in denied["content"][0]["text"]:
+        sys.exit(f"a camera command of the confined client: {denied}")
     free_apply([{"camera": camera}])
-    time.sleep(0.8)
+    wait_for(
+        mcp,
+        lambda e: e["event"] == "animation.done" and e.get("output") == output["name"],
+    )
     after = describe(mcp, out, "panned")
     # The work area keeps the reserve and follows the camera.
     moved = [o for o in after["outputs"] if o["name"] == output["name"]]
@@ -338,8 +347,9 @@ def hud(choractl, mcp, out):
     """The HUD test: a probe, the scale, and a HUD on the screen.
 
     The client runs a probe with `choractl run` and reads the files it
-    wrote, sets the scale of the output and back, and draws a HUD under the
-    overlay root of the output, next to a mark in the scene. It captures
+    wrote, sets the scale of the output and back, and draws a mark in the
+    scene. A free client named user draws a HUD under the overlay root of
+    the output and moves the camera, as a confined client may do neither. The client captures
     the output during an animated camera move, as OUT_DIR/hud-moving.png,
     and after it, as OUT_DIR/hud-moved.png, for the checks of
     tests/agent.sh.
@@ -397,7 +407,7 @@ def hud(choractl, mcp, out):
     free_apply([{"camera": camera}])
     time.sleep(0.8)
     save_capture(mcp, out, "hud-moving", name)
-    time.sleep(1.6)
+    wait_for(mcp, lambda e: e["event"] == "animation.done" and e.get("output") == name)
     save_capture(mcp, out, "hud-moved", name)
     mcp.tool(
         "apply_commands",
