@@ -20,7 +20,7 @@ fuzzel_stand_in
 export CHORA_FLAVOR_DIR=$flavor HOME=$fakes/home XDG_PICTURES_DIR=$fakes/pictures
 mkdir -p "$HOME"
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-tiling"
-setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
+setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$fakes/waybar.log" 2>&1 &
 run_pid $!
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
@@ -32,7 +32,8 @@ bar_shows() {
     ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 &&
         [ "$(pixel "$shot" 640 24)" != "$(pixel "$shot" 640 300)" ]
 }
-until_ok bar_shows 80 || fail "no bar"
+until_ok bar_shows 80 ||
+    fail "no bar: the capture says $(ctl capture --output HEADLESS-1 "$shot" 2>&1 | tail -n 1), waybar says $(tail -n 5 "$fakes/waybar.log")"
 
 bar_y=24
 apps_x=55
