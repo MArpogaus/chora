@@ -2037,6 +2037,55 @@ mod tests {
         assert_eq!(log.borrow().sends, 1, "once");
     }
 
+    fn list_with_a_text_given_back(text: &str) -> (Session, Fake, Rc<RefCell<Log>>, Frame) {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut().events.push(FieldEvent::Say(text.into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().unpicked, [text]);
+        (session, out, log, frame)
+    }
+
+    #[test]
+    fn a_text_of_a_list_that_was_hidden_goes_to_no_helper() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        session.hide(&mut out);
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().sends, 0, "a question balloon picks nobody");
+    }
+
+    #[test]
+    fn a_text_of_a_list_that_escape_closed_goes_to_no_helper() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        log.borrow_mut().events.push(FieldEvent::Closed);
+        session.field_events(&mut out, &frame);
+        session
+            .show(&mut out, Some("notes"), Some("act"), &frame)
+            .unwrap();
+        assert_eq!(log.borrow().sends, 0, "a chat.show call picks nobody");
+    }
+
+    #[test]
+    fn a_text_of_a_list_goes_to_no_helper_that_a_show_names() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        session
+            .show(&mut out, Some("atlas"), Some("act"), &frame)
+            .unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().sends, 0, "the person picked no entry");
+    }
+
+    #[test]
+    fn a_text_of_a_list_goes_to_no_helper_that_opens_as_the_only_one() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        log.borrow_mut().list = Some("projects: demo; agents: atlas (demo, idle)".into());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().sends, 0, "the person picked no entry");
+    }
+
     #[test]
     fn a_number_typed_after_the_text_picks_the_helper_and_sends_the_text() {
         let (mut session, mut out, log) = setup();
