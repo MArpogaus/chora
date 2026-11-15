@@ -88,7 +88,11 @@ impl Plugin for Notify {
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
-            Event::PointerPressed { node, .. } if Card::owns(&node) => self.press(&node)?,
+            Event::PointerPressed { node, injected, .. }
+                if Card::owns(&node) && (!injected || self.rt.accepts_injected()) =>
+            {
+                self.press(&node)?
+            }
             Event::PointerEntered { node, .. } => self.hover(&node, true),
             Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => self.redraw()?,

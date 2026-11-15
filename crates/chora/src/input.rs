@@ -353,6 +353,7 @@ impl State {
             return;
         };
         let SceneEvent::NodeKey { node, .. } = &repeat.event else {
+            // injected: the repeat resends a key with the flag it was sent with
             return;
         };
         if self.key_node() != Some((node.clone(), repeat.owner.clone())) {
