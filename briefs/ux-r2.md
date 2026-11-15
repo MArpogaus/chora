@@ -1,7 +1,10 @@
 # ux r2 (rc 1): close the review of ux r1
 
-Lane: same worker as ux r1 (Fable), branch claude/ux-r1. One round, fixed. Read
-reports/review-ux-r1.md first. Stop at 250 k context and hand over.
+Lane: new cloud worker (Fable; the one new Fable lane after the reset, owner 11-15 01:22), branch
+claude/ux-r1 (continue it; worktree /home/user/wt/ux-r2). One round, fixed. Read dev-rules.md and
+conventions.md (with the skills it names) first, then reports/review-ux-r1.md and reports/ux-r1.md
+(handover: the held draft is `Session::held` in plugins/chora-assistant/src/chat.rs, set in said(),
+sent in show(), reset only in open_list()). Stop at 250 k context and hand over.
 Start: merge origin/claude/autonomous-dev-session-3w-i33pg7 into claude/ux-r1 once it holds train 11
 (63ab1724 tiling-audit fix; `git merge-base --is-ancestor 63ab1724 origin/claude/autonomous-dev-session-3w-i33pg7`).
 Until it does, work on the items and fetch again before the gate.
