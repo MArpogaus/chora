@@ -654,12 +654,14 @@ impl Mc {
     }
 
     /// The text items of a content in a region: one in a line, else its
-    /// title and its lines.
+    /// title and its lines. The list of all keys has its side to itself
+    /// under the state line, so that it fits a small screen.
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let side = !region.is_line();
         let all_keys = side && self.keys == crate::keys::List::All;
-        if all_keys && (content.kind == Kind::Chat || content.folds) {
+        let stays = matches!(content.kind, Kind::State | Kind::Keys | Kind::Doors);
+        if all_keys && !stays {
             return Vec::new();
         }
         match content.kind {

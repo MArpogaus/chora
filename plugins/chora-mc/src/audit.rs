@@ -273,6 +273,26 @@ mod tests {
     }
 
     #[test]
+    fn the_list_of_all_keys_has_the_column_under_the_state_line() {
+        for size in [[1280, 800], [1024, 768]] {
+            let (mut mc, model) = crate::testing::mc("audit-all-keys", size);
+            mc.show("agenda", false).unwrap();
+            helper(&mut mc);
+            mc.toggle(Region::Right, Some(true), false).unwrap();
+            mc.keys = List::All;
+            mc.render().unwrap();
+            assert!(mc.side_widths("agenda")[1] > 0.0, "a column at {size:?}");
+            all(&rule_findings(&model));
+            let above: Vec<String> = (mc.items("agenda")[&Region::Right].0.iter())
+                .take_while(|i| !i.id.contains("-keys"))
+                .filter(|i| !i.id.contains("-state"))
+                .map(|i| i.id.clone())
+                .collect();
+            assert!(above.is_empty(), "{above:?} above all keys at {size:?}");
+        }
+    }
+
+    #[test]
     fn no_text_stands_on_a_hairline() {
         for size in SIZES {
             let (mut mc, model) = crate::testing::mc("audit-rules", size);
