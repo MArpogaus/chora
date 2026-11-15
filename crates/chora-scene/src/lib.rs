@@ -8,6 +8,7 @@ mod binding;
 mod command;
 mod event;
 pub mod ipc;
+pub mod logs;
 mod node;
 mod scene;
 mod selector;
