@@ -443,11 +443,6 @@ fn serve(
                     .conn
                     .answer(call, Err(confined_refusal(&method)))?;
             }
-            // Any client may read the settings: without the header values.
-            Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
-                let settings = without_headers(client.settings.get());
-                client.rt.conn.answer(call, Ok(settings))?;
-            }
             Some(event) => client.dispatch(event)?,
             None => {}
         }
@@ -809,6 +804,11 @@ impl Plugin for Client {
 
     fn runtime(&mut self) -> &mut Runtime<Key> {
         &mut self.rt
+    }
+
+    /// Any client may read the settings: without the header values.
+    fn shown_settings(&self, settings: Value) -> Value {
+        without_headers(settings)
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {

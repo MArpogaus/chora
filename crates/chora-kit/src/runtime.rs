@@ -66,6 +66,12 @@ pub trait Plugin {
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         Ok(())
     }
+
+    /// The settings as a caller of `settings.get` sees them; all of them
+    /// by default. A plugin hides its secrets here.
+    fn shown_settings(&self, settings: Value) -> Value {
+        settings
+    }
 }
 
 /// The connection of a plugin, with its outputs and grabs.
@@ -410,9 +416,9 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             rt.caller = caller;
             rt.conn.serving_confined = confined;
             let result = match method.as_str() {
-                "settings.get" => {
-                    (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))
-                }
+                "settings.get" => (plugin.settings().map(|s| s.get()))
+                    .ok_or_else(|| no_settings("settings.get"))
+                    .map(|s| plugin.shown_settings(s)),
                 "settings.set" => set_settings(plugin, params),
                 "settings.reload" => reload_settings(plugin),
                 _ => plugin.method(&method, params),
