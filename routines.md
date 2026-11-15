@@ -5,7 +5,8 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
 ## By time
 - Every 2 h: watchdog (tools/triggers.md); heartbeat checks the PM from outside.
 - Daily 12:50 UTC: self-check (rules.md) plus one independent opus critic, read-only, on
-  the last 24 h of state.md, answers.md and commits; the PM answers each point in
+  the last 24 h of state.md, answers.md and commits, and per bug and review round: which gate
+  (compile time first) would have caught it earlier; the PM answers each point in
   reflections/selfcheck-<date>.md the same day (owner 11-09, charter 14).
 - Friday: reports/week-N.md, critical, no overselling (owner 11-09 "Don't overstate
   anything"): done, missed, rc burn-down, budget, owner decisions taken by the PM.
@@ -14,6 +15,8 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
   duplication across plugins); results as lines in state.md or backlog items.
 
 ## By event
+- A FIX verdict or a CI-only failure: name the earliest gate that could have caught it; if none
+  exists, a harness backlog item (owner 11-15 02:10: strong compile-time gates).
 - A usage limit stops work: send_later at the reset time to resume every lane; before
   the stop merge first, push everything, rewrite state.md (rules.md 8).
 - create_session: start check after 6 minutes (start_lane.sh); still PENDING after 15

@@ -1,7 +1,8 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-15T01:22:00Z
+screened-through: 2026-11-15T02:10:00Z
 
 - 11-15 01:22Z "You may usw up fable entierly. I'll reset it then." -> running Fable lanes finish on Fable after the reset; then one new Fable lane; its progress decides Fable or opus
+- 11-15 02:10Z "we want to include harness issues in our reflection rounds and sharpen our tooling wherever possible. We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
 - 11-14 17:17Z "Du bist der Projektmanager." -> no owner feedback: decide all, rc changes too
 - 11-14 16:43Z "...robuster gestalten, damit sowas nicht nochmal passiert." -> fail-open hooks, cloud lanes, heartbeat
@@ -23,4 +24,3 @@ screened-through: 2026-11-15T01:22:00Z
 - 11-14 05:30Z "I would rate the first three as rather important features that we want Might to ship with a 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0; 1-2 demo lanes
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like" it shall stay hackable and easy yo extend but we want stunning visuals in each view all with their own design philosophy and esthetics consequently followed." -> each look its own aesthetic
 - 11-11 12:45Z "Make it minimal yet complete. Avoid buttons." -> construct HUD: glass, bindings overlay
-- 11-12 04:16Z "These are the kind of visual defects we want to automatically capture." -> flaw class seen by eye: an audit cell; one pixel pass per look
