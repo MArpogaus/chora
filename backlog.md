@@ -135,3 +135,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - F21 (flake, harness r3): gate-construct-pull.sh:150 reads the pane width once after sleep 1; under --jobs 3 it is 168/193 px of 200 (2 of 3 runs). Fix: until_ok on shown_width.
 - R12 (harness, review-harness-r3 M1): guards.sh has no case with a quoted substitution; every guard regex gets a selftest table of refused and passed lines (incl. "$(...)").
 - W16-1: now findings mc-31 (verify in persona round 4 or ledger r3).
+- UX-G1 (gate, review-ux-r3): no cell checks the chat header with a long task or narrow chat.width; the doors helper-none cells run at 1280x800 1x only.
