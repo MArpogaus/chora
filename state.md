@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | ux r4 | cloud opus ..L987e, claude/ux-r3 | briefs/ux-r4.md | r3 FIX (M1 header grows without limit) |
-| harness r5 | cloud opus (starting), claude/harness | briefs/harness-r5.md | r4 FIX (M: allow window with trailing comment hides plugin string calls) |
+| harness r5 | cloud opus ..PE7LZ, claude/harness | briefs/harness-r5.md | r4 FIX (M: allow window with trailing comment hides plugin string calls) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | train 14 | /home/user/wt/train14 61d885f0 | logging r2 (MERGE-OK) | gate running |
 
