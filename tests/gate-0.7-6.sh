@@ -12,7 +12,10 @@ for what in chora choractl; do
     test -x "$bin/$what" || fail "no $bin/$what; build it first"
 done
 need python3
-grep -rqs basic_13-24 /usr/share/X11/xkb/rules || skip "xkeyboard-config here has no fkeys option"
+if ! grep -rqs basic_13-24 /usr/share/X11/xkb/rules; then
+    test -z "${CI:-}" || fail "xkeyboard-config has no fkeys option"
+    skip "xkeyboard-config here has no fkeys option"
+fi
 export XKB_DEFAULT_OPTIONS=fkeys:basic_13-24
 out=$(mktemp /tmp/gate6.XXXXXX.py)
 trap 'rm -f "$out"' EXIT
