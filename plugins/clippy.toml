@@ -12,6 +12,8 @@ allow-unwrap-in-tests = true
 cognitive-complexity-threshold = 10
 disallowed-methods = [
   { path = "chora_kit::conn::Conn::connect", reason = "use chora_kit::runtime::Runtime::connect" },
+  { path = "chora_kit::conn::Conn::connect_at", reason = "use chora_kit::runtime::Runtime::connect; a test on a fake core allows it" },
+  { path = "chora_kit::runtime::Runtime::with", reason = "use chora_kit::runtime::Runtime::connect; a test on a fake core allows it" },
   { path = "chora_scene::ipc::Client::connect", reason = "use chora_kit::runtime::Runtime::connect" },
   { path = "chora_scene::ipc::Client::from_env", reason = "use chora_kit::runtime::Runtime::connect" },
   { path = "chora_scene::ipc::Client::from_stream", reason = "use chora_kit::runtime::Runtime::connect" }

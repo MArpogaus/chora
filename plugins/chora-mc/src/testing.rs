@@ -122,6 +122,10 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
 
 /// A plugin on the fake core with the default settings, no scene files,
 /// one output of `size` and its nodes built; and the model.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "the test connects to its fake core"
+)]
 pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
     // One connection at a time, so that the last model is this one.
     static CONNECT: Mutex<()> = Mutex::new(());
