@@ -3062,7 +3062,6 @@ impl Mc {
             .collect();
     }
 
-    /// Changes the lines of a text content, and its title.
     /// Changes a text content for `content.set` or `content.add`; the
     /// contents that mc writes itself are refused.
     fn set_client_text(
@@ -3077,6 +3076,7 @@ impl Mc {
         self.set_text(content, title, change)
     }
 
+    /// Changes the lines of a text content, and its title.
     fn set_text(
         &mut self,
         content: &str,

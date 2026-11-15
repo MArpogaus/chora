@@ -192,7 +192,11 @@ The window managers chora-tiling, chora-xp, chora-mc and chora-construct
 ignore a key that `input.inject` sent (`injected` is true in
 `input.key`), for every binding. A client with the inject grant cannot
 press a binding for the user, so automation calls the methods of the
-window manager instead, such as `window.give`. The setting
+window manager instead, such as `window.give`. The same setting covers
+what a pointer press or a key of `input.inject` would do for the person
+beyond the bindings: in the window list of the construct a key or a
+press on a row, and in mc a press on a hit, an agent column, a line of
+the overview or a window. The setting
 `test_accept_injected_keys` of each of the four is `false`, and it is for
 tests only: `tests/headless-session.sh` and the persona session turn it
 on through the environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1`
@@ -499,7 +503,7 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `scene.save` | privileged. `name`, `grid`, `panels` or `app`: a shell command or the name of a content of kind `app`, such as `shell`; writes the file |
 | `scene.rename` | privileged. `name` and `to`: renames the scene file and its entry in `order`; a built-in scene without a file has none to rename |
 | `scene.move` | privileged. `name` and `to`, the new number from 1: the scene moves there in `order`, which the settings file keeps, and every number shows anew at once. The scene of an app stays at the end |
-| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
+| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start; not for the scenes `agents` and `overview`, whose panels mc writes itself. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | privileged. `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
 | `hud.say` | privileged. `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
 | `app.open` | privileged. `command`: a shell command that starts in a scene of its own, with a head and the next number. The scene goes when the program has no window left and has ended, so `ls` leaves no scene behind |
@@ -922,7 +926,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
-| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings, the keys of the window list and its pointer presses take the input of `input.inject` as the user's (see [Injected keys](#injected-keys)) |
 | `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
