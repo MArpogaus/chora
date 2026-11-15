@@ -312,10 +312,10 @@ side_window() {
         ctl inject >/dev/null || fail "inject click"
     sleep 1
 }
-side_alive() { pgrep -f -- "--app-id=mcside" >/dev/null; }
+side_alive() { session_pids -f -- "--app-id=mcside" >/dev/null; }
 side_end() {
     local pid
-    for pid in $(pgrep -f -- "--app-id=mcside"); do kill "$pid"; done
+    for pid in $(session_pids -f -- "--app-id=mcside"); do kill "$pid"; done
     until_ok '! side_alive' 20
 }
 cell_chat_click_turn() {
@@ -339,7 +339,7 @@ cell_chat_click_turn() {
 }
 
 chat_output() { ctl query "id:hud-chat" | jq -r '.[0].rects | keys | join(",")'; }
-tiling_alive() { pgrep -f -- "--app-id=mctiled" >/dev/null; }
+tiling_alive() { session_pids -f -- "--app-id=mctiled" >/dev/null; }
 tiling_window() {
     echo '[{"pointer_move": {"position": [600, 400], "output": "HEADLESS-2"}},
         {"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
@@ -351,7 +351,7 @@ tiling_window() {
 }
 tiling_end() {
     local pid
-    for pid in $(pgrep -f -- "--app-id=mctiled"); do kill "$pid"; done
+    for pid in $(session_pids -f -- "--app-id=mctiled"); do kill "$pid"; done
     until_ok '! tiling_alive' 20
 }
 cell_chat_click_close() {

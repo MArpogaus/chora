@@ -40,10 +40,21 @@ The hooks run:
 - session files: logs, reports and media paths of the autonomous sessions
   fail
 - commit message length: the subject at 68 characters, body lines at 72
-- no process by its name alone: a test script that uses `pkill` or
-  `killall`, or `pgrep -x chora` without a parent (`-P`), a session
-  (`-s`) or a process group (`-g`), fails, because other sessions run
-  cores on the same machine
+- red first: a `fix` or `feat` commit needs a test change in it or in a
+  commit before it on the branch, or a body line `No test: <reason>`;
+  `tests/red-first.sh` holds the rule that the red-first step of the merge
+  gate also runs, and `tests/merge-gate-selftest.sh` proves both; the
+  hook refuses only when the base ref resolves, else (a shallow or
+  single-branch clone, a first commit, a commit on the base branch
+  itself) it prints a note and the merge gate checks the range
+- no process by its name alone: a test script that uses `pkill`,
+  `killall`, `pidof` or `pgrep` without a parent (`-P`), a session
+  (`-s`), a process group (`-g`) or a pid file (`-F`) fails, because
+  other sessions run cores on the same machine; text in comments,
+  quotes, `echo`, `for` lists and here-documents is not a command, but a
+  command substitution is, quoted or not; a `pgrep` filtered by
+  `/proc/PID/environ` (`session_pids`) passes, and a first argument in a
+  variable (`pgrep $scope -x foot`) only warns
 - the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:
@@ -74,6 +85,15 @@ runs with `pedantic` and these further lints:
 - `unwrap_used` and `expect_used`. Tests can use both (`clippy.toml`).
 - `print_stdout` and `print_stderr`. The core logs with `tracing`.
 - `dbg_macro`, `todo` and `unimplemented`.
+
+The plugins have their own `plugins/clippy.toml`, because clippy reads
+only the nearest one: it repeats every setting of `clippy.toml` (the
+`clippy-config-sync` hook checks that) and adds `disallowed-methods` and
+`disallowed-types`, so that a plugin that opens its own connection to the
+core (`Conn::connect`, `Client::connect`, `Client::from_env`,
+`Client::from_stream` or the type `Client`) fails clippy at once. The
+runtime of chora-kit owns the connection; `tests/gate-0.8-plugin-runtime.sh`
+stays as the grep backstop.
 
 `rustdoc::broken_intra_doc_links` is `deny`. Clippy does not run it, so
 CI also runs `cargo doc --workspace --no-deps`.
@@ -221,8 +241,13 @@ loads every CPU for half a minute, so run it alone. A
 step fails on a non-zero exit code, on a line that starts with `FAIL:` or
 `MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
 and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
-and only from a clean work tree. `tests/merge-gate-selftest.sh` proves
-this with fake steps and needs no build. One gate runs at a time on a
+and only from a clean work tree. `--jobs N` runs up to N steps after
+2d-guard at once. The gate scripts mostly wait, so `--jobs 3` on four
+CPUs keeps their times and cuts the gate from about 27 to about 10
+minutes. A gate script judges its programs by pid (`session_pids` of
+`tests/gate-lib.sh`), never by name, since the steps beside it start the
+same programs. `tests/merge-gate-selftest.sh` proves this with fake steps
+and needs no build. One gate runs at a time on a
 machine: the merge gate and every script with `tests/gate-lib.sh` take the
 lock of `tests/gate-lock.sh`, `${XDG_RUNTIME_DIR:-/tmp}/chora-gate.lock`,
 and a second gate prints `waits for` and waits. The scripts that the
