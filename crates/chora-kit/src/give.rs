@@ -128,6 +128,18 @@ pub const KEYS: [(&str, &str); 4] = [
     ("Super+Alt+4", "construct"),
 ];
 
+/// The give keys as one row of a key list: the keys as a span from the
+/// first to the digit of the last, with `to` between them, and the names
+/// of the window managers in the order of the keys.
+#[must_use]
+pub fn keys_row(to: &str) -> (String, Vec<&'static str>) {
+    let (first, _) = KEYS[0];
+    let (last, _) = KEYS[KEYS.len() - 1];
+    let digit = last.rsplit('+').next().unwrap_or_default();
+    let names = KEYS.iter().map(|(_, name)| *name).collect();
+    (format!("{first}{to}{digit}"), names)
+}
+
 /// The time that a key waits for the owner of another window.
 pub const FORWARD_WAIT: Duration = Duration::from_secs(2);
 
@@ -333,6 +345,13 @@ mod tests {
             surface: None,
             to: None,
         }
+    }
+
+    #[test]
+    fn the_row_of_the_give_keys_spans_the_first_to_the_last_digit() {
+        let (keys, names) = super::keys_row("-");
+        assert_eq!(keys, "Super+Alt+1-4");
+        assert_eq!(names, ["tiling", "xp", "mc", "construct"]);
     }
 
     #[test]

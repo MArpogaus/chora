@@ -3,15 +3,28 @@
 # the bindings of mc.yaml, the doors are the words of the margin column
 # (the key rows, the door of the chat and the row of doors at the foot of
 # the column: Programs, Lock, Power, Screenshot and the volume word), and
-# the clock is the one of the header. The HUD host draws the chat.
+# the clock is the one of the header. The HUD host draws the chat. The
+# check header-SIZE asks that no two words of the first two lines of the
+# screen share pixels: the header of mc, the first line of the column and
+# the island of the host, over a window with the column, with all keys
+# and without the column, and at the end on the page of the agenda. The
+# date of the header is whole there: a weekday, a day and a month, with
+# the time after it or without, and no ellipsis. A state has 6 s to settle, since mc lays a line out over
+# two frames: settled is two equal readings of these words a quarter of
+# a second apart. After that every reading of one second counts, and one
+# with an overlap or a cut date fails the check. The copies NAME-probe,
+# on which mc measures a text under a group of opacity 0, are no words
+# of the screen.
 #
 # Usage: tests/doors/mc.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
+#   SIZE  the size of the output (default 1280x800)
 # shellcheck disable=SC2329 # doors_run calls the cells by name
 set -u
 . "$(dirname "$0")/lib.sh"
 need jq
 need_bins chora choractl chora-mc chora-voice chora-assistant chora-chat chora-probe
+size=${SIZE:-1280x800}
 temp_config
 doors_fakes
 fuzzel_stand_in
@@ -21,7 +34,7 @@ mkdir -p "$HOME" "$XDG_CONFIG_HOME/chora" "$XDG_CONFIG_HOME/data/chora/huds"
 printf 'theme: light\ntest_accept_injected_keys: true\nvoice_hud: host\n' >"$XDG_CONFIG_HOME/chora/chora-mc.yaml"
 printf 'enabled: true\nposition: null\nhud: mc\n' >"$XDG_CONFIG_HOME/chora/chora-assistant.yaml"
 cp -rL "$repo/plugins/chora-mc/hud" "$XDG_CONFIG_HOME/data/chora/huds/mc"
-CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-mc" --manage-windows
+CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/chora-mc" --manage-windows
 grant screen.capture input.inject methods.call
 ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
 doors_voice || fail "voice does not answer"
@@ -53,6 +66,66 @@ chat_close() {
     until_ok '! chat_open' 20
 }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
+header_words() {
+    ctl query '*' | jq -c '
+        [.[] | select(.visible and (.rects | length) > 0)
+            | select((.owner == "mc" and .kind == "text" and ((.text // "") | test("\\S"))
+                    and (.id | endswith("-probe") | not))
+                or .id == "hud-word" or .id == "hud-figure")
+            | (.rects | to_entries[0].value) as $r
+            | select($r[1] + $r[3] / 2 < 56) | {id, text, r: $r}]'
+}
+header_findings() {
+    jq -r '
+        . as $words
+        | (range(0; $words | length) as $i | range($i + 1; $words | length) as $j
+            | [$words[$i], $words[$j]]
+            | select(.[0].r[0] < .[1].r[0] + .[1].r[2] and .[1].r[0] < .[0].r[0] + .[0].r[2]
+                and .[0].r[1] < .[1].r[1] + .[1].r[3] and .[1].r[1] < .[0].r[1] + .[0].r[3])
+            | "overlap \(.[0].id) on \(.[1].id)"),
+        ([$words[] | select(.id | test("-header-(clock|date)$"))] as $dates
+            | if ($dates | length) == 0 then "no date in the header" else empty end,
+            ($dates[] | select(.text | test("^\\S+ [0-9]{1,2} [^\\s…]+(  [0-9]{2}:[0-9]{2})?$") | not)
+                | "the date is cut: \(.text)"))'
+}
+header_clear() {
+    local last='' now='' found _
+    for _ in $(seq 24); do
+        now=$(header_words) || now=''
+        [ -n "$now" ] && [ "$now" = "$last" ] && break
+        last=$now
+        sleep 0.25
+    done
+    [ -n "$now" ] && [ "$now" = "$last" ] || {
+        echo "the header does not settle" >&2
+        return 1
+    }
+    for _ in $(seq 10); do
+        found=$(header_words | header_findings) || found="no answer"
+        [ -z "$found" ] || {
+            echo "$found" >&2
+            return 1
+        }
+        sleep 0.1
+    done
+}
+header_step() {
+    until_ok "$2" 20 && header_clear && return 0
+    echo "header: $1 fails" >&2
+    return 1
+}
+header_states() {
+    local bad=0
+    header_step "the column over a window" true || bad=1
+    key Super+F1
+    header_step "all keys" keys_open || bad=1
+    keys_close
+    key Super+n
+    header_step "no column" '! shows "Start a program"' || bad=1
+    key Super+n
+    header_step "the column again" 'shows "Start a program"' || bad=1
+    return "$bad"
+}
 
 cell_keys_key() {
     key Super+F1
@@ -66,7 +139,7 @@ cell_keys_names() {
     local chord bad=0
     key Super+F1
     until_ok keys_open 20 || return 1
-    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print Vol+ Vol- Mute "Volume up" "Volume down"; do
+    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print Super+Alt+1-4 Vol+ Vol- Mute "Volume up" "Volume down"; do
         shows "$chord" || bad=1
     done
     ! shows "Mute or unmute" || bad=1
@@ -161,7 +234,12 @@ cell_clock_door() {
         jq -e "[.[] | $shown | select(.id | endswith(\"-header-clock\")) | select(.text != \"\")] | length > 0" >/dev/null
 }
 
+header=pass
+header_states || header=fail
 doors_run mc
 status=$?
+key Super+Home
+header_step "the page of the agenda" 'shows "1  AGENDA"' || header=fail
+echo "check mc header-$size $header"
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"

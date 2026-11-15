@@ -200,8 +200,9 @@ mockups rendered over real captures.
     the hints at the bottom centre and the notices under the island.
     One more capsule in the top left corner holds the clock and the
     doors, plain words on glass that a click works: `Programs`, `Keys`,
-    `Lock`, `Power`, `Screenshot` and the volume word. It hides while
-    a cube is open: the look on the faces has its own doors. It hides
+    `Lock`, `Power`, `Screenshot` and the volume word. It hides in a
+    face of a cube, whose look has its own doors, and shows again stood
+    back from the cube, as in the walk. It hides
     in a pane too: the window there has the whole screen.
     The conversation lives in the right column: the island expands
     into the chat in place, and the question card sits under the
