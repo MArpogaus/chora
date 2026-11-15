@@ -1,10 +1,10 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-15T09:27:00Z
+screened-through: 2026-11-15T09:32:00Z
 
+- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow. You keep forgetting your main role tasks" -> 12:50 UTC close; duties in every prompt hook
 - 11-15 09:27Z budget week resets Sat 10:59 Bangkok = 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews and hard causes
 - 11-15 09:27Z ti-1 "Yes, build under $HOME" -> setup.sh builds fuzzel 1.11; media: status, screencast, README
-- 11-15 09:20Z "When ui fixes finished prune and update screenshots and screencast" -> media lane after ux r5, ledger r3 (rc 11)
-- 11-15 03:32Z "Ende fable session soon." -> no Fable
+- 11-15 09:20Z "When ui fixes finished prune and update screenshots and screencast" -> media lane after UI fixes
 - 11-15 02:10Z "we want to include harness issues in our reflection rounds and sharpen our tooling wherever possible. We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
 - 11-14 17:17Z "Du bist der Projektmanager." -> decide all, rc too
@@ -22,7 +22,6 @@ screened-through: 2026-11-15T09:27:00Z
 - 11-09 05:05Z "user test shall include this "Push to limit" view without sacrificing the low tech views" -> both persona kinds
 - 11-09 05:11Z "All user agents shall report issues and draft feature request. You shall review rank and address them by iprtance." -> by severity
 - 11-14 04:51Z "agree with decitions." -> defaults (a)-(d); no construct preview
-- 11-12 04:20Z "Xp goal is pixel perfect replication and ux similar yo original. Mc shall be a modern voice first computing experience where content shapes the view, following traditional typesetting rules."
 - 11-12 04:26Z "Everything else we are building shall focus on perfect behavior replication and a pixel-perfect experience when those assets are copied into place." -> MS assets: optional user import, never shipped; RC on fallback art (11-14)
 - 11-14 05:30Z "...first three as rather important features ... 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like" it shall stay hackable and easy yo extend but we want stunning visuals in each view all with their own design philosophy and esthetics consequently followed." -> each look its own aesthetic

@@ -127,7 +127,8 @@ def mode_precompact(transcript):
         "Summary rules for this PM session: quote every user decision, rule, limit or correction word for word,"
         " never paraphrase numbers or their scope (friction 36: '85 % for the haiku swarms while they find new"
         " issues' became 'this week's cap'). Name decisions-now.md and rules.md as the source of truth for"
-        " standing decisions and rules; the summary is not the plan. List the pending items as open work to"
+        " standing decisions and rules; the summary is not the plan. Keep the budget line (reset Sat 03:59 UTC, daily pace, model per lane)"
+        " and the PM main duties of the prompt hook word for word. List the pending items as open work to"
         " resume at once, with the running lanes (session ids, background commands) and the last pushed commit."
     )
     if messages:
@@ -140,7 +141,13 @@ def main():
         return
     mode = sys.argv[1] if len(sys.argv) > 1 else "card"
     if mode == "prompt":
-        print("PM: a user decision in this prompt goes verbatim into decisions-now.md and answers.md this turn; reply in 1-2 lines.")
+        print(
+            "PM main duties (owner 11-15 09:27, 09:35: 'This is your main job'): 1) budget: pace line in state.md,"
+            " week resets Sat 03:59 UTC (10:59 Bangkok); model and effort per lane: haiku tests, sonnet builds, opus"
+            " only reviews and hard causes; 2) RC first (design/rc.md), every Queue line names its criterion;"
+            " 3) vision card: four looks, KISS, POLS, stability and looks over new features. A user decision in this"
+            " prompt goes verbatim into decisions-now.md and answers.md this turn; reply in 1-2 lines."
+        )
         return
     if mode in ("decisions2", "decisions3"):
         return
