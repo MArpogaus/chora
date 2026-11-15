@@ -16,9 +16,9 @@ repos:
     types: [rust]
     pass_filenames: false
   - id: clippy-config-sync
-    name: plugins/clippy.toml has every setting of clippy.toml (clippy reads one file per crate)
-    entry: bash -c 'missing=$(grep -v "^#" clippy.toml | grep -vxF -f plugins/clippy.toml); [ -z "$missing" ] || { printf "plugins/clippy.toml lacks:\n%s\n" "$missing"; exit 1; }'
-    language: system
+    name: clippy.toml and plugins/clippy.toml have the same settings (clippy reads one file per crate)
+    entry: tests/clippy-config-sync.sh
+    language: script
     files: (^|/)clippy\.toml$
     pass_filenames: false
   - id: no-gpl-3-only
@@ -62,7 +62,7 @@ repos:
     name: guard test (tests/guards.sh proves the commit guards red and green)
     entry: bash tests/guards.sh
     language: system
-    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py|no-foreign-kill\.sh)|\.pre-commit-config\.yaml)$
+    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py|no-foreign-kill\.sh|clippy-config-sync\.sh)|\.pre-commit-config\.yaml)$
     pass_filenames: false
     stages: [pre-commit]
   - id: lychee

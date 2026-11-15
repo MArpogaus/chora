@@ -255,6 +255,19 @@ kill_case "pkill in the own process group" pass 'pkill -g "\x24group" -f heartbe
 kill_case "killall" fail 'killall chora\n'
 kill_case "a scoped lookup does not excuse a pkill after it" fail 'pgrep -P 1 -x chora; pkill chora\n'
 
+sync_case() {
+  local label=$1 want=$2 root=$3 plugin=$4
+  printf '%b' "$root" >"$work/root.toml"
+  printf '%b' "$plugin" >"$work/plugin.toml"
+  bash "$tests_dir/clippy-config-sync.sh" "$work/root.toml" "$work/plugin.toml" >/dev/null
+  verdict "clippy-config-sync: $label" "$want" $?
+}
+
+sync_case "same settings and a plugin list" pass '# c\na = 1\nb = 2\n' 'b = 2\ndisallowed-methods = [\n  { path = "x" }\n]\na = 1\n'
+sync_case "a setting only in the root" fail 'a = 1\nb = 2\n' 'a = 1\n'
+sync_case "a setting only in the plugins" fail 'a = 1\n' 'a = 1\nb = 2\n'
+sync_case "a changed value" fail 'a = 1\n' 'a = 2\n'
+
 message_output_case() {
   local label=$1 text=$2 want=$3
   printf '%b' "$text" >"$work/message"
