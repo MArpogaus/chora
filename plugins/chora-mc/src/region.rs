@@ -823,7 +823,24 @@ impl Mc {
         }
     }
 
+    /// The header and the footer over an app, each as its left edge and
+    /// its width: a line ends where the column begins, and the header also
+    /// where the host draws the state word, which is the first line of
+    /// that column, shown or not.
+    fn app_lines(&self, width: f64, column: bool) -> [(f64, f64); 2] {
+        let config = &self.settings.value;
+        let b = config.scale.baseline;
+        let beside = column_width(config.regions.get(Region::Right).size, b, width) + 2.0 * b;
+        let host = config.voice_hud == crate::config::VoiceHud::Host;
+        [column || host, column].map(|ends| {
+            let end = if ends { beside } else { 0.0 };
+            (2.0 * b, (width - 4.0 * b - end).max(b))
+        })
+    }
+
     /// The boxes of the regions that show in a scene, and of its window.
+    /// The header and the footer stand over the text of a page, else
+    /// over the app.
     fn boxes(&self, name: &str, visible: &[Region]) -> Option<Boxes> {
         let output = self.output.as_ref()?;
         let [w, h] = output.size.map(f64::from);
@@ -850,14 +867,13 @@ impl Mc {
         let [x, top, width, _] = geo.text;
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
-        // Over the text of a page, else over the whole app.
-        let (lx, lw) = if headless {
-            (2.0 * b, w - 4.0 * b)
+        let [header, footer] = if headless {
+            self.app_lines(w, on(Region::Right))
         } else {
-            (x, width)
+            [(x, width); 2]
         };
-        regions.insert(Region::Header, [lx, 0.0, lw, head]);
-        regions.insert(Region::Footer, [lx, h - foot, lw, foot]);
+        regions.insert(Region::Header, [header.0, 0.0, header.1, head]);
+        regions.insert(Region::Footer, [footer.0, h - foot, footer.1, foot]);
         let frame = [x - note - gap, width + 2.0 * (note + gap)];
         let drawer_top = h - foot - drawer;
         regions.insert(Region::Drawer, [frame[0], drawer_top, frame[1], drawer]);

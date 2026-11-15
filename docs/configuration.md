@@ -741,7 +741,7 @@ middle and the next entry of the agenda right (the collector fills the
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
 the key list and the doors at its foot. The state of the voice agent and the helpers
-stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
+stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden with `voice_hud: host`, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.
