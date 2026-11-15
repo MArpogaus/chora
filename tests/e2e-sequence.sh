@@ -33,8 +33,20 @@ fi
 workflow=.github/workflows/ci.yaml
 allowlist=tests/e2e-skips.txt
 
+listed() {
+    awk -F'|' -v name="$1" '$1 == name && length($2) > 0 { found = 1 } END { exit !found }' "$allowlist"
+}
+
 commands=$(sed -n '/^  e2e:/,/^  [a-z-]*:$/p' "$workflow" |
     sed -n 's/^ *\(- \)\{0,1\}run: \(tests\/.*\)$/\2/p')
+if sed -n '/^  e2e:/,/^  [a-z-]*:$/p' "$workflow" | grep -q 'run: |'; then
+    echo "FAIL: the e2e job of $workflow has a multi-line run: the sequence reads single-line run commands"
+    exit 1
+fi
+if [ -z "$commands" ]; then
+    echo "FAIL: no tests/ command in the e2e job of $workflow"
+    exit 1
+fi
 failed=""
 skipped=""
 unlisted=""
@@ -56,7 +68,7 @@ while read -r command; do
     [ -n "$reason" ] || continue
     skipped="$skipped $name"
     echo "SKIP $name: $reason"
-    if [ -n "${CI:-}" ] || ! grep -q "^$name|" "$allowlist"; then
+    if [ -n "${CI:-}" ] || ! listed "$name"; then
         unlisted="$unlisted $name"
     fi
 done <<<"$commands"

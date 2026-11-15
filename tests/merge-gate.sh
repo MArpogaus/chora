@@ -21,7 +21,7 @@
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
 # beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `e2e` runs the scripts of the e2e job of
-# .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a script whose tool is missing here skips.
+# .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `red-first` checks the range BASE..HEAD (commits that are not merges, oldest
 # first, in topological order): each `fix` or `feat` commit needs a commit
 # of the range that changes a test before it or in it, so a test may come in
