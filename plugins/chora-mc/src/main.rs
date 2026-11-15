@@ -855,7 +855,7 @@ impl Plugin for Mc {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => {
                 self.act(&binding);
                 Ok(())
@@ -886,9 +886,9 @@ impl Plugin for Mc {
                 node: _,
                 code: _,
                 text: _,
-                injected: _,
+                injected,
             } => {
-                self.page_key(&key, &modifiers);
+                self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
@@ -1135,11 +1135,17 @@ impl Mc {
         }
     }
 
+    /// Whether input is a person's: not from `input.inject`, or mc takes
+    /// that as the person's.
+    fn by_person(&self, injected: bool) -> bool {
+        !injected || self.rt.accepts_injected()
+    }
+
     /// A press of the pointer: on a column of a helper it opens the chat,
     /// else it is a click. The columns and the hits ignore a press of
     /// `input.inject`, as the bindings do.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        let person = !injected || self.rt.accepts_injected();
+        let person = self.by_person(injected);
         if (person && self.click_agent(node, at))
             || self.click_mic(node, injected)
             || (person && self.click_hit(node))
@@ -1213,9 +1219,9 @@ impl Mc {
 
     /// A key without a modifier while a page has the keyboard: Right and
     /// Left turn the page, Escape goes back one step.
-    fn page_key(&mut self, key: &str, modifiers: &[String]) {
+    fn page_key(&mut self, key: &str, modifiers: &[String], injected: bool) {
         let action = match key {
-            _ if !modifiers.is_empty() => return,
+            _ if !modifiers.is_empty() || !self.by_person(injected) => return,
             "Right" => Action::NextScene,
             "Left" => Action::PreviousScene,
             "Escape" => return self.back(),
