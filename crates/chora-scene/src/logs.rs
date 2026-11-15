@@ -225,6 +225,25 @@ mod tests {
     }
 
     #[test]
+    fn a_symlink_is_not_followed_and_old_modes_are_fixed() {
+        let dir = temp("nofollow");
+        fs::create_dir_all(&dir).unwrap();
+        let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        let set = |p: &Path, m: u32| fs::set_permissions(p, fs::Permissions::from_mode(m)).unwrap();
+        let elsewhere = dir.join("elsewhere.txt");
+        std::os::unix::fs::symlink(&elsewhere, dir.join("chora.log")).unwrap();
+        assert!(File::open_in(&dir, "chora", MAX_BYTES).is_err());
+        assert!(!elsewhere.exists(), "the log does not follow a symlink");
+        fs::write(dir.join("voice.log"), "").unwrap();
+        set(&dir.join("voice.log"), 0o644);
+        set(&dir, 0o755);
+        File::open_in(&dir, "voice", MAX_BYTES).unwrap();
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(mode(&dir.join("voice.log")), 0o600);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn only_the_person_reads_the_logs() {
         let dir = temp("mode");
         File::open_in(&dir, "chora", MAX_BYTES).unwrap();
