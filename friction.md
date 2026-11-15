@@ -306,3 +306,6 @@ tiling-audit skipped silently because mako was not installed; after setup.sh add
 
 ## 48 (2026-11-15 06:47 UTC): local review builds filled the disk and failed a merge train
 Two read-only review subagents built in their own scratch dirs (8.6 GB and 1.7 GB of target/) and nobody removed them; train 14 then failed clippy with "No space left on device". Fix: every review brief sets CARGO_TARGET_DIR=/home/user/target-review (one shared dir, reused) and the PM deletes the review scratch dir when it copies the review into reports/ (to build: tools/review_done.sh that copies, removes the worktree and the scratch dir).
+
+## 49 (2026-11-15 07:38 UTC): the background job limit killed a passing merge gate
+Train 14 gate 3 ran in a background shell with the default 30 min limit; the full gate now takes longer (27 steps had passed when it was killed at 07:3x), so the run was lost and restarted (gate 4). Fix: every merge gate run in the background gets timeout 7200000 (2 h); the train recipe in routines says so (to build: tools/train.sh that wraps the gate call with the timeout note and the log path).
