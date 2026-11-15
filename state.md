@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 10:45 UTC)
+## Now (2026-11-15 11:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
@@ -26,7 +26,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | train 19 | /home/user/wt/train19 1014dddf | ux r5 (MERGE-OK) | gate 1 running |
-| security a r2 | cloud sonnet, claude/security-a | briefs/security-a-r2.md | review r1 FIX: 2 MAJOR (inject keys, panel.set) |
+| security a r2 | 0a3d0040, re-review opus medium (local) | briefs/security-a-r2.md | 2 MAJOR fixed (NodeKey injected); walk keys open |
 | core watchdog r1 | cloud sonnet, claude/core-watchdog | briefs/core-watchdog-r1.md | sh-22, F25 |
 
 ## Queue (by day; budget 10 % a UTC day)
