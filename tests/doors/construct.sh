@@ -5,8 +5,8 @@
 # (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock),
 # which shows in the walk only and comes back after a step out of a pane,
 # and the island of the HUD host, clicked at its node: it says the state
-# word of the voice agent, and the list that it opens names the helper
-# with its state; the key list is
+# word of the voice agent, and the chat that it opens with the one helper
+# names it with its state; the key list is
 # the panel construct-help, read cap by cap. The pane is the window of
 # chora-probe. The check pane-corner flies into the pane and clicks where
 # the door Lock stood: the window gets the press, nothing locks, and the
@@ -78,7 +78,12 @@ node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].text // empty'; }
 island_word() { ctl query id:hud-state 2>/dev/null | jq -r '.[0].meta.text // empty'; }
 island_says() { [ "$(island_word)" = "$1" ]; }
 click_door() { until_ok "center $1 >/dev/null" 20 && click_node "$1"; }
-pick_says() { [ "$(ctl query id:hud-chat-pick-1 2>/dev/null | jq -r '.[0].meta.text // empty')" = "$1" ]; }
+chat_says() {
+    local line
+    for line in "$@"; do
+        ctl query id:hud-chat 2>/dev/null | jq -r '.[0].meta.text // empty' | grep -qxF -- "$line" || return 1
+    done
+}
 door_says() { [ "$(node_text "$1")" = "$2" ]; }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 
@@ -170,7 +175,7 @@ cell_helper_door() {
     island_says Listening || return 1
     click_node hud-figure
     until_ok chat_open 20 || return 1
-    until_ok 'pick_says "1  coder · idle"' 20
+    until_ok 'chat_says coder Idle' 20
     local status=$?
     chat_close
     return "$status"

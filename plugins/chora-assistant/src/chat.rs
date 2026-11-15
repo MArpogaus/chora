@@ -278,7 +278,8 @@ pub trait Link {
     fn question(&mut self, waiting: bool);
     /// A text did not reach the helper.
     fn say_failed(&mut self, text: &str);
-    /// A line was typed in the list before a helper was picked.
+    /// A line was typed in the list before a helper was picked: the
+    /// draft gets it back.
     fn pick_first(&mut self, text: &str);
     /// Sends the draft, as Enter in the field does.
     fn send_draft(&mut self);
@@ -367,6 +368,10 @@ pub struct Session {
     states: BTreeMap<String, Value>,
     epoch: Option<u64>,
     last: Option<String>,
+    /// The text that was typed in the list before a helper was picked,
+    /// as the field got it back: the field sends its draft to the helper
+    /// that is picked.
+    held: Option<String>,
     /// What the agent said while the view is the open balloon of the
     /// figure.
     spoken: Option<String>,
@@ -693,7 +698,14 @@ impl Session {
             }
             None => self.open_list(out),
         }
-        self.place_field(out, frame, token)
+        self.place_field(out, frame, token)?;
+        if self.helper().is_some()
+            && self.held.take().is_some()
+            && let Some(link) = self.link.as_mut()
+        {
+            link.send_draft();
+        }
+        Ok(())
     }
 
     fn open_chat(&mut self, out: &mut dyn Outside, name: &str) {
@@ -708,7 +720,7 @@ impl Session {
             self.status = Status::default();
             self.head = 0;
             self.epoch = None;
-            if let Some(link) = self.link.as_mut() {
+            if let (None, Some(link)) = (&self.held, self.link.as_mut()) {
                 link.clear();
             }
         }
@@ -750,21 +762,23 @@ impl Session {
             return;
         }
         self.mode = Mode::List(picks);
+        self.held = None;
         if let Some(link) = self.link.as_mut() {
             link.clear();
         }
     }
 
-    /// The helper of the last chat when it is the only one that runs: a
-    /// person who closed its chat reopens that chat, not a list of one.
+    /// The only helper that runs, when the list has no other entry or
+    /// when it is the helper of the last chat: a person gets that chat,
+    /// not a list of one.
     fn only_helper(&self, picks: &[Pick]) -> Option<String> {
         let mut agents = picks.iter().filter_map(|pick| match pick {
             Pick::Agent(name) => Some(name),
             Pick::Project(_) => None,
         });
         let (only, none_more) = (agents.next()?, agents.next().is_none());
-        let last = self.last.as_deref()?;
-        (none_more && only.eq_ignore_ascii_case(last)).then(|| only.clone())
+        let last = (self.last.as_deref()).is_some_and(|last| only.eq_ignore_ascii_case(last));
+        (none_more && (last || picks.len() == 1)).then(|| only.clone())
     }
 
     fn close_chat(&mut self, out: &mut dyn Outside) {
@@ -957,19 +971,26 @@ impl Session {
             }
             Mode::List(picks) => {
                 let text = text.trim();
-                let index = text.parse::<usize>().ok().or_else(|| {
-                    picks
-                        .iter()
-                        .position(|pick| pick.name().eq_ignore_ascii_case(text))
-                        .map(|n| n + 1)
-                });
-                if let Some(index) = index {
-                    return self.pick(out, index, None, frame).is_ok();
+                let entry = |text: &str| {
+                    text.parse::<usize>().ok().or_else(|| {
+                        picks
+                            .iter()
+                            .position(|pick| pick.name().eq_ignore_ascii_case(text))
+                            .map(|n| n + 1)
+                    })
+                };
+                let held = self.held.take();
+                let after = held.as_deref().and_then(|held| text.strip_prefix(held));
+                let (index, held) = match (entry(text), after.and_then(|rest| entry(rest.trim()))) {
+                    (Some(index), _) => (Some(index), None),
+                    (None, Some(index)) => (Some(index), held),
+                    (None, None) => (None, Some(text.to_owned())),
+                };
+                if let (Some(held), Some(link)) = (&held, self.link.as_mut()) {
+                    link.pick_first(held);
                 }
-                if let Some(link) = self.link.as_mut() {
-                    link.pick_first(text);
-                }
-                false
+                self.held = held;
+                index.is_some_and(|index| self.pick(out, index, None, frame).is_ok())
             }
             Mode::Closed => false,
         }
