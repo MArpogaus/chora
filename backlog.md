@@ -131,3 +131,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - L12 (MINOR, review-logging-r1 10): signal crash words reach fd 2 only, not chora.log; say so in docs.
 - L13 (MINOR, review-logging-r1 11): refused-request lines need a rate limit; LIMIT_REACHED of respond logs nothing.
 - R11 (harness, review-logging-r1): tests/packaging-files.py checks dist/; shellcheck runs on extensionless dist scripts (shebang).
+- PK2 (env, ux r3): setup.sh builds fuzzel >= 1.11 (meson via pip, tllist, fcft) under $HOME, so every lane can click the tiling launcher (ti-1).
