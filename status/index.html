@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Sun 15 Nov, 10:45 UTC (17:45 Bangkok)</span>
+      <span>Updated Sun 15 Nov, 11:24 UTC (18:24 Bangkok)</span>
       <span>Day 8 of 22</span>
       <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
@@ -119,9 +119,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merge train 19: look fixes round 5 (the chat Stop button stays put; long pastes no longer slow the chat); its review passed</li>
-          <li>Security fixes a, round 2: its review found two major gaps (injected keys still reach the 3D window list; one plugin call can rewrite the agent column)</li>
-          <li>Frame watchdog: it switches off window effects on a busy machine without a GPU; likely why CI fails on one corner pixel</li>
+          <li>Second review of security fixes a, round 2 (both major gaps fixed; one smaller gap in the 3D walk keys to judge)</li>
+                    <li>Frame watchdog: it switches off window effects on a busy machine without a GPU; likely why CI fails on one corner pixel</li>
         </ul>
       </div>
       <div class="panel">
@@ -184,8 +183,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>26 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>27 entries</span></summary>
       <ul class="timeline">
+        <li><time>11:24</time><p><span class="tag ok">merged</span>Train 19: look fixes round 5. The chat Stop button stays put, and long pastes no longer slow the chat. The only open look blocker is clicking in the tiling launcher (fuzzel 1.11, Monday).</p></li>
         <li><time>10:45</time><p><span class="tag ok">merged</span>Train 18: security fixes b. Secrets stay out of the helper logs, and plugins no longer see hidden settings. Look fixes round 5 merge next.</p></li>
         <li><time>10:45</time><p><span class="tag info">review</span>Look fixes round 5 passed review. The mc voice-confirm finding was a stale test script, not a bug: a person can always answer by key, by voice or by waiting.</p></li>
         <li><time>10:28</time><p><span class="tag ok">CI</span>The CI pull request is green again on train 17. The corner-pixel failure comes and goes (2 of the last 4 runs); the frame watchdog lane is chasing it.</p></li>
