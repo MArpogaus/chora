@@ -1,0 +1,7 @@
+gate-0.9-session-units|desktop-file-validate is not in the dev container
+gate-0.9-screencast|pipewire is not in the dev container
+gate-0.9-x11|xwayland-satellite is not in the dev container
+gate-0.8-xp-token|thunar is not in the dev container
+gate-0.8-9|the dev container has no CJK font
+gate-0.8-10|the dev container has no CJK font
+gate-0.7-6|xkeyboard-config of the dev container has no fkeys option

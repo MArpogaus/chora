@@ -151,10 +151,7 @@ jobs:
     # The text checks take the CJK and emoji fonts from the directory of
     # tests/gate-0.8-9.sh.
     - name: fonts for the text checks
-      run: |
-        mkdir -p ~/.local/share/fonts/chora-test
-        ln -s /usr/share/fonts/google-noto-sans-cjk-vf-fonts/NotoSansCJK-VF.ttc \
-            /usr/share/fonts/twemoji/Twemoji.ttf ~/.local/share/fonts/chora-test/
+      run: tests/e2e-fonts.sh
     - name: an MCP client focuses and moves a tiling window
       run: tests/gate-0.8-1.sh
     - name: MCP clicks under a camera with pan and zoom hit the node
