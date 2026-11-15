@@ -7,11 +7,14 @@
 # boot, and the settings files of $XDG_CONFIG_HOME/chora. Nothing is
 # uploaded. Every file is scrubbed before it goes into the bundle: the
 # home path becomes ~, the user name USER, the host name HOST, and the
-# value of each key such as token, secret, password, api_key or
-# authorization, and each string that looks like a token, (hidden).
+# value of each key such as token, secret, password, api_key, Api-Key or
+# authorization, with the indented lines below it, and each string that
+# looks like a token, (hidden). Settings files that are symlinks go in
+# as the files they point to. Only the person reads the bundle.
 # Usage: chora-report [-o FILE]
 #   -o FILE   the bundle (default: ./chora-report-DATE.tar.gz)
 set -eu
+umask 077
 
 out=
 while [ $# -gt 0 ]; do
@@ -21,7 +24,7 @@ while [ $# -gt 0 ]; do
         shift 2
         ;;
     -h | --help)
-        sed -n '3,13p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
     *)
@@ -73,26 +76,49 @@ if command -v journalctl >/dev/null; then
 fi
 
 if [ -d "$config/chora" ]; then
-    cp -R "$config/chora/." "$bundle/config/"
+    cp -RL "$config/chora/." "$bundle/config/" 2>/dev/null ||
+        echo "chora-report: some settings files could not be read" >&2
     find "$bundle/config" -type f ! \( -name '*.yaml' -o -name '*.yml' -o -name '*.toml' \
         -o -name '*.json' -o -name '*.conf' -o -name '*.ini' \) -exec rm -f {} +
 fi
 
+secret='(token|secret|password|passwd|api[-_]?key|authorization|headers)'
+
 quote() {
-    printf '%s' "$1" | sed 's/[][\.*^$/]/\\&/g'
+    printf '%s' "$1" | sed 's/[][\.*^$/+?(){}|]/\\&/g'
+}
+
+name() {
+    printf '%s' "s/(^|[^[:alnum:]_.-])$(quote "$1")([^[:alnum:]_-]|$)/\\1$2\\2/g"
+}
+
+hide_blocks() {
+    awk -v secret="$secret" -v q="'" '
+        function indent(line) { match(line, /^[ \t]*/); return RLENGTH }
+        hiding && (/^[ \t]*$/ || indent($0) > depth || (indent($0) == depth && $0 ~ /^[ \t]*-/)) {
+            sub(/[^ \t].*/, "(hidden)")
+            print
+            next
+        }
+        { hiding = 0 }
+        tolower($0) ~ "^[ \t]*(- )?[\"" q "]?[[:alnum:]_-]*" secret "[[:alnum:]_-]*[\"" q "]?[ \t]*:" {
+            hiding = 1
+            depth = indent($0)
+        }
+        { print }
+    ' "$1"
 }
 
 scrub() {
-    sed -E \
+    hide_blocks "$1" | sed -E \
         -e "s/$(quote "$home")/~/g" \
-        -e "s/(^|[^[:alnum:]_.-])$(quote "$user")([^[:alnum:]_-]|$)/\\1USER\\2/g" \
-        -e "s/(^|[^[:alnum:]_.-])$(quote "$host")([^[:alnum:]_-]|$)/\\1HOST\\2/g" \
-        -e 's/(["'\'']?[[:alnum:]_-]*(token|secret|password|passwd|api_?key|apikey|authorization|headers)[[:alnum:]_-]*["'\'']?[[:space:]]*[:=][[:space:]]*).*/\1(hidden)/I' \
+        -e "$(name "$user" USER)" -e "$(name "$user" USER)" \
+        -e "$(name "$host" HOST)" -e "$(name "$host" HOST)" \
+        -e 's/(["'\'']?[[:alnum:]_-]*'"$secret"'[[:alnum:]_-]*["'\'']?[[:space:]]*[:=][[:space:]]*).*/\1(hidden)/I' \
         -e 's/(Bearer|Basic|token)[[:space:]]+[[:alnum:]._~+\/=-]+/\1 (hidden)/Ig' \
         -e 's/(sk|pk|rk)-[[:alnum:]_-]{8,}/(hidden)/g' \
         -e 's/(ghp|gho|ghu|ghs|ghr|github_pat|glpat|xox[abpr])[-_][[:alnum:]_-]{8,}/(hidden)/g' \
-        -e 's/[[:alnum:]_+\/=-]{40,}/(hidden)/g' \
-        "$1"
+        -e 's/[[:alnum:]_+\/=-]{40,}/(hidden)/g'
 }
 
 find "$bundle" -type f | while read -r file; do
