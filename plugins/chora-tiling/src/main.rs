@@ -1950,16 +1950,17 @@ fn changes(sent: Option<&Placement>, placement: &Placement, dress: &Dress) -> Ve
         commands.push(update(clip_of(id), props));
     }
     if let Some(colors) = dress.colors {
-        if sent.is_none_or(|s| {
+        let restyled = sent.is_none_or(|s| {
             s.frame != placement.frame
                 || s.radius != placement.radius
                 || s.border != placement.border
                 || s.mark != placement.mark
-        }) {
+        });
+        if restyled {
             commands.extend(border_updates(placement, colors));
             commands.extend(dress::shadow_updates(placement, dress.shadows, colors[0]));
         }
-        commands.extend(dress::fade(sent, placement, dress.animate));
+        commands.extend(dress::fade(sent, placement, dress.animate, restyled));
     }
     commands
 }
@@ -2939,6 +2940,58 @@ mod tests {
             [Command::Update { props, .. }] if props.visible == Some(false)
         ));
         assert_eq!(changes(Some(&hidden), &hidden, &Dress::default()).len(), 0);
+    }
+
+    #[test]
+    fn a_reshape_during_the_focus_fade_ends_it_at_the_mark() {
+        let colors = [[0.5; 3]; 4];
+        let dress = Dress {
+            colors: Some(&colors),
+            shadows: true,
+            animate: true,
+            slide: 0.0,
+        };
+        let focus = Placement {
+            id: "s1".into(),
+            at: Some([0, 0]),
+            size: Some([100, 80]),
+            states: States::default(),
+            radius: 10,
+            frame: [100, 80],
+            border: 2,
+            mark: Mark::Focus,
+        };
+        let line = Placement {
+            mark: Mark::Line,
+            ..focus.clone()
+        };
+        let reshaped = Placement {
+            size: Some([120, 80]),
+            frame: [120, 80],
+            ..line.clone()
+        };
+        let fading = changes(Some(&focus), &line, &dress);
+        assert!(
+            fading
+                .iter()
+                .any(|c| matches!(c, Command::Animate { id, .. } if id == "tg-s1"))
+        );
+        let commands = changes(Some(&line), &reshaped, &dress);
+        for node in ["tg-s1", "tf-s1"] {
+            let last = commands.iter().rev().find_map(|c| match c {
+                Command::Update { id, props } | Command::Animate { id, props, .. }
+                    if id == node =>
+                {
+                    Some(props)
+                }
+                _ => None,
+            });
+            assert_eq!(
+                last.and_then(|p| p.opacity),
+                Some(0.0),
+                "{node}: {commands:?}"
+            );
+        }
     }
 }
 
