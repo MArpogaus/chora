@@ -119,15 +119,15 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>The last two open findings: whole "no helper" words in every look; clicking in the tiling launcher</li>
-          <li>Sharper tooling, round 3: commit checks refuse only a proven miss</li>
-          <li>Flaky tests, round 5; logging audit (pulled forward)</li>
+          <li>Merge train 15: the chat header fix (never more than two lines in any look) and whole words in tiling</li>
+          <li>Sharper tooling, round 5: one hidden-call gap in the plugin check</li>
+          <li>Flaky tests, round 5</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Merge the tooling first; then logging and the last look fixes</li>
+          <li>Merge the tooling when its review passes; then the look fixes round (voice confirm in mc, chat buttons that move 20 px)</li>
           <li>Keep the CI pull request green with each merge</li>
           <li>Mon: burn-down check, user test round 4, rewrite the screencast tour</li>
         </ul>
@@ -135,7 +135,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>Nothing open</li>
+          <li>May the cloud setup build fuzzel 1.11 (tiling launcher clicks)? Without an answer by Mon 16 Nov 12:00 UTC (19:00 Bangkok): no, it is checked in CI on Arch instead.</li>
         </ul>
       </div>
     </div>
@@ -184,8 +184,11 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>11 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>14 entries</span></summary>
       <ul class="timeline">
+        <li><time>08:11</time><p><span class="tag ok">merged</span>Train 14: logging audit round 2 (log files locked, secrets scrubbed). One known flaky tiling test needed a rerun.</p></li>
+        <li><time>08:05</time><p><span class="tag info">review</span>Chat fix passed its independent review: the chat header never grows past two lines in any look, and a long task ends in "…". Left for the next round: the Stop button moves 20 px when a run starts.</p></li>
+        <li><time>07:31</time><p><span class="tag issue">review</span>Tooling round 4 fixed all five earlier points, but its review found a new gap: a comment after a lint exception hid plugin calls from the check. Round 5 started.</p></li>
         <li><time>05:31</time><p><span class="tag info">review</span>Open findings re-checked on the new build: 7 major or blocking before, 2 now. Open: clicking in the tiling launcher (needs fuzzel 1.11) and the "no helper" words cut off in tiling and construct.</p></li>
         <li><time>05:17</time><p><span class="tag ok">CI</span>The CI pull request is green for the first time: all 10 jobs, end-to-end tests, the virtual-GPU job and both package builds (RPM, Arch).</p></li>
         <li><time>04:57</time><p><span class="tag ok">merged</span>Train 13: the last major look fixes (typed text never reaches a helper you did not pick) and CI end-to-end tests where a skip fails in CI.</p></li>

@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-15 05:31 UTC)
+## Now (2026-11-15 08:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: all models 20 % (03:32 owner); Fable reset and ended: ux r2 finishes its gate, then opus only
-session branch: be205f89 (train 13, 04:57 UTC: ux r2, ci e2e r5; train 12 98291088).
+session branch: 61d885f0 (train 14, 08:11 UTC: logging r2; train 13 be205f89). Train 15 (ux r4) gate running.
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -18,16 +18,15 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; MEDIUM security of plugins open |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
-| 9 | Logging audit, flakes closed | audit r2 MERGE-OK, train 14; flakes r5 |
+| 9 | Logging audit, flakes closed | logging audit merged (train 14, 61d885f0); flakes r5 |
 | 11 | Visual acceptance screencast | tour tooling claude/tour 48fc05b5; rewrite from Mon |
 
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| ux r4 | claude/ux-r3 c434bc34 | briefs/ux-r4.md | MERGE-OK 08:05 (review-ux-r4; sh-19..21 MINOR); train 15 after train 14 |
+| train 15 | /home/user/wt/train15 0e303d60 | ux r4 (MERGE-OK) | gate 1 running |
 | harness r5 | cloud opus ..PE7LZ, claude/harness | briefs/harness-r5.md | r4 FIX (M: allow window with trailing comment hides plugin string calls) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
-| train 14 | /home/user/wt/train14 61d885f0 | logging r2 (MERGE-OK) | gate 4 running (gate 3 killed by job limit, friction 49) |
 
 ## Queue
 1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)
