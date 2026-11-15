@@ -4147,7 +4147,8 @@ mod tests {
     }
 
     /// A client with `methods.call` alone ran commands through app.open and
-    /// scene.save (W12).
+    /// scene.save (W12), and wrote the words of the agent through hud.set
+    /// and hud.say (review plugins r1, MC-03).
     #[test]
     fn the_methods_that_start_programs_are_privileged() {
         let privileged: Vec<String> = super::exported_methods()
@@ -4161,6 +4162,8 @@ mod tests {
                 "scene.save",
                 "scene.rename",
                 "scene.move",
+                "hud.set",
+                "hud.say",
                 "app.open",
                 "region.toggle",
                 "region.put",
