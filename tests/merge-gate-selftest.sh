@@ -356,8 +356,26 @@ env -u RED_FIRST_BASE git -C "$cl" commit -q -m "fix(y): in a shallow clone" >"$
 check "a shallow clone with nothing unpushed lets a fix pass" "$?" 0
 check "the pass without a base names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
 new_hooked_repo "$nb"
+check "unborn HEAD: a first feat commit passes" "$(nb_commit "feat(z): init" z.rs)" 0
+check "unborn HEAD: the pass names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
+check "no base: a fix without any test on the branch passes" "$(nb_commit "fix(z): no test" z.rs)" 0
+check "no base: that pass names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
+new_hooked_repo "$nb"
 nb_commit "chore: init" README >/dev/null
-check "no base: a fix without any test on the branch is still refused" "$(nb_commit "fix(z): no test" z.rs)" 1
+bare=$work/origin.git
+git init -q --bare "$bare"
+git -C "$nb" push -q "$bare" main:work
+nb=$work/single
+git clone -q --depth 1 --single-branch --branch work "file://$bare" "$nb"
+git -C "$nb" config user.email t@t
+git -C "$nb" config user.name t
+cp "$work/nb/.git/hooks/commit-msg" "$nb/.git/hooks/"
+nb_commit "test(y): red" tests/gate-y.sh >/dev/null
+git -C "$nb" push -q origin HEAD:work 2>/dev/null
+nb_commit "docs(y): note" y.md >/dev/null
+check "single-branch clone: a fix after a pushed test and a docs commit passes" "$(nb_commit "fix(y): green" y.rs)" 0
+check "single-branch clone: that pass names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
+nb=$work/nb
 
 bin2=$work/bin2
 mkdir "$bin2"
