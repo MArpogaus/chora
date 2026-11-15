@@ -138,6 +138,19 @@ pub fn href_resolver(dir: &Path) -> ImageHrefResolver<'static> {
     }
 }
 
+/// The resolver of the `href` of an `<image>` in an SVG file that a
+/// sender named: only a picture in a data URI, as [`admit`] allows.
+#[must_use]
+pub fn data_resolver() -> ImageHrefResolver<'static> {
+    let data = ImageHrefResolver::default_data_resolver();
+    ImageHrefResolver {
+        resolve_data: Box::new(move |mime, bytes, options| {
+            data(mime, bytes, options).and_then(admit)
+        }),
+        resolve_string: Box::new(|_, _| None),
+    }
+}
+
 /// The asset folder: the given one, else the installed one if it exists,
 /// else `source` below the root of the source tree, two levels above the
 /// directory of `exe` (`target/<profile>/NAME`). Falls back to the

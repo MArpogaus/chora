@@ -1318,8 +1318,10 @@ file again, without its comments. Edits by hand apply with
 
 Each notification shows as a card in the corner: a rounded rectangle with
 a border, the icon of the notification, a bold title, the text wrapped at
-300 pixels and a close button. One card shows at a time, and the others
-wait their turn. A card closes after its time: the shortest time by
+300 pixels and a close button. An icon that the client names by its
+path is at most 1 MiB and 2048 pixels on a side, as a picture of a HUD
+folder, and an SVG icon links no file; else the card shows without it.
+One card shows at a time, and the others wait their turn. A card closes after its time: the shortest time by
 default, a time of the client between the shortest and the longest time,
 and never for a time of 0, until a click. A click on the close button
 dismisses the card; a click on the card invokes the action `default` of

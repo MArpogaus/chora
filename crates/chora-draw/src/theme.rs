@@ -367,7 +367,12 @@ impl Theme {
         let mut sheets = HashMap::new();
         for sheet in names {
             let path = dir.join(sheet.0);
-            let tree = read_tree((dir, confined), fonts.options(), &path)?;
+            let source = if confined {
+                Source::Folder(dir)
+            } else {
+                Source::Trusted
+            };
+            let tree = read_tree(source, fonts.options(), &path)?;
             sheets.insert(*sheet, tree);
         }
         clear(cache).map_err(|e| format!("{}: {e}", cache.display()))?;
@@ -396,15 +401,40 @@ impl Theme {
         if let Some(tree) = self.trees.borrow().get(path) {
             return Ok(Rc::clone(tree));
         }
-        let tree = Rc::new(read_tree(self.folder(), self.fonts.options(), path)?);
+        let tree = Rc::new(read_tree(self.source(), self.fonts.options(), path)?);
         self.trees
             .borrow_mut()
             .insert(path.to_path_buf(), Rc::clone(&tree));
         Ok(tree)
     }
 
-    fn folder(&self) -> (&Path, bool) {
-        (&self.dir, self.confined)
+    fn source(&self) -> Source<'_> {
+        if self.confined {
+            Source::Folder(&self.dir)
+        } else {
+            Source::Trusted
+        }
+    }
+
+    /// The tree of an SVG file; a foreign one is read and checked each
+    /// time and not kept.
+    fn file_tree(&self, path: &Path, foreign: bool) -> Result<Rc<usvg::Tree>, String> {
+        if foreign {
+            return read_tree(Source::Foreign, &self.foreign_options(), path).map(Rc::new);
+        }
+        self.tree(path)
+    }
+
+    /// The options for an SVG file that a sender named: the fonts of the
+    /// theme, and pictures only from a data URI within the limits.
+    fn foreign_options(&self) -> usvg::Options<'static> {
+        let fonts = self.fonts.options();
+        usvg::Options {
+            font_family: fonts.font_family.clone(),
+            fontdb: std::sync::Arc::clone(&fonts.fontdb),
+            image_href_resolver: crate::assets::data_resolver(),
+            ..usvg::Options::default()
+        }
     }
 
     /// A file of the asset folder.
@@ -651,8 +681,11 @@ impl Theme {
                 Ok(())
             }
             Layer::File {
-                path, rect, fit, ..
-            } => self.draw_file(path, *rect, *fit, (base, pixmap)),
+                path,
+                rect,
+                fit,
+                foreign,
+            } => self.draw_file(path, *rect, (*fit, *foreign), (base, pixmap)),
             Layer::Text(text) => self.fonts.draw(text, base, pixmap),
             Layer::Svg(body) => {
                 let svg = format!(
@@ -764,17 +797,18 @@ impl Theme {
         }
     }
 
-    /// Draws an SVG, PNG or JPEG file scaled to a rectangle.
+    /// Draws an SVG, PNG or JPEG file scaled to a rectangle; a `foreign`
+    /// file is read and checked as a file of a HUD folder, and not kept.
     fn draw_file(
         &self,
         path: &Path,
         rect: Rect,
-        fit: Fit,
+        (fit, foreign): (Fit, bool),
         (base, pixmap): (Transform, &mut PixmapMut<'_>),
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
         let image = if is_svg(path) {
-            let tree = self.tree(path)?;
+            let tree = self.file_tree(path, foreign)?;
             let size = tree.size();
             if !matches!(fit, Fit::Tile(_)) {
                 resvg::render(
@@ -790,7 +824,12 @@ impl Theme {
             resvg::render(&tree, Transform::identity(), &mut tile.as_mut());
             tile
         } else {
-            load_raster(self.folder(), path).map_err(|e| error(&e))?
+            let source = if foreign {
+                Source::Foreign
+            } else {
+                self.source()
+            };
+            load_raster(source, path).map_err(|e| error(&e))?
         };
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
@@ -836,7 +875,7 @@ impl Theme {
             let tree = self.tree(path).ok()?;
             [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
         } else if self.confined {
-            let data = read_bytes(self.folder(), path).ok()?;
+            let data = read_bytes(self.source(), path).ok()?;
             let [w, h] = crate::assets::raster_size(&data)?;
             [i32::try_from(w).ok()?, i32::try_from(h).ok()?]
         } else {
@@ -868,12 +907,32 @@ fn is_svg(path: &Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"))
 }
 
-/// The bytes of a file. In a HUD folder (`confined`) the file is a path
-/// inside the folder, read through [`chora_kit::hud::file`].
-fn read_bytes((dir, confined): (&Path, bool), path: &Path) -> std::io::Result<Vec<u8>> {
-    if !confined {
-        return chora_kit::read_file(path, chora_kit::MAX_PICTURE);
+/// Where a file comes from, and so how it is read and checked.
+#[derive(Clone, Copy)]
+enum Source<'a> {
+    /// A file of the trusted asset folder.
+    Trusted,
+    /// A path inside a HUD folder, read through [`chora_kit::hud::file`].
+    Folder(&'a Path),
+    /// A path that a sender named, read wherever it lies, at most
+    /// [`chora_kit::hud::MAX_FILE`] bytes.
+    Foreign,
+}
+
+impl Source<'_> {
+    /// Whether a picture of the file has the limits of a HUD folder.
+    fn checked(self) -> bool {
+        !matches!(self, Self::Trusted)
     }
+}
+
+/// The bytes of a file.
+fn read_bytes(source: Source<'_>, path: &Path) -> std::io::Result<Vec<u8>> {
+    let dir = match source {
+        Source::Trusted => return chora_kit::read_file(path, chora_kit::MAX_PICTURE),
+        Source::Foreign => return chora_kit::read_file(path, chora_kit::hud::MAX_FILE),
+        Source::Folder(dir) => dir,
+    };
     let outside = || {
         std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -884,31 +943,31 @@ fn read_bytes((dir, confined): (&Path, bool), path: &Path) -> std::io::Result<Ve
     chora_kit::hud::file(dir, name.to_str().ok_or_else(outside)?)
 }
 
-/// An SVG file as a tree; in a HUD folder it is also at most
-/// [`crate::assets::MAX_SIDE`] on a side.
+/// An SVG file as a tree; from a HUD folder or a sender it is also at
+/// most [`crate::assets::MAX_SIDE`] on a side.
 fn read_tree(
-    folder: (&Path, bool),
+    source: Source<'_>,
     options: &usvg::Options<'_>,
     path: &Path,
 ) -> Result<usvg::Tree, String> {
     let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
-    let data = read_bytes(folder, path).map_err(|e| error(&e))?;
+    let data = read_bytes(source, path).map_err(|e| error(&e))?;
     let tree = usvg::Tree::from_data(&data, options).map_err(|e| error(&e))?;
-    if folder.1 {
+    if source.checked() {
         crate::assets::check_tree(&tree).map_err(|e| error(&e))?;
     }
     Ok(tree)
 }
 
 /// A PNG or JPEG file as a pixmap.
-fn load_raster(folder: (&Path, bool), path: &Path) -> Result<Pixmap, String> {
-    let data = read_bytes(folder, path).map_err(|e| e.to_string())?;
-    let limit = if folder.1 {
+fn load_raster(source: Source<'_>, path: &Path) -> Result<Pixmap, String> {
+    let data = read_bytes(source, path).map_err(|e| e.to_string())?;
+    let limit = if source.checked() {
         crate::assets::MAX_SIDE
     } else {
         8192
     };
-    if folder.1 {
+    if source.checked() {
         let [w, h] = crate::assets::raster_size(&data).ok_or("not a PNG or JPEG file")?;
         if w > limit || h > limit {
             return Err(format!("picture of {w} x {h} px, at most {limit}"));
@@ -1055,7 +1114,7 @@ mod tests {
     #[test]
     fn jpeg_files_decode() {
         let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/red.jpg");
-        let image = load_raster((Path::new(""), false), &file).expect("a JPEG file");
+        let image = load_raster(Source::Trusted, &file).expect("a JPEG file");
         assert_eq!([image.width(), image.height()], [8, 8]);
         let pixel = image.pixel(4, 4).expect("inside");
         assert!(pixel.red() > 150 && pixel.green() < 80 && pixel.alpha() == 255);
