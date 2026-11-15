@@ -544,7 +544,7 @@ impl Session {
         (language, margin): (Language, bool),
         width: i32,
     ) -> Vec<String> {
-        let empty = matches!(&self.mode, Mode::List(picks) if picks.is_empty());
+        let empty = matches!(&self.mode, Mode::List(picks, _) if picks.is_empty());
         (self.hint(language))
             .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
             .or_else(|| (margin && empty).then(|| self.header(language)))
@@ -1134,7 +1134,7 @@ mod tests {
 
     #[test]
     fn close_shows_in_the_list_and_in_the_chat_and_stop_only_in_the_chat() {
-        let list = Mode::List(Vec::new());
+        let list = Mode::List(Vec::new(), None);
         assert_eq!(buttons(&list, false), [(CLOSE, Word::Close)]);
         let chat = Mode::Chat("atlas".into());
         assert_eq!(
@@ -1441,7 +1441,7 @@ mod tests {
         for language in [Language::En, Language::De] {
             for offline in [false, true] {
                 let mut session = Session::new();
-                session.mode = Mode::List(Vec::new());
+                session.mode = Mode::List(Vec::new(), None);
                 session.offline = offline;
                 let whole = session.header(language);
                 let parts = session.parts(&theme, &frame, language);
@@ -1549,12 +1549,12 @@ mod tests {
             ..idle_frame(IdleStop::Grey)
         };
         let mut session = Session::new();
-        session.mode = Mode::List(Vec::new());
+        session.mode = Mode::List(Vec::new(), None);
         let parts = session.parts(&theme, &frame, Language::En);
         assert_eq!(parts.header, "", "the client has the head");
         let hint = parts.hint.join(" ");
         assert!(hint.starts_with("No helper is set up."), "{hint}");
-        session.mode = Mode::List(vec![crate::chat::Pick::Project("demo".into())]);
+        session.mode = Mode::List(vec![crate::chat::Pick::Project("demo".into())], None);
         let parts = session.parts(&theme, &frame, Language::En);
         assert!(parts.hint.is_empty(), "{:?}", parts.hint);
         let _ = std::fs::remove_dir_all(cache);
@@ -1571,7 +1571,7 @@ mod tests {
             ..idle_frame(IdleStop::Grey)
         };
         let mut session = Session::new();
-        session.mode = Mode::List(Vec::new());
+        session.mode = Mode::List(Vec::new(), None);
         let commands = session.glass_commands(&mut theme, &frame, Language::En);
         let text = created(&commands, CHAT).and_then(|props| props.meta.as_ref());
         let text = text.map(|meta| meta["text"].clone()).unwrap_or_default();

@@ -327,8 +327,10 @@ pub enum Mode {
     /// Nothing.
     #[default]
     Closed,
-    /// The numbered list of helpers and projects.
-    List(Vec<Pick>),
+    /// The numbered list of helpers and projects, with the text that was
+    /// typed before a pick, as the field got it back. Only a pick sends
+    /// that text, and it ends with the list.
+    List(Vec<Pick>, Option<String>),
     /// The chat with a helper.
     Chat(String),
 }
@@ -368,10 +370,6 @@ pub struct Session {
     states: BTreeMap<String, Value>,
     epoch: Option<u64>,
     last: Option<String>,
-    /// The text that was typed in the list before a helper was picked,
-    /// as the field got it back: the field sends its draft to the helper
-    /// that is picked.
-    held: Option<String>,
     /// What the agent said while the view is the open balloon of the
     /// figure.
     spoken: Option<String>,
@@ -673,7 +671,8 @@ impl Session {
 
     /// Shows the chat with `name`, or the list without one. `token` is the
     /// activation token of the act, if the caller has one. A voice that
-    /// does not answer shows the view with the line that says so.
+    /// does not answer shows the view with the line that says so. A show
+    /// is no pick: it sends no draft.
     ///
     /// # Errors
     ///
@@ -694,21 +693,16 @@ impl Session {
                 if other && token.is_none() {
                     return Ok(());
                 }
-                self.open_chat(out, &name);
+                self.open_chat(out, &name, false);
             }
             None => self.open_list(out),
         }
-        self.place_field(out, frame, token)?;
-        if self.helper().is_some()
-            && self.held.take().is_some()
-            && let Some(link) = self.link.as_mut()
-        {
-            link.send_draft();
-        }
-        Ok(())
+        self.place_field(out, frame, token)
     }
 
-    fn open_chat(&mut self, out: &mut dyn Outside, name: &str) {
+    /// Opens the chat with `name`. Another helper than the last one gets
+    /// an empty field, unless a pick brings the draft (`keep`).
+    fn open_chat(&mut self, out: &mut dyn Outside, name: &str, keep: bool) {
         let same = self
             .last
             .as_deref()
@@ -720,7 +714,7 @@ impl Session {
             self.status = Status::default();
             self.head = 0;
             self.epoch = None;
-            if let (None, Some(link)) = (&self.held, self.link.as_mut()) {
+            if let (false, Some(link)) = (keep, self.link.as_mut()) {
                 link.clear();
             }
         }
@@ -758,11 +752,10 @@ impl Session {
             .and_then(|text| text.as_str().map(parse_list))
             .unwrap_or_default();
         if let Some(last) = self.only_helper(&picks) {
-            self.open_chat(out, &last);
+            self.open_chat(out, &last, false);
             return;
         }
-        self.mode = Mode::List(picks);
-        self.held = None;
+        self.mode = Mode::List(picks, None);
         if let Some(link) = self.link.as_mut() {
             link.clear();
         }
@@ -826,7 +819,8 @@ impl Session {
     }
 
     /// A click on entry `index` (from 1) of the list; a project starts
-    /// its helper first.
+    /// its helper first. The helper gets the text that was typed before
+    /// the pick.
     ///
     /// # Errors
     ///
@@ -848,17 +842,23 @@ impl Session {
         token: Option<&str>,
         frame: &Frame,
     ) -> Result<(), String> {
-        let Mode::List(picks) = &self.mode else {
+        let Mode::List(picks, held) = &mut self.mode else {
             return Ok(());
         };
         let Some(pick) = index.checked_sub(1).and_then(|n| picks.get(n)).cloned() else {
             return Ok(());
         };
+        let held = held.take().is_some();
         if let Pick::Project(project) = &pick {
             let start = json!({"tool": "agent_start", "project": project, "name": project});
             let _ = out.voice("agent", start);
         }
-        self.show(out, Some(pick.name()), token, frame)
+        self.open_chat(out, pick.name(), held);
+        self.place_field(out, frame, token)?;
+        if let (true, Some(link)) = (held, self.link.as_mut()) {
+            link.send_draft();
+        }
+        Ok(())
     }
 
     /// Closes the view and the field.
@@ -954,7 +954,7 @@ impl Session {
     }
 
     fn said(&mut self, out: &mut dyn Outside, text: &str, frame: &Frame) -> bool {
-        match &self.mode {
+        match &mut self.mode {
             Mode::Chat(name) => {
                 let sent = out.voice("agent", say_params(name, text));
                 let refused = sent
@@ -969,7 +969,7 @@ impl Session {
                 self.pull(out);
                 true
             }
-            Mode::List(picks) => {
+            Mode::List(picks, held) => {
                 let text = text.trim();
                 let entry = |text: &str| {
                     text.parse::<usize>().ok().or_else(|| {
@@ -979,17 +979,17 @@ impl Session {
                             .map(|n| n + 1)
                     })
                 };
-                let held = self.held.take();
-                let after = held.as_deref().and_then(|held| text.strip_prefix(held));
-                let (index, held) = match (entry(text), after.and_then(|rest| entry(rest.trim()))) {
+                let before = held.take();
+                let after = before.as_deref().and_then(|held| text.strip_prefix(held));
+                let (index, kept) = match (entry(text), after.and_then(|rest| entry(rest.trim()))) {
                     (Some(index), _) => (Some(index), None),
-                    (None, Some(index)) => (Some(index), held),
+                    (None, Some(index)) => (Some(index), before),
                     (None, None) => (None, Some(text.to_owned())),
                 };
-                if let (Some(held), Some(link)) = (&held, self.link.as_mut()) {
-                    link.pick_first(held);
+                if let (Some(kept), Some(link)) = (&kept, self.link.as_mut()) {
+                    link.pick_first(kept);
                 }
-                self.held = held;
+                *held = kept;
                 index.is_some_and(|index| self.pick(out, index, None, frame).is_ok())
             }
             Mode::Closed => false,
@@ -1111,8 +1111,8 @@ impl Session {
             Mode::Closed => String::new(),
             _ if self.card == Some(Where::Figure) => say(language, Word::Waiting, &[]),
             _ if self.offline => say(language, Word::Offline, &[]),
-            Mode::List(picks) if picks.is_empty() => say(language, Word::NoHelper, &[]),
-            Mode::List(_) => say(language, Word::ChatLauncher, &[]),
+            Mode::List(picks, _) if picks.is_empty() => say(language, Word::NoHelper, &[]),
+            Mode::List(..) => say(language, Word::ChatLauncher, &[]),
             Mode::Chat(_) => {
                 let row = words::row(
                     language,
@@ -1170,7 +1170,7 @@ impl Session {
     #[must_use]
     pub fn entries(&self, language: Language) -> Vec<String> {
         match &self.mode {
-            Mode::List(picks) => (1..)
+            Mode::List(picks, _) => (1..)
                 .zip(picks)
                 .map(|(n, pick)| format!("{n}  {}", self.entry(pick, language)))
                 .collect(),
@@ -1200,7 +1200,7 @@ impl Session {
     pub fn hint(&self, language: Language) -> Option<String> {
         let waits = match self.mode {
             Mode::Chat(_) => self.waiting(),
-            Mode::List(_) => self.card.is_some(),
+            Mode::List(..) => self.card.is_some(),
             Mode::Closed => false,
         };
         waits.then(|| {
@@ -1314,7 +1314,7 @@ impl Session {
                 let name = name.clone();
                 self.announce_open(out, &name);
             }
-            Mode::List(_) => self.open_list(out),
+            Mode::List(..) => self.open_list(out),
             Mode::Closed => return false,
         }
         !self.offline
@@ -1739,10 +1739,10 @@ mod tests {
         session.clicked_row(&mut out, &frame).expect("the list");
         assert_eq!(
             session.mode(),
-            &Mode::List(vec![
-                Pick::Agent("atlas".into()),
-                Pick::Project("notes".into())
-            ])
+            &Mode::List(
+                vec![Pick::Agent("atlas".into()), Pick::Project("notes".into())],
+                None
+            )
         );
         assert_eq!(
             log.borrow().started,

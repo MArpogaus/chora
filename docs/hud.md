@@ -354,7 +354,9 @@ entry or when a person closed the chat of that helper before; the draft
 of that chat stays. Else the list shows. A text that a person types in
 the list reaches no helper: the field gets it back and says to pick a
 helper first. The helper that the person then picks gets the text, by a
-click on its entry or by its number typed after the text.
+click on its entry or by its number typed after the text. The text ends
+with the list: after Escape or a hide no helper gets it, and a chat that
+a question, `chat.show` or the only helper opens sends nothing.
 
 The empty-field hint of a plain chat is in the colour `name`. Its field
 paints at one pixel to a pixel, so that it is soft on an output of scale 2
