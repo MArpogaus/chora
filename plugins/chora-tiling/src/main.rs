@@ -588,7 +588,7 @@ impl Tiling {
     /// Applies the settings and grabs their bindings.
     fn reconfigure(&mut self) -> Result<(), ClientError> {
         self.check_shaders()?;
-        self.rt.ungrab_all()?;
+        self.rt.start_grabs();
         self.apply_theme(true);
         if self.theme_check.is_some() {
             self.theme_check = Some(std::time::Instant::now());
@@ -597,6 +597,7 @@ impl Tiling {
         self.effects.set(&self.settings.value.effects);
         self.sent.clear();
         self.grab_all()?;
+        self.rt.end_grabs()?;
         if self.keys_open {
             self.hide_keys()?;
             self.toggle_keys()?;
@@ -1612,8 +1613,9 @@ impl Tiling {
         // succeeds only with a claim, for example with `--output` for an
         // output that came later (D55).
         if gained && self.claimed.is_some() {
-            self.rt.ungrab_all()?;
+            self.rt.start_grabs();
             self.grab_all()?;
+            self.rt.end_grabs()?;
         }
         Ok(())
     }
