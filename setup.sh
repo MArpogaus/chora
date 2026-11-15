@@ -20,6 +20,31 @@ if [ "${#need_apt[@]}" -gt 0 ]; then
         done
 fi
 
+export PATH="$HOME/.local/bin:$PATH"
+fuzzel_wanted=1.11.1
+fuzzel_sha256=8f7d00c912d5b46d09ad726347644f38b295b586d76ac8113c7a24da962dfb54
+fuzzel_ok() {
+    local v
+    v=$(fuzzel --version 2>/dev/null | sed -n 's/^fuzzel version: \([0-9.]*\).*/\1/p')
+    [ -n "$v" ] && [ "$(printf '%s\n1.11\n' "$v" | sort -V | head -1)" = "1.11" ]
+}
+if ! fuzzel_ok; then
+    log "fuzzel $fuzzel_wanted under \$HOME/.local"
+    (
+        set -e
+        dpkg -s wayland-protocols libfcft-dev libtllist-dev >/dev/null 2>&1 ||
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq wayland-protocols libfcft-dev libtllist-dev >/dev/null
+        command -v meson >/dev/null 2>&1 || pip3 install -q --user --break-system-packages meson
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"' EXIT
+        curl -fsSL -o "$tmp/f.tgz" "https://codeberg.org/dnkl/fuzzel/archive/$fuzzel_wanted.tar.gz"
+        echo "$fuzzel_sha256  $tmp/f.tgz" | sha256sum -c --quiet -
+        tar -xzf "$tmp/f.tgz" -C "$tmp"
+        meson setup "$tmp/fuzzel/build" "$tmp/fuzzel" --prefix="$HOME/.local" --buildtype=release >/dev/null
+        ninja -C "$tmp/fuzzel/build" install >/dev/null
+    ) || log "FAILED fuzzel build (apt fuzzel stays)"
+fi
+
 for t in pre-commit vale git-filter-repo; do
     command -v "$t" >/dev/null 2>&1 || { log "uv tool: $t"; uv tool install -q "$t"; }
 done
