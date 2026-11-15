@@ -37,9 +37,14 @@
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
 # log path. A failed step prints the last 30 lines of its log.
+# With --jobs N, the steps after clippy run up to N at once (each session
+# of a gate script has its own sockets and runtime directory; the steps
+# mostly wait, so N=3 on 4 CPUs keeps their times); red-first to clippy
+# still run one at a time. A line is printed when a step ends, and after a
+# failed step no further step starts and the running ones are stopped.
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
-#                            [--base REF] [--red-first-check]
+#                            [--base REF] [--jobs N] [--red-first-check]
 #   --only STEP,...  run only these steps; never pushes
 #   --worker STEP,...  the lane mode: build, test, clippy and the steps
 #                    named here (`--worker xp,hud`; `--worker ''` for none);
@@ -48,6 +53,7 @@
 #                    origin/claude/autonomous-dev-session-3w-i33pg7)
 #   --push BRANCH    after every step passed, `git push origin HEAD:BRANCH`;
 #                    refuses when the work tree has uncommitted changes
+#   --jobs N         run up to N steps after clippy at once (default 1)
 #   --red-first-check  run only the red-first check, without the lock
 #   -h, --help       this text
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
@@ -72,6 +78,7 @@ worker_mode=""
 push_branch=""
 base=origin/claude/autonomous-dev-session-3w-i33pg7
 red_check=""
+jobs_max=1
 while [ $# -gt 0 ]; do
     case $1 in
     -h | --help)
@@ -97,6 +104,11 @@ while [ $# -gt 0 ]; do
     --red-first-check)
         red_check=1
         shift
+        ;;
+    --jobs)
+        [[ ${2:-} =~ ^[1-9][0-9]*$ ]] || die "--jobs needs a number above 0"
+        jobs_max=$2
+        shift 2
         ;;
     --push)
         [ $# -ge 2 ] || die "--push needs a branch"
@@ -216,44 +228,70 @@ mkdir -p "$runs" || die "no run directory"
 run_dir=$(mktemp -d "$runs/merge-gate.XXXXXX") || die "no run directory"
 echo "run directory: $run_dir"
 
-child=""
-stop_child() {
-    [ -z "$child" ] || kill "$child" 2>/dev/null
-    wait "$child" 2>/dev/null
+declare -A running=()
+declare -A started=()
+stop_children() {
+    local pid
+    for pid in "${!running[@]}"; do
+        kill "$pid" 2>/dev/null
+    done
+    for pid in "${!running[@]}"; do
+        wait "$pid" 2>/dev/null
+    done
+    running=()
 }
 on_signal() {
-    stop_child
+    stop_children
     echo "merge-gate: interrupted" >&2
     exit 1
 }
 trap on_signal INT TERM
-trap stop_child EXIT
+trap stop_children EXIT
 
 log_failed() {
     grep -Eq '^(FAIL:|MISMATCH|test result: FAILED)' "$1"
 }
 
-for i in "${!step_names[@]}"; do
-    name=${step_names[$i]}
-    selected "$name" || continue
-    log=$run_dir/$name.log
-    started=$SECONDS
-    (cd "$repo" && exec bash -c "${step_commands[$i]}") >"$log" 2>&1 &
-    child=$!
-    wait "$child"
+start_step() {
+    local log=$run_dir/${step_names[$1]}.log
+    (cd "$repo" && exec bash -c "${step_commands[$1]}") >"$log" 2>&1 &
+    running[$!]=$1
+    started[$!]=$SECONDS
+}
+
+wait_step() {
+    local pid code i name log result=PASS
+    wait -n -p pid "${!running[@]}"
     code=$?
-    child=""
-    result=PASS
+    i=${running[$pid]}
+    unset "running[$pid]"
+    name=${step_names[$i]}
+    log=$run_dir/$name.log
     if [ "$code" != 0 ] || log_failed "$log"; then
         result=FAIL
     fi
-    printf '%-10s %s %5ss %s\n' "$name" "$result" "$((SECONDS - started))" "$log"
+    printf '%-10s %s %5ss %s\n' "$name" "$result" "$((SECONDS - started[$pid]))" "$log"
     if [ "$result" = FAIL ]; then
+        stop_children
         echo "exit code $code; last 30 lines of $log:"
         tail -n 30 "$log"
         exit 1
     fi
+}
+
+serial_steps=",red-first,pre-commit,gate-lib,build,test,clippy,"
+for i in "${!step_names[@]}"; do
+    selected "${step_names[$i]}" || continue
+    if [ "$jobs_max" = 1 ] || [[ $serial_steps == *",${step_names[$i]},"* ]]; then
+        while [ "${#running[@]}" -gt 0 ]; do wait_step; done
+        start_step "$i"
+        wait_step
+        continue
+    fi
+    while [ "${#running[@]}" -ge "$jobs_max" ]; do wait_step; done
+    start_step "$i"
 done
+while [ "${#running[@]}" -gt 0 ]; do wait_step; done
 
 if [ -n "$only" ]; then
     echo "partial run: nothing is pushed"

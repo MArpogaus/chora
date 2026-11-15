@@ -234,7 +234,9 @@ loads every CPU for half a minute, so run it alone. A
 step fails on a non-zero exit code, on a line that starts with `FAIL:` or
 `MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
 and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
-and only from a clean work tree. `tests/merge-gate-selftest.sh` proves
+and only from a clean work tree. `--jobs N` runs up to N steps after
+clippy at once; the gate scripts mostly wait, so `--jobs 3` on four CPUs
+keeps their times and cuts the gate by about half. `tests/merge-gate-selftest.sh` proves
 this with fake steps and needs no build. One gate runs at a time on a
 machine: the merge gate and every script with `tests/gate-lib.sh` take the
 lock of `tests/gate-lock.sh`, `${XDG_RUNTIME_DIR:-/tmp}/chora-gate.lock`,
