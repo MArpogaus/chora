@@ -132,6 +132,9 @@ const LABEL_MAX: f64 = 320.0;
 /// The most characters of a single line that the fit tries: more never
 /// fits a panel of the guide.
 const LINE_CHARS: usize = 120;
+/// The most characters of the end of a text that the fit tries: three
+/// lines of [`LINE_CHARS`], more than a sentence or a reason shows.
+const END_CHARS: usize = 3 * LINE_CHARS;
 /// The ellipsis of a cut text (rule 11).
 const ELLIPSIS: char = '\u{2026}';
 
@@ -214,13 +217,22 @@ fn cuts(text: &str) -> Vec<String> {
 
 /// The ways to show the end of `text`, longest first: whole, then from
 /// each later word after an ellipsis, then from each later character for
-/// a word longer than the panel.
+/// a word longer than the panel. A text of more than [`END_CHARS`]
+/// characters starts cut, at that many before its end.
 fn ends(text: &str) -> Vec<String> {
+    let skip = text.chars().count().saturating_sub(END_CHARS);
+    let (cut, _) = text.char_indices().nth(skip).unwrap_or_default();
+    let text = &text[cut..];
     let starts: Vec<usize> = text.char_indices().map(|(i, _)| i).skip(1).collect();
     let after_space = |i: &usize| text[..*i].ends_with(' ');
     let words = starts.iter().filter(|i| after_space(i));
     let chars = starts.iter().filter(|i| !after_space(i));
-    let mut out = vec![text.to_owned()];
+    let first = if cut > 0 {
+        format!("{ELLIPSIS}{}", text.trim_start())
+    } else {
+        text.to_owned()
+    };
+    let mut out = vec![first];
     out.extend(
         words
             .chain(chars)
