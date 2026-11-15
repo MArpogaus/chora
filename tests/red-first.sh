@@ -7,8 +7,9 @@
 # of tests/merge-gate.sh counts; tests/merge-gate.sh sources this file.
 # The hook refuses only what it can prove: when the base ref resolves and
 # base..HEAD has no test. Without the base ref (a shallow or single-branch
-# clone) or on an unborn HEAD it prints a note and lets the commit pass;
-# the merge gate checks the range again.
+# clone), on an unborn HEAD or on the base branch itself (its base..HEAD
+# holds only the unpushed commits) it prints a note and lets the commit
+# pass; the merge gate checks the range again.
 #
 # Usage: tests/red-first.sh MSG_FILE
 #   RED_FIRST_BASE  the base of the branch (default
@@ -31,10 +32,21 @@ commit_changes_test() {
     changes_test "$(git show --format= --name-only "$1")" "$(git show --format= -U0 "$1" -- '*.rs')"
 }
 
+on_base_branch() {
+    local base_ref branch
+    base_ref=$(git rev-parse -q --symbolic-full-name "$1")
+    branch=$(git symbolic-ref -q HEAD) || return 1
+    [ "$base_ref" = "$branch" ] || [ "${base_ref#refs/remotes/*/}" = "${branch#refs/heads/}" ]
+}
+
 branch_verdict() {
     local base=${RED_FIRST_BASE:-origin/claude/autonomous-dev-session-3w-i33pg7} sha
     if ! git rev-parse -q --verify "$base^{commit}" >/dev/null || ! git rev-parse -q --verify HEAD >/dev/null; then
         echo "red-first: no base ref $base or no commit yet, so nothing to prove; the merge gate checks the range"
+        return 0
+    fi
+    if on_base_branch "$base"; then
+        echo "red-first: on the base branch $base, base..HEAD holds only unpushed commits; the merge gate checks the range"
         return 0
     fi
     for sha in $(git rev-list --no-merges "$base..HEAD"); do
