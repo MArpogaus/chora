@@ -176,8 +176,9 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
 /// the moves.
 fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), ClientError> {
     while matches!(event, Event::PointerMoved { .. }) {
+        // injected: only coalesces moves; hears drops injected ones in the handler
         match wm.conn_event(Duration::from_micros(1))? {
-            Some(next @ Event::PointerMoved { .. }) => event = next,
+            Some(next @ Event::PointerMoved { .. }) => event = next, // injected: only coalesces moves; hears drops injected ones in the handler
             next => return Ok((event, next)),
         }
     }

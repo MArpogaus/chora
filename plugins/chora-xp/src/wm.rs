@@ -421,8 +421,7 @@ pub struct Wm {
 /// drag or a release of `input.inject` unless it takes injected input as
 /// the person's.
 fn hears(event: &Event, accepts_injected: bool) -> bool {
-    let _ = (event, accepts_injected);
-    true
+    chora_kit::runtime::from_person(event, accepts_injected)
 }
 
 impl Plugin for Wm {
@@ -800,10 +799,10 @@ impl Wm {
                 node,
                 button,
                 position,
-                ..
+                .. // injected: hears drops an injected press unless xp accepts them
             } => self.pressed(&node, button, position),
-            Event::PointerMoved { position, .. } => self.dragged(position),
-            Event::PointerReleased { node, position, .. } => self.released(&node, position),
+            Event::PointerMoved { position, .. } => self.dragged(position), // injected: hears drops an injected move unless xp accepts them
+            Event::PointerReleased { node, position, .. } => self.released(&node, position), // injected: hears drops an injected release unless xp accepts them
             Event::OutputChanged { output } => {
                 let output = without_reserve(&self.reserved, output);
                 [self.rescale()?, self.output_changed(&output)].concat()
@@ -828,10 +827,10 @@ impl Wm {
                     Vec::new()
                 }
             }
-            event @ (Event::InputKey { .. }
+            event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
-            | Event::NodeKey { .. }) => self.input(event),
+            | Event::NodeKey { .. }) => self.input(event), // injected: hears drops an injected key unless xp accepts them
             Event::PointerEntered { node, .. } => self.hovered(&node, true),
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
@@ -1805,7 +1804,7 @@ impl Wm {
                 node: _,
                 code: _,
                 text: _,
-                injected: _,
+                injected: _, // injected: hears drops an injected key unless xp accepts them
             } => {
                 // Shift+F10 and the Menu key open a context menu, as on XP.
                 let shift = modifiers.iter().any(|m| m == "Shift");
@@ -1816,12 +1815,12 @@ impl Wm {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key(&binding),
             Event::InputKey {
                 binding,
                 state: PressState::Released,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key_released(&binding),
             Event::InputButton {
                 state, position, ..
