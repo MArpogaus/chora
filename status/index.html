@@ -183,8 +183,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>27 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>28 entries</span></summary>
       <ul class="timeline">
+        <li><time>11:47</time><p><span class="tag issue">review</span>The frame watchdog fix needs one more round: under load it could excuse a truly slow scene, so the safety switch would never fire. Fix round 2 started.</p></li>
         <li><time>11:24</time><p><span class="tag ok">merged</span>Train 19: look fixes round 5. The chat Stop button stays put, and long pastes no longer slow the chat. The only open look blocker is clicking in the tiling launcher (fuzzel 1.11, Monday).</p></li>
         <li><time>10:45</time><p><span class="tag ok">merged</span>Train 18: security fixes b. Secrets stay out of the helper logs, and plugins no longer see hidden settings. Look fixes round 5 merge next.</p></li>
         <li><time>10:45</time><p><span class="tag info">review</span>Look fixes round 5 passed review. The mc voice-confirm finding was a stale test script, not a bug: a person can always answer by key, by voice or by waiting.</p></li>
