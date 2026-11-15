@@ -3,6 +3,9 @@
 # A gate script answers "ok: ..." or "SKIP: <why>" with exit 0 (non-zero
 # when CI is set), or
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
+# session_pids PGREP_ARGS... prints the pids that pgrep finds whose
+# environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
+# it never counts, and exits 1 when it finds none.
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
 # software EGL for the headless renderer (CONTRIBUTING.md)
@@ -92,6 +95,15 @@ layout_audit() {
 # a unit or outside the group of the core, so gate_cleanup must end it.
 run_pids=()
 run_pid() { run_pids+=("$1"); }
+session_pids() {
+    local pid found=1
+    for pid in $(pgrep "$@"); do
+        grep -qzx "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" "/proc/$pid/environ" 2>/dev/null || continue
+        echo "$pid"
+        found=0
+    done
+    return "$found"
+}
 pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }
 # crash_lines SINCE: the journal lines of the chora units since a time
 # that show a crash, a hang or a failed start. secureblue disables core

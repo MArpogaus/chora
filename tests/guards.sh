@@ -244,12 +244,60 @@ kill_case() {
 
 kill_case "the newest core of the machine" fail 'core=\x24(pgrep -x chora | tail -1)\n'
 kill_case "the core of the own session" pass 'core=\x24(pgrep -P "\x24session" -x chora)\n'
-kill_case "a plugin by its name is no core" pass 'pgrep -x chora-tiling\n'
+kill_case "a plugin by its name machine-wide" fail 'pgrep -x chora-tiling\n'
+kill_case "a plugin as a child of the own core" pass 'pgrep -P "\x24chora_pid" -x chora-xp\n'
+kill_case "a command line machine-wide" fail 'pgrep -f -- "--app-id=mcside"\n'
+kill_case "pidof" fail 'pidof chora-xp\n'
+kill_case "the processes of the own runtime directory" pass 'session_pids -f -- "--app-id=mcside"\n'
 kill_case "pkill by name" fail 'pkill -f chora-tiling\n'
 kill_case "pkill of the children of a pid" pass 'pkill -P "\x24voice" -x foot\n'
 kill_case "pkill in the own process group" pass 'pkill -g "\x24group" -f heartbeat\n'
 kill_case "killall" fail 'killall chora\n'
 kill_case "a scoped lookup does not excuse a pkill after it" fail 'pgrep -P 1 -x chora; pkill chora\n'
+kill_case "a parent attached to -P" pass 'pgrep -P"\x24pid" -x foot\n'
+kill_case "the runtime directory filter of session_pids" pass 'for pid in \x24(pgrep "\x24@"); do\n    grep -qzx "XDG_RUNTIME_DIR=\x24XDG_RUNTIME_DIR" "/proc/\x24pid/environ" || continue\n    echo "\x24pid"\ndone\n'
+kill_case "pkill of a pid file" pass 'pkill -F "\x24out/voice.pid"\n'
+kill_case "the names in a quoted echo" pass 'echo "end it by pid, never with pidof, killall or pkill -f"\n'
+kill_case "the names in a plain echo" pass 'echo never pkill chora\n'
+kill_case "the names in a here-document" pass 'cat <<EOF\npkill chora\npgrep -x chora\nEOF\n'
+kill_case "a check for the tool" pass 'command -v pgrep >/dev/null || exit 1\n'
+kill_case "pgrep by a name alone" fail 'core=\x24(pgrep chora)\n'
+kill_case "pgrep --exact" fail 'pgrep --exact chora\n'
+kill_case "pgrep --full" fail 'pgrep --full -- "--app-id=mcside"\n'
+kill_case "a continued line" fail 'pgrep \\\n    -x chora\n'
+kill_case "a signal name is no parent" fail 'pkill -HUP chora\n'
+kill_case "an echo does not excuse a pkill after it" fail 'echo stop; pkill chora\n'
+kill_case "the line after a here-document" fail 'cat <<EOF\ntext\nEOF\npkill chora\n'
+kill_case "a quoted pgrep substitution" fail 'running "\x24(pgrep -x chora-xp)" || fail x\n'
+kill_case "a quoted pidof substitution" fail 'kill "\x24(pidof chora)"\n'
+kill_case "a quoted substitution in an assignment" fail 'pids="\x24(pgrep chora)"\n'
+kill_case "a quoted backtick substitution" fail 'kill "\x60pgrep -x chora\x60"\n'
+kill_case "the -s of kill is no session" fail 'kill -s KILL \x24(pgrep -x chora)\n'
+kill_case "the -s of timeout is no session" fail 'timeout -s KILL 5 pkill chora\n'
+kill_case "an echo of a substitution" fail 'echo \x24(pkill chora)\n'
+kill_case "a quoted string stays blank" pass 'fail "never pkill chora" || true\n'
+kill_case "a loop over tool names" pass 'for t in pgrep pkill jq; do command -v "\x24t"; done\n'
+kill_case "a check for several tools" pass 'need pgrep pkill\n'
+kill_case "several tools, the kill tool not last" pass 'need pgrep pkill jq\n'
+kill_case "a check for several tools, the kill tool not last" pass 'command -v pgrep pkill jq >/dev/null\n'
+kill_case "a need naming a kill tool and a target still fails later" fail 'need pgrep pkill jq\npkill chora\n'
+kill_case "a scope in a variable" pass 'pgrep \x24scope -x foot\n'
+kill_case "an awk program over several lines" pass "awk '\n    /pkill chora/ { n++ }\n' log\n"
+kill_case "an arithmetic shift is no here-document" fail 'n=\x24((n << shift))\npkill chora\n'
+kill_case "a comment naming environ is no filter" fail 'core=\x24(pgrep -x chora)\n# /proc/PID/environ\n'
+
+sync_case() {
+  local label=$1 want=$2 root=$3 plugin=$4
+  printf '%b' "$root" >"$work/root.toml"
+  printf '%b' "$plugin" >"$work/plugin.toml"
+  bash "$tests_dir/clippy-config-sync.sh" "$work/root.toml" "$work/plugin.toml" >/dev/null
+  verdict "clippy-config-sync: $label" "$want" $?
+}
+
+sync_case "same settings and a plugin list" pass '# c\na = 1\nb = 2\n' 'b = 2\ndisallowed-methods = [\n  { path = "x" }\n]\na = 1\n'
+sync_case "a setting only in the root" fail 'a = 1\nb = 2\n' 'a = 1\n'
+sync_case "a setting only in the plugins" fail 'a = 1\n' 'a = 1\nb = 2\n'
+sync_case "a changed value" fail 'a = 1\n' 'a = 2\n'
 
 message_output_case() {
   local label=$1 text=$2 want=$3
