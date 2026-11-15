@@ -7,7 +7,8 @@
 # allow or expect attribute of `clippy::disallowed_methods` stands on (a
 # test on a fake core; a comment or string naming the lint opens nothing)
 # passes; the item ends at the first line of the indent of its attribute
-# that ends with `}` or `;` (rustfmt layout).
+# that ends with `}` or `;` (rustfmt layout). An attribute ends on a
+# line ending in `)]`, optionally followed by a `//` comment.
 #
 # Usage: tests/gate-0.8-plugin-runtime.sh [DIR]   DIR: plugins/ by default
 set -u
@@ -18,7 +19,7 @@ hits=$(find "$dir" -name '*.rs' -exec awk '
     FNR == 1 { allowed = 0; lint = 0; attribute = "" }
     /^[[:space:]]*#!?\[(allow|expect)\(/ { lint = 1; attribute = $0; sub(/[^[:space:]].*/, "", attribute) }
     lint && /clippy::disallowed_methods/ { allowed = 1; indent = attribute }
-    lint { if ($0 ~ /\)\][[:space:]]*$/) lint = 0; next }
+    lint { if ($0 ~ /\)\][[:space:]]*(\/\/.*)?$/) lint = 0; next }
     tolower($0) ~ ENVIRON["PLUGIN_RUNTIME_PATTERN"] && !allowed { print FILENAME ":" FNR ": " $0 }
     allowed { rest = index($0, indent) == 1 ? substr($0, length(indent) + 1) : " " }
     allowed && rest ~ /[};][[:space:]]*$/ && rest !~ /^([[:space:]]|#|\)\])/ { allowed = 0 }
