@@ -453,6 +453,7 @@ struct Parts {
 struct XpParts {
     head: String,
     sub: String,
+    stop: bool,
     field: i32,
     waits: bool,
 }
@@ -640,6 +641,7 @@ impl Session {
         XpParts {
             head,
             sub,
+            stop: matches!(self.mode, Mode::Chat(_)),
             field: frame.field,
             waits: self.question_waits(),
         }
@@ -810,7 +812,8 @@ fn list_picture(mut picture: Picture, parts: &Parts, (w, colours): (i32, Colours
 
 /// The header of the XP form: the name in bold and the state word after
 /// an em dash, the task and the step in grey on the second line, and the
-/// rule under them.
+/// rule under them. The lines end before the close box, and before Stop
+/// in a chat.
 fn xp_header(
     theme: &Theme,
     mut picture: Picture,
@@ -818,7 +821,8 @@ fn xp_header(
     (w, colours): (i32, Colours),
 ) -> Picture {
     let header = xp.head.as_str();
-    let room = w - 2 * PAD - (XP_STOP[0] + XP_GAP + XP_CLOSE + XP_GAP);
+    let stop = if xp.stop { XP_STOP[0] + XP_GAP } else { 0 };
+    let room = w - 2 * PAD - (stop + XP_CLOSE + XP_GAP);
     let (name, rest) = header
         .split_once(" \u{2014} ")
         .map_or((header, String::new()), |(name, rest)| {

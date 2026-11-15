@@ -1109,12 +1109,17 @@ impl Session {
 
     /// The header of the XP form in two lines: the name and the state
     /// word, then the task and the step. Outside of a chat the words of
-    /// [`Self::header`] stand alone.
+    /// [`Self::header`] take the lines: their first sentence, then the
+    /// rest.
     #[must_use]
     pub fn header_xp(&self, language: Language) -> (String, String) {
         let (Mode::Chat(_), false) = (&self.mode, self.card == Some(Where::Figure) || self.offline)
         else {
-            return (self.header(language), String::new());
+            let words = self.header(language);
+            return match words.split_once(". ") {
+                Some((first, rest)) => (format!("{first}."), rest.to_owned()),
+                None => (words, String::new()),
+            };
         };
         let state = words::state(&self.status.state).map_or_else(
             || self.status.state.clone(),
