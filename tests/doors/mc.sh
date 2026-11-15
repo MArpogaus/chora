@@ -7,8 +7,14 @@
 # check header-SIZE asks that no two words of the first two lines of the
 # screen share pixels: the header of mc, the first line of the column and
 # the island of the host, over a window with the column, with all keys
-# and without the column, and at the end on the page of the agenda. A
-# state has 6 s to settle, since mc lays a line out over two frames.
+# and without the column, and at the end on the page of the agenda. The
+# date of the header is whole there: a weekday, a day and a month, with
+# the time after it or without, and no ellipsis. A state has 6 s to settle, since mc lays a line out over
+# two frames: settled is two equal readings of these words a quarter of
+# a second apart. After that every reading of one second counts, and one
+# with an overlap or a cut date fails the check. The copies NAME-probe,
+# on which mc measures a text under a group of opacity 0, are no words
+# of the screen.
 #
 # Usage: tests/doors/mc.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -60,27 +66,48 @@ chat_close() {
     until_ok '! chat_open' 20
 }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
-header_overlaps() {
-    ctl query '*' | jq -r '
+header_words() {
+    ctl query '*' | jq -c '
         [.[] | select(.visible and (.rects | length) > 0)
-            | select((.owner == "mc" and .kind == "text" and ((.text // "") | test("\\S")))
+            | select((.owner == "mc" and .kind == "text" and ((.text // "") | test("\\S"))
+                    and (.id | endswith("-probe") | not))
                 or .id == "hud-word" or .id == "hud-figure")
             | (.rects | to_entries[0].value) as $r
-            | select($r[1] + $r[3] / 2 < 56) | {id, r: $r}] as $words
-        | range(0; $words | length) as $i | range($i + 1; $words | length) as $j
-        | [$words[$i], $words[$j]]
-        | select(.[0].r[0] < .[1].r[0] + .[1].r[2] and .[1].r[0] < .[0].r[0] + .[0].r[2]
-            and .[0].r[1] < .[1].r[1] + .[1].r[3] and .[1].r[1] < .[0].r[1] + .[0].r[3])
-        | "overlap \(.[0].id) on \(.[1].id)"'
+            | select($r[1] + $r[3] / 2 < 56) | {id, text, r: $r}]'
+}
+header_findings() {
+    jq -r '
+        . as $words
+        | (range(0; $words | length) as $i | range($i + 1; $words | length) as $j
+            | [$words[$i], $words[$j]]
+            | select(.[0].r[0] < .[1].r[0] + .[1].r[2] and .[1].r[0] < .[0].r[0] + .[0].r[2]
+                and .[0].r[1] < .[1].r[1] + .[1].r[3] and .[1].r[1] < .[0].r[1] + .[0].r[3])
+            | "overlap \(.[0].id) on \(.[1].id)"),
+        ([$words[] | select(.id | test("-header-(clock|date)$"))] as $dates
+            | if ($dates | length) == 0 then "no date in the header" else empty end,
+            ($dates[] | select(.text | test("^\\S+ [0-9]{1,2} [^\\s…]+(  [0-9]{2}:[0-9]{2})?$") | not)
+                | "the date is cut: \(.text)"))'
 }
 header_clear() {
-    local found=unknown _
-    for _ in $(seq 12); do
-        sleep 0.5
-        found=$(header_overlaps) && [ -z "$found" ] && return 0
+    local last='' now='' found _
+    for _ in $(seq 24); do
+        now=$(header_words) || now=''
+        [ -n "$now" ] && [ "$now" = "$last" ] && break
+        last=$now
+        sleep 0.25
     done
-    echo "$found" >&2
-    return 1
+    [ -n "$now" ] && [ "$now" = "$last" ] || {
+        echo "the header does not settle" >&2
+        return 1
+    }
+    for _ in $(seq 10); do
+        found=$(header_words | header_findings) || found="no answer"
+        [ -z "$found" ] || {
+            echo "$found" >&2
+            return 1
+        }
+        sleep 0.1
+    done
 }
 header_step() {
     until_ok "$2" 20 && header_clear && return 0
