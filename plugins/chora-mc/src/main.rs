@@ -975,9 +975,9 @@ impl Plugin for Mc {
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
-        self.rt
-            .ungrab_all()
-            .and_then(|()| self.grab_all())
+        self.rt.start_grabs();
+        self.grab_all()
+            .and_then(|()| self.rt.end_grabs())
             .and_then(|()| {
                 if theme_only && self.recolor()? {
                     return Ok(());
