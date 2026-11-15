@@ -377,6 +377,13 @@ ok "a drag of more than 45 degrees turns the cube by one face; a slow short drag
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live drag"
 windows_before=$(ctl query kind:surface | jq length)
+at_rest() {
+    local seen
+    seen=$(width construct-cube-face-0)
+    sleep 0.25
+    [ "$seen" = "$(width construct-cube-face-0)" ]
+}
+until_ok at_rest 40 || fail "the cube did not come to rest after the step back: face 0 is $(width construct-cube-face-0) px wide"
 rest_width=$(width construct-cube-face-0)
 navigating='test "$(prop construct-mode-step-in visible)" = True'
 press_at 780
@@ -403,7 +410,7 @@ let_go
 released=$(now_ms)
 quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
 settled_in=$(($(now_ms) - released))
-[ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees"
+[ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees: face 0 is $(width construct-cube-face-0) px wide, face 1 $(width construct-cube-face-1), at rest $rest_width, the label says $(prop construct-face-label-words text)"
 front_is_next=$(prop construct-cube-face-1 visible)
 [ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
 until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.6' 8 || fail "Step in stays dim after the settle"
