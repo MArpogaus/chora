@@ -21,6 +21,7 @@ Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
 import base64
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -100,10 +101,10 @@ def events(mcp):
             raise
     content = mcp.tool(
         "subscribe_events",
-        {"events": ["pointer.pressed", "input.key"], "keys": ["Super+F9"]},
+        {"events": ["pointer.pressed", "input.key"], "keys": ["Ctrl+Shift+F9"]},
     )
     subscribed = json.loads(content[0]["text"])
-    if subscribed["keys"] != ["Super+F9"]:
+    if subscribed["keys"] != ["Ctrl+Shift+F9"]:
         sys.exit(f"subscribe_events: {subscribed}")
     mcp.tool(
         "apply_commands",
@@ -134,10 +135,11 @@ def events(mcp):
     )
     if any(e["event"] not in ("pointer.pressed", "input.key") for e in seen):
         sys.exit(f"unsubscribed events: {seen}")
-    mcp.tool("inject_input", {"events": [{"shortcut": {"keys": "Super+F9"}}]})
+    mcp.tool("inject_input", {"events": [{"shortcut": {"keys": "Ctrl+Shift+F9"}}]})
     key = lambda state: lambda e: e == {
         "event": "input.key",
-        "binding": "Super+F9",
+        "binding": "Ctrl+Shift+F9",
+        "injected": True,
         "state": state,
     }
     seen = wait_for(mcp, key("pressed"))
@@ -190,6 +192,30 @@ void main() { gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * alpha; }
 
 def node(id, kind, props):
     return {"create": {"id": id, "kind": kind, "parent": "root", "props": props}}
+
+def free_apply(commands):
+    """Applies commands as a free client of the main socket.
+
+    A confined connection has no camera commands and no `screen:*`
+    parents, so the user's side of the test sets the camera and draws the
+    HUD under the name `user`, which keeps its nodes and cameras after the
+    disconnect.
+    """
+    connection = socket.socket(socket.AF_UNIX)
+    connection.settimeout(10)
+    connection.connect(os.environ["CHORA_SOCKET"])
+    answers = connection.makefile()
+    calls = [
+        ("hello", {"name": "user", "keep_nodes": True}),
+        ("scene.apply", {"commands": commands}),
+    ]
+    for number, (method, params) in enumerate(calls):
+        request = {"jsonrpc": "2.0", "id": number, "method": method, "params": params}
+        connection.sendall(json.dumps(request).encode() + b"\n")
+        answer = json.loads(answers.readline())
+        if "error" in answer:
+            sys.exit(f"{method}: {answer['error']}")
+    connection.close()
 
 
 def panel(mcp, out):
@@ -248,21 +274,16 @@ def panel(mcp, out):
         "duration": 300,
         "easing": "ease_in_out",
     }
-    mcp.tool("apply_commands", {"commands": [{"camera": camera}]})
-    wait_for(
-        mcp,
-        lambda e: e["event"] == "animation.done" and e.get("output") == output["name"],
-    )
+    free_apply([{"camera": camera}])
+    time.sleep(0.8)
     after = describe(mcp, out, "panned")
     # The work area keeps the reserve and follows the camera.
     moved = [o for o in after["outputs"] if o["name"] == output["name"]]
     if not moved or moved[0]["work_area"] != [200, 60, 1280, 740]:
         sys.exit(f"the camera: {after['outputs']}")
     removals = [{"remove": {"id": i}} for i in ["panel", "panel-left", "panel-right"]]
-    mcp.tool(
-        "apply_commands",
-        {"commands": [{"camera": {"output": output["name"]}}, *removals]},
-    )
+    free_apply([{"camera": {"output": output["name"]}}])
+    mcp.tool("apply_commands", {"commands": removals})
 
 
 # The probe runs through `choractl run` (D42), which returns while the
@@ -293,7 +314,7 @@ def run_probe(choractl, out):
     probe.
     """
     probe = subprocess.run(
-        [choractl, "--name", "agent", "run", "sh", "-c", PROBE.format(out=out)],
+        [choractl, "--name", "user", "run", "sh", "-c", PROBE.format(out=out)],
         check=True,
         capture_output=True,
         text=True,
@@ -338,22 +359,26 @@ def hud(choractl, mcp, out):
     if back["size"] != [1280, 800]:
         sys.exit(f"configure_output: {back}")
     overlay = f"screen:{name}"
+    free_apply(
+        [
+            {
+                "create": {
+                    "id": "hud",
+                    "kind": "rect",
+                    "parent": overlay,
+                    "props": {
+                        "size": [160, 40],
+                        "color": [1, 0, 1, 1],
+                        "transform": {"translate": [1100, 20]},
+                    },
+                }
+            }
+        ]
+    )
     mcp.tool(
         "apply_commands",
         {
             "commands": [
-                {
-                    "create": {
-                        "id": "hud",
-                        "kind": "rect",
-                        "parent": overlay,
-                        "props": {
-                            "size": [160, 40],
-                            "color": [1, 0, 1, 1],
-                            "transform": {"translate": [1100, 20]},
-                        },
-                    }
-                },
                 node(
                     "mark",
                     "rect",
@@ -369,21 +394,18 @@ def hud(choractl, mcp, out):
         "duration": 2000,
         "easing": "linear",
     }
-    mcp.tool("apply_commands", {"commands": [{"camera": camera}]})
+    free_apply([{"camera": camera}])
     time.sleep(0.8)
     save_capture(mcp, out, "hud-moving", name)
-    wait_for(mcp, lambda e: e["event"] == "animation.done" and e.get("output") == name)
+    time.sleep(1.6)
     save_capture(mcp, out, "hud-moved", name)
     mcp.tool(
         "apply_commands",
         {
-            "commands": [
-                {"camera": {"output": name}},
-                {"remove": {"id": "hud"}},
-                {"remove": {"id": "mark"}},
-            ]
+            "commands": [{"remove": {"id": "mark"}}]
         },
     )
+    free_apply([{"camera": {"output": name}}, {"remove": {"id": "hud"}}])
 
 
 def give(mcp, owner, surface, to):
