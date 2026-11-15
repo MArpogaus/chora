@@ -21,10 +21,12 @@ Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
 import base64
 import json
 import os
-import socket
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gate_mcp import free_apply  # noqa: E402
 
 
 class Mcp:
@@ -192,31 +194,6 @@ void main() { gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * alpha; }
 
 def node(id, kind, props):
     return {"create": {"id": id, "kind": kind, "parent": "root", "props": props}}
-
-def free_apply(commands):
-    """Applies commands as a free client of the main socket.
-
-    A confined connection has no camera commands and no `screen:*`
-    parents, so the user's side of the test sets the camera and draws the
-    HUD under the name `user`, which keeps its nodes and cameras after the
-    disconnect.
-    """
-    connection = socket.socket(socket.AF_UNIX)
-    connection.settimeout(10)
-    connection.connect(os.environ["CHORA_SOCKET"])
-    answers = connection.makefile()
-    calls = [
-        ("hello", {"name": "user", "keep_nodes": True}),
-        ("scene.apply", {"commands": commands}),
-    ]
-    for number, (method, params) in enumerate(calls):
-        request = {"jsonrpc": "2.0", "id": number, "method": method, "params": params}
-        connection.sendall(json.dumps(request).encode() + b"\n")
-        answer = json.loads(answers.readline())
-        if "error" in answer:
-            sys.exit(f"{method}: {answer['error']}")
-    connection.close()
-
 
 def panel(mcp, out):
     """The panel test: a panel of the agent beside a camera of the user.
