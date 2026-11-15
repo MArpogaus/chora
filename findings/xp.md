@@ -1,8 +1,8 @@
 # xp findings (train 4, xp a836cbd6) | id | severity | source:line | state | text | assets benchmark A1-A11 deferred (X9 later, fallback art accepted)
-xp-1 | MAJOR | ux-deep-xp:35 | open | Log Off click closes the menu and nothing happens; no dialog, session stays, both windows lose focus and stay inactive
-xp-2 | MAJOR | ux-deep-xp:36; pixel-xp-r4:21 | open | Run (Start, Super+Space): bare box; no match leaves an empty box and Enter closes it silently. Needs a "Nothing found" word (dialog look: X8 later)
-xp-3 | MAJOR | ux-deep-xp:37 | verify | F1 leaked into the terminal as ^[OP once (intermittent): a bound key must never leak; table lists only Super+F1 (1059495c may fix the table)
-xp-4 | MAJOR | fb-erika-r1:1; fb-erika6:37 | verify | Start menu has no plain text or letter program (Notepad, Write); map to the configured editor, list only installed programs
+xp-1 | MAJOR | ux-deep-xp:35 | fixed d349a6da (doors) check `xp log-off` of gate-doors: Start > Log Off > dialog > Log Off runs loginctl terminate | Log Off click closes the menu and nothing happens; no dialog, session stays, both windows lose focus and stay inactive
+xp-2 | MAJOR | ux-deep-xp:36; pixel-xp-r4:21 | fixed 99f40faf (xtc) gate-xp-run: no match shows Nothing found, Escape closes | Run (Start, Super+Space): bare box; no match leaves an empty box and Enter closes it silently. Needs a "Nothing found" word (dialog look: X8 later)
+xp-3 | MAJOR | ux-deep-xp:37 | fixed d349a6da (doors) gate-doors f1-free x4: F1 is no binding in any look, reaches the client | F1 leaked into the terminal as ^[OP once (intermittent): a bound key must never leak; table lists only Super+F1 (1059495c may fix the table)
+xp-4 | MAJOR | fb-erika-r1:1; fb-erika6:37 | fixed 99f40faf (xtc) gate-xp-notepad: Notepad first program, a click starts the editor of the settings | Start menu has no plain text or letter program (Notepad, Write); map to the configured editor, list only installed programs
 xp-5 | MINOR | swarm-6:28; fb-erika6:7 | verify | Start lists LibreOffice though not installed: "Cannot open" after 30 s; list installed programs only
 xp-6 | MINOR | fb-erika-r1:23 | verify | No sign that a program is starting (slow start looks like a dead click); a busy cursor or taskbar button (X4 panel is later)
 xp-7 | MINOR | ux-deep-xp:39 | verify | Notify balloon sat on the paperclip head, text 12 px under the 14 px floor (165a1105 moved it left of the clip)

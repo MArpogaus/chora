@@ -1,8 +1,8 @@
 # construct findings (train 4, construct d3843e0; no ux-deep run exists, so most lines are older leads) | id | severity | source:line | state | text
-co-1 | BLOCK | backlog:39 | verify | After an mc drag onto the construct output, construct lost its panes (pane: none); RC: no lost window in any handover; check it still happens
-co-2 | MAJOR | fb-swarm2:49 | verify | After a window opens, walk and help keys do nothing or type into the terminal (stray keys into a client); recheck on train 4
-co-3 | MAJOR | backlog:18 | verify | Cube's xp child has no parent-death signal: after a construct crash the next cube.open waits on "a client xp runs already" (flakes lane)
-co-4 | MAJOR | ux-cross-look:18,19 | open | Lock, power, volume, screenshot doors absent in construct, no clock outside the xp face: see shared.md sh-1 to sh-5
+co-1 | BLOCK | backlog:39 | fixed 99f40faf (xtc) gate-handover-matrix cell `mc construct panes` pass (3 drags, all panes kept) | After an mc drag onto the construct output, construct lost its panes (pane: none); RC: no lost window in any handover; check it still happens
+co-2 | MAJOR | fb-swarm2:49 | fixed 99f40faf gate-construct-keys: after Alt+Escape Super+F1, Escape, d reach the construct, terminal took none | After a window opens, walk and help keys do nothing or type into the terminal (stray keys into a client); recheck on train 4
+co-3 | MAJOR | backlog:18 | fixed bfc34490 (PR_SET_PDEATHSIG in wm::child_command, used by the cube) gate-construct-cube: xp ends with a construct killed -9, restarted construct opens a cube again | Cube's xp child has no parent-death signal: after a construct crash the next cube.open waits on "a client xp runs already" (flakes lane)
+co-4 | MAJOR | ux-cross-look:18,19 | fixed d349a6da (doors) gate-doors construct column 20/20 (strip: clock, Programs, Keys, Lock, Power, Screenshot, Volume); stood back at a cube the strip hides: sh-5 | Lock, power, volume, screenshot doors absent in construct, no clock outside the xp face: see shared.md sh-1 to sh-5
 co-5 | MINOR | pixel-construct-r5:34 | open | Step-back capsule missing at 2x after step-in (0 dark px); a 2x user sees no way out hint; show it on a timer, not on first paint
 co-6 | MINOR | pixel-construct-r5:35 | open | Failed face stood back at 2x has no scene (flat bg, no horizon, floor or reflection); 1x has them
 co-7 | MINOR | pixel-construct-r5:36 | open | Failed-face card not fitted to the face (spills 12 px left, flat, face reads as ghost); size inside the face with a 16 px margin
