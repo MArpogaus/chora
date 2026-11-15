@@ -27,7 +27,8 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | ci r4 | claude/ci-r4 a3880296 | briefs/ci-r4.md | MERGE-OK (fontconfig in CI); train 9 |
 | pk1 | claude/pk1 93521c25 | briefs/pk1-r1.md | MERGE-OK; train 9 |
 | ledger | cloud opus ..LrDf8, read-only | briefs/ledger-r1.md | verify every open BLOCK/MAJOR on d349a6da |
-| flakes | cloud Fable (starting), claude/flakes-r4 | briefs/flakes-r4.md | F17, F16, GR1 |
+| ci e2e | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r3.md | PR #106 e2e: agent.sh xs_are; CI4 |
+| flakes | cloud Fable ..P8pMY, claude/flakes-r4 | briefs/flakes-r4.md | F17, F16, GR1 |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
