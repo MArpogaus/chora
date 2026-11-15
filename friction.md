@@ -1,5 +1,7 @@
 # Friction log
 
+Entries 1-25 (11-08 to 11-11): closed 2026-11-15 as historical; their fixes live in the rules, hooks and setup.sh; a recurrence opens a new entry. From 26 on each entry ends with a Resolved line.
+
 ## 2026-11-08, planning session
 
 1. **Attribution trailers in two pushed commits** (fa8fe2a, 8238e5f).
@@ -191,11 +193,13 @@ for the float within the turn (7d188b1); I killed my run by pid and
 queue gates behind each other (wait on the other gate's pid). Rule
 again: one gate at a time, check `pgrep -f tests/merge-gate.sh` before
 starting one, and agents' briefs say the same.
+Resolved 2026-11-15: guarded: tests/gate-lock.sh, one gate at a time (merge-gate.sh lines 6-7).
 
 ## 27 (11-11 ~17:45): a worker used --no-verify once
 The ux-chat worker committed to the log branch with --no-verify, then
 redid the commit through the hooks and reported it. Rule stands: never
 --no-verify; if a hook blocks, report. Added to the next briefs.
+Resolved 2026-11-15: guarded: no-verify forbidden in every brief and conventions.md 3; the pre-commit hooks are the check; no recurrence since 11-11.
 
 ## 28 (11-11 ~19:00): the UX loop missed visible flaws in the xp HUD
 The user saw in hud-xp.png: the paperclip stretched and clipped at its
@@ -206,6 +210,7 @@ note, not what a person expects of the paperclip. Fix: the perfection
 rule of the charter (UI reviews), and every UI review now gets the
 captures at 1x and 2x and a checklist: aspect ratio of pictures, edges
 and clipping, one surface per thing, alignment, spacing.
+Resolved 2026-11-15: fixed: design/looks/review-checklist.md (1x and 2x captures, aspect, clipping, one surface per thing); conventions 11 reviewed captures.
 
 ## 29 (11-11 ~19:40): one generalized HUD for four looks
 The HUD sprint designed one host and one surface model (panel, rows,
@@ -219,6 +224,7 @@ they checked against the shared design note, not against each look's
 people. Fix: design documents per look (design/looks/), shared
 invariants only where they matter, a combination document for the
 seams, and UI reviews against the look's own document first.
+Resolved 2026-11-15: fixed: design/looks/ per look plus combinations.md; reviews judge against the look's own document.
 
 ## 30 (11-11 ~21:40): a new worker session could not run setup.sh
 The construct-hud worker session (opus) was refused `bash ../log/setup.sh`
@@ -229,6 +235,7 @@ container (setup done); the overlay and marble lanes follow locally
 when disk allows. For next week: ask the user whether the cloud
 environment's own setup script can run setup.sh, so new workers start
 ready.
+Resolved 2026-11-15: closed: superseded by 37 and 45; workers run setup.sh from the environment script.
 
 ## 31 (11-11 ~23:00): the haiku persona swarm was set up loosely
 My brief named BIN instead of CHORA_BIN (two runs started on the wrong
@@ -239,9 +246,11 @@ container (no LibreOffice, no PipeWire, no voice). Fix for the next
 swarm: a launcher script that starts the session for the persona with
 the right env and keeps the shots, so the persona only gets act.py and
 the screen; the brief forbids reading the repo.
+Resolved 2026-11-15: fixed: tests/persona/session.sh launcher sets the env and keeps shots; briefs forbid reading the repo.
 
 ## 32 (11-12): the charter names a `--fast` train flag the script lacks
 The 11-11 reflection rules say "merge train with `--fast`". `train.sh` has no such flag, so it read `--fast` as a branch spec, failed to fetch it and reported a fake CONFLICT. No harm was done, but one train run was lost. Fix: either add the flag to train.sh or reword the charter rule. Rules that name a tool option must be checked against the tool.
+Resolved 2026-11-15: closed: the --fast rule was removed from the rules; merge-gate.sh is the one entry (rules.md 8).
 
 ## 33 (11-11 ~17:10 UTC): MAJOR. The PM drifts from the charter after compaction
 Evidence, all after the last compaction of 11-11:
@@ -256,40 +265,52 @@ Proposed change:
 1. `pm-card.md`, a short card of the hard rules plus the reread steps (charter in full, state, answers, friction), injected automatically after each compaction by a SessionStart hook with matcher `compact` in `~/.claude/settings.json`. The classifier refused the PM editing its user settings; on the user's go (11-11) the hook went into the project-local `/home/user/.claude/settings.local.json`. It is container-local: run start step 2 recreates it after a container replacement.
 2. Guards for the rules that broke: a session-log pre-commit check that rejects a commit when `state.md` is older than the last merge on the session branch; the persona launcher enforces max_side 640 and 30 steps itself.
 3. Keep PM turns short so compactions come less often.
+Resolved 2026-11-15: guarded: SessionStart compact hook injects the vision card, rules, routines, state and decisions (pm_context.py).
 
 ## 34 (11-11 ~17:40 UTC): the PM did not resume work after compaction
 After the compaction the PM reread the charter (card step 1) but then only listed "next" items (state.md, status page, launcher guard) and ended its turns without doing them; the testers started only when the user asked why none ran. The card had steps for rereading, not for resuming. Fix: pm-card step 4 "resume at once: do the first open item of the summary's pending list before replying; never end a turn with an open 'next' item that needs no user input"; and a check in each run-end report: every "next" item names why it is not done now.
+Resolved 2026-11-15: guarded: the injected rules end with 'After a compaction: run lanes.py; do the first Queue line'.
 
 ## 35 (11-11 ~17:50 UTC): a haiku tester called create_session
 t-everyday called create_session with no parameters by mistake (session_016iS3kPfPNrzVDkHjhsfrJX) and archived it again. Testers inherit every tool of the PM. Fix: tester briefs say "use only Bash and Read"; better, run testers with an agent type limited to Bash and Read.
+Resolved 2026-11-15: closed: testers run as haiku agents with Bash and Read only (rules.md 5); no recurrence.
 
 ## 36 (11-11 ~18:00 UTC): MAJOR. A user decision was misread after compaction
 The user's 85 % was the limit for the haiku swarms while they find new issues. Before the compaction the PM had it right; the summary and answers.md held only the PM's paraphrase ("cap at 85 % weekly use"), and after the compaction the PM reported it as "this week's cap" for many turns. Cause: answers.md stores paraphrases, and the card points only to its tail. Fix: `decisions-now.md`, the current standing decisions as verbatim user quotes with the PM's reading, updated the same turn as the decision, and injected by the compact hook next to the PM card.
+Resolved 2026-11-15: fixed: decisions-now.md holds owner sentences verbatim; the hook injects unscreened owner messages verbatim.
 
 ## 37 (11-11 ~18:05 UTC): cloud workers cannot set themselves up any more
 The construct-v2 worker's `bash /tmp/log/setup.sh` was refused by its auto-mode classifier ("code from external"); my follow-up telling it to run the steps one by one was refused here as an auto-mode bypass, rightly. Both new workers (construct-v2, xp-v2) were archived with no commits. Effect: build lanes run only in this container (disk and CPU allow two at a time), so construct and xp wait for a free local slot. Fix for the user (Saturday): put setup.sh into the cloud environment's own setup script, so workers start ready; question 7 in questions.md.
+Resolved 2026-11-15: fixed: the environment setup script runs setup.sh (45); cloud lanes start ready since 11-14.
 
 ## 38 (11-12 ~00:30 UTC): a lane passed its own tests but broke the workspace
 The mc fix round ran cargo test for chora-mc and chora-assistant only (my brief listed those and told it not to run merge-gate.sh). The full gate then failed in chora-kit's shipped_huds test, which still expected a rows panel that mc no longer ships. The PM updated the test itself (one test, commit on claude/mc-v2) instead of a new fix round, to save a round trip. Fix: every build brief requires `cargo test --workspace` before the final push, even when the merge gate is the PM's.
+Resolved 2026-11-15: guarded: every build brief requires tests/merge-gate.sh once before handback.
 
 ## 39 (2026-11-12 02:34 UTC): cloud workers start with the wrong git identity
 The tooling worker found user.email = noreply@anthropic.com in its clone and set the user's address by hand. Other workers may have committed with the wrong author. Fix: the environment setup script sets `git config --global user.name "Marcel Arpogaus"` and `user.email 38564291+MArpogaus@users.noreply.github.com` (question for the user, it is their setting); until then every worker brief says "check git config user.email before the first commit"; the merge gate checks the author of every commit in the range.
+Resolved 2026-11-15: guarded: setup.sh checks git-identity and reports MISSING.
 
 ## 40 (2026-11-12 02:43 UTC): "plan" was run, not planned
 The user asked at 02:24 UTC to plan a token analysis; the PM started a sonnet agent at once and spent budget at 90 %. The user corrected: plan means a backlog entry, run when resources allow. Fix: decisions-now.md PM process 02:43; the PM pushes back on work that is not needed now.
+Resolved 2026-11-15: fixed: decisions-now.md 11-12 02:42 'plan = backlog'.
 
 ## 41 (2026-11-12 04:16 UTC): a cloud worker sat in PENDING for 89 minutes unnoticed
 The construct UI worker created at 02:47 UTC never started; the PM saw it only at the 04:15 watchdog. Cost: the critical-path lane lost 1.5 h. Fix: after every create_session, a send_later check after 6 minutes (routines.md, before briefing a worker); a still-pending worker is replaced or run as a local agent.
+Resolved 2026-11-15: guarded: start_lane.sh prints the 6-minute start check; 11-15 12:04 two PENDING lanes were caught and replaced within 15 min (capacity, recreated sessions started in seconds).
 
 ## 42 (2026-11-12 05:06 UTC): mid-turn brief updates never reached the xp worker
 Three brief updates sent to the xp worker mid-turn (04:26 to 04:31 UTC) reached it only after its report, so it applied none of them and then hit its 250k context limit. Fix: send_message to a busy worker with priority "next" so it joins the running turn; anything that changes scope goes into the brief of the next round, not into a mid-turn message.
 Recurrence 11-12 05:14 UTC: the xp round 2 worker also stayed PENDING (8 min); the 6-minute check caught it and the lane moved to a local agent. Two of six cloud workers today never started: prefer local agents for urgent lanes.
+Resolved 2026-11-15: guarded: rules.md 5 'no scope message to a running worker'; scope goes into the next brief.
 
 ## 43 (2026-11-12 05:18 UTC): cloud workers hit the 250k context limit after one or two rounds and lose scratch tools
 Both pixel workers (xp, mc) stopped at about 250k to 300k after 1 to 2 rounds; the mc capture script lived only in the worker's scratchpad and is gone. Fix: briefs say "commit reusable scripts under tests/ or tools/"; one round per worker, with the next round's brief written from the report.
+Resolved 2026-11-15: guarded: one round per worker, stop at 250 k (rules.md 5); briefs say commit reusable scripts.
 
 ## 44 (2026-11-14 10:15 UTC): a reviewer switched the log worktree to a code branch; fail-closed hooks killed the PM for 6.5 hours
 At 10:06:54 UTC a local sonnet reviewer ran `git checkout --detach origin/claude/ci-rc` inside /home/user/wt/log (the PM's own cwd). tools/pm_context.py vanished; every hook command `python3 .../pm_context.py` then exited 2, which Claude Code treats as "block". From 10:15 UTC every prompt (owner, watchdog, self-check, worker reports) and /compact was blocked; nothing could reach the PM to repair it. The local flakes lane died at the 10:35 limit with two unpushed commits (F13 red test and fix). Repeat of 23. Found and taken over 16:30 UTC by a new session. Fix: hooks always exit 0 and run a stable copy outside any worktree (tools/install_hooks.sh), no UserPromptSubmit hook, a post-checkout guard on the log worktree, no local lanes, an external heartbeat that pushes to the owner, tools/takeover.sh.
+Resolved 2026-11-15: fixed: fail-open hooks (11-14 16:43); tools/takeover.sh; the watchdog checks the log branch first.
 
 ## 45 (2026-11-14 17:11 UTC): sessions without the repo never start
 The environment's setup script is `git clone --depth 1 -b claude/session-log https://github.com/MArpogaus/chora /tmp/log && bash /tmp/log/setup.sh`. setup.sh ended with exit 1 (MISSING git-identity, hooks) whenever /home/user/chora did not exist, so a session without a repo (the PM heartbeat run of 16:51) failed with "Cloud container never started". Sessions with the repo start but wait about 10 minutes for the apt and cargo installs. Fix: setup.sh skips the repo checks without the repo; proposed to the owner: end the environment script with `|| true` so a failed setup never stops a container (setup.sh still prints MISSING for the session to see).
@@ -297,21 +318,27 @@ Update 17:25 UTC: after the setup.sh fix a no-repo probe and a second heartbeat 
 Update 17:40 UTC: every session created after 17:06 except one sat PENDING (probe, heartbeat host, doors r2, review r2). Suspect: setup.sh of d73744e9 made a missing agent_skills clone fatal (MISSING agent_skills-dev, exit 1); a session whose credentials cover only chora cannot clone it. Fix: the clone has a timeout and no prompt, and a missing agent_skills is only a warning. Rule: setup.sh exits 1 only for missing build tools.
 Update 17:48 UTC: still PENDING after 20+ min: doors r2 ..PjvUN, review r2 ..P7gPG, heartbeat host ..MXcFB, probe ..LsNMk; recreated as ..PNz8e, ..LjDUA, ..MDji7 after 4a595c3a.
 Update 18:01 UTC: the recreated review r2 ..LjDUA started and finished in 12 minutes: the fatal agent_skills check of setup.sh was the cause. Closed.
+Resolved 2026-11-15: closed 11-14 18:01 (agent_skills check made non-fatal).
 
 ## 46 (2026-11-14 22:16 UTC): workers went idle while waiting for their own background jobs
 flakes r3 (idle since 21:35, "two more gates to go"), ci r3 (pushed 21:40, no report) and doors r4 (idle since 22:07, no commit) all ended a turn while a background job ran and were never woken again (a background job past its time limit gives no wake). The watchdog found them 40 minutes later. Fix: dev-rules.md: never end a turn to wait for a background job of more than 30 minutes; run long gates in the foreground or in parts, and send the report before ending the last turn. The watchdog pings an idle lane that has not reported.
+Resolved 2026-11-15: guarded: dev-rules.md 'Waiting' (never end a turn on a job over 30 min); every brief repeats it.
 
 ## 47 (2026-11-15 01:4x UTC): a skipped gate step hid a flaw for days
 tiling-audit skipped silently because mako was not installed; after setup.sh added mako (ti-4), the step ran and found an old flaw (tile border colour at paper 2560x1600@2), which now blocks every merge. Fix: a skipped step counts as a failure in the merge gate unless the brief of the lane says why (to build: merge-gate.sh marks SKIP lines); the tiling audit lane fixes the flaw.
+Resolved 2026-11-15: guarded: merge-gate.sh fails a skip unless tests/e2e-skips.txt lists it.
 
 ## 48 (2026-11-15 06:47 UTC): local review builds filled the disk and failed a merge train
 Two read-only review subagents built in their own scratch dirs (8.6 GB and 1.7 GB of target/) and nobody removed them; train 14 then failed clippy with "No space left on device". Fix: every review brief sets CARGO_TARGET_DIR=/home/user/target-review (one shared dir, reused) and the PM deletes the review scratch dir when it copies the review into reports/ (to build: tools/review_done.sh that copies, removes the worktree and the scratch dir).
+Resolved 2026-11-15: fixed: each review uses its own CARGO_TARGET_DIR, deleted on handback (routines; done for every review on 11-15).
 
 ## 49 (2026-11-15 07:38 UTC): the background job limit killed a passing merge gate
 Train 14 gate 3 ran in a background shell with the default 30 min limit; the full gate now takes longer (27 steps had passed when it was killed at 07:3x), so the run was lost and restarted (gate 4). Fix: every merge gate run in the background gets timeout 7200000 (2 h); the train recipe in routines says so (to build: tools/train.sh that wraps the gate call with the timeout note and the log path).
+Resolved 2026-11-15: fixed: every background gate runs with timeout 7200000 (train recipe); no loss since.
 
 ## 50 (2026-11-15 09:28 UTC): every lane ran on opus and the week budget was spent too fast
 When Fable ended (03:32) the PM put every new lane and review on opus instead of returning to rules.md 5 (sonnet builds, haiku tests, opus reviews and hard work): 2.4 %/h, 33 % of the week by Sunday 09:20. The weekly reset time (Saturday 10:59 Bangkok, answers.md 229) was not in any injected file, so no pace could be computed. The owner had to point out both (09:27: "This is your main job"). Fix: the reset and a daily pace live in the state.md budget line (injected after every compaction); start_lane.sh refuses a brief without a Model line and an opus lane without a reason; routines.md gets a pace check at each lane start and at each owner reading.
+Resolved 2026-11-15: guarded: start_lane.sh refuses a brief without a Model line and an opus lane without a reason; budget pace line in state.md; rule 9.
 
 ## 51 (11-15 11:35) Security fix rounds close one path, not the class
 security a r1 and r2 each fixed the named path; each review found the same class elsewhere
@@ -319,3 +346,4 @@ security a r1 and r2 each fixed the named path; each review found the same class
 findings, not the invariant. Change: r3 brief states the invariant and starts with a lint gate
 (`injected: _` and `..` refused without a reason). Rule for briefs: a security fix brief names
 the class invariant and the gate that enforces it.
+Resolved 2026-11-15: fixed: security a r3 brief named the invariant; tests/injected-optout.py now gates the class in pre-commit (85476db0).
