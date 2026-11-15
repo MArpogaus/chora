@@ -32,7 +32,6 @@ mod vad;
 mod words;
 
 use std::{
-    io::IsTerminal,
     path::{Path, PathBuf},
     process::ExitCode,
     sync::{
@@ -139,15 +138,7 @@ fn unbroken(settings: settings::File<Config>) -> Result<settings::File<Config>, 
     reason = "the subcommands print their results; the defaults serialize"
 )]
 fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            // tract logs its kernels at info.
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,tract_linalg=warn,rmcp=warn".into()),
-        )
-        .with_writer(std::io::stderr)
-        .with_ansi(std::io::stderr().is_terminal())
-        .init();
+    log::init();
     let args = Args::parse();
     if args.print_config {
         print!(

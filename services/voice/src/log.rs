@@ -1,6 +1,39 @@
-//! Log lines with timestamps through `tracing`, to stderr. One call site
-//! per level keeps the macros out of the callers: clippy counts their
+//! Log lines with timestamps through `tracing`, to stderr (journald).
+//! One call site per
+//! level keeps the macros out of the callers: clippy counts their
 //! expansion into the cognitive complexity of each caller.
+
+use std::io::IsTerminal;
+
+use tracing::{Level, Metadata};
+use tracing_subscriber::{
+    EnvFilter, filter::filter_fn, fmt, layer::SubscriberExt, util::SubscriberInitExt,
+};
+
+/// The filter without `RUST_LOG`: tract logs its kernels at info, rmcp
+/// each connection.
+const DEFAULT: &str = "info,tract_linalg=warn,rmcp=warn";
+
+/// Below info only the service logs: a dependency such as rmcp writes
+/// the arguments of a tool call at debug, and they carry what the person
+/// said.
+fn ours_or_info(meta: &Metadata<'_>) -> bool {
+    *meta.level() <= Level::INFO || meta.target().starts_with("chora_voice")
+}
+
+/// Starts the log with `RUST_LOG` or the default filter.
+pub fn init() {
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| DEFAULT.into()))
+        .with(filter_fn(ours_or_info))
+        .with(
+            fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_ansi(std::io::stderr().is_terminal()),
+        )
+        .init();
+    std::panic::set_hook(Box::new(|panic| error(&format!("panic: {panic}"))));
+}
 
 pub fn debug(line: &str) {
     tracing::debug!("{line}");
@@ -24,6 +57,8 @@ pub fn error(line: &str) {
 #[cfg(test)]
 pub mod capture {
     use std::{cell::RefCell, io::Write, rc::Rc, sync::Once};
+
+    use tracing_subscriber::layer::SubscriberExt;
 
     thread_local! {
         static LINES: RefCell<Option<Lines>> = const { RefCell::new(None) };
@@ -74,7 +109,8 @@ pub mod capture {
                 .with_max_level(tracing::Level::TRACE)
                 .with_ansi(false)
                 .with_writer(|| ThreadWriter)
-                .finish();
+                .finish()
+                .with(tracing_subscriber::filter::filter_fn(super::ours_or_info));
             let _ = tracing::subscriber::set_global_default(subscriber);
         });
         let lines = Lines::default();

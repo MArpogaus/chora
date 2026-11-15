@@ -757,7 +757,7 @@ impl Core {
     /// answers its question, else the rest is its prompt.
     fn address(&mut self, name: String, rest: String) -> Vec<Effect> {
         let asks = self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name);
-        crate::log::debug(&format!("to {name}: {rest:?}"));
+        crate::log::debug(&format!("to {name}: chars={}", rest.chars().count()));
         match words::matches(&self.config, &rest, 0, asks) {
             Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
                 .chain(self.earcon(Earcon::Cancel))
@@ -1022,7 +1022,7 @@ impl Core {
                     "turn={turn} interim={}ms",
                     t.after_commit.as_millis()
                 ));
-                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
+                crate::log::debug(&format!("turn={turn} chars={}", t.text.chars().count()));
                 self.last_transcript = t.text;
                 self.seq += 1;
             }
@@ -1050,7 +1050,7 @@ impl Core {
         let text = match result {
             Ok(t) => {
                 crate::log::info(&format!("turn={turn} asr={}ms", t.after_commit.as_millis()));
-                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
+                crate::log::debug(&format!("turn={turn} chars={}", t.text.chars().count()));
                 self.last_transcript = t.text;
                 self.seq += 1;
                 self.last_transcript.trim().to_owned()
@@ -1199,7 +1199,7 @@ impl Core {
             // New words over the agent's speech, with or without a
             // barge-in: the reply ends, the words and those that wait
             // start the next one.
-            crate::log::debug(&format!("over the reply: {text:?}"));
+            crate::log::debug(&format!("over the reply: chars={}", text.chars().count()));
             let queued = std::mem::take(&mut self.queue);
             effects.extend(self.stop(None));
             self.queue = queued;
@@ -1208,7 +1208,7 @@ impl Core {
         }
         // While the reply thinks or runs tools, any text but a pure yes
         // or no goes into its next round ("Und größer.", "Nein, rot.").
-        crate::log::debug(&format!("queued: {text:?}"));
+        crate::log::debug(&format!("queued: chars={}", text.chars().count()));
         if !words::answer(&self.config, &text).pure() {
             effects.push(Effect::Inject(text.clone()));
         }
