@@ -286,18 +286,35 @@ fn cut(text: &str, limit: usize) -> String {
 }
 
 /// The text without the secrets that `chat::hide` hides: a JSON text
-/// by its keys, any other text by the `key: value` and `key=value` of
-/// each line.
+/// by its keys and each of its texts as below, any other text by the
+/// `key: value` and `key=value` of each line. A JSON text without
+/// secrets stays as it is.
 fn redact(text: &str) -> String {
-    if let Ok(mut value) = serde_json::from_str::<Value>(text)
+    if let Ok(value) = serde_json::from_str::<Value>(text)
         && (value.is_object() || value.is_array())
     {
-        crate::chat::hide(&mut value);
-        return value.to_string();
+        let mut hidden = value.clone();
+        crate::chat::hide(&mut hidden);
+        redact_texts(&mut hidden);
+        return if hidden == value {
+            text.to_owned()
+        } else {
+            hidden.to_string()
+        };
     }
     (text.lines().map(redact_line))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Each text of a JSON value through [`redact`].
+fn redact_texts(value: &mut Value) {
+    match value {
+        Value::String(text) => *text = redact(text),
+        Value::Array(items) => items.iter_mut().for_each(redact_texts),
+        Value::Object(map) => map.values_mut().for_each(redact_texts),
+        _ => {}
+    }
 }
 
 fn redact_line(line: &str) -> String {
@@ -786,7 +803,8 @@ struct Rpc {
 impl Rpc {
     async fn send(&mut self, message: &Value) -> Result<(), String> {
         let mut line = message.to_string();
-        let _ = self.log.write_all(format!("> {line}\n").as_bytes()).await;
+        let shown = redact(&line);
+        let _ = self.log.write_all(format!("> {shown}\n").as_bytes()).await;
         line.push('\n');
         self.stdin
             .write_all(line.as_bytes())
@@ -1005,8 +1023,8 @@ impl Actor {
         line: &[u8],
         dir: &Path,
     ) -> Result<(), String> {
-        let _ = rpc.log.write_all(b"< ").await;
-        let _ = rpc.log.write_all(line).await;
+        let shown = redact(String::from_utf8_lossy(line).trim_end_matches('\n'));
+        let _ = rpc.log.write_all(format!("< {shown}\n").as_bytes()).await;
         match serde_json::from_slice::<Value>(line) {
             Ok(message) => self.message(rpc, session, message, dir).await,
             Err(_) => Ok(()),
