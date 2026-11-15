@@ -191,9 +191,14 @@ impl Mc {
     }
 
     /// A click of the user: on a window or a docked app it gives that the
-    /// keyboard, on a line of the overview it shows that scene.
+    /// keyboard, on a line of the overview it shows that scene. A press of
+    /// `input.inject` does neither, unless the plugin accepts injected
+    /// input.
     pub fn click(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
         if self.press_answer(node, injected) {
+            return Ok(());
+        }
+        if injected && !self.rt.accepts_injected() {
             return Ok(());
         }
         let mut ours = self.windows.values().chain(self.docks.values());
