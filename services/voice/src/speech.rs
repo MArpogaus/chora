@@ -177,7 +177,7 @@ async fn fetch(
     spoken: &mut Spoken,
 ) {
     while let Some(sentence) = sentences.recv().await {
-        crate::log::debug(&format!("say: {sentence}"));
+        crate::log::debug(&format!("say: chars={}", sentence.chars().count()));
         let _ = tx.send(Piece::Start(sentence.clone()));
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let asked = Instant::now();
@@ -545,7 +545,7 @@ mod tests {
 
     #[tokio::test]
     async fn playback_waits_for_a_buffer_or_the_end_of_the_sentence() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let server = fake::tts(fake::Tts::Speak).await;
         let config = Config {
             tts_url: server.url,
@@ -577,7 +577,10 @@ mod tests {
             "speak ends with the sound"
         );
         let log = lines.text();
-        assert!(!log.contains("Zwanzig"), "no reply sentence at info: {log}");
+        assert!(
+            !log.contains("Zwanzig"),
+            "no reply sentence in the log: {log}"
+        );
     }
 
     /// Speaks two sentences, pauses at the first sound and resumes; the

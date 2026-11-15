@@ -343,7 +343,7 @@ fn panic_words(thread: Option<&str>, panic: &dyn Display, trace: &dyn Display) -
 }
 
 /// Writes the words of every panic, in every thread, to a file
-/// descriptor.
+/// descriptor and to the log file.
 fn panics_to(fd: RawFd) {
     std::panic::set_hook(Box::new(move |panic| {
         let text = panic_words(
@@ -352,6 +352,7 @@ fn panics_to(fd: RawFd) {
             &Backtrace::force_capture(),
         );
         write_all(fd, text.as_bytes());
+        crate::log::panic(&text);
     }));
 }
 

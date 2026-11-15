@@ -82,7 +82,6 @@ pub async fn transcribe(
     result.map(|mut t| {
         if echoes(&request.prompt, &t.text) {
             crate::log::info("asr: the prompt came back, dropped");
-            crate::log::debug(&format!("asr: the dropped prompt: {:?}", t.text));
             t.text.clear();
         }
         t
@@ -218,7 +217,7 @@ mod tests {
     /// Log 2026-10-31, turn 1: the ASR answered its own prompt.
     #[tokio::test]
     async fn a_transcript_that_is_the_prompt_is_dropped() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let request = req("ws://unused");
         let echo = "Hey Chora, Coder, hey chora, listen, hallo chora, hör zu, sleep, go to \
                     sleep, schlaf, schlaf jetzt, stop, cancel, never mind, stopp, abbrechen, \
@@ -236,7 +235,7 @@ mod tests {
         let t = transcribe(&req(&server.url), &[0; 100], Duration::from_secs(5)).await;
         assert_eq!(t.unwrap().text, "");
         let log = lines.text();
-        assert!(!log.contains("hör zu"), "no dropped text at info: {log}");
+        assert!(!log.contains("hör zu"), "no dropped text in the log: {log}");
     }
 
     #[tokio::test]

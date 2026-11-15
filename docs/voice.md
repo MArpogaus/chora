@@ -774,26 +774,22 @@ refused `say` is gone. Another refused event logs at debug level.
 ## 11. Logging and latency
 
 `tracing` with timestamps to stderr (journald), without colors when
-stderr is no terminal. `RUST_LOG` filters; the default is
-`info,tract_linalg=warn`. The lines are plain text in the form
+stderr is no terminal, and to `$XDG_STATE_HOME/chora/logs/voice.log`
+(see [Logs and problem reports](logs.md)). `RUST_LOG` filters; the default is
+`info,tract_linalg=warn,rmcp=warn`. Below info only the targets of the
+service log: a dependency such as rmcp writes the arguments of a tool
+call at debug. The lines are plain text in the form
 `key=value`: one call site per level in `log.rs` keeps the `tracing`
 macros out of the other functions, because clippy counts their expansion
 into the cognitive complexity. With `CHORA_VOICE_LLM_DUMP=FILE` the agent
 appends each LLM request body and the raw lines of its stream to FILE
 (mode 0600), to see what the server got and sent. Each stage logs start
-and end with the turn number. The info level has no text that the
-person said or heard: the text of an utterance (`turn=2 text="..."`),
-of words over a reply or queued into its next round, of an ASR echo
-that drops, of a reply sentence (`say:`), of each round of the LLM, of
-a coding task and of its result log at debug. `services/voice/tests/live-gate.sh`
-runs the agent with `RUST_LOG=chora_voice=debug,info` to show them. A tool call logs
-its name and time at info. At debug it logs the first 300 characters of
-its arguments and of its result, without secrets. Of
-`read`, the log has only the path and the byte count. The `text` of
-`inject_input` shows as "(hidden)": it can be a dictated password. The
-values of each `*_headers` key, of each
-key with `api_key`, `apikey`, `secret` or `password`, of each key that
-ends with `token`, and of `authorization` show as "(hidden)". One summary per turn:
+and end with the turn number. No level has text that the person said
+or heard: an utterance, words over a reply or queued into its next
+round, an ASR echo that drops, a reply sentence, each round of the LLM,
+a coding task and its result log only their length (`turn=2 chars=31`).
+A tool call logs its name and time, never its arguments or its result.
+One summary per turn:
 
 ```
 turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms

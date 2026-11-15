@@ -76,6 +76,7 @@ assets = [
   { source = "../../dist/session/chora-session", dest = "/usr/bin/chora-session", mode = "755" },
   { source = "../../dist/sandbox/agent-sandbox.sh", dest = "/usr/bin/agent-sandbox.sh", mode = "755" },
   { source = "../../dist/session/chora-flavor", dest = "/usr/bin/chora-flavor", mode = "755" },
+  { source = "../../dist/chora-report", dest = "/usr/bin/chora-report", mode = "755" },
   { source = "../../dist/session/chora-xwayland", dest = "/usr/libexec/chora/chora-xwayland", mode = "755" },
   { source = "../../dist/session/chora@.service", dest = "/usr/lib/systemd/user/chora@.service", mode = "644" },
   { source = "../../dist/session/chora-shutdown.target", dest = "/usr/lib/systemd/user/chora-shutdown.target", mode = "644" },

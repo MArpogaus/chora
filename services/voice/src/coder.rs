@@ -226,7 +226,11 @@ impl Coder {
         let source = project.map(|p| self.data.join("inventory").join(p));
         let started = format!("the coding task started in {}", dir.display());
         let (coder, cmd, task) = (self.clone(), inner.cmd.clone(), task.to_owned());
-        crate::log::debug(&format!("coder: task in {}: {task}", dir.display()));
+        crate::log::debug(&format!(
+            "coder: task in {}, chars={}",
+            dir.display(),
+            task.chars().count()
+        ));
         let _ = self.tx.send(Input::Code(Event::Started(task.clone())));
         tokio::spawn(async move {
             let run = async {
@@ -260,7 +264,7 @@ impl Coder {
         } else {
             format!("The coding task in {name} {state}. {}", detail.trim())
         };
-        crate::log::debug(&format!("coder: {}", inner.last));
+        crate::log::debug(&format!("coder: {name} {state}"));
         let said = inner.last.clone();
         let _ = self.tx.send(Input::Code(Event::Done { ok, said }));
     }
@@ -581,7 +585,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_task_runs_in_a_clone_without_origin_and_logs_next_to_it() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let data = temp("coder");
         let project = data.join("inventory/demo");
         git(&["init", "--quiet", &project.to_string_lossy()])
@@ -637,8 +641,8 @@ mod tests {
                 .ends_with("Alles gut.")
         );
         let log = lines.text();
-        assert!(!log.contains("schön"), "no task at info: {log}");
-        assert!(!log.contains("Alles gut"), "no result at info: {log}");
+        assert!(!log.contains("schön"), "no task in the log: {log}");
+        assert!(!log.contains("Alles gut"), "no result in the log: {log}");
         let _ = std::fs::remove_dir_all(&data);
     }
 

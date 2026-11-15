@@ -131,8 +131,6 @@ printf '%-36s %s\n' \
     "TTS first audio" "$(field 'reply=1 ' tts_first)" \
     "first sound after the utterance" "$(field 'reply=1 ' first_sound)" \
     "outcome" "$(field 'reply=1 ' outcome)"
-grep -oE 'turn=1 text=.*' "$dir/agent.log" | sed 's/^turn=1 text=/heard: /' || true
 grep -oE 'tool [a-z_]+ .* [0-9]+ms' "$dir/agent.log" | cut -c1-100 || true
-grep -oE 'say: .*' "$dir/agent.log" | cut -c1-100 || true
 grep -oE '(ERROR|WARN).*' "$dir/agent.log" | sed 's/^/log: /' || true
 [[ $(field 'reply=1 ' outcome) == answered ]]

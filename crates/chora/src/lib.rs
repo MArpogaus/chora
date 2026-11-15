@@ -19,6 +19,7 @@ mod input;
 mod ipc;
 mod layers;
 mod lock;
+mod log;
 mod mesh;
 mod methods;
 mod offscreen;
@@ -107,11 +108,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         Some((first, rest)) if first == "--" => rest,
         Some(_) => return Err(USAGE.into()),
     };
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .init();
+    log::init();
 
     let mut event_loop: EventLoop<State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;

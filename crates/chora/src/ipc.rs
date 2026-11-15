@@ -376,6 +376,9 @@ impl Ipc {
         let Some(c) = self.conns.get_mut(&conn) else {
             return;
         };
+        if let Some(error) = &message.error {
+            refused(conn, c.name.as_deref(), error.code);
+        }
         let mut bytes = line(message);
         if message.result.is_some() && c.output.len() + bytes.len() > MAX_OUTPUT {
             let error = RpcError::new(
@@ -1679,6 +1682,27 @@ fn is_safety_key(sym: xkb::Keysym) -> bool {
         || (Keysym::F1.raw()..=Keysym::F12.raw()).contains(&sym.raw())
 }
 
+/// One line per refused request: the client and the code, never the
+/// message or the parameters, which can carry typed text. A node or
+/// surface that went meanwhile is a race of every client and logs at
+/// debug.
+fn refused(conn: u64, client: Option<&str>, code: i64) {
+    let client = client.unwrap_or("-");
+    if matches!(code, RpcError::GONE_SURFACE | RpcError::UNKNOWN_NODE) {
+        refused_in_a_race(conn, client, code);
+    } else {
+        refused_at_info(conn, client, code);
+    }
+}
+
+fn refused_in_a_race(conn: u64, client: &str, code: i64) {
+    tracing::debug!(conn, client, code, "refused");
+}
+
+fn refused_at_info(conn: u64, client: &str, code: i64) {
+    tracing::info!(conn, client, code, "refused");
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -2477,6 +2501,54 @@ mod tests {
         let (error_code, message) = agent.fails(&mut core, "grants.set", grant);
         assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY);
         assert!(message.contains("only on the admin socket"), "{message}");
+    }
+
+    struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Sink {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// The log lines of every level that `run` writes in this thread.
+    fn logged(run: impl FnOnce()) -> String {
+        let lines = std::sync::Arc::default();
+        let sink = std::sync::Arc::clone(&lines);
+        let subscriber = tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_max_level(tracing::Level::TRACE)
+            .with_writer(move || Sink(std::sync::Arc::clone(&sink)))
+            .finish();
+        tracing::subscriber::with_default(subscriber, run);
+        String::from_utf8_lossy(&lines.lock().unwrap()).into_owned()
+    }
+
+    /// A refused request leaves a line at info with the client and the
+    /// code, and nothing of its parameters, which can carry typed text.
+    #[test]
+    fn a_refused_request_logs_its_client_and_code_without_its_parameters() {
+        let log = logged(|| {
+            let mut core = Core::new();
+            let mut agent = core.named("agent");
+            let typed = json!({"actions": [{"type": "text", "text": "hunter2"}]});
+            let (error_code, _) = agent.fails(&mut core, "input.inject", typed);
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        });
+        let line = log
+            .lines()
+            .find(|l| l.contains("refused"))
+            .unwrap_or_else(|| panic!("no line of the refusal: {log}"));
+        assert!(
+            line.contains("INFO") && line.contains("client=\"agent\"") && line.contains("code=4"),
+            "{line}"
+        );
+        assert!(!log.contains("hunter2"), "{log}");
     }
 
     /// A client socket gets an activation token over IPC only with the

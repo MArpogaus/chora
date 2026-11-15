@@ -164,7 +164,7 @@ fn listed(config: &Config, tool: &str, args: &Value) -> bool {
 /// The full command or value of a call that asks, for the screen: the
 /// settings keys and their values, the program and its arguments, the
 /// method and its parameters, or the tool and its arguments. Secrets are
-/// hidden as in the journal: each subscriber of `voice.*` gets it.
+/// hidden: each subscriber of `voice.*` gets it.
 pub(crate) fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
     let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
     let (mut patch, mut args) = (patch.cloned(), args.clone());
@@ -689,7 +689,10 @@ impl Chat {
             return;
         }
         for text in std::mem::take(&mut self.heard) {
-            crate::log::debug(&format!("heard in the turn: {text:?}"));
+            crate::log::debug(&format!(
+                "heard in the turn: chars={}",
+                text.chars().count()
+            ));
             self.history.push(json!({"role": "user", "content": text}));
             self.requests.push(text.clone());
             out(Event::Heard(text));
@@ -797,7 +800,11 @@ impl Chat {
         silent: bool,
         out: &impl Fn(Event),
     ) -> &'static str {
-        crate::log::debug(&format!("llm: {} {:?}", round.finish, round.text));
+        crate::log::debug(&format!(
+            "llm: {} chars={}",
+            round.finish,
+            round.text.chars().count()
+        ));
         let text = strip_notes(&round.text);
         if !text.trim().is_empty() {
             self.answer = Some(self.history.len());
@@ -874,7 +881,10 @@ impl Chat {
                     && r.calls.is_empty() && cut(&strip_notes(&r.text)));
             let rest = splitter.finish();
             if cut {
-                crate::log::debug(&format!("llm: cut answer, dropped {rest:?}"));
+                crate::log::debug(&format!(
+                    "llm: cut answer, dropped chars={}",
+                    rest.as_deref().map_or(0, |r| r.chars().count())
+                ));
             }
             // The words before the tool calls are spoken while they run.
             if let Some(sentence) = rest.filter(|s| !cut && !skip.contains(s)) {
@@ -996,10 +1006,8 @@ impl Chat {
                 out(Event::Tool(call.name.clone()));
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
-                let (logged, result) = journal(&call.name, &args, &text_of(&content));
                 let ms = start.elapsed().as_millis();
                 crate::log::info(&format!("tool {} {ms}ms", call.name));
-                crate::log::debug(&format!("tool {} {logged} {ms}ms -> {result}", call.name));
                 self.guard(&call.name, &args, content)
             };
             results.push(json!({"role": "tool", "tool_call_id": call.id, "content": content}));
@@ -1438,34 +1446,6 @@ fn unwrap_patch(args: &mut Value) {
     }
 }
 
-/// The start of the arguments and of the result of a tool call for
-/// the journal, without secrets: of `read` only the path and the byte
-/// count, no value of a key such as `llm_headers` or
-/// `tts_api_key_file`, and not the text that `inject_input` types,
-/// which can be a password.
-fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
-    if tool == "read" {
-        let path = args["path"].as_str().unwrap_or_default();
-        return (path.to_owned(), format!("{} bytes", result.len()));
-    }
-    let mut args = args.clone();
-    hide(&mut args);
-    if tool == "inject_input"
-        && let Some(text) = args.get_mut("text")
-    {
-        *text = "(hidden)".into();
-    }
-    // A result that is JSON, such as the answer of `settings.set`.
-    let result = serde_json::from_str::<Value>(result).map_or_else(
-        |_| result.to_owned(),
-        |mut v| {
-            hide(&mut v);
-            v.to_string()
-        },
-    );
-    (short(&args.to_string(), 300), short(&result, 300))
-}
-
 /// Hides the value of each key such as `llm_headers`, `token`,
 /// `authorization` or one with `api_key`, `secret` or `password`.
 pub(crate) fn hide(value: &mut Value) {
@@ -1654,7 +1634,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_turn_runs_the_tool_calls_and_speaks_the_answer() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let script = vec![
             Reply::Tool("echo", r#"{"a": 1}"#),
             Reply::Text("Fertig. Alles gut."),
@@ -1697,15 +1677,15 @@ mod tests {
         assert_eq!(chat.history.len(), 4, "user, call, result, answer");
         let log = lines.text();
         assert!(log.contains("tool echo"), "the stages still log: {log}");
-        assert!(!log.contains("Mach was"), "no request at info: {log}");
-        assert!(!log.contains("Alles gut"), "no reply at info: {log}");
+        assert!(!log.contains("Mach was"), "no request in the log: {log}");
+        assert!(!log.contains("Alles gut"), "no reply in the log: {log}");
     }
 
     /// The arguments of a tool call carry text of the person, such as a
-    /// coding task: the info log names the tool only.
+    /// coding task: the log names the tool only, at every level.
     #[tokio::test]
-    async fn the_arguments_of_a_tool_call_stay_out_of_the_info_log() {
-        let (_guard, lines) = crate::log::capture::info();
+    async fn the_arguments_of_a_tool_call_stay_out_of_the_log() {
+        let (_guard, lines) = crate::log::capture::all();
         let script = vec![
             Reply::Tool("echo", r#"{"task": "Kennwort Zwiebel"}"#),
             Reply::Text("Fertig."),
@@ -1714,7 +1694,7 @@ mod tests {
         turn(&mut chat, "Mach was.", true).await;
         let log = lines.text();
         assert!(log.contains("tool echo"), "the tool still logs: {log}");
-        assert!(!log.contains("Zwiebel"), "no arguments at info: {log}");
+        assert!(!log.contains("Zwiebel"), "no arguments in the log: {log}");
     }
 
     #[tokio::test]
@@ -2538,40 +2518,17 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 
-    /// Review 0.9.0-rc.3: the journal gets no secret of a tool call.
+    /// Review 0.9.0-rc.3: a shown call gets no secret of its arguments.
     #[test]
-    fn the_journal_hides_secrets() {
-        let (args, result) = journal("read", &json!({"path": "proj/.env"}), "KEY=sk-1\n");
-        assert_eq!((args.as_str(), result.as_str()), ("proj/.env", "9 bytes"));
-        let set = json!({"patch": {"llm_headers": {"X-Key": "sk-2"}, "llm_api_key_file": "/k",
+    fn hide_hides_the_values_of_secret_keys() {
+        let mut set = json!({"patch": {"llm_headers": {"X-Key": "sk-2"}, "llm_api_key_file": "/k",
             "asr_url": "http://x", "list": [{"token": "t"}]}});
-        let (args, _) = journal("voice__settings__set", &set, "ok");
+        hide(&mut set);
+        let args = set.to_string();
         for secret in ["sk-2", "/k", "\"t\""] {
             assert!(!args.contains(secret), "{args}");
         }
         assert!(args.contains("http://x"), "{args}");
-        let answer = r#"{"llm_headers":{"X-Key":"sk-3"},"asr_url":"http://x"}"#;
-        let (_, result) = journal("voice__settings__set", &set, answer);
-        assert!(
-            !result.contains("sk-3") && result.contains("http://x"),
-            "{result}"
-        );
-    }
-
-    /// The journal gets no typed text, which can be a password, and
-    /// only the start of long arguments.
-    #[test]
-    fn the_journal_hides_typed_text_and_cuts_the_arguments() {
-        let typed = json!({"text": "hunter2", "keys": ["Return"]});
-        let (args, _) = journal("inject_input", &typed, "ok");
-        assert!(!args.contains("hunter2"), "{args}");
-        assert!(
-            args.contains("(hidden)") && args.contains("Return"),
-            "{args}"
-        );
-        let long = json!({"commands": "x".repeat(1000)});
-        let (args, _) = journal("apply_commands", &long, "ok");
-        assert_eq!(args.chars().count(), 300);
     }
 
     /// Review rc3 round 2, 4.4, the user's decision: a security setting

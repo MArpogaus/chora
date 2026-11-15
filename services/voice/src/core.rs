@@ -757,7 +757,7 @@ impl Core {
     /// answers its question, else the rest is its prompt.
     fn address(&mut self, name: String, rest: String) -> Vec<Effect> {
         let asks = self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name);
-        crate::log::debug(&format!("to {name}: {rest:?}"));
+        crate::log::debug(&format!("to {name}: chars={}", rest.chars().count()));
         match words::matches(&self.config, &rest, 0, asks) {
             Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
                 .chain(self.earcon(Earcon::Cancel))
@@ -1022,7 +1022,7 @@ impl Core {
                     "turn={turn} interim={}ms",
                     t.after_commit.as_millis()
                 ));
-                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
+                crate::log::debug(&format!("turn={turn} chars={}", t.text.chars().count()));
                 self.last_transcript = t.text;
                 self.seq += 1;
             }
@@ -1050,7 +1050,7 @@ impl Core {
         let text = match result {
             Ok(t) => {
                 crate::log::info(&format!("turn={turn} asr={}ms", t.after_commit.as_millis()));
-                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
+                crate::log::debug(&format!("turn={turn} chars={}", t.text.chars().count()));
                 self.last_transcript = t.text;
                 self.seq += 1;
                 self.last_transcript.trim().to_owned()
@@ -1199,7 +1199,7 @@ impl Core {
             // New words over the agent's speech, with or without a
             // barge-in: the reply ends, the words and those that wait
             // start the next one.
-            crate::log::debug(&format!("over the reply: {text:?}"));
+            crate::log::debug(&format!("over the reply: chars={}", text.chars().count()));
             let queued = std::mem::take(&mut self.queue);
             effects.extend(self.stop(None));
             self.queue = queued;
@@ -1208,7 +1208,7 @@ impl Core {
         }
         // While the reply thinks or runs tools, any text but a pure yes
         // or no goes into its next round ("Und größer.", "Nein, rot.").
-        crate::log::debug(&format!("queued: {text:?}"));
+        crate::log::debug(&format!("queued: chars={}", text.chars().count()));
         if !words::answer(&self.config, &text).pure() {
             effects.push(Effect::Inject(text.clone()));
         }
@@ -1850,11 +1850,11 @@ mod tests {
         );
     }
 
-    /// What the person says reaches the log at debug only: the default
-    /// level keeps no utterance, also none to a sub-agent.
+    /// What the person says reaches the log at no level, also not what
+    /// they say to a sub-agent.
     #[test]
-    fn utterances_stay_out_of_the_info_log() {
-        let (_guard, lines) = crate::log::capture::info();
+    fn utterances_stay_out_of_the_log() {
+        let (_guard, lines) = crate::log::capture::all();
         let mut core = with_coder();
         let mut effects = speak(&mut core, 10);
         effects.extend(quiet(&mut core, 26));
@@ -2109,7 +2109,7 @@ mod tests {
     /// yes waits for a question.
     #[test]
     fn a_request_during_a_reply_goes_into_its_next_round() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let mut core = asking();
         core.handle(reply(1, chat::Event::Tool("query".into())));
         let effects = say(&mut core, "Zeig mir lieber die Agenda.");
@@ -2124,7 +2124,7 @@ mod tests {
         let effects = core.handle(Input::Reply(1, Reply::Done("Rot.".into())));
         assert_eq!(asks(&effects), [(2, "Ja.")]);
         let log = lines.text();
-        assert!(!log.contains("Agenda"), "no queued text at info: {log}");
+        assert!(!log.contains("Agenda"), "no queued text in the log: {log}");
     }
 
     /// New words while the agent speaks stop the reply as a barge-in
@@ -2132,7 +2132,7 @@ mod tests {
     /// 2026-10-31: they waited until the reply ended).
     #[test]
     fn new_words_over_the_speech_stop_the_reply() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let mut core = asking();
         say(&mut core, "Mach es rot.");
         core.handle(sound(1, 5000));
@@ -2144,7 +2144,7 @@ mod tests {
         let log = lines.text();
         assert!(
             !log.contains("größer"),
-            "no text over the reply at info: {log}"
+            "no text over the reply in the log: {log}"
         );
     }
 
