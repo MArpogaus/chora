@@ -63,9 +63,10 @@ export WAYLAND_DISPLAY=wayland-1
 
 step "1. chora -- chora-tiling starts nested with two windows"
 # The default configuration without gaps.
-"$bin/chora-tiling" --print-config | sed 's/^gap: 4$/gap: 0/' >"$out/tiling.yaml"
+"$bin/chora-tiling" --print-config | sed 's/^gap: 4$/gap: 0/; s/^  animations: true$/  animations: false/' >"$out/tiling.yaml"
 grep -q '^gap: 0$' "$out/tiling.yaml" || fail "the configuration has no gap option"
-"$bin/chora" -- "$bin/chora-tiling" --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
+grep -q '^  animations: false$' "$out/tiling.yaml" || fail "the configuration has no animations option"
+CHORA_TEST_ACCEPT_INJECTED_KEYS=1 "$bin/chora" -- "$bin/chora-tiling" --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
@@ -73,7 +74,7 @@ CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
 wait_for pgrep -P "$chora_pid" -x chora-tiling
-ctl() { "$bin/choractl" --name agent "$@"; }
+ctl() { "$bin/choractl" --name "${ctl_name:-agent}" "$@"; }
 surfaces() { ctl query kind:surface; }
 count_is() { test "$(surfaces | jq "[.[] | select($2)] | length")" = "$1"; }
 for _ in 1 2; do
@@ -85,23 +86,23 @@ wait_for count_is 2 '.owner == "tiling"'
 # Succeeds when the surfaces stand at the x positions, in any order, for
 # example "0 640".
 xs_are() {
-    test "$(surfaces | jq -r '[.[].transform.matrix[12]] | map(floor) | sort | map(tostring) | join(" ")')" = "$1"
+    test "$(surfaces | jq -r '[.[].rects | to_entries[0].value[0]] | map(floor) | sort | map(tostring) | join(" ")')" = "$1"
 }
 ys_are() {
-    test "$(surfaces | jq -r '[.[].transform.matrix[13]] | map(floor) | sort | map(tostring) | join(" ")')" = "$1"
+    test "$(surfaces | jq -r '[.[].rects | to_entries[0].value[1]] | map(floor) | sort | map(tostring) | join(" ")')" = "$1"
 }
 
 step "2. tiling.get_layout and tiling.set_layout switch the layout"
 ctl call tiling get_layout >"$out/layout.json" || fail "get_layout failed"
 jq -e '.layout == "tile" and (.windows | length) == 2' "$out/layout.json" >/dev/null ||
     fail "layout: $(cat "$out/layout.json")"
-wait_for xs_are "0 640"
+wait_for xs_are "14 647"
 ctl call tiling set_layout '{"layout": "fair_horizontal"}' >"$out/rows.json" || fail "set_layout failed"
 jq -e '.layout == "fair_horizontal"' "$out/rows.json" >/dev/null || fail "rows: $(cat "$out/rows.json")"
-wait_for xs_are "0 0"
-wait_for ys_are "0 400"
+wait_for xs_are "14 14"
+wait_for ys_are "14 407"
 ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout failed"
-wait_for xs_are "0 640"
+wait_for xs_are "14 647"
 
 step "3. bad calls fail with a reason"
 if ctl call tiling no_such_method 2>"$out/unknown.err"; then fail "an unknown method answered"; fi
@@ -217,17 +218,19 @@ echo '[{"create": {"id": "button", "kind": "rect", "parent": "root",
         "props": {"size": [80, 40], "color": [0, 0, 1, 1], "input": "accept",
                   "transform": {"matrix": [1,0,0,0, 0,1,0,0, 0,0,1,0, 1000,600,0,1]}}}}]' |
     ctl apply || fail "the button failed"
-ctl events pointer.pressed pointer.released >"$out/pointer.jsonl" &
-pids+=($!)
+"$bin/choractl" --name agent events pointer.pressed pointer.released >"$out/pointer.jsonl" &
+pointer_events_pid=$!
+pids+=("$pointer_events_pid")
 sleep 0.3
 inject '[{"pointer_move": {"position": [1040, 620]}}, {"click": {}}]' || fail "the click failed"
 wait_for grep -q '"event":"pointer.released","node":"button"' "$out/pointer.jsonl"
 grep -q '"event":"pointer.pressed","node":"button","button":272' "$out/pointer.jsonl" ||
     fail "press: $(cat "$out/pointer.jsonl")"
+kill "$pointer_events_pid"
 inject '[{"shortcut": {"keys": "Super+Return"}}]' || fail "the shortcut failed"
 wait_for count_is 3 '.owner == "tiling"'
 # The bindings of awesome: tags hide and show windows, and the layouts turn.
-shown_is() { count_is "$1" '.owner == "tiling" and .visible != false'; }
+shown_is() { count_is "$1" '.owner == "tiling" and (.rects | length) > 0'; }
 key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]" || fail "the shortcut $1 failed"; }
 key Super+Shift+2
 wait_for shown_is 2
@@ -241,9 +244,9 @@ key Super+Shift+1
 key Super+1
 wait_for shown_is 3
 layout_is() { test "$(ctl call tiling get_layout | jq -r .layout)" = "$1"; }
-key Super+space
-wait_for layout_is fair_horizontal
 key Super+Shift+space
+wait_for layout_is fair_horizontal
+key Super+Ctrl+Shift+space
 wait_for layout_is fair
 
 step "11. injected keys never reach the safety layer"
@@ -379,7 +382,7 @@ WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 0 0 255 >>"$out/windows.log" 2>
 pids+=($!)
 wait_for count_is 2 '.owner == "tiling"'
 ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout failed"
-wait_for xs_are "0 640"
+wait_for xs_are "14 647"
 "$bin/choractl" grant agent screen.capture || fail "the grant failed"
 "$bin/choractl" grant agent input.inject || fail "the grant failed"
 # choractl mcp is confined: plugin methods need the grant too.
@@ -393,7 +396,7 @@ test "$(color_at before 320 400)" = "0 0 255" || fail "before, left: $(color_at 
 test "$(color_at before 960 400)" = "255 0 0" || fail "before, right: $(color_at before 960 400)"
 test "$(color_at after 640 200)" = "0 0 255" || fail "after, top: $(color_at after 640 200)"
 test "$(color_at after 640 600)" = "255 0 0" || fail "after, bottom: $(color_at after 640 600)"
-jq -e '[.windows[].position[1]] | sort == [0, 400]' "$out/after.json" >/dev/null ||
+jq -e '[.windows[].position[1]] | sort == [14, 407]' "$out/after.json" >/dev/null ||
     fail "the description after: $(cat "$out/after.json")"
 grep -q "screen before and after" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
 grep -q "its click and its key" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
@@ -442,7 +445,7 @@ wait_for work_area_is "[0,0,1280,800]"
 reserve_pid=$!
 pids+=("$reserve_pid")
 wait_for work_area_is "[200,0,1080,800]"
-wait_for xs_are "200 200"
+wait_for xs_are "214 214"
 jq -e '.work_area == [200, 0, 1080, 800]' "$out/reserve.json" >/dev/null ||
     fail "the answer: $(cat "$out/reserve.json")"
 # The reserves of two connections add up.
@@ -452,7 +455,7 @@ pids+=("$panel_pid")
 wait_for work_area_is "[300,50,980,750]"
 kill "$reserve_pid" "$panel_pid"
 wait_for work_area_is "[0,0,1280,800]"
-wait_for xs_are "0 0"
+wait_for xs_are "14 14"
 if ctl reserve --output nowhere --top 1 2>/dev/null; then fail "a reserve of no output worked"; fi
 
 step "21. choractl run starts a program, restart needs a unit"
@@ -464,17 +467,21 @@ pids+=("$(jq -r .pid "$out/run.json")")
 wait_for count_is 3 '.owner == "tiling"'
 # The token travels the whole trip to the window (T4): run exports it,
 # the probe activates with it, surface.created carries it.
-ctl events surface.created >"$out/token.jsonl" &
-pids+=($!)
+"$bin/choractl" --name agent events surface.created >"$out/token.jsonl" &
+token_events_pid=$!
+pids+=("$token_events_pid")
 sleep 0.3
 WAYLAND_DISPLAY=$inner "$bin/choractl" --name agent run "$bin/chora-probe" activated >"$out/run-token.json" ||
     fail "the run of the activated probe"
 token=$(jq -r .token "$out/run-token.json")
 wait_for grep -q "\"token\":\"$token\"" "$out/token.jsonl"
+kill "$token_events_pid"
 if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 
 step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"
+ctl_name=user
+"$bin/choractl" grant user input.inject || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" panel >"$out/panel.log" 2>&1 &
 panel_pid=$!
 pids+=("$panel_pid")
@@ -484,8 +491,8 @@ test "$(color_at panel 640 30)" = "0 255 255" || fail "the panel: $(color_at pan
 test "$(png_pixel "$out/panel.png" 1 1 | cut -d' ' -f4)" = 0 ||
     fail "the round corner: $(png_pixel "$out/panel.png" 1 1)"
 # The windows leave the reserved top free.
-min_y_is() { test "$(surfaces | jq '[.[].transform.matrix[13]] | min | floor')" = "$1"; }
-wait_for min_y_is 60
+min_y_is() { test "$(surfaces | jq '[.[].rects | to_entries[0].value[1]] | min | floor')" = "$1"; }
+wait_for min_y_is 74
 # The user clicks the left button, then the right one.
 inject '[{"pointer_move": {"position": [70, 30]}}, {"click": {}}]' || fail "the click failed"
 sleep 0.5
@@ -495,7 +502,8 @@ wait "$panel_pid" || fail "the MCP client: $(cat "$out/panel.log")"
 grep -q "moved the camera from its panel" "$out/panel.log" || fail "panel: $(cat "$out/panel.log")"
 # The reserve ends with the server.
 wait_for work_area_is "[0,0,1280,800]"
-wait_for min_y_is 0
+ctl_name=agent
+wait_for min_y_is 14
 
 step "23. an MCP client reads a probe, scales the output, and keeps a HUD in place"
 "$bin/choractl" grant agent screen.capture || fail "the grant failed"

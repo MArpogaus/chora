@@ -233,8 +233,9 @@ differ from the numbered 0.7 checks:
   capabilities of all clients.
 - `tests/gate-0.8-9.sh`: A text node shows `Grüße 你好 🙂` with fallback fonts,
   and a pixel test against a reference capture passes.
-- `tests/gate-0.8-10.sh`: An MCP client puts a text node under
-  `screen:NAME`, and a capture shows it.
+- `tests/gate-0.8-10.sh`: A user client puts a text node under
+  `screen:NAME`, a capture through an MCP client shows it, and a create
+  under `screen:*` of the confined MCP client is refused.
 
 ## 0.8: Lean plugins and the agent API
 

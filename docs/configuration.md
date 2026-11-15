@@ -247,7 +247,8 @@ pointer raises nothing. The binding
 to the window manager `NAME` (D55), whoever owns it. The keys `Super+Alt+1`
 to `Super+Alt+4` give to tiling, xp, mc and construct in every one of
 those window managers, with no line in the file; the window manager that
-started first holds them, and the next one takes them when it leaves. A
+started first holds them, and the next one takes them when it leaves. The
+key list names them in one row, `Super+Alt+1-4`. A
 binding `give: NAME` on another key works while tiling runs. Tiling, xp,
 mc and construct ignore every binding key that came from `input.inject`,
 so a client cannot press the keys for the user; see
@@ -703,7 +704,7 @@ The `contents` are named. Their `kind` is one of:
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
 | `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat` with the state word of the first helper (`No helper` without one), `Esc  Close` and the box of the chat while it is open; the header of the host says `No helper is set up.` when there is none. When the host does not answer, a red notice says so. The helpers of voice go when voice ends |
-| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the give keys `Super+Alt+1-4` in one row, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. While it shows, the side that holds the list has only the state line above it; the other sides keep their content. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
 | `doors` | the doors of the actions that have a key, in two lines at the foot of a side under the key list: `Programs` (the launcher), `Lock`, `Power` (the power menu), `Screenshot` and the volume (`Volume 40%`, or `Muted` or the words of a failure). A click acts as the key; a click on the volume mutes or unmutes. The volume is read every 5 s and after each change |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
@@ -741,7 +742,7 @@ middle and the next entry of the agenda right (the collector fills the
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
 the key list and the doors at its foot. The state of the voice agent and the helpers
-stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
+stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden with `voice_hud: host`, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.

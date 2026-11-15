@@ -1,13 +1,15 @@
 #!/bin/bash
 # Gate of the keyboard of the chat field in tiling (flow F1-K, F2): with
 # the flag --test-injected-press-is-real of the core (headless only),
-# where an injected press is an act of the person, Super+a opens the list
-# of helpers and gives the field the keyboard; "1" and Enter open the
-# chat with the helper, typed text and Enter reach the helper (the fake
-# ACP agent of services/voice/tests/fake-acp.sh), and Esc closes the
-# chat, so the window gets the keyboard back. The first key after that
-# hand-over reaches the window; a failure prints the enter, leave and key
-# events that the window got.
+# where an injected press is an act of the person, Super+a gives the
+# field the keyboard. With one helper it opens the chat with that helper:
+# typed text and Enter reach the helper (the fake ACP agent of
+# services/voice/tests/fake-acp.sh), and Esc closes the chat, so the
+# window gets the keyboard back. The first key after that hand-over
+# reaches the window; a failure prints the enter, leave and key events
+# that the window got. With a second helper Super+a opens the list: text
+# typed there reaches no helper until the number of one follows, and
+# then the helper of that number.
 #
 # Usage: tests/gate-chat-keys.sh   BIN: directory with the binaries
 set -u
@@ -45,7 +47,7 @@ type_text() {
     done
 }
 window_has() { [ "$(grep -c "$1" "$work/window")" -ge "$2" ]; }
-helper_got() { grep -q "$1" "$XDG_DATA_HOME/chora/agents/coder.log" 2>/dev/null; }
+helper_got() { grep -q "$2" "$XDG_DATA_HOME/chora/agents/$1.log" 2>/dev/null; }
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start -- "$bin/chora-tiling"
 grant input.inject
@@ -65,14 +67,11 @@ key Super+a
 until_ok 'window_has leave 1' 40 || fail "Super+a did not give the chat field the keyboard"
 ok "Super+a gives the chat field the keyboard"
 
-type_text 1
-key Return
-sleep 1
 type_text hallo
 key Return
-until_ok 'helper_got hallo' 40 || fail "typed text did not reach the helper"
+until_ok 'helper_got coder hallo' 40 || fail "with one helper, typed text did not reach it"
 grep -q hallo "$work/window" && fail "typed text reached the window"
-ok "1, Enter, then typed text and Enter reach the helper"
+ok "with one helper, typed text and Enter reach the helper"
 
 key Escape
 until_ok 'window_has enter 2' 40 || fail "Esc did not give the window the keyboard back"
@@ -84,3 +83,19 @@ until_ok 'window_has "^key 50$" 1' 20 ||
 [ "$(tail -n 2 "$work/window" | tr '\n' ' ')" = "enter key 50 " ] ||
     fail "the window got more than the one key: $(tr '\n' ' ' <"$work/window")"
 ok "the first key after the hand-over reaches the window"
+
+ctl call voice agent '{"tool": "agent_start", "project": "demo", "name": "second"}' >/dev/null ||
+    fail "agent_start of a second helper"
+key Super+a
+until_ok 'window_has leave 2' 40 || fail "Super+a did not give the list the keyboard"
+type_text moin
+key Return
+sleep 1
+helper_got coder moin && fail "a text went to a helper that nobody picked"
+type_text 2
+key Return
+until_ok 'helper_got second moin' 40 || fail "the text typed before the pick did not reach the picked helper"
+helper_got coder moin && fail "the text reached the other helper too"
+ok "with two helpers, a text and then a number send the text to that helper"
+key Escape
+until_ok 'window_has enter 3' 40 || fail "Esc did not give the window the keyboard back"

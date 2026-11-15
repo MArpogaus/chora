@@ -107,5 +107,18 @@ if [ "$only_zombie" != 1 ]; then
     echo "FAIL: live_child exits $only_zombie, not 1, when the only child of the name is a zombie"
     failures=$((failures + 1))
 fi
+skip_status() { env "$@" bash -c '. "$1/tests/gate-lib.sh"; skip "no tool"' gate "$repo" >"$work/skip.out" 2>&1; echo $?; }
+if [ "$(skip_status -u CI)" != 0 ]; then
+    echo "FAIL: a skip without CI does not exit 0"
+    failures=$((failures + 1))
+fi
+if [ "$(skip_status CI=true)" = 0 ]; then
+    echo "FAIL: a skip under CI exits 0"
+    failures=$((failures + 1))
+fi
+if ! grep -q 'no tool' "$work/skip.out"; then
+    echo "FAIL: a skip under CI does not print its reason: $(cat "$work/skip.out")"
+    failures=$((failures + 1))
+fi
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"

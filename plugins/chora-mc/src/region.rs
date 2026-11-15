@@ -629,6 +629,8 @@ impl Mc {
     }
 
     /// The items of the regions of a scene, and the docked app of each.
+    /// The list of all keys has its side to itself under the state line,
+    /// so that it fits a small screen; the other sides keep their content.
     pub fn items(&self, name: &str) -> Plan {
         let contents = &self.settings.value.contents;
         let mut out = Plan::new();
@@ -636,7 +638,14 @@ impl Mc {
             let dock = (slots.iter().map(|(_, c)| c))
                 .find(|c| contents[*c].kind == Kind::App && self.docks.contains_key(*c))
                 .cloned();
+            let keys = |c: &String| contents[c].kind == Kind::Keys;
+            let whole = self.keys == crate::keys::List::All && slots.iter().any(|(_, c)| keys(c));
+            let stays = |c: &String| {
+                let kind = contents[c].kind;
+                !whole || matches!(kind, Kind::State | Kind::Keys | Kind::Doors)
+            };
             let items: Vec<Item> = (slots.iter())
+                .filter(|(_, c)| stays(c))
                 .flat_map(|(slot, c)| self.content_items(region, *slot, c, name))
                 .collect();
             if !items.is_empty() || dock.is_some() {
@@ -658,10 +667,6 @@ impl Mc {
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let side = !region.is_line();
-        let all_keys = side && self.keys == crate::keys::List::All;
-        if all_keys && (content.kind == Kind::Chat || content.folds) {
-            return Vec::new();
-        }
         match content.kind {
             Kind::Agents => self.agent_items(region, slot, name, content),
             Kind::State if side => self.state_items(region, slot, (name, scene)),
@@ -823,7 +828,24 @@ impl Mc {
         }
     }
 
+    /// The header and the footer over an app, each as its left edge and
+    /// its width: a line ends where the column begins, and the header also
+    /// where the host draws the state word, which is the first line of
+    /// that column, shown or not.
+    fn app_lines(&self, width: f64, column: bool) -> [(f64, f64); 2] {
+        let config = &self.settings.value;
+        let b = config.scale.baseline;
+        let beside = column_width(config.regions.get(Region::Right).size, b, width) + 2.0 * b;
+        let host = config.voice_hud == crate::config::VoiceHud::Host;
+        [column || host, column].map(|ends| {
+            let end = if ends { beside } else { 0.0 };
+            (2.0 * b, (width - 4.0 * b - end).max(b))
+        })
+    }
+
     /// The boxes of the regions that show in a scene, and of its window.
+    /// The header and the footer stand over the text of a page, else
+    /// over the app.
     fn boxes(&self, name: &str, visible: &[Region]) -> Option<Boxes> {
         let output = self.output.as_ref()?;
         let [w, h] = output.size.map(f64::from);
@@ -850,14 +872,13 @@ impl Mc {
         let [x, top, width, _] = geo.text;
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
-        // Over the text of a page, else over the whole app.
-        let (lx, lw) = if headless {
-            (2.0 * b, w - 4.0 * b)
+        let [header, footer] = if headless {
+            self.app_lines(w, on(Region::Right))
         } else {
-            (x, width)
+            [(x, width); 2]
         };
-        regions.insert(Region::Header, [lx, 0.0, lw, head]);
-        regions.insert(Region::Footer, [lx, h - foot, lw, foot]);
+        regions.insert(Region::Header, [header.0, 0.0, header.1, head]);
+        regions.insert(Region::Footer, [footer.0, h - foot, footer.1, foot]);
         let frame = [x - note - gap, width + 2.0 * (note + gap)];
         let drawer_top = h - foot - drawer;
         regions.insert(Region::Drawer, [frame[0], drawer_top, frame[1], drawer]);
