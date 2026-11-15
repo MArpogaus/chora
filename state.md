@@ -9,7 +9,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | ledger r2 (05:31): 7 -> 2 open: ti-1 BLOCK (fuzzel 1.11), sh-10 MAJOR (cut words); ux r3 |
+| 1 | UX: no BLOCK or MAJOR open | sh-10 and header M1 fixed on claude/ux-r3 (MERGE-OK 08:05, train 15); open: ti-1 BLOCK (fuzzel 1.11, owner); mc-31 verify |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
@@ -24,7 +24,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| ux r4 | claude/ux-r3 c434bc34 (worker archived) | briefs/ux-r4.md | handed back 07:57; opus review running |
+| ux r4 | claude/ux-r3 c434bc34 | briefs/ux-r4.md | MERGE-OK 08:05 (review-ux-r4; sh-19..21 MINOR); train 15 after train 14 |
 | harness r5 | cloud opus ..PE7LZ, claude/harness | briefs/harness-r5.md | r4 FIX (M: allow window with trailing comment hides plugin string calls) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | train 14 | /home/user/wt/train14 61d885f0 | logging r2 (MERGE-OK) | gate 4 running (gate 3 killed by job limit, friction 49) |

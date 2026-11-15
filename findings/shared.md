@@ -17,3 +17,6 @@ sh-15 | MINOR | ux-cross-look:39; ux-deep-mc:150 | open | Esc differs: xp closes
 sh-16 | MINOR | ux-cross-look:33,34 | open | Launcher words: xp "Open:", tiling "Apps", mc ">" prompt with no label; help says "Run a program" in xp and tiling, "Start a program" in mc
 sh-17 | MINOR | backlog:36 | verify | HUD colours per theme (U2): chat field over the xp taskbar; assistant surfaces must follow a theme change
 sh-18 | COSMETIC | ux-cross-look:32,37 | open | Door wording differs ("Chat ..." pill, "Chat with a helper ...", "Ask in your words"); notification shape differs per look (balloon, count, toast)
+sh-19 | MINOR | review-ux-r4 3 (view.rs:534) | open; next ux round (one line: always reserve two header lines) | Chat header switches between one and two lines when a run starts (at width 240 also when the step count appears), so Stop, Close and the transcript move 20 px as the user aims at Stop (POLS); units and cells only compare two-line headers
+sh-20 | MINOR | review-ux-r4 4 (view.rs:561) | open | capped wraps the whole prompt before keeping two lines: a 20,000-character paste without spaces costs 272 ms per chat redraw (chat plugin, not the frame path); stop after most+1 lines
+sh-21 | COSMETIC | review-ux-r4 5 | open | Task cut is per character and can leave a space before the ellipsis; a long task hides the step count (3/5)
