@@ -1374,6 +1374,7 @@ mod tests {
         hides: u32,
         clears: u32,
         sends: u32,
+        list: Option<String>,
     }
 
     struct Fake(Rc<RefCell<Log>>);
@@ -1392,9 +1393,10 @@ mod tests {
                 return Err(error);
             }
             Ok(match method {
-                "agent" if params["tool"] == "agent_list" => {
-                    json!("projects: demo, notes; agents: atlas (demo, idle)")
-                }
+                "agent" if params["tool"] == "agent_list" => json!(
+                    (log.list.as_deref())
+                        .unwrap_or("projects: demo, notes; agents: atlas (demo, idle)")
+                ),
                 "agent.read" if !log.read.is_empty() => log.read.remove(0),
                 "agent.read" => json!({"entries": [], "seq": 0, "epoch": 1}),
                 _ => json!({}),
@@ -1982,6 +1984,58 @@ mod tests {
         assert_eq!(log.borrow().unpicked, ["zzz"]);
         assert!(log.borrow().failed.is_empty(), "voice is not offline");
         assert!(!session.offline());
+    }
+
+    #[test]
+    fn a_helper_that_is_the_only_entry_opens_its_chat_without_a_list() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        log.borrow_mut().list = Some("projects: demo; agents: atlas (demo, idle)".into());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(calls(&log, "chat.open"), [json!({"name": "atlas"})]);
+    }
+
+    #[test]
+    fn a_text_typed_before_a_pick_goes_to_the_helper_of_a_click() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("hallo".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().unpicked, ["hallo"]);
+        let clears = log.borrow().clears;
+        session.clicked_pick(&mut out, 1, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().clears, clears, "the field keeps the draft");
+        assert_eq!(log.borrow().sends, 1, "the field sends it to the helper");
+        session.hide(&mut out);
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(log.borrow().sends, 1, "once");
+    }
+
+    #[test]
+    fn a_number_typed_after_the_text_picks_the_helper_and_sends_the_text() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("hallo".into()));
+        session.field_events(&mut out, &frame);
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("hallo1".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(
+            log.borrow().unpicked,
+            ["hallo", "hallo"],
+            "the field gets the text without the number back"
+        );
+        assert_eq!(log.borrow().sends, 1);
     }
 
     #[test]
