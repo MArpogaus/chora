@@ -193,10 +193,17 @@ ignore a key that `input.inject` sent (`injected` is true in
 `input.key`), for every binding. A client with the inject grant cannot
 press a binding for the user, so automation calls the methods of the
 window manager instead, such as `window.give`. The same setting covers
-what a pointer press or a key of `input.inject` would do for the person
-beyond the bindings: in the window list of the construct a key or a
-press on a row, and in mc a press on a hit, an agent column, a line of
-the overview or a window. The setting
+every key and pointer press, drag and release of `input.inject` that
+would act for the person. In tiling and xp that is every `node.key`,
+`pointer.pressed`, `pointer.moved` and `pointer.released`, so an
+injected click focuses no window and starts no program and the Menu key
+opens no menu. In the construct it is the keys of the walk (the walk
+keys, the terminal, close, windows and cube keys, and `Return` to fly
+into a window), the keys of the window list and the help, and a press on
+the space, on a pane, on a row of the list or on a cube face. In mc it
+is a press on a hit, an agent column, a line of the overview or a
+window, and the keys that turn the page and go back. A notification card
+takes no injected press either. The setting
 `test_accept_injected_keys` of each of the four is `false`, and it is for
 tests only: `tests/headless-session.sh` and the persona session turn it
 on through the environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1`
