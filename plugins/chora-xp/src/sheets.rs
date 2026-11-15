@@ -181,4 +181,16 @@ pub mod tests {
         assert!(pixel.green() > pixel.red() && pixel.green() > pixel.blue());
         let _ = std::fs::remove_dir_all(cache);
     }
+
+    #[test]
+    fn a_second_theme_of_one_test_name_keeps_the_files_of_the_first() {
+        let (mut first, first_cache) = theme("one-name");
+        let picture = Picture::new(100, 30).element(WINXP, "startbutton-normal", [0, 0, 100, 30]);
+        let file = first.render(&picture);
+        let (_second, second_cache) = theme("one-name");
+        let _ = std::fs::remove_dir_all(second_cache);
+        let kept = Path::new(&file).exists();
+        let _ = std::fs::remove_dir_all(first_cache);
+        assert!(kept, "{file} went with the cache of the second theme");
+    }
 }
