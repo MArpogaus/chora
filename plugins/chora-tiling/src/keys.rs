@@ -295,10 +295,21 @@ fn volume_row(config: &Config, de: bool) -> Option<(usize, Entry)> {
     (!parts.is_empty()).then(|| (group, (rank, join(|p| &p.1), join(|p| &p.2))))
 }
 
+/// The row of the give keys with its group: `Super+Alt+1-4`, as the tags
+/// 1 to 9 take one row, and the window managers in the order of the keys.
+fn give_row(de: bool) -> Option<(usize, Entry)> {
+    let (keys, names) = chora_kit::give::keys_row("-");
+    let (last, others) = names.split_last()?;
+    let (group, lead) = words(&Action::Give(others.join(", ")), de)?;
+    let or = if de { "oder" } else { "or" };
+    Some((group, (ORDER.len(), keys, format!("{lead} {or} {last}"))))
+}
+
 /// The rows of the key list by group: the keys as the file spells them
 /// with `MOD` as the modifier, and the words. A `labels` entry names a
-/// binding; the bindings of the tags 1 to 9 take one row, and the media
-/// keys of the volume another.
+/// binding; the bindings of the tags 1 to 9 take one row, the media keys
+/// of the volume another, and the give keys, which no file binds, a
+/// third.
 #[must_use]
 pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, String)>)> {
     let de = lang == Language::De;
@@ -333,7 +344,7 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let span = spans.entry((group, rank, stem, label)).or_insert((n, n));
         (span.0, span.1) = (span.0.min(n), span.1.max(n));
     }
-    if let Some((group, row)) = volume_row(config, de) {
+    for (group, row) in volume_row(config, de).into_iter().chain(give_row(de)) {
         groups[group].push(row);
     }
     for ((group, rank, stem, label), (low, high)) in spans {

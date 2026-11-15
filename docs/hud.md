@@ -341,17 +341,25 @@ values only. A folder without the block gets the neutral chat.
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
 | `idle_stop` | `hide` or `grey`. Stop shows only while a prompt runs, as `hide` does, the default; `grey` keeps it in its place, greyed and without a press, so that the header does not jump. |
-| `form` | `plain` or `xp`. `xp` draws the balloon as XP does: a close box at the top right, Stop and Send as push buttons, a white field with a 1 px rule of `#7F9DB9`, a header of two lines (the name and the state word, then the task and the step), and the question in a group box. The words, the order and the keys do not change. Default `plain`. |
+| `form` | `plain` or `xp`. `xp` draws the balloon as XP does: a close box at the top right, Stop and Send as push buttons, a white field with a 1 px rule of `#7F9DB9`, a header of two lines (the name and the state word, then the task and the step; outside of a chat the first sentence of the notice, then the rest), and the question in a group box. The words, the order and the keys do not change. Default `plain`. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `radius` | The corner radius of a plain view, of the question card (with `card: chat`), of the buttons (2 less) and of the rows of the helpers, 0 to 24. |
 | `well` | The colour of the field and of the buttons of the view and the card; the fill if left out. `dark:` takes it too. |
 | `card` | `host` (default) or `chat`: with `chat` the question card has the fill, hairline, text and `radius` of the chat and its buttons the `well`, as in the neutral folder of the tiling look. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers, exactly as announced: the view never steps aside in it, and it does not move or grow while a question shows. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. The client also gives the theme of the look where no window manager claims the screen. A folder with a slot draws no "Chat ..." row and no row of a helper, and its question card takes the page of the look, see below. |
 
-Where a person closed the chat of a helper and that helper is the only one
-that runs, the next open without a name (Super+a, a click on the door)
-shows its chat with its draft, not a list of one; with two helpers or
-none that was chosen, the list shows.
+An open without a name (Super+a, a click on the door) shows the chat of
+the only helper that runs, not a list of one, when the list has no other
+entry or when a person closed the chat of that helper before; the draft
+of that chat stays. Else the list shows. A text that a person types in
+the list reaches no helper: the field gets it back and says to pick a
+helper first. The helper that the person then picks gets the text, by a
+click on its entry or by its number typed after the text. After such a
+text only a click or a number picks: the name of a helper is text. A
+number that is no entry of the list is text too, and comes back with the
+same words. The text ends
+with the list: after Escape or a hide no helper gets it, and a chat that
+a question, `chat.show` or the only helper opens sends nothing.
 
 The empty-field hint of a plain chat is in the colour `name`. Its field
 paints at one pixel to a pixel, so that it is soft on an output of scale 2

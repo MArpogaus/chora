@@ -1500,7 +1500,8 @@ bottom.
   list: a helper by its name, a project without one as "New helper for
   PROJECT" (`agent_list`). A click on an entry, or its number or name and
   Enter in the field, opens the chat; a project starts its helper first.
-  Any other text in the list comes back to the field with `pick_first`,
+  Any other text in the list, also a number that is no entry, comes back
+  to the field with `pick_first`,
   which says "Pick a helper first: type its number and press Enter, or
   click it." Close shows in the list and in a chat, Stop only in a chat. `chat.show` with a name opens that chat at once.
 - Opening a chat calls `chat.open`, reads the transcript with

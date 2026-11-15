@@ -112,8 +112,12 @@ change it there, not here.
     `Super+F1`, not on `F1`, because a plain F1 belongs to a program in a
     scene and needs the grant `input.grab-any`.
     The full list goes by task, in the words of the six rows. It names
-    the lock, the power menu, the screenshot and the volume keys too;
-    `Super+slash` is a silent alias of `Super+F1`.
+    the lock, the power menu, the screenshot and the volume keys too,
+    and the give keys in one row, `Super+Alt+1-4`;
+    `Super+slash` is a silent alias of `Super+F1`. While the full list
+    shows, the column holds only the state line above it, so that the
+    list fits a screen of 1024x768. The left side and the drawer keep
+    their content.
     Two lines of doors stand under the key list: `Programs`, `Lock`,
     `Power`, `Screenshot` and the volume, each in `text` and clickable.
     They stay while the chat is open.

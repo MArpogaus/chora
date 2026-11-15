@@ -5,8 +5,8 @@
 # (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock),
 # which shows in the walk only and comes back after a step out of a pane,
 # and the island of the HUD host, clicked at its node: it says the state
-# word of the voice agent, and the list that it opens names the helper
-# with its state; the key list is
+# word of the voice agent, and the chat that it opens with the one helper
+# names it with its state; the key list is
 # the panel construct-help, read cap by cap. The pane is the window of
 # chora-probe. The check pane-corner flies into the pane and clicks where
 # the door Lock stood: the window gets the press, nothing locks, and the
@@ -14,6 +14,9 @@
 # while voice stays connected: the island says No helper, and Listening
 # again when the helper is back. The check layout-SIZE is the layout
 # audit of tests/hud-audit.py with the strip and the island on the screen.
+# The check cube-doors opens a cube of xp: in a face the strip is gone,
+# stood back from the cube it shows the clock and its door Lock locks,
+# and after the step in it is gone again.
 #
 # Usage: tests/doors/construct.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -22,7 +25,7 @@
 set -u
 . "$(dirname "$0")/lib.sh"
 need jq
-need_bins chora choractl chora-construct chora-voice chora-assistant chora-chat chora-probe
+need_bins chora choractl chora-construct chora-xp chora-voice chora-assistant chora-chat chora-probe
 temp_config
 doors_fakes
 fuzzel_stand_in
@@ -78,7 +81,12 @@ node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].text // empty'; }
 island_word() { ctl query id:hud-state 2>/dev/null | jq -r '.[0].meta.text // empty'; }
 island_says() { [ "$(island_word)" = "$1" ]; }
 click_door() { until_ok "center $1 >/dev/null" 20 && click_node "$1"; }
-pick_says() { [ "$(ctl query id:hud-chat-pick-1 2>/dev/null | jq -r '.[0].meta.text // empty')" = "$1" ]; }
+chat_says() {
+    local line
+    for line in "$@"; do
+        ctl query id:hud-chat 2>/dev/null | jq -r '.[0].meta.text // empty' | grep -qxF -- "$line" || return 1
+    done
+}
 door_says() { [ "$(node_text "$1")" = "$2" ]; }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 
@@ -129,7 +137,7 @@ cell_keys_names() {
     key Super+F1
     until_ok keys_open 20 || return 1
     seen=$(chords)
-    for chord in Super+F1 Super+Space Super+A Super+Shift+Esc Super+Shift+E Super+Print Vol+ Vol- Mute; do
+    for chord in Super+F1 Super+Space Super+A Super+Shift+Esc Super+Shift+E Super+Print Super+Alt+1 Super+Alt+4 Vol+ Vol- Mute; do
         grep -qx -- "$chord" <<<"$seen" || bad=1
     done
     has_text "Volume up" && has_text "Volume down" || bad=1
@@ -170,7 +178,7 @@ cell_helper_door() {
     island_says Listening || return 1
     click_node hud-figure
     until_ok chat_open 20 || return 1
-    until_ok 'pick_says "1  coder · idle"' 20
+    until_ok 'chat_says coder Idle' 20
     local status=$?
     chat_close
     return "$status"
@@ -245,6 +253,21 @@ check_helper_exit() {
     return "$status"
 }
 
+strip_shows() { ctl query id:construct-door-clock | jq -e '.[0].visible' >/dev/null; }
+check_cube_doors() {
+    ctl call construct cube.open >/dev/null || return 1
+    until_ok "ctl query '*' | grep -q '\"xp-bar-'" 80 || return 1
+    until_ok '! strip_shows' 20 || return 1
+    ctl call construct view.step_back >/dev/null || return 1
+    until_ok strip_shows 20 || return 1
+    cell_clock_door || return 1
+    unmark
+    click_door construct-door-lock
+    marked '^swaylock' || return 1
+    ctl call construct view.step_in >/dev/null || return 1
+    until_ok '! strip_shows' 20
+}
+
 status=0
 if check_helper_exit; then
     echo "check construct helper-exit pass"
@@ -267,5 +290,11 @@ else
 fi
 cat "$work/audit"
 echo "check construct layout-$size $result"
+if check_cube_doors; then
+    echo "check construct cube-doors pass"
+else
+    echo "check construct cube-doors fail"
+    status=1
+fi
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"

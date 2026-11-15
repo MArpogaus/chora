@@ -113,7 +113,8 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
 /// the page, the scenes, programs, the chat, the column, the header and
 /// the footer, the rest, and Esc last. The two keys of the page are one
 /// row, as in the short list, and only the first key of the key list has
-/// a row: the others are aliases.
+/// a row: the others are aliases. The give keys, which no file binds,
+/// are one row: `Super+Alt+1-4`.
 pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
@@ -146,11 +147,17 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
         };
         found.extend(row.map(|row| (rank, at, row)));
     }
+    let (give, _) = chora_kit::give::keys_row("-");
+    found.push((8, usize::MAX, Row::new(give, GIVE_KEYS, None)));
     found.sort_by_key(|(rank, at, _)| (*rank, *at));
     let mut rows: Vec<Row> = found.into_iter().map(|(_, _, row)| row).collect();
     rows.push(Row::new("Esc".to_owned(), "Back one step", None));
     rows
 }
+
+/// The words of the row of the give keys: the column has no room for
+/// the four names.
+const GIVE_KEYS: &str = "Give window to a look";
 
 fn short_page(config: &Config, next: &str, plain: bool) -> Option<Row> {
     let previous = (config.bindings.iter())
@@ -259,10 +266,11 @@ mod tests {
     }
 
     #[test]
-    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_alias_and_one_for_the_page() {
+    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_alias_and_one_for_the_page_and_the_give_keys()
+     {
         let config = config();
         let rows = all(&config, false);
-        assert_eq!(rows.len(), config.bindings.len() - 2, "{rows:?}");
+        assert_eq!(rows.len(), config.bindings.len() - 1, "{rows:?}");
     }
 
     #[test]
@@ -280,6 +288,7 @@ mod tests {
             "Show or hide the header",
             "Show or hide the footer",
             "Show the overlay",
+            "Give window to a look",
             "Lock the screen",
             "Power menu",
             "Take a screenshot",

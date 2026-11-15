@@ -432,9 +432,7 @@ impl Word {
             Self::WriteTo => "An {to} schreiben",
             Self::Offline => "Sprachsteuerung nicht erreichbar. Neuer Versuch alle 5 s.",
             Self::CloseNote => "{name} arbeitet weiter.",
-            Self::NoHelper => {
-                "Kein Helfer eingerichtet. Fragen Sie, wer den Computer eingerichtet hat."
-            }
+            Self::NoHelper => "Kein Helfer eingerichtet. Fragen Sie, wer den Computer betreut.",
             Self::NoHelperDoor => "Kein Helfer",
             Self::Dropped => "Frühere Nachrichten wurden verworfen.",
             Self::NotSent => "Nicht gesendet. Zum Senden Enter drücken.",

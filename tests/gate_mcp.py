@@ -7,6 +7,7 @@ starts `choractl --name agent mcp` and hands the client to the command.
 import base64
 import json
 import os
+import socket
 import subprocess
 import sys
 
@@ -75,3 +76,26 @@ class Mcp:
     def close(self):
         self.server.stdin.close()
         self.server.wait(timeout=10)
+
+
+def free_apply(commands):
+    """Applies commands as a free client named `user` of the main socket.
+
+    A confined connection has no camera commands and no `screen:*`
+    parents. The client keeps its nodes and cameras after the disconnect.
+    """
+    connection = socket.socket(socket.AF_UNIX)
+    connection.settimeout(10)
+    connection.connect(os.environ["CHORA_SOCKET"])
+    answers = connection.makefile()
+    calls = [
+        ("hello", {"name": "user", "keep_nodes": True}),
+        ("scene.apply", {"commands": commands}),
+    ]
+    for number, (method, params) in enumerate(calls):
+        request = {"jsonrpc": "2.0", "id": number, "method": method, "params": params}
+        connection.sendall(json.dumps(request).encode() + b"\n")
+        answer = json.loads(answers.readline())
+        if "error" in answer:
+            sys.exit(f"{method}: {answer['error']}")
+    connection.close()

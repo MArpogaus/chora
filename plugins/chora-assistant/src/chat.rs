@@ -278,7 +278,8 @@ pub trait Link {
     fn question(&mut self, waiting: bool);
     /// A text did not reach the helper.
     fn say_failed(&mut self, text: &str);
-    /// A line was typed in the list before a helper was picked.
+    /// A line was typed in the list before a helper was picked: the
+    /// draft gets it back.
     fn pick_first(&mut self, text: &str);
     /// Sends the draft, as Enter in the field does.
     fn send_draft(&mut self);
@@ -326,8 +327,10 @@ pub enum Mode {
     /// Nothing.
     #[default]
     Closed,
-    /// The numbered list of helpers and projects.
-    List(Vec<Pick>),
+    /// The numbered list of helpers and projects, with the text that was
+    /// typed before a pick, as the field got it back. Only a pick sends
+    /// that text, and it ends with the list.
+    List(Vec<Pick>, Option<String>),
     /// The chat with a helper.
     Chat(String),
 }
@@ -668,7 +671,8 @@ impl Session {
 
     /// Shows the chat with `name`, or the list without one. `token` is the
     /// activation token of the act, if the caller has one. A voice that
-    /// does not answer shows the view with the line that says so.
+    /// does not answer shows the view with the line that says so. A show
+    /// is no pick: it sends no draft.
     ///
     /// # Errors
     ///
@@ -689,14 +693,16 @@ impl Session {
                 if other && token.is_none() {
                     return Ok(());
                 }
-                self.open_chat(out, &name);
+                self.open_chat(out, &name, false);
             }
             None => self.open_list(out),
         }
         self.place_field(out, frame, token)
     }
 
-    fn open_chat(&mut self, out: &mut dyn Outside, name: &str) {
+    /// Opens the chat with `name`. Another helper than the last one gets
+    /// an empty field, unless a pick brings the draft (`keep`).
+    fn open_chat(&mut self, out: &mut dyn Outside, name: &str, keep: bool) {
         let same = self
             .last
             .as_deref()
@@ -708,7 +714,7 @@ impl Session {
             self.status = Status::default();
             self.head = 0;
             self.epoch = None;
-            if let Some(link) = self.link.as_mut() {
+            if let (false, Some(link)) = (keep, self.link.as_mut()) {
                 link.clear();
             }
         }
@@ -746,25 +752,26 @@ impl Session {
             .and_then(|text| text.as_str().map(parse_list))
             .unwrap_or_default();
         if let Some(last) = self.only_helper(&picks) {
-            self.open_chat(out, &last);
+            self.open_chat(out, &last, false);
             return;
         }
-        self.mode = Mode::List(picks);
+        self.mode = Mode::List(picks, None);
         if let Some(link) = self.link.as_mut() {
             link.clear();
         }
     }
 
-    /// The helper of the last chat when it is the only one that runs: a
-    /// person who closed its chat reopens that chat, not a list of one.
+    /// The only helper that runs, when the list has no other entry or
+    /// when it is the helper of the last chat: a person gets that chat,
+    /// not a list of one.
     fn only_helper(&self, picks: &[Pick]) -> Option<String> {
         let mut agents = picks.iter().filter_map(|pick| match pick {
             Pick::Agent(name) => Some(name),
             Pick::Project(_) => None,
         });
         let (only, none_more) = (agents.next()?, agents.next().is_none());
-        let last = self.last.as_deref()?;
-        (none_more && only.eq_ignore_ascii_case(last)).then(|| only.clone())
+        let last = (self.last.as_deref()).is_some_and(|last| only.eq_ignore_ascii_case(last));
+        (none_more && (last || picks.len() == 1)).then(|| only.clone())
     }
 
     fn close_chat(&mut self, out: &mut dyn Outside) {
@@ -812,7 +819,8 @@ impl Session {
     }
 
     /// A click on entry `index` (from 1) of the list; a project starts
-    /// its helper first.
+    /// its helper first. The helper gets the text that was typed before
+    /// the pick.
     ///
     /// # Errors
     ///
@@ -834,17 +842,23 @@ impl Session {
         token: Option<&str>,
         frame: &Frame,
     ) -> Result<(), String> {
-        let Mode::List(picks) = &self.mode else {
+        let Mode::List(picks, held) = &mut self.mode else {
             return Ok(());
         };
         let Some(pick) = index.checked_sub(1).and_then(|n| picks.get(n)).cloned() else {
             return Ok(());
         };
+        let held = held.take().is_some();
         if let Pick::Project(project) = &pick {
             let start = json!({"tool": "agent_start", "project": project, "name": project});
             let _ = out.voice("agent", start);
         }
-        self.show(out, Some(pick.name()), token, frame)
+        self.open_chat(out, pick.name(), held);
+        self.place_field(out, frame, token)?;
+        if let (true, Some(link)) = (held, self.link.as_mut()) {
+            link.send_draft();
+        }
+        Ok(())
     }
 
     /// Closes the view and the field.
@@ -940,7 +954,7 @@ impl Session {
     }
 
     fn said(&mut self, out: &mut dyn Outside, text: &str, frame: &Frame) -> bool {
-        match &self.mode {
+        match &mut self.mode {
             Mode::Chat(name) => {
                 let sent = out.voice("agent", say_params(name, text));
                 let refused = sent
@@ -955,21 +969,31 @@ impl Session {
                 self.pull(out);
                 true
             }
-            Mode::List(picks) => {
+            Mode::List(picks, held) => {
                 let text = text.trim();
-                let index = text.parse::<usize>().ok().or_else(|| {
-                    picks
-                        .iter()
-                        .position(|pick| pick.name().eq_ignore_ascii_case(text))
-                        .map(|n| n + 1)
-                });
-                if let Some(index) = index {
-                    return self.pick(out, index, None, frame).is_ok();
+                let number = |text: &str| {
+                    let number = text.parse::<usize>().ok();
+                    number.filter(|n| (1..=picks.len()).contains(n))
+                };
+                let name = |text: &str| {
+                    let at = |pick: &Pick| pick.name().eq_ignore_ascii_case(text);
+                    picks.iter().position(at).map(|n| n + 1)
+                };
+                let before = held.take();
+                let after = (before.as_deref())
+                    .and_then(|held| text.strip_prefix(held))
+                    .and_then(|rest| number(rest.trim()));
+                let alone = number(text).or_else(|| before.is_none().then(|| name(text))?);
+                let (index, kept) = match (alone, after) {
+                    (Some(index), _) => (Some(index), None),
+                    (None, Some(index)) => (Some(index), before),
+                    (None, None) => (None, Some(text.to_owned())),
+                };
+                if let (Some(kept), Some(link)) = (&kept, self.link.as_mut()) {
+                    link.pick_first(kept);
                 }
-                if let Some(link) = self.link.as_mut() {
-                    link.pick_first(text);
-                }
-                false
+                *held = kept;
+                index.is_some_and(|index| self.pick(out, index, None, frame).is_ok())
             }
             Mode::Closed => false,
         }
@@ -1090,8 +1114,8 @@ impl Session {
             Mode::Closed => String::new(),
             _ if self.card == Some(Where::Figure) => say(language, Word::Waiting, &[]),
             _ if self.offline => say(language, Word::Offline, &[]),
-            Mode::List(picks) if picks.is_empty() => say(language, Word::NoHelper, &[]),
-            Mode::List(_) => say(language, Word::ChatLauncher, &[]),
+            Mode::List(picks, _) if picks.is_empty() => say(language, Word::NoHelper, &[]),
+            Mode::List(..) => say(language, Word::ChatLauncher, &[]),
             Mode::Chat(_) => {
                 let row = words::row(
                     language,
@@ -1109,12 +1133,17 @@ impl Session {
 
     /// The header of the XP form in two lines: the name and the state
     /// word, then the task and the step. Outside of a chat the words of
-    /// [`Self::header`] stand alone.
+    /// [`Self::header`] take the lines: their first sentence, then the
+    /// rest.
     #[must_use]
     pub fn header_xp(&self, language: Language) -> (String, String) {
         let (Mode::Chat(_), false) = (&self.mode, self.card == Some(Where::Figure) || self.offline)
         else {
-            return (self.header(language), String::new());
+            let words = self.header(language);
+            return match words.split_once(". ") {
+                Some((first, rest)) => (format!("{first}."), rest.to_owned()),
+                None => (words, String::new()),
+            };
         };
         let state = words::state(&self.status.state).map_or_else(
             || self.status.state.clone(),
@@ -1144,7 +1173,7 @@ impl Session {
     #[must_use]
     pub fn entries(&self, language: Language) -> Vec<String> {
         match &self.mode {
-            Mode::List(picks) => (1..)
+            Mode::List(picks, _) => (1..)
                 .zip(picks)
                 .map(|(n, pick)| format!("{n}  {}", self.entry(pick, language)))
                 .collect(),
@@ -1174,7 +1203,7 @@ impl Session {
     pub fn hint(&self, language: Language) -> Option<String> {
         let waits = match self.mode {
             Mode::Chat(_) => self.waiting(),
-            Mode::List(_) => self.card.is_some(),
+            Mode::List(..) => self.card.is_some(),
             Mode::Closed => false,
         };
         waits.then(|| {
@@ -1288,7 +1317,7 @@ impl Session {
                 let name = name.clone();
                 self.announce_open(out, &name);
             }
-            Mode::List(_) => self.open_list(out),
+            Mode::List(..) => self.open_list(out),
             Mode::Closed => return false,
         }
         !self.offline
@@ -1369,6 +1398,7 @@ mod tests {
         hides: u32,
         clears: u32,
         sends: u32,
+        list: Option<String>,
     }
 
     struct Fake(Rc<RefCell<Log>>);
@@ -1387,9 +1417,10 @@ mod tests {
                 return Err(error);
             }
             Ok(match method {
-                "agent" if params["tool"] == "agent_list" => {
-                    json!("projects: demo, notes; agents: atlas (demo, idle)")
-                }
+                "agent" if params["tool"] == "agent_list" => json!(
+                    (log.list.as_deref())
+                        .unwrap_or("projects: demo, notes; agents: atlas (demo, idle)")
+                ),
                 "agent.read" if !log.read.is_empty() => log.read.remove(0),
                 "agent.read" => json!({"entries": [], "seq": 0, "epoch": 1}),
                 _ => json!({}),
@@ -1711,10 +1742,10 @@ mod tests {
         session.clicked_row(&mut out, &frame).expect("the list");
         assert_eq!(
             session.mode(),
-            &Mode::List(vec![
-                Pick::Agent("atlas".into()),
-                Pick::Project("notes".into())
-            ])
+            &Mode::List(
+                vec![Pick::Agent("atlas".into()), Pick::Project("notes".into())],
+                None
+            )
         );
         assert_eq!(
             log.borrow().started,
@@ -1977,6 +2008,132 @@ mod tests {
         assert_eq!(log.borrow().unpicked, ["zzz"]);
         assert!(log.borrow().failed.is_empty(), "voice is not offline");
         assert!(!session.offline());
+    }
+
+    #[test]
+    fn a_helper_that_is_the_only_entry_opens_its_chat_without_a_list() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        log.borrow_mut().list = Some("projects: demo; agents: atlas (demo, idle)".into());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(calls(&log, "chat.open"), [json!({"name": "atlas"})]);
+    }
+
+    #[test]
+    fn a_text_typed_before_a_pick_goes_to_the_helper_of_a_click() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("hallo".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().unpicked, ["hallo"]);
+        let clears = log.borrow().clears;
+        session.clicked_pick(&mut out, 1, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().clears, clears, "the field keeps the draft");
+        assert_eq!(log.borrow().sends, 1, "the field sends it to the helper");
+        session.hide(&mut out);
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(log.borrow().sends, 1, "once");
+    }
+
+    fn list_with_a_text_given_back(text: &str) -> (Session, Fake, Rc<RefCell<Log>>, Frame) {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut().events.push(FieldEvent::Say(text.into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().unpicked, [text]);
+        (session, out, log, frame)
+    }
+
+    #[test]
+    fn a_text_of_a_list_that_was_hidden_goes_to_no_helper() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        session.hide(&mut out);
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().sends, 0, "a question balloon picks nobody");
+    }
+
+    #[test]
+    fn a_text_of_a_list_that_escape_closed_goes_to_no_helper() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        log.borrow_mut().events.push(FieldEvent::Closed);
+        session.field_events(&mut out, &frame);
+        session
+            .show(&mut out, Some("notes"), Some("act"), &frame)
+            .unwrap();
+        assert_eq!(log.borrow().sends, 0, "a chat.show call picks nobody");
+    }
+
+    #[test]
+    fn a_text_of_a_list_goes_to_no_helper_that_a_show_names() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        session
+            .show(&mut out, Some("atlas"), Some("act"), &frame)
+            .unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().sends, 0, "the person picked no entry");
+    }
+
+    #[test]
+    fn a_text_of_a_list_goes_to_no_helper_that_opens_as_the_only_one() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        log.borrow_mut().list = Some("projects: demo; agents: atlas (demo, idle)".into());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(log.borrow().sends, 0, "the person picked no entry");
+    }
+
+    #[test]
+    fn a_name_typed_after_the_text_is_text_and_no_pick() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("ask");
+        for text in ["ask atlas", "atlas"] {
+            log.borrow_mut().events.push(FieldEvent::Say(text.into()));
+            session.field_events(&mut out, &frame);
+            assert!(matches!(session.mode(), Mode::List(..)), "{text}");
+            assert_eq!(log.borrow().unpicked.last().map(String::as_str), Some(text));
+        }
+        assert_eq!(calls(&log, "chat.open"), [] as [Value; 0]);
+        assert_eq!(log.borrow().sends, 0);
+    }
+
+    #[test]
+    fn a_number_that_is_no_entry_comes_back_with_the_word_to_pick() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("hallo");
+        for text in ["hallo9", "9", "0"] {
+            log.borrow_mut().events.push(FieldEvent::Say(text.into()));
+            session.field_events(&mut out, &frame);
+            assert!(matches!(session.mode(), Mode::List(..)), "{text}");
+            assert_eq!(log.borrow().unpicked.last().map(String::as_str), Some(text));
+        }
+        assert_eq!(log.borrow().sends, 0);
+    }
+
+    #[test]
+    fn a_number_typed_after_the_text_picks_the_helper_and_sends_the_text() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("hallo".into()));
+        session.field_events(&mut out, &frame);
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("hallo1".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(
+            log.borrow().unpicked,
+            ["hallo", "hallo"],
+            "the field gets the text without the number back"
+        );
+        assert_eq!(log.borrow().sends, 1);
     }
 
     #[test]

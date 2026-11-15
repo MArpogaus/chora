@@ -10,9 +10,10 @@
 #   keys-key        Super+F1 opens the key list
 #   keys-alias      Super+/ opens it too
 #   keys-names      the key list names Super+F1, Super+Space, Super+a,
-#                   Super+Shift+Esc, Super+Shift+e, Super+Print and the
-#                   volume keys as Vol+, Vol- and Mute, with the words
-#                   Volume up, Volume down and Mute
+#                   Super+Shift+Esc, Super+Shift+e, Super+Print, the give
+#                   keys Super+Alt+1 to 4 and the volume keys as Vol+,
+#                   Vol- and Mute, with the words Volume up, Volume down
+#                   and Mute
 #   keys-door       a visible door opens the key list by a click
 #   f1-free         F1 is no binding of the look: it reaches the client
 #   launcher-key    Super+Space opens the launcher

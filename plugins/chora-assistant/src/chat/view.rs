@@ -453,6 +453,7 @@ struct Parts {
 struct XpParts {
     head: String,
     sub: String,
+    stop: bool,
     field: i32,
     waits: bool,
 }
@@ -543,7 +544,7 @@ impl Session {
         (language, margin): (Language, bool),
         width: i32,
     ) -> Vec<String> {
-        let empty = matches!(&self.mode, Mode::List(picks) if picks.is_empty());
+        let empty = matches!(&self.mode, Mode::List(picks, _) if picks.is_empty());
         (self.hint(language))
             .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
             .or_else(|| (margin && empty).then(|| self.header(language)))
@@ -640,6 +641,7 @@ impl Session {
         XpParts {
             head,
             sub,
+            stop: matches!(self.mode, Mode::Chat(_)),
             field: frame.field,
             waits: self.question_waits(),
         }
@@ -810,7 +812,8 @@ fn list_picture(mut picture: Picture, parts: &Parts, (w, colours): (i32, Colours
 
 /// The header of the XP form: the name in bold and the state word after
 /// an em dash, the task and the step in grey on the second line, and the
-/// rule under them.
+/// rule under them. The lines end before the close box, and before Stop
+/// in a chat.
 fn xp_header(
     theme: &Theme,
     mut picture: Picture,
@@ -818,7 +821,8 @@ fn xp_header(
     (w, colours): (i32, Colours),
 ) -> Picture {
     let header = xp.head.as_str();
-    let room = w - 2 * PAD - (XP_STOP[0] + XP_GAP + XP_CLOSE + XP_GAP);
+    let stop = if xp.stop { XP_STOP[0] + XP_GAP } else { 0 };
+    let room = w - 2 * PAD - (stop + XP_CLOSE + XP_GAP);
     let (name, rest) = header
         .split_once(" \u{2014} ")
         .map_or((header, String::new()), |(name, rest)| {
@@ -1130,7 +1134,7 @@ mod tests {
 
     #[test]
     fn close_shows_in_the_list_and_in_the_chat_and_stop_only_in_the_chat() {
-        let list = Mode::List(Vec::new());
+        let list = Mode::List(Vec::new(), None);
         assert_eq!(buttons(&list, false), [(CLOSE, Word::Close)]);
         let chat = Mode::Chat("atlas".into());
         assert_eq!(
@@ -1429,6 +1433,29 @@ mod tests {
         (parts, commands)
     }
 
+    #[test]
+    fn the_xp_header_shows_a_notice_whole_in_its_two_lines() {
+        let (theme, _, cache) = crate::tests::loaded("xp-notice");
+        let frame = xp_frame(36);
+        let room = f64::from(frame.rect()[2] - 2 * PAD - XP_CLOSE - XP_GAP);
+        for language in [Language::En, Language::De] {
+            for offline in [false, true] {
+                let mut session = Session::new();
+                session.mode = Mode::List(Vec::new(), None);
+                session.offline = offline;
+                let whole = session.header(language);
+                let parts = session.parts(&theme, &frame, language);
+                let xp = parts.xp.expect("the XP form");
+                assert_eq!(format!("{} {}", xp.head, xp.sub), whole);
+                let head = theme.text_width(&xp.head, Font::BodyBold);
+                let sub = theme.text_width(&xp.sub, Font::Body);
+                assert!(head <= room, "{} is {head} wide in {room}", xp.head);
+                assert!(sub <= room, "{} is {sub} wide in {room}", xp.sub);
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     #[allow(clippy::cast_possible_truncation, reason = "a place of a few pixels")]
     fn at(props: &PropsUpdate) -> [i32; 2] {
         let m = props.transform.as_ref().expect("a place").matrix();
@@ -1522,12 +1549,12 @@ mod tests {
             ..idle_frame(IdleStop::Grey)
         };
         let mut session = Session::new();
-        session.mode = Mode::List(Vec::new());
+        session.mode = Mode::List(Vec::new(), None);
         let parts = session.parts(&theme, &frame, Language::En);
         assert_eq!(parts.header, "", "the client has the head");
         let hint = parts.hint.join(" ");
         assert!(hint.starts_with("No helper is set up."), "{hint}");
-        session.mode = Mode::List(vec![crate::chat::Pick::Project("demo".into())]);
+        session.mode = Mode::List(vec![crate::chat::Pick::Project("demo".into())], None);
         let parts = session.parts(&theme, &frame, Language::En);
         assert!(parts.hint.is_empty(), "{:?}", parts.hint);
         let _ = std::fs::remove_dir_all(cache);
@@ -1544,7 +1571,7 @@ mod tests {
             ..idle_frame(IdleStop::Grey)
         };
         let mut session = Session::new();
-        session.mode = Mode::List(Vec::new());
+        session.mode = Mode::List(Vec::new(), None);
         let commands = session.glass_commands(&mut theme, &frame, Language::En);
         let text = created(&commands, CHAT).and_then(|props| props.meta.as_ref());
         let text = text.map(|meta| meta["text"].clone()).unwrap_or_default();
