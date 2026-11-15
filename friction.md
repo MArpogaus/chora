@@ -309,3 +309,6 @@ Two read-only review subagents built in their own scratch dirs (8.6 GB and 1.7 G
 
 ## 49 (2026-11-15 07:38 UTC): the background job limit killed a passing merge gate
 Train 14 gate 3 ran in a background shell with the default 30 min limit; the full gate now takes longer (27 steps had passed when it was killed at 07:3x), so the run was lost and restarted (gate 4). Fix: every merge gate run in the background gets timeout 7200000 (2 h); the train recipe in routines says so (to build: tools/train.sh that wraps the gate call with the timeout note and the log path).
+
+## 50 (2026-11-15 09:28 UTC): every lane ran on opus and the week budget was spent too fast
+When Fable ended (03:32) the PM put every new lane and review on opus instead of returning to rules.md 5 (sonnet builds, haiku tests, opus reviews and hard work): 2.4 %/h, 33 % of the week by Sunday 09:20. The weekly reset time (Saturday 10:59 Bangkok, answers.md 229) was not in any injected file, so no pace could be computed. The owner had to point out both (09:27: "This is your main job"). Fix: the reset and a daily pace live in the state.md budget line (injected after every compaction); start_lane.sh refuses a brief without a Model line and an opus lane without a reason; routines.md gets a pace check at each lane start and at each owner reading.

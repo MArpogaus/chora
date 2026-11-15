@@ -3,6 +3,7 @@
 Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Bangkok.
 
 ## By time
+- Budget (owner 11-15 09:27, "your main job"): the week resets Saturday 10:59 Bangkok (03:59 UTC). At each reading and lane start check the pace line in state.md; over the day's share: nothing new on opus that day. Set model and effort in create_session.
 - Every 2 h: watchdog (tools/triggers.md); heartbeat checks the PM from outside.
 - Daily 12:50 UTC: self-check (rules.md) plus one independent opus critic, read-only, on
   the last 24 h of state.md, answers.md and commits, and per bug and review round: which gate

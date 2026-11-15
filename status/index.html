@@ -127,15 +127,15 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Merge the tooling when its review passes; then the look fixes round (voice confirm in mc, chat buttons that move 20 px)</li>
-          <li>Keep the CI pull request green with each merge</li>
-          <li>Mon: burn-down check, user test round 4, rewrite the screencast tour</li>
+          <li>Budget paced to the Saturday reset (10:59 Bangkok): about 10 % a day; cheaper models run tests and builds, opus only reviews and hard causes</li>
+          <li>Mon: fuzzel 1.11 in the cloud setup (your yes), re-check of all look findings, then new pictures, screencast and README screenshots</li>
+          <li>Tue: user test round 4; Wed-Thu: last flaky tests and two clean review rounds; Fri: release candidate</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>May the cloud setup build fuzzel 1.11 (tiling launcher clicks)? Without an answer by Mon 16 Nov 12:00 UTC (19:00 Bangkok): no, it is checked in CI on Arch instead.</li>
+          <li>Nothing open</li>
         </ul>
       </div>
     </div>
@@ -184,8 +184,10 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>17 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>19 entries</span></summary>
       <ul class="timeline">
+        <li><time>09:28</time><p><span class="tag info">plan</span>Plan re-paced after your budget reading (33 %): about 10 % a day until Saturday's reset; tests on haiku, fixes on sonnet, opus for reviews and hard causes. fuzzel 1.11 gets built in the cloud setup; the media lane refreshes status pictures, the screencast and README screenshots.</p></li>
+        <li><time>09:28</time><p><span class="tag ok">merged</span>Train 16: sharper tooling round 5 (the plugin call check no longer misses calls after a commented lint exception). The flaky-test round merges next.</p></li>
         <li><time>08:50</time><p><span class="tag ok">merged</span>Train 15: the chat header never grows past two lines in any look, and tiling no longer cuts words. Tooling round 5 and the flaky-test round passed their reviews and merge next.</p></li>
         <li><time>08:34</time><p><span class="tag ok">CI</span>The CI pull request is green again after train 14: all 10 jobs.</p></li>
         <li><time>08:33</time><p><span class="tag info">started</span>Two security lanes: every medium security finding of the plugin review gets a failing test and a fix (release criterion 6).</p></li>
