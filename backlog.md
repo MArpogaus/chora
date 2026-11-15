@@ -126,3 +126,8 @@ MC-HEAD | 11-15 | rc | mc page head cut at 1024x768 ("7  CHORA-..."), old (ux r1
 UX-D1 | 11-15 | rc | review ux r2 MINOR: after Escape/hide the list text stays in the field and shows as the draft of the last helper when it reopens (a question balloon answer is appended: "rm -rf buildyes"); docs/hud.md:360 says the text ends with the list. Fix: link.clear() in hide/close_view when the mode was List(_, Some(_)), fake-Link test. Cosmetics: region.rs:642 `!region.is_line()`; mc.sh:74 exclude children of mc-probe; mc.sh:88 date regex English only.
 CI8 | 11-15 | rc | review ci e2e r5 minors: vkms job runs gates through sudo, which drops CI, so skips there still pass (sudo --preserve-env=CI); e2e-sequence.sh detects only `run: |` (also `run: >`, `bash tests/x.sh`, `./tests/x.sh`); Fedora 44 font paths in e2e-fonts.sh unverified; plans/rest-0.7-0.8.md:216 old 0.8-10 wording.
 R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two review rounds; rule for every new hook: refuse only on a proven miss, warn on every fallback, and a selftest matrix of clone shapes (shallow, no remote, pushed test, unborn) before it ships.
+- L10 (MINOR, review-logging-r1 3): a failed rotate cascades; drop the writer on error.
+- L11 (MINOR, review-logging-r1 9): panic hooks keep thread and backtrace, cut the message (user text).
+- L12 (MINOR, review-logging-r1 10): signal crash words reach fd 2 only, not chora.log; say so in docs.
+- L13 (MINOR, review-logging-r1 11): refused-request lines need a rate limit; LIMIT_REACHED of respond logs nothing.
+- R11 (harness, review-logging-r1): tests/packaging-files.py checks dist/; shellcheck runs on extensionless dist scripts (shebang).

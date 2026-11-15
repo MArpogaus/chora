@@ -27,7 +27,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | ledger r2 | cloud opus ..MBQZo, claude/session-log | briefs/ledger-r2.md | starting |
 | harness r3 | cloud opus ..P1xMK, claude/harness | briefs/harness-r3.md | r2 FIX (B1': pushed test, unpushed fix refused) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
-| logging r1 | cloud opus ..MMmuw, claude/logging-r1 150db8f0 | briefs/logging-r1.md | handed back 04:59 (5 fixed, gate 28/28); opus review running |
+| logging r2 | cloud opus ..MMmuw, claude/logging-r1 | briefs/logging-r2.md | r1 FIX (M1 live log rotated, M2 YAML secrets) |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
