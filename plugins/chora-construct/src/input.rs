@@ -82,8 +82,7 @@ pub(crate) fn walk_key(event: &Event, accepts_injected: bool) -> Option<ListKey<
 /// plugin `accepts_injected`. The press focuses the look and starts a
 /// drag that looks around or moves a pane.
 pub(crate) fn look_pointer(event: &Event, accepts_injected: bool) -> bool {
-    let _ = (event, accepts_injected);
-    true
+    chora_kit::runtime::from_person(event, accepts_injected)
 }
 
 impl Construct {
@@ -284,7 +283,7 @@ impl Construct {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
@@ -340,17 +339,17 @@ impl Construct {
                 node,
                 position,
                 modifiers,
-                ..
+                .. // injected: look_pointer in the guard drops an injected press
             } if look_pointer(&event, accepts) && self.on_look(&node) => {
                 let held = modifiers.contains(&self.settings.value.modifier);
                 return self.press(position, held);
             }
-            Event::PointerMoved { node, position, .. }
+            Event::PointerMoved { node, position, .. } // injected: look_pointer in the guard drops an injected move
                 if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.moved(position);
             }
-            Event::PointerReleased { node, position, .. }
+            Event::PointerReleased { node, position, .. } // injected: look_pointer in the guard drops an injected release
                 if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.release(position, self.texture_pane(&node));
@@ -647,7 +646,7 @@ impl Construct {
             return Ok(false);
         };
         match event {
-            Event::NodeKey { node, state, .. } if node == LOOK => {
+            Event::NodeKey { node, state, .. } if node == LOOK => { // injected: walk_key below drops an injected key, which the list takes
                 let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected())
                 else {
                     return Ok(*state == PressState::Pressed);
@@ -669,7 +668,7 @@ impl Construct {
                     },
                 }?;
             }
-            Event::PointerPressed { node, .. } if node.starts_with(LIST) => {
+            Event::PointerPressed { node, .. } if node.starts_with(LIST) => { // injected: pressed_row ignores an injected press
                 if let Some(k) = pressed_row(event, self.rt.accepts_injected()) {
                     self.choose(k)?;
                 }
@@ -685,7 +684,9 @@ impl Construct {
                     self.draw_list(false)?;
                 }
             }
-            Event::PointerPressed { node, .. } if node == LOOK => {
+            Event::PointerPressed { node, .. } // injected: look_pointer in the guard drops an injected press
+                if node == LOOK && look_pointer(event, self.rt.accepts_injected()) =>
+            {
                 self.close_list()?;
                 return Ok(false);
             }
@@ -712,23 +713,11 @@ impl Construct {
         if !self.help {
             return Ok(false);
         }
-        let Event::NodeKey {
-            node,
-            key,
-            state: PressState::Pressed,
-            modifiers,
-            text,
-            code: _,
-            injected: _,
-        } = event
-        else {
+        let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected()) else {
             return Ok(false);
         };
-        if node != LOOK {
-            return Ok(false);
-        }
         let own = self.settings.value.action(key, modifiers) == Some(Action::Help);
-        match key.as_str() {
+        match key {
             "Escape" if !self.help_query.is_empty() => {
                 self.help_query.clear();
                 self.help_sel = 0;
@@ -741,7 +730,7 @@ impl Construct {
                 self.help_query.pop();
                 self.help_sel = 0;
             }
-            _ => match typed(text.as_deref(), modifiers) {
+            _ => match typed(text, modifiers) {
                 Some(typed) => {
                     self.help_query.push_str(&typed);
                     self.help_sel = 0;

@@ -526,7 +526,7 @@ impl Construct {
     /// release tries again, an injected one outside a test session not.
     fn card_act(&self, event: &Event) -> Option<Pressed> {
         match event {
-            Event::PointerPressed { node, button, .. }
+            Event::PointerPressed { node, button, .. } // injected: the press only takes the card; its release checks the flag
                 if *button == BTN_LEFT && node.starts_with(faces::CARD) =>
             {
                 Some(Pressed::Nothing)
@@ -589,7 +589,7 @@ impl Construct {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => match self.rt.action(binding) {
                 Some(&Grab::StepBack) => Some(Pressed::Act(Act::StepBack)),
                 Some(&Grab::Turn(by)) => Some(Pressed::Act(Act::Turn(by))),
