@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-15 03:32 UTC)
+## Now (2026-11-15 03:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: all models 20 % (03:32 owner); Fable reset and ended: ux r2 finishes its gate, then opus only
-session branch: c2d0a116 (train 11, 03:17 UTC: tiling focus fade, ci-check, vkms unbind).
+session branch: 98291088 (train 12, 03:52 UTC: flakes r4 F17/GR1, vkms faux device; train 11 c2d0a116).
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -27,14 +27,14 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | ux r2 | cloud Fable ..NSzTiz (new Fable lane), claude/ux-r1 | briefs/ux-r2.md | r1 FIX (M1 held draft); started 03:03 |
 | harness r2 | cloud opus ..NivBG, claude/harness | briefs/harness-r2.md | r1 FIX (B1 hook blocks without the ref; M1 pgrep by name) |
 | ci e2e r5 | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r5.md | r4 FIX (CI skips pass; 0.8-10 restate) |
-| flakes | done ce8f7928, claude/flakes-r4 | briefs/flakes-r4.md | F17, GR1 fixed; F16 not reproduced; review running |
+| flakes r5 | cloud opus (starting), claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
 2. Ledger verify, then MAJOR fix lanes per look. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
-5. Harness train when MERGE-OK; train 12 (flakes r4, ci-vkms3) gate running 03:20; then ci e2e r5, ux r2. (rc 1, 3, 4)
+5. Harness train when MERGE-OK; then ci e2e r5, ux r2. (rc 1, 3, 4)
 6. Persona round 4; logging audit; screencast rewrite (Mon). (rc 2, 9, 11)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
 
