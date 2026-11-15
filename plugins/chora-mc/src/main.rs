@@ -4163,7 +4163,8 @@ mod tests {
 
     /// A client with `methods.call` alone ran commands through app.open and
     /// scene.save (W12), and wrote the words of the agent through hud.set
-    /// and hud.say (review plugins r1, MC-03).
+    /// and hud.say (review plugins r1, MC-03), and emptied the notifications
+    /// through notify.clear (review security a r1).
     #[test]
     fn the_methods_that_start_programs_are_privileged() {
         let privileged: Vec<String> = super::exported_methods()
@@ -4185,6 +4186,7 @@ mod tests {
                 "region.solo",
                 "agent.set",
                 "notify.push",
+                "notify.clear",
                 "window.give"
             ]
         );
