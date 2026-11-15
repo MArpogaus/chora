@@ -4366,4 +4366,39 @@ mod tests {
         );
         assert_eq!(mc.focused, None);
     }
+
+    /// A client with `methods.call` alone rewrote the detail of a spoken
+    /// confirmation and the notifications through content.set and
+    /// content.add (review plugins r1, MC-02 and MC-03): the contents that
+    /// mc writes itself refuse both.
+    #[test]
+    fn the_contents_that_mc_writes_refuse_content_set_and_add() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("own-contents", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ask = json!({"id": "c1", "prompt": "Run it?", "detail": "rm -r build"});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        mc.method(
+            "notify.push",
+            json!({"title": "Disk is full", "urgency": "critical"}),
+        )
+        .unwrap();
+        let before = mc.texts.clone();
+        for content in ["confirm", "notify", "urgent"] {
+            let set = json!({"content": content, "title": "Run it?", "lines": ["ls"]});
+            assert!(
+                mc.method("content.set", set).is_err(),
+                "content.set {content}"
+            );
+            let add = json!({"content": content, "line": "ls"});
+            assert!(
+                mc.method("content.add", add).is_err(),
+                "content.add {content}"
+            );
+        }
+        assert_eq!(mc.texts, before);
+        let notes = json!({"content": "notes", "lines": ["x"]});
+        mc.method("content.set", notes).unwrap();
+    }
 }
