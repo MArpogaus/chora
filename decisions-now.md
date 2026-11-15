@@ -1,7 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-14T17:18:00Z
+screened-through: 2026-11-15T01:22:00Z
 
-- 11-14 16:54Z (fixes 16:47) "Fable darf gerne aufgebraucht werden. Ich löse den Reset aus." "...sollten wir weniger parallele Fable-Lanes fahren als bisher." -> use Fable up this week: max 2 Fable lanes, then none until next week
+- 11-15 01:22Z "You may usw up fable entierly. I'll reset it then." -> running Fable lanes finish on Fable after the reset; then one new Fable lane; its progress decides Fable or opus
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
 - 11-14 17:17Z "Du bist der Projektmanager." -> no owner feedback: decide all, rc changes too
 - 11-14 16:43Z "...robuster gestalten, damit sowas nicht nochmal passiert." -> fail-open hooks, cloud lanes, heartbeat

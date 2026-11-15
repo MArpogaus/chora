@@ -2,7 +2,7 @@
 
 ## Now (2026-11-15 00:39 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
-budget: Fable 95 %, all 59 % (01:17); Fable nearly gone: no new Fable lane, running ones go to opus at the limit
+budget: Fable 95 %, all 59 % (01:3x); Fable used up, owner resets it (01:22); running Fable lanes finish on Fable, then one new Fable lane decides Fable or opus
 session branch: 8bcbdc73 (train 10, 01:10 UTC: vkms guard; train 9 5dd34fcd: fontconfig, package deps).
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
