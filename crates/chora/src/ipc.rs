@@ -376,6 +376,9 @@ impl Ipc {
         let Some(c) = self.conns.get_mut(&conn) else {
             return;
         };
+        if let Some(error) = &message.error {
+            refused(conn, c.name.as_deref(), error.code);
+        }
         let mut bytes = line(message);
         if message.result.is_some() && c.output.len() + bytes.len() > MAX_OUTPUT {
             let error = RpcError::new(
@@ -1677,6 +1680,27 @@ fn is_safety_key(sym: xkb::Keysym) -> bool {
         || sym == Keysym::i
         || sym == Keysym::I
         || (Keysym::F1.raw()..=Keysym::F12.raw()).contains(&sym.raw())
+}
+
+/// One line per refused request: the client and the code, never the
+/// message or the parameters, which can carry typed text. A node or
+/// surface that went meanwhile is a race of every client and logs at
+/// debug.
+fn refused(conn: u64, client: Option<&str>, code: i64) {
+    let client = client.unwrap_or("-");
+    if matches!(code, RpcError::GONE_SURFACE | RpcError::UNKNOWN_NODE) {
+        refused_in_a_race(conn, client, code);
+    } else {
+        refused_at_info(conn, client, code);
+    }
+}
+
+fn refused_in_a_race(conn: u64, client: &str, code: i64) {
+    tracing::debug!(conn, client, code, "refused");
+}
+
+fn refused_at_info(conn: u64, client: &str, code: i64) {
+    tracing::info!(conn, client, code, "refused");
 }
 
 #[cfg(test)]
