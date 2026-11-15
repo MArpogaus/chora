@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-15 03:03 UTC)
+## Now (2026-11-15 03:17 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: Fable 95 %, all 59 % (01:3x); Fable used up, owner resets it (01:22); running Fable lanes finish on Fable, then one new Fable lane decides Fable or opus
-session branch: 8bcbdc73 (train 10, 01:10 UTC: vkms guard; train 9 5dd34fcd: fontconfig, package deps).
+session branch: c2d0a116 (train 11, 03:17 UTC: tiling focus fade, ci-check, vkms unbind).
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -25,9 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | ux r2 | cloud Fable ..NSzTiz (new Fable lane), claude/ux-r1 | briefs/ux-r2.md | r1 FIX (M1 held draft); started 03:03 |
-| train 11 | /home/user/wt/train11 c2d0a116 | vkms 21d4a477, tiling-audit, ci-check | gate running (02:28) |
-| harness | cloud opus ..NivBG, claude/harness | briefs/harness-r1.md | compile-time rules, red-first at commit, gate time, checklist |
-| tiling audit | done b018c506 | briefs/tiling-audit-r1.md | MERGE-OK (PM); train 11 |
+| harness | done f3bab766, claude/harness | briefs/harness-r1.md | review running; own train first |
 | ci e2e r5 | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r5.md | r4 FIX (CI skips pass; 0.8-10 restate) |
 | flakes | done ce8f7928, claude/flakes-r4 | briefs/flakes-r4.md | F17, GR1 fixed; F16 not reproduced; review running |
 
@@ -36,7 +34,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 2. Ledger verify, then MAJOR fix lanes per look. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
-5. Train 11 (vkms, tiling audit, ci check); harness train first when MERGE-OK; then ci e2e r4, ux r1, flakes r4. (rc 1, 3, 4)
+5. Harness train when MERGE-OK; then train 12 flakes r4; then ci e2e r5, ux r2. (rc 1, 3, 4)
 6. Persona round 4; logging audit; screencast rewrite (Mon). (rc 2, 9, 11)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
 
