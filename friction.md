@@ -303,3 +303,6 @@ flakes r3 (idle since 21:35, "two more gates to go"), ci r3 (pushed 21:40, no re
 
 ## 47 (2026-11-15 01:4x UTC): a skipped gate step hid a flaw for days
 tiling-audit skipped silently because mako was not installed; after setup.sh added mako (ti-4), the step ran and found an old flaw (tile border colour at paper 2560x1600@2), which now blocks every merge. Fix: a skipped step counts as a failure in the merge gate unless the brief of the lane says why (to build: merge-gate.sh marks SKIP lines); the tiling audit lane fixes the flaw.
+
+## 48 (2026-11-15 06:47 UTC): local review builds filled the disk and failed a merge train
+Two read-only review subagents built in their own scratch dirs (8.6 GB and 1.7 GB of target/) and nobody removed them; train 14 then failed clippy with "No space left on device". Fix: every review brief sets CARGO_TARGET_DIR=/home/user/target-review (one shared dir, reused) and the PM deletes the review scratch dir when it copies the review into reports/ (to build: tools/review_done.sh that copies, removes the worktree and the scratch dir).
