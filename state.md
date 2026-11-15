@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 04:05 UTC)
+## Now (2026-11-15 04:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: all models 20 % (03:32 owner); Fable reset and ended: ux r2 finishes its gate, then opus only
 session branch: 98291088 (train 12, 03:52 UTC: flakes r4 F17/GR1, vkms faux device; train 11 c2d0a116).
@@ -24,7 +24,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| train 13 | /home/user/wt/train13 be205f89 | ux r2 90513573, ci e2e r5 ad5041d0 | gate running 04:03 |
+| train 13 | /home/user/wt/train13 be205f89 | ux r2, ci e2e r5 | gate 1 F16; rerun 04:24 |
 | harness r2 | cloud opus ..NivBG, claude/harness | briefs/harness-r2.md | r1 FIX (B1 hook blocks without the ref; M1 pgrep by name) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | logging r1 | cloud opus ..MMmuw, claude/logging-r1 | briefs/logging-r1.md | rc 9a pulled forward (owner 04:05) |
