@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 12:55 UTC)
+## Now (2026-11-15 13:22 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 33 % at 09:20 (owner) + local opus 13.4 % this Bkk day (tokens.py 12:55; cloud lanes not counted): over the 10 %/day share. Reset Sat 03:59 UTC. No opus before Mon 00:00 UTC; log commits 1/h + 1/merge.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -27,7 +27,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 |---|---|---|---|
 | fuzzel r2 (rc 1) | cloud sonnet high, claude/fuzzel-click, one round only | briefs/fuzzel-r2.md | r1: 1.11.1 built; click still runs row 1 (3/3) |
 | security a r3 (rc 6) | done 85476db0, claude/security-a | briefs/security-a-r3.md | class gate (injected-optout.py) + 2 new finds; opus review Mon 00:05 UTC (Sun share used) |
-| core watchdog r2 (rc 4) | cloud sonnet high, claude/core-watchdog | briefs/core-watchdog-r2.md | r1 review FIX: summed waits excuse a costly scene |
+| core watchdog r2 (rc 4) | done 8313f011, claude/core-watchdog | briefs/core-watchdog-r2.md | max per-thread wait; audit export kept; starved gate tests the hatch; re-review Mon |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon 00:05: security a r3 review (opus medium, first review); core watchdog r2 re-review on sonnet medium. (rc 4, 6)
