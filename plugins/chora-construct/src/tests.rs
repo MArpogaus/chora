@@ -1,7 +1,12 @@
 //! Unit tests of the construct plugin.
 
 use super::*;
-use crate::{adopt::*, camera::*, input::keys_walk_due, list::row_of};
+use crate::{
+    adopt::*,
+    camera::*,
+    input::{keys_walk_due, pressed_row},
+    list::row_of,
+};
 
 /// `x` and Return act on a pane that shows, not on one beyond the
 /// depth of the view (review 2.5).
@@ -396,4 +401,22 @@ fn taking_the_flight_into_a_pane_keeps_a_plain_glide() {
         Some("s1".into())
     );
     assert!(flying.is_none());
+}
+
+/// A press on the window list was taken for any button and from
+/// `input.inject` (review plugins r1, CON-B-10): only a left press of the
+/// person chooses a row.
+#[test]
+fn only_a_left_press_of_the_person_chooses_a_row() {
+    let press = |button, injected| Event::PointerPressed {
+        node: format!("{LIST_ROW}3"),
+        button,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected,
+    };
+    assert_eq!(pressed_row(&press(BTN_LEFT, false)), Some(3));
+    assert_eq!(pressed_row(&press(273, false)), None, "the right button");
+    assert_eq!(pressed_row(&press(BTN_LEFT, true)), None, "injected");
 }
