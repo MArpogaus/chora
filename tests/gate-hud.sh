@@ -51,6 +51,14 @@
 #                           the right, 400 wide on 1280 (28 hundredths of
 #                           the output, from 400 to 480), 32 from the
 #                           edges of the work area (H10, F9)
+#   chat-long-task          a plain chat of atlas (the fake voice with
+#                           FAKE_VOICE_ENTRIES, so that chat.open answers) with a task of about
+#                           1800 and then 3600 characters with line breaks:
+#                           the header keeps two lines that start with
+#                           `atlas · working` and end in `…`, and Close and
+#                           Stop stay in their place, under the header
+#   construct-chat-long-task  the same in the glass chat of construct: the
+#                           state word and one line beside it, ending in `…`
 #   voice-state-rate, layers-dropped-empty, host-idle-cpu   100 voice.state
 #                           in 5 s, then no dropped layers and under 1 % CPU
 #   helper-word             while voice rests the state word is `No helper`
@@ -108,6 +116,8 @@ mc-chat-drawer pass
 chat-row-below-bar pass
 construct-host-hud pass
 construct-chat-panel pass
+chat-long-task pass
+construct-chat-long-task pass
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
@@ -587,6 +597,75 @@ cell_construct_chat_panel() {
     return "$shown"
 }
 
+long_task() {
+    python3 -I -c 'import json, sys
+task = "Read this first.\n" + "Please tidy the notes folder and sort every item by its date.\n" * int(sys.argv[1])
+print(json.dumps({"name": "atlas", "state": "working", "task": task, "said": ""}))' "$1"
+}
+chat_text() { ctl query id:hud-chat | jq -r '.[0].meta.text // ""'; }
+header_capped() {
+    local text second
+    text=$(chat_text)
+    second=$(sed -n 2p <<<"$text")
+    [[ $text == "$1"* ]] && [[ $second == *… ]] && ! sed -n '3,$p' <<<"$text" | grep -qF "Please tidy"
+}
+chat_buttons() {
+    ctl query owner:assistant |
+        jq -c '[.[] | select(.id == "hud-chat-close" or .id == "hud-chat-stop") | [.id, (.rects | to_entries[0].value)]] | sort'
+}
+two_lines_and_buttons=88
+buttons_under_header() {
+    jq -ne --argjson b "$1" --argjson c "$(node_rect hud-chat)" --argjson most "$two_lines_and_buttons" \
+        '($c | to_entries[0].value) as $v | ($b | length) > 0 and
+         all($b[]; .[1][1] >= $v[1] and .[1][1] + .[1][3] <= $v[1] + $most)' >/dev/null
+}
+long_task_shown() {
+    local first shown=1
+    emit voice.state "$(long_task 30)"
+    ctl call assistant chat.show '{"name": "Atlas"}' >/dev/null 2>&1 || return 1
+    waiting "$settle_s" node_exists hud-chat || return 1
+    waiting "$settle_s" header_capped "$1" || {
+        printf '%s meta: %s\n' "$2" "$(chat_text | head -c 400)" >>"$log"
+        return 1
+    }
+    first=$(chat_buttons)
+    ctl capture --output HEADLESS-1 "$shots/$2-1800.png" >/dev/null 2>&1
+    emit voice.state "$(long_task 60)"
+    sleep 0.5
+    waiting "$settle_s" header_capped "$1" && [ "$(chat_buttons)" = "$first" ] && shown=0
+    ctl capture --output HEADLESS-1 "$shots/$2-3600.png" >/dev/null 2>&1
+    echo "$2 buttons $first" >>"$log"
+    return "$shown"
+}
+with_chat_voice() {
+    local shown
+    echo '[]' >"$work/entries.json"
+    stop_voice
+    FAKE_VOICE_ENTRIES=$work/entries.json start_voice
+    "$@"
+    shown=$?
+    ctl call assistant chat.hide '{}' >/dev/null 2>&1
+    stop_voice
+    start_voice
+    return "$shown"
+}
+plain_long_task() {
+    long_task_shown "atlas · working · Read this first." chat-long-task || return 1
+    buttons_under_header "$(chat_buttons)"
+}
+glass_long_task() {
+    local shown
+    use_folder construct || return 1
+    start_construct || return 1
+    long_task_shown $'Working\natlas · Read this first.' construct-chat-long-task
+    shown=$?
+    stop_construct
+    use_folder neutral
+    return "$shown"
+}
+cell_chat_long_task() { with_chat_voice plain_long_task; }
+cell_construct_chat_long_task() { with_chat_voice glass_long_task; }
+
 figure_shows() { node_exists hud-figure; }
 cpu_ticks() { awk '{print $14 + $15}' "/proc/$assistant_pid/stat"; }
 idle_window() { timeout 6 sleep "$1"; }
@@ -701,6 +780,8 @@ run_cell mc-host-hud cell_mc_host_hud session
 run_cell mc-chat-drawer cell_mc_chat_drawer session
 run_cell construct-host-hud cell_construct_host_hud session
 run_cell construct-chat-panel cell_construct_chat_panel session
+run_cell chat-long-task cell_chat_long_task session
+run_cell construct-chat-long-task cell_construct_chat_long_task session
 run_cell voice-state-rate cell_voice_state_rate session
 run_cell layers-dropped-empty cell_layers_dropped_empty session
 run_cell host-idle-cpu cell_host_idle_cpu session
