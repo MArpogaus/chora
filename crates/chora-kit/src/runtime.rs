@@ -223,14 +223,25 @@ impl<A> Runtime<A> {
         events: &[&str],
         methods: Vec<ExportMethod>,
     ) -> Result<(), ClientError> {
-        self.conn.call::<_, Value>(
-            "events.subscribe",
-            Subscribe {
-                events: events.iter().map(|&e| e.into()).collect(),
-            },
-        )?;
+        self.subscribe(events)?;
         self.conn
             .call::<_, Value>("methods.export", Export { names: methods })
+            .map(drop)
+    }
+
+    /// Subscribes to `events`; the subscription replaces the earlier one.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn subscribe<E: AsRef<str>>(&mut self, events: &[E]) -> Result<(), ClientError> {
+        self.conn
+            .call::<_, Value>(
+                "events.subscribe",
+                Subscribe {
+                    events: events.iter().map(|e| e.as_ref().into()).collect(),
+                },
+            )
             .map(drop)
     }
 
@@ -252,9 +263,18 @@ impl<A> Runtime<A> {
     ///
     /// The socket fails.
     pub fn outputs(&mut self) -> Result<Vec<OutputInfo>, ClientError> {
-        let mut outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
+        let mut outputs = self.all_outputs()?;
         outputs.retain(|o| self.manages(&o.name));
         Ok(outputs)
+    }
+
+    /// All outputs of the core, whatever `--output` names.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn all_outputs(&mut self) -> Result<Vec<OutputInfo>, ClientError> {
+        self.conn.call("output.list", Value::Null)
     }
 
     /// Grabs a binding for an action. False when the core refuses it, for
