@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-15 10:43 UTC)
+## Now (2026-11-15 10:45 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
-session branch: 5aa30b54 (train 17, 10:06 UTC: flakes r5; train 16 2d9f306f). Train 18 (security b) gate running.
+session branch: 4693fe07 (train 18, 10:45 UTC: security b; train 17 5aa30b54). Train 19 (ux r5) gate running.
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -25,13 +25,12 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| train 18 | /home/user/wt/train18 4693fe07 | security b (MERGE-OK) | gate 1 running |
-| ux r5 | 52249372 | briefs/ux-r5.md | MERGE-OK (2 MINOR to W16); train 19 after 18 |
+| train 19 | /home/user/wt/train19 1014dddf | ux r5 (MERGE-OK) | gate 1 running |
 | security a r2 | cloud sonnet, claude/security-a | briefs/security-a-r2.md | review r1 FIX: 2 MAJOR (inject keys, panel.set) |
 | core watchdog r1 | cloud sonnet, claude/core-watchdog | briefs/core-watchdog-r1.md | sh-22, F25 |
 
 ## Queue (by day; budget 10 % a UTC day)
-1. Sun: train 18, CI (F25); reviews of ux r5 and security a, b on opus medium; fix rounds of their findings on sonnet. (rc 1, 3, 4, 6)
+1. Sun: train 19, CI (F25); review of security a r2 and core watchdog on opus medium; fixes on sonnet. (rc 1, 3, 4, 6)
 2. Mon: fuzzel 1.11 in setup.sh (sonnet low; owner 09:27) then ti-1 check; ledger r3 (haiku cells, opus verdicts). (rc 1)
 3. Mon-Tue: media lane on sonnet after ledger r3 is clean: status pictures, screencast, README shots (owner 09:20, 09:27). (rc 11)
 4. Tue: persona round 4 as a haiku swarm, triage.py, opus ranks; fixes on sonnet. (rc 2)
