@@ -2479,6 +2479,54 @@ mod tests {
         assert!(message.contains("only on the admin socket"), "{message}");
     }
 
+    struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Sink {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// The log lines of every level that `run` writes in this thread.
+    fn logged(run: impl FnOnce()) -> String {
+        let lines = std::sync::Arc::default();
+        let sink = std::sync::Arc::clone(&lines);
+        let subscriber = tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_max_level(tracing::Level::TRACE)
+            .with_writer(move || Sink(std::sync::Arc::clone(&sink)))
+            .finish();
+        tracing::subscriber::with_default(subscriber, run);
+        String::from_utf8_lossy(&lines.lock().unwrap()).into_owned()
+    }
+
+    /// A refused request leaves a line at info with the client and the
+    /// code, and nothing of its parameters, which can carry typed text.
+    #[test]
+    fn a_refused_request_logs_its_client_and_code_without_its_parameters() {
+        let log = logged(|| {
+            let mut core = Core::new();
+            let mut agent = core.named("agent");
+            let typed = json!({"actions": [{"type": "text", "text": "hunter2"}]});
+            let (error_code, _) = agent.fails(&mut core, "input.inject", typed);
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY);
+        });
+        let line = log
+            .lines()
+            .find(|l| l.contains("refused"))
+            .unwrap_or_else(|| panic!("no line of the refusal: {log}"));
+        assert!(
+            line.contains("INFO") && line.contains("client=\"agent\"") && line.contains("code=4"),
+            "{line}"
+        );
+        assert!(!log.contains("hunter2"), "{log}");
+    }
+
     /// A client socket gets an activation token over IPC only with the
     /// capability: such a token belongs to no client and skips the focus
     /// rule of its own tokens.
