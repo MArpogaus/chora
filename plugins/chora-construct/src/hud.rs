@@ -1796,4 +1796,22 @@ mod tests {
         assert!(sum < 2.75 * 1024.0 * 1024.0, "{sum}");
         assert!(sum > 500_000.0, "the question counts: {sum}");
     }
+
+    /// A task of a few thousand characters made one candidate and one
+    /// probe per character (review plugins r1, CON-A-04): the ends start
+    /// at most three lines of the longest line before the end.
+    #[test]
+    fn the_ends_of_a_long_text_are_capped() {
+        let text = format!("{}the end", "word ".repeat(2000));
+        let ends = ends(&text);
+        assert!(
+            ends.len() <= 3 * LINE_CHARS + 1,
+            "{} candidates",
+            ends.len()
+        );
+        assert!(ends.iter().all(|e| e.chars().count() <= 3 * LINE_CHARS + 1));
+        assert!(ends.iter().all(|e| e.ends_with('d')));
+        assert!(ends[0].starts_with(ELLIPSIS), "a cut text shows the cut");
+        assert_eq!(super::ends("short text")[0], "short text");
+    }
 }
