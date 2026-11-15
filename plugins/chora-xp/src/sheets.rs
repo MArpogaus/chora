@@ -25,17 +25,25 @@ pub const FAMILY: &str = "Tahoma";
 
 #[cfg(test)]
 pub mod tests {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        sync::atomic::{AtomicU64, Ordering},
+    };
 
     use chora_draw::theme::{Picture, Theme};
     use resvg::tiny_skia::Pixmap;
 
     use super::*;
 
-    /// The theme of the source tree, with a cache of its own for a test.
+    /// The theme of the source tree, with a cache of its own for each
+    /// call, so that tests in parallel never share one, whatever `test`
+    /// they pass.
     pub fn theme(test: &str) -> (Theme, PathBuf) {
+        static CALLS: AtomicU64 = AtomicU64::new(0);
+        let call = CALLS.fetch_add(1, Ordering::Relaxed);
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
-        let cache = std::env::temp_dir().join(format!("chora-xp-{test}-{}", std::process::id()));
+        let cache =
+            std::env::temp_dir().join(format!("chora-xp-{test}-{}-{call}", std::process::id()));
         let theme = Theme::load(&dir, &cache, &ALL, FAMILY);
         (theme.expect("the theme loads"), cache)
     }
