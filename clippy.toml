@@ -6,6 +6,13 @@ allow-unwrap-in-tests = true
 # A nesting limit of 5 allows the impl > fn > loop > match > arm shape
 # of an event handler.
 cognitive-complexity-threshold = 10
+# A plugin that changes its set of grabs starts a new set and ends the
+# old one after it (start_grabs, end_grabs), so that a key of both sets
+# never reaches a window in between (GR1). ungrab_all is for a plugin
+# that lets every binding go and grabs none after it.
+disallowed-methods = [
+  { path = "chora_kit::runtime::Runtime::ungrab_all", reason = "change a set of grabs with start_grabs and end_grabs (GR1)" }
+]
 excessive-nesting-threshold = 5
 too-many-arguments-threshold = 5
 too-many-lines-threshold = 60
