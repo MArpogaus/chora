@@ -599,7 +599,8 @@ const EVENTS: [&str; 19] = [
 const TRAIL: usize = 32;
 
 /// The methods; those that start programs or write files are privileged
-/// (D62), because a caller with `methods.call` alone must not run commands.
+/// (D62), because a caller with `methods.call` alone must not run commands;
+/// so are those that write the words of the agent or a notification.
 #[allow(clippy::too_many_lines)] // one entry per method
 fn exported_methods() -> Vec<ExportMethod> {
     let lines = json!({"type": "array", "items": {"type": "string"}});
@@ -653,14 +654,14 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["scene", "panel", "lines"],
         ),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "hud.set",
             "Sets the HUD line: the state of the agent, such as listening, thinking or \
              working, and a short message; both empty hide it.",
             json!({"state": {"type": "string"}, "text": {"type": "string"}}),
             &[],
-        ),
-        runtime::method(
+        )),
+        runtime::privileged(runtime::method(
             "hud.say",
             "Shows the text in the HUD word by word over duration_ms, the time that the \
              voice takes to speak it; a state as in hud.set shows before it.",
@@ -670,7 +671,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "duration_ms": {"type": "number"},
             }),
             &["text", "duration_ms"],
-        ),
+        )),
         runtime::method(
             "pane.focus",
             "Gives the keyboard to the app of the scene NAME, else to its page; a plugin that \

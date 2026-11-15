@@ -500,8 +500,8 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `scene.rename` | privileged. `name` and `to`: renames the scene file and its entry in `order`; a built-in scene without a file has none to rename |
 | `scene.move` | privileged. `name` and `to`, the new number from 1: the scene moves there in `order`, which the settings file keeps, and every number shows anew at once. The scene of an app stays at the end |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
-| `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
-| `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
+| `hud.set` | privileged. `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
+| `hud.say` | privileged. `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
 | `app.open` | privileged. `command`: a shell command that starts in a scene of its own, with a head and the next number. The scene goes when the program has no window left and has ended, so `ls` leaves no scene behind |
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
