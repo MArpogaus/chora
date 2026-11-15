@@ -4419,4 +4419,32 @@ mod tests {
         let notes = json!({"content": "notes", "lines": ["x"]});
         mc.method("content.set", notes).unwrap();
     }
+
+    /// A pointer press of `input.inject` on the urgent line cleared it,
+    /// as a key row ran its binding (review plugins r1, MC-04): the hits
+    /// and the agent columns ignore injected presses, as the bindings do.
+    #[test]
+    fn an_injected_press_on_a_hit_does_nothing() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("injected-hit", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.method(
+            "notify.push",
+            json!({"title": "Disk is full", "urgency": "critical"}),
+        )
+        .unwrap();
+        let item = (mc.items("agenda").into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id.ends_with("-urgent"))
+            .expect("the urgent line");
+        let hit = format!("{}-hit", item.id);
+        mc.press(&hit, [0.0, 0.0], true).unwrap();
+        assert!(
+            !mc.texts["urgent"].1.is_empty(),
+            "an injected press cleared it"
+        );
+        mc.press(&hit, [0.0, 0.0], false).unwrap();
+        assert!(mc.texts["urgent"].1.is_empty(), "the press of the person");
+    }
 }
