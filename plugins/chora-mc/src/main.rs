@@ -4271,6 +4271,20 @@ mod tests {
         assert_eq!(panel_effects(&mc, &model, "morning"), 1, "it writes again");
     }
 
+    /// New settings change the grabs. A binding that stays is never
+    /// free in between, where its key would reach a window: mc lets no
+    /// binding go that it grabs again.
+    #[test]
+    fn new_settings_keep_the_bindings_that_stay() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("kept-grabs", [1920, 1080]);
+        mc.grab_all().unwrap();
+        assert!(mc.rt.action("Super+F1").is_some());
+        mc.settings_changed().unwrap();
+        assert_eq!(model.lock().unwrap().ungrabs, [""; 0]);
+        assert!(mc.rt.action("Super+F1").is_some());
+    }
+
     /// An end of a write animation that mc answers before it hears of
     /// the drop puts the blur back after the core removed it. The drop
     /// clears the effects of the panels once more, and the change of the
