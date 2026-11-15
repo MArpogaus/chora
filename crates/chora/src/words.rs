@@ -151,6 +151,11 @@ fn state_in(stat: &[u8]) -> Option<u8> {
     stat.get(name_ends + 2).copied()
 }
 
+/// Whether a thread in this state of `/proc` gets on without CPU time.
+fn held_up_in(state: u8) -> bool {
+    state == b'R'
+}
+
 /// Whether the scheduler has a thread of this process as running or as
 /// ready to run, by `/proc`, read without malloc.
 #[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
@@ -170,7 +175,7 @@ fn runnable(thread: libc::pid_t) -> bool {
         read
     };
     let read = usize::try_from(read).unwrap_or(0);
-    state_in(&stat[..read]) == Some(b'R')
+    state_in(&stat[..read]).is_some_and(held_up_in)
 }
 
 /// Whether a fault handler that the alarm found at this point may go
@@ -402,6 +407,17 @@ mod tests {
         assert_eq!(state_in(b"7 (a) R (b) S 1 7"), Some(b'S'));
         assert_eq!(state_in(b"7 (chora"), None);
         assert_eq!(state_in(b""), None);
+    }
+
+    /// A first backtrace reads the debug info of the binary from the
+    /// disk: with a cold page cache the handler waits for the disk for
+    /// longer than the time of the alarm, in the state `D`, and uses no
+    /// CPU time (F17). A wait for a lock is the state `S`.
+    #[test]
+    fn a_handler_that_waits_for_the_disk_is_not_stuck() {
+        assert!(held_up_in(b'R'));
+        assert!(held_up_in(b'D'), "it reads its debug info from the disk");
+        assert!(!held_up_in(b'S'), "it waits for a lock");
     }
 
     #[test]
