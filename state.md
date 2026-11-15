@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-15 03:20 UTC)
+## Now (2026-11-15 03:32 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
-budget: Fable 95 %, all 59 % (01:3x); Fable used up, owner resets it (01:22); running Fable lanes finish on Fable, then one new Fable lane decides Fable or opus
+budget: all models 20 % (03:32 owner); Fable reset and ended: ux r2 finishes its gate, then opus only
 session branch: c2d0a116 (train 11, 03:17 UTC: tiling focus fade, ci-check, vkms unbind).
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 

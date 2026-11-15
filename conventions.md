@@ -41,7 +41,7 @@ this file, the skills, CONTRIBUTING.md.
 9. Environment: the cloud container is disposable, not the user's host; setup.sh may use apt and
    cargo install there. Lanes do not install system packages; a missing tool is a blocker.
 10. Subagents (rules.md 5, 11-14 16:54): sonnet builds, haiku tests, Fable reviews and hard work
-    (at most 2 Fable lanes at once, opus when Fable is gone). Haiku swarms only while they
+    (Fable ended 11-15 03:32: opus). Haiku swarms only while they
     find new issues and below 85 % weekly use (owner 11-11 17:29). Each lane owns its worktree and target/.
 11. Visual checks (charter): pixel asserts and gate cells replace looking at every screenshot; each
     pixel pass and each keeper gets reviewed captures.

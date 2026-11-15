@@ -16,7 +16,7 @@ once design/rc.md holds. All else: decide, log one line. Guard: manual.
 4. State. state.md is rewritten, never appended: Now, RC, Lanes, Queue, Needs owner.
 Guard: check_log.py (sections, sizes).
 5. Lanes. One area each. One brief per round, fixed at start; no scope message to a
-running worker. Sonnet builds; haiku tests; Fable (opus while it is off) reviews and
+running worker. Sonnet builds; haiku tests; opus (Fable ended 11-15) reviews and
 does hard work. Lanes run in the cloud; a local agent only reads, in its own worktree.
 Stop at 250 k context. Guard: start_lane.sh, lanes.py, post-checkout.
 6. Severity first. No MINOR or COSMETIC work on a look while it has an open BLOCK or
