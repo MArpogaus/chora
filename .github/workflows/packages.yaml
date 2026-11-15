@@ -25,6 +25,7 @@ jobs:
     - run: xargs dnf install -y rpm-build < dist/fedora-build-requires.txt
     - run: cargo install --locked cargo-generate-rpm@0.21.0
     - run: PATH="$HOME/.cargo/bin:$PATH" dist/build-rpm.sh target/rpm
+    - run: tests/gate-package-deps.sh --rpm target/rpm/*.rpm
     - name: install the package once
       run: |
         dnf install -y target/rpm/*.rpm
