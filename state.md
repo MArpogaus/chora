@@ -25,6 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | ux r1 | cloud Fable (starting), claude/ux-r1 | briefs/ux-r1.md | mc-30, sh-10, sh-11, sh-7, sh-5, ti-4 |
+| ci check | cloud sonnet (starting), claude/ci-check | briefs/ci-check-r1.md | PR #106 check: plugin-runtime gate; check-job scripts |
 | ci e2e | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r3.md | PR #106 e2e: agent.sh xs_are; CI4 |
 | flakes | cloud Fable ..P8pMY, claude/flakes-r4 | briefs/flakes-r4.md | F17, F16, GR1 |
 
