@@ -24,7 +24,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| ux r3 | cloud opus ..P9v5i, claude/ux-r3 | briefs/ux-r3.md | starting |
+| ux r3 | cloud opus ..P9v5i, claude/ux-r3 42d5d4b2 | briefs/ux-r3.md | sh-10 done (gate 28/28); ti-1 needs owner; review running |
 | harness r4 | cloud opus ..LBkdU, claude/harness | briefs/harness-r4.md | r3 FIX (M1 quoted subst, M2 commit on session branch) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | logging r2 | cloud opus ..NQNi8, claude/logging-r1 48b68820 | briefs/logging-r2.md | handed back 06:27 (gate 28/28); opus review running |
@@ -39,4 +39,4 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 7. Final review rounds (two clean), three greens, tag. (rc 3)
 
 ## Needs owner
-- none
+- Environment for ti-1 (BLOCK): may setup.sh build fuzzel >= 1.11 under $HOME (meson via pip, tllist, fcft; no sudo)? Default if no answer by 11-16 12:00 UTC: no; ti-1 is checked in CI on Arch (fuzzel 1.11+) instead.
