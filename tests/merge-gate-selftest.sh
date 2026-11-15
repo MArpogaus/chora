@@ -422,6 +422,23 @@ check "--help leaves no log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -
 ci_local deny
 check "a run without a failure removes its log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
 
+runtime_case() {
+    rm -rf "$work/plugins"
+    mkdir "$work/plugins"
+    printf '%b' "$1" >"$work/plugins/lib.rs"
+    CHORA_GATE_LOCK_HELD=1 "$repo/tests/gate-0.8-plugin-runtime.sh" "$work/plugins" >/dev/null 2>&1
+    echo $?
+}
+allowed_fn='#[allow(\n    clippy::disallowed_methods,\n    reason = "fake core"\n)]\npub fn fake() {\n    let c = conn::connect(p);\n}\n'
+check "plugin runtime: a hit inside the allowed item passes" "$(runtime_case "$allowed_fn")" 0
+check "plugin runtime: a hit without an allow fails" "$(runtime_case 'fn a() {\n    conn::connect(p);\n}\n')" 1
+check "plugin runtime: a hit in the item after the allowed one fails" \
+    "$(runtime_case "${allowed_fn}\nfn other() {\n    conn::connect(q);\n}\n")" 1
+check "plugin runtime: an allowed statement covers only itself" \
+    "$(runtime_case 'fn a() {\n    #[allow(clippy::disallowed_methods, reason = "x")]\n    let c = conn::connect(\n        p,\n    );\n    let d = conn::connect(q);\n}\n')" 1
+check "plugin runtime: an allowed multi-line statement passes" \
+    "$(runtime_case 'fn a() {\n    #[allow(clippy::disallowed_methods, reason = "x")]\n    let c = conn::connect(\n        p,\n    );\n}\n')" 0
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1
