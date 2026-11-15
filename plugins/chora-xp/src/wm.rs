@@ -689,15 +689,7 @@ impl Wm {
     fn grab(&mut self) -> Result<(), ClientError> {
         let cube = !self.cube_off();
         self.cube_keys = cube;
-        let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
-        for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
-            for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
-                let binding: Binding = binding.parse().expect("valid bindings");
-                if self.rt.grab(binding, key)? {
-                    break;
-                }
-            }
-        }
+        grab_keys(&mut self.rt, cube)?;
         self.rt
             .accept_injected(self.settings.value.test_accept_injected_keys);
         self.rt.give_keys(Some(Key::Give));
@@ -1407,7 +1399,9 @@ impl Wm {
         if self.cube_keys != self.cube_off() {
             return;
         }
-        let grabbed = self.rt.ungrab_all().and_then(|()| self.grab());
+        let cube = !self.cube_off();
+        self.cube_keys = cube;
+        let grabbed = change_keys(&mut self.rt, cube).and_then(|()| self.rt.grab_give_keys());
         if let Err(err) = grabbed {
             eprintln!("chora-xp: {err}");
         }
@@ -4209,6 +4203,28 @@ fn window_icon(icons: &mut Icons, app_id: Option<&str>) -> Option<std::path::Pat
         .or_else(|| icons.program_sized(id, 16))
 }
 
+/// Grabs the keys of the plugin, with or without those of the cube; a
+/// key that another client holds falls back to its second binding.
+#[allow(clippy::expect_used, reason = "the bindings are constants")]
+fn grab_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
+    let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
+    for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
+        for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
+            let binding: Binding = binding.parse().expect("valid bindings");
+            if rt.grab(binding, key)? {
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Changes the grabs to the keys with or without those of the cube.
+fn change_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
+    rt.ungrab_all()?;
+    grab_keys(rt, cube)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -4252,9 +4268,85 @@ mod tests {
         ));
     }
 
-    use chora_kit::volume::Change;
+    use std::{
+        io::{BufRead as _, BufReader, Write as _},
+        os::unix::net::UnixListener,
+        sync::{Arc, Mutex},
+    };
+
+    use chora_kit::{conn::Conn, volume::Change};
+    use serde_json::{Value, json};
 
     use super::*;
+
+    /// The calls `input.grab` and `input.ungrab` that a fake core saw,
+    /// as `METHOD BINDING`, and a runtime on that core.
+    fn on_fake_core(tag: &str) -> (Runtime<Key>, Arc<Mutex<Vec<String>>>) {
+        let dir = std::env::temp_dir().join(format!("chora-xp-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("core.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&calls);
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).unwrap();
+                let method = request["method"].as_str().unwrap_or_default();
+                let binding = request["params"]["binding"].clone();
+                let result = match method {
+                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
+                    "input.grab" => binding.clone(),
+                    _ => Value::Null,
+                };
+                if method.starts_with("input.") {
+                    let binding = binding.as_str().unwrap_or_default();
+                    seen.lock().unwrap().push(format!("{method} {binding}"));
+                }
+                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                writeln!(writer, "{answer}").unwrap();
+            }
+        });
+        let conn = Conn::connect_at(NAME, &path).unwrap();
+        (Runtime::with(conn, NAME, Vec::new()), calls)
+    }
+
+    /// When the cube of xp goes, as on the faces of a cube of the
+    /// construct, xp lets only the keys of the cube go: a key that it
+    /// keeps is never free in between, where it would reach a window.
+    #[test]
+    fn a_change_of_the_cube_keys_keeps_the_other_keys() {
+        let (mut rt, calls) = on_fake_core("cube-keys");
+        grab_keys(&mut rt, true).unwrap();
+        calls.lock().unwrap().clear();
+        change_keys(&mut rt, false).unwrap();
+        let mut gone = std::mem::take(&mut *calls.lock().unwrap());
+        gone.sort();
+        assert_eq!(
+            gone,
+            [
+                "input.ungrab Ctrl+Alt+Left",
+                "input.ungrab Ctrl+Alt+Right",
+                "input.ungrab Ctrl+Alt+Shift+Left",
+                "input.ungrab Ctrl+Alt+Shift+Right",
+                "input.ungrab Super+BTN_LEFT",
+            ]
+        );
+        assert!(matches!(rt.action("Super+d"), Some(Key::Desktop)));
+        assert!(rt.action("Ctrl+Alt+Left").is_none());
+        change_keys(&mut rt, true).unwrap();
+        assert!(matches!(rt.action("Ctrl+Alt+Left"), Some(Key::Turn(-1))));
+        assert!(
+            calls
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|c| c.starts_with("input.grab ")),
+            "{calls:?}"
+        );
+    }
 
     /// The volume keys and the chat key are bound as on tiling.
     #[test]
