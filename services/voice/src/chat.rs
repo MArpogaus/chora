@@ -1045,7 +1045,10 @@ impl Chat {
 
     /// Whether the settings file differs from the running settings in a
     /// security key. A file that cannot be read or parsed counts as
-    /// different: the reload will refuse it anyway.
+    /// different: the reload will refuse it anyway. The file is
+    /// localized in the running `reply_language`, so that a switch of
+    /// the language alone is no security change, as in the client
+    /// thread, which compares the raw files.
     fn reload_is_security(&self) -> bool {
         let Some(file) = &self.settings_file else {
             return true;
@@ -1053,7 +1056,13 @@ impl Chat {
         let new = std::fs::read_to_string(file)
             .map_err(|e| e.to_string())
             .and_then(|text| chora_kit::settings::parse::<Config>(&text))
-            .map(|c| serde_json::to_value(c.localized()));
+            .map(|c| {
+                let running = Config {
+                    reply_language: self.config.reply_language.clone(),
+                    ..c
+                };
+                serde_json::to_value(running.localized())
+            });
         let old = serde_json::to_value(&self.config);
         let (Ok(Ok(new)), Ok(old)) = (new, old) else {
             return true;
