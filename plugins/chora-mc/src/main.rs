@@ -3523,6 +3523,10 @@ mod tests {
     }
 
     fn press_key(mc: &mut super::Mc, key: &str, modifiers: &[&str]) {
+        press_key_from(mc, key, modifiers, false);
+    }
+
+    fn press_key_from(mc: &mut super::Mc, key: &str, modifiers: &[&str], injected: bool) {
         use chora_kit::runtime::Plugin as _;
         mc.event(chora_scene::Event::NodeKey {
             node: super::page_id("agenda"),
@@ -3531,7 +3535,7 @@ mod tests {
             state: chora_scene::ipc::PressState::Pressed,
             modifiers: modifiers.iter().map(|m| (*m).to_owned()).collect(),
             text: None,
-            injected: false,
+            injected,
         })
         .unwrap();
     }
@@ -4488,5 +4492,22 @@ mod tests {
         );
         mc.press(&hit, [0.0, 0.0], false).unwrap();
         assert!(mc.texts["urgent"].1.is_empty(), "the press of the person");
+    }
+
+    /// A key of `input.inject` turned the page, or went back along the
+    /// pages, as the key of a person (review security a r2, MINOR 4): the
+    /// keys of the page are the person's, as the bindings are.
+    #[test]
+    fn an_injected_key_does_not_turn_the_page() {
+        let (mut mc, _) = crate::testing::mc("injected-page-key", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        press_key_from(&mut mc, "Right", &[], true);
+        assert_eq!(mc.current.as_deref(), Some("agenda"), "Right injected");
+        press_key_from(&mut mc, "Right", &[], false);
+        assert_eq!(mc.current.as_deref(), Some("morning"), "Right of a person");
+        press_key_from(&mut mc, "Escape", &[], true);
+        assert_eq!(mc.current.as_deref(), Some("morning"), "Escape injected");
+        press_key_from(&mut mc, "Escape", &[], false);
+        assert_eq!(mc.current.as_deref(), Some("agenda"), "Escape of a person");
     }
 }
