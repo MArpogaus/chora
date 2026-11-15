@@ -22,7 +22,7 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use super::{
     Frame, Mode, Session,
-    view::{CHAT, CLOSE, HINT, PICK, STOP, VIEW, create, image},
+    view::{CHAT, CLOSE, HEADER_LINES, HINT, PICK, STOP, VIEW, capped, create, image},
 };
 use crate::glass::{Line, keycaps, paint, rect, shadow, surface};
 
@@ -387,7 +387,7 @@ impl Session {
             })
             .collect();
         let mut body = surface([column.w, column.h], PANEL_RADIUS, &column.m, true);
-        let (header, ring) = self.glass_header(&column, frame, language);
+        let (header, ring, who) = self.glass_header(&column, frame, language);
         body += &header;
         body += &column.transcript(&laid, hint);
         let [room_top, _] = column.room();
@@ -403,11 +403,11 @@ impl Session {
             let top = ((HEADER - 24.0) / 2.0) as i32;
             picture = picture.element(sheet, id, [16, top, 24, 24]);
         }
-        let (word, who) = self.glass_head(language);
-        let shown = [word.as_str(), who.as_str()]
-            .into_iter()
+        let (word, _) = self.glass_head(language);
+        let shown = std::iter::once(word)
+            .chain(who)
+            .chain(said.iter().map(|m| m.text.clone()))
             .filter(|part| !part.is_empty())
-            .chain(said.iter().map(|m| m.text.as_str()))
             .collect::<Vec<_>>()
             .join("\n");
         (picture, hits, shown)
@@ -418,7 +418,11 @@ impl Session {
         column: &Column<'_>,
         frame: &Frame,
         language: Language,
-    ) -> (String, Option<(chora_draw::theme::Sheet, &'static str)>) {
+    ) -> (
+        String,
+        Option<(chora_draw::theme::Sheet, &'static str)>,
+        Vec<String>,
+    ) {
         let m = &column.m;
         let (word, who) = self.glass_head(language);
         let mut svg = String::new();
@@ -435,17 +439,42 @@ impl Session {
         if ring.is_some() {
             text_x += 24.0 + 8.0;
         }
-        if !word.is_empty() {
-            svg +=
-                &Line::new(&word, Type::Label, m.text).at([text_x, (HEADER - 16.0) / 2.0], false);
+        let width = |line: &str| Line::new(line, Type::Small, m.muted).width(column.theme);
+        let mut shown = Vec::new();
+        if word.is_empty() {
+            let room = column.w - PAD - text_x;
+            let lines = who_lines(column.theme, &who, room);
+            let top =
+                (HEADER - WHO_LINE * f64::from(u32::try_from(lines.len()).unwrap_or(1))) / 2.0;
+            for (n, line) in (0_u32..).zip(&lines) {
+                let at = [text_x, top + WHO_LINE * f64::from(n)];
+                svg += &Line::new(line, Type::Small, m.muted).at(at, false);
+                let high = at[1] >= 0.0 && at[1] + WHO_LINE <= HEADER;
+                shown.push(super::view::as_shown(line, room, high, width));
+            }
+        } else {
+            let label = Line::new(&word, Type::Label, m.text);
+            svg += &label.at([text_x, (HEADER - 16.0) / 2.0], false);
+            let room = column.w - PAD - (text_x + label.width(column.theme) + PAD);
+            let line = capped(&who, room, 1, width).concat();
+            svg += &Line::new(&line, Type::Small, m.muted)
+                .at([column.w - PAD, (HEADER - WHO_LINE) / 2.0], true);
+            shown.push(super::view::as_shown(&line, room, true, width));
         }
-        let who_line = Line::new(&who, Type::Small, m.muted);
-        let anchor_end = !word.is_empty();
-        let at = if anchor_end { column.w - PAD } else { text_x };
-        svg += &who_line.at([at, (HEADER - 20.0) / 2.0], anchor_end);
         svg += &rect([8.0, HEADER, column.w - 16.0, 1.0], 0.0, m.separator);
-        (svg, ring)
+        (svg, ring, shown)
     }
+}
+
+/// The height of a line of the header in the small type.
+const WHO_LINE: f64 = 20.0;
+
+/// The lines of the header without a state word: it wraps at its words
+/// in `room` into [`HEADER_LINES`].
+fn who_lines(theme: &Theme, who: &str, room: f64) -> Vec<String> {
+    capped(who, room, HEADER_LINES, |line| {
+        Line::new(line, Type::Small, Material::of(false).muted).width(theme)
+    })
 }
 
 /// The key line at the bottom of the column, and the nodes that take a
@@ -572,5 +601,156 @@ mod tests {
         assert_eq!(line[1].0, ["Ctrl", "."]);
         assert_eq!(line[2].0, ["Esc"]);
         assert_eq!((line[1].2, line[2].2), (Some(STOP), Some(CLOSE)));
+    }
+
+    #[test]
+    fn the_glass_header_says_no_helper_and_a_waiting_question_whole_in_its_lines() {
+        let (theme, _, cache) = crate::tests::loaded("glass-no-helper");
+        for area in [[0, 0, 1280, 770], [0, 0, 1024, 738]] {
+            let frame = Frame {
+                output: "HEADLESS-1".into(),
+                size: [area[2], area[3] + 30],
+                area,
+                look: chora_kit::hud::Chat {
+                    style: chora_kit::hud::ChatStyle::Glass,
+                    anchor: Some(chora_kit::hud::Anchor::Right),
+                    width: Some(480),
+                    margin: 32,
+                    ..chora_kit::hud::Chat::default()
+                },
+                slot: None,
+                clear: Vec::new(),
+                tip: None,
+                field: 36,
+                ring: None,
+                dark: false,
+                scale: 1,
+                card: None,
+            };
+            let room = f64::from(frame.rect()[2]) - 2.0 * PAD;
+            for (language, card) in [Language::En, Language::De]
+                .into_iter()
+                .flat_map(|language| {
+                    [
+                        (language, None),
+                        (language, Some(crate::chat::Where::Figure)),
+                    ]
+                })
+            {
+                let mut session = Session::new();
+                session.mode = Mode::List(Vec::new(), None);
+                session.card = card;
+                let whole = session.header(language);
+                let (_, _, shown) = session.glass_picture(&theme, &frame, (language, false));
+                let lines: Vec<&str> = shown.lines().collect();
+                assert_eq!(lines.join(" "), whole);
+                assert!(f64::from(u32::try_from(lines.len()).unwrap_or(0)) * 20.0 <= HEADER);
+                for line in lines {
+                    let width =
+                        Line::new(line, Type::Small, Material::of(false).muted).width(&theme);
+                    assert!(width <= room, "{line} is {width} wide in {room}");
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    fn glass_frame(area: [i32; 4], width: u32) -> Frame {
+        Frame {
+            output: "HEADLESS-1".into(),
+            size: [area[2], area[3] + 30],
+            area,
+            look: chora_kit::hud::Chat {
+                style: chora_kit::hud::ChatStyle::Glass,
+                anchor: Some(chora_kit::hud::Anchor::Right),
+                width: Some(width),
+                margin: 32,
+                ..chora_kit::hud::Chat::default()
+            },
+            slot: None,
+            clear: Vec::new(),
+            tip: None,
+            field: 36,
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
+        }
+    }
+
+    fn small_width(theme: &Theme, line: &str) -> f64 {
+        Line::new(line, Type::Small, Material::of(false).muted).width(theme)
+    }
+
+    #[test]
+    fn the_glass_header_without_a_state_word_keeps_two_lines_at_the_narrowest_width() {
+        let (theme, _, cache) = crate::tests::loaded("glass-narrow");
+        let areas = [[0, 0, 1280, 770], [0, 0, 1024, 738]];
+        let cases = areas.iter().flat_map(|&area| {
+            [240, 480].into_iter().flat_map(move |width| {
+                [Language::En, Language::De]
+                    .into_iter()
+                    .flat_map(move |language| {
+                        [
+                            (area, width, language, false),
+                            (area, width, language, true),
+                        ]
+                    })
+            })
+        });
+        for (area, width, language, offline) in cases {
+            let frame = glass_frame(area, width);
+            let room = f64::from(frame.rect()[2]) - 2.0 * PAD;
+            let mut session = Session::new();
+            session.mode = Mode::List(Vec::new(), None);
+            session.offline = offline;
+            let (_, _, shown) = session.glass_picture(&theme, &frame, (language, false));
+            let lines: Vec<&str> = shown.lines().collect();
+            let case = format!("{width} {language:?} {offline}");
+            assert!(lines.len() <= 2, "{case}: {lines:?}");
+            let widest = lines
+                .iter()
+                .map(|l| small_width(&theme, l))
+                .fold(0.0, f64::max);
+            assert!(
+                widest <= room,
+                "{case}: {lines:?} is {widest} wide in {room}"
+            );
+            let whole = session.header(language);
+            let cut = lines.last().is_some_and(|l| l.ends_with('\u{2026}'));
+            assert!(lines.join(" ") == whole || cut, "{case}: {lines:?}");
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_long_prompt_keeps_the_name_and_ends_the_task_beside_the_glass_state_word() {
+        let (theme, _, cache) = crate::tests::loaded("glass-long-prompt");
+        let mut prompt = String::from("Read this first.\nThen ");
+        while prompt.chars().count() < 1800 {
+            prompt.push_str("Please tidy the notes folder and sort every item by its date.\n");
+        }
+        for area in [[0, 0, 1280, 770], [0, 0, 1024, 738]] {
+            for width in [240, 480] {
+                let frame = glass_frame(area, width);
+                let mut session = Session::new();
+                session.mode = Mode::Chat("coder".into());
+                session.status.state = "working".into();
+                session.status.task = prompt.clone();
+                let (word, _) = session.glass_head(Language::En);
+                let (_, _, shown) = session.glass_picture(&theme, &frame, (Language::En, false));
+                let lines: Vec<&str> = shown.lines().collect();
+                let case = format!("{width} {area:?}");
+                assert_eq!(lines.len(), 2, "{case}: {lines:?}");
+                assert_eq!(lines[0], word, "{case}");
+                assert!(lines[1].starts_with("coder · "), "{case}: {}", lines[1]);
+                assert!(lines[1].ends_with('\u{2026}'), "{case}: {}", lines[1]);
+                let word_w = Line::new(&word, Type::Label, Material::of(false).text).width(&theme);
+                let room = f64::from(frame.rect()[2]) - 3.0 * PAD - word_w;
+                let wide = small_width(&theme, lines[1]);
+                assert!(wide <= room, "{case}: {wide} wide in {room}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
     }
 }
