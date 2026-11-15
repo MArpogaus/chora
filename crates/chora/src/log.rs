@@ -1,12 +1,17 @@
-//! The log of the core: `tracing` to stderr (journald or the terminal).
-//! `RUST_LOG` filters; the default is info.
+//! The log of the core: `tracing` to stderr (journald or the terminal)
+//! and to the file `chora.log` of `chora_scene::logs`. `RUST_LOG`
+//! filters; the default is info.
 
-use std::io::IsTerminal;
+use std::{io::IsTerminal, sync::Mutex};
 
 use tracing::{Level, Metadata};
 use tracing_subscriber::{
-    EnvFilter, filter::filter_fn, fmt, layer::SubscriberExt, util::SubscriberInitExt,
+    EnvFilter, Layer, filter::filter_fn, fmt, layer::SubscriberExt, util::SubscriberInitExt,
 };
+
+/// The target of the last words of a panic. The panic hook writes them to
+/// stderr itself, so only the file takes this target.
+const PANIC: &str = "chora::panic";
 
 /// Below info only the targets of chora log: smithay writes the keysym of
 /// each key press at trace, which is typed text.
@@ -16,15 +21,34 @@ pub fn ours_or_info(meta: &Metadata<'_>) -> bool {
 
 /// Starts the log with `RUST_LOG` or the default filter.
 pub fn init() {
+    let file = chora_scene::logs::File::open("chora");
+    let failed = file.as_ref().err().map(ToString::to_string);
+    let file = file
+        .ok()
+        .map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f)));
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .with(filter_fn(ours_or_info))
         .with(
             fmt::layer()
                 .with_writer(std::io::stderr)
-                .with_ansi(std::io::stderr().is_terminal()),
+                .with_ansi(std::io::stderr().is_terminal())
+                .with_filter(filter_fn(|meta| meta.target() != PANIC)),
         )
+        .with(file)
         .init();
+    if let Some(err) = failed {
+        no_file(&err);
+    }
+}
+
+fn no_file(err: &str) {
+    tracing::warn!("no log file: {err}");
+}
+
+/// Writes the last words of a panic to the log file.
+pub fn panic(words: &str) {
+    tracing::error!(target: PANIC, "{words}");
 }
 
 #[cfg(test)]
