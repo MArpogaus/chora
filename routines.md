@@ -15,6 +15,8 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
   duplication across plugins); results as lines in state.md or backlog items.
 
 ## By event
+- A harness branch is MERGE-OK: its own train at once, before other trains; then tell the running
+  lanes to merge the session branch. A new hook or check shows it never blocks a valid commit.
 - A FIX verdict or a CI-only failure: name the earliest gate that could have caught it; if none
   exists, a harness backlog item (owner 11-15 02:10: strong compile-time gates).
 - A usage limit stops work: send_later at the reset time to resume every lane; before
