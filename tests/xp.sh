@@ -36,6 +36,7 @@
 # is thunar when it is installed, else foot in the folder.
 set -euo pipefail
 . "$(dirname "$0")/gate-lock.sh"
+. "$(dirname "$0")/proc-lib.sh"
 gate_lock "$(basename "$0")"
 
 bin=$(realpath "$1")
@@ -649,9 +650,8 @@ jq -e --arg t "$token" \
     "$out/created.jsonl" >/dev/null ||
     fail "no surface.created with the token and the pid: $out/created.jsonl"
 
-running() { [ -n "$1" ] && [ "$(ps -o stat= -p "$1" | cut -c1)" != Z ] && kill -0 "$1" 2>/dev/null; }
 running "$chora_pid" || fail "chora died"
-running "$(pgrep -P "$chora_pid" -x chora-xp)" || fail "chora-xp died: $out/chora.log"
+live_child "$chora_pid" chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
 running "$notify_pid" || fail "chora-notify died: $out/notify.log"
 running "$assistant_pid" || fail "chora-assistant died: $out/assistant.log"
 
