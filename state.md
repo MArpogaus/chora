@@ -25,12 +25,13 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
+| fuzzel r1 | cloud sonnet low | briefs/fuzzel-r1.md | fuzzel >= 1.11 in setup.sh, ti-1 click |
 | security a r2 | 0a3d0040, re-review opus medium (local) | briefs/security-a-r2.md | 2 MAJOR fixed (NodeKey injected); walk keys open |
 | core watchdog r1 | cloud sonnet, claude/core-watchdog | briefs/core-watchdog-r1.md | sh-22, F25 |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Sun: CI (F25); review of security a r2 and core watchdog on opus medium; fixes on sonnet. (rc 1, 3, 4, 6)
-2. Mon: fuzzel 1.11 in setup.sh (sonnet low; owner 09:27) then ti-1 check; ledger r3 (haiku cells, opus verdicts). (rc 1)
+2. Sun-Mon: fuzzel r1 (pulled forward, sonnet low); Mon: ledger r3 (haiku cells, opus verdicts). (rc 1)
 3. Mon-Tue: media lane on sonnet after ledger r3 is clean: status pictures, screencast, README shots (owner 09:20, 09:27). (rc 11)
 4. Tue: persona round 4 as a haiku swarm, triage.py, opus ranks; fixes on sonnet. (rc 2)
 5. Wed-Thu: flakes (F16, F25, F24) on haiku series + sonnet fixes; CI6; final review rounds (two clean, opus). (rc 3, 4)
