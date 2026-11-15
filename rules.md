@@ -16,9 +16,9 @@ once design/rc.md holds. All else: decide, log one line. Guard: manual.
 4. State. state.md is rewritten, never appended: Now, RC, Lanes, Queue, Needs owner.
 Guard: check_log.py (sections, sizes).
 5. Lanes. One area each. One brief per round, fixed at start; no scope message to a
-running worker. Sonnet builds; haiku tests; opus (Fable ended 11-15) reviews and
-does hard work. Lanes run in the cloud; a local agent only reads, in its own worktree.
-Stop at 250 k context. Guard: start_lane.sh, lanes.py, post-checkout.
+running worker. Sonnet builds; haiku tests; opus reviews and hard causes. Lanes run
+in the cloud; a local agent only reads, in its worktree. Stop at 250 k context.
+Guard: start_lane.sh, lanes.py, post-checkout.
 6. Severity first. No MINOR or COSMETIC work on a look while it has an open BLOCK or
 MAJOR. At most two pixel rounds per look per week. Guard: manual.
 7. Evidence. A report lists each claim with its gate cell and capture; a claim without
@@ -27,10 +27,10 @@ MERGE-OK. The builder never reviews itself. Guard: manual.
 8. Merge. Only through tests/merge-gate.sh. A fix has its red test commit first. A
 MERGE-OK branch merges within 12 h. Before a budget stop: merge first, start
 nothing. Guard: merge-gate.sh (lock, steps); lanes.py (12 h); manual (to build: red-first check).
-9. Budget and context. The meter is the owner's reading; between readings give a
-range. The PM compacts at 300 k, wakes on done or blocked, says nothing when
-nothing changed, commits the log once per merge or hour.
-Guard: lanes.py (commits per hour); the rest manual.
+9. Budget is the main job (owner 11-15). Week resets Sat 03:59 UTC; pace in
+state.md, at most 10 % a UTC day; each brief names model and effort. Compact at
+300 k; wake on done or blocked; quiet when nothing changed; log once per merge or hour.
+Guard: start_lane.sh (Model line); lanes.py (commits per hour); pace manual.
 10. Rules. Ten rules, 3,000 bytes. A Guard names a check that exists or says manual
 (to build: tool). A new rule removes one. A rule changes at a merge boundary,
 never in the turn an owner message arrives. Guard: check_log.py.

@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Sun 15 Nov, 05:33 UTC (12:33 Bangkok)</span>
+      <span>Updated Sun 15 Nov, 10:07 UTC (17:07 Bangkok)</span>
       <span>Day 8 of 22</span>
       <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
@@ -119,8 +119,9 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merge train 16: sharper tooling round 5 (goes first, then every lane uses it)</li>
-          <li>Security fixes, two lanes: the 13 medium security findings in mc, construct, the helper, notify and voice</li>
+          <li>Merge train 18: security fixes b (voice and chat: secrets kept out of logs, settings hidden from plugins); its review passed</li>
+          <li>Security fixes a, round 2: its review found two major gaps (injected keys still reach the 3D window list; one plugin call can rewrite the agent column)</li>
+          <li>Frame watchdog: it switches off window effects on a busy machine without a GPU; likely why CI fails on one corner pixel</li>
           <li>Look fixes round 5: the voice confirm in mc, chat buttons that stay put, long pastes</li>
         </ul>
       </div>
@@ -150,8 +151,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">Moving windows between window managers</span><span class="pct">85 of 85</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="note">A hard requirement: every case passes by key, command, drag and voice, also across virtual screens and the cube.</span></div>
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
-      <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Open: the core crash pair, the cube click and flick under load, the construct that stops answering. A lost fix (cube click) is redone.</span></div>
-      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">0 of 9 criteria met</span><div class="track"><div class="fill" style="width:25%"></div></div><span class="note">Dependency checks clean and docs ready (merging now). Open: about 35 major look findings, 2 blockers to check, flaky tests, CI never run, packages, user test round 4, owner approval of each look.</span></div>
+      <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. Open: the tiling bar that sometimes does not show, the frame watchdog under load, one CI pixel.</span></div>
+      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">2 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: packages build, dependency checks clean. Close: docs, code review (security fixes in review), CI (one red pixel). Open: tiling launcher clicks (fuzzel 1.11, Mon), user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
     </div>
   </section>
 
@@ -184,8 +185,12 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>19 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>23 entries</span></summary>
       <ul class="timeline">
+        <li><time>10:07</time><p><span class="tag ok">merged</span>Train 17: flaky-test round 5 (a theme picture cache race, the lock takeover check, the tiling bar start). Security fixes b merge next.</p></li>
+        <li><time>09:52</time><p><span class="tag issue">review</span>Security fixes a: the review found two major gaps (injected keys still drive the 3D window list; an open plugin call can rewrite the agent column). A fix round started on a cheaper model.</p></li>
+        <li><time>09:50</time><p><span class="tag info">review</span>Security fixes b passed their review: secrets stay out of the helper logs, plugins see no hidden settings. Four minor points go to the backlog.</p></li>
+        <li><time>09:35</time><p><span class="tag issue">CI</span>CI end-to-end failed twice on the same corner pixel, so it is not a flaky test. Not reproduced locally; lead: the frame watchdog drops window effects on a busy machine without a GPU.</p></li>
         <li><time>09:28</time><p><span class="tag info">plan</span>Plan re-paced after your budget reading (33 %): about 10 % a day until Saturday's reset; tests on haiku, fixes on sonnet, opus for reviews and hard causes. fuzzel 1.11 gets built in the cloud setup; the media lane refreshes status pictures, the screencast and README screenshots.</p></li>
         <li><time>09:28</time><p><span class="tag ok">merged</span>Train 16: sharper tooling round 5 (the plugin call check no longer misses calls after a commented lint exception). The flaky-test round merges next.</p></li>
         <li><time>08:50</time><p><span class="tag ok">merged</span>Train 15: the chat header never grows past two lines in any look, and tiling no longer cuts words. Tooling round 5 and the flaky-test round passed their reviews and merge next.</p></li>

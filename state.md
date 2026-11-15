@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-15 09:53 UTC)
+## Now (2026-11-15 10:07 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
-session branch: 2d9f306f (train 16, 09:28 UTC: harness r5; train 15 0e303d60). Train 17 (flakes r5) gate running.
+session branch: 5aa30b54 (train 17, 10:06 UTC: flakes r5; train 16 2d9f306f). Train 18 (security b) gate running.
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -19,20 +19,19 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; 13 MEDIUM security: lanes security a, b r1 |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
-| 9 | Logging audit, flakes closed | logging audit merged (train 14); flakes r5 in train 17 |
+| 9 | Logging audit, flakes closed | logging audit merged (train 14); flakes r5 merged (train 17) |
 | 11 | Visual acceptance screencast | tour tooling claude/tour 48fc05b5; rewrite from Mon |
 
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| train 17 | /home/user/wt/train17 5aa30b54 | flakes r5 (MERGE-OK) | gate 1 running |
+| train 18 | /home/user/wt/train18 4693fe07 | security b (MERGE-OK) | gate 1 running |
 | ux r5 | cloud opus ..LwMj9, claude/ux-r5 | briefs/ux-r5.md | mc-31 verify, sh-19, sh-20 |
 | security a r2 | cloud sonnet, claude/security-a | briefs/security-a-r2.md | review r1 FIX: 2 MAJOR (inject keys, panel.set) |
 | core watchdog r1 | cloud sonnet, claude/core-watchdog | briefs/core-watchdog-r1.md | sh-22, F25 |
-| security b r1 | dde7bc90 | briefs/security-b-r1.md | MERGE-OK (review 4 MINOR: SB2); train 18 after 17 |
 
 ## Queue (by day; budget 10 % a UTC day)
-1. Sun: trains 17, CI on its head (F25); reviews of ux r5 and security a, b on opus medium; fix rounds of their findings on sonnet. (rc 1, 3, 4, 6)
+1. Sun: train 18, CI (F25); reviews of ux r5 and security a, b on opus medium; fix rounds of their findings on sonnet. (rc 1, 3, 4, 6)
 2. Mon: fuzzel 1.11 in setup.sh (sonnet low; owner 09:27) then ti-1 check; ledger r3 (haiku cells, opus verdicts). (rc 1)
 3. Mon-Tue: media lane on sonnet after ledger r3 is clean: status pictures, screencast, README shots (owner 09:20, 09:27). (rc 11)
 4. Tue: persona round 4 as a haiku swarm, triage.py, opus ranks; fixes on sonnet. (rc 2)
