@@ -27,7 +27,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | train 13 | /home/user/wt/train13 be205f89 | ux r2 90513573, ci e2e r5 ad5041d0 | gate running 04:03 |
 | harness r2 | cloud opus ..NivBG, claude/harness | briefs/harness-r2.md | r1 FIX (B1 hook blocks without the ref; M1 pgrep by name) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
-| logging r1 | cloud opus (starting), claude/logging-r1 | briefs/logging-r1.md | rc 9a pulled forward (owner 04:05) |
+| logging r1 | cloud opus ..MMmuw, claude/logging-r1 | briefs/logging-r1.md | rc 9a pulled forward (owner 04:05) |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
