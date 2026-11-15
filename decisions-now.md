@@ -1,11 +1,12 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-15T04:55:00Z
+screened-through: 2026-11-15T09:20:00Z
 
+- 11-15 09:20Z "When ui fixes finished prune and update screenshots and screencast" -> media lane after ux r5, ledger r3: prune, new captures, screencast (rc 11)
 - 11-15 03:32Z "Fable used up and reset. Ende fable session soon." -> no Fable after ux r2's gate; opus for hard work and reviews
 - 11-15 02:10Z "we want to include harness issues in our reflection rounds and sharpen our tooling wherever possible. We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
 - 11-14 17:17Z "Du bist der Projektmanager." -> decide all, rc too
-- 11-14 16:43Z "...robuster gestalten, damit sowas nicht nochmal passiert." -> fail-open hooks
+- 11-14 16:43Z "...robuster gestalten" -> fail-open hooks
 - 11-14 05:33Z "try to really parallelize what's possible" -> parallel lanes
 - 11-12 05:47Z "So stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority for our guidelines." -> priority; "Your job should be to collect those, put them in the backlog if they are feasible, push back if they conflict with any of our decisions or targets, and always keep the project goals into focus." -> ideas never redirect a lane; "You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation." -> name unreachable goals
 - 11-12 02:42Z "Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that." -> plan = backlog; "Really push back when you see that certain task is useless or not necessary right now." -> push back, also on his words
@@ -16,11 +17,11 @@ screened-through: 2026-11-15T04:55:00Z
 - 11-09 04:24Z "This shall never touch the main branches or dev branches." -> session files only on claude/session-log
 - 11-09 08:20Z "You shall use my github email and name as in all previous commits." -> his identity; no AI lines
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
-- 11-09 05:05Z "The user test shall include this "Push to limit" view without sacrificing the low tech views." -> both persona kinds
+- 11-09 05:05Z "user test shall include this "Push to limit" view without sacrificing the low tech views" -> both persona kinds
 - 11-09 05:11Z "All user agents shall report issues and draft feature request. You shall review rank and address them by iprtance." -> by severity
-- 11-14 04:51Z "agree with decitions." -> Needs owner defaults (a)-(d); 05:25Z: no construct preview
+- 11-14 04:51Z "agree with decitions." -> defaults (a)-(d); no construct preview
 - 11-12 04:20Z "Xp goal is pixel perfect replication and ux similar yo original. Mc shall be a modern voice first computing experience where content shapes the view, following traditional typesetting rules."
 - 11-12 04:26Z "Everything else we are building shall focus on perfect behavior replication and a pixel-perfect experience when those assets are copied into place." -> MS assets: optional user import, never shipped; RC on fallback art (11-14)
-- 11-14 05:30Z "I would rate the first three as rather important features that we want Might to ship with a 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0; 1-2 demo lanes
+- 11-14 05:30Z "...first three as rather important features ... 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like" it shall stay hackable and easy yo extend but we want stunning visuals in each view all with their own design philosophy and esthetics consequently followed." -> each look its own aesthetic
 - 11-11 12:45Z "Make it minimal yet complete. Avoid buttons." -> construct HUD: glass, bindings overlay

@@ -2,7 +2,7 @@
 
 ## Now (2026-11-15 08:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
-budget: all models 20 % (03:32 owner); Fable reset and ended: ux r2 finishes its gate, then opus only
+budget: all models 33 % (09:20 owner; 20 % at 03:32, about 2.4 %/h); opus only
 session branch: 0e303d60 (train 15, 08:50 UTC: ux r4; train 14 61d885f0 CI green). Train 16 (harness r5) gate running.
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
@@ -36,7 +36,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; security a, b r1 (13 MEDIUM security). (rc 1, 6)
 5. Harness train when MERGE-OK; lanes merge it. (rc 3, 4)
-6. Persona round 4 Mon; screencast rewrite Mon. (rc 2, 11)
+6. After ux r5 merges and ledger r3 is clean: media lane (owner 09:20: prune and update screenshots, screencast rewrite), then persona round 4 Mon. (rc 11, 2)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
 
 ## Needs owner
