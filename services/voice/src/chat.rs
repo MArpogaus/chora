@@ -2675,6 +2675,43 @@ mod tests {
         assert_eq!(asked.into_inner().unwrap(), [false]);
     }
 
+    /// Review plugins r1, VO-A-01: a reload that only switches
+    /// `reply_language` changes no raw security key, so the client thread
+    /// asks no key; the chat asks its spoken question.
+    #[tokio::test]
+    async fn a_reload_of_only_the_reply_language_is_asked() {
+        let script = [
+            Reply::Tool("voice__settings__reload", "{}"),
+            Reply::Text("Done."),
+        ];
+        let server = fake::llm(script.to_vec()).await;
+        let (mut tools, _) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        let file = temp("reload-language.yaml");
+        chat.settings_file = Some(file.clone());
+        let asked = Mutex::new(Vec::new());
+        let on = |event: Event| {
+            if let Event::Confirm {
+                physical, answer, ..
+            } = event
+            {
+                asked.lock().unwrap().push(physical);
+                let _ = answer.send(Some(true));
+            }
+        };
+        let url = chat.config.llm_url.clone();
+        std::fs::write(&file, format!("{{llm_url: '{url}', reply_language: de}}")).unwrap();
+        chat.turn("Reload.", &on).await;
+        assert_eq!(asked.into_inner().unwrap(), [false]);
+    }
+
     /// Review rc3 round 2, 4.2: the screen and the event get no secret.
     #[test]
     fn the_detail_hides_secrets() {
