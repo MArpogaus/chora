@@ -29,6 +29,11 @@ repos:
     entry: python3 -I tests/commit-message-length.py
     language: system
     stages: [commit-msg]
+  - id: red-first
+    name: red first (a fix or feat commit has a test in it or before it)
+    entry: tests/red-first.sh
+    language: script
+    stages: [commit-msg]
   - id: no-inline-comments
     name: no inline comments in added lines of Rust, shell and Python
     entry: python3 -I tests/no-inline-comments.py

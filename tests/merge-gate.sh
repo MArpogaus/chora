@@ -27,7 +27,8 @@
 # the same commit as the fix. A test is a Rust file under a tests/ directory,
 # a Rust file with an added #[test] line, tests/gate-*.sh (not gate-lib.sh
 # or gate-lock.sh), tests/*-selftest.sh or tests/test_*.py; helper scripts
-# such as tests/gate-lib.sh and tests/ci-local.sh do not count. Else the step
+# such as tests/gate-lib.sh and tests/ci-local.sh do not count (the rule
+# lives in tests/red-first.sh, which the commit-msg hook runs). Else the step
 # prints RED-FIRST MISSING with the subject and fails, unless the commit body
 # has a line `No test: <reason>`. `pre-commit` runs the hooks over the same
 # range, with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
@@ -106,18 +107,16 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+. "$repo/tests/red-first.sh"
+
 red_first() {
-    local missing=0 seen=0 sha subject body diff
+    local missing=0 seen=0 sha subject body
     git -C "$repo" rev-parse --verify -q "$base" >/dev/null || die "no base ref $base"
     while read -r sha; do
         [ -n "$sha" ] || continue
         subject=$(git -C "$repo" log -1 --format=%s "$sha")
-        diff=$(git -C "$repo" show --format= --name-only "$sha" | grep -Ev '^tests/gate-(lib|lock)\.sh$')
-        if grep -Eq '(^|/)tests/.*\.rs$|^tests/gate-[^/]*\.sh$|^tests/[^/]*-selftest\.sh$|^tests/test_[^/]*\.py$' <<<"$diff" ||
-            git -C "$repo" show --format= -U0 "$sha" -- '*.rs' | grep -Eq '^\+[[:space:]]*#\[(tokio::)?test'; then
-            seen=1
-        fi
-        grep -Eq '^(fix|feat)(\([^)]*\))?!?:' <<<"$subject" || continue
+        (cd "$repo" && commit_changes_test "$sha") && seen=1
+        needs_test "$subject" || continue
         [ "$seen" = 0 ] || continue
         body=$(git -C "$repo" log -1 --format=%b "$sha")
         grep -Eq '^No test: .+' <<<"$body" && continue
