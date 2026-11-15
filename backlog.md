@@ -142,3 +142,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - L15 (MINOR, review-logging-r2): scrub misses TOML header tables, cookie/private_key/credentials/auth/PASS keys, URL user:pass@, short ?key=.
 - L16 (MINOR, review-logging-r2): logs dir chmod follows a symlink; EPERM stops the log file. Docs: voice.md:779 rmcp default, glossary "at each start".
 - F22 (flake, review-logging-r2): crates/chora/tests/log_file.rs:89-92 panic test failed 1 of 5 under load (race, in the gate).
+- F23 (flake, flakes r5; lane called it F21): tiling-audit ink-2560x1600@2 lost borders, glow and shadow under load because the core frame-budget watchdog dropped all effects; the audit now gets the 500 ms budget of the look gates (366c1cb3). GR2: voice client.rs 684/701 still ungrab_all then grab (GR1 class, allowed with a reason). Test helpers: ~20 temp folders by name+pid (F19 class); one counted helper.
