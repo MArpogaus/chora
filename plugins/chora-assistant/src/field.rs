@@ -303,4 +303,33 @@ mod tests {
         assert_eq!(params["tool"], "agent_say");
         assert_eq!(params["name"], "coder");
     }
+
+    /// The field is the process that reads untrusted text; an endless line
+    /// or a flood of lines grew the memory of the host (review plugins
+    /// r1, AS-B-05). A line of a MiB is dropped and the next one counts.
+    #[test]
+    fn a_line_too_long_is_dropped() {
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            r#"printf '{"say":"'; head -c 1048576 /dev/zero | tr '\0' a; printf '"}\n{"say":"ok"}\n'"#,
+        ]);
+        let field = Field::start(command).expect("a field");
+        let event = field.events.recv_timeout(Duration::from_secs(5));
+        assert_eq!(event, Ok(FieldEvent::Say("ok".into())));
+    }
+
+    /// The queue of events is bounded: a field that floods waits on its
+    /// pipe until the host takes the events.
+    #[test]
+    fn a_flood_of_lines_waits_for_the_host() {
+        let mut command = Command::new("sh");
+        command.args(["-c", r#"yes '{"event":"shown"}' | head -n 200000"#]);
+        let field = Field::start(command).expect("a field");
+        let first = field.events.recv_timeout(Duration::from_secs(5));
+        assert_eq!(first, Ok(FieldEvent::Shown));
+        std::thread::sleep(Duration::from_secs(1));
+        let queued = field.events().len();
+        assert!(queued < 10_000, "{queued} events queued");
+    }
 }
