@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 03:17 UTC)
+## Now (2026-11-15 03:19 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: Fable 95 %, all 59 % (01:3x); Fable used up, owner resets it (01:22); running Fable lanes finish on Fable, then one new Fable lane decides Fable or opus
 session branch: c2d0a116 (train 11, 03:17 UTC: tiling focus fade, ci-check, vkms unbind).
@@ -34,7 +34,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 2. Ledger verify, then MAJOR fix lanes per look. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
-5. Harness train when MERGE-OK; then train 12 flakes r4; then ci e2e r5, ux r2. (rc 1, 3, 4)
+5. Harness train when MERGE-OK; then train 12 flakes r4 + ci-vkms3 b5266fa4 (faux vkms; review first); then ci e2e r5, ux r2. (rc 1, 3, 4)
 6. Persona round 4; logging audit; screencast rewrite (Mon). (rc 2, 9, 11)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
 
