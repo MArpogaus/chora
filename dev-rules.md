@@ -51,3 +51,17 @@ the session overrides). Read it and the skills it names once per container.
   keyboard-after-the-act cell; every gate script ends with a window
   audit (no window lost). Every refusal or failure shows an honest state
   to the person, never only a log line. Never `--no-verify`.
+
+- **Self-check before you report (11-15, from the review findings of 11-14/15).**
+  Go through this list on your diff; each line was a finding more than once.
+  1. State: every flag, grab, timer or mode you set is cleared on every exit path
+     (done, cancel, error, the client gone); name the test that shows it.
+  2. Skips: a SKIP, a missing tool or an `#[ignore]` is not a pass; say which
+     checks did not run and why.
+  3. Commit types: `fix`/`feat` only with a test in or before it (the commit-msg
+     hook checks it); a gate or CI change is `ci`, a test only `test`.
+  4. CHANGELOG: never by hand; `cz bump` writes it in the release.
+  5. Docs in step: docs, glossary and mkdocs nav change in the same branch.
+  6. CI-only checks: run the CI scripts your change touches locally
+     (`tests/ci-local.sh`, the grep gates of `.github/workflows/ci.yaml`) before
+     you report, not only the merge gate.
