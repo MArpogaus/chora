@@ -506,8 +506,8 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
-| `content.set` | `content`, `lines` and an optional `title` of a text content |
-| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
+| `content.set` | `content`, `lines` and an optional `title` of a text content; not of `notify`, `urgent` or `confirm`, which mc writes itself |
+| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines; not to `notify`, `urgent` or `confirm` |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
 | `agent.set` | privileged. `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |

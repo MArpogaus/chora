@@ -1025,12 +1025,12 @@ impl Mc {
                     title,
                     lines,
                 } = runtime::params(params)?;
-                self.set_text(&content, title, |_| lines)?;
+                self.set_client_text(&content, title, |_| lines)?;
                 Ok(Value::Null)
             }
             "content.add" => {
                 let AddLine { content, line } = runtime::params(params)?;
-                self.set_text(&content, None, |mut lines| {
+                self.set_client_text(&content, None, |mut lines| {
                     lines.push(line);
                     let extra = lines.len().saturating_sub(MAX_LINES);
                     lines.split_off(extra)
@@ -3049,6 +3049,20 @@ impl Mc {
     }
 
     /// Changes the lines of a text content, and its title.
+    /// Changes a text content for `content.set` or `content.add`; the
+    /// contents that mc writes itself are refused.
+    fn set_client_text(
+        &mut self,
+        content: &str,
+        title: Option<String>,
+        change: impl FnOnce(Vec<String>) -> Vec<String>,
+    ) -> Result<(), RpcError> {
+        if agent::OWN_TEXTS.contains(&content) {
+            return Err(invalid(format!("{content} is written by mc alone")));
+        }
+        self.set_text(content, title, change)
+    }
+
     fn set_text(
         &mut self,
         content: &str,

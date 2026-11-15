@@ -209,6 +209,9 @@ const URGENT_WORD: &str = "Urgent";
 /// The content of a spoken confirmation: its prompt as the title, its
 /// detail in mono.
 const CONFIRM: &str = "confirm";
+/// The text contents that mc writes itself, from `notify.push` and
+/// `voice.confirm`: `content.set` and `content.add` refuse them.
+pub const OWN_TEXTS: [&str; 3] = [NOTIFY, URGENT, CONFIRM];
 
 /// Whom a `chat.show` was for, for its error line: never an empty name.
 fn chat_who(name: Option<&str>) -> String {
