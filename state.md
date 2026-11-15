@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 11:49 UTC)
+## Now (2026-11-15 12:51 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
@@ -26,7 +26,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | fuzzel r2 | cloud sonnet high, claude/fuzzel-click | briefs/fuzzel-r2.md | r1: 1.11.1 built; click still runs row 1 (3/3) |
-| security a r3 | cloud sonnet, claude/security-a | briefs/security-a-r3.md | r2 review FIX: walk keys; class in xp, tiling, mc |
+| security a r3 | done 85476db0, claude/security-a | briefs/security-a-r3.md | class gate (injected-optout.py) + 2 new finds; opus review Mon 00:05 UTC (Sun share used) |
 | core watchdog r2 | cloud sonnet high, claude/core-watchdog | briefs/core-watchdog-r2.md | r1 review FIX: summed waits excuse a costly scene |
 
 ## Queue (by day; budget 10 % a UTC day)
