@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     adopt::*,
     camera::*,
-    input::{keys_walk_due, pressed_row},
+    input::{keys_walk_due, list_key, pressed_row},
     list::row_of,
 };
 
@@ -424,4 +424,34 @@ fn only_a_left_press_of_the_person_chooses_a_row() {
     );
     assert_eq!(pressed_row(&press(BTN_LEFT, true), false), None, "injected");
     assert_eq!(pressed_row(&press(BTN_LEFT, true), true), Some(3), "a test");
+}
+
+/// A key of `input.inject` chose a row of the window list, flew to a
+/// window or gave one away without a person (review security a r1,
+/// CON-B-10): the list acts on a key of the person, or of a test session.
+#[test]
+fn an_injected_key_does_not_drive_the_window_list() {
+    let key = |name: &str, injected| Event::NodeKey {
+        node: LOOK.into(),
+        key: name.into(),
+        code: 28,
+        state: PressState::Pressed,
+        modifiers: Vec::new(),
+        text: None,
+        injected,
+    };
+    for name in ["Return", "Down", "Tab", "Escape"] {
+        assert!(
+            list_key(&key(name, false), false).is_some(),
+            "{name} of the person"
+        );
+        assert!(
+            list_key(&key(name, true), false).is_none(),
+            "{name} injected"
+        );
+        assert!(
+            list_key(&key(name, true), true).is_some(),
+            "{name} in a test"
+        );
+    }
 }
