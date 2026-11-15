@@ -365,7 +365,21 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Corner, Report, at, start};
+    use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
+
+    /// Review plugins r1, VO-B-06: a long detail is cut, with a mark, and
+    /// the prompt and the line of the keys stay.
+    #[test]
+    fn a_long_question_keeps_its_keys() {
+        let keys = "\nAlt+y = yes, Alt+n = no";
+        let detail = format!("allow_programs: {}", "ö".repeat(3000));
+        let text = question_text("Shall I set allow programs?", &detail, keys);
+        assert!(text.len() <= QUESTION_BYTES, "{}", text.len());
+        assert!(text.starts_with("Shall I set allow programs?\nallow_programs: ö"));
+        assert!(text.ends_with(&format!("…{keys}")), "{text}");
+        let short = question_text("Shall I?", "x: 1", keys);
+        assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
 
     #[test]
     fn the_dot_sits_in_its_corner() {
