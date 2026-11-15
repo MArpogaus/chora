@@ -1,7 +1,8 @@
 //! The doors of the construct: one glass capsule in the top left corner
 //! with the clock and the plain words Programs, Keys, Lock, Power,
-//! Screenshot and the volume word. It shows in the walk and hides in a
-//! pane, whose window has the whole screen. A click on a word does what its key does (the keys of every
+//! Screenshot and the volume word. It shows in the walk and stood back
+//! from a cube, and hides in a pane and in a face of a cube, whose
+//! window or look has the whole screen. A click on a word does what its key does (the keys of every
 //! look, `Action::SHARED`); the clock stands still and is re-drawn each
 //! minute. The words carry no button chrome (docs/construct-style.md,
 //! rule 20): the pointer over a word shows the hover fill.
@@ -10,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use chora_kit::{
     glass::{CAPSULE, Material, Type, margin},
+    modes::Mode,
     volume::{Mixer, Reading},
     words::{Language, Word},
 };
@@ -340,11 +342,13 @@ pub fn remove() -> Vec<Command> {
 
 impl Construct {
     /// Whether the capsule shows: with the HUD, not under the help or
-    /// the window list, which stand over the space, not while a cube is
-    /// open, whose faces show a look with doors of its own, and not in a
-    /// pane, whose window owns every point of the screen.
+    /// the window list, which stand over the space, not in a face of a
+    /// cube, which shows a look with doors of its own, and not in a
+    /// pane, whose window owns every point of the screen. Stood back
+    /// from a cube it shows as in the walk.
     fn shows_doors(&self) -> bool {
-        let free = !self.help && self.list.is_none() && self.cube.is_none();
+        let in_face = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
+        let free = !self.help && self.list.is_none() && !in_face;
         self.shows_hud() && free && !self.in_pane()
     }
 
