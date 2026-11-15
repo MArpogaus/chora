@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | train 13 | /home/user/wt/train13 be205f89 | ux r2, ci e2e r5 | gate 1 F16; rerun 04:24 |
-| harness r3 | cloud opus (starting), claude/harness | briefs/harness-r3.md | r2 FIX (B1': pushed test, unpushed fix refused) |
+| harness r3 | cloud opus ..P1xMK, claude/harness | briefs/harness-r3.md | r2 FIX (B1': pushed test, unpushed fix refused) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | logging r1 | cloud opus ..MMmuw, claude/logging-r1 | briefs/logging-r1.md | rc 9a pulled forward (owner 04:05) |
 
