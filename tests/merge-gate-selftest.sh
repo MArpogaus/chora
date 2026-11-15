@@ -139,7 +139,7 @@ check "--worker with an unknown step is refused" "$rc" 2
 rr=$work/rr
 mkdir -p "$rr/tests"
 cp "$gate" "$rr/tests/merge-gate.sh"
-cp "$repo/tests/gate-lock.sh" "$rr/tests/"
+cp "$repo/tests/gate-lock.sh" "$repo/tests/red-first.sh" "$rr/tests/"
 git -C "$rr" init -q -b main
 git -C "$rr" config user.email t@t
 git -C "$rr" config user.name t
@@ -222,6 +222,43 @@ git -C "$rr" checkout -q main
 git -C "$rr" merge -q --no-ff side -m "fix(m): a merge without a test"
 check "a merge commit in the range is not checked" "$(red >/dev/null; echo $?)" 0
 git -C "$rr" branch -q -D side
+
+hook() {
+    printf '%s\n' "$@" >"$work/msg"
+    (cd "$rr" && RED_FIRST_BASE=base tests/red-first.sh "$work/msg" 2>&1)
+}
+hook_rc() {
+    hook "$@" >/dev/null
+    echo $?
+}
+git -C "$rr" reset -q --hard base
+rr_file h.rs h
+git -C "$rr" add h.rs
+check "the hook refuses a feat commit without a test" "$(hook_rc "feat(h): no test")" 1
+check "the hook names the rule" "$(hook "fix(h): no test" | grep -c '^RED-FIRST MISSING: fix(h): no test')" 1
+check "the hook takes a No test: line" "$(hook_rc "fix(h): excused" "" "No test: a pure move")" 0
+for free in "docs: d" "ci: c" "chore: c" "test(h): t" "refactor(h): r" "Merge claude/x into y"; do
+    check "the hook lets '$free' pass without a test" "$(hook_rc "$free")" 0
+done
+rr_file tests/gate-lib.sh t
+git -C "$rr" add tests/gate-lib.sh
+check "the hook does not count a staged helper" "$(hook_rc "fix(h): helper only")" 1
+rr_file tests/gate-h.sh t
+git -C "$rr" add tests/gate-h.sh
+check "the hook takes a test staged with the fix" "$(hook_rc "fix(h): with its test")" 0
+git -C "$rr" reset -q --hard base
+rr_file lib.rs '#[test]
+fn f() {}'
+git -C "$rr" add lib.rs
+check "the hook takes a staged #[test] line" "$(hook_rc "feat(l): with a unit test")" 0
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-h.sh t
+rr_commit "test(h): first" tests/gate-h.sh
+rr_file h.rs h
+git -C "$rr" add h.rs
+check "the hook takes a test commit before it on the branch" "$(hook_rc "fix(h): after the test")" 0
+check "the hook reads the subject below the comment lines" "$(hook_rc "# comment" "feat(h): after the test")" 0
+git -C "$rr" reset -q --hard base
 
 bin2=$work/bin2
 mkdir "$bin2"
