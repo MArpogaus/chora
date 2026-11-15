@@ -588,7 +588,7 @@ impl Tiling {
     /// Applies the settings and grabs their bindings.
     fn reconfigure(&mut self) -> Result<(), ClientError> {
         self.check_shaders()?;
-        self.rt.ungrab_all()?;
+        self.rt.start_grabs();
         self.apply_theme(true);
         if self.theme_check.is_some() {
             self.theme_check = Some(std::time::Instant::now());
@@ -597,6 +597,7 @@ impl Tiling {
         self.effects.set(&self.settings.value.effects);
         self.sent.clear();
         self.grab_all()?;
+        self.rt.end_grabs()?;
         if self.keys_open {
             self.hide_keys()?;
             self.toggle_keys()?;
@@ -1612,8 +1613,9 @@ impl Tiling {
         // succeeds only with a claim, for example with `--output` for an
         // output that came later (D55).
         if gained && self.claimed.is_some() {
-            self.rt.ungrab_all()?;
+            self.rt.start_grabs();
             self.grab_all()?;
+            self.rt.end_grabs()?;
         }
         Ok(())
     }
@@ -2748,6 +2750,26 @@ mod tests {
         let before = grabs();
         tiling.relayout().unwrap();
         assert_eq!(grabs(), before, "only when the claim appears");
+    }
+
+    /// New settings and a new claim change the grabs. A binding that
+    /// stays is never free in between, where its key would reach a
+    /// window: tiling lets no binding go that it grabs again.
+    #[test]
+    fn a_change_of_the_grabs_keeps_the_bindings_that_stay() {
+        let (mut tiling, methods) = on_fake_core("kept-grabs");
+        let ungrabs = || {
+            let seen = methods.lock().unwrap();
+            let gone = seen.iter().filter(|m| m.starts_with("input.ungrab"));
+            gone.cloned().collect::<Vec<_>>()
+        };
+        tiling.wm.set_output("X", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.relayout().unwrap();
+        assert!(tiling.rt.action("Super+Return").is_some());
+        assert_eq!(ungrabs(), [""; 0], "the claim came");
+        tiling.reconfigure().unwrap();
+        assert_eq!(ungrabs(), [""; 0], "the same settings again");
+        assert!(tiling.rt.action("Super+Return").is_some());
     }
 
     #[test]

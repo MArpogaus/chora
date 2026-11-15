@@ -33,6 +33,8 @@ pub struct Core {
     pub emits: Vec<Value>,
     /// `methods.call` fails, as when the client of the method is gone.
     pub refuse_calls: bool,
+    /// The bindings that the plugin let go with `input.ungrab`.
+    pub ungrabs: Vec<Value>,
 }
 
 /// The model of each connection, in the order of the connections.
@@ -91,6 +93,11 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
             }
         }
         "input.grab" => Ok(params["binding"].clone()),
+        "input.ungrab" => {
+            let mut core = model.lock().unwrap();
+            core.ungrabs.push(params["binding"].clone());
+            Ok(Value::Null)
+        }
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             let mut core = model.lock().unwrap();

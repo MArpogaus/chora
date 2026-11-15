@@ -975,9 +975,9 @@ impl Plugin for Mc {
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
-        self.rt
-            .ungrab_all()
-            .and_then(|()| self.grab_all())
+        self.rt.start_grabs();
+        self.grab_all()
+            .and_then(|()| self.rt.end_grabs())
             .and_then(|()| {
                 if theme_only && self.recolor()? {
                     return Ok(());
@@ -4269,6 +4269,20 @@ mod tests {
         mc.settings_changed().unwrap();
         mc.show("morning", true).unwrap();
         assert_eq!(panel_effects(&mc, &model, "morning"), 1, "it writes again");
+    }
+
+    /// New settings change the grabs. A binding that stays is never
+    /// free in between, where its key would reach a window: mc lets no
+    /// binding go that it grabs again.
+    #[test]
+    fn new_settings_keep_the_bindings_that_stay() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("kept-grabs", [1920, 1080]);
+        mc.grab_all().unwrap();
+        assert!(mc.rt.action("Super+F1").is_some());
+        mc.settings_changed().unwrap();
+        assert_eq!(model.lock().unwrap().ungrabs, [""; 0]);
+        assert!(mc.rt.action("Super+F1").is_some());
     }
 
     /// An end of a write animation that mc answers before it hears of
