@@ -1316,20 +1316,20 @@ file again, without its comments. Edits by hand apply with
 | `shortest` | `10` | the shortest time that a notification shows, in seconds, at least 1 |
 | `longest` | `30` | the longest time, not less than `shortest` |
 
-Each notification shows as a card in the corner: a rounded rectangle with
-a border, the icon of the notification, a bold title, the text wrapped at
-300 pixels and a close button. An icon that the client names by its
-path is at most 1 MiB and 2048 pixels on a side, as a picture of a HUD
-folder, and an SVG icon links no file; else the place of the icon stays
-empty.
-One card shows at a time, and the others wait their turn. A card closes after its time: the shortest time by
-default, a time of the client between the shortest and the longest time,
-and never for a time of 0, until a click. A click on the close button
-dismisses the card; a click on the card invokes the action `default` of
-the notification, if it has one, and dismisses it too. If another server,
-such as GNOME Shell, owns the name on the bus, `chora-notify` logs the
-owner and ends with status 0, so that its unit does not restart it; it
-never takes the name from its owner.
+Each notification shows as a card in the corner: a rounded rectangle
+with a border, the icon of the notification, a bold title, the text
+wrapped at 300 pixels and a close button. An icon that the client names
+by its path is at most 1 MiB and 2048 pixels on a side, as a picture of
+a HUD folder, and an SVG icon links no file; else the place of the icon
+stays empty. One card shows at a time, and the others wait their turn. A
+card closes after its time: the shortest time by default, a time of the
+client between the shortest and the longest time, and never for a time
+of 0, until a click. A click on the close button dismisses the card; a
+click on the card invokes the action `default` of the notification, if
+it has one, and dismisses it too. If another server, such as GNOME
+Shell, owns the name on the bus, `chora-notify` logs the owner and ends
+with status 0, so that its unit does not restart it; it never takes the
+name from its owner.
 
 The look of the card comes from the asset folder. A folder replaces the
 neutral one and does not merge with it. A missing or broken file stops the
