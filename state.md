@@ -14,7 +14,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
-| 4 | CI green | PR #106: 5aa30b54 all green (10:28); F25 red on 0e303d60, 2d9f306f: intermittent, lead sh-22 (core watchdog) |
+| 4 | CI green | PR #106: 5aa30b54, 4693fe07 all green; F25 red on 0e303d60, 2d9f306f: intermittent, lead sh-22 (core watchdog) |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; 13 MEDIUM security: lanes security a, b r1 |
 | 7 | deny, machete | clean (ci-rc) |
