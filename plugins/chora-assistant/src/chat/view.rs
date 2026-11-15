@@ -526,13 +526,15 @@ fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
 }
 
 /// The top of the row of buttons and the top of the transcript, under a
-/// header of `head` lines.
-fn tops(margin: bool, xp: bool, head: i32) -> (i32, i32) {
+/// header that always has the room of [`HEADER_LINES`], so that neither
+/// moves when the header changes.
+fn tops(margin: bool, xp: bool) -> (i32, i32) {
     match (margin, xp) {
         (true, _) => (0, 0),
         (false, true) => (XP_HEAD_Y, XP_BODY_TOP),
         (false, false) => {
-            let row = PAD + LINE * head.max(1) + GAP;
+            let head = i32::try_from(HEADER_LINES).unwrap_or(2);
+            let row = PAD + LINE * head + GAP;
             (row, row + BUTTON[1] + GAP)
         }
     }
@@ -551,7 +553,8 @@ fn header_lines(theme: &Theme, header: &str, width: i32) -> String {
 
 /// Text in at most `most` lines of `room`: it wraps at its words, its
 /// line breaks count as spaces, and when it is longer the last line ends
-/// in an ellipsis where the room ends.
+/// in an ellipsis where the room ends. It lays out no more than the
+/// line after the last one shown.
 pub(super) fn capped(
     text: &str,
     room: f64,
@@ -559,8 +562,8 @@ pub(super) fn capped(
     width: impl Fn(&str) -> f64,
 ) -> Vec<String> {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut lines = chora_draw::text::wrap(&flat, room, &width);
     let most = most.max(1);
+    let mut lines = chora_draw::text::wrap_most(&flat, room, most + 1, &width);
     if lines.len() > most {
         let rest = lines.split_off(most - 1);
         lines.push(as_shown(&rest[..2].join(" "), room, true, &width));
@@ -652,8 +655,7 @@ impl Session {
             (None, true) => String::new(),
             (None, false) => header_lines(theme, &self.header(language), rect[2] - 2 * PAD),
         };
-        let head = i32::try_from(header.lines().count()).unwrap_or(1);
-        let (top_row, body_top) = tops(margin, xp.is_some(), head);
+        let (top_row, body_top) = tops(margin, xp.is_some());
         let below = self.room_below(frame, &hint);
         let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
@@ -1774,6 +1776,48 @@ mod tests {
             assert_eq!(parts.top_row, two.top_row, "{case}: Stop and Close move");
             assert_eq!(parts.body_top, two.body_top, "{case}: the transcript moves");
             assert!(parts.top_row + BUTTON[1] < parts.rect[3], "{case}");
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    /// A pasted blob without spaces costs the lines that show, not the
+    /// whole paste: the width is measured a bounded number of times.
+    #[test]
+    fn a_long_paste_without_spaces_is_measured_only_for_the_lines_shown() {
+        let blob = "x".repeat(20_000);
+        let calls = std::cell::Cell::new(0_usize);
+        let lines = capped(&blob, 200.0, HEADER_LINES, |line| {
+            calls.set(calls.get() + 1);
+            7.0 * f64::from(u32::try_from(line.chars().count()).unwrap_or(u32::MAX))
+        });
+        assert_eq!(lines.len(), HEADER_LINES);
+        assert!(lines[1].ends_with('\u{2026}'), "{lines:?}");
+        assert!(calls.get() < 500, "{} width calls", calls.get());
+    }
+
+    /// Stop, Close and the transcript stand still when a run starts or
+    /// its step count appears: the header keeps two lines of room.
+    #[test]
+    fn stop_and_close_keep_their_row_for_no_task_a_short_task_and_a_long_one() {
+        let (theme, _, cache) = crate::tests::loaded("plain-fixed-header");
+        let mut stepped = chat_session("Tidy notes");
+        stepped.status.steps = Some((3, 5));
+        let mut sessions = [
+            chat_session(""),
+            chat_session("Tidy notes"),
+            stepped,
+            chat_session(&long_prompt()),
+        ];
+        for frame in plain_frames() {
+            let case = format!(
+                "{:?} {:?} {:?}",
+                frame.look.style, frame.look.width, frame.area
+            );
+            let rows: Vec<(i32, i32)> = (sessions.iter_mut())
+                .map(|s| s.parts(&theme, &frame, Language::En))
+                .map(|p| (p.top_row, p.body_top))
+                .collect();
+            assert!(rows.iter().all(|r| *r == rows[0]), "{case}: {rows:?}");
         }
         let _ = std::fs::remove_dir_all(cache);
     }
