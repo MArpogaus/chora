@@ -26,15 +26,15 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 |---|---|---|---|
 | train 15 | /home/user/wt/train15 0e303d60 | ux r4 (MERGE-OK) | gate 1 running |
 | harness r5 | claude/harness 5f0977f1 | briefs/harness-r5.md | MERGE-OK 08:32 (review-harness-r5; R15 MINOR); train 16 right after train 15, then flakes train 17 |
-| security a r1 | cloud opus (starting), claude/security-a | briefs/security-a-r1.md | MC-02..04, CON-A-04, CON-B-10, AS-B-05, NO-03 |
-| security b r1 | cloud opus (starting), claude/security-b | briefs/security-b-r1.md | VO-A-01, -02, -07, VO-B-01, -02, -06 |
+| security a r1 | cloud opus ..Pu2AX, claude/security-a | briefs/security-a-r1.md | MC-02..04, CON-A-04, CON-B-10, AS-B-05, NO-03 |
+| security b r1 | cloud opus ..MD5Xa, claude/security-b | briefs/security-b-r1.md | VO-A-01, -02, -07, VO-B-01, -02, -06 |
 | flakes r5 | claude/flakes-r5 366c1cb3 | briefs/flakes-r5.md | MERGE-OK 08:21 (review-flakes-r5; sh-22, F24 MINOR); train after train 15 (harness first if MERGE-OK by then) |
 
 ## Queue
 1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)
 2. ux r3: sh-10, ti-1; mc-31 verify; then ledger r3 before the tag. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
-4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
+4. Verify ti-1 (doors r3), co-1; security a, b r1 (13 MEDIUM security). (rc 1, 6)
 5. Harness train when MERGE-OK; lanes merge it. (rc 3, 4)
 6. Persona round 4 Mon; screencast rewrite Mon. (rc 2, 11)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
