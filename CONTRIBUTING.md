@@ -235,9 +235,12 @@ step fails on a non-zero exit code, on a line that starts with `FAIL:` or
 `MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
 and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
 and only from a clean work tree. `--jobs N` runs up to N steps after
-clippy at once; the gate scripts mostly wait, so `--jobs 3` on four CPUs
-keeps their times and cuts the gate by about half. `tests/merge-gate-selftest.sh` proves
-this with fake steps and needs no build. One gate runs at a time on a
+2d-guard at once. The gate scripts mostly wait, so `--jobs 3` on four
+CPUs keeps their times and cuts the gate from about 27 to about 12
+minutes. A gate script judges its programs by pid (`session_pids` of
+`tests/gate-lib.sh`), never by name, since the steps beside it start the
+same programs. `tests/merge-gate-selftest.sh` proves this with fake steps
+and needs no build. One gate runs at a time on a
 machine: the merge gate and every script with `tests/gate-lib.sh` take the
 lock of `tests/gate-lock.sh`, `${XDG_RUNTIME_DIR:-/tmp}/chora-gate.lock`,
 and a second gate prints `waits for` and waits. The scripts that the
