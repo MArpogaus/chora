@@ -31,7 +31,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## Queue
 1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)
-2. ux r3: sh-10, ti-1; then ledger r3 before the tag. (rc 1)
+2. ux r3: sh-10, ti-1; mc-31 verify; then ledger r3 before the tag. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
 5. Harness train when MERGE-OK; lanes merge it. (rc 3, 4)
