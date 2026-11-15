@@ -15,7 +15,8 @@
 #    by render.stats. The method leaves the keyboard with the window.
 #    The chips of navigate mode are the hints at the bottom centre, at
 #    least 24 px high; the chip STEP BACK covers no desktop icon.
-#    In use mode Escape reaches the window, the turn keys turn the cube,
+#    In use mode Escape reaches the window, Super+d of the xp of the
+#    faces puts the window away and back, the turn keys turn the cube,
 #    and a turn key during a turn queues one turn. Alt+Escape steps back
 #    and takes the keyboard; Return steps in and the window of before
 #    takes typed text again, but not after a step into another face. A click on a face and a click on the chip
@@ -233,6 +234,15 @@ until_ok 'test "$(keys_got 1)" -gt "$before"' 20 || fail "Escape in use mode did
 sleep 0.5
 eval "$stepped_in" || fail "Escape in use mode moved the view"
 ok "in use mode Escape reaches the window on the face, and the view stays"
+
+key Super+d
+until_ok 'test "$(prop "xp-win-$surface" visible)" = False' 20 || fail "Super+d did not reach the xp of the faces, which let its cube keys go: visible $(prop "xp-win-$surface" visible)"
+key Super+d
+until_ok 'test "$(prop "xp-win-$surface" visible)" = True' 20 || fail "a second Super+d did not bring the window back: visible $(prop "xp-win-$surface" visible)"
+before=$(keys_got 1)
+plain Escape
+until_ok 'test "$(keys_got 1)" -gt "$before"' 20 || fail "the window has no keyboard after Super+d twice"
+ok "the xp of the faces let its cube keys go and keeps its own: Super+d puts the window away and brings it back, with the keyboard"
 
 key Ctrl+Alt+Right
 until_ok 'front_is 1' 20 || fail "Ctrl+Alt+Right did not turn the cube in use mode"
