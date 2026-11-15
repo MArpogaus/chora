@@ -15,14 +15,17 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
-/// The filter without `RUST_LOG`: tract logs its kernels at info, rmcp
-/// each connection.
-const DEFAULT: &str = "info,tract_linalg=warn,rmcp=warn";
+/// The filter without `RUST_LOG`: tract logs its kernels at info.
+const DEFAULT: &str = "info,tract_linalg=warn";
 
 /// Below info only the service logs: a dependency such as rmcp writes
 /// the arguments of a tool call at debug, and they carry what the person
-/// said.
+/// said. rmcp logs warnings and errors only, whatever `RUST_LOG` says:
+/// it writes the payload of each notification at info.
 fn ours_or_info(meta: &Metadata<'_>) -> bool {
+    if meta.target().starts_with("rmcp") {
+        return *meta.level() <= Level::WARN;
+    }
     *meta.level() <= Level::INFO || meta.target().starts_with("chora_voice")
 }
 
