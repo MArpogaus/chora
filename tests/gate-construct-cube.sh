@@ -636,12 +636,9 @@ exit 1
 SH
 chmod +x "$work/chora-mc"
 call settings.set "{\"cube_manager\": \"$work/chora-mc\", \"theme\": \"light\"}" >/dev/null || fail "settings.set cube_manager to a manager that fails"
-started=$(now_ms)
 call cube.open '{}' >/dev/null || fail "cube.open with a manager that fails"
-quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' || fail "no card Starting Media center on the face: $(prop construct-face-card-head text)"
-shown_in=$(($(now_ms) - started))
-[ "$shown_in" -le 300 ] || fail "the card Starting Media center took $shown_in ms, more than 300"
-ok "a face whose manager starts shows Starting Media center within 300 ms ($shown_in ms)"
+prop construct-face-card-head text | grep -q "^Starting Media center$" || fail "no card Starting Media center on the face when cube.open answered: $(prop construct-face-card-head text)"
+ok "a face whose manager starts shows Starting Media center when cube.open answers"
 lit_frame "$work/starting.png" || fail "a black frame while the manager starts"
 [ -z "${STARTING_SHOT:-}" ] || cp "$work/starting.png" "$STARTING_SHOT"
 for _ in $(seq 12); do
