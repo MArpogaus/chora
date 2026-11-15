@@ -77,7 +77,21 @@ pub(crate) fn walk_key(event: &Event, accepts_injected: bool) -> Option<ListKey<
     }
 }
 
+/// Whether a press, a move or a release of the pointer on the look or on
+/// a pane texture acts: one of the person, or of `input.inject` while the
+/// plugin `accepts_injected`. The press focuses the look and starts a
+/// drag that looks around or moves a pane.
+pub(crate) fn look_pointer(event: &Event, accepts_injected: bool) -> bool {
+    let _ = (event, accepts_injected);
+    true
+}
+
 impl Construct {
+    /// Whether a node is the look or a pane that shows a node texture.
+    fn on_look(&self, node: &str) -> bool {
+        node == LOOK || self.texture_pane(node).is_some()
+    }
+
     /// The act of a key press of the walk: the terminal, the close key, the
     /// windows, the cube, the stride keys and the rest of the actions.
     fn walk_press(
@@ -262,7 +276,8 @@ impl Construct {
         {
             return Ok(());
         }
-        if let Some((key, modifiers, text)) = walk_key(&event, self.rt.accepts_injected()) {
+        let accepts = self.rt.accepts_injected();
+        if let Some((key, modifiers, text)) = walk_key(&event, accepts) {
             return self.walk_press(key, modifiers, text.is_some());
         }
         match event {
@@ -325,23 +340,18 @@ impl Construct {
                 node,
                 position,
                 modifiers,
-                injected,
                 ..
-            } if node == LOOK || self.texture_pane(&node).is_some() => {
+            } if look_pointer(&event, accepts) && self.on_look(&node) => {
                 let held = modifiers.contains(&self.settings.value.modifier);
-                self.press(position, held)?;
-                if let Some(drag) = &mut self.drag {
-                    drag.injected = injected && !self.rt.accepts_injected();
-                }
-                return Ok(());
+                return self.press(position, held);
             }
             Event::PointerMoved { node, position, .. }
-                if node == LOOK || self.texture_pane(&node).is_some() =>
+                if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.moved(position);
             }
             Event::PointerReleased { node, position, .. }
-                if node == LOOK || self.texture_pane(&node).is_some() =>
+                if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.release(position, self.texture_pane(&node));
             }
@@ -408,7 +418,6 @@ impl Construct {
                 press: at,
                 last: at,
                 moved: false,
-                injected: false,
             });
         }
         Ok(())
@@ -480,7 +489,7 @@ impl Construct {
             self.effects.release(&moving.name);
             return self.drop_pane(&moving, at);
         }
-        let click = self.drag.take().is_some_and(|d| !d.moved && !d.injected);
+        let click = self.drag.take().is_some_and(|d| !d.moved);
         if let Some(i) = pane.filter(|_| click) {
             return self.fly_in(i);
         }

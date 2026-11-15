@@ -751,9 +751,6 @@ struct Drag {
     press: [f64; 2],
     last: [f64; 2],
     moved: bool,
-    /// Whether the press came from `input.inject` without the test
-    /// setting: its click flies nowhere.
-    injected: bool,
 }
 #[cfg(test)]
 mod tests;

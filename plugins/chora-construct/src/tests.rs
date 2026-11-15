@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     adopt::*,
     camera::*,
-    input::{keys_walk_due, pressed_row, walk_key},
+    input::{keys_walk_due, look_pointer, pressed_row, walk_key},
     list::row_of,
 };
 
@@ -484,5 +484,46 @@ fn an_injected_key_does_not_drive_the_walk() {
             walk_key(&key(name, true), true).is_some(),
             "{name} in a test"
         );
+    }
+}
+
+/// A press of `input.inject` on the look took the keyboard, and with the
+/// modifier moved a pane or looked around, with the switch off.
+#[test]
+fn an_injected_pointer_does_not_drive_the_look() {
+    let pressed = |injected| Event::PointerPressed {
+        node: LOOK.into(),
+        button: BTN_LEFT,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: vec!["Super".into()],
+        injected,
+    };
+    let moved = |injected| Event::PointerMoved {
+        node: LOOK.into(),
+        position: [4.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected,
+        time: 0,
+    };
+    let released = |injected| Event::PointerReleased {
+        node: LOOK.into(),
+        button: BTN_LEFT,
+        position: [4.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected,
+        time: 0,
+    };
+    let cases = [
+        ("a press", pressed(false), pressed(true)),
+        ("a move", moved(false), moved(true)),
+        ("a release", released(false), released(true)),
+    ];
+    for (name, person, injected) in cases {
+        assert!(look_pointer(&person, false), "{name} of the person");
+        assert!(!look_pointer(&injected, false), "{name} injected");
+        assert!(look_pointer(&injected, true), "{name} in a test");
     }
 }
