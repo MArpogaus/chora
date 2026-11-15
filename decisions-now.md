@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-15T03:32:00Z
+screened-through: 2026-11-15T04:55:00Z
 
 - 11-15 03:32Z "Fable used up and reset. Ende fable session soon." -> no Fable after ux r2's gate; opus for hard work and reviews
 - 11-15 02:10Z "we want to include harness issues in our reflection rounds and sharpen our tooling wherever possible. We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
