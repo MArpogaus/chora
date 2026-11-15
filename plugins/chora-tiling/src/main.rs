@@ -1950,16 +1950,17 @@ fn changes(sent: Option<&Placement>, placement: &Placement, dress: &Dress) -> Ve
         commands.push(update(clip_of(id), props));
     }
     if let Some(colors) = dress.colors {
-        if sent.is_none_or(|s| {
+        let restyled = sent.is_none_or(|s| {
             s.frame != placement.frame
                 || s.radius != placement.radius
                 || s.border != placement.border
                 || s.mark != placement.mark
-        }) {
+        });
+        if restyled {
             commands.extend(border_updates(placement, colors));
             commands.extend(dress::shadow_updates(placement, dress.shadows, colors[0]));
         }
-        commands.extend(dress::fade(sent, placement, dress.animate));
+        commands.extend(dress::fade(sent, placement, dress.animate, restyled));
     }
     commands
 }
