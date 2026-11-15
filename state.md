@@ -26,7 +26,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 |---|---|---|---|
 | train 15 | /home/user/wt/train15 0e303d60 | ux r4 (MERGE-OK) | gate 1 running |
 | harness r5 | cloud opus ..PE7LZ, claude/harness | briefs/harness-r5.md | r4 FIX (M: allow window with trailing comment hides plugin string calls) |
-| flakes r5 | claude/flakes-r5 366c1cb3 (worker archived) | briefs/flakes-r5.md | handed back 08:17 (F19 fixed, F20 x5, new F23 audit budget; F16/F18/F7 not reproduced); opus review running |
+| flakes r5 | claude/flakes-r5 366c1cb3 | briefs/flakes-r5.md | MERGE-OK 08:21 (review-flakes-r5; sh-22, F24 MINOR); train after train 15 (harness first if MERGE-OK by then) |
 
 ## Queue
 1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)
