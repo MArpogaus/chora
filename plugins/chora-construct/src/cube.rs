@@ -1589,7 +1589,7 @@ impl Construct {
     /// Removes the virtual outputs that the construct added before it
     /// started again.
     pub(crate) fn remove_left_outputs(&mut self) -> Result<(), ClientError> {
-        let outputs: Vec<OutputInfo> = self.rt.conn.call("output.list", Value::Null)?;
+        let outputs = self.rt.all_outputs()?;
         let left: Vec<String> = (outputs.into_iter())
             .filter(|o| o.is_virtual == Some(true) && o.owner.as_deref() == Some(super::NAME))
             .map(|o| o.name)

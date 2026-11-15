@@ -669,9 +669,7 @@ impl Agent {
             .map(|event| (*event).to_owned())
             .chain(slot)
             .collect();
-        self.rt
-            .conn
-            .call::<_, Value>("events.subscribe", json!({"events": events}))?;
+        self.rt.subscribe(&events)?;
         self.slot_client = wanted;
         Ok(())
     }
