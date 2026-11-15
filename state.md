@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | ux r2 | cloud Fable ..NSzTiz (new Fable lane), claude/ux-r1 | briefs/ux-r2.md | r1 FIX (M1 held draft); started 03:03 |
-| harness | done f3bab766, claude/harness | briefs/harness-r1.md | review running; own train first |
+| harness r2 | cloud opus ..NivBG, claude/harness | briefs/harness-r2.md | r1 FIX (B1 hook blocks without the ref; M1 pgrep by name) |
 | ci e2e r5 | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r5.md | r4 FIX (CI skips pass; 0.8-10 restate) |
 | flakes | done ce8f7928, claude/flakes-r4 | briefs/flakes-r4.md | F17, GR1 fixed; F16 not reproduced; review running |
 
