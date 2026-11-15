@@ -4283,6 +4283,10 @@ mod tests {
 
     /// The calls `input.grab` and `input.ungrab` that a fake core saw,
     /// as `METHOD BINDING`, and a runtime on that core.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
     fn on_fake_core(tag: &str) -> (Runtime<Key>, Arc<Mutex<Vec<String>>>) {
         let dir = std::env::temp_dir().join(format!("chora-xp-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
