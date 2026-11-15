@@ -9,8 +9,11 @@ Branch claude/harness, HEAD 4321f0e8; merges origin/claude/autonomous-dev-sessio
 - 9d1b4653 test / a7a3150c fix(gate): let an allow cover only its item in the runtime grep (m4)
 - 4321f0e8 chore(lint): allow the fake core connection of the xp keys test. FOUND: the session
   branch (67f1c1f2, fix(xp) cube keys) added on_fake_core in plugins/chora-xp/src/wm.rs:4286
-  calling Conn::connect_at and Runtime::with with no allow. The runtime grep (ci-check)
-  refused it with the old 40-line window as well; the session branch is red on ci-check.
+  calling Conn::connect_at and Runtime::with with no allow. Corrected in r4 (review m3): the
+  session branch is not red (be205f89 passes clippy and ci-check; it has no plugins/clippy.toml
+  and no conn::connect or runtime::with pattern). The red came from the merge 58792403, which
+  joined on_fake_core with this branch's stricter rules; clippy, not ci-check, was the earliest
+  gate, and 58792403..a7a3150c fail it. The allow belonged in the merge commit.
 
 ## 1 red-first (PM decision 11-15)
 branch_verdict refuses only when the base ref resolves and base..HEAD has no test. No base
