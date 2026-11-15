@@ -13,8 +13,8 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
-| 4 | CI green | draft PR #106 to dev (session branch); CI running |
-| 5 | Packaging smoke | packages.yaml runs in PR #106 |
+| 4 | CI green | PR #106: all 10 jobs green on be205f89 (05:17); keep green per train |
+| 5 | Packaging smoke | rpm and arch jobs green on be205f89 |
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; MEDIUM security of plugins open |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
@@ -30,7 +30,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | logging r2 | cloud opus ..NQNi8 (fresh; r1 worker at 200 k), claude/logging-r1 | briefs/logging-r2.md | r1 FIX (M1 live log rotated, M2 YAML secrets) |
 
 ## Queue
-1. Watch PR #106 CI; fix what fails. (rc 4, 5)
+1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)
 2. Ledger r2, then MAJOR fix lanes per look. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
