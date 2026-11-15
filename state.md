@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 10:39 UTC)
+## Now (2026-11-15 10:43 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
@@ -10,7 +10,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | sh-10 and header M1 merged (train 15, 0e303d60); open: ti-1 BLOCK (owner 09:27: setup.sh builds fuzzel 1.11, lane Mon); mc-31 verify (ux r5) |
+| 1 | UX: no BLOCK or MAJOR open | sh-10 and header M1 merged (train 15, 0e303d60); open: ti-1 BLOCK (owner 09:27: setup.sh builds fuzzel 1.11, lane Mon); mc-31 not real (ux r5, review agrees) |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
@@ -26,7 +26,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | train 18 | /home/user/wt/train18 4693fe07 | security b (MERGE-OK) | gate 1 running |
-| ux r5 | 52249372, review opus medium (local) | briefs/ux-r5.md | sh-19, sh-20 fixed; mc-31 stale script; review running |
+| ux r5 | 52249372 | briefs/ux-r5.md | MERGE-OK (2 MINOR to W16); train 19 after 18 |
 | security a r2 | cloud sonnet, claude/security-a | briefs/security-a-r2.md | review r1 FIX: 2 MAJOR (inject keys, panel.set) |
 | core watchdog r1 | cloud sonnet, claude/core-watchdog | briefs/core-watchdog-r1.md | sh-22, F25 |
 
