@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 11:47 UTC)
+## Now (2026-11-15 11:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
@@ -10,7 +10,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | open: ti-1 BLOCK only (fuzzel 1.11 in setup.sh, lane Mon); sh-19, sh-20 merged (train 19); mc-31 not real |
+| 1 | UX: no BLOCK or MAJOR open | open: ti-1 BLOCK only (fuzzel 1.11.1 built; click still fails, fuzzel r2); sh-19, sh-20 merged (train 19); mc-31 not real |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| fuzzel r1 | cloud sonnet low, idle | briefs/fuzzel-r1.md | blocked: worker permission refused the $HOME install |
+| fuzzel r2 | cloud sonnet high, claude/fuzzel-click | briefs/fuzzel-r2.md | r1: 1.11.1 built; click still runs row 1 (3/3) |
 | security a r3 | cloud sonnet, claude/security-a | briefs/security-a-r3.md | r2 review FIX: walk keys; class in xp, tiling, mc |
 | core watchdog r2 | cloud sonnet high, claude/core-watchdog | briefs/core-watchdog-r2.md | r1 review FIX: summed waits excuse a costly scene |
 
@@ -38,4 +38,4 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 6. Fri 11-20: three greens, tag, CI PR; persona round 5 after the tag. (rc 3)
 
 ## Needs owner
-- fuzzel r1: its permission check refused building fuzzel 1.11 into $HOME/.local (your 09:27 yes). Allow it in session fuzzel r1 (reply there). Default if no answer by Mon 06:00 UTC: check the ti-1 click in the Fedora 44 CI image instead.
+- none
