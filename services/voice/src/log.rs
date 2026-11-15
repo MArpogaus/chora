@@ -144,3 +144,26 @@ pub mod capture {
         (Guard, lines)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    fn notification_of_rmcp() {
+        tracing::info!(target: "rmcp::service", "received notification payload");
+    }
+
+    fn warning_of_rmcp() {
+        tracing::warn!(target: "rmcp::service", "a warning of rmcp");
+    }
+
+    /// rmcp writes the payload of each notification at info: only its
+    /// warnings and errors log, also with `RUST_LOG=trace`.
+    #[test]
+    fn rmcp_logs_only_warnings_and_errors() {
+        let (_guard, lines) = super::capture::all();
+        notification_of_rmcp();
+        warning_of_rmcp();
+        let text = lines.text();
+        assert!(!text.contains("received notification"), "{text}");
+        assert!(text.contains("a warning of rmcp"), "{text}");
+    }
+}
