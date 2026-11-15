@@ -1375,4 +1375,48 @@ mod tests {
         fs::remove_file(&path).expect("removed");
         assert!(theme.image_size(&path).is_some(), "the tree is kept");
     }
+
+    /// The icon of a notification is any path that the sender names: it
+    /// was read up to 64 MiB and decoded without the limits of a HUD
+    /// folder (review plugins r1, NO-03). A foreign file has them.
+    #[test]
+    fn a_foreign_file_has_the_limits_of_a_hud_folder() {
+        let folder = Folder::new("foreign");
+        let (theme, cache) = theme("foreign");
+        let wide = Pixmap::new(2049, 1).expect("pixels");
+        let png = folder.outside.join("wide.png");
+        fs::write(&png, wide.encode_png().expect("a png")).expect("a file");
+        let svg = folder.outside.join("wide.svg");
+        fs::write(
+            &svg,
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="2049" height="1"/>"#,
+        )
+        .expect("a file");
+        let big = folder.outside.join("big.svg");
+        let padding = "x".repeat(2 << 20);
+        fs::write(&big, svg_of(&format!("<!-- {padding} -->"))).expect("a file");
+        let ok = folder.outside.join("secret.svg");
+        let draw = |path: &Path, foreign: bool| {
+            let picture = if foreign {
+                Picture::new(20, 20).foreign(path, [0, 0, 20, 20])
+            } else {
+                Picture::new(20, 20).file(path, [0, 0, 20, 20])
+            };
+            let mut pixmap = Pixmap::new(20, 20).expect("pixels");
+            theme.draw_layer(
+                &picture.layers[0],
+                (Transform::identity(), &mut pixmap.as_mut()),
+            )
+        };
+        for path in [&png, &svg, &big] {
+            assert!(
+                draw(path, false).is_ok(),
+                "{} as a theme file",
+                path.display()
+            );
+            assert!(draw(path, true).is_err(), "{} was drawn", path.display());
+        }
+        assert!(draw(&ok, true).is_ok(), "a small icon");
+        let _ = fs::remove_dir_all(cache);
+    }
 }
