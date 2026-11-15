@@ -167,7 +167,7 @@ jobs:
       run: tests/gate-0.8-7.sh
     - name: a text node shows fallback fonts
       run: tests/gate-0.8-9.sh
-    - name: an MCP client puts a text node on a screen
+    - name: a user client puts a text node on a screen, a confined client may not
       run: tests/gate-0.8-10.sh
     - name: settings.set changes the style of new tiling windows
       run: tests/gate-0.8-tiling-style.sh
