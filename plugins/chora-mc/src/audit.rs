@@ -293,6 +293,26 @@ mod tests {
     }
 
     #[test]
+    fn the_list_of_all_keys_leaves_the_other_sides_as_they_are() {
+        for region in [Region::Left, Region::Drawer] {
+            let (mut mc, _) = crate::testing::mc("audit-all-keys-sides", [1280, 800]);
+            mc.show("agenda", false).unwrap();
+            mc.toggle(Region::Right, Some(true), false).unwrap();
+            mc.toggle(region, Some(true), false).unwrap();
+            mc.solo("notes", region, Some(true), false).unwrap();
+            let ids = |mc: &crate::Mc| -> Vec<String> {
+                let plan = mc.items("agenda");
+                let items = plan.get(&region).map(|(items, _)| items.as_slice());
+                (items.unwrap_or_default().iter().map(|i| i.id.clone())).collect()
+            };
+            let six = ids(&mc);
+            assert!(!six.is_empty(), "{region:?} holds the notes");
+            mc.keys = List::All;
+            assert_eq!(ids(&mc), six, "{region:?} while all keys show");
+        }
+    }
+
+    #[test]
     fn no_text_stands_on_a_hairline() {
         for size in SIZES {
             let (mut mc, model) = crate::testing::mc("audit-rules", size);
