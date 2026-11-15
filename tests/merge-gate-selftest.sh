@@ -298,6 +298,60 @@ check "the hook takes a test commit before it on the branch" "$(hook_rc "fix(h):
 check "the hook reads the subject below the comment lines" "$(hook_rc "# comment" "feat(h): after the test")" 0
 git -C "$rr" reset -q --hard base
 
+nb=$work/nb
+new_hooked_repo() {
+    rm -rf "$1"
+    git init -q -b main "$1"
+    git -C "$1" config user.email t@t
+    git -C "$1" config user.name t
+    # shellcheck disable=SC2016 # the hook expands its own argument
+    printf '#!/bin/bash\nexec %q "$1"\n' "$repo/tests/red-first.sh" >"$1/.git/hooks/commit-msg"
+    chmod +x "$1/.git/hooks/commit-msg"
+}
+nb_commit() {
+    local msg=$1
+    shift
+    for path in "$@"; do
+        mkdir -p "$(dirname "$nb/$path")"
+        echo "$msg" >>"$nb/$path"
+    done
+    git -C "$nb" add -- "$@"
+    env -u RED_FIRST_BASE git -C "$nb" commit -q -m "$msg" >"$work/nb.out" 2>&1
+    echo $?
+}
+new_hooked_repo "$nb"
+check "no base: an init commit passes" "$(nb_commit "chore: init" README)" 0
+check "no base: a test commit passes" "$(nb_commit "test(z): red" tests/gate-z.sh)" 0
+check "no base: a fix after its test commit passes" "$(nb_commit "fix(z): green" z.rs)" 0
+env -u RED_FIRST_BASE git -C "$nb" commit -q --amend -m "fix(z): green, amended" >"$work/nb.out" 2>&1
+check "no base: an amend of that fix passes" "$?" 0
+(cd "$nb" && env -u RED_FIRST_BASE GIT_SEQUENCE_EDITOR='sed -i 1s/^pick/reword/' \
+    GIT_EDITOR="sed -i '1s/.*/fix(z): reworded/'" git rebase -q -i HEAD~1 >"$work/nb.out" 2>&1)
+check "no base: a rebase reword of that fix passes" "$?:$(git -C "$nb" log -1 --format=%s)" "0:fix(z): reworded"
+env -u RED_FIRST_BASE git -C "$nb" commit -q --fixup HEAD --allow-empty >"$work/nb.out" 2>&1
+check "no base: a fixup commit passes" "$?" 0
+env -u RED_FIRST_BASE git -C "$nb" revert --no-edit HEAD~1 >"$work/nb.out" 2>&1
+check "no base: a revert passes" "$?" 0
+git -C "$nb" checkout -q -b side
+check "no base: a side commit passes" "$(nb_commit "chore: side" side.txt)" 0
+git -C "$nb" checkout -q main
+env -u RED_FIRST_BASE git -C "$nb" merge -q --no-ff side -m "fix(m): a merge" >"$work/nb.out" 2>&1
+check "no base: a merge with a fix subject passes" "$?" 0
+cl=$work/clone
+rm -rf "$cl"
+git clone -q --depth 1 "file://$nb" "$cl"
+git -C "$cl" config user.email t@t
+git -C "$cl" config user.name t
+cp "$nb/.git/hooks/commit-msg" "$cl/.git/hooks/"
+echo y >"$cl/y.rs"
+git -C "$cl" add y.rs
+env -u RED_FIRST_BASE git -C "$cl" commit -q -m "fix(y): in a shallow clone" >"$work/nb.out" 2>&1
+check "a shallow clone with nothing unpushed lets a fix pass" "$?" 0
+check "the pass without a base names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
+new_hooked_repo "$nb"
+nb_commit "chore: init" README >/dev/null
+check "no base: a fix without any test on the branch is still refused" "$(nb_commit "fix(z): no test" z.rs)" 1
+
 bin2=$work/bin2
 mkdir "$bin2"
 cat >"$bin2/pre-commit" <<'FAKE'
