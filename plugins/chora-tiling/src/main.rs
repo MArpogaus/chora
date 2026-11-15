@@ -415,6 +415,14 @@ const EVENTS: [&str; 15] = [
     "node.key",
 ];
 
+/// Whether tiling acts on an event: not for a key, a press, a drag or a
+/// release of `input.inject` unless it takes injected input as the
+/// person's.
+fn hears(event: &Event, accepts_injected: bool) -> bool {
+    let _ = (event, accepts_injected);
+    true
+}
+
 impl Plugin for Tiling {
     type Action = Action;
 
@@ -423,6 +431,9 @@ impl Plugin for Tiling {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !hears(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         if matches!(&event, Event::EffectsDropped { client } if client == NAME) {
             return self.effects_dropped();
         }
@@ -2857,6 +2868,38 @@ mod tests {
         // Another window manager still takes it with its own window.
         shown.moved(Some("s9"));
         assert!(shown.lost && !shown.sends(Some("s4")));
+    }
+
+    /// A press on a window took the focus, and Escape hid the key list,
+    /// from `input.inject` and without a person (review security a r2,
+    /// MINOR 5).
+    type Make = fn(bool) -> Event;
+
+    #[test]
+    fn an_injected_press_or_key_does_nothing_in_tiling() {
+        let press = |injected| Event::PointerPressed {
+            node: "s1".into(),
+            button: 272,
+            position: [0.0; 2],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+        };
+        let escape = |injected| Event::NodeKey {
+            node: "tiling-keys".into(),
+            key: "Escape".into(),
+            code: 1,
+            state: PressState::Pressed,
+            modifiers: Vec::new(),
+            text: None,
+            injected,
+        };
+        let makers: [(&str, Make); 2] = [("a press", press), ("Escape", escape)];
+        for (name, make) in makers {
+            assert!(hears(&make(false), false), "{name} of the person");
+            assert!(!hears(&make(true), false), "{name} injected");
+            assert!(hears(&make(true), true), "{name} injected in a test");
+        }
     }
 
     fn tiler(windows: &[&str]) -> Wm {

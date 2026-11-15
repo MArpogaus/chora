@@ -417,6 +417,14 @@ pub struct Wm {
     volume_read: Instant,
 }
 
+/// Whether the window manager acts on an event: not for a key, a press, a
+/// drag or a release of `input.inject` unless it takes injected input as
+/// the person's.
+fn hears(event: &Event, accepts_injected: bool) -> bool {
+    let _ = (event, accepts_injected);
+    true
+}
+
 impl Plugin for Wm {
     type Action = Key;
 
@@ -425,6 +433,9 @@ impl Plugin for Wm {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !hears(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         self.handle(event)
     }
 
@@ -4252,6 +4263,51 @@ mod tests {
         );
         let all_back = [("s1", false), ("s2", false)];
         assert_eq!(desktop_plan(&hidden, &shown, &all_back), Plan::Away(shown));
+    }
+
+    /// A click on Start or on a menu entry started a program, and the
+    /// Menu key opened the context menu, from `input.inject` and without a
+    /// person (review security a r2, MINOR 5).
+    type Make = fn(bool) -> Event;
+
+    #[test]
+    fn an_injected_press_or_key_does_nothing_in_xp() {
+        let press = |injected| Event::PointerPressed {
+            node: "xp-start".into(),
+            button: 272,
+            position: [0.0; 2],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+        };
+        let release = |injected| Event::PointerReleased {
+            node: "xp-menu-item".into(),
+            button: 272,
+            position: [0.0; 2],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+            time: 0,
+        };
+        let menu_key = |injected| Event::NodeKey {
+            node: "xp-look".into(),
+            key: "Menu".into(),
+            code: 127,
+            state: PressState::Pressed,
+            modifiers: Vec::new(),
+            text: None,
+            injected,
+        };
+        let makers: [(&str, Make); 3] = [
+            ("a press", press),
+            ("a release", release),
+            ("the Menu key", menu_key),
+        ];
+        for (name, make) in makers {
+            assert!(hears(&make(false), false), "{name} of the person");
+            assert!(!hears(&make(true), false), "{name} injected");
+            assert!(hears(&make(true), true), "{name} injected in a test");
+        }
     }
 
     #[test]

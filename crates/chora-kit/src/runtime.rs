@@ -19,6 +19,23 @@ use serde_json::{Value, json};
 
 use crate::{conn::Conn, settings::Store};
 
+/// Whether an event counts as the person's: it did not come from
+/// `input.inject`, or the plugin takes injected input as the person's
+/// (the setting `test_accept_injected_keys`). A window manager lets the
+/// other events go on and ignores the rest.
+#[must_use]
+pub fn from_person(event: &Event, accepts_injected: bool) -> bool {
+    let injected = match event {
+        Event::InputKey { injected, .. }
+        | Event::NodeKey { injected, .. }
+        | Event::PointerPressed { injected, .. }
+        | Event::PointerMoved { injected, .. }
+        | Event::PointerReleased { injected, .. } => *injected,
+        _ => false,
+    };
+    accepts_injected || !injected
+}
+
 /// The time between two tries to grab give keys that another client held.
 const REGRAB: Duration = Duration::from_secs(2);
 
@@ -931,5 +948,25 @@ mod tests {
         plugin.rt.pin_accepts_injected(false);
         dispatch(&mut plugin, key(true)).unwrap();
         assert_eq!(plugin.seen.len(), 2);
+    }
+
+    #[test]
+    fn from_person_knows_every_event_with_an_injected_flag() {
+        let events = include_str!("../../chora-scene/src/event.rs");
+        let source = include_str!("runtime.rs");
+        let body = &source[source.find("pub fn from_person").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let mut names = 0;
+        let mut variant = "";
+        for line in events.lines() {
+            if let Some(name) = line.strip_prefix("    ").and_then(|l| l.strip_suffix(" {")) {
+                variant = name;
+            }
+            if line.trim() == "injected: bool," {
+                assert!(body.contains(&format!("Event::{variant} {{")), "{variant}");
+                names += 1;
+            }
+        }
+        assert_eq!(names, 5);
     }
 }
