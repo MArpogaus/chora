@@ -152,6 +152,13 @@ impl<A> Runtime<A> {
         self.inject_ok = setting || test_session();
     }
 
+    /// Pins whether the plugin takes input of `input.inject` as the
+    /// person's, whatever the environment says; for the unit tests of a
+    /// plugin, which must not change with `CHORA_TEST_ACCEPT_INJECTED_KEYS`.
+    pub fn pin_accepts_injected(&mut self, on: bool) {
+        self.inject_ok = on;
+    }
+
     /// Whether the plugin takes input of `input.inject` as the person's:
     /// the setting of [`Self::accept_injected`] or a test session.
     #[must_use]
