@@ -380,8 +380,10 @@ windows_before=$(ctl query kind:surface | jq length)
 at_rest() {
     local seen
     seen=$(width construct-cube-face-0)
-    sleep 0.25
-    [ "$seen" = "$(width construct-cube-face-0)" ]
+    for _ in 1 2 3; do
+        sleep 0.25
+        [ "$seen" = "$(width construct-cube-face-0)" ] || return 1
+    done
 }
 until_ok at_rest 40 || fail "the cube did not come to rest after the step back: face 0 is $(width construct-cube-face-0) px wide"
 rest_width=$(width construct-cube-face-0)
