@@ -1779,6 +1779,21 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// A pasted blob without spaces costs the lines that show, not the
+    /// whole paste: the width is measured a bounded number of times.
+    #[test]
+    fn a_long_paste_without_spaces_is_measured_only_for_the_lines_shown() {
+        let blob = "x".repeat(20_000);
+        let calls = std::cell::Cell::new(0_usize);
+        let lines = capped(&blob, 200.0, HEADER_LINES, |line| {
+            calls.set(calls.get() + 1);
+            7.0 * f64::from(u32::try_from(line.chars().count()).unwrap_or(u32::MAX))
+        });
+        assert_eq!(lines.len(), HEADER_LINES);
+        assert!(lines[1].ends_with('\u{2026}'), "{lines:?}");
+        assert!(calls.get() < 500, "{} width calls", calls.get());
+    }
+
     /// Stop, Close and the transcript stand still when a run starts or
     /// its step count appears: the header keeps two lines of room.
     #[test]
