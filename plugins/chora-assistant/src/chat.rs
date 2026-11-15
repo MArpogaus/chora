@@ -2087,6 +2087,31 @@ mod tests {
     }
 
     #[test]
+    fn a_name_typed_after_the_text_is_text_and_no_pick() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("ask");
+        for text in ["ask atlas", "atlas"] {
+            log.borrow_mut().events.push(FieldEvent::Say(text.into()));
+            session.field_events(&mut out, &frame);
+            assert!(matches!(session.mode(), Mode::List(..)), "{text}");
+            assert_eq!(log.borrow().unpicked.last().map(String::as_str), Some(text));
+        }
+        assert_eq!(calls(&log, "chat.open"), [] as [Value; 0]);
+        assert_eq!(log.borrow().sends, 0);
+    }
+
+    #[test]
+    fn a_number_that_is_no_entry_comes_back_with_the_word_to_pick() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("hallo");
+        for text in ["hallo9", "9", "0"] {
+            log.borrow_mut().events.push(FieldEvent::Say(text.into()));
+            session.field_events(&mut out, &frame);
+            assert!(matches!(session.mode(), Mode::List(..)), "{text}");
+            assert_eq!(log.borrow().unpicked.last().map(String::as_str), Some(text));
+        }
+        assert_eq!(log.borrow().sends, 0);
+    }
+
+    #[test]
     fn a_number_typed_after_the_text_picks_the_helper_and_sends_the_text() {
         let (mut session, mut out, log) = setup();
         let frame = frame(Look::default());
