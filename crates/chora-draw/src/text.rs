@@ -434,29 +434,32 @@ impl Fonts {
 /// at its line breaks. A word wider than a line breaks between its
 /// characters.
 pub fn wrap(text: &str, max: f64, width: impl Fn(&str) -> f64) -> Vec<String> {
-    let mut lines = Vec::new();
+    wrap_most(text, max, usize::MAX, width)
+}
+
+/// [`wrap`] that stops once it has `most` lines: their work does not grow
+/// with the text after them. Each line it gives is the line [`wrap`]
+/// gives.
+pub fn wrap_most(text: &str, max: f64, most: usize, width: impl Fn(&str) -> f64) -> Vec<String> {
+    let mut lines = wrap_until(text, max, most, width);
+    lines.truncate(most);
+    lines
+}
+
+/// The lines of [`wrap`] until there are at least `most`; the first
+/// `most` are whole.
+fn wrap_until(text: &str, max: f64, most: usize, width: impl Fn(&str) -> f64) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
     for paragraph in text.lines() {
+        if lines.len() >= most && lines.last().is_some_and(|l| !l.is_empty()) {
+            return lines;
+        }
         let mut line = String::new();
         for word in paragraph.split_whitespace() {
-            let candidate = if line.is_empty() {
-                word.to_string()
-            } else {
-                format!("{line} {word}")
-            };
-            if width(&candidate) <= max {
-                line = candidate;
-                continue;
+            if lines.len() >= most {
+                return lines;
             }
-            if !line.is_empty() {
-                lines.push(std::mem::take(&mut line));
-            }
-            for c in word.chars() {
-                line.push(c);
-                if width(&line) > max && line.chars().count() > 1 {
-                    line.pop();
-                    lines.push(std::mem::replace(&mut line, c.to_string()));
-                }
-            }
+            place(word, &mut line, &mut lines, (max, most), &width);
         }
         lines.push(line);
     }
@@ -464,6 +467,40 @@ pub fn wrap(text: &str, max: f64, width: impl Fn(&str) -> f64) -> Vec<String> {
         lines.pop();
     }
     lines
+}
+
+/// Puts `word` on `line`, or ends the line and starts the next with it;
+/// a word wider than `max` breaks between its characters until there are
+/// `most` lines.
+fn place(
+    word: &str,
+    line: &mut String,
+    lines: &mut Vec<String>,
+    (max, most): (f64, usize),
+    width: impl Fn(&str) -> f64,
+) {
+    let candidate = if line.is_empty() {
+        word.to_string()
+    } else {
+        format!("{line} {word}")
+    };
+    if width(&candidate) <= max {
+        *line = candidate;
+        return;
+    }
+    if !line.is_empty() {
+        lines.push(std::mem::take(line));
+    }
+    for c in word.chars() {
+        if lines.len() >= most {
+            return;
+        }
+        line.push(c);
+        if width(line) > max && line.chars().count() > 1 {
+            line.pop();
+            lines.push(std::mem::replace(line, c.to_string()));
+        }
+    }
 }
 
 /// The family of a name; `sans-serif` is the generic family.
@@ -533,6 +570,26 @@ pub fn escape(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `wrap_most` gives the first lines of `wrap`, also where it stops
+    /// inside a word or between paragraphs.
+    #[test]
+    fn wrap_most_gives_the_first_lines_of_wrap() {
+        let width = |line: &str| 7.0 * f64::from(u32::try_from(line.len()).unwrap_or(u32::MAX));
+        let texts = [
+            "x".repeat(300),
+            "one two three four five six seven eight nine ten".repeat(4),
+            "a\n\nb c d e f g h\n\n\nlast words here".to_owned(),
+            format!("short {} tail", "y".repeat(90)),
+        ];
+        for text in &texts {
+            let whole = wrap(text, 70.0, width);
+            for most in 0..=whole.len() + 1 {
+                let first = wrap_most(text, 70.0, most, width);
+                assert_eq!(first, whole[..most.min(whole.len())], "{text:?} {most}");
+            }
+        }
+    }
 
     #[test]
     fn missing_faces_are_faked() {

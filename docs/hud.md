@@ -390,11 +390,12 @@ state word take one line. A question card in the chat keeps its place,
 and the transcript flows under it. The text of a glass chat is checked
 against its `fill` over a black and over a white pane.
 
-The header of a plain view wraps at its words into at most two lines;
-the buttons and the transcript stand under it. In every look the header
-keeps to its lines: line breaks of a task count as spaces, and text that
-is longer ends in `…`, so a long prompt never moves Stop and Close
-further down. The meta `text` of the node `hud-chat` holds the header
+The header of a plain view wraps at its words into at most two lines
+and always keeps the room of two; the buttons and the transcript stand
+under it, so that they do not move when a run starts, its step count
+appears or the task changes. In every look the header keeps to its
+lines: line breaks of a task count as spaces, and text that is longer
+ends in `…`. The meta `text` of the node `hud-chat` holds the header
 and the rows a line each, as drawn: a line that does not fit its width
 ends in `…`, and a line that leaves its band at the bottom is only `…`.
 

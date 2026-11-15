@@ -23,7 +23,12 @@
 #   SIZES   the outputs (default "1280x800 2560x1600@2")
 #   THEMES  the themes (default "ink paper")
 #   CELLS   a regular expression of the cells that run (default all)
-#   SHOTS   a directory that keeps a capture and the nodes of each cell
+#   SHOTS   a directory that keeps a capture and the nodes of each cell,
+#           and the logs of waybar and of the core of each round
+#   CHORA_FRAME_BUDGET_US  the frame budget of the watchdog of the core
+#           (default 500000): the audit checks the look, and a watchdog
+#           that drops the effects of a slow software renderer at
+#           2560x1600 takes the tile borders, glows and shadows with them
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-tiling chora-assistant
@@ -35,6 +40,7 @@ need gdbus
 need jq
 need mkfifo
 temp_config
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work/shots}
 mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
@@ -81,6 +87,7 @@ audit() {
     else
         echo "FAIL: $cell $tag:"
         printf '  %s\n' "$out"
+        grep -h "watchdog" "$core_log" | tail -n 3 | sed 's/\x1b\[[0-9;]*m//g; s/^/  the core: /'
         failed=1
     fi
 }
@@ -93,9 +100,10 @@ round() {
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds: []\n' >"$work/chora/chora-assistant.yaml"
     "$bin/chora-tiling" --print-config >"$work/chora/chora-tiling.yaml"
     sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
-    CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
+    core_log=$shots/chora-$tag.log
+    CHORA_LOG=$core_log CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
     grant screen.capture input.inject methods.call
-    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
+    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$shots/waybar-$tag.log" 2>&1 &
     run_pid $!
     CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/wallpaper.sh" >/dev/null 2>&1 &
     wallpaper_pid=$!
@@ -109,11 +117,13 @@ round() {
     pids+=($!)
     for i in 1 2; do ctl run "$bin/chora-tiling" --launch foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$tag: foot"; done
     ctl wait id:hud-row-chat --timeout 20 >/dev/null 2>&1
+    bar_shows=''
     for _ in $(seq 30); do
         sleep 1
-        ctl capture "$shots/probe-$tag.png" >/dev/null 2>&1 &&
-            [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && break
+        ctl capture "$shots/probe-$tag.png" >"$shots/probe-$tag.log" 2>&1 &&
+            [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && bar_shows=1 && break
     done
+    [ -n "$bar_shows" ] || { echo "FAIL: $tag: no bar after 30 s: the last capture says $(tail -n 1 "$shots/probe-$tag.log"), waybar says $(tail -n 5 "$shots/waybar-$tag.log")"; failed=1; }
     token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
     [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
         { echo "FAIL: tokens colors.css: line is ${token:-missing} in $theme"; failed=1; }

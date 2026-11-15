@@ -380,8 +380,10 @@ windows_before=$(ctl query kind:surface | jq length)
 at_rest() {
     local seen
     seen=$(width construct-cube-face-0)
-    sleep 0.25
-    [ "$seen" = "$(width construct-cube-face-0)" ]
+    for _ in 1 2 3; do
+        sleep 0.25
+        [ "$seen" = "$(width construct-cube-face-0)" ] || return 1
+    done
 }
 until_ok at_rest 40 || fail "the cube did not come to rest after the step back: face 0 is $(width construct-cube-face-0) px wide"
 rest_width=$(width construct-cube-face-0)
@@ -636,9 +638,16 @@ exit 1
 SH
 chmod +x "$work/chora-mc"
 call settings.set "{\"cube_manager\": \"$work/chora-mc\", \"theme\": \"light\"}" >/dev/null || fail "settings.set cube_manager to a manager that fails"
-call cube.open '{}' >/dev/null || fail "cube.open with a manager that fails"
+call_ms() {
+    local start=${EPOCHREALTIME/./}
+    call "$@" >/dev/null || return 1
+    echo $(((${EPOCHREALTIME/./} - start) / 1000))
+}
+list_ms=$(call_ms construct.list) || fail "construct.list before cube.open"
+open_ms=$(call_ms cube.open '{}') || fail "cube.open with a manager that fails"
+[ $((open_ms - list_ms)) -le 300 ] || fail "cube.open took $open_ms ms, $((open_ms - list_ms)) ms more than construct.list: more than the 300 ms of docs/cube-modes.md"
 prop construct-face-card-head text | grep -q "^Starting Media center$" || fail "no card Starting Media center on the face when cube.open answered: $(prop construct-face-card-head text)"
-ok "a face whose manager starts shows Starting Media center when cube.open answers"
+ok "a face whose manager starts shows Starting Media center when cube.open answers, $((open_ms - list_ms)) ms more than construct.list"
 lit_frame "$work/starting.png" || fail "a black frame while the manager starts"
 [ -z "${STARTING_SHOT:-}" ] || cp "$work/starting.png" "$STARTING_SHOT"
 for _ in $(seq 12); do

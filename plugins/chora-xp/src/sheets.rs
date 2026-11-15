@@ -25,17 +25,25 @@ pub const FAMILY: &str = "Tahoma";
 
 #[cfg(test)]
 pub mod tests {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        sync::atomic::{AtomicU64, Ordering},
+    };
 
     use chora_draw::theme::{Picture, Theme};
     use resvg::tiny_skia::Pixmap;
 
     use super::*;
 
-    /// The theme of the source tree, with a cache of its own for a test.
+    /// The theme of the source tree, with a cache of its own for each
+    /// call, so that tests in parallel never share one, whatever `test`
+    /// they pass.
     pub fn theme(test: &str) -> (Theme, PathBuf) {
+        static CALLS: AtomicU64 = AtomicU64::new(0);
+        let call = CALLS.fetch_add(1, Ordering::Relaxed);
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
-        let cache = std::env::temp_dir().join(format!("chora-xp-{test}-{}", std::process::id()));
+        let cache =
+            std::env::temp_dir().join(format!("chora-xp-{test}-{}-{call}", std::process::id()));
         let theme = Theme::load(&dir, &cache, &ALL, FAMILY);
         (theme.expect("the theme loads"), cache)
     }
@@ -180,5 +188,17 @@ pub mod tests {
         let pixel = image.pixel(50, 15).expect("inside");
         assert!(pixel.green() > pixel.red() && pixel.green() > pixel.blue());
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_second_theme_of_one_test_name_keeps_the_files_of_the_first() {
+        let (mut first, first_cache) = theme("one-name");
+        let picture = Picture::new(100, 30).element(WINXP, "startbutton-normal", [0, 0, 100, 30]);
+        let file = first.render(&picture);
+        let (_second, second_cache) = theme("one-name");
+        let _ = std::fs::remove_dir_all(second_cache);
+        let kept = Path::new(&file).exists();
+        let _ = std::fs::remove_dir_all(first_cache);
+        assert!(kept, "{file} went with the cache of the second theme");
     }
 }

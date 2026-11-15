@@ -56,7 +56,8 @@
 #                           1800 and then 3600 characters with line breaks:
 #                           the header keeps two lines that start with
 #                           `atlas · working` and end in `…`, and Close and
-#                           Stop stay in their place, under the header
+#                           Stop stay in their place, under the header, also
+#                           for a short task and for no task (sh-19)
 #   construct-chat-long-task  the same in the glass chat of construct: the
 #                           state word and one line beside it, ending in `…`
 #   voice-state-rate, layers-dropped-empty, host-idle-cpu   100 voice.state
@@ -635,8 +636,18 @@ long_task_shown() {
     waiting "$settle_s" header_capped "$1" && [ "$(chat_buttons)" = "$first" ] && shown=0
     ctl capture --output HEADLESS-1 "$shots/$2-3600.png" >/dev/null 2>&1
     echo "$2 buttons $first" >>"$log"
+    for task in "Tidy notes" ""; do
+        emit voice.state "$(jq -nc --arg t "$task" '{name: "atlas", state: "working", task: $t, said: ""}')"
+        waiting "$settle_s" no_long_task || shown=1
+        [ "$(chat_buttons)" = "$first" ] || {
+            echo "$2 buttons with the task '$task': $(chat_buttons)" >>"$log"
+            shown=1
+        }
+    done
+    ctl capture --output HEADLESS-1 "$shots/$2-short.png" >/dev/null 2>&1
     return "$shown"
 }
+no_long_task() { ! chat_text | grep -qF "Please tidy"; }
 with_chat_voice() {
     local shown
     echo '[]' >"$work/entries.json"

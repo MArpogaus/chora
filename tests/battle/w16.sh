@@ -9,7 +9,11 @@
 # tool calls of the "LLM".
 #
 # Regression steps of the live bugs of 2026-10-31:
-#  1. a button click on a question stops the speech of that question at once
+#  1. mc shows the physical question with a No button (voice_hud own: the
+#     default host leaves it to chora-assistant, which this session does
+#     not run); an injected click answers nothing, a spoken no after the
+#     question does. That a press stops the speech of the question is the
+#     unit an_answer_cancels_the_speech_of_the_question (voice core.rs).
 #  2. settings.reload with a new chora_mcp restarts the tool process
 #  3. listen: push_to_talk ignores speech without the key
 #  4. a security setting needs a key or button; a spoken yes does nothing
@@ -77,6 +81,8 @@ button() { ctl query "id:$1" 2> /dev/null | grep -q "\"$1\""; }
 # --- start: mc, the voice agent ---------------------------------------------
 # the tool process of the agent is a client of its own, with the grants that the user gives it
 admin grant voice-mcp methods.call methods.privileged activation.token >> "$RUN" 2>&1
+"$bin/chora-mc" --print-config | sed 's/^voice_hud: host$/voice_hud: own/' > "$XDG_CONFIG_HOME/chora/chora-mc.yaml"
+grep -qx 'voice_hud: own' "$XDG_CONFIG_HOME/chora/chora-mc.yaml" || finding "W16: cannot set voice_hud own in mc" breaks "chora-mc --print-config"
 bg "$bin/chora-mc"
 ctl wait --timeout 20 owner:mc > /dev/null || finding "W16: mc does not start" breaks "chora-mc"
 RUST_LOG="chora_voice=debug,info,tract_linalg=warn,rmcp=warn" "$bin/chora-voice" >> "$vlog" 2>&1 &
@@ -89,47 +95,22 @@ ctl wait --timeout 10 owner:mc > /dev/null
 health "voice started"
 step "voice state: $(state)"
 
-# === 1. a click on the button stops the speech of the question ============
-step "== 1 click stops the question"
+step "== 1 physical question in mc"
 tool voice__settings__set '{"patch": {"allow_programs": ["sh"]}}'
 reply "Not done."
-l0=$(mark "$vlog"); a0=$(mark "$work/llm.log")
+l0=$(mark "$vlog")
 say "Please allow the shell."
 expect "1: the physical question shows no No button in mc" breaks 'button mc-answer-no' 25
-# the question must be in the speaker when the click comes: it follows
-# "One moment." in the same speaker, so wait for its words
-expect "1: the question was never sent to the TTS" breaks 'grep -q "Security setting" "$work/tts.log"' 15
-expect "1: the speaker plays nothing of the question" breaks 'py "import sys; sys.exit(not $(play_age) < 0.3)"' 15
-sleep 1.5
-t0=$(date +%s.%N)
 click_node mc-answer-no || finding "W16: cannot click the No button" breaks "click mc-answer-no"
-expect "1: voice did not take the click as a no" breaks "since $vlog $l0 | grep -q 'confirm: no'" 8
-sleep 1
-# the speaker process of the question (the last one that started before
-# the click) got nothing 0.5 s after the click, and is gone; what it got
-# is a part of the question, not all of it
-py 'import json, os, sys
-t0 = float(sys.argv[2])
-log = [json.loads(l) for l in open(sys.argv[1])]
-pid = [e for e in log if e["ev"] == "start" and e["t"] < t0][-1]["pid"]
-chunks = [e for e in log if e["ev"] == "chunk" and e["pid"] == pid]
-tts = [json.loads(l) for l in open(sys.argv[3])]
-question = next(e for e in tts if "Security setting" in e["text"])
-whole = len(question["text"]) * 2880
-late = round(chunks[-1]["t"] - t0, 2)
-total = chunks[-1]["total"]
-try:
-    os.kill(pid, 0)
-    alive = True
-except OSError:
-    alive = False
-print(f"speaker {pid}: last chunk {late:+} s after the click, {total} of {whole} bytes of the question, alive: {alive}")
-sys.exit(0 if late < 0.5 and total < whole * 0.8 and not alive else 1)' "$work/play.log" "$t0" "$work/tts.log" > "$work/step1.txt" 2>&1
-r=$?
-step "1: $(cat "$work/step1.txt")"
-[ $r = 0 ] || finding "W16: a click on a question did not stop its speech: $(cat "$work/step1.txt")" breaks "ask for allow_programs, click mc-answer-no while it speaks"
+sleep 2
+since "$vlog" "$l0" | grep -q 'confirm: by a button' && finding "W16: an injected click answered a question" endangers "inject a click on mc-answer-no"
+button mc-answer-no || finding "W16: an injected click closed the question in mc" breaks "click mc-answer-no"
+expect "1: the question never ended" breaks 'py "import sys; sys.exit(not $(play_age) > 1.5)"' 30
+say "no"
+expect "1: voice did not take a spoken no" breaks "since $vlog $l0 | grep -qE 'confirm (settings: )?no'" 20
+expect "1: the No button stays after the answer" breaks '! button mc-answer-no' 10
 turn_done "1" "$l0"
-settings voice | py 'import json, sys; sys.exit("sh" not in json.load(sys.stdin)["allow_programs"])' && finding "W16: a no on the button changed allow_programs" endangers "click no"
+settings voice | py 'import json, sys; sys.exit("sh" not in json.load(sys.stdin)["allow_programs"])' && finding "W16: a spoken no changed allow_programs" endangers "say no"
 health "step 1"
 
 # === 5. allow_programs [foot] does not allow foot -e sh ====================

@@ -66,6 +66,13 @@ pub trait Plugin {
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         Ok(())
     }
+
+    /// The settings as a caller of `settings.get`, `settings.set` and
+    /// `settings.reload` sees them; all of them by default. A plugin
+    /// hides its secrets here.
+    fn shown_settings(&self, settings: Value) -> Value {
+        settings
+    }
 }
 
 /// The connection of a plugin, with its outputs and grabs.
@@ -410,9 +417,9 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             rt.caller = caller;
             rt.conn.serving_confined = confined;
             let result = match method.as_str() {
-                "settings.get" => {
-                    (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))
-                }
+                "settings.get" => (plugin.settings().map(|s| s.get()))
+                    .ok_or_else(|| no_settings("settings.get"))
+                    .map(|s| plugin.shown_settings(s)),
                 "settings.set" => set_settings(plugin, params),
                 "settings.reload" => reload_settings(plugin),
                 _ => plugin.method(&method, params),
@@ -455,7 +462,7 @@ pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, 
         .ok_or_else(no_settings)?
         .save()
         .map_err(|e| RpcError::new(e.code, format!("applied, not saved: {}", e.message)))?;
-    Ok(answer)
+    Ok(plugin.shown_settings(answer))
 }
 
 /// The most bytes of the message of an error that a method answers.
@@ -495,7 +502,7 @@ pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
         .ok_or_else(|| no_settings("settings.reload"))?
         .reload()?;
     apply(plugin)?;
-    Ok(answer)
+    Ok(plugin.shown_settings(answer))
 }
 
 /// Has the plugin apply its settings; takes them back when it fails, and
@@ -654,6 +661,12 @@ mod tests {
             Some(&mut self.settings)
         }
 
+        /// Shows no opacity, as a plugin hides its keys.
+        fn shown_settings(&self, mut settings: Value) -> Value {
+            settings["opacity"] = "(hidden)".into();
+            settings
+        }
+
         /// Applies a part before it fails, as a plugin that ungrabs its
         /// bindings and then fails to grab a new one.
         fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -721,6 +734,32 @@ mod tests {
         assert!(reload_settings(&mut plugin).is_err());
         assert_eq!(plugin.settings.value.gap, 6, "a failed apply is taken back");
         assert_eq!(plugin.applied, 6, "and the old settings apply again");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Review plugins r1, VO-B-01: the answers of `settings.set` and
+    /// `settings.reload` show the settings as the plugin shows them, as
+    /// `settings.get` does.
+    #[test]
+    fn the_settings_answers_show_what_the_plugin_shows() {
+        let dir = dir("runtime-shown");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        let mut plugin = Fake {
+            settings,
+            fail: None,
+            applied: 0,
+        };
+        let set = set_settings(&mut plugin, json!({"gap": 8})).unwrap();
+        assert_eq!(
+            (&set["gap"], &set["opacity"]),
+            (&json!(8), &json!("(hidden)"))
+        );
+        std::fs::write(&path, "gap: 6\n").unwrap();
+        let reloaded = reload_settings(&mut plugin).unwrap();
+        assert_eq!(reloaded["opacity"], "(hidden)", "{reloaded}");
+        assert_eq!(plugin.applied, 6);
         std::fs::remove_dir_all(dir).unwrap();
     }
 
