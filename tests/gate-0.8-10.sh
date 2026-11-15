@@ -23,7 +23,7 @@ session_start 800x600
 grant screen.capture
 out=$(REPO=$repo mcp_py <<'PY' 2>&1
 import importlib.util, os, sys, time
-from gate_mcp import Mcp
+from gate_mcp import Mcp, free_apply
 
 spec = importlib.util.spec_from_file_location(
     "pngpixel", os.path.join(os.environ["REPO"], "tests", "png-pixel.py"))
@@ -33,9 +33,7 @@ spec.loader.exec_module(pngpixel)
 mcp = Mcp()
 create = {"id": "label", "kind": "text", "parent": "screen:HEADLESS-1",
           "props": {"text": "Grüße 你好 🙂", "font_size": 32}}
-answer = mcp.call("apply_commands", {"commands": [{"create": create}]})
-if answer.get("isError"):
-    sys.exit(f"the core refuses kind text: {answer['content']}")
+free_apply([{"create": create}])
 nodes = []
 for _ in range(50):
     nodes = mcp.json("query_scene", {"selector": "id:label"})
