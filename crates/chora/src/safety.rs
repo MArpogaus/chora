@@ -763,6 +763,18 @@ mod tests {
     }
 
     #[test]
+    fn a_costly_scene_beside_threads_that_waited_in_parallel_still_blames() {
+        let tasks = Tasks::new("parallel");
+        let times = tasks.frame(0, 10);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        let actions: Vec<Action> = (0..2100 / 16)
+            .filter_map(|i| watchdog.note("out", REFRESH, times, start + REFRESH * i))
+            .collect();
+        assert_eq!(actions, [Action::Blame], "{times:?}");
+    }
+
+    #[test]
     fn a_frame_clock_never_waits_longer_than_it_took() {
         let (took, waited) = FrameClock::start().stop();
         assert!(waited <= took);
