@@ -1792,7 +1792,10 @@ impl Wm {
                 key,
                 state: PressState::Pressed,
                 modifiers,
-                ..
+                node: _,
+                code: _,
+                text: _,
+                injected: _,
             } => {
                 // Shift+F10 and the Menu key open a context menu, as on XP.
                 let shift = modifiers.iter().any(|m| m == "Shift");

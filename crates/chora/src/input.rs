@@ -144,7 +144,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         time,
         |state, mods, handle| {
             if key_state == KeyState::Released {
-                released_key(state, code, mods, &handle)
+                released_key(state, code, mods, &handle, injected)
             } else {
                 pressed_key(state, code, mods, &handle, injected)
             }
@@ -211,6 +211,7 @@ fn released_key(
     code: Keycode,
     mods: &ModifiersState,
     handle: &KeysymHandle<'_>,
+    injected: bool,
 ) -> FilterResult<KeyAction> {
     if state.held.repeat.as_ref().is_some_and(|r| r.code == code) {
         state.held.repeat = None;
@@ -234,7 +235,7 @@ fn released_key(
     };
     FilterResult::Intercept(match state.held.keys.remove(i).1 {
         Suppressed::Node(owner, node) => {
-            let release = node_key(node, mods, handle, PressState::Released);
+            let release = node_key(node, mods, handle, PressState::Released, injected);
             KeyAction::Node(owner, Box::new(release))
         }
         Suppressed::Swallow => KeyAction::Swallow,
@@ -256,7 +257,7 @@ fn pressed_key(
     let (action, suppressed) = if let Some(action) = press_action(state, mods, &syms, injected) {
         (action, Suppressed::Swallow)
     } else if let Some((node, owner)) = state.key_node() {
-        let event = node_key(node.clone(), mods, handle, PressState::Pressed);
+        let event = node_key(node.clone(), mods, handle, PressState::Pressed, injected);
         let (rate, delay) = state.repeat();
         if rate > 0 && !handle.modified_sym().is_modifier_key() {
             let next = state.time.now() + Duration::from_millis(delay.into());
@@ -378,6 +379,7 @@ fn node_key(
     mods: &ModifiersState,
     handle: &KeysymHandle<'_>,
     state: PressState,
+    injected: bool,
 ) -> SceneEvent {
     let sym = handle.modified_sym();
     let plain = !(mods.ctrl || mods.alt || mods.logo);
@@ -392,6 +394,7 @@ fn node_key(
         state,
         modifiers: modifier_names(mods),
         text,
+        injected,
     }
 }
 

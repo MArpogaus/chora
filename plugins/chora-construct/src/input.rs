@@ -54,6 +54,25 @@ pub(crate) fn pressed_row(event: &Event, accepts_injected: bool) -> Option<usize
     (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok())
 }
 
+/// A key press of the open window list: the key, its modifiers and its text.
+pub(crate) type ListKey<'a> = (&'a str, &'a [String], Option<&'a str>);
+
+/// The key of a press on the look that the open window list acts on.
+pub(crate) fn list_key(event: &Event, _accepts_injected: bool) -> Option<ListKey<'_>> {
+    match event {
+        Event::NodeKey {
+            node,
+            key,
+            state: PressState::Pressed,
+            modifiers,
+            text,
+            code: _,
+            injected: _,
+        } if node == LOOK => Some((key, modifiers, text.as_deref())),
+        _ => None,
+    }
+}
+
 impl Construct {
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
@@ -196,7 +215,10 @@ impl Construct {
             node,
             key,
             state: PressState::Released,
-            ..
+            code: _,
+            modifiers: _,
+            text: _,
+            injected: _,
         } = &event
             && node == LOOK
         {
@@ -218,7 +240,8 @@ impl Construct {
                 state: PressState::Pressed,
                 modifiers,
                 text,
-                ..
+                code: _,
+                injected: _,
             } if node == LOOK => match self.settings.value.action(&key, &modifiers) {
                 Some(Action::Terminal) => self.start_terminal(),
                 Some(action) if Action::SHARED.contains(&action) => {
@@ -606,16 +629,13 @@ impl Construct {
             return Ok(false);
         };
         match event {
-            Event::NodeKey {
-                node,
-                key,
-                state: PressState::Pressed,
-                modifiers,
-                text,
-                ..
-            } if node == LOOK => {
+            Event::NodeKey { node, state, .. } if node == LOOK => {
+                let Some((key, modifiers, text)) = list_key(event, self.rt.accepts_injected())
+                else {
+                    return Ok(*state == PressState::Pressed);
+                };
                 let toggle = self.settings.value.keys.get(key) == Some(&Action::Windows);
-                match key.as_str() {
+                match key {
                     "Escape" if searching => self.search_list(String::clear),
                     "Escape" => self.close_list(),
                     _ if toggle => self.close_list(),
@@ -625,7 +645,7 @@ impl Construct {
                     "BackSpace" => self.search_list(|q| {
                         q.pop();
                     }),
-                    _ => match typed(text.as_deref(), modifiers) {
+                    _ => match typed(text, modifiers) {
                         Some(typed) => self.search_list(|q| q.push_str(&typed)),
                         None => Ok(()),
                     },
@@ -680,7 +700,8 @@ impl Construct {
             state: PressState::Pressed,
             modifiers,
             text,
-            ..
+            code: _,
+            injected: _,
         } = event
         else {
             return Ok(false);

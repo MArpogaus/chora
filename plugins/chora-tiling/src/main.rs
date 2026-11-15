@@ -868,7 +868,15 @@ impl Tiling {
     /// the keys that it takes go nowhere else. `None` for any other event.
     fn overlay_event(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
         match event {
-            Event::NodeKey { key, state, .. } => {
+            Event::NodeKey {
+                key,
+                state,
+                node: _,
+                code: _,
+                modifiers: _,
+                text: _,
+                injected: _,
+            } => {
                 let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
                 Some(if escape { self.hide_keys() } else { Ok(()) })
             }

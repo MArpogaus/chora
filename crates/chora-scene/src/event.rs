@@ -165,6 +165,10 @@ pub enum Event {
         /// Super, and not for a dead key.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         text: Option<String>,
+        /// The key came from `input.inject`, not from a keyboard. A
+        /// client that takes a key for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// A button went down over a node that takes pointer input: a surface,
     /// a rect or an image. Over a rect or an image, `pointer.moved` and

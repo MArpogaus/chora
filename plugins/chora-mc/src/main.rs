@@ -878,7 +878,10 @@ impl Plugin for Mc {
                 key,
                 state: PressState::Pressed,
                 modifiers,
-                ..
+                node: _,
+                code: _,
+                text: _,
+                injected: _,
             } => {
                 self.page_key(&key, &modifiers);
                 Ok(())
@@ -3518,6 +3521,7 @@ mod tests {
             state: chora_scene::ipc::PressState::Pressed,
             modifiers: modifiers.iter().map(|m| (*m).to_owned()).collect(),
             text: None,
+            injected: false,
         })
         .unwrap();
     }

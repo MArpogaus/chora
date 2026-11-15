@@ -598,7 +598,9 @@ impl Construct {
                 key,
                 state: PressState::Pressed,
                 modifiers,
-                ..
+                code: _,
+                text: _,
+                injected: _,
             } if node == LOOK => self.key_act(view, key, modifiers),
             Event::PointerEntered { node, .. } => return self.hover_act(node, true),
             Event::PointerLeft { node } => return self.hover_act(node, false),
