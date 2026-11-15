@@ -159,6 +159,13 @@ rm -f "$work/a" "$work/b"
 } >"$work/steps"
 run_gate --jobs 2
 check "--jobs never runs the cargo steps at once" "$rc" 1
+rm -f "$work/2d-guard" "$work/xp"
+{
+    meet 2d-guard xp
+    meet xp 2d-guard
+} >"$work/steps"
+run_gate --jobs 2
+check "--jobs runs 2d-guard alone, before the parallel steps" "$rc" 1
 rm -f "$work/third"
 printf 'one|exit 1\ntwo|sleep 0.5\nthree|touch %s/third\n' "$work" >"$work/steps"
 run_gate --jobs 2 --push session
