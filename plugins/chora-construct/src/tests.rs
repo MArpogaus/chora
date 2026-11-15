@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     adopt::*,
     camera::*,
-    input::{keys_walk_due, list_key, pressed_row, walk_key},
+    input::{keys_walk_due, pressed_row, walk_key},
     list::row_of,
 };
 
@@ -442,15 +442,15 @@ fn an_injected_key_does_not_drive_the_window_list() {
     };
     for name in ["Return", "Down", "Tab", "Escape"] {
         assert!(
-            list_key(&key(name, false), false).is_some(),
+            walk_key(&key(name, false), false).is_some(),
             "{name} of the person"
         );
         assert!(
-            list_key(&key(name, true), false).is_none(),
+            walk_key(&key(name, true), false).is_none(),
             "{name} injected"
         );
         assert!(
-            list_key(&key(name, true), true).is_some(),
+            walk_key(&key(name, true), true).is_some(),
             "{name} in a test"
         );
     }

@@ -57,10 +57,10 @@ pub(crate) fn pressed_row(event: &Event, accepts_injected: bool) -> Option<usize
 /// A key press of the open window list: the key, its modifiers and its text.
 pub(crate) type ListKey<'a> = (&'a str, &'a [String], Option<&'a str>);
 
-/// The key of a press on the look that the open window list acts on: a
-/// key of the person, or of `input.inject` while the plugin
-/// `accepts_injected`.
-pub(crate) fn list_key(event: &Event, accepts_injected: bool) -> Option<ListKey<'_>> {
+/// The key of a press on the look that the walk, the cube and the open
+/// window list act on: a key of the person, or of `input.inject` while the
+/// plugin `accepts_injected`.
+pub(crate) fn walk_key(event: &Event, accepts_injected: bool) -> Option<ListKey<'_>> {
     match event {
         Event::NodeKey {
             node,
@@ -73,24 +73,6 @@ pub(crate) fn list_key(event: &Event, accepts_injected: bool) -> Option<ListKey<
         } if node == LOOK && (!injected || accepts_injected) => {
             Some((key, modifiers, text.as_deref()))
         }
-        _ => None,
-    }
-}
-
-/// The key of a press on the look that the walk acts on: the keys of the
-/// walk, the terminal, the close key, the cube and the fly-out key.
-pub(crate) fn walk_key(event: &Event, accepts_injected: bool) -> Option<ListKey<'_>> {
-    let _ = accepts_injected;
-    match event {
-        Event::NodeKey {
-            node,
-            key,
-            state: PressState::Pressed,
-            modifiers,
-            text,
-            code: _,
-            injected: _,
-        } if node == LOOK => Some((key, modifiers, text.as_deref())),
         _ => None,
     }
 }
@@ -657,7 +639,7 @@ impl Construct {
         };
         match event {
             Event::NodeKey { node, state, .. } if node == LOOK => {
-                let Some((key, modifiers, text)) = list_key(event, self.rt.accepts_injected())
+                let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected())
                 else {
                     return Ok(*state == PressState::Pressed);
                 };

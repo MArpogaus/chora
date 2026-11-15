@@ -17,6 +17,7 @@ use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Duration, FLY_MS, Grab, InputMode, LOOK,
     NAME, NodeKind, PropsUpdate, Query, RpcError, create, cube,
     faces::{self, Health},
+    input::walk_key,
 };
 
 /// The group of the chips, and the prefix of a chip.
@@ -582,6 +583,7 @@ impl Construct {
             return Ok(true);
         }
         let card = self.card_act(event);
+        let walked = walk_key(event, self.rt.accepts_injected());
         let pressed = match event {
             _ if card.is_some() => card,
             Event::InputKey {
@@ -593,15 +595,9 @@ impl Construct {
                 Some(&Grab::Turn(by)) => Some(Pressed::Act(Act::Turn(by))),
                 _ => None,
             },
-            Event::NodeKey {
-                node,
-                key,
-                state: PressState::Pressed,
-                modifiers,
-                code: _,
-                text: _,
-                injected: _,
-            } if node == LOOK => self.key_act(view, key, modifiers),
+            _ if walked.is_some() => {
+                walked.and_then(|(key, modifiers, _)| self.key_act(view, key, modifiers))
+            }
             Event::PointerEntered { node, .. } => return self.hover_act(node, true),
             Event::PointerLeft { node } => return self.hover_act(node, false),
             _ => self.pointer_act(view, event)?,
