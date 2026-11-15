@@ -383,9 +383,16 @@ key line under it names Return (send), Ctrl+. (stop) and Esc (close),
 and a click on the words of Stop or Close does the same, without a
 button. The island of the folder hides while the chat is open: the
 header takes its place, and the meta `text` of the node `hud-chat`
-starts with the words of the header. A question card in the chat keeps its place,
+starts with the words of the header. A header without a state word,
+such as `No helper is set up.` and its second sentence, wraps at its
+words into the header and is never cut. A question card in the chat keeps its place,
 and the transcript flows under it. The text of a glass chat is checked
 against its `fill` over a black and over a white pane.
+
+The header of a plain view wraps at its words and is never cut; the
+buttons and the transcript move down under it. The meta `text` of the
+node `hud-chat` holds the header and the rows a line each, as drawn: a
+line that does not fit ends in `…`.
 
 The view never covers the figure, its bubble or the "Chat ..." row: a
 view that would, moves sideways beside them. A view in a slot does not: the

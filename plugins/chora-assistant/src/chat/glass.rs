@@ -404,10 +404,20 @@ impl Session {
             picture = picture.element(sheet, id, [16, top, 24, 24]);
         }
         let (word, who) = self.glass_head(language);
-        let shown = [word.as_str(), who.as_str()]
-            .into_iter()
+        let room = column.w - 2.0 * PAD;
+        let width = |line: &str| Line::new(line, Type::Small, column.m.muted).width(theme);
+        let who = if word.is_empty() {
+            who_lines(theme, &who, room)
+        } else {
+            vec![who]
+        };
+        let who = who
+            .iter()
+            .map(|line| super::view::as_shown(line, room, width));
+        let shown = std::iter::once(word)
+            .chain(who)
+            .chain(said.iter().map(|m| m.text.clone()))
             .filter(|part| !part.is_empty())
-            .chain(said.iter().map(|m| m.text.as_str()))
             .collect::<Vec<_>>()
             .join("\n");
         (picture, hits, shown)
@@ -439,13 +449,32 @@ impl Session {
             svg +=
                 &Line::new(&word, Type::Label, m.text).at([text_x, (HEADER - 16.0) / 2.0], false);
         }
-        let who_line = Line::new(&who, Type::Small, m.muted);
-        let anchor_end = !word.is_empty();
-        let at = if anchor_end { column.w - PAD } else { text_x };
-        svg += &who_line.at([at, (HEADER - 20.0) / 2.0], anchor_end);
+        if word.is_empty() {
+            let lines = who_lines(column.theme, &who, column.w - PAD - text_x);
+            let top =
+                (HEADER - WHO_LINE * f64::from(u32::try_from(lines.len()).unwrap_or(1))) / 2.0;
+            for (n, line) in (0_u32..).zip(&lines) {
+                let at = [text_x, top + WHO_LINE * f64::from(n)];
+                svg += &Line::new(line, Type::Small, m.muted).at(at, false);
+            }
+        } else {
+            let who_line = Line::new(&who, Type::Small, m.muted);
+            svg += &who_line.at([column.w - PAD, (HEADER - WHO_LINE) / 2.0], true);
+        }
         svg += &rect([8.0, HEADER, column.w - 16.0, 1.0], 0.0, m.separator);
         (svg, ring)
     }
+}
+
+/// The height of a line of the header in the small type.
+const WHO_LINE: f64 = 20.0;
+
+/// The lines of the header without a state word: it wraps at its words in
+/// `room` and is never cut.
+fn who_lines(theme: &Theme, who: &str, room: f64) -> Vec<String> {
+    wrap(who, room, |line| {
+        Line::new(line, Type::Small, Material::of(false).muted).width(theme)
+    })
 }
 
 /// The key line at the bottom of the column, and the nodes that take a
