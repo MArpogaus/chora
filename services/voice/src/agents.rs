@@ -1842,6 +1842,20 @@ exec cat >/dev/null"#;
         assert_eq!(log.permissions().mode() & 0o777, 0o600);
     }
 
+    /// Review plugins r1, VO-A-02: the log gets the messages without
+    /// the secrets that the transcript hides.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_log_of_an_agent_hides_secrets() {
+        let (agents, rx, data) = idle_agent("log-redact").await;
+        agents.prompt("coder", "Deploy with\napi_key=sk-log-1");
+        let _ = until(rx, |e| matches!(e, Event::Ask { .. })).await;
+        let log = std::fs::read_to_string(data.join("agents/coder.log")).unwrap();
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+        assert!(log.contains("session/prompt"), "{log}");
+        assert!(!log.contains("sk-log-1"), "{log}");
+    }
+
     fn roles(read: &Value) -> Vec<(u64, String)> {
         (read["entries"].as_array().unwrap().iter())
             .map(|e| {
