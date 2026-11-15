@@ -183,8 +183,10 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sat 14 Nov</span><span>8 entries</span></summary>
+      <summary><span>Sat 14 Nov</span><span>10 entries</span></summary>
       <ul class="timeline">
+        <li><time>00:12</time><p><span class="tag ok">merged</span>Train 8: the shared doors in every look (key list, launcher with a helper row, helper, lock, power, screenshot, volume, clock) after four review rounds, and two fixed e2e checks.</p></li>
+        <li><time>22:48</time><p><span class="tag ok">merged</span>Train 7: flaky-test round 3 (input times, a lost key in the tests, xp window cascade, a key gap in the construct) and the fonts the CI tests need.</p></li>
         <li><time>21:35</time><p><span class="tag ok">merged</span>Train 6: three crash fixes (xp Start menu, mc settings, long notifications) and CI: package builds on pull requests, locked dependencies. Draft pull request #106 to dev opened so GitHub CI runs on the candidate.</p></li>
         <li><time>20:38</time><p><span class="tag ok">merged</span>Train 5: CI checks, docs, the xp/tiling/construct fixes, core security review with its fixes, the mc keyboard around the chat, and the fix for the test that blocked every merge. All 24 gate steps green.</p></li>
         <li><time>18:03</time><p><span class="tag ok">fix</span>New workers hung at start: the setup script failed on a missing helper repo; now only a warning. Heartbeat verified.</p></li>
