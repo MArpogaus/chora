@@ -184,7 +184,8 @@ cell_helper_none() {
     doors_voice none || return 1
     until_ok 'shows "No helper"' 40 || return 1
     key Super+a
-    until_ok 'has_text "No helper is set up"' 20 && chat_close
+    until_ok says_no_helper 20 || return 1
+    chat_close
 }
 cell_lock_key() {
     unmark
