@@ -1,9 +1,9 @@
-//! Log lines with timestamps through `tracing`, to stderr (journald).
-//! One call site per
+//! Log lines with timestamps through `tracing`, to stderr (journald)
+//! and to the file `voice.log` of `chora_scene::logs`. One call site per
 //! level keeps the macros out of the callers: clippy counts their
 //! expansion into the cognitive complexity of each caller.
 
-use std::io::IsTerminal;
+use std::{io::IsTerminal, sync::Mutex};
 
 use tracing::{Level, Metadata};
 use tracing_subscriber::{
@@ -23,6 +23,11 @@ fn ours_or_info(meta: &Metadata<'_>) -> bool {
 
 /// Starts the log with `RUST_LOG` or the default filter.
 pub fn init() {
+    let file = chora_scene::logs::File::open("voice");
+    let failed = file.as_ref().err().map(ToString::to_string);
+    let file = file
+        .ok()
+        .map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f)));
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| DEFAULT.into()))
         .with(filter_fn(ours_or_info))
@@ -31,7 +36,11 @@ pub fn init() {
                 .with_writer(std::io::stderr)
                 .with_ansi(std::io::stderr().is_terminal()),
         )
+        .with(file)
         .init();
+    if let Some(err) = failed {
+        warn(&format!("no log file: {err}"));
+    }
     std::panic::set_hook(Box::new(|panic| error(&format!("panic: {panic}"))));
 }
 
