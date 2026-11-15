@@ -48,7 +48,7 @@ first (8d963afc). Every item has a red commit, then the fix.
 
 ## Gate
 
-- `tests/merge-gate.sh` (full, serial) on 0a3d0040: all 31 steps passed
+- `tests/merge-gate.sh` (full, serial) on 0a3d0040: all 28 steps passed
   (build 35 s, test 107 s, matrix 270 s with the new gate, e2e 280 s).
   Skipped inside the e2e step (tests/e2e-skips.txt, tools missing here):
   gate-0.9-session-units (desktop-file-validate), gate-0.7-6 (fkeys),
