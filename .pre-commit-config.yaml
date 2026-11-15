@@ -15,6 +15,12 @@ repos:
     language: system
     types: [rust]
     pass_filenames: false
+  - id: clippy-config-sync
+    name: plugins/clippy.toml has every setting of clippy.toml (clippy reads one file per crate)
+    entry: bash -c 'missing=$(grep -v "^#" clippy.toml | grep -vxF -f plugins/clippy.toml); [ -z "$missing" ] || { printf "plugins/clippy.toml lacks:\n%s\n" "$missing"; exit 1; }'
+    language: system
+    files: (^|/)clippy\.toml$
+    pass_filenames: false
   - id: no-gpl-3-only
     name: no GPL-3.0-only code (the core is GPL-3.0-or-later)
     entry: SPDX-License-Identifier:\s*GPL-3\.0(-only)?(?![-+.\w])

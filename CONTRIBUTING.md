@@ -79,6 +79,15 @@ runs with `pedantic` and these further lints:
 - `print_stdout` and `print_stderr`. The core logs with `tracing`.
 - `dbg_macro`, `todo` and `unimplemented`.
 
+The plugins have their own `plugins/clippy.toml`, because clippy reads
+only the nearest one: it repeats every setting of `clippy.toml` (the
+`clippy-config-sync` hook checks that) and adds `disallowed-methods` and
+`disallowed-types`, so that a plugin that opens its own connection to the
+core (`Conn::connect`, `Client::connect`, `Client::from_env`,
+`Client::from_stream` or the type `Client`) fails clippy at once. The
+runtime of chora-kit owns the connection; `tests/gate-0.8-plugin-runtime.sh`
+stays as the grep backstop.
+
 `rustdoc::broken_intra_doc_links` is `deny`. Clippy does not run it, so
 CI also runs `cargo doc --workspace --no-deps`.
 

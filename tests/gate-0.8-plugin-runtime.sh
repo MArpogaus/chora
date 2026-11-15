@@ -1,7 +1,8 @@
 #!/bin/bash
 # Gate check 1 of 0.8, its grep: no plugin crate has a reconnect loop or
 # calls methods.export, output.list or events.subscribe. The runtime of
-# chora-kit does that for them.
+# chora-kit does that for them. plugins/clippy.toml makes clippy refuse
+# the connect calls at once; this grep stays as the backstop.
 #
 # Usage: tests/gate-0.8-plugin-runtime.sh [DIR]   DIR: plugins/ by default
 set -u
