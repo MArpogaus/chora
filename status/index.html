@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Sun 15 Nov, 05:21 UTC (12:21 Bangkok)</span>
+      <span>Updated Sun 15 Nov, 05:33 UTC (12:33 Bangkok)</span>
       <span>Day 8 of 22</span>
       <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
@@ -119,7 +119,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Re-check of every open major or blocking finding on the new build (7 open before)</li>
+          <li>The last two open findings: whole "no helper" words in every look; clicking in the tiling launcher</li>
           <li>Sharper tooling, round 3: commit checks refuse only a proven miss</li>
           <li>Flaky tests, round 5; logging audit (pulled forward)</li>
         </ul>
@@ -127,7 +127,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Merge the tooling first; then fix lanes for whatever major findings remain</li>
+          <li>Merge the tooling first; then logging and the last look fixes</li>
           <li>Keep the CI pull request green with each merge</li>
           <li>Mon: burn-down check, user test round 4, rewrite the screencast tour</li>
         </ul>
@@ -184,8 +184,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>10 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>11 entries</span></summary>
       <ul class="timeline">
+        <li><time>05:31</time><p><span class="tag info">review</span>Open findings re-checked on the new build: 7 major or blocking before, 2 now. Open: clicking in the tiling launcher (needs fuzzel 1.11) and the "no helper" words cut off in tiling and construct.</p></li>
         <li><time>05:17</time><p><span class="tag ok">CI</span>The CI pull request is green for the first time: all 10 jobs, end-to-end tests, the virtual-GPU job and both package builds (RPM, Arch).</p></li>
         <li><time>04:57</time><p><span class="tag ok">merged</span>Train 13: the last major look fixes (typed text never reaches a helper you did not pick) and CI end-to-end tests where a skip fails in CI.</p></li>
         <li><time>03:52</time><p><span class="tag ok">merged</span>Train 12: flaky-test round 4 (a slow first backtrace no longer ends the core; key grabs never drop during a change in xp, tiling and mc) and the virtual-GPU CI job on new kernels.</p></li>
