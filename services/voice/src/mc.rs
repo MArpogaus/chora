@@ -346,9 +346,19 @@ impl Reporter {
 const QUESTION_BYTES: usize = 4000;
 
 /// The question on the own HUD: the prompt, the detail and the line of
-/// the keys, at most [`QUESTION_BYTES`]; voice.confirm carries it whole.
+/// the keys, at most [`QUESTION_BYTES`]. A longer detail is cut and ends
+/// in `…`; the prompt and the keys stay. voice.confirm carries it whole.
 fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
     let text = format!("{prompt}\n{detail}{keys}");
+    if text.len() <= QUESTION_BYTES {
+        return text;
+    }
+    let room = QUESTION_BYTES.saturating_sub(prompt.len() + keys.len() + "\n…".len());
+    let mut end = room.min(detail.len());
+    while !detail.is_char_boundary(end) {
+        end -= 1;
+    }
+    let text = format!("{prompt}\n{}…{keys}", &detail[..end]);
     let mut end = text.len().min(QUESTION_BYTES);
     while !text.is_char_boundary(end) {
         end -= 1;

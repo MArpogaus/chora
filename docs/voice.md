@@ -335,8 +335,9 @@ question as a notification, chora-assistant as a bubble. The agent cannot
 see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
-`NAME-hud`. A text node holds 4 KiB, so a longer `detail` shows only
-its start there; the event has all of it. Over the rate limit, the
+`NAME-hud`, with the line of the yes and no keys. A text node holds
+4 KiB, so a longer `detail` shows only its start there, cut with `…`
+before the line of the keys; the event has all of it. Over the rate limit, the
 last `voice.confirm` goes again after 1 s.
 
 While a claimer of the indicator (section 10) is connected, the event
