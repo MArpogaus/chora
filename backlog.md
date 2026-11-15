@@ -122,3 +122,4 @@ F20 | 11-15 | rc | review flakes r4 minors for flakes r5: time only `call cube.o
 CI6 | 11-15 | rc | tests/gate-0.8-plugin-runtime.sh (CI grep gate) red on the tree: chora-assistant host.rs:674 "events.subscribe", chora-construct cube.rs:1592 "output.list" (harness r1). Fix the plugins or the gate; likely one of the PR #106 reds.
 R9 | 11-15 | harness | review harness r1 B1: a hook's selftest set the env var in every case, so the default path (missing ref) was never run; selftests of hooks and checks run once with a bare environment (no env overrides, shallow clone).
 CI7 | 11-15 | later | vkms unbind loop: skip any card whose driver has no unbind file; record the runner sysfs tree once and dry-run the loop against it in a selftest (review ci-vkms3).
+MC-HEAD | 11-15 | rc | mc page head cut at 1024x768 ("7  CHORA-..."), old (ux r1, r2 open).
