@@ -2940,6 +2940,58 @@ mod tests {
         ));
         assert_eq!(changes(Some(&hidden), &hidden, &Dress::default()).len(), 0);
     }
+
+    #[test]
+    fn a_reshape_during_the_focus_fade_ends_it_at_the_mark() {
+        let colors = [[0.5; 3]; 4];
+        let dress = Dress {
+            colors: Some(&colors),
+            shadows: true,
+            animate: true,
+            slide: 0.0,
+        };
+        let focus = Placement {
+            id: "s1".into(),
+            at: Some([0, 0]),
+            size: Some([100, 80]),
+            states: States::default(),
+            radius: 10,
+            frame: [100, 80],
+            border: 2,
+            mark: Mark::Focus,
+        };
+        let line = Placement {
+            mark: Mark::Line,
+            ..focus.clone()
+        };
+        let reshaped = Placement {
+            size: Some([120, 80]),
+            frame: [120, 80],
+            ..line.clone()
+        };
+        let fading = changes(Some(&focus), &line, &dress);
+        assert!(
+            fading
+                .iter()
+                .any(|c| matches!(c, Command::Animate { id, .. } if id == "tg-s1"))
+        );
+        let commands = changes(Some(&line), &reshaped, &dress);
+        for node in ["tg-s1", "tf-s1"] {
+            let last = commands.iter().rev().find_map(|c| match c {
+                Command::Update { id, props } | Command::Animate { id, props, .. }
+                    if id == node =>
+                {
+                    Some(props)
+                }
+                _ => None,
+            });
+            assert_eq!(
+                last.and_then(|p| p.opacity),
+                Some(0.0),
+                "{node}: {commands:?}"
+            );
+        }
+    }
 }
 
 /// The scripts of the panel in `flavors/tiling/waybar`, run with stand-ins
