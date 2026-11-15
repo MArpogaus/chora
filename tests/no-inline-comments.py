@@ -4,7 +4,8 @@
 Usage: no-inline-comments.py FILE...   (pre-commit passes the files)
 
 Checks Rust, shell and Python files, by suffix or by shebang. Allowed:
-Rust doc comments (`///`, `//!`) and SAFETY comments, the shebang, the
+Rust doc comments (`///`, `//!`), SAFETY comments, the
+`// injected: <reason>` comment of tests/injected-optout.py, the shebang, the
 usage header at the top of a shell or Python script, and the tool
 directives shellcheck, noqa, type:, pylint, fmt: and pragma: in shell
 and Python.
@@ -29,7 +30,7 @@ HUNK = re.compile(r"^@@ -\S+ \+(\d+)")
 RUST_RAW = re.compile(r"b?r(#*)\"")
 HEREDOC = re.compile(r"(?<!<)<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2")
 MESSAGE = """inline comments are not allowed: names explain the code.
-Allowed: doc comments (///, //!, docstrings), // SAFETY:, tool directives
+Allowed: doc comments (///, //!, docstrings), // SAFETY:, // injected:, tool directives
 (shellcheck, noqa, type:, pylint, fmt:, pragma: in shell and Python) and the
 usage header at the top of a script. Remove the comment or move the
 reason into the doc comment of the item."""
@@ -159,7 +160,7 @@ def allowed(text, kind):
     if kind == "rust":
         if text.startswith(("///", "//!")):
             return not text.startswith("////")
-        return text[2:].strip().startswith("SAFETY:")
+        return text[2:].strip().startswith(("SAFETY:", "injected:"))
     return text[1:].strip().startswith(DIRECTIVES)
 
 
