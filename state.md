@@ -1,15 +1,15 @@
 # State
 
-## Now (2026-11-15 08:12 UTC)
+## Now (2026-11-15 08:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: all models 20 % (03:32 owner); Fable reset and ended: ux r2 finishes its gate, then opus only
-session branch: 61d885f0 (train 14, 08:11 UTC: logging r2; train 13 be205f89). Train 15 (ux r4) gate running.
+session branch: 0e303d60 (train 15, 08:50 UTC: ux r4; train 14 61d885f0 CI green). Train 16 (harness r5) gate running.
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | sh-10 and header M1 fixed on claude/ux-r3 (MERGE-OK 08:05, train 15); open: ti-1 BLOCK (fuzzel 1.11, owner); mc-31 verify |
+| 1 | UX: no BLOCK or MAJOR open | sh-10 and header M1 merged (train 15, 0e303d60); open: ti-1 BLOCK (fuzzel 1.11, owner); mc-31 verify (ux r5) |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
@@ -24,11 +24,11 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| train 15 | /home/user/wt/train15 0e303d60 | ux r4 (MERGE-OK) | gate 1 running |
-| harness r5 | claude/harness 5f0977f1 | briefs/harness-r5.md | MERGE-OK 08:32 (review-harness-r5; R15 MINOR); train 16 right after train 15, then flakes train 17 |
+| train 16 | /home/user/wt/train16 2d9f306f | harness r5 (MERGE-OK) | gate 1 running; then flakes train 17 |
+| ux r5 | cloud opus (starting), claude/ux-r5 | briefs/ux-r5.md | mc-31 verify, sh-19, sh-20 |
 | security a r1 | cloud opus ..Pu2AX, claude/security-a | briefs/security-a-r1.md | MC-02..04, CON-A-04, CON-B-10, AS-B-05, NO-03 |
 | security b r1 | cloud opus ..MD5Xa, claude/security-b | briefs/security-b-r1.md | VO-A-01, -02, -07, VO-B-01, -02, -06 |
-| flakes r5 | claude/flakes-r5 366c1cb3 | briefs/flakes-r5.md | MERGE-OK 08:21 (review-flakes-r5; sh-22, F24 MINOR); train after train 15 (harness first if MERGE-OK by then) |
+| flakes r5 | claude/flakes-r5 366c1cb3 | briefs/flakes-r5.md | MERGE-OK (review-flakes-r5; sh-22, F24); train 17 after train 16 |
 
 ## Queue
 1. Keep PR #106 green each train; CI6 (gate-0.8 plugin runtime, not in CI). (rc 4)

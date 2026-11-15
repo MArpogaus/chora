@@ -119,9 +119,9 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merge train 15: the chat header fix (never more than two lines in any look) and whole words in tiling</li>
-          <li>Sharper tooling, round 5: one hidden-call gap in the plugin check</li>
-          <li>Flaky tests, round 5</li>
+          <li>Merge train 16: sharper tooling round 5 (goes first, then every lane uses it)</li>
+          <li>Security fixes, two lanes: the 13 medium security findings in mc, construct, the helper, notify and voice</li>
+          <li>Look fixes round 5: the voice confirm in mc, chat buttons that stay put, long pastes</li>
         </ul>
       </div>
       <div class="panel">
@@ -184,8 +184,11 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>14 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>17 entries</span></summary>
       <ul class="timeline">
+        <li><time>08:50</time><p><span class="tag ok">merged</span>Train 15: the chat header never grows past two lines in any look, and tiling no longer cuts words. Tooling round 5 and the flaky-test round passed their reviews and merge next.</p></li>
+        <li><time>08:34</time><p><span class="tag ok">CI</span>The CI pull request is green again after train 14: all 10 jobs.</p></li>
+        <li><time>08:33</time><p><span class="tag info">started</span>Two security lanes: every medium security finding of the plugin review gets a failing test and a fix (release criterion 6).</p></li>
         <li><time>08:11</time><p><span class="tag ok">merged</span>Train 14: logging audit round 2 (log files locked, secrets scrubbed). One known flaky tiling test needed a rerun.</p></li>
         <li><time>08:05</time><p><span class="tag info">review</span>Chat fix passed its independent review: the chat header never grows past two lines in any look, and a long task ends in "…". Left for the next round: the Stop button moves 20 px when a run starts.</p></li>
         <li><time>07:31</time><p><span class="tag issue">review</span>Tooling round 4 fixed all five earlier points, but its review found a new gap: a comment after a lint exception hid plugin calls from the check. Round 5 started.</p></li>
