@@ -300,3 +300,6 @@ Update 18:01 UTC: the recreated review r2 ..LjDUA started and finished in 12 min
 
 ## 46 (2026-11-14 22:16 UTC): workers went idle while waiting for their own background jobs
 flakes r3 (idle since 21:35, "two more gates to go"), ci r3 (pushed 21:40, no report) and doors r4 (idle since 22:07, no commit) all ended a turn while a background job ran and were never woken again (a background job past its time limit gives no wake). The watchdog found them 40 minutes later. Fix: dev-rules.md: never end a turn to wait for a background job of more than 30 minutes; run long gates in the foreground or in parts, and send the report before ending the last turn. The watchdog pings an idle lane that has not reported.
+
+## 47 (2026-11-15 01:4x UTC): a skipped gate step hid a flaw for days
+tiling-audit skipped silently because mako was not installed; after setup.sh added mako (ti-4), the step ran and found an old flaw (tile border colour at paper 2560x1600@2), which now blocks every merge. Fix: a skipped step counts as a failure in the merge gate unless the brief of the lane says why (to build: merge-gate.sh marks SKIP lines); the tiling audit lane fixes the flaw.
