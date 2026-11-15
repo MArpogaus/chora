@@ -335,8 +335,9 @@ question as a notification, chora-assistant as a bubble. The agent cannot
 see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
-`NAME-hud`. A text node holds 4 KiB, so a longer `detail` shows only
-its start there; the event has all of it. Over the rate limit, the
+`NAME-hud`, with the line of the yes and no keys. A text node holds
+4 KiB, so a longer `detail` shows only its start there, cut with `…`
+before the line of the keys; the event has all of it. Over the rate limit, the
 last `voice.confirm` goes again after 1 s.
 
 While a claimer of the indicator (section 10) is connected, the event
@@ -372,7 +373,7 @@ yes or Alt+n for no."). The security keys are `allow_programs`,
 `sandbox_cmd`, `unsandboxed`, `agent_cmd`, `coder_cmd`, `chora_mcp`,
 `capture_cmd`, `playback_cmd`, `skipped_tools`, `system_prompt`,
 `prompt_file`, `context_docs`, `indicator`, `indicator_clients`, `earcons`,
-`confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
+`earcon_volume`, `confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
 `*_url`, `*_headers` and each key with `api_key`. The agent never cuts
 a security value. The question says only the key and that the full
 value is on the screen. The screen shows it through the `voice.confirm`
@@ -698,7 +699,7 @@ both a key variable and a key file for one server.
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
 | `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller and for a caller outside `indicator_clients` (section 5) |
-| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand; a change of a security key waits for a key of `confirm_keys` and answers a refusal that says so (section 5) |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; the answers of all three show each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand; a change of a security key waits for a key of `confirm_keys` and answers a refusal that says so (section 5) |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
 | `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller outside `indicator_clients`, for a connection that did not claim the indicator, and for any other `id` (section 5) |
@@ -1153,7 +1154,10 @@ WP7, the coder port (`coder.rs`):
 - The core: `working` while a task runs and the agent is awake; the
   result waits in a queue until the state is `listening` or `working`
   (no utterance, no text that waits, no reply), then a reply without
-  the LLM says it and puts it into the history as an answer. A barge-in
+  the LLM says it and puts it into the history as a marked note of the
+  agent (a message of the user that quotes it), neither an answer of
+  the LLM nor an instruction; so are the words and questions of the
+  ACP agents. A barge-in
   or a cancel word stops it as any reply. The task shows in chora-mc as
   the agent `coder`.
 - Not checked live: a coding task through a spoken turn. The unit
@@ -1373,8 +1377,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   request keeps the rules above (a key or a button, no always word).
   A caller without these methods, a confined one, gets
   `not for a confined connection`.
-- Logs: `$XDG_DATA_HOME/chora/agents/NAME.log`, the stderr of the agent
-  and every message (`>` sent, `<` received).
+- Logs: `$XDG_DATA_HOME/chora/agents/NAME.log` (mode 0600), the stderr
+  of the agent and every message (`>` sent, `<` received), with secrets
+  hidden as in the transcript.
 - Lifetime: `agent_stop` and the end of the voice agent (an error,
   `SIGTERM`, `SIGINT`) send `TERM` to the process group of each agent
   and `KILL` after 5 s. At the end, the voice agent waits until no

@@ -701,7 +701,7 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, where
 /// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 28] = [
+    const KEYS: [&str; 29] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -725,6 +725,7 @@ pub fn security_key(key: &str) -> bool {
         "indicator",
         "indicator_clients",
         "earcons",
+        "earcon_volume",
         "confirm_timeout_ms",
         "ptt_key",
         "wake_words",
@@ -1236,6 +1237,14 @@ mod tests {
             assert!(err.contains("confirm_keys"), "{yaml}: {err}");
         }
         assert!(security_key("confirm_keys"));
+    }
+
+    /// Review plugins r1, VO-B-02: the volume of the earcons silences
+    /// them as `earcons: false` does, so it is a security key too.
+    #[test]
+    fn the_earcon_volume_is_a_security_key() {
+        assert!(security_key("earcons"));
+        assert!(security_key("earcon_volume"));
     }
 
     /// Review A1: the HUDs that may claim the indicator and answer are a

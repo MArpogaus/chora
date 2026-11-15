@@ -443,11 +443,6 @@ fn serve(
                     .conn
                     .answer(call, Err(confined_refusal(&method)))?;
             }
-            // Any client may read the settings: without the header values.
-            Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
-                let settings = without_headers(client.settings.get());
-                client.rt.conn.answer(call, Ok(settings))?;
-            }
             Some(event) => client.dispatch(event)?,
             None => {}
         }
@@ -681,6 +676,10 @@ impl Client {
             }
         } else if data["done"] == true && self.confirming {
             self.confirming = false;
+            #[allow(
+                clippy::disallowed_methods,
+                reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
+            )]
             self.rt.ungrab_all()?;
             self.grab()?;
         }
@@ -698,6 +697,10 @@ impl Client {
     /// Hands the settings to the core and grabs the key again.
     fn apply(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
+        )]
         self.rt.ungrab_all().map_err(rejected)?;
         self.grab().map_err(rejected)?;
         let config = Box::new(self.settings.value.clone());
@@ -809,6 +812,11 @@ impl Plugin for Client {
 
     fn runtime(&mut self) -> &mut Runtime<Key> {
         &mut self.rt
+    }
+
+    /// Any client may read the settings: without the header values.
+    fn shown_settings(&self, settings: Value) -> Value {
+        without_headers(settings)
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {

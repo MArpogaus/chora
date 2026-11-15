@@ -202,7 +202,7 @@ impl Reporter {
             let keys = (keys.as_ref())
                 .map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
                 .unwrap_or_default();
-            self.question(Some(&format!("{prompt}\n{detail}{keys}")));
+            self.question(Some(&question_text(&prompt, &detail, &keys)));
         }
         // chora-mc reads the id as a text.
         let mut data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
@@ -296,7 +296,7 @@ impl Reporter {
         }
     }
 
-    /// Shows a question and its full command on the first output, or
+    /// Shows a question of [`question_text`] on the first output, or
     /// removes it.
     fn question(&mut self, text: Option<&str>) {
         let remove = json!({"remove": {"id": QUESTION}});
@@ -304,12 +304,6 @@ impl Reporter {
             None if !self.question => return,
             None => json!([remove]),
             Some(text) => {
-                // ponytail: a text node holds 4 KiB; a longer command
-                // shows its start, and voice.confirm carries it whole.
-                let mut end = text.len().min(4000);
-                while !text.is_char_boundary(end) {
-                    end -= 1;
-                }
                 let Some(outputs) = self.rpc("output.list", Value::Null) else {
                     return;
                 };
@@ -320,7 +314,7 @@ impl Reporter {
                 };
                 let create = json!({"create": {"id": QUESTION, "kind": "text",
                     "parent": format!("screen:{name}"),
-                    "props": {"text": &text[..end], "font_size": 18, "max_width": w - 48,
+                    "props": {"text": text, "font_size": 18, "max_width": w - 48,
                         "color": [1.0, 0.85, 0.4, 1.0], "input": "pass",
                         "transform": {"translate": [24, 24]}}}});
                 if self.question {
@@ -347,6 +341,31 @@ impl Reporter {
     }
 }
 
+/// The most bytes of a question on the own HUD: a text node of the
+/// scene holds 4 KiB.
+const QUESTION_BYTES: usize = 4000;
+
+/// The question on the own HUD: the prompt, the detail and the line of
+/// the keys, at most [`QUESTION_BYTES`]. A longer detail is cut and ends
+/// in `…`; the prompt and the keys stay. voice.confirm carries it whole.
+fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
+    let text = format!("{prompt}\n{detail}{keys}");
+    if text.len() <= QUESTION_BYTES {
+        return text;
+    }
+    let room = QUESTION_BYTES.saturating_sub(prompt.len() + keys.len() + "\n…".len());
+    let mut end = room.min(detail.len());
+    while !detail.is_char_boundary(end) {
+        end -= 1;
+    }
+    let text = format!("{prompt}\n{}…{keys}", &detail[..end]);
+    let mut end = text.len().min(QUESTION_BYTES);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text[..end].to_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -356,7 +375,21 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Corner, Report, at, start};
+    use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
+
+    /// Review plugins r1, VO-B-06: a long detail is cut, with a mark, and
+    /// the prompt and the line of the keys stay.
+    #[test]
+    fn a_long_question_keeps_its_keys() {
+        let keys = "\nAlt+y = yes, Alt+n = no";
+        let detail = format!("allow_programs: {}", "ö".repeat(3000));
+        let text = question_text("Shall I set allow programs?", &detail, keys);
+        assert!(text.len() <= QUESTION_BYTES, "{}", text.len());
+        assert!(text.starts_with("Shall I set allow programs?\nallow_programs: ö"));
+        assert!(text.ends_with(&format!("…{keys}")), "{text}");
+        let short = question_text("Shall I?", "x: 1", keys);
+        assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
 
     #[test]
     fn the_dot_sits_in_its_corner() {

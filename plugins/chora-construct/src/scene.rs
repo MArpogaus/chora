@@ -182,6 +182,10 @@ impl Construct {
         self.labelled = None;
         self.neighbours.clear();
         self.label_drawn = false;
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "leaving lets every binding go and grabs none after it"
+        )]
         self.rt.ungrab_all()?;
         self.active = false;
         self.current = None;

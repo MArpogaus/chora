@@ -685,7 +685,6 @@ impl Wm {
         commands
     }
 
-    #[allow(clippy::expect_used, reason = "KEYS holds valid bindings")]
     fn grab(&mut self) -> Result<(), ClientError> {
         let cube = !self.cube_off();
         self.cube_keys = cube;
