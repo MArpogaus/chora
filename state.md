@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 00:39 UTC)
+## Now (2026-11-15 02:26 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: Fable 95 %, all 59 % (01:3x); Fable used up, owner resets it (01:22); running Fable lanes finish on Fable, then one new Fable lane decides Fable or opus
 session branch: 8bcbdc73 (train 10, 01:10 UTC: vkms guard; train 9 5dd34fcd: fontconfig, package deps).
@@ -24,12 +24,11 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| ux r1 | cloud Fable (starting), claude/ux-r1 | briefs/ux-r1.md | mc-30, sh-10, sh-11, sh-7, sh-5, ti-4 |
-| ci vkms | train11 21d4a477 (ci: retyped) | briefs/ci-vkms-r2.md | train 11 gate FAIL at tiling-audit (old flaw, mako now installed) |
-| harness | cloud opus (starting), claude/harness | briefs/harness-r1.md | compile-time rules, red-first at commit, gate time, checklist |
-| tiling audit | cloud opus ..Lykb2, claude/tiling-audit | briefs/tiling-audit-r1.md | tile border colour at paper 2560@2; blocks every gate |
-| ci check | claude/ci-check 4b697489 | briefs/ci-check-r1.md | MERGE-OK; train 12 |
-| ci e2e | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r4.md | r3 FIX: skips counted as passes |
+| ux r1 | cloud Fable ..P2LRR, claude/ux-r1 | briefs/ux-r1.md | mc-30, sh-10, sh-11, sh-7, sh-5, ti-4 |
+| train 11 | /home/user/wt/train11 c2d0a116 | vkms 21d4a477, tiling-audit, ci-check | gate running (02:28) |
+| harness | cloud opus ..NivBG, claude/harness | briefs/harness-r1.md | compile-time rules, red-first at commit, gate time, checklist |
+| tiling audit | done b018c506 | briefs/tiling-audit-r1.md | MERGE-OK (PM); train 11 |
+| ci e2e | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r4.md | r4 building: three sequence runs |
 | flakes | cloud Fable ..P8pMY, claude/flakes-r4 | briefs/flakes-r4.md | F17, F16, GR1 |
 
 ## Queue
@@ -37,7 +36,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 2. Ledger verify, then MAJOR fix lanes per look. (rc 1)
 3. Flakes r4: F16, F17, GR1 regrab swap, F7, A5, A17. (rc 3)
 4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
-5. Train 10: ci-vkms; then ci e2e r3, ux r1, flakes r4. (rc 1, 3, 4)
+5. Train 11 (vkms, tiling audit, ci check); harness train first when MERGE-OK; then ci e2e r4, ux r1, flakes r4. (rc 1, 3, 4)
 6. Persona round 4; logging audit; screencast rewrite (Mon). (rc 2, 9, 11)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
 
