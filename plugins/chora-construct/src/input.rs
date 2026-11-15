@@ -77,7 +77,49 @@ pub(crate) fn list_key(event: &Event, accepts_injected: bool) -> Option<ListKey<
     }
 }
 
+/// The key of a press on the look that the walk acts on: the keys of the
+/// walk, the terminal, the close key, the cube and the fly-out key.
+pub(crate) fn walk_key(event: &Event, accepts_injected: bool) -> Option<ListKey<'_>> {
+    let _ = accepts_injected;
+    match event {
+        Event::NodeKey {
+            node,
+            key,
+            state: PressState::Pressed,
+            modifiers,
+            text,
+            code: _,
+            injected: _,
+        } if node == LOOK => Some((key, modifiers, text.as_deref())),
+        _ => None,
+    }
+}
+
 impl Construct {
+    /// The act of a key press of the walk: the terminal, the close key, the
+    /// windows, the cube, the stride keys and the rest of the actions.
+    fn walk_press(
+        &mut self,
+        key: &str,
+        modifiers: &[String],
+        typed: bool,
+    ) -> Result<(), ClientError> {
+        match self.settings.value.action(key, modifiers) {
+            Some(Action::Terminal) => self.start_terminal(),
+            Some(action) if Action::SHARED.contains(&action) => return self.shared_key(action),
+            Some(Action::Close) => return self.close_ahead(),
+            Some(Action::Windows) => return self.open_list(),
+            Some(Action::Cube) => return self.cube_key(),
+            Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
+                self.stride_press(key, action);
+            }
+            Some(action) => self.act(action),
+            None if typed => return self.keys_walk(),
+            None => {}
+        }
+        Ok(())
+    }
+
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
     fn keys_walk(&mut self) -> Result<(), ClientError> {
@@ -222,9 +264,10 @@ impl Construct {
             code: _,
             modifiers: _,
             text: _,
-            injected: _,
+            injected,
         } = &event
             && node == LOOK
+            && (!injected || self.rt.accepts_injected())
         {
             self.stride_release(key);
         }
@@ -237,30 +280,10 @@ impl Construct {
         {
             return Ok(());
         }
+        if let Some((key, modifiers, text)) = walk_key(&event, self.rt.accepts_injected()) {
+            return self.walk_press(key, modifiers, text.is_some());
+        }
         match event {
-            Event::NodeKey {
-                node,
-                key,
-                state: PressState::Pressed,
-                modifiers,
-                text,
-                code: _,
-                injected: _,
-            } if node == LOOK => match self.settings.value.action(&key, &modifiers) {
-                Some(Action::Terminal) => self.start_terminal(),
-                Some(action) if Action::SHARED.contains(&action) => {
-                    return self.shared_key(action);
-                }
-                Some(Action::Close) => return self.close_ahead(),
-                Some(Action::Windows) => return self.open_list(),
-                Some(Action::Cube) => return self.cube_key(),
-                Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
-                    self.stride_press(&key, action);
-                }
-                Some(action) => self.act(action),
-                None if text.is_some() => return self.keys_walk(),
-                None => {}
-            },
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,

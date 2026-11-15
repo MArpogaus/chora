@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     adopt::*,
     camera::*,
-    input::{keys_walk_due, list_key, pressed_row},
+    input::{keys_walk_due, list_key, pressed_row, walk_key},
     list::row_of,
 };
 
@@ -451,6 +451,37 @@ fn an_injected_key_does_not_drive_the_window_list() {
         );
         assert!(
             list_key(&key(name, true), true).is_some(),
+            "{name} in a test"
+        );
+    }
+}
+
+/// A key of `input.inject` flew to a window, closed a pane, typed the
+/// terminal key or turned the scene without a person (review security a
+/// r2, MAJOR 1): the walk acts on a key of the person, or of a test
+/// session.
+#[test]
+fn an_injected_key_does_not_drive_the_walk() {
+    let key = |name: &str, injected| Event::NodeKey {
+        node: LOOK.into(),
+        key: name.into(),
+        code: 28,
+        state: PressState::Pressed,
+        modifiers: Vec::new(),
+        text: None,
+        injected,
+    };
+    for name in ["Return", "Up", "Left", "Escape", "w", "c", "t"] {
+        assert!(
+            walk_key(&key(name, false), false).is_some(),
+            "{name} of the person"
+        );
+        assert!(
+            walk_key(&key(name, true), false).is_none(),
+            "{name} injected"
+        );
+        assert!(
+            walk_key(&key(name, true), true).is_some(),
             "{name} in a test"
         );
     }
