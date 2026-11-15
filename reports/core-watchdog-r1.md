@@ -35,9 +35,9 @@ Done, not run on CI. Earliest gate: the e2e job of CI (agent.sh is no merge-gate
   in the core logs, 4 "host is busy" notes per run. Same cell on the unfixed build failed 1 of 1 (see above).
 
 ## Merge gate
-tests/merge-gate.sh: attempt 1 stopped at pull (known flake F21, harness-r3: pane 192 px wide for 200; the
-construct pull cell has no watchdog involvement), after the test fix of cdaea871 had made test pass. Attempt 2
-at cdaea871: "all steps passed" (all 28 steps PASS, log dir /tmp/merge-gate.yivCIz, in the lane container).
+tests/merge-gate.sh: attempt 1 (before cdaea871) stopped at test (the offscreen test above). Attempt 2 at cdaea871
+stopped at pull (known flake F21, harness-r3: pane 192 px wide for 200; no watchdog involved). Attempt 3 at
+cdaea871: "all steps passed", all 28 steps PASS (log dir /tmp/merge-gate.yivCIz in the lane container).
 
 ## F25 (glow at 5,5 doubled on the CI host frame)
 Not explained by item 2. Dropped effects strip glow from the host frame and the capture alike (ci-f25-r1:
