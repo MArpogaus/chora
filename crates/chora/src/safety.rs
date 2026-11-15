@@ -11,15 +11,16 @@
 //! budget in microseconds, for tests, `CHORA_OWNER_LOAD_BUDGET` the
 //! owner budget.
 //!
-//! The time that the main thread waited for a CPU during a frame is no
-//! cost of the scene: on a busy host the watchdog takes it off the time
-//! of the frame, says at most once a minute that the host is busy, and
-//! acts on no client ([`FrameClock`]). Only the wait of the main thread
-//! counts: a software renderer draws in threads of its own, and while
-//! those wait for a CPU the main thread sleeps, which still looks like a
-//! costly frame. Beside 12 busy loops on 4 CPUs the main thread waited
-//! 16.7 s of 24 s and all threads together 17.2 s, so the rest is small;
-//! the sum over all threads would cost a read per thread and frame.
+//! The time that the process waited for a CPU during a frame is no cost
+//! of the scene: on a busy host the watchdog takes it off the time of
+//! the frame, says at most once a minute that the host is busy, and acts
+//! on no client ([`FrameClock`]). All threads count: a software renderer
+//! draws in threads of its own, and while those wait for a CPU the main
+//! thread sleeps, which still looks like a costly frame. Beside 8 busy
+//! loops on 4 CPUs at 2560x1600 the main thread waited 4.3 s in 20 s and
+//! the four llvmpipe threads 11.8 s each. A thread that ends between the
+//! two readings of a frame takes its wait with it, which only makes the
+//! watchdog stricter.
 
 use calloop::{
     LoopHandle,
@@ -68,12 +69,15 @@ const BUSY_NOTE_PAUSE: Duration = Duration::from_secs(60);
 /// The folder of the threads of this process in `/proc`.
 const TASKS: &str = "/proc/self/task";
 
-/// The time that the main thread waited on a run queue for a CPU since
-/// its start: the second field of its `schedstat`, in nanoseconds. `None`
-/// where the kernel does not count it.
+/// The time that all threads of the process waited on a run queue for a
+/// CPU since their start: the second field of each `schedstat`, in
+/// nanoseconds. `None` where the kernel does not count it.
 fn wait_in(tasks: &Path) -> Option<Duration> {
-    let main = tasks.join(std::process::id().to_string());
-    wait_of(&std::fs::read_to_string(main.join("schedstat")).ok()?)
+    std::fs::read_dir(tasks)
+        .ok()?
+        .filter_map(|task| std::fs::read_to_string(task.ok()?.path().join("schedstat")).ok())
+        .map(|schedstat| wait_of(&schedstat))
+        .sum()
 }
 
 /// The run queue wait of a `schedstat` line: run time, wait, time slices.
