@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | train 16 | /home/user/wt/train16 2d9f306f | harness r5 (MERGE-OK) | gate 1 running; then flakes train 17 |
-| ux r5 | cloud opus (starting), claude/ux-r5 | briefs/ux-r5.md | mc-31 verify, sh-19, sh-20 |
+| ux r5 | cloud opus ..LwMj9, claude/ux-r5 | briefs/ux-r5.md | mc-31 verify, sh-19, sh-20 |
 | security a r1 | cloud opus ..Pu2AX, claude/security-a | briefs/security-a-r1.md | MC-02..04, CON-A-04, CON-B-10, AS-B-05, NO-03 |
 | security b r1 | cloud opus ..MD5Xa, claude/security-b | briefs/security-b-r1.md | VO-A-01, -02, -07, VO-B-01, -02, -06 |
 | flakes r5 | claude/flakes-r5 366c1cb3 | briefs/flakes-r5.md | MERGE-OK (review-flakes-r5; sh-22, F24); train 17 after train 16 |
