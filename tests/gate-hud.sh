@@ -647,6 +647,8 @@ with_chat_voice() {
     ctl call assistant chat.hide '{}' >/dev/null 2>&1
     stop_voice
     start_voice
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    waiting "$settle_s" figure_shows || return 1
     return "$shown"
 }
 plain_long_task() {
