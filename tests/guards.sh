@@ -316,6 +316,7 @@ optout_case "the wildcard on a line of its own" fail 'Event::NodeKey {\n    node
 optout_case "the rest pattern on a line of its own" fail 'Event::NodeKey {\n    node,\n    ..\n} => 1,\n'
 optout_case "the wildcard with a reason" pass 'Event::NodeKey {\n    node,\n    injected: _, // injected: the look draws no key\n} => 1,\n'
 optout_case "the rest pattern with a reason" pass 'Event::PointerPressed { node, .. } => 1, // injected: only draws a hover\n'
+optout_case "the reason on the next line" pass 'let Event::NodeKey { node, .. } = e else {\n    // injected: a repeat\n    return;\n};\n'
 optout_case "a comment without a reason does not count" fail 'Event::PointerPressed { node, .. } => 1, // injected:\n'
 optout_case "every field named" pass 'Event::NodeKey { node, key, code, state, modifiers, text, injected } => 1,\n'
 optout_case "the field named with a rest pattern" pass 'Event::PointerPressed { node, injected, .. } => 1,\n'

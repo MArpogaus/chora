@@ -8,7 +8,8 @@ The events with an `injected` field are read from crates/chora-scene/src/event.r
 A pattern on such an event that names the field as `injected: _`, or that ends in
 the rest pattern `..`, drops the field without a decision, so an injected key or
 press (from `input.inject`) acts as a person's. Every such line needs a
-`// injected: <reason>` comment that says why the event is safe to take as it is.
+`// injected: <reason>` comment on that line (or alone on the next line, where rustfmt puts a
+comment that follows a brace) that says why the event is safe to take as it is.
 A pattern that names the field (`injected,` or `injected: true`) may end in `..`.
 """
 import pathlib
@@ -98,7 +99,8 @@ def violations(path, names):
     for _, start, end in bodies(code, names):
         for index in opt_outs(code, start, end):
             number = code.count("\n", 0, index) + 1
-            if number in seen or REASON.search(lines[number - 1]):
+            following = lines[number] if number < len(lines) else ""
+            if number in seen or REASON.search(lines[number - 1]) or REASON.match(following.strip()):
                 continue
             seen.add(number)
             yield number, lines[number - 1].strip()
