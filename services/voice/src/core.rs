@@ -1850,11 +1850,11 @@ mod tests {
         );
     }
 
-    /// What the person says reaches the log at debug only: the default
-    /// level keeps no utterance, also none to a sub-agent.
+    /// What the person says reaches the log at no level, also not what
+    /// they say to a sub-agent.
     #[test]
-    fn utterances_stay_out_of_the_info_log() {
-        let (_guard, lines) = crate::log::capture::info();
+    fn utterances_stay_out_of_the_log() {
+        let (_guard, lines) = crate::log::capture::all();
         let mut core = with_coder();
         let mut effects = speak(&mut core, 10);
         effects.extend(quiet(&mut core, 26));
@@ -2109,7 +2109,7 @@ mod tests {
     /// yes waits for a question.
     #[test]
     fn a_request_during_a_reply_goes_into_its_next_round() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let mut core = asking();
         core.handle(reply(1, chat::Event::Tool("query".into())));
         let effects = say(&mut core, "Zeig mir lieber die Agenda.");
@@ -2124,7 +2124,7 @@ mod tests {
         let effects = core.handle(Input::Reply(1, Reply::Done("Rot.".into())));
         assert_eq!(asks(&effects), [(2, "Ja.")]);
         let log = lines.text();
-        assert!(!log.contains("Agenda"), "no queued text at info: {log}");
+        assert!(!log.contains("Agenda"), "no queued text in the log: {log}");
     }
 
     /// New words while the agent speaks stop the reply as a barge-in
@@ -2132,7 +2132,7 @@ mod tests {
     /// 2026-10-31: they waited until the reply ended).
     #[test]
     fn new_words_over_the_speech_stop_the_reply() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let mut core = asking();
         say(&mut core, "Mach es rot.");
         core.handle(sound(1, 5000));
@@ -2144,7 +2144,7 @@ mod tests {
         let log = lines.text();
         assert!(
             !log.contains("größer"),
-            "no text over the reply at info: {log}"
+            "no text over the reply in the log: {log}"
         );
     }
 

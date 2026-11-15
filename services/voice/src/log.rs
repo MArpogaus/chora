@@ -18,7 +18,7 @@ pub fn error(line: &str) {
     tracing::error!("{line}");
 }
 
-/// The log lines at info and above, for the tests. One global
+/// The log lines of every level, for the tests. One global
 /// subscriber writes into the buffer of the thread that logs: a
 /// subscriber per test races with the interest cache of `tracing`.
 #[cfg(test)]
@@ -65,13 +65,13 @@ pub mod capture {
         }
     }
 
-    /// Captures the lines at info and above of this thread while the
-    /// guard lives, as the default level of the service writes them.
-    pub fn info() -> (Guard, Lines) {
+    /// Captures the lines of every level of this thread while the guard
+    /// lives, as `RUST_LOG=trace` writes them.
+    pub fn all() -> (Guard, Lines) {
         static GLOBAL: Once = Once::new();
         GLOBAL.call_once(|| {
             let subscriber = tracing_subscriber::fmt()
-                .with_max_level(tracing::Level::INFO)
+                .with_max_level(tracing::Level::TRACE)
                 .with_ansi(false)
                 .with_writer(|| ThreadWriter)
                 .finish();

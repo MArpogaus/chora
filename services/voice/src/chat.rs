@@ -1654,7 +1654,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_turn_runs_the_tool_calls_and_speaks_the_answer() {
-        let (_guard, lines) = crate::log::capture::info();
+        let (_guard, lines) = crate::log::capture::all();
         let script = vec![
             Reply::Tool("echo", r#"{"a": 1}"#),
             Reply::Text("Fertig. Alles gut."),
@@ -1697,15 +1697,15 @@ mod tests {
         assert_eq!(chat.history.len(), 4, "user, call, result, answer");
         let log = lines.text();
         assert!(log.contains("tool echo"), "the stages still log: {log}");
-        assert!(!log.contains("Mach was"), "no request at info: {log}");
-        assert!(!log.contains("Alles gut"), "no reply at info: {log}");
+        assert!(!log.contains("Mach was"), "no request in the log: {log}");
+        assert!(!log.contains("Alles gut"), "no reply in the log: {log}");
     }
 
     /// The arguments of a tool call carry text of the person, such as a
-    /// coding task: the info log names the tool only.
+    /// coding task: the log names the tool only, at every level.
     #[tokio::test]
-    async fn the_arguments_of_a_tool_call_stay_out_of_the_info_log() {
-        let (_guard, lines) = crate::log::capture::info();
+    async fn the_arguments_of_a_tool_call_stay_out_of_the_log() {
+        let (_guard, lines) = crate::log::capture::all();
         let script = vec![
             Reply::Tool("echo", r#"{"task": "Kennwort Zwiebel"}"#),
             Reply::Text("Fertig."),
@@ -1714,7 +1714,7 @@ mod tests {
         turn(&mut chat, "Mach was.", true).await;
         let log = lines.text();
         assert!(log.contains("tool echo"), "the tool still logs: {log}");
-        assert!(!log.contains("Zwiebel"), "no arguments at info: {log}");
+        assert!(!log.contains("Zwiebel"), "no arguments in the log: {log}");
     }
 
     #[tokio::test]
