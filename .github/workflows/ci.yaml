@@ -240,6 +240,7 @@ jobs:
         uname -r
         ls /sys/kernel/config/vkms || true
         for dev in /sys/bus/vmbus/drivers/hyperv_drm/*-*; do
+            [ -e "$dev" ] || continue
             basename "$dev" | sudo tee /sys/bus/vmbus/drivers/hyperv_drm/unbind
         done
         ls -l /dev/dri
