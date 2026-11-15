@@ -93,10 +93,22 @@ def check_state(text, now):
     else:
         date, hour, minute, zone = m.groups()
         y, mo, d = date.split("-")
-        if parse_time(y, mo, d, hour, minute, zone, now) > now:
+        now_utc = parse_time(y, mo, d, hour, minute, zone, now)
+        if now_utc > now:
             yield f"state.md: Now time {date} {hour}:{minute} {zone} is later than now"
-    if not any(l.startswith("budget:") for l in section_lines(text, "Now")):
+    budget = next((l for l in section_lines(text, "Now") if l.startswith("budget:")), None)
+    if budget is None:
         yield "state.md: '## Now' has no line starting 'budget:'"
+        return
+    # Workday close 11-15: the budget line stayed unmeasured for 3.5 h (critic point 2).
+    measured = re.search(r"tokens\.py (\d\d):(\d\d)", budget)
+    if not measured:
+        yield "state.md: the budget line needs a fresh measure 'tokens.py HH:MM' (run tokens.py)"
+    elif m:
+        now_min = now_utc.hour * 60 + now_utc.minute
+        age = (now_min - (int(measured.group(1)) * 60 + int(measured.group(2)))) % (24 * 60)
+        if age > 120:
+            yield f"state.md: the budget measure is {age} min older than the Now time (limit 120; run tokens.py)"
 
 
 def check_decisions(text, now):

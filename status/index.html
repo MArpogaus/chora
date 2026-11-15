@@ -119,22 +119,23 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Security fixes a, round 3: the review found injected keys can still type into a window through the 3D walk keys, and the same kind of gap in xp and tiling. This round closes the whole class and adds a build-time check</li>
-                    <li>Frame watchdog: it switches off window effects on a busy machine without a GPU; likely why CI fails on one corner pixel</li>
+          <li>Tiling launcher click (the last look blocker): fuzzel 1.11 now builds, but a click still starts the first row. One round to find why; Monday: fix it or replace the list</li>
+          <li>Frame watchdog, round 2: the review found it could excuse a truly slow scene under load. Not proven to cause the CI corner-pixel failure</li>
+          <li>Security fixes a, round 3: done (a build-time check now refuses keys a program fakes); review Monday</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget paced to the Saturday reset (10:59 Bangkok): about 10 % a day; cheaper models run tests and builds, opus only reviews and hard causes</li>
-          <li>Mon: fuzzel 1.11 in the cloud setup (your yes), re-check of all look findings, then new pictures, screencast and README screenshots</li>
-          <li>Tue: user test round 4; Wed-Thu: last flaky tests and two clean review rounds; Fri: release candidate</li>
+          <li>Budget: today went over its share (the PM's own turns cost most); no opus until Monday, fewer log updates</li>
+          <li>Mon: security review, two small test fixes for the CI pixel and the tiling bar, launcher decision, then pictures and screencast (by Wed)</li>
+          <li>Tue: user test round 4 and code reviews per area; Wed-Thu: last flaky tests and two clean review rounds; Fri 20 Nov: release candidate</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>Building fuzzel 1.11 (your yes at 09:27) was refused by the worker's own permission check. Reply "allowed" in the session "fuzzel r1". If there is no answer by Monday 13:00 Bangkok, the launcher click gets checked in the CI image instead.</li>
+          <li>Optional: may the PM add a prompt hook that repeats its main duties on every message (your 09:32)? Without an answer: no; the duties stay in the files read at each start.</li>
         </ul>
       </div>
     </div>
@@ -150,7 +151,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
       <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. Open: the tiling bar that sometimes does not show, the frame watchdog under load, one CI pixel.</span></div>
-      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">2 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: packages build, dependency checks clean. Close: docs, code review (security fixes in review), CI (one red pixel). Open: tiling launcher clicks (fuzzel 1.11, Mon), user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
+      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">1 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: dependency checks clean. Packages build, but the installed-session start check is still open. Close: docs, code review (security fixes in review), CI (one red pixel). Open: tiling launcher clicks (fuzzel 1.11, Mon), user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
     </div>
   </section>
 
@@ -183,8 +184,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Sun 15 Nov</span><span>28 entries</span></summary>
+      <summary><span>Sun 15 Nov</span><span>29 entries</span></summary>
       <ul class="timeline">
+        <li><time>13:10</time><p><span class="tag issue">reflection</span>Workday close with an independent critic: today spent more than its budget share, mostly in the PM's own turns; one new check now refuses an unmeasured budget line. Plan: no opus until Monday, fewer log updates.</p></li>
         <li><time>11:47</time><p><span class="tag issue">review</span>The frame watchdog fix needs one more round: under load it could excuse a truly slow scene, so the safety switch would never fire. Fix round 2 started.</p></li>
         <li><time>11:24</time><p><span class="tag ok">merged</span>Train 19: look fixes round 5. The chat Stop button stays put, and long pastes no longer slow the chat. The only open look blocker is clicking in the tiling launcher (fuzzel 1.11, Monday).</p></li>
         <li><time>10:45</time><p><span class="tag ok">merged</span>Train 18: security fixes b. Secrets stay out of the helper logs, and plugins no longer see hidden settings. Look fixes round 5 merge next.</p></li>

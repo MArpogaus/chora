@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-15 12:51 UTC)
+## Now (2026-11-15 12:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
-models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
+budget: 33 % at 09:20 (owner) + local opus 13.4 % this Bkk day (tokens.py 12:55; cloud lanes not counted): over the 10 %/day share. Reset Sat 03:59 UTC. No opus before Mon 00:00 UTC; log commits 1/h + 1/merge.
+models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 1014dddf (train 19, 11:24 UTC: ux r5; train 18 4693fe07). No train running.
-rc target: 11-21 (criterion 11). Burn-down check 11-16.
+rc target: Fri 11-20 (tag). Burn-down check 11-16.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -25,17 +25,18 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| fuzzel r2 | cloud sonnet high, claude/fuzzel-click | briefs/fuzzel-r2.md | r1: 1.11.1 built; click still runs row 1 (3/3) |
-| security a r3 | done 85476db0, claude/security-a | briefs/security-a-r3.md | class gate (injected-optout.py) + 2 new finds; opus review Mon 00:05 UTC (Sun share used) |
-| core watchdog r2 | cloud sonnet high, claude/core-watchdog | briefs/core-watchdog-r2.md | r1 review FIX: summed waits excuse a costly scene |
+| fuzzel r2 (rc 1) | cloud sonnet high, claude/fuzzel-click, one round only | briefs/fuzzel-r2.md | r1: 1.11.1 built; click still runs row 1 (3/3) |
+| security a r3 (rc 6) | done 85476db0, claude/security-a | briefs/security-a-r3.md | class gate (injected-optout.py) + 2 new finds; opus review Mon 00:05 UTC (Sun share used) |
+| core watchdog r2 (rc 4) | cloud sonnet high, claude/core-watchdog | briefs/core-watchdog-r2.md | r1 review FIX: summed waits excuse a costly scene |
 
 ## Queue (by day; budget 10 % a UTC day)
-1. Sun: CI (F25); review of security a r2 and core watchdog on opus medium; fixes on sonnet. (rc 1, 3, 4, 6)
-2. Sun-Mon: fuzzel r1 (pulled forward, sonnet low); Mon: ledger r3 (haiku cells, opus verdicts). (rc 1)
-3. Mon-Tue: media lane on sonnet after ledger r3 is clean: status pictures, screencast, README shots (owner 09:20, 09:27). (rc 11)
-4. Tue: persona round 4 as a haiku swarm, triage.py, opus ranks; fixes on sonnet. (rc 2)
-5. Wed-Thu: flakes (F16, F25, F24) on haiku series + sonnet fixes; CI6; final review rounds (two clean, opus). (rc 3, 4)
-6. Fri 11-20: three greens, tag, CI PR; persona round 5 after the tag. (rc 3)
+1. Mon 00:05: security a r3 review (opus medium, first review); core watchdog r2 re-review on sonnet medium. (rc 4, 6)
+2. Mon: F25 and F16 test-side fixes on sonnet low. (rc 3, 4)
+3. Mon: after fuzzel r2, decide ti-1: fix, or a tiling Apps list without fuzzel. (rc 1)
+4. Mon-Tue: media lane on sonnet medium (screencast by Wed for the 24 h window), then ledger r3 (haiku). (rc 11, 1b, 1)
+5. Tue: persona round 4 (haiku swarm), triage.py; rc 6 area reviews on sonnet medium, opus only on HIGH. (rc 2, 6)
+6. Wed-Thu: flakes F17, F24, CI6; final review rounds. (rc 3, 4, 8)
+7. Fri 11-20: three greens, tag, CI PR. (rc 3)
 
 ## Needs owner
-- none
+- Prompt hook: a fail-open UserPromptSubmit hook in settings.local.json with the main duties (your 09:32)? Default: no; duties stay in the injected state.md and rules.

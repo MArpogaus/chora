@@ -8,7 +8,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "check_log.py"
 NOW = "2026-11-12T10:00"
 GOOD_STATE = (
-    "## Now (2026-11-12 09:30 UTC)\nbudget: 87 % at 01:26 UTC\n\n## RC\n- a\n\n## Lanes\n- a\n\n## Queue\n- a\n\n"
+    "## Now (2026-11-12 09:30 UTC)\nbudget: 87 % (tokens.py 09:10)\n\n## RC\n- a\n\n## Lanes\n- a\n\n## Queue\n- a\n\n"
     "## Needs owner (defaults hold after 2026-11-13 12:00 UTC)\n- none\n"
 )
 GOOD_DECISIONS = "intro\nscreened-through: 2026-11-12T09:00:00Z\n- x\n"
@@ -56,7 +56,7 @@ class CheckLog(unittest.TestCase):
         self.red({"state.md": GOOD_STATE.replace("## Lanes", "## Queue")}, "no '## Lanes' section")
 
     def test_state_bytes_and_line(self):
-        self.red({"state.md": GOOD_STATE + "- x\n" * 800}, "state.md: 3361 bytes, limit 3000")
+        self.red({"state.md": GOOD_STATE + "- x\n" * 800}, "state.md: 3366 bytes, limit 3000")
         self.red({"state.md": GOOD_STATE + "x" * 301 + "\n"}, "301 characters, limit 300")
         self.assertEqual(run({"state.md": GOOD_STATE + "x" * 300 + "\n"})[0], 0)
 
@@ -72,6 +72,12 @@ class CheckLog(unittest.TestCase):
     def test_now_bkk_is_converted(self):
         ok = GOOD_STATE.replace("09:30 UTC", "16:30 Bkk")
         self.assertEqual(run({"state.md": ok})[0], 0)
+
+    def test_budget_unmeasured(self):
+        self.red({"state.md": GOOD_STATE.replace("(tokens.py 09:10)", "at 01:26")}, "tokens.py")
+
+    def test_budget_stale(self):
+        self.red({"state.md": GOOD_STATE.replace("tokens.py 09:10", "tokens.py 07:00")}, "older than the Now")
 
     def test_no_budget(self):
         self.red({"state.md": GOOD_STATE.replace("budget:", "money:")}, "budget:")

@@ -1,7 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
 screened-through: 2026-11-15T09:32:00Z
 
-- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow. You keep forgetting your main role tasks" -> 12:50 UTC close; duties in every prompt hook
+- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow. You keep forgetting your main role tasks" -> 12:50 UTC close; duties in the injected state.md and rules (prompt hook not wired: Needs owner)
 - 11-15 09:27Z budget week resets Sat 10:59 Bangkok = 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews and hard causes
 - 11-15 09:27Z ti-1 "Yes, build under $HOME" -> setup.sh builds fuzzel 1.11; media: status, screencast, README
 - 11-15 09:20Z "When ui fixes finished prune and update screenshots and screencast" -> media lane after UI fixes
