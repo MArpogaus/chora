@@ -364,7 +364,7 @@ new_hooked_repo "$nb"
 nb_commit "chore: init" README >/dev/null
 bare=$work/origin.git
 git init -q --bare "$bare"
-git -C "$nb" push -q "$bare" main:work
+git -C "$nb" push -q "$bare" main:work 2>/dev/null
 nb=$work/single
 git clone -q --depth 1 --single-branch --branch work "file://$bare" "$nb"
 git -C "$nb" config user.email t@t

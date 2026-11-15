@@ -5,10 +5,10 @@
 # merges), else a body line `No test: <reason>`. Other types, merges
 # (MERGE_HEAD) and merge messages pass. A test is what the red-first step
 # of tests/merge-gate.sh counts; tests/merge-gate.sh sources this file.
-# The hook never blocks a valid commit: without the base ref the branch is
-# the commits on no remote (`git rev-list HEAD --not --remotes`), and when
-# that is empty too (a shallow clone, all pushed) the commit passes with a
-# note, since the merge gate checks the range again.
+# The hook refuses only what it can prove: when the base ref resolves and
+# base..HEAD has no test. Without the base ref (a shallow or single-branch
+# clone) or on an unborn HEAD it prints a note and lets the commit pass;
+# the merge gate checks the range again.
 #
 # Usage: tests/red-first.sh MSG_FILE
 #   RED_FIRST_BASE  the base of the branch (default
@@ -32,18 +32,12 @@ commit_changes_test() {
 }
 
 branch_verdict() {
-    local base=${RED_FIRST_BASE:-origin/claude/autonomous-dev-session-3w-i33pg7} commits sha
-    git rev-parse -q --verify HEAD >/dev/null || return 1
-    if git rev-parse -q --verify "$base^{commit}" >/dev/null; then
-        commits=$(git rev-list --no-merges "$base..HEAD")
-    else
-        commits=$(git rev-list --no-merges HEAD --not --remotes)
-        if [ -z "$commits" ]; then
-            echo "red-first: no base ref $base and no unpushed commit to judge; the merge gate checks the range"
-            return 0
-        fi
+    local base=${RED_FIRST_BASE:-origin/claude/autonomous-dev-session-3w-i33pg7} sha
+    if ! git rev-parse -q --verify "$base^{commit}" >/dev/null || ! git rev-parse -q --verify HEAD >/dev/null; then
+        echo "red-first: no base ref $base or no commit yet, so nothing to prove; the merge gate checks the range"
+        return 0
     fi
-    for sha in $commits; do
+    for sha in $(git rev-list --no-merges "$base..HEAD"); do
         commit_changes_test "$sha" && return 0
     done
     return 1

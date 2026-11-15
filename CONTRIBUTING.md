@@ -43,7 +43,10 @@ The hooks run:
 - red first: a `fix` or `feat` commit needs a test change in it or in a
   commit before it on the branch, or a body line `No test: <reason>`;
   `tests/red-first.sh` holds the rule that the red-first step of the merge
-  gate also runs, and `tests/merge-gate-selftest.sh` proves both
+  gate also runs, and `tests/merge-gate-selftest.sh` proves both; the
+  hook refuses only when the base ref resolves, else (a shallow or
+  single-branch clone, a first commit) it prints a note and the merge
+  gate checks the range
 - no process by its name alone: a test script that uses `pkill` or
   `killall`, or `pgrep -x chora` without a parent (`-P`), a session
   (`-s`) or a process group (`-g`), fails, because other sessions run
