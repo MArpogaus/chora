@@ -458,6 +458,12 @@ check "plugin runtime: a string naming the lint opens no allow" \
     "$(runtime_case 'const L: &str = "clippy::disallowed_methods";\nfn a() {\n    conn::connect(p);\n}\n')" 1
 check "plugin runtime: an allow over several lines passes" \
     "$(runtime_case 'fn a() {\n    #[allow(\n        clippy::disallowed_methods,\n        reason = "x"\n    )]\n    let c = conn::connect(p);\n}\n')" 0
+check "plugin runtime: an allow with a trailing comment hides nothing after it" \
+    "$(runtime_case 'fn a() {\n    #[allow(clippy::cast_precision_loss)] // a few items\n    let x = 1;\n}\nfn b() {\n    core.call("events.subscribe");\n}\n')" 1
+check "plugin runtime: an allowed item with a trailing comment covers only itself" \
+    "$(runtime_case '#[allow(clippy::disallowed_methods)] // fake core\nfn a() {\n    conn::connect(p);\n}\nfn b() {\n    core.call("events.subscribe");\n}\n')" 1
+check "plugin runtime: an allowed item with a trailing comment passes" \
+    "$(runtime_case '#[allow(clippy::disallowed_methods)] // fake core\nfn a() {\n    conn::connect(p);\n}\n')" 0
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
