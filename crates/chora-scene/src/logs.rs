@@ -5,7 +5,8 @@
 //! last run to `NAME.log.1`, so a crash stays next to the new run. Only
 //! the process that holds the lock `NAME.lock` writes and moves the
 //! files; a second process gets no file. The folder has mode 0700 and
-//! the files 0600.
+//! the files 0600, also when they were there; a file that is a symlink
+//! is not opened.
 
 use std::{
     ffi::OsString,
@@ -126,12 +127,17 @@ fn shift(path: &Path) -> io::Result<()> {
     fs::rename(path, numbered(path, 1))
 }
 
+/// Opens `path` for appending, never through a symlink, with mode 0600
+/// also when the file was there.
 fn create(path: &Path) -> io::Result<fs::File> {
-    fs::OpenOptions::new()
+    let file = fs::OpenOptions::new()
         .create(true)
         .append(true)
         .mode(0o600)
-        .open(path)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)?;
+    file.set_permissions(fs::Permissions::from_mode(0o600))?;
+    Ok(file)
 }
 
 #[cfg(test)]
