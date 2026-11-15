@@ -1238,6 +1238,14 @@ mod tests {
         assert!(security_key("confirm_keys"));
     }
 
+    /// Review plugins r1, VO-B-02: the volume of the earcons silences
+    /// them as `earcons: false` does, so it is a security key too.
+    #[test]
+    fn the_earcon_volume_is_a_security_key() {
+        assert!(security_key("earcons"));
+        assert!(security_key("earcon_volume"));
+    }
+
     /// Review A1: the HUDs that may claim the indicator and answer are a
     /// security setting.
     #[test]
