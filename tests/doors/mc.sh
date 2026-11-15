@@ -7,7 +7,8 @@
 # check header-SIZE asks that no two words of the first two lines of the
 # screen share pixels: the header of mc, the first line of the column and
 # the island of the host, over a window with the column, with all keys
-# and without the column, and at the end on the page of the agenda.
+# and without the column, and at the end on the page of the agenda. A
+# state has 6 s to settle, since mc lays a line out over two frames.
 #
 # Usage: tests/doors/mc.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -59,31 +60,43 @@ chat_close() {
     until_ok '! chat_open' 20
 }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
-header_clear() {
-    sleep 1
-    ctl query '*' | jq -e '
+header_overlaps() {
+    ctl query '*' | jq -r '
         [.[] | select(.visible and (.rects | length) > 0)
             | select((.owner == "mc" and .kind == "text" and ((.text // "") | test("\\S")))
                 or .id == "hud-word" or .id == "hud-figure")
             | (.rects | to_entries[0].value) as $r
             | select($r[1] + $r[3] / 2 < 56) | {id, r: $r}] as $words
-        | [range(0; $words | length) as $i | range($i + 1; $words | length) as $j
-            | [$words[$i], $words[$j]]
-            | select(.[0].r[0] < .[1].r[0] + .[1].r[2] and .[1].r[0] < .[0].r[0] + .[0].r[2]
-                and .[0].r[1] < .[1].r[1] + .[1].r[3] and .[1].r[1] < .[0].r[1] + .[0].r[3])
-            | "\(.[0].id) on \(.[1].id)"]
-        | if length == 0 then true else (.[] | "overlap \(.)"), false end' >&2
+        | range(0; $words | length) as $i | range($i + 1; $words | length) as $j
+        | [$words[$i], $words[$j]]
+        | select(.[0].r[0] < .[1].r[0] + .[1].r[2] and .[1].r[0] < .[0].r[0] + .[0].r[2]
+            and .[0].r[1] < .[1].r[1] + .[1].r[3] and .[1].r[1] < .[0].r[1] + .[0].r[3])
+        | "overlap \(.[0].id) on \(.[1].id)"'
+}
+header_clear() {
+    local found=unknown _
+    for _ in $(seq 12); do
+        sleep 0.5
+        found=$(header_overlaps) && [ -z "$found" ] && return 0
+    done
+    echo "$found" >&2
+    return 1
+}
+header_step() {
+    until_ok "$2" 20 && header_clear && return 0
+    echo "header: $1 fails" >&2
+    return 1
 }
 header_states() {
     local bad=0
-    header_clear || bad=1
+    header_step "the column over a window" true || bad=1
     key Super+F1
-    until_ok keys_open 20 && header_clear || bad=1
+    header_step "all keys" keys_open || bad=1
     keys_close
     key Super+n
-    until_ok '! shows "Start a program"' 20 && header_clear || bad=1
+    header_step "no column" '! shows "Start a program"' || bad=1
     key Super+n
-    until_ok 'shows "Start a program"' 20 && header_clear || bad=1
+    header_step "the column again" 'shows "Start a program"' || bad=1
     return "$bad"
 }
 
@@ -199,7 +212,7 @@ header_states || header=fail
 doors_run mc
 status=$?
 key Super+Home
-until_ok 'shows "1  AGENDA"' 20 && header_clear || header=fail
+header_step "the page of the agenda" 'shows "1  AGENDA"' || header=fail
 echo "check mc header-$size $header"
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"
