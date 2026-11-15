@@ -24,7 +24,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| ledger r2 | cloud opus, claude/session-log | briefs/ledger-r2.md | starting |
+| ledger r2 | cloud opus ..MBQZo, claude/session-log | briefs/ledger-r2.md | starting |
 | harness r3 | cloud opus ..P1xMK, claude/harness | briefs/harness-r3.md | r2 FIX (B1': pushed test, unpushed fix refused) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | logging r1 | cloud opus ..MMmuw, claude/logging-r1 | briefs/logging-r1.md | rc 9a pulled forward (owner 04:05) |
