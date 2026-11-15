@@ -4,7 +4,9 @@
 # the notification area (helper, speaker, clock) and the dialog Turn Off
 # Computer, clicked where the scene says they are. The key list is the
 # Help and Support window on the page Keyboard shortcuts, and the keys
-# show as key caps, so the cell reads them without regard to case. After
+# show as key caps, so the cell reads them without regard to case. The
+# cell helper-none asks that the balloon without a helper says so in two
+# whole lines, as its meta names the lines that it draws. After
 # the cells a check runs that Log Off of the Start menu ends the session
 # through the shared power script.
 #
@@ -30,6 +32,10 @@ doors_window
 output=HEADLESS-1
 until_ok 'ctl query id:xp-start-HEADLESS-1 | jq -e "length > 0" >/dev/null' 40 || fail "no taskbar"
 
+has_line() {
+    ctl query '*' 2>/dev/null |
+        jq -e --arg line "$1" '[.[] | (.meta.text // "") | split("\n")[]] | index($line) != null' >/dev/null
+}
 has_text_any_case() { ctl query '*' 2>/dev/null | grep -Fqi -- "$1"; }
 node_exists() { ctl query "id:$1" 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].meta.text // empty'; }
@@ -184,7 +190,8 @@ cell_helper_none() {
     away
     [ "$word" = "No helper" ] || return 1
     key Super+a
-    until_ok 'has_text "No helper is set up"' && chat_close
+    until_ok 'has_line "No helper is set up."' &&
+        has_line "Ask the person who set up this computer." && chat_close
 }
 cell_lock_key() {
     settle

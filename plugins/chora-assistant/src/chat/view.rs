@@ -1429,6 +1429,29 @@ mod tests {
         (parts, commands)
     }
 
+    #[test]
+    fn the_xp_header_shows_a_notice_whole_in_its_two_lines() {
+        let (theme, _, cache) = crate::tests::loaded("xp-notice");
+        let frame = xp_frame(36);
+        let room = f64::from(frame.rect()[2] - 2 * PAD - XP_CLOSE - XP_GAP);
+        for language in [Language::En, Language::De] {
+            for offline in [false, true] {
+                let mut session = Session::new();
+                session.mode = Mode::List(Vec::new());
+                session.offline = offline;
+                let whole = session.header(language);
+                let parts = session.parts(&theme, &frame, language);
+                let xp = parts.xp.expect("the XP form");
+                assert_eq!(format!("{} {}", xp.head, xp.sub), whole);
+                let head = theme.text_width(&xp.head, Font::BodyBold);
+                let sub = theme.text_width(&xp.sub, Font::Body);
+                assert!(head <= room, "{} is {head} wide in {room}", xp.head);
+                assert!(sub <= room, "{} is {sub} wide in {room}", xp.sub);
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     #[allow(clippy::cast_possible_truncation, reason = "a place of a few pixels")]
     fn at(props: &PropsUpdate) -> [i32; 2] {
         let m = props.transform.as_ref().expect("a place").matrix();
