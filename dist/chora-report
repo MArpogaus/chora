@@ -1,0 +1,105 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Bundles what a problem report needs into one .tar.gz that the person
+# reads and then sends by hand: the versions, the log files of
+# $XDG_STATE_HOME/chora/logs, the journal of the chora units of this
+# boot, and the settings files of $XDG_CONFIG_HOME/chora. Nothing is
+# uploaded. Every file is scrubbed before it goes into the bundle: the
+# home path becomes ~, the user name USER, the host name HOST, and the
+# value of each key such as token, secret, password, api_key or
+# authorization, and each string that looks like a token, (hidden).
+# Usage: chora-report [-o FILE]
+#   -o FILE   the bundle (default: ./chora-report-DATE.tar.gz)
+set -eu
+
+out=
+while [ $# -gt 0 ]; do
+    case $1 in
+    -o)
+        out=${2:?usage: chora-report [-o FILE]}
+        shift 2
+        ;;
+    -h | --help)
+        sed -n '3,13p' "$0" | sed 's/^# \{0,1\}//'
+        exit 0
+        ;;
+    *)
+        echo "usage: chora-report [-o FILE]" >&2
+        exit 2
+        ;;
+    esac
+done
+[ -n "$out" ] || out=$PWD/chora-report-$(date -u +%Y%m%dT%H%M%SZ).tar.gz
+
+home=${HOME:?chora-report: no HOME}
+state=${XDG_STATE_HOME:-$home/.local/state}
+config=${XDG_CONFIG_HOME:-$home/.config}
+user=$(id -un)
+host=$(uname -n)
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+bundle=$work/chora-report
+mkdir -p "$bundle/logs" "$bundle/config"
+
+version() {
+    if command -v "$1" >/dev/null; then
+        printf '%s: %s\n' "$1" "$("$1" --version 2>&1 | head -n 1)"
+    else
+        printf '%s: not installed\n' "$1"
+    fi
+}
+
+{
+    for program in chora choractl chora-voice; do
+        version "$program"
+    done
+    printf 'kernel: %s\n' "$(uname -srm)"
+    if [ -r /etc/os-release ]; then
+        printf 'system: %s\n' "$(. /etc/os-release && echo "${PRETTY_NAME:-$NAME}")"
+    fi
+    printf 'session: %s %s\n' "${XDG_SESSION_TYPE:-?}" "${XDG_CURRENT_DESKTOP:-?}"
+    printf 'flavor: %s\n' "${CHORA_FLAVOR_DIR:-?}"
+} >"$bundle/versions.txt"
+
+if [ -d "$state/chora/logs" ]; then
+    find "$state/chora/logs" -maxdepth 1 -type f -name '*.log*' -exec cp {} "$bundle/logs/" \;
+fi
+
+if command -v journalctl >/dev/null; then
+    journalctl --user --boot --no-pager -o short-iso -u 'chora*' \
+        >"$bundle/journal.txt" 2>&1 || true
+fi
+
+if [ -d "$config/chora" ]; then
+    cp -R "$config/chora/." "$bundle/config/"
+    find "$bundle/config" -type f ! \( -name '*.yaml' -o -name '*.yml' -o -name '*.toml' \
+        -o -name '*.json' -o -name '*.conf' -o -name '*.ini' \) -exec rm -f {} +
+fi
+
+quote() {
+    printf '%s' "$1" | sed 's/[][\.*^$/]/\\&/g'
+}
+
+scrub() {
+    sed -E \
+        -e "s/$(quote "$home")/~/g" \
+        -e "s/(^|[^[:alnum:]_.-])$(quote "$user")([^[:alnum:]_-]|$)/\\1USER\\2/g" \
+        -e "s/(^|[^[:alnum:]_.-])$(quote "$host")([^[:alnum:]_-]|$)/\\1HOST\\2/g" \
+        -e 's/(["'\'']?[[:alnum:]_-]*(token|secret|password|passwd|api_?key|apikey|authorization|headers)[[:alnum:]_-]*["'\'']?[[:space:]]*[:=][[:space:]]*).*/\1(hidden)/I' \
+        -e 's/(Bearer|Basic|token)[[:space:]]+[[:alnum:]._~+\/=-]+/\1 (hidden)/Ig' \
+        -e 's/(sk|pk|rk)-[[:alnum:]_-]{8,}/(hidden)/g' \
+        -e 's/(ghp|gho|ghu|ghs|ghr|github_pat|glpat|xox[abpr])[-_][[:alnum:]_-]{8,}/(hidden)/g' \
+        -e 's/[[:alnum:]_+\/=-]{40,}/(hidden)/g' \
+        "$1"
+}
+
+find "$bundle" -type f | while read -r file; do
+    scrub "$file" >"$file.scrubbed"
+    mv "$file.scrubbed" "$file"
+done
+
+tar -czf "$out" -C "$work" chora-report
+echo "chora-report: $out"
+echo "Read it before you send it: tar -xzf $out. Nothing was uploaded."
