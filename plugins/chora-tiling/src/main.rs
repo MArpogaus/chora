@@ -2287,6 +2287,10 @@ mod tests {
     }
 
     #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
     fn on_fake_core_with(
         tag: &str,
         effects: &[chora_kit::effects::Kind],

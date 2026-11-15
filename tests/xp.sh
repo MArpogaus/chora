@@ -36,6 +36,7 @@
 # is thunar when it is installed, else foot in the folder.
 set -euo pipefail
 . "$(dirname "$0")/gate-lock.sh"
+. "$(dirname "$0")/proc-lib.sh"
 gate_lock "$(basename "$0")"
 
 bin=$(realpath "$1")
@@ -130,9 +131,11 @@ wait_for has_node id:xp-tray-winit
 
 step "1b. chora-notify and chora-assistant start with the XP assets"
 DBUS_SESSION_BUS_ADDRESS=$bus "$bin/chora-notify" --assets "$assets/notify" >"$out/notify.log" 2>&1 &
-pids+=($!)
+notify_pid=$!
+pids+=("$notify_pid")
 "$bin/chora-assistant" --assets "$assets/assistant" >"$out/assistant.log" 2>&1 &
-pids+=($!)
+assistant_pid=$!
+pids+=("$assistant_pid")
 wait_for "$bin/choractl" call notify settings.get
 wait_for "$bin/choractl" call assistant settings.get
 
@@ -647,9 +650,9 @@ jq -e --arg t "$token" \
     "$out/created.jsonl" >/dev/null ||
     fail "no surface.created with the token and the pid: $out/created.jsonl"
 
-kill -0 "$chora_pid" || fail "chora died"
-pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
-pgrep -x chora-notify >/dev/null || fail "chora-notify died: $out/notify.log"
-pgrep -x chora-assistant >/dev/null || fail "chora-assistant died: $out/assistant.log"
+running "$chora_pid" || fail "chora died"
+live_child "$chora_pid" chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
+running "$notify_pid" || fail "chora-notify died: $out/notify.log"
+running "$assistant_pid" || fail "chora-assistant died: $out/assistant.log"
 
 echo "PASS (logs and screenshots in $out)"
