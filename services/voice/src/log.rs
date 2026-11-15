@@ -21,12 +21,17 @@ fn ours_or_info(meta: &Metadata<'_>) -> bool {
     *meta.level() <= Level::INFO || meta.target().starts_with("chora_voice")
 }
 
-/// Starts the log with `RUST_LOG` or the default filter.
-pub fn init() {
-    let file = chora_scene::logs::File::open("voice");
-    let failed = file.as_ref().err().map(ToString::to_string);
+/// Starts the log with `RUST_LOG` or the default filter; to the file
+/// `voice.log` only for the agent (`agent`), so a CLI call leaves the
+/// log of a running agent alone.
+pub fn init(agent: bool) {
+    let file = agent.then(|| chora_scene::logs::File::open("voice"));
+    let failed = file
+        .as_ref()
+        .and_then(|f| f.as_ref().err())
+        .map(ToString::to_string);
     let file = file
-        .ok()
+        .and_then(Result::ok)
         .map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f)));
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| DEFAULT.into()))

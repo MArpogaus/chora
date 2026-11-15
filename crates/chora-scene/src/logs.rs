@@ -2,14 +2,16 @@
 //! `$HOME/.local/state/chora/logs/NAME.log`. A file grows to
 //! [`MAX_BYTES`]; then it moves to `NAME.log.1`, the older ones move one
 //! number up, and [`KEEP`] old files stay. A start moves the file of the
-//! last run to `NAME.log.1`, so a crash stays next to the new run. The
-//! folder has mode 0700 and the files 0600.
+//! last run to `NAME.log.1`, so a crash stays next to the new run. Only
+//! the process that holds the lock `NAME.lock` writes and moves the
+//! files; a second process gets no file. The folder has mode 0700 and
+//! the files 0600.
 
 use std::{
     ffi::OsString,
     fs,
     io::{self, Write},
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
 };
 
@@ -37,6 +39,7 @@ fn dir_of(state: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
 pub struct File {
     path: PathBuf,
     handle: fs::File,
+    _lock: fs::File,
     size: u64,
     max: u64,
 }
@@ -46,7 +49,8 @@ impl File {
     ///
     /// # Errors
     ///
-    /// Without a folder, or when the folder or the file cannot be made.
+    /// Without a folder, when the folder or the file cannot be made, or
+    /// when another process holds `NAME.lock`.
     pub fn open(name: &str) -> io::Result<Self> {
         let dir = dir().ok_or_else(|| io::Error::other("no $XDG_STATE_HOME and no $HOME"))?;
         Self::open_in(&dir, name, MAX_BYTES)
@@ -57,12 +61,24 @@ impl File {
             .recursive(true)
             .mode(0o700)
             .create(dir)?;
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))?;
+        let lock = create(&dir.join(format!("{name}.lock")))?;
+        match lock.try_lock() {
+            Ok(()) => {}
+            Err(fs::TryLockError::WouldBlock) => {
+                return Err(io::Error::other(format!(
+                    "another process writes {name}.log"
+                )));
+            }
+            Err(fs::TryLockError::Error(err)) => return Err(err),
+        }
         let path = dir.join(format!("{name}.log"));
         if fs::metadata(&path).is_ok_and(|m| m.len() > 0) {
             shift(&path)?;
         }
         Ok(Self {
             handle: create(&path)?,
+            _lock: lock,
             path,
             size: 0,
             max,

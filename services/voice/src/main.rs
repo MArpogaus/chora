@@ -138,8 +138,8 @@ fn unbroken(settings: settings::File<Config>) -> Result<settings::File<Config>, 
     reason = "the subcommands print their results; the defaults serialize"
 )]
 fn main() -> ExitCode {
-    log::init();
     let args = Args::parse();
+    log::init(args.command.is_none() && !args.print_config);
     if args.print_config {
         print!(
             "{}",
