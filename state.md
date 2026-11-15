@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | ux r3 | cloud opus ..P9v5i, claude/ux-r3 | briefs/ux-r3.md | starting |
-| harness r4 | cloud opus (new), claude/harness | briefs/harness-r4.md | r3 FIX (M1 quoted subst, M2 commit on session branch) |
+| harness r4 | cloud opus ..LBkdU, claude/harness | briefs/harness-r4.md | r3 FIX (M1 quoted subst, M2 commit on session branch) |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | logging r2 | cloud opus ..NQNi8 (fresh; r1 worker at 200 k), claude/logging-r1 | briefs/logging-r2.md | r1 FIX (M1 live log rotated, M2 YAML secrets) |
 
