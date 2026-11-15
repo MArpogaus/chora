@@ -116,7 +116,8 @@ change it there, not here.
     and the give keys in one row, `Super+Alt+1-4`;
     `Super+slash` is a silent alias of `Super+F1`. While the full list
     shows, the column holds only the state line above it, so that the
-    list fits a screen of 1024x768.
+    list fits a screen of 1024x768. The left side and the drawer keep
+    their content.
     Two lines of doors stand under the key list: `Programs`, `Lock`,
     `Power`, `Screenshot` and the volume, each in `text` and clickable.
     They stay while the chat is open.

@@ -629,6 +629,8 @@ impl Mc {
     }
 
     /// The items of the regions of a scene, and the docked app of each.
+    /// The list of all keys has its side to itself under the state line,
+    /// so that it fits a small screen; the other sides keep their content.
     pub fn items(&self, name: &str) -> Plan {
         let contents = &self.settings.value.contents;
         let mut out = Plan::new();
@@ -636,7 +638,14 @@ impl Mc {
             let dock = (slots.iter().map(|(_, c)| c))
                 .find(|c| contents[*c].kind == Kind::App && self.docks.contains_key(*c))
                 .cloned();
+            let keys = |c: &String| contents[c].kind == Kind::Keys;
+            let whole = self.keys == crate::keys::List::All && slots.iter().any(|(_, c)| keys(c));
+            let stays = |c: &String| {
+                let kind = contents[c].kind;
+                !whole || matches!(kind, Kind::State | Kind::Keys | Kind::Doors)
+            };
             let items: Vec<Item> = (slots.iter())
+                .filter(|(_, c)| stays(c))
                 .flat_map(|(slot, c)| self.content_items(region, *slot, c, name))
                 .collect();
             if !items.is_empty() || dock.is_some() {
@@ -654,16 +663,10 @@ impl Mc {
     }
 
     /// The text items of a content in a region: one in a line, else its
-    /// title and its lines. The list of all keys has its side to itself
-    /// under the state line, so that it fits a small screen.
+    /// title and its lines.
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let side = !region.is_line();
-        let all_keys = side && self.keys == crate::keys::List::All;
-        let stays = matches!(content.kind, Kind::State | Kind::Keys | Kind::Doors);
-        if all_keys && !stays {
-            return Vec::new();
-        }
         match content.kind {
             Kind::Agents => self.agent_items(region, slot, name, content),
             Kind::State if side => self.state_items(region, slot, (name, scene)),
