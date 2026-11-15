@@ -25,6 +25,10 @@
 #   CELLS   a regular expression of the cells that run (default all)
 #   SHOTS   a directory that keeps a capture and the nodes of each cell,
 #           and the logs of waybar and of the core of each round
+#   CHORA_FRAME_BUDGET_US  the frame budget of the watchdog of the core
+#           (default 500000): the audit checks the look, and a watchdog
+#           that drops the effects of a slow software renderer at
+#           2560x1600 takes the tile borders, glows and shadows with them
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-tiling chora-assistant
@@ -36,6 +40,7 @@ need gdbus
 need jq
 need mkfifo
 temp_config
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work/shots}
 mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
