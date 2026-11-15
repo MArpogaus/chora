@@ -1778,6 +1778,33 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// Stop, Close and the transcript stand still when a run starts or
+    /// its step count appears: the header keeps two lines of room.
+    #[test]
+    fn stop_and_close_keep_their_row_for_no_task_a_short_task_and_a_long_one() {
+        let (theme, _, cache) = crate::tests::loaded("plain-fixed-header");
+        let mut stepped = chat_session("Tidy notes");
+        stepped.status.steps = Some((3, 5));
+        let mut sessions = [
+            chat_session(""),
+            chat_session("Tidy notes"),
+            stepped,
+            chat_session(&long_prompt()),
+        ];
+        for frame in plain_frames() {
+            let case = format!(
+                "{:?} {:?} {:?}",
+                frame.look.style, frame.look.width, frame.area
+            );
+            let rows: Vec<(i32, i32)> = (sessions.iter_mut())
+                .map(|s| s.parts(&theme, &frame, Language::En))
+                .map(|p| (p.top_row, p.body_top))
+                .collect();
+            assert!(rows.iter().all(|r| *r == rows[0]), "{case}: {rows:?}");
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     #[test]
     fn the_meta_calls_a_header_line_cut_at_the_bottom_not_whole() {
         let (theme, _, cache) = crate::tests::loaded("plain-cut-bottom");
