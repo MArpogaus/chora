@@ -9,7 +9,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | shared doors and mc keyboard merged; ledger verify running; ti-1 = fuzzel 1.11 (pk1) |
+| 1 | UX: no BLOCK or MAJOR open | ledger r1: 32 -> 7 open (ti-1 waits for pk1; 6 in ux r1) |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
@@ -26,7 +26,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 |---|---|---|---|
 | ci r4 | claude/ci-r4 a3880296 | briefs/ci-r4.md | MERGE-OK (fontconfig in CI); train 9 |
 | pk1 | claude/pk1 93521c25 | briefs/pk1-r1.md | MERGE-OK; train 9 |
-| ledger | cloud opus ..LrDf8, read-only | briefs/ledger-r1.md | verify every open BLOCK/MAJOR on d349a6da |
+| ux r1 | cloud Fable (starting), claude/ux-r1 | briefs/ux-r1.md | mc-30, sh-10, sh-11, sh-7, sh-5, ti-4 |
 | ci e2e | cloud sonnet ..P9gSn, claude/ci-e2e3 | briefs/ci-e2e-r3.md | PR #106 e2e: agent.sh xs_are; CI4 |
 | flakes | cloud Fable ..P8pMY, claude/flakes-r4 | briefs/flakes-r4.md | F17, F16, GR1 |
 

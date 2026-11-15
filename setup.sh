@@ -7,7 +7,7 @@ log() { echo "setup: $*"; }
 
 need_apt=()
 build_pkgs="libdisplay-info-dev libdrm-dev libinput-dev libseat-dev libsystemd-dev libudev-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgbm-dev libegl-mesa0 libgl1-mesa-dri pkg-config"
-e2e_pkgs="sway swaybg foot grim waybar fuzzel wlrctl swaylock wlr-randr python3-dbusmock jq"
+e2e_pkgs="sway swaybg foot grim waybar fuzzel wlrctl swaylock wlr-randr python3-dbusmock jq mako-notifier libnotify-bin"
 for p in $build_pkgs $e2e_pkgs; do
     dpkg -s "$p" >/dev/null 2>&1 || need_apt+=("$p")
 done
