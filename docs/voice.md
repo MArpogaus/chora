@@ -1376,8 +1376,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   request keeps the rules above (a key or a button, no always word).
   A caller without these methods, a confined one, gets
   `not for a confined connection`.
-- Logs: `$XDG_DATA_HOME/chora/agents/NAME.log`, the stderr of the agent
-  and every message (`>` sent, `<` received).
+- Logs: `$XDG_DATA_HOME/chora/agents/NAME.log` (mode 0600), the stderr
+  of the agent and every message (`>` sent, `<` received), with secrets
+  hidden as in the transcript.
 - Lifetime: `agent_stop` and the end of the voice agent (an error,
   `SIGTERM`, `SIGINT`) send `TERM` to the process group of each agent
   and `KILL` after 5 s. At the end, the voice agent waits until no
