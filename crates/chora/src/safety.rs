@@ -18,9 +18,11 @@
 //! draws in threads of its own, and while those wait for a CPU the main
 //! thread sleeps, which still looks like a costly frame. Beside 8 busy
 //! loops on 4 CPUs at 2560x1600 the main thread waited 4.3 s in 20 s and
-//! the four llvmpipe threads 11.8 s each. A thread that ends between the
-//! two readings of a frame takes its wait with it, which only makes the
-//! watchdog stricter.
+//! the four llvmpipe threads 11.8 s each. Of a frame the clock excuses the
+//! longest wait of one thread, never the sum: waits side by side would add
+//! up to more than the frame and excuse a costly scene. A thread that ends
+//! between the two readings of a frame takes its wait with it, which only
+//! makes the watchdog stricter.
 
 use calloop::{
     LoopHandle,
@@ -78,15 +80,18 @@ const TASKS: &str = if cfg!(test) {
     PROC_TASKS
 };
 
-/// The time that all threads of the process waited on a run queue for a
-/// CPU since their start: the second field of each `schedstat`, in
-/// nanoseconds. `None` where the kernel does not count it.
-fn wait_in(tasks: &Path) -> Option<Duration> {
-    std::fs::read_dir(tasks)
-        .ok()?
-        .filter_map(|task| std::fs::read_to_string(task.ok()?.path().join("schedstat")).ok())
-        .map(|schedstat| wait_of(&schedstat))
-        .sum()
+/// The time that each thread of the process waited on a run queue for a
+/// CPU since its start, by thread id: the second field of its
+/// `schedstat`, in nanoseconds. `None` where the kernel does not count
+/// it. A thread that cannot be read is left out, which only makes the
+/// watchdog stricter.
+fn waits_in(tasks: &Path) -> Option<HashMap<std::ffi::OsString, Duration>> {
+    let threads = std::fs::read_dir(tasks).ok()?.filter_map(|task| {
+        let path = task.ok()?.path();
+        let schedstat = std::fs::read_to_string(path.join("schedstat")).ok()?;
+        Some((path.file_name()?.to_owned(), wait_of(&schedstat)?))
+    });
+    Some(threads.collect())
 }
 
 /// The run queue wait of a `schedstat` line: run time, wait, time slices.
@@ -96,11 +101,14 @@ fn wait_of(schedstat: &str) -> Option<Duration> {
 }
 
 /// Measures a frame for the watchdog, on the thread that renders: the
-/// time it took, and how much of it the process waited for a CPU.
-#[derive(Debug, Clone, Copy)]
+/// time it took, and how much of it the process waited for a CPU. That
+/// is the longest wait of one thread: the threads wait side by side, so
+/// their sum can exceed the time of the frame, and the longest wait of
+/// one never does.
+#[derive(Debug, Clone)]
 pub struct FrameClock {
     start: Instant,
-    waited: Option<Duration>,
+    waits: Option<HashMap<std::ffi::OsString, Duration>>,
 }
 
 impl FrameClock {
@@ -112,7 +120,7 @@ impl FrameClock {
     fn start_in(tasks: &Path) -> Self {
         Self {
             start: Instant::now(),
-            waited: wait_in(tasks),
+            waits: waits_in(tasks),
         }
     }
 
@@ -125,9 +133,16 @@ impl FrameClock {
     fn stop_in(self, tasks: &Path) -> (Duration, Duration) {
         let took = self.start.elapsed();
         let waited = self
-            .waited
-            .zip(wait_in(tasks))
-            .map_or(Duration::ZERO, |(before, now)| now.saturating_sub(before));
+            .waits
+            .zip(waits_in(tasks))
+            .and_then(|(before, now)| {
+                now.into_iter()
+                    .map(|(thread, wait)| {
+                        wait.saturating_sub(before.get(&thread).copied().unwrap_or_default())
+                    })
+                    .max()
+            })
+            .unwrap_or_default();
         (took, waited.min(took))
     }
 }
@@ -689,10 +704,10 @@ mod tests {
             Some(Duration::from_millis(7))
         );
         assert_eq!(wait_of(""), None);
-        let Some(before) = wait_in(Path::new(PROC_TASKS)) else {
+        let Some(before) = waits_in(Path::new(PROC_TASKS)) else {
             return;
         };
-        assert!(wait_in(Path::new(PROC_TASKS)).is_some_and(|now| now >= before));
+        assert!(before.contains_key(std::ffi::OsStr::new(&std::process::id().to_string())));
     }
 
     /// A `/proc/self/task` of the main thread and four renderer threads,
