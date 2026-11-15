@@ -150,7 +150,7 @@ since "$vlog" "$l0" | grep -q 'run_program: in allow' && finding "W16: allow_pro
 # answer by voice: no
 say "no"
 turn_done "5" "$l0" 25
-since "$vlog" "$l0" | grep -qE 'tool run_program [0-9]+ms' && finding "W16: foot -e sh ran after a no" endangers "run_program foot -e sh, answer no"
+since "$vlog" "$l0" | awk '/confirm run_program: / && !/in allow/ { asked = 1 } asked && /tool run_program [0-9]+ms/ { ran = 1 } END { exit !ran }' && finding "W16: foot -e sh ran after a no" endangers "run_program foot -e sh, answer no"
 health "step 5"
 
 # === 6. call_method mc settings.set with a patch wrapper ===================
