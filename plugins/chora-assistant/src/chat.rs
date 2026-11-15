@@ -971,17 +971,20 @@ impl Session {
             }
             Mode::List(picks, held) => {
                 let text = text.trim();
-                let entry = |text: &str| {
-                    text.parse::<usize>().ok().or_else(|| {
-                        picks
-                            .iter()
-                            .position(|pick| pick.name().eq_ignore_ascii_case(text))
-                            .map(|n| n + 1)
-                    })
+                let number = |text: &str| {
+                    let number = text.parse::<usize>().ok();
+                    number.filter(|n| (1..=picks.len()).contains(n))
+                };
+                let name = |text: &str| {
+                    let at = |pick: &Pick| pick.name().eq_ignore_ascii_case(text);
+                    picks.iter().position(at).map(|n| n + 1)
                 };
                 let before = held.take();
-                let after = before.as_deref().and_then(|held| text.strip_prefix(held));
-                let (index, kept) = match (entry(text), after.and_then(|rest| entry(rest.trim()))) {
+                let after = (before.as_deref())
+                    .and_then(|held| text.strip_prefix(held))
+                    .and_then(|rest| number(rest.trim()));
+                let alone = number(text).or_else(|| before.is_none().then(|| name(text))?);
+                let (index, kept) = match (alone, after) {
                     (Some(index), _) => (Some(index), None),
                     (None, Some(index)) => (Some(index), before),
                     (None, None) => (None, Some(text.to_owned())),

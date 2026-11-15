@@ -354,7 +354,10 @@ entry or when a person closed the chat of that helper before; the draft
 of that chat stays. Else the list shows. A text that a person types in
 the list reaches no helper: the field gets it back and says to pick a
 helper first. The helper that the person then picks gets the text, by a
-click on its entry or by its number typed after the text. The text ends
+click on its entry or by its number typed after the text. After such a
+text only a click or a number picks: the name of a helper is text. A
+number that is no entry of the list is text too, and comes back with the
+same words. The text ends
 with the list: after Escape or a hide no helper gets it, and a chat that
 a question, `chat.show` or the only helper opens sends nothing.
 
