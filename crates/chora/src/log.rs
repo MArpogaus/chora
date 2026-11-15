@@ -4,9 +4,14 @@
 
 use std::{io::IsTerminal, sync::Mutex};
 
-use tracing::{Level, Metadata};
+use chora_scene::logs;
+use tracing::{Level, Metadata, Subscriber};
 use tracing_subscriber::{
-    EnvFilter, Layer, filter::filter_fn, fmt, layer::SubscriberExt, util::SubscriberInitExt,
+    EnvFilter, Layer,
+    filter::filter_fn,
+    fmt::{self, MakeWriter},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
 };
 
 /// The target of the last words of a panic. The panic hook writes them to
@@ -19,24 +24,40 @@ pub fn ours_or_info(meta: &Metadata<'_>) -> bool {
     *meta.level() <= Level::INFO || meta.target().starts_with("chora")
 }
 
-/// Starts the log with `RUST_LOG` or the default filter.
-pub fn init() {
-    let file = chora_scene::logs::File::open("chora");
-    let failed = file.as_ref().err().map(ToString::to_string);
-    let file = file
-        .ok()
-        .map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f)));
+/// The log of `init`: `filter` and [`ours_or_info`] for every line,
+/// `out` for all but the last words of a panic, `file` for all.
+fn subscriber<W>(
+    filter: EnvFilter,
+    out: W,
+    ansi: bool,
+    file: Option<logs::File>,
+) -> impl Subscriber + Send + Sync + 'static
+where
+    W: for<'w> MakeWriter<'w> + Send + Sync + 'static,
+{
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .with(filter)
         .with(filter_fn(ours_or_info))
         .with(
             fmt::layer()
-                .with_writer(std::io::stderr)
-                .with_ansi(std::io::stderr().is_terminal())
+                .with_writer(out)
+                .with_ansi(ansi)
                 .with_filter(filter_fn(|meta| meta.target() != PANIC)),
         )
-        .with(file)
-        .init();
+        .with(file.map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f))))
+}
+
+/// Starts the log with `RUST_LOG` or the default filter.
+pub fn init() {
+    let file = logs::File::open("chora");
+    let failed = file.as_ref().err().map(ToString::to_string);
+    subscriber(
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+        std::io::stderr,
+        std::io::stderr().is_terminal(),
+        file.ok(),
+    )
+    .init();
     if let Some(err) = failed {
         no_file(&err);
     }
@@ -88,13 +109,13 @@ mod tests {
     fn a_dependency_logs_no_key_press_at_trace() {
         let lines = Arc::default();
         let sink = Arc::clone(&lines);
-        let subscriber = fmt()
-            .with_ansi(false)
-            .with_max_level(Level::TRACE)
-            .with_writer(move || Sink(Arc::clone(&sink)))
-            .finish()
-            .with(filter_fn(ours_or_info));
-        tracing::subscriber::with_default(subscriber, || {
+        let log = subscriber(
+            EnvFilter::new("trace"),
+            move || Sink(Arc::clone(&sink)),
+            false,
+            None,
+        );
+        tracing::subscriber::with_default(log, || {
             key_press_of_smithay();
             trace_of_chora();
             info_of_smithay();

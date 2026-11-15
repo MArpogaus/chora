@@ -5,9 +5,14 @@
 
 use std::{io::IsTerminal, sync::Mutex};
 
-use tracing::{Level, Metadata};
+use chora_scene::logs;
+use tracing::{Level, Metadata, Subscriber};
 use tracing_subscriber::{
-    EnvFilter, filter::filter_fn, fmt, layer::SubscriberExt, util::SubscriberInitExt,
+    EnvFilter,
+    filter::filter_fn,
+    fmt::{self, MakeWriter},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
 };
 
 /// The filter without `RUST_LOG`: tract logs its kernels at info, rmcp
@@ -21,28 +26,40 @@ fn ours_or_info(meta: &Metadata<'_>) -> bool {
     *meta.level() <= Level::INFO || meta.target().starts_with("chora_voice")
 }
 
+/// The log of `init`: `filter` and [`ours_or_info`] for every line, to
+/// `out` and to `file`.
+fn subscriber<W>(
+    filter: EnvFilter,
+    out: W,
+    ansi: bool,
+    file: Option<logs::File>,
+) -> impl Subscriber + Send + Sync + 'static
+where
+    W: for<'w> MakeWriter<'w> + Send + Sync + 'static,
+{
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(filter_fn(ours_or_info))
+        .with(fmt::layer().with_writer(out).with_ansi(ansi))
+        .with(file.map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f))))
+}
+
 /// Starts the log with `RUST_LOG` or the default filter; to the file
 /// `voice.log` only for the agent (`agent`), so a CLI call leaves the
 /// log of a running agent alone.
 pub fn init(agent: bool) {
-    let file = agent.then(|| chora_scene::logs::File::open("voice"));
+    let file = agent.then(|| logs::File::open("voice"));
     let failed = file
         .as_ref()
         .and_then(|f| f.as_ref().err())
         .map(ToString::to_string);
-    let file = file
-        .and_then(Result::ok)
-        .map(|f| fmt::layer().with_ansi(false).with_writer(Mutex::new(f)));
-    tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| DEFAULT.into()))
-        .with(filter_fn(ours_or_info))
-        .with(
-            fmt::layer()
-                .with_writer(std::io::stderr)
-                .with_ansi(std::io::stderr().is_terminal()),
-        )
-        .with(file)
-        .init();
+    subscriber(
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| DEFAULT.into()),
+        std::io::stderr,
+        std::io::stderr().is_terminal(),
+        file.and_then(Result::ok),
+    )
+    .init();
     if let Some(err) = failed {
         warn(&format!("no log file: {err}"));
     }
@@ -72,7 +89,7 @@ pub fn error(line: &str) {
 pub mod capture {
     use std::{cell::RefCell, io::Write, rc::Rc, sync::Once};
 
-    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::EnvFilter;
 
     thread_local! {
         static LINES: RefCell<Option<Lines>> = const { RefCell::new(None) };
@@ -119,13 +136,8 @@ pub mod capture {
     pub fn all() -> (Guard, Lines) {
         static GLOBAL: Once = Once::new();
         GLOBAL.call_once(|| {
-            let subscriber = tracing_subscriber::fmt()
-                .with_max_level(tracing::Level::TRACE)
-                .with_ansi(false)
-                .with_writer(|| ThreadWriter)
-                .finish()
-                .with(tracing_subscriber::filter::filter_fn(super::ours_or_info));
-            let _ = tracing::subscriber::set_global_default(subscriber);
+            let log = super::subscriber(EnvFilter::new("trace"), || ThreadWriter, false, None);
+            let _ = tracing::subscriber::set_global_default(log);
         });
         let lines = Lines::default();
         LINES.with(|l| *l.borrow_mut() = Some(lines.clone()));
