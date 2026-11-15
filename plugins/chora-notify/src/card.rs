@@ -247,7 +247,7 @@ impl Card {
         let mut picture =
             Picture::new(w, height).svg(style.shape(layout.size, style.tail_x(w, corner)));
         if let (Some(path), Some(rect)) = (icon, layout.icon) {
-            picture = picture.file(path, rect);
+            picture = picture.foreign(path, rect);
         }
         picture = picture.text(Text::new(&note.summary, Font::UiBold, color, layout.title));
         for (line, y) in lines.iter().zip((layout.text_top..).step_by(LINE as usize)) {

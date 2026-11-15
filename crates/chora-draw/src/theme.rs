@@ -81,6 +81,9 @@ pub enum Layer {
         rect: Rect,
         /// How the file fills the rectangle.
         fit: Fit,
+        /// A path that a sender named, such as the icon of a
+        /// notification: read and checked as a file of a HUD folder.
+        foreign: bool,
     },
     /// A line of text.
     Text(Text),
@@ -150,6 +153,21 @@ impl Picture {
             path: path.into(),
             rect,
             fit: Fit::Inside,
+            foreign: false,
+        });
+        self
+    }
+
+    /// Adds an SVG or PNG file at a path that a sender named, such as the
+    /// icon of a notification: it is read and checked as a file of a HUD
+    /// folder, wherever it lies.
+    #[must_use]
+    pub fn foreign(mut self, path: &Path, rect: Rect) -> Self {
+        self.layers.push(Layer::File {
+            path: path.into(),
+            rect,
+            fit: Fit::Inside,
+            foreign: true,
         });
         self
     }
@@ -161,6 +179,7 @@ impl Picture {
             path: path.into(),
             rect,
             fit,
+            foreign: false,
         });
         self
     }
@@ -197,10 +216,16 @@ impl Picture {
                     prefix,
                     rect: shift(rect),
                 },
-                Layer::File { path, rect, fit } => Layer::File {
+                Layer::File {
+                    path,
+                    rect,
+                    fit,
+                    foreign,
+                } => Layer::File {
                     path,
                     rect: shift(rect),
                     fit,
+                    foreign,
                 },
                 Layer::Text(mut text) => {
                     text.rect = shift(text.rect);
@@ -625,7 +650,9 @@ impl Theme {
                 self.draw_frame(*sheet, prefix, *rect, (base, pixmap));
                 Ok(())
             }
-            Layer::File { path, rect, fit } => self.draw_file(path, *rect, *fit, (base, pixmap)),
+            Layer::File {
+                path, rect, fit, ..
+            } => self.draw_file(path, *rect, *fit, (base, pixmap)),
             Layer::Text(text) => self.fonts.draw(text, base, pixmap),
             Layer::Svg(body) => {
                 let svg = format!(
