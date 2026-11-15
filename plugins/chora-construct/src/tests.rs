@@ -416,7 +416,12 @@ fn only_a_left_press_of_the_person_chooses_a_row() {
         modifiers: Vec::new(),
         injected,
     };
-    assert_eq!(pressed_row(&press(BTN_LEFT, false)), Some(3));
-    assert_eq!(pressed_row(&press(273, false)), None, "the right button");
-    assert_eq!(pressed_row(&press(BTN_LEFT, true)), None, "injected");
+    assert_eq!(pressed_row(&press(BTN_LEFT, false), false), Some(3));
+    assert_eq!(
+        pressed_row(&press(273, false), false),
+        None,
+        "the right button"
+    );
+    assert_eq!(pressed_row(&press(BTN_LEFT, true), false), None, "injected");
+    assert_eq!(pressed_row(&press(BTN_LEFT, true), true), Some(3), "a test");
 }

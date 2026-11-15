@@ -36,11 +36,21 @@ pub(crate) fn keys_walk_due(last: Option<Instant>, now: Instant) -> bool {
     last.is_none_or(|at| now.duration_since(at) >= KEYS_WALK_AGAIN)
 }
 
-/// The row of the window list that a press chooses.
-pub(crate) fn pressed_row(event: &Event) -> Option<usize> {
-    let Event::PointerPressed { node, .. } = event else {
+/// The row of the window list that a press chooses: a left press of the
+/// person, or of `input.inject` while the plugin `accepts_injected`.
+pub(crate) fn pressed_row(event: &Event, accepts_injected: bool) -> Option<usize> {
+    let Event::PointerPressed {
+        node,
+        button: BTN_LEFT,
+        injected,
+        ..
+    } = event
+    else {
         return None;
     };
+    if *injected && !accepts_injected {
+        return None;
+    }
     (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok())
 }
 
@@ -622,7 +632,7 @@ impl Construct {
                 }?;
             }
             Event::PointerPressed { node, .. } if node.starts_with(LIST) => {
-                if let Some(k) = pressed_row(event) {
+                if let Some(k) = pressed_row(event, self.rt.accepts_injected()) {
                     self.choose(k)?;
                 }
             }
