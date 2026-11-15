@@ -87,5 +87,25 @@ if [ "$none" != 1 ]; then
     echo "FAIL: session_pids exits $none, not 1, when its runtime directory has no such program"
     failures=$((failures + 1))
 fi
+bash -c '"$1" 0 & "$1" 30 & exec "$1" 30' restarted "$work/gl-probe" &
+restarted=$!
+bash -c '"$1" 0 & exec "$1" 30' dead "$work/gl-probe" &
+dead=$!
+sleep 0.3
+bash -c '. "$1/tests/proc-lib.sh"; live_child "$2" gl-probe' gate "$repo" "$restarted" >/dev/null 2>&1
+beside_zombie=$?
+bash -c '. "$1/tests/proc-lib.sh"; live_child "$2" gl-probe' gate "$repo" "$dead" >/dev/null 2>&1
+only_zombie=$?
+pkill -P "$restarted"
+pkill -P "$dead"
+kill "$restarted" "$dead" 2>/dev/null
+if [ "$beside_zombie" != 0 ]; then
+    echo "FAIL: live_child exits $beside_zombie, not 0, for a running child beside a zombie of the same name"
+    failures=$((failures + 1))
+fi
+if [ "$only_zombie" != 1 ]; then
+    echo "FAIL: live_child exits $only_zombie, not 1, when the only child of the name is a zombie"
+    failures=$((failures + 1))
+fi
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"
