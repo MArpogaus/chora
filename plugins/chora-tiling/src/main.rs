@@ -419,8 +419,7 @@ const EVENTS: [&str; 15] = [
 /// release of `input.inject` unless it takes injected input as the
 /// person's.
 fn hears(event: &Event, accepts_injected: bool) -> bool {
-    let _ = (event, accepts_injected);
-    true
+    chora_kit::runtime::from_person(event, accepts_injected)
 }
 
 impl Plugin for Tiling {
@@ -679,7 +678,7 @@ impl Tiling {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => return self.act(&binding),
             Event::InputButton {
                 binding,
@@ -701,7 +700,7 @@ impl Tiling {
                     return Ok(());
                 }
             }
-            Event::PointerPressed { node, .. } => {
+            Event::PointerPressed { node, .. } => { // injected: hears drops an injected press unless tiling accepts them
                 if !self.pointer_focus(&node, true, true) {
                     return Ok(());
                 }
@@ -886,12 +885,12 @@ impl Tiling {
                 code: _,
                 modifiers: _,
                 text: _,
-                injected: _,
+                injected: _, // injected: hears drops an injected key unless tiling accepts them
             } => {
                 let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
                 Some(if escape { self.hide_keys() } else { Ok(()) })
             }
-            Event::PointerPressed { node, .. }
+            Event::PointerPressed { node, .. } // injected: hears drops an injected press unless tiling accepts them
                 if self.keys_open && node.starts_with(keys::KEYS) =>
             {
                 Some(if node.ends_with("scrim") {
