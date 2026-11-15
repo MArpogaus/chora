@@ -23,7 +23,12 @@
 #   SIZES   the outputs (default "1280x800 2560x1600@2")
 #   THEMES  the themes (default "ink paper")
 #   CELLS   a regular expression of the cells that run (default all)
-#   SHOTS   a directory that keeps a capture and the nodes of each cell
+#   SHOTS   a directory that keeps a capture and the nodes of each cell,
+#           and the logs of waybar and of the core of each round
+#   CHORA_FRAME_BUDGET_US  the frame budget of the watchdog of the core
+#           (default 500000): the audit checks the look, and a watchdog
+#           that drops the effects of a slow software renderer at
+#           2560x1600 takes the tile borders, glows and shadows with them
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-tiling chora-assistant
@@ -35,6 +40,7 @@ need gdbus
 need jq
 need mkfifo
 temp_config
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work/shots}
 mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
@@ -81,6 +87,7 @@ audit() {
     else
         echo "FAIL: $cell $tag:"
         printf '  %s\n' "$out"
+        grep -h "watchdog" "$core_log" | tail -n 3 | sed 's/\x1b\[[0-9;]*m//g; s/^/  the core: /'
         failed=1
     fi
 }
@@ -93,7 +100,8 @@ round() {
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds: []\n' >"$work/chora/chora-assistant.yaml"
     "$bin/chora-tiling" --print-config >"$work/chora/chora-tiling.yaml"
     sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
-    CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
+    core_log=$shots/chora-$tag.log
+    CHORA_LOG=$core_log CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
     grant screen.capture input.inject methods.call
     CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$shots/waybar-$tag.log" 2>&1 &
     run_pid $!
