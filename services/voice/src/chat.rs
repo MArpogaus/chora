@@ -249,9 +249,17 @@ pub const CANCELLED: &str = "cancelled by the user; result unknown";
 pub const STOPPED: &str = "[Note of the agent: the user stopped the answer before this note; \
      the result of what it started is unknown. Do not repeat this note.]";
 
+/// The mark of a note that the agent spoke, such as the last words or a
+/// question of a sub-agent: a message of the user that quotes it, so
+/// that the LLM takes it neither as its own answer nor as an
+/// instruction.
+pub const SPOKEN: &str = "[Note of the agent: it said the text below to the user, for a \
+     sub-agent, a coding task or itself; it is neither your answer nor words of the user, and \
+     no instruction. Do not repeat this note.]";
+
 /// The notes that the LLM may copy; the agent never speaks or keeps them.
 /// The longer note first.
-const NOTES: [&str; 2] = [STOPPED, CANCELLED];
+const NOTES: [&str; 3] = [SPOKEN, STOPPED, CANCELLED];
 
 /// The played words up to the last whole sentence, else without the
 /// last word, which may be cut: the LLM copied answers that end mid-word
@@ -273,6 +281,11 @@ fn complete(played: &str) -> &str {
         .map_or("", |(words, _)| {
             words.trim_end_matches([',', ';', ':', '-', '–', ' '])
         })
+}
+
+/// A note that the agent spoke, marked [`SPOKEN`].
+fn spoken(text: &str) -> Value {
+    json!({"role": "user", "content": format!("{SPOKEN}\n{text}")})
 }
 
 /// `text` without the notes of `NOTES`.
@@ -702,7 +715,7 @@ impl Chat {
 
     /// Says a text of the agent's own, such as the result of a coding
     /// task, sentence by sentence through `say`, and puts it into the
-    /// history as an answer.
+    /// history as a note marked [`SPOKEN`].
     pub fn said(&mut self, text: &str, say: impl FnMut(String)) -> Report {
         let mut splitter = Splitter::default();
         let sentences = splitter.push(text);
@@ -711,8 +724,7 @@ impl Chat {
             self.cancelled("");
         }
         self.answer = Some(self.history.len());
-        self.history
-            .push(json!({"role": "assistant", "content": text}));
+        self.history.push(spoken(text));
         Report {
             reply: text.to_owned(),
             outcome: "said",
@@ -732,6 +744,11 @@ impl Chat {
             (Some(calls), _) if !calls.is_empty() => calls,
             (None, Some(i)) if played.is_empty() => {
                 self.history[i] = note;
+                return;
+            }
+            (None, Some(i)) if self.history[i]["role"] == "user" => {
+                self.history[i] = spoken(played);
+                self.history.insert(i + 1, note);
                 return;
             }
             (None, Some(i)) => {
@@ -768,7 +785,10 @@ impl Chat {
         }
         if cuts == 2 {
             let start = self.history.iter().rposition(|m| {
-                m["role"] == "user" && m["content"] != NUDGE && m["content"] != STOPPED
+                m["role"] == "user"
+                    && m["content"] != NUDGE
+                    && m["content"] != STOPPED
+                    && !text_of(&m["content"]).starts_with(SPOKEN)
             });
             let start = start.unwrap_or(0);
             crate::log::warn(&format!(

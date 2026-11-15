@@ -1153,7 +1153,10 @@ WP7, the coder port (`coder.rs`):
 - The core: `working` while a task runs and the agent is awake; the
   result waits in a queue until the state is `listening` or `working`
   (no utterance, no text that waits, no reply), then a reply without
-  the LLM says it and puts it into the history as an answer. A barge-in
+  the LLM says it and puts it into the history as a marked note of the
+  agent (a message of the user that quotes it), neither an answer of
+  the LLM nor an instruction; so are the words and questions of the
+  ACP agents. A barge-in
   or a cancel word stops it as any reply. The task shows in chora-mc as
   the agent `coder`.
 - Not checked live: a coding task through a spoken turn. The unit
