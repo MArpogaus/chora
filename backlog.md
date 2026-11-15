@@ -132,3 +132,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - L13 (MINOR, review-logging-r1 11): refused-request lines need a rate limit; LIMIT_REACHED of respond logs nothing.
 - R11 (harness, review-logging-r1): tests/packaging-files.py checks dist/; shellcheck runs on extensionless dist scripts (shebang).
 - PK2 (env, ux r3): setup.sh builds fuzzel >= 1.11 (meson via pip, tllist, fcft) under $HOME, so every lane can click the tiling launcher (ti-1).
+- F21 (flake, harness r3): gate-construct-pull.sh:150 reads the pane width once after sleep 1; under --jobs 3 it is 168/193 px of 200 (2 of 3 runs). Fix: until_ok on shown_width.
