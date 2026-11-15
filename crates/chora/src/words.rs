@@ -10,7 +10,8 @@
 //! unwinder: after a fault inside malloc that can hang, so an alarm asks
 //! every [`GIVE_UP_AFTER`] milliseconds whether the handler got on, and
 //! ends the core with the signal of the fault when it did not. A slow
-//! backtrace, under load, is not stuck and goes on. The handlers run on the
+//! backtrace, under load or with its debug info still on the disk, is
+//! not stuck and goes on. The handlers run on the
 //! alternate signal stack of their thread, so a stack overflow has its
 //! words too, and a fault handler runs once: a second fault ends the
 //! core at once. The main thread and the hang watchdog, which aborts,
@@ -151,15 +152,18 @@ fn state_in(stat: &[u8]) -> Option<u8> {
     stat.get(name_ends + 2).copied()
 }
 
-/// Whether a thread in this state of `/proc` gets on without CPU time.
+/// Whether a thread in this state of `/proc` gets on without CPU time:
+/// it is ready to run and waits for a CPU (`R`), or it waits for the
+/// disk (`D`), as a backtrace does that reads its debug info with a
+/// cold page cache. A wait for a lock is `S`.
 fn held_up_in(state: u8) -> bool {
-    state == b'R'
+    matches!(state, b'R' | b'D')
 }
 
-/// Whether the scheduler has a thread of this process as running or as
-/// ready to run, by `/proc`, read without malloc.
+/// Whether a thread of this process waits only for a CPU or for the
+/// disk, by `/proc`, read without malloc.
 #[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
-fn runnable(thread: libc::pid_t) -> bool {
+fn held_up(thread: libc::pid_t) -> bool {
     use std::io::Write as _;
     let mut path = std::io::Cursor::new([0_u8; 64]);
     let _ = write!(path, "/proc/self/task/{thread}/stat\0");
@@ -179,11 +183,11 @@ fn runnable(thread: libc::pid_t) -> bool {
 }
 
 /// Whether a fault handler that the alarm found at this point may go
-/// on: it used CPU time since the last alarm or waits only for a CPU,
-/// and it has not run for longer than [`GIVE_UP_AT_LAST`]. A handler
-/// that waits for a lock does neither.
-fn goes_on(used_cpu: bool, runnable: bool, ran_ms: u64) -> bool {
-    (used_cpu || runnable) && ran_ms < GIVE_UP_AT_LAST
+/// on: it used CPU time since the last alarm or waits only for a CPU
+/// or for the disk, and it has not run for longer than
+/// [`GIVE_UP_AT_LAST`]. A handler that waits for a lock does neither.
+fn goes_on(used_cpu: bool, held_up: bool, ran_ms: u64) -> bool {
+    (used_cpu || held_up) && ran_ms < GIVE_UP_AT_LAST
 }
 
 /// The alarm of a fault handler. A handler that is slow goes on, so
@@ -196,7 +200,7 @@ extern "C" fn stuck(_sig: libc::c_int, _info: *mut libc::siginfo_t, _ctx: *mut l
     let ran_ms = u64::from(alarms) * u64::from(GIVE_UP_AFTER.load(Ordering::Relaxed));
     if goes_on(
         used_cpu,
-        runnable(WATCH.thread.load(Ordering::Relaxed)),
+        held_up(WATCH.thread.load(Ordering::Relaxed)),
         ran_ms,
     ) {
         return;
@@ -421,12 +425,12 @@ mod tests {
     }
 
     #[test]
-    fn the_thread_that_asks_is_runnable() {
+    fn the_thread_that_asks_is_held_up_by_no_lock() {
         #[allow(unsafe_code, reason = "the id of the calling thread")]
         // SAFETY: gettid has no arguments and cannot fail.
         let thread = unsafe { libc::gettid() };
-        assert!(runnable(thread));
-        assert!(!runnable(0));
+        assert!(held_up(thread));
+        assert!(!held_up(0));
     }
 
     /// Runs one test of this binary again in a child with a variable
