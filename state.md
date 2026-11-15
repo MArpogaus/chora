@@ -13,8 +13,8 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
-| 4 | CI green | PR #106: all 10 jobs green on be205f89 (05:17); keep green per train |
-| 5 | Packaging smoke | rpm and arch jobs green on be205f89 |
+| 4 | CI green | PR #106: all 10 jobs green on 61d885f0 (train 14, 08:34); keep green per train |
+| 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; 13 MEDIUM security: lanes security a, b r1 |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
