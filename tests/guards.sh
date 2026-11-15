@@ -268,6 +268,20 @@ kill_case "a continued line" fail 'pgrep \\\n    -x chora\n'
 kill_case "a signal name is no parent" fail 'pkill -HUP chora\n'
 kill_case "an echo does not excuse a pkill after it" fail 'echo stop; pkill chora\n'
 kill_case "the line after a here-document" fail 'cat <<EOF\ntext\nEOF\npkill chora\n'
+kill_case "a quoted pgrep substitution" fail 'running "\x24(pgrep -x chora-xp)" || fail x\n'
+kill_case "a quoted pidof substitution" fail 'kill "\x24(pidof chora)"\n'
+kill_case "a quoted substitution in an assignment" fail 'pids="\x24(pgrep chora)"\n'
+kill_case "a quoted backtick substitution" fail 'kill "\x60pgrep -x chora\x60"\n'
+kill_case "the -s of kill is no session" fail 'kill -s KILL \x24(pgrep -x chora)\n'
+kill_case "the -s of timeout is no session" fail 'timeout -s KILL 5 pkill chora\n'
+kill_case "an echo of a substitution" fail 'echo \x24(pkill chora)\n'
+kill_case "a quoted string stays blank" pass 'fail "never pkill chora" || true\n'
+kill_case "a loop over tool names" pass 'for t in pgrep pkill jq; do command -v "\x24t"; done\n'
+kill_case "a check for several tools" pass 'need pgrep pkill\n'
+kill_case "a scope in a variable" pass 'pgrep \x24scope -x foot\n'
+kill_case "an awk program over several lines" pass "awk '\n    /pkill chora/ { n++ }\n' log\n"
+kill_case "an arithmetic shift is no here-document" fail 'n=\x24((n << shift))\npkill chora\n'
+kill_case "a comment naming environ is no filter" fail 'core=\x24(pgrep -x chora)\n# /proc/PID/environ\n'
 
 sync_case() {
   local label=$1 want=$2 root=$3 plugin=$4

@@ -45,14 +45,16 @@ The hooks run:
   `tests/red-first.sh` holds the rule that the red-first step of the merge
   gate also runs, and `tests/merge-gate-selftest.sh` proves both; the
   hook refuses only when the base ref resolves, else (a shallow or
-  single-branch clone, a first commit) it prints a note and the merge
-  gate checks the range
+  single-branch clone, a first commit, a commit on the base branch
+  itself) it prints a note and the merge gate checks the range
 - no process by its name alone: a test script that uses `pkill`,
   `killall`, `pidof` or `pgrep` without a parent (`-P`), a session
   (`-s`), a process group (`-g`) or a pid file (`-F`) fails, because
   other sessions run cores on the same machine; text in comments,
-  quotes, `echo` and here-documents is not a command, and a `pgrep`
-  filtered by `/proc/PID/environ` (`session_pids`) passes
+  quotes, `echo`, `for` lists and here-documents is not a command, but a
+  command substitution is, quoted or not; a `pgrep` filtered by
+  `/proc/PID/environ` (`session_pids`) passes, and a first argument in a
+  variable (`pgrep $scope -x foot`) only warns
 - the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:

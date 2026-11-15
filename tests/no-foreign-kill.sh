@@ -9,57 +9,114 @@
 # sent it SIGSEGV; the core of a gate of another session died, and that
 # gate said "no core".
 #
-# The hook reads commands, not text: comment lines, here-documents,
-# quoted strings and echo or printf commands are skipped, and a line
-# continued with `\` is read as one. A pgrep whose pids the next three
-# lines filter by /proc/PID/environ (as session_pids does) passes.
+# The hook reads commands, not text: comments, here-documents, the
+# literal text of quoted strings (also over several lines), arithmetic
+# and echo, printf or for lists without a command substitution are
+# skipped; a command substitution counts, quoted or not. A line continued
+# with `\` is read as one. The options are read from the tool name on, so
+# the `-s` of kill or timeout is no session. A pgrep whose pids the next
+# three lines filter by /proc/PID/environ (as session_pids does) passes.
+# A name followed by another name (`need pgrep pkill`) is no call. A
+# first argument held in a variable (`pgrep $scope -x foot`) cannot be
+# read, so it only warns.
 #
 # Usage: tests/no-foreign-kill.sh FILE...   (pre-commit passes the files)
 set -u
 status=0
 for file in "$@"; do
     found=$(awk '
+        function push(context) { stack[++depth] = context }
+        function code(s,    out, i, c, top) {
+            out = ""
+            for (i = 1; i <= length(s); i++) {
+                c = substr(s, i, 1)
+                top = stack[depth]
+                if (top == "sq") {
+                    if (c == "\047") { depth--; out = out c } else if (keep) out = out c
+                    continue
+                }
+                if (top == "dq") {
+                    if (c == "\\") { if (keep) out = out substr(s, i, 2); i++; continue }
+                    if (c == "\"") { depth--; out = out c; continue }
+                    if (substr(s, i, 2) == "$(") { push("sub"); out = out "$("; i++; continue }
+                    if (c == "`") { push("bq"); out = out c; continue }
+                    if (c == "$" || keep) out = out c
+                    continue
+                }
+                if (c == "\\") { out = out substr(s, i, 2); i++; continue }
+                if (c == "\047" || c == "\"") {
+                    keep = out ~ /(^|[^<])<<-?[[:space:]]*$/
+                    push(c == "\"" ? "dq" : "sq")
+                    out = out c
+                    continue
+                }
+                if (c == "#" && (i == 1 || substr(s, i - 1, 1) ~ /[[:space:]]/)) break
+                if (substr(s, i, 2) == "$(") { push("sub"); out = out "$("; i++; continue }
+                if (c == "(") { push("par"); out = out c; continue }
+                if (c == ")") { if (top == "sub" || top == "par") depth--; out = out c; continue }
+                if (c == "`") { if (top == "bq") depth--; else push("bq"); out = out c; continue }
+                out = out c
+            }
+            gsub(/\(\(.*\)\)/, "(())", out)
+            return out
+        }
+        function environ_filter(n,    k) {
+            for (k = n + 1; k <= n + 3 && k <= NR; k++)
+                if (raw[k] !~ /^[[:space:]]*#/ && raw[k] ~ /\/proc\/.*environ/) return 1
+            return 0
+        }
+        function verdict(command, n,    rest, word, args) {
+            if (command !~ /\$\(|`/ && command ~ /^[[:space:]]*(echo|printf|for)([[:space:]]|$)/) return ""
+            rest = command
+            while (match(rest, /(^|[^[:alnum:]_-])(pkill|killall|pidof|pgrep)[[:space:]]+[^[:space:]>)]/)) {
+                rest = substr(rest, RSTART + RLENGTH - 1)
+                word = rest
+                sub(/[[:space:]].*/, "", word)
+                if (word ~ /^(pkill|killall|pidof|pgrep)$/) continue
+                args = rest
+                sub(/[)`].*/, "", args)
+                if (args ~ /(^|[[:space:]])-[[:lower:]]*[PsgF]|(^|[[:space:]])--(parent|session|pgroup|pidfile)/) continue
+                if (substr(command, 1, length(command) - length(rest)) ~ /pgrep[[:space:]]+$/ && environ_filter(n)) continue
+                if (word ~ /^"?\$[^(]/) return "W"
+                return "F"
+            }
+            return ""
+        }
         { raw[NR] = $0 }
         END {
+            stack[0] = "top"
             for (n = 1; n <= NR; n++) {
-                line = raw[n]
                 if (heredoc != "") {
-                    body = line
+                    body = raw[n]
                     sub(/^\t+/, "", body)
                     if (body == heredoc) heredoc = ""
                     continue
                 }
-                if (line ~ /^[[:space:]]*#/) continue
                 start = n
+                line = code(raw[n])
                 while (line ~ /\\$/ && n < NR) {
                     sub(/\\$/, " ", line)
-                    line = line raw[++n]
+                    line = line code(raw[++n])
                 }
-                if (match(line, /(^|[^<])<<-?[[:space:]]*["\047]?[A-Za-z_][A-Za-z0-9_]*/)) {
+                if (match(line, /(^|[^<])<<-?[[:space:]]*["\047\\]?[A-Za-z_][A-Za-z0-9_]*/)) {
                     heredoc = substr(line, RSTART, RLENGTH)
-                    sub(/^[^<]*<<-?[[:space:]]*["\047]?/, "", heredoc)
+                    sub(/^[^<]*<<-?[[:space:]]*["\047\\]?/, "", heredoc)
                 }
-                gsub(/"([^"\\]|\\.)*"/, "\"\"", line)
-                gsub(/\047[^\047]*\047/, "\047\047", line)
                 parts = split(line, command, /[;|&]/)
                 for (i = 1; i <= parts; i++) {
-                    if (command[i] ~ /^[[:space:]]*(echo|printf)([[:space:]]|$)/) continue
-                    if (command[i] !~ /(^|[^[:alnum:]_-])(pkill|killall|pidof|pgrep)[[:space:]]+[^[:space:]>)]/) continue
-                    if (command[i] ~ /[[:space:]]-[[:lower:]]*[PsgF]|[[:space:]]--(parent|session|pgroup|pidfile)/) continue
-                    if (command[i] ~ /pgrep/ && environ_filter(n)) continue
-                    print FILENAME ":" start ":" raw[start]
+                    found = verdict(command[i], n)
+                    if (found == "") continue
+                    print found " " FILENAME ":" start ":" raw[start]
                     break
                 }
             }
-        }
-        function environ_filter(n,    k) {
-            for (k = n + 1; k <= n + 3 && k <= NR; k++)
-                if (raw[k] ~ /\/proc\/.*environ/) return 1
-            return 0
         }' "$file")
     [ -z "$found" ] && continue
+    warnings=$(grep '^W ' <<<"$found" | cut -c3-)
+    [ -n "$warnings" ] && printf 'warning: the scope of this lookup is in a variable; check it by hand:\n%s\n' "$warnings"
+    grep -q '^F ' <<<"$found" || continue
     status=1
-    echo "$found"
+    grep '^F ' <<<"$found" | cut -c3-
 done
 if [ "$status" != 0 ]; then
     echo "a test script names its processes by pid, parent (-P), session (-s), group (-g),"
