@@ -1128,9 +1128,14 @@ impl Mc {
     }
 
     /// A press of the pointer: on a column of a helper it opens the chat,
-    /// else it is a click.
+    /// else it is a click. The columns and the hits ignore a press of
+    /// `input.inject`, as the bindings do.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.click_agent(node, at) || self.click_mic(node, injected) || self.click_hit(node) {
+        let person = !injected || self.rt.accepts_injected();
+        if (person && self.click_agent(node, at))
+            || self.click_mic(node, injected)
+            || (person && self.click_hit(node))
+        {
             return Ok(());
         }
         self.click(node, at, injected)

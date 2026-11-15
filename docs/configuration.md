@@ -624,7 +624,8 @@ with `settings.reload`:
   manager goes to that one. mc moves no window itself, so a release
   elsewhere changes nothing.
 - `test_accept_injected_keys`: `false`; for tests only, the bindings
-  take the keys of `input.inject` as keys of the user (see
+  take the keys of `input.inject` as keys of the user, and the hits and
+  the agent columns its pointer presses (see
   [Injected keys](#injected-keys)).
 - `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
   to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
