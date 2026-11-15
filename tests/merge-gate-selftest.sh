@@ -136,6 +136,44 @@ check "--worker with --push is refused" "$rc" 2
 run_gate --worker nosuch
 check "--worker with an unknown step is refused" "$rc" 2
 
+meet() {
+    # shellcheck disable=SC2016 # the shell of the step expands it
+    printf '%s|touch %s/%s; for _ in $(seq 50); do [ -e %s/%s ] && exit 0; sleep 0.1; done; exit 1\n' \
+        "$1" "$work" "$1" "$work" "$2"
+}
+rm -f "$work/a" "$work/b"
+{
+    meet a b
+    meet b a
+} >"$work/steps"
+run_gate --jobs 2
+check "--jobs 2 runs two steps at once" "$rc" 0
+check "--jobs 2 prints one line per step" "$(grep -cE '^(a|b) +PASS' "$work/out")" 2
+rm -f "$work/a" "$work/b"
+run_gate
+check "without --jobs the steps run one after the other" "$rc" 1
+rm -f "$work/a" "$work/b"
+{
+    meet build test
+    meet test build
+} >"$work/steps"
+run_gate --jobs 2
+check "--jobs never runs the cargo steps at once" "$rc" 1
+rm -f "$work/third"
+printf 'one|exit 1\ntwo|sleep 0.5\nthree|touch %s/third\n' "$work" >"$work/steps"
+run_gate --jobs 2 --push session
+check "--jobs: a failed step fails the gate" "$rc" 1
+check "--jobs: no step starts after a failed step" "$(test -e "$work/third" && echo ran)" ""
+check "--jobs: a failed step does not push" "$pushes" 0
+check "--jobs: a failed step prints the word FAIL" "$(grep -c '^one .*FAIL' "$work/out")" 1
+printf 'one|true\ntwo|true\n' >"$work/steps"
+run_gate --jobs 3 --push session
+check "--jobs with --push pushes after every step passed" "$pushes" 1
+run_gate --jobs 0
+check "--jobs 0 is a usage error" "$rc" 2
+run_gate --jobs x
+check "--jobs x is a usage error" "$rc" 2
+
 rr=$work/rr
 mkdir -p "$rr/tests"
 cp "$gate" "$rr/tests/merge-gate.sh"
