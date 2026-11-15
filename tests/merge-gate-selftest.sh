@@ -375,6 +375,20 @@ git -C "$nb" push -q origin HEAD:work 2>/dev/null
 nb_commit "docs(y): note" y.md >/dev/null
 check "single-branch clone: a fix after a pushed test and a docs commit passes" "$(nb_commit "fix(y): green" y.rs)" 0
 check "single-branch clone: that pass names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
+session=claude/autonomous-dev-session-3w-i33pg7
+git -C "$work/nb" push -q "$bare" "main:$session" 2>/dev/null
+nb=$work/session
+git clone -q --branch "$session" "file://$bare" "$nb"
+git -C "$nb" config user.email t@t
+git -C "$nb" config user.name t
+cp "$work/nb/.git/hooks/commit-msg" "$nb/.git/hooks/"
+nb_commit "test(s): red" tests/gate-s.sh >/dev/null
+git -C "$nb" push -q origin "HEAD:$session" 2>/dev/null
+git -C "$nb" fetch -q origin
+check "base branch: a fix after its pushed test passes" "$(nb_commit "fix(s): green" s.rs)" 0
+check "base branch: that pass names the merge gate" "$(grep -c '^red-first: .*merge gate' "$work/nb.out")" 1
+git -C "$nb" checkout -q -b claude/lane "origin/$session"
+check "lane branch: a fix without a test on the lane is refused" "$(nb_commit "fix(s): lane" s.rs)" 1
 nb=$work/nb
 
 bin2=$work/bin2
