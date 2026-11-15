@@ -142,15 +142,15 @@ turn_done "5 control" "$l0"
 since "$vlog" "$l0" | grep -q 'in allow, no question' || finding "W16: run_program true (in allow_programs) asked or did not run" breaks "allow_programs [foot, true], run_program [true]"
 tool run_program '{"argv": ["foot", "-e", "sh"]}'
 reply "Not run."
-l0=$(mark "$vlog")
+l0=$(mark "$vlog"); t0=$(mark "$work/tts.log")
 say "Open a shell in a terminal."
-expect "5: foot -e sh asked no question" endangers "since $vlog $l0 | grep -q 'say: Shall I start the program foot'" 20
+expect "5: foot -e sh asked no question" endangers "since $work/tts.log $t0 | grep -q 'Shall I start the program foot'" 20
 sleep 2
 since "$vlog" "$l0" | grep -q 'run_program: in allow' && finding "W16: allow_programs [foot] allowed foot -e sh" endangers "run_program [foot, -e, sh]"
 # answer by voice: no
 say "no"
 turn_done "5" "$l0" 25
-since "$vlog" "$l0" | grep -qE 'tool run_program.*foot' && finding "W16: foot -e sh ran after a no" endangers "run_program foot -e sh, answer no"
+since "$vlog" "$l0" | grep -qE 'tool run_program [0-9]+ms' && finding "W16: foot -e sh ran after a no" endangers "run_program foot -e sh, answer no"
 health "step 5"
 
 # === 6. call_method mc settings.set with a patch wrapper ===================
