@@ -37,11 +37,13 @@
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
 # log path. A failed step prints the last 30 lines of its log.
-# With --jobs N, the steps after clippy run up to N at once (each session
-# of a gate script has its own sockets and runtime directory; the steps
-# mostly wait, so N=3 on 4 CPUs keeps their times); red-first to clippy
-# still run one at a time. A line is printed when a step ends, and after a
-# failed step no further step starts and the running ones are stopped.
+# With --jobs N, the steps after 2d-guard run up to N at once: each gate
+# script has its own sockets and runtime directory and judges its
+# programs by pid (the hook no-foreign-kill), and the steps mostly wait,
+# so N=3 on 4 CPUs keeps their times. red-first to clippy and 2d-guard (a
+# cold cargo build of its base) run one at a time. A line is printed when
+# a step ends; after a failed step no further step starts and the running
+# ones are stopped.
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
 #                            [--base REF] [--jobs N] [--red-first-check]
@@ -53,7 +55,7 @@
 #                    origin/claude/autonomous-dev-session-3w-i33pg7)
 #   --push BRANCH    after every step passed, `git push origin HEAD:BRANCH`;
 #                    refuses when the work tree has uncommitted changes
-#   --jobs N         run up to N steps after clippy at once (default 1)
+#   --jobs N         run up to N steps after 2d-guard at once (default 1)
 #   --red-first-check  run only the red-first check, without the lock
 #   -h, --help       this text
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
@@ -280,7 +282,7 @@ wait_step() {
     fi
 }
 
-serial_steps=",red-first,pre-commit,gate-lib,build,test,clippy,"
+serial_steps=",red-first,pre-commit,gate-lib,build,test,clippy,2d-guard,"
 for i in "${!step_names[@]}"; do
     selected "${step_names[$i]}" || continue
     if [ "$jobs_max" = 1 ] || [[ $serial_steps == *",${step_names[$i]},"* ]]; then
