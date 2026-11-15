@@ -30,5 +30,5 @@ Notes and deviations:
 - Not run: shellcheck (not installed on this host); dist/chora-report passes `dash -n`.
 - MINOR 3, 9, 10, 11 not touched (backlog L10-L13).
 
-Gate: tests/merge-gate.sh (full) on 48b68820: all 30 steps passed (run dir /tmp/merge-gate.EZxNIx).
+Gate: tests/merge-gate.sh (full) on 48b68820: all 28 steps passed (run dir /tmp/merge-gate.EZxNIx).
 tests/packaging-files.py: 0 gaps. Head pushed: claude/logging-r1 48b68820.
