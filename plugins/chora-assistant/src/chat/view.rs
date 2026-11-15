@@ -525,13 +525,65 @@ fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
     [x, y + h - high, w, high]
 }
 
-/// The top of the row of buttons and the top of the transcript.
-fn tops(margin: bool, xp: bool) -> (i32, i32) {
+/// The top of the row of buttons and the top of the transcript, under a
+/// header of `head` lines.
+fn tops(margin: bool, xp: bool, head: i32) -> (i32, i32) {
     match (margin, xp) {
         (true, _) => (0, 0),
         (false, true) => (XP_HEAD_Y, XP_BODY_TOP),
-        (false, false) => (PAD + LINE + GAP, PAD + LINE + GAP + BUTTON[1] + GAP),
+        (false, false) => {
+            let row = PAD + LINE * head.max(1) + GAP;
+            (row, row + BUTTON[1] + GAP)
+        }
     }
+}
+
+/// The most lines that the header of a chat takes in any look.
+pub(super) const HEADER_LINES: usize = 2;
+
+/// The lines of a header: it wraps at its words into [`HEADER_LINES`].
+fn header_lines(theme: &Theme, header: &str, width: i32) -> String {
+    capped(header, f64::from(width), HEADER_LINES, |line| {
+        theme.text_width(line, Font::BodyBold)
+    })
+    .join("\n")
+}
+
+/// Text in at most `most` lines of `room`: it wraps at its words, its
+/// line breaks count as spaces, and when it is longer the last line ends
+/// in an ellipsis where the room ends.
+pub(super) fn capped(
+    text: &str,
+    room: f64,
+    most: usize,
+    width: impl Fn(&str) -> f64,
+) -> Vec<String> {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut lines = chora_draw::text::wrap(&flat, room, &width);
+    let most = most.max(1);
+    if lines.len() > most {
+        let rest = lines.split_off(most - 1);
+        lines.push(as_shown(&rest[..2].join(" "), room, true, &width));
+    }
+    lines
+}
+
+/// A line as the meta of its node names it: whole when it fits its room
+/// and `high`, its band, lies inside its area; else cut where the room
+/// ends and closed with an ellipsis, or only the ellipsis when its band
+/// leaves the area, so that a test that reads the meta sees the cut.
+pub(super) fn as_shown(line: &str, room: f64, high: bool, width: impl Fn(&str) -> f64) -> String {
+    if !high {
+        return "\u{2026}".to_owned();
+    }
+    if width(line) <= room {
+        return line.to_owned();
+    }
+    let mut cut = line.to_owned();
+    while !cut.is_empty() && width(&format!("{cut}\u{2026}")) > room {
+        cut.pop();
+    }
+    format!("{cut}\u{2026}")
 }
 
 impl Session {
@@ -595,7 +647,13 @@ impl Session {
         let buttons = buttons(&self.mode, margin);
         let xp =
             (frame.look.form == ChatForm::Xp && !margin).then(|| self.xp_parts(frame, language));
-        let (top_row, body_top) = tops(margin, xp.is_some());
+        let header = match (&xp, margin) {
+            (Some(xp), _) => xp.head.clone(),
+            (None, true) => String::new(),
+            (None, false) => header_lines(theme, &self.header(language), rect[2] - 2 * PAD),
+        };
+        let head = i32::try_from(header.lines().count()).unwrap_or(1);
+        let (top_row, body_top) = tops(margin, xp.is_some(), head);
         let below = self.room_below(frame, &hint);
         let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
@@ -618,11 +676,7 @@ impl Session {
             row_h,
             margin,
             inset,
-            header: match (&xp, margin) {
-                (Some(xp), _) => xp.head.clone(),
-                (None, true) => String::new(),
-                (None, false) => self.header(language),
-            },
+            header,
             hint,
             rows,
             list,
@@ -935,6 +989,25 @@ fn xp_extras(theme: &mut Theme, parts: &Parts, xp: &XpParts, language: Language)
     commands
 }
 
+/// The words that the panel shows, a line each, as its meta names them.
+fn shown_lines(theme: &Theme, parts: &Parts, w: i32) -> Vec<String> {
+    let room = f64::from(w - 2 * PAD);
+    let head = (1..).zip(parts.header.lines()).map(|(n, line)| {
+        if parts.xp.is_some() {
+            line.to_owned()
+        } else {
+            let high = PAD + n * LINE <= parts.rect[3];
+            as_shown(line, room, high, |l| theme.text_width(l, Font::BodyBold))
+        }
+    });
+    let sub = (parts.xp.as_ref())
+        .map(|xp| xp.sub.clone())
+        .filter(|s| !s.is_empty());
+    head.chain(sub)
+        .chain(parts.rows.iter().map(|row| row.text.clone()))
+        .collect()
+}
+
 fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> Vec<Command> {
     let [x, y, w, h] = parts.rect;
     let is_glass = frame.look.style == ChatStyle::Glass;
@@ -953,25 +1026,19 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
     let mut picture = Picture::new(w, h + below).svg(shape);
     if let Some(xp) = &parts.xp {
         picture = xp_header(theme, picture, xp, (w, colours));
-    } else if !parts.header.is_empty() {
-        picture = picture.text(Text::new(
-            &parts.header,
-            Font::BodyBold,
-            rgba(colours.text),
-            [PAD, PAD, w - 2 * PAD, LINE],
-        ));
+    } else {
+        for (n, line) in (0..).zip(parts.header.lines()) {
+            picture = picture.text(Text::new(
+                line,
+                Font::BodyBold,
+                rgba(colours.text),
+                [PAD, PAD + n * LINE, w - 2 * PAD, LINE],
+            ));
+        }
     }
     picture = rows_picture(picture, parts, w);
     picture = list_picture(picture, parts, (w, colours));
-    let sub = parts
-        .xp
-        .as_ref()
-        .map(|xp| xp.sub.as_str())
-        .filter(|s| !s.is_empty());
-    let shown = std::iter::once(parts.header.as_str())
-        .chain(sub)
-        .chain(parts.rows.iter().map(|row| row.text.as_str()))
-        .collect::<Vec<_>>();
+    let shown = shown_lines(theme, parts, w);
     let rendered = theme.render(&picture);
     let group = PropsUpdate {
         transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
@@ -1586,5 +1653,152 @@ mod tests {
         assert!(refuses_injected("hud-chat-pick-2"));
         assert!(!refuses_injected(ROW));
         assert!(!refuses_injected(CLOSE));
+    }
+
+    #[test]
+    fn the_plain_header_says_no_helper_and_a_waiting_question_whole_in_its_lines() {
+        let (theme, _, cache) = crate::tests::loaded("plain-no-helper");
+        for area in [[0, 0, 1280, 770], [0, 0, 1024, 738]] {
+            let frame = Frame {
+                area,
+                size: [area[2], area[3] + 30],
+                look: Look::default(),
+                tip: None,
+                ..idle_frame(IdleStop::Hide)
+            };
+            let room = f64::from(frame.rect()[2] - 2 * PAD);
+            for (language, card) in [Language::En, Language::De]
+                .into_iter()
+                .flat_map(|language| {
+                    [
+                        (language, None),
+                        (language, Some(crate::chat::Where::Figure)),
+                    ]
+                })
+            {
+                let mut session = Session::new();
+                session.mode = Mode::List(Vec::new(), None);
+                session.card = card;
+                let whole = session.header(language);
+                let parts = session.parts(&theme, &frame, language);
+                let lines: Vec<&str> = parts.header.lines().collect();
+                assert_eq!(lines.join(" "), whole);
+                for line in &lines {
+                    let width = theme.text_width(line, Font::BodyBold);
+                    assert!(width <= room, "{line} is {width} wide in {room}");
+                }
+                let below = PAD + LINE * i32::try_from(lines.len()).unwrap_or(1) + GAP;
+                assert!(parts.top_row >= below, "{} under {below}", parts.top_row);
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    fn long_prompt() -> String {
+        let words = "Please tidy the notes folder and sort every item by its date";
+        let mut prompt = String::from("Read this first.\nThen ");
+        while prompt.chars().count() < 1800 {
+            prompt.push_str(words);
+            prompt.push_str(".\n");
+        }
+        prompt
+    }
+
+    fn chat_session(task: &str) -> Session {
+        let mut session = Session::new();
+        session.mode = Mode::Chat("coder".into());
+        session.status.state = "working".into();
+        session.status.task = task.into();
+        session
+    }
+
+    fn plain_frames() -> Vec<Frame> {
+        let styles = [ChatStyle::Plain, ChatStyle::Bubble];
+        let widths = [None, Some(240)];
+        let areas = [[0, 0, 1280, 770], [0, 0, 1024, 738]];
+        let mut frames = Vec::new();
+        for (style, width, area) in product(&styles, &widths, &areas) {
+            frames.push(Frame {
+                area,
+                size: [area[2], area[3] + 30],
+                look: Look {
+                    style,
+                    width,
+                    ..Look::default()
+                },
+                ..idle_frame(IdleStop::Hide)
+            });
+        }
+        frames
+    }
+
+    fn product<A: Copy, B: Copy, C: Copy>(a: &[A], b: &[B], c: &[C]) -> Vec<(A, B, C)> {
+        a.iter()
+            .flat_map(|&x| {
+                b.iter()
+                    .flat_map(move |&y| c.iter().map(move |&z| (x, y, z)))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_long_prompt_keeps_the_header_of_every_plain_look_at_two_lines() {
+        let (theme, _, cache) = crate::tests::loaded("plain-long-prompt");
+        let prompt = long_prompt();
+        let named = chat_session("x").header(Language::En);
+        let named = named.trim_end_matches('x');
+        for frame in plain_frames() {
+            let case = format!(
+                "{:?} {:?} {:?}",
+                frame.look.style, frame.look.width, frame.area
+            );
+            let room = f64::from(frame.rect()[2] - 2 * PAD);
+            let mut idle = Session::new();
+            idle.mode = Mode::List(Vec::new(), None);
+            let two = idle.parts(&theme, &frame, Language::En);
+            assert_eq!(two.header.lines().count(), 2, "{case}");
+            let parts = chat_session(&prompt).parts(&theme, &frame, Language::En);
+            let lines: Vec<&str> = parts.header.lines().collect();
+            assert!(lines.len() <= 2, "{case}: {} lines", lines.len());
+            assert!(lines.join(" ").starts_with(named), "{case}: {lines:?}");
+            assert!(
+                lines.last().is_some_and(|l| l.ends_with('\u{2026}')),
+                "{case}"
+            );
+            let widest = lines.iter().map(|l| theme.text_width(l, Font::BodyBold));
+            let widest = widest.fold(0.0, f64::max);
+            assert!(
+                widest <= room,
+                "{case}: {lines:?} is {widest} wide in {room}"
+            );
+            assert_eq!(parts.top_row, two.top_row, "{case}: Stop and Close move");
+            assert_eq!(parts.body_top, two.body_top, "{case}: the transcript moves");
+            assert!(parts.top_row + BUTTON[1] < parts.rect[3], "{case}");
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_meta_calls_a_header_line_cut_at_the_bottom_not_whole() {
+        let (theme, _, cache) = crate::tests::loaded("plain-cut-bottom");
+        let mut session = Session::new();
+        session.mode = Mode::List(Vec::new(), None);
+        let frame = Frame {
+            look: Look::default(),
+            tip: None,
+            ..idle_frame(IdleStop::Hide)
+        };
+        let mut parts = session.parts(&theme, &frame, Language::En);
+        let lines: Vec<String> = parts.header.lines().map(str::to_owned).collect();
+        assert_eq!(lines.len(), 2);
+        parts.rect[3] = PAD + LINE + LINE / 2;
+        let shown = shown_lines(&theme, &parts, parts.rect[2]);
+        assert_eq!(shown[0], lines[0]);
+        assert_ne!(
+            shown[1], lines[1],
+            "a line cut at the bottom is called whole"
+        );
+        assert!(shown[1].ends_with('\u{2026}'), "{}", shown[1]);
+        let _ = std::fs::remove_dir_all(cache);
     }
 }
