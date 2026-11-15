@@ -1,7 +1,7 @@
 # ux r5 (rc 1): mc-31, sh-19, sh-20
 
-Lane: opus, cloud, branch claude/ux-r5 from 0e303d60 (merged again before handback: nothing new).
-Pushed at 147c4845, not merged. Full `tests/merge-gate.sh` on 147c4845: 28 steps PASS, exit 0 (e2e: the
+Lane: opus, cloud, branch claude/ux-r5 from 0e303d60. Pushed at 52249372 (merge of the harness train
+2d9f306f), not merged. Full `tests/merge-gate.sh` on 147c4845 and again on 52249372: 28 steps PASS, exit 0 (e2e: the
 five listed skips of tests/e2e-skips.txt: session-units, fkeys option, screencast, x11, xp-token).
 `tests/ci-local.sh`: msrv, docs, pre-commit, deny, machete, packaging PASS (no SKIP).
 
