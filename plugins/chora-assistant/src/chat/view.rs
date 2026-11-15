@@ -538,18 +538,44 @@ fn tops(margin: bool, xp: bool, head: i32) -> (i32, i32) {
     }
 }
 
-/// The lines of a header: it wraps at its words and is never cut.
+/// The most lines that the header of a chat takes in any look.
+pub(super) const HEADER_LINES: usize = 2;
+
+/// The lines of a header: it wraps at its words into [`HEADER_LINES`].
 fn header_lines(theme: &Theme, header: &str, width: i32) -> String {
-    chora_draw::text::wrap(header, f64::from(width), |line| {
+    capped(header, f64::from(width), HEADER_LINES, |line| {
         theme.text_width(line, Font::BodyBold)
     })
     .join("\n")
 }
 
-/// A line as the meta of its node names it: whole when it fits its room,
-/// else cut where the room ends and closed with an ellipsis, so that a
-/// test that reads the meta sees the cut.
-pub(super) fn as_shown(line: &str, room: f64, width: impl Fn(&str) -> f64) -> String {
+/// Text in at most `most` lines of `room`: it wraps at its words, its
+/// line breaks count as spaces, and when it is longer the last line ends
+/// in an ellipsis where the room ends.
+pub(super) fn capped(
+    text: &str,
+    room: f64,
+    most: usize,
+    width: impl Fn(&str) -> f64,
+) -> Vec<String> {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut lines = chora_draw::text::wrap(&flat, room, &width);
+    let most = most.max(1);
+    if lines.len() > most {
+        let rest = lines.split_off(most - 1);
+        lines.push(as_shown(&rest[..2].join(" "), room, true, &width));
+    }
+    lines
+}
+
+/// A line as the meta of its node names it: whole when it fits its room
+/// and `high`, its band, lies inside its area; else cut where the room
+/// ends and closed with an ellipsis, or only the ellipsis when its band
+/// leaves the area, so that a test that reads the meta sees the cut.
+pub(super) fn as_shown(line: &str, room: f64, high: bool, width: impl Fn(&str) -> f64) -> String {
+    if !high {
+        return "\u{2026}".to_owned();
+    }
     if width(line) <= room {
         return line.to_owned();
     }
@@ -966,11 +992,12 @@ fn xp_extras(theme: &mut Theme, parts: &Parts, xp: &XpParts, language: Language)
 /// The words that the panel shows, a line each, as its meta names them.
 fn shown_lines(theme: &Theme, parts: &Parts, w: i32) -> Vec<String> {
     let room = f64::from(w - 2 * PAD);
-    let head = parts.header.lines().map(|line| {
+    let head = (1..).zip(parts.header.lines()).map(|(n, line)| {
         if parts.xp.is_some() {
             line.to_owned()
         } else {
-            as_shown(line, room, |l| theme.text_width(l, Font::BodyBold))
+            let high = PAD + n * LINE <= parts.rect[3];
+            as_shown(line, room, high, |l| theme.text_width(l, Font::BodyBold))
         }
     });
     let sub = (parts.xp.as_ref())

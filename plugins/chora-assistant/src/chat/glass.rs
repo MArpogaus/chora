@@ -22,7 +22,7 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use super::{
     Frame, Mode, Session,
-    view::{CHAT, CLOSE, HINT, PICK, STOP, VIEW, create, image},
+    view::{CHAT, CLOSE, HEADER_LINES, HINT, PICK, STOP, VIEW, capped, create, image},
 };
 use crate::glass::{Line, keycaps, paint, rect, shadow, surface};
 
@@ -387,7 +387,7 @@ impl Session {
             })
             .collect();
         let mut body = surface([column.w, column.h], PANEL_RADIUS, &column.m, true);
-        let (header, ring) = self.glass_header(&column, frame, language);
+        let (header, ring, who) = self.glass_header(&column, frame, language);
         body += &header;
         body += &column.transcript(&laid, hint);
         let [room_top, _] = column.room();
@@ -403,17 +403,7 @@ impl Session {
             let top = ((HEADER - 24.0) / 2.0) as i32;
             picture = picture.element(sheet, id, [16, top, 24, 24]);
         }
-        let (word, who) = self.glass_head(language);
-        let room = column.w - 2.0 * PAD;
-        let width = |line: &str| Line::new(line, Type::Small, column.m.muted).width(theme);
-        let who = if word.is_empty() {
-            who_lines(theme, &who, room)
-        } else {
-            vec![who]
-        };
-        let who = who
-            .iter()
-            .map(|line| super::view::as_shown(line, room, width));
+        let (word, _) = self.glass_head(language);
         let shown = std::iter::once(word)
             .chain(who)
             .chain(said.iter().map(|m| m.text.clone()))
@@ -428,7 +418,11 @@ impl Session {
         column: &Column<'_>,
         frame: &Frame,
         language: Language,
-    ) -> (String, Option<(chora_draw::theme::Sheet, &'static str)>) {
+    ) -> (
+        String,
+        Option<(chora_draw::theme::Sheet, &'static str)>,
+        Vec<String>,
+    ) {
         let m = &column.m;
         let (word, who) = self.glass_head(language);
         let mut svg = String::new();
@@ -445,34 +439,40 @@ impl Session {
         if ring.is_some() {
             text_x += 24.0 + 8.0;
         }
-        if !word.is_empty() {
-            svg +=
-                &Line::new(&word, Type::Label, m.text).at([text_x, (HEADER - 16.0) / 2.0], false);
-        }
+        let width = |line: &str| Line::new(line, Type::Small, m.muted).width(column.theme);
+        let mut shown = Vec::new();
         if word.is_empty() {
-            let lines = who_lines(column.theme, &who, column.w - PAD - text_x);
+            let room = column.w - PAD - text_x;
+            let lines = who_lines(column.theme, &who, room);
             let top =
                 (HEADER - WHO_LINE * f64::from(u32::try_from(lines.len()).unwrap_or(1))) / 2.0;
             for (n, line) in (0_u32..).zip(&lines) {
                 let at = [text_x, top + WHO_LINE * f64::from(n)];
                 svg += &Line::new(line, Type::Small, m.muted).at(at, false);
+                let high = at[1] >= 0.0 && at[1] + WHO_LINE <= HEADER;
+                shown.push(super::view::as_shown(line, room, high, width));
             }
         } else {
-            let who_line = Line::new(&who, Type::Small, m.muted);
-            svg += &who_line.at([column.w - PAD, (HEADER - WHO_LINE) / 2.0], true);
+            let label = Line::new(&word, Type::Label, m.text);
+            svg += &label.at([text_x, (HEADER - 16.0) / 2.0], false);
+            let room = column.w - PAD - (text_x + label.width(column.theme) + PAD);
+            let line = capped(&who, room, 1, width).concat();
+            svg += &Line::new(&line, Type::Small, m.muted)
+                .at([column.w - PAD, (HEADER - WHO_LINE) / 2.0], true);
+            shown.push(super::view::as_shown(&line, room, true, width));
         }
         svg += &rect([8.0, HEADER, column.w - 16.0, 1.0], 0.0, m.separator);
-        (svg, ring)
+        (svg, ring, shown)
     }
 }
 
 /// The height of a line of the header in the small type.
 const WHO_LINE: f64 = 20.0;
 
-/// The lines of the header without a state word: it wraps at its words in
-/// `room` and is never cut.
+/// The lines of the header without a state word: it wraps at its words
+/// in `room` into [`HEADER_LINES`].
 fn who_lines(theme: &Theme, who: &str, room: f64) -> Vec<String> {
-    wrap(who, room, |line| {
+    capped(who, room, HEADER_LINES, |line| {
         Line::new(line, Type::Small, Material::of(false).muted).width(theme)
     })
 }
