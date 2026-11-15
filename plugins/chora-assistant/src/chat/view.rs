@@ -553,7 +553,8 @@ fn header_lines(theme: &Theme, header: &str, width: i32) -> String {
 
 /// Text in at most `most` lines of `room`: it wraps at its words, its
 /// line breaks count as spaces, and when it is longer the last line ends
-/// in an ellipsis where the room ends.
+/// in an ellipsis where the room ends. It lays out no more than the
+/// line after the last one shown.
 pub(super) fn capped(
     text: &str,
     room: f64,
@@ -561,8 +562,8 @@ pub(super) fn capped(
     width: impl Fn(&str) -> f64,
 ) -> Vec<String> {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut lines = chora_draw::text::wrap(&flat, room, &width);
     let most = most.max(1);
+    let mut lines = chora_draw::text::wrap_most(&flat, room, most + 1, &width);
     if lines.len() > most {
         let rest = lines.split_off(most - 1);
         lines.push(as_shown(&rest[..2].join(" "), room, true, &width));
