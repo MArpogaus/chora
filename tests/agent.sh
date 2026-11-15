@@ -145,7 +145,7 @@ png_pixel() { python3 -I "$tests/png-pixel.py" "$@"; }
 # Prints the color of a pixel of a screenshot of the host as "r g b". The
 # header of a 1280x800 PPM file has 16 bytes.
 host_pixel() {
-    grim -t ppm "$out/host.ppm"
+    grim -t ppm "$out/host.ppm" 2>"$out/host.err" || fail "grim of the host failed: $(cat "$out/host.err")"
     od -An -tu1 -j $((16 + ($2 * 1280 + $1) * 3)) -N 3 "$out/host.ppm" | awk '{print $1, $2, $3}'
 }
 # Succeeds when two colors differ by at most 8 in each of r, g and b.
@@ -177,7 +177,7 @@ for point in "320 400" "960 400" "5 5" "1270 790"; do
     inner_color=$(png_pixel "$out/screen.png" "$x" "$y")
     host_color=$(host_pixel "$x" "$y")
     close_to "$inner_color" "$host_color" ||
-        fail "pixel $point: $inner_color, the host shows $host_color (${host_before[$point]} before the capture); watchdog: $(grep -i "watchdog\|effects" "$out/chora.log" | tail -n 5 | tr '\n' '|')"
+        fail "pixel $point: $inner_color, the host shows $host_color (${host_before[$point]} before the capture); watchdog: $(grep -i "watchdog\|effects\|busy" "$out/chora.log" | tail -n 5 | tr '\n' '|')"
 done
 ctl capture --max-side 640 "$out/small.png" >"$out/small.json" || fail "the small capture failed"
 jq -e '.width == 640 and .height == 400 and .scale == 0.5' "$out/small.json" >/dev/null ||
