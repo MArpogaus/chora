@@ -348,6 +348,13 @@ mod tests {
     }
 
     #[test]
+    fn the_row_of_the_give_keys_spans_the_first_to_the_last_digit() {
+        let (keys, names) = super::keys_row("-");
+        assert_eq!(keys, "Super+Alt+1-4");
+        assert_eq!(names, ["tiling", "xp", "mc", "construct"]);
+    }
+
+    #[test]
     fn an_own_window_is_handed_over() {
         let node = surface("s1", Some("xp"));
         let step = plan(Some(&node), "xp", "tiling", &Own(vec!["s1"]));
