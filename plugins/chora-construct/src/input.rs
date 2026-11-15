@@ -36,6 +36,14 @@ pub(crate) fn keys_walk_due(last: Option<Instant>, now: Instant) -> bool {
     last.is_none_or(|at| now.duration_since(at) >= KEYS_WALK_AGAIN)
 }
 
+/// The row of the window list that a press chooses.
+pub(crate) fn pressed_row(event: &Event) -> Option<usize> {
+    let Event::PointerPressed { node, .. } = event else {
+        return None;
+    };
+    (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok())
+}
+
 impl Construct {
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
@@ -614,9 +622,7 @@ impl Construct {
                 }?;
             }
             Event::PointerPressed { node, .. } if node.starts_with(LIST) => {
-                let row =
-                    (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok());
-                if let Some(k) = row {
+                if let Some(k) = pressed_row(event) {
                     self.choose(k)?;
                 }
             }
