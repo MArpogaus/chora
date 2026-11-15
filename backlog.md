@@ -136,3 +136,7 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - R12 (harness, review-harness-r3 M1): guards.sh has no case with a quoted substitution; every guard regex gets a selftest table of refused and passed lines (incl. "$(...)").
 - W16-1: now findings mc-31 (verify in persona round 4 or ledger r3).
 - UX-G1 (gate, review-ux-r3): no cell checks the chat header with a long task or narrow chat.width; the doors helper-none cells run at 1280x800 1x only.
+- L14 (MINOR, review-logging-r2): chora-report -o onto an existing 0644 file keeps 0644; chmod the output.
+- L15 (MINOR, review-logging-r2): scrub misses TOML header tables, cookie/private_key/credentials/auth/PASS keys, URL user:pass@, short ?key=.
+- L16 (MINOR, review-logging-r2): logs dir chmod follows a symlink; EPERM stops the log file. Docs: voice.md:779 rmcp default, glossary "at each start".
+- F22 (flake, review-logging-r2): crates/chora/tests/log_file.rs:89-92 panic test failed 1 of 5 under load (race, in the gate).
