@@ -312,3 +312,10 @@ Train 14 gate 3 ran in a background shell with the default 30 min limit; the ful
 
 ## 50 (2026-11-15 09:28 UTC): every lane ran on opus and the week budget was spent too fast
 When Fable ended (03:32) the PM put every new lane and review on opus instead of returning to rules.md 5 (sonnet builds, haiku tests, opus reviews and hard work): 2.4 %/h, 33 % of the week by Sunday 09:20. The weekly reset time (Saturday 10:59 Bangkok, answers.md 229) was not in any injected file, so no pace could be computed. The owner had to point out both (09:27: "This is your main job"). Fix: the reset and a daily pace live in the state.md budget line (injected after every compaction); start_lane.sh refuses a brief without a Model line and an opus lane without a reason; routines.md gets a pace check at each lane start and at each owner reading.
+
+## 51 (11-15 11:35) Security fix rounds close one path, not the class
+security a r1 and r2 each fixed the named path; each review found the same class elsewhere
+(injected keys, then the walk arm via `injected: _`, then xp and tiling). Cause: briefs listed
+findings, not the invariant. Change: r3 brief states the invariant and starts with a lint gate
+(`injected: _` and `..` refused without a reason). Rule for briefs: a security fix brief names
+the class invariant and the gate that enforces it.

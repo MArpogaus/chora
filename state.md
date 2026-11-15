@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 11:24 UTC)
+## Now (2026-11-15 11:32 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
@@ -25,8 +25,8 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| fuzzel r1 | cloud sonnet low | briefs/fuzzel-r1.md | fuzzel >= 1.11 in setup.sh, ti-1 click |
-| security a r2 | 0a3d0040, re-review opus medium (local) | briefs/security-a-r2.md | 2 MAJOR fixed (NodeKey injected); walk keys open |
+| fuzzel r1 | cloud sonnet low, idle | briefs/fuzzel-r1.md | blocked: worker permission refused the $HOME install |
+| security a r3 | cloud sonnet, claude/security-a | briefs/security-a-r3.md | r2 review FIX: walk keys; class in xp, tiling, mc |
 | core watchdog r1 | cloud sonnet, claude/core-watchdog | briefs/core-watchdog-r1.md | sh-22, F25 |
 
 ## Queue (by day; budget 10 % a UTC day)
@@ -38,4 +38,4 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 6. Fri 11-20: three greens, tag, CI PR; persona round 5 after the tag. (rc 3)
 
 ## Needs owner
-- Nothing open.
+- fuzzel r1: its permission check refused building fuzzel 1.11 into $HOME/.local (your 09:27 yes). Allow it in session fuzzel r1 (reply there). Default if no answer by Mon 06:00 UTC: check the ti-1 click in the Fedora 44 CI image instead.
