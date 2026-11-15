@@ -26,9 +26,8 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 |---|---|---|---|
 | ci r4 | claude/ci-r4 a3880296 | briefs/ci-r4.md | MERGE-OK (fontconfig in CI); train 9 |
 | pk1 | cloud sonnet (starting), claude/pk1 | briefs/pk1-r1.md | package deps: fuzzel 1.11, fontconfig, DejaVu |
-| ledger | cloud opus ..LrDf8, read-only |
+| ledger | cloud opus ..LrDf8, read-only | briefs/ledger-r1.md | verify every open BLOCK/MAJOR on d349a6da |
 | flakes | cloud Fable (starting), claude/flakes-r4 | briefs/flakes-r4.md | F17, F16, GR1 |
-| ledger-x | x | x | x | briefs/ledger-r1.md | verify every open BLOCK/MAJOR on d349a6da |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
