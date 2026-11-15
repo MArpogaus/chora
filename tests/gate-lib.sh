@@ -1,6 +1,7 @@
 #!/bin/bash
 # Shared helpers for the gate scripts (tests/gate-*.sh).
-# A gate script answers "ok: ..." or "SKIP: <why>" with exit 0, or
+# A gate script answers "ok: ..." or "SKIP: <why>" with exit 0 (non-zero
+# when CI is set), or
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
@@ -12,6 +13,10 @@ if [ -d "$HOME/.local/opt/mesa-egl" ]; then
 fi
 skip() {
     echo "SKIP: $*"
+    if [ -n "${CI:-}" ]; then
+        echo "FAIL: a skip does not pass in CI: $*" >&2
+        exit 1
+    fi
     exit 0
 }
 ok() { echo "ok: $*"; }
