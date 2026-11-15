@@ -95,7 +95,7 @@ round() {
     sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
     CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
     grant screen.capture input.inject methods.call
-    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
+    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$shots/waybar-$tag.log" 2>&1 &
     run_pid $!
     CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/wallpaper.sh" >/dev/null 2>&1 &
     wallpaper_pid=$!
@@ -109,11 +109,13 @@ round() {
     pids+=($!)
     for i in 1 2; do ctl run "$bin/chora-tiling" --launch foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$tag: foot"; done
     ctl wait id:hud-row-chat --timeout 20 >/dev/null 2>&1
+    bar_shows=''
     for _ in $(seq 30); do
         sleep 1
-        ctl capture "$shots/probe-$tag.png" >/dev/null 2>&1 &&
-            [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && break
+        ctl capture "$shots/probe-$tag.png" >"$shots/probe-$tag.log" 2>&1 &&
+            [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && bar_shows=1 && break
     done
+    [ -n "$bar_shows" ] || { echo "FAIL: $tag: no bar after 30 s: the last capture says $(tail -n 1 "$shots/probe-$tag.log"), waybar says $(tail -n 5 "$shots/waybar-$tag.log")"; failed=1; }
     token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
     [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
         { echo "FAIL: tokens colors.css: line is ${token:-missing} in $theme"; failed=1; }

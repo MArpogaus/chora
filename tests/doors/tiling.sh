@@ -29,11 +29,11 @@ helper_start || fail "no helper starts"
 doors_window
 shot=$fakes/bar.png
 bar_shows() {
-    ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 &&
+    ctl capture --output HEADLESS-1 "$shot" >"$fakes/capture.log" 2>&1 &&
         [ "$(pixel "$shot" 640 24)" != "$(pixel "$shot" 640 300)" ]
 }
 until_ok bar_shows 80 ||
-    fail "no bar: the capture says $(ctl capture --output HEADLESS-1 "$shot" 2>&1 | tail -n 1), waybar says $(tail -n 5 "$fakes/waybar.log")"
+    fail "no bar: the last capture says $(tail -n 1 "$fakes/capture.log"), waybar says $(tail -n 5 "$fakes/waybar.log")"
 
 bar_y=24
 apps_x=55
