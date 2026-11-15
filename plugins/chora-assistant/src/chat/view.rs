@@ -526,13 +526,15 @@ fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
 }
 
 /// The top of the row of buttons and the top of the transcript, under a
-/// header of `head` lines.
-fn tops(margin: bool, xp: bool, head: i32) -> (i32, i32) {
+/// header that always has the room of [`HEADER_LINES`], so that neither
+/// moves when the header changes.
+fn tops(margin: bool, xp: bool) -> (i32, i32) {
     match (margin, xp) {
         (true, _) => (0, 0),
         (false, true) => (XP_HEAD_Y, XP_BODY_TOP),
         (false, false) => {
-            let row = PAD + LINE * head.max(1) + GAP;
+            let head = i32::try_from(HEADER_LINES).unwrap_or(2);
+            let row = PAD + LINE * head + GAP;
             (row, row + BUTTON[1] + GAP)
         }
     }
@@ -652,8 +654,7 @@ impl Session {
             (None, true) => String::new(),
             (None, false) => header_lines(theme, &self.header(language), rect[2] - 2 * PAD),
         };
-        let head = i32::try_from(header.lines().count()).unwrap_or(1);
-        let (top_row, body_top) = tops(margin, xp.is_some(), head);
+        let (top_row, body_top) = tops(margin, xp.is_some());
         let below = self.room_below(frame, &hint);
         let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
