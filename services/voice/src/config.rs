@@ -701,7 +701,7 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, where
 /// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 28] = [
+    const KEYS: [&str; 29] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -725,6 +725,7 @@ pub fn security_key(key: &str) -> bool {
         "indicator",
         "indicator_clients",
         "earcons",
+        "earcon_volume",
         "confirm_timeout_ms",
         "ptt_key",
         "wake_words",

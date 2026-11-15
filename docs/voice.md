@@ -372,7 +372,7 @@ yes or Alt+n for no."). The security keys are `allow_programs`,
 `sandbox_cmd`, `unsandboxed`, `agent_cmd`, `coder_cmd`, `chora_mcp`,
 `capture_cmd`, `playback_cmd`, `skipped_tools`, `system_prompt`,
 `prompt_file`, `context_docs`, `indicator`, `indicator_clients`, `earcons`,
-`confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
+`earcon_volume`, `confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
 `*_url`, `*_headers` and each key with `api_key`. The agent never cuts
 a security value. The question says only the key and that the full
 value is on the screen. The screen shows it through the `voice.confirm`
