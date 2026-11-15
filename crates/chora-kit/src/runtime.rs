@@ -67,8 +67,9 @@ pub trait Plugin {
         Ok(())
     }
 
-    /// The settings as a caller of `settings.get` sees them; all of them
-    /// by default. A plugin hides its secrets here.
+    /// The settings as a caller of `settings.get`, `settings.set` and
+    /// `settings.reload` sees them; all of them by default. A plugin
+    /// hides its secrets here.
     fn shown_settings(&self, settings: Value) -> Value {
         settings
     }
@@ -461,7 +462,7 @@ pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, 
         .ok_or_else(no_settings)?
         .save()
         .map_err(|e| RpcError::new(e.code, format!("applied, not saved: {}", e.message)))?;
-    Ok(answer)
+    Ok(plugin.shown_settings(answer))
 }
 
 /// The most bytes of the message of an error that a method answers.
@@ -501,7 +502,7 @@ pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
         .ok_or_else(|| no_settings("settings.reload"))?
         .reload()?;
     apply(plugin)?;
-    Ok(answer)
+    Ok(plugin.shown_settings(answer))
 }
 
 /// Has the plugin apply its settings; takes them back when it fails, and
@@ -660,9 +661,9 @@ mod tests {
             Some(&mut self.settings)
         }
 
-        /// Shows no gap, as a plugin hides its keys.
+        /// Shows no opacity, as a plugin hides its keys.
         fn shown_settings(&self, mut settings: Value) -> Value {
-            settings["gap"] = "(hidden)".into();
+            settings["opacity"] = "(hidden)".into();
             settings
         }
 
@@ -751,10 +752,13 @@ mod tests {
             applied: 0,
         };
         let set = set_settings(&mut plugin, json!({"gap": 8})).unwrap();
-        assert_eq!(set["gap"], "(hidden)", "{set}");
+        assert_eq!(
+            (&set["gap"], &set["opacity"]),
+            (&json!(8), &json!("(hidden)"))
+        );
         std::fs::write(&path, "gap: 6\n").unwrap();
         let reloaded = reload_settings(&mut plugin).unwrap();
-        assert_eq!(reloaded["gap"], "(hidden)", "{reloaded}");
+        assert_eq!(reloaded["opacity"], "(hidden)", "{reloaded}");
         assert_eq!(plugin.applied, 6);
         std::fs::remove_dir_all(dir).unwrap();
     }

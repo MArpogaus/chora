@@ -698,7 +698,7 @@ both a key variable and a key file for one server.
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
 | `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller and for a caller outside `indicator_clients` (section 5) |
-| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand; a change of a security key waits for a key of `confirm_keys` and answers a refusal that says so (section 5) |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; the answers of all three show each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand; a change of a security key waits for a key of `confirm_keys` and answers a refusal that says so (section 5) |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
 | `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller outside `indicator_clients`, for a connection that did not claim the indicator, and for any other `id` (section 5) |
