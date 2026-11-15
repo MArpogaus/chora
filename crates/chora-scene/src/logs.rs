@@ -186,6 +186,29 @@ mod tests {
     }
 
     #[test]
+    fn a_second_writer_leaves_the_file_of_the_first() {
+        let dir = temp("two");
+        let mut first = File::open_in(&dir, "chora", MAX_BYTES).unwrap();
+        first.write_all(b"the first run\n").unwrap();
+        assert!(
+            File::open_in(&dir, "chora", MAX_BYTES).is_err(),
+            "the second writer gets no file"
+        );
+        first.write_all(b"still the first run\n").unwrap();
+        let log = dir.join("chora.log");
+        assert_eq!(read(log.clone()), "the first run\nstill the first run\n");
+        assert!(!numbered(&log, 1).exists(), "nothing moved");
+        drop(first);
+        File::open_in(&dir, "chora", MAX_BYTES).unwrap();
+        assert_eq!(
+            read(numbered(&log, 1)),
+            "the first run\nstill the first run\n",
+            "the next start after the first moves its file"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn only_the_person_reads_the_logs() {
         let dir = temp("mode");
         File::open_in(&dir, "chora", MAX_BYTES).unwrap();
