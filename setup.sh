@@ -40,6 +40,8 @@ if ! fuzzel_ok; then
         curl -fsSL -o "$tmp/f.tgz" "https://codeberg.org/dnkl/fuzzel/archive/$fuzzel_wanted.tar.gz"
         echo "$fuzzel_sha256  $tmp/f.tgz" | sha256sum -c --quiet -
         tar -xzf "$tmp/f.tgz" -C "$tmp"
+        # the man pages need scdoc, which the container lacks (fuzzel r2); errors stay visible
+        sed -i "/^subdir('doc')/d" "$tmp/fuzzel/meson.build"
         meson setup "$tmp/fuzzel/build" "$tmp/fuzzel" --prefix="$HOME/.local" --buildtype=release >/dev/null
         ninja -C "$tmp/fuzzel/build" install >/dev/null
     ) || log "FAILED fuzzel build (apt fuzzel stays)"
