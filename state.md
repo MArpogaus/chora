@@ -25,7 +25,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | ux r4 | cloud opus ..L987e, claude/ux-r3 | briefs/ux-r4.md | r3 FIX (M1 header grows without limit) |
-| harness r4 | cloud opus ..LBkdU, claude/harness | briefs/harness-r4.md | r3 FIX (M1 quoted subst, M2 commit on session branch) |
+| harness r4 | claude/harness 7ef5fe1f (worker archived) | briefs/harness-r4.md | handed back 07:22; opus review running |
 | flakes r5 | cloud opus ..MuhXr, claude/flakes-r5 | briefs/flakes-r5.md | F19, F18, F16, F20 |
 | train 14 | /home/user/wt/train14 61d885f0 | logging r2 (MERGE-OK) | gate running |
 
