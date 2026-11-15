@@ -115,3 +115,4 @@ R3 | 11-15 | harness | stricter clippy restriction lints for agent-written code 
 R4 | 11-15 | now-cheap | model comparison on one fixed brief (Fable vs opus, same task, same gate) as evidence for the owner's Fable-or-opus decision after the reset (workshop idea: compare models on the same tasks).
 R5 | 11-15 | harness | types that make wrong states unrepresentable where review rounds repeated (mc focus around the chat: 5 rounds; helper word state: 2 rounds): typestate or one enum instead of loose Option/bool fields.
 R6 | 11-15 | harness | property test over placement sequences in chora-tiling: every mark node (tg-, tf-) ends at its mark opacity after any sequence of focus moves and reshapes (tiling-audit r1 found it only at 2x).
+R7 | 11-15 | harness | review ux r1 M1: draft text held in a loose `held` flag outlived the list; earliest gate is compile time (state inside the enum variant). Sweep the plugins for loose Option/bool fields beside a Mode enum (with R5).

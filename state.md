@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 02:59 UTC)
+## Now (2026-11-15 03:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: Fable 95 %, all 59 % (01:3x); Fable used up, owner resets it (01:22); running Fable lanes finish on Fable, then one new Fable lane decides Fable or opus
 session branch: 8bcbdc73 (train 10, 01:10 UTC: vkms guard; train 9 5dd34fcd: fontconfig, package deps).
@@ -24,7 +24,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| ux r1 | cloud Fable ..P2LRR, claude/ux-r1 ea2947fe | briefs/ux-r1.md | 6 done; review running; merge train 11, gate once |
+| ux r2 | cloud Fable ..P2LRR, claude/ux-r1 | briefs/ux-r2.md | r1 FIX (M1 held draft); r2 started 03:01 |
 | train 11 | /home/user/wt/train11 c2d0a116 | vkms 21d4a477, tiling-audit, ci-check | gate running (02:28) |
 | harness | cloud opus ..NivBG, claude/harness | briefs/harness-r1.md | compile-time rules, red-first at commit, gate time, checklist |
 | tiling audit | done b018c506 | briefs/tiling-audit-r1.md | MERGE-OK (PM); train 11 |
