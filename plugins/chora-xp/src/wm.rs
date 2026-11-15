@@ -4219,10 +4219,12 @@ fn grab_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
     Ok(())
 }
 
-/// Changes the grabs to the keys with or without those of the cube.
+/// Changes the grabs to the keys with or without those of the cube. A
+/// key of both sets stays with the core, so it never reaches a window.
 fn change_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
-    rt.ungrab_all()?;
-    grab_keys(rt, cube)
+    rt.start_grabs();
+    grab_keys(rt, cube)?;
+    rt.end_grabs()
 }
 
 #[cfg(test)]
