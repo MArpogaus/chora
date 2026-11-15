@@ -4429,6 +4429,27 @@ mod tests {
         mc.method("content.set", notes).unwrap();
     }
 
+    /// `panel.set` is unprivileged and rewrote the columns of the agents,
+    /// the words that the page shows as the agent's, and the list of the
+    /// overview (review security a r1, MC-03 alias): mc writes those alone.
+    #[test]
+    fn panel_set_refuses_the_scenes_that_mc_writes_itself() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("own-panels", [1920, 1080]);
+        for (scene, panel) in [("agents", "agent-1"), ("overview", "scenes")] {
+            let before = mc.scenes[scene].panels.clone();
+            let set = json!({"scene": scene, "panel": panel, "title": "Run it", "lines": ["rm"]});
+            assert!(mc.method("panel.set", set).is_err(), "panel.set {scene}");
+            assert!(
+                mc.scenes[scene].panels == before,
+                "{scene} changed although panel.set was refused"
+            );
+        }
+        let lines = json!({"scene": "agenda", "panel": "today", "lines": ["09:00\tStand-up"]});
+        mc.method("panel.set", lines).unwrap();
+    }
+
     /// A pointer press of `input.inject` on the urgent line cleared it,
     /// as a key row ran its binding (review plugins r1, MC-04): the hits
     /// and the agent columns ignore injected presses, as the bindings do.
