@@ -141,16 +141,24 @@ fn opacity(value: f64) -> PropsUpdate {
 }
 
 /// The cross-fade of the gradient border and of the deep shadow when the
-/// mark of a window changes (or a window is new).
+/// mark of a window changes (or a window is new). `restyled` tells that
+/// the border and the glow were updated: an update ends a fade that still
+/// runs, so the opacity of the mark comes again at once.
 #[must_use]
-pub fn fade(sent: Option<&Placement>, placement: &Placement, animate: bool) -> Vec<Command> {
+pub fn fade(
+    sent: Option<&Placement>,
+    placement: &Placement,
+    animate: bool,
+    restyled: bool,
+) -> Vec<Command> {
     let focus = |p: &Placement| p.mark == Mark::Focus && p.border > 0;
     let now = focus(placement);
-    if sent.is_some_and(|s| focus(s) == now) {
+    let marked = sent.is_none_or(|s| focus(s) != now);
+    if !marked && !restyled {
         return Vec::new();
     }
     let value = if now { 1.0 } else { 0.0 };
-    let how = (animate && sent.is_some_and(|s| s.at.is_some())).then_some(FOCUS);
+    let how = (marked && animate && sent.is_some_and(|s| s.at.is_some())).then_some(FOCUS);
     [focus_of(&placement.id), glow_of(&placement.id)]
         .into_iter()
         .map(|id| change(id, opacity(value), how))
@@ -324,7 +332,7 @@ mod tests {
         for (sent, now) in [(None, &first), (Some(&first), &other)] {
             let at = now.at.unwrap();
             let mut all = place(sent, now, at, &off);
-            all.extend(fade(sent, now, false));
+            all.extend(fade(sent, now, false, false));
             assert!(animated(&all).is_empty(), "{all:?}");
         }
     }
@@ -333,9 +341,9 @@ mod tests {
     fn the_mark_cross_fades_in_120_ms() {
         let line = placed(Some([20, 20]), Mark::Line);
         let focus = placed(Some([20, 20]), Mark::Focus);
-        let commands = fade(Some(&line), &focus, true);
+        let commands = fade(Some(&line), &focus, true, false);
         assert_eq!(animated(&commands), [("tg-s1", 120.0), ("tf-s1", 120.0)]);
-        assert_eq!(fade(Some(&focus), &focus, true), []);
+        assert_eq!(fade(Some(&focus), &focus, true, false), []);
     }
 
     #[test]
