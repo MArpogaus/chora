@@ -910,8 +910,10 @@ mod tests {
 
         let (path, _core) = fake_core::serve(|_, _| Answer::Result(Value::Null));
         let conn = Conn::connect_at("tiling", &path).unwrap();
+        let mut rt = Runtime::with(conn, "tiling", Vec::new());
+        rt.pin_accepts_injected(false);
         Recorder {
-            rt: Runtime::with(conn, "tiling", Vec::new()),
+            rt,
             seen: Vec::new(),
         }
     }
@@ -923,10 +925,10 @@ mod tests {
         assert_eq!(plugin.seen, []);
         dispatch(&mut plugin, key(false)).unwrap();
         assert_eq!(plugin.seen.len(), 1);
-        plugin.rt.accept_injected(true);
+        plugin.rt.pin_accepts_injected(true);
         dispatch(&mut plugin, key(true)).unwrap();
         assert_eq!(plugin.seen.len(), 2);
-        plugin.rt.accept_injected(false);
+        plugin.rt.pin_accepts_injected(false);
         dispatch(&mut plugin, key(true)).unwrap();
         assert_eq!(plugin.seen.len(), 2);
     }
