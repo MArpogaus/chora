@@ -1587,4 +1587,43 @@ mod tests {
         assert!(!refuses_injected(ROW));
         assert!(!refuses_injected(CLOSE));
     }
+
+    #[test]
+    fn the_plain_header_says_no_helper_and_a_waiting_question_whole_in_its_lines() {
+        let (theme, _, cache) = crate::tests::loaded("plain-no-helper");
+        for area in [[0, 0, 1280, 770], [0, 0, 1024, 738]] {
+            let frame = Frame {
+                area,
+                size: [area[2], area[3] + 30],
+                look: Look::default(),
+                tip: None,
+                ..idle_frame(IdleStop::Hide)
+            };
+            let room = f64::from(frame.rect()[2] - 2 * PAD);
+            for (language, card) in [Language::En, Language::De]
+                .into_iter()
+                .flat_map(|language| {
+                    [
+                        (language, None),
+                        (language, Some(crate::chat::Where::Figure)),
+                    ]
+                })
+            {
+                let mut session = Session::new();
+                session.mode = Mode::List(Vec::new(), None);
+                session.card = card;
+                let whole = session.header(language);
+                let parts = session.parts(&theme, &frame, language);
+                let lines: Vec<&str> = parts.header.lines().collect();
+                assert_eq!(lines.join(" "), whole);
+                for line in &lines {
+                    let width = theme.text_width(line, Font::BodyBold);
+                    assert!(width <= room, "{line} is {width} wide in {room}");
+                }
+                let below = PAD + LINE * i32::try_from(lines.len()).unwrap_or(1) + GAP;
+                assert!(parts.top_row >= below, "{} under {below}", parts.top_row);
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
 }

@@ -573,4 +573,56 @@ mod tests {
         assert_eq!(line[2].0, ["Esc"]);
         assert_eq!((line[1].2, line[2].2), (Some(STOP), Some(CLOSE)));
     }
+
+    #[test]
+    fn the_glass_header_says_no_helper_and_a_waiting_question_whole_in_its_lines() {
+        let (theme, _, cache) = crate::tests::loaded("glass-no-helper");
+        for area in [[0, 0, 1280, 770], [0, 0, 1024, 738]] {
+            let frame = Frame {
+                output: "HEADLESS-1".into(),
+                size: [area[2], area[3] + 30],
+                area,
+                look: chora_kit::hud::Chat {
+                    style: chora_kit::hud::ChatStyle::Glass,
+                    anchor: Some(chora_kit::hud::Anchor::Right),
+                    width: Some(480),
+                    margin: 32,
+                    ..chora_kit::hud::Chat::default()
+                },
+                slot: None,
+                clear: Vec::new(),
+                tip: None,
+                field: 36,
+                ring: None,
+                dark: false,
+                scale: 1,
+                card: None,
+            };
+            let room = f64::from(frame.rect()[2]) - 2.0 * PAD;
+            for (language, card) in [Language::En, Language::De]
+                .into_iter()
+                .flat_map(|language| {
+                    [
+                        (language, None),
+                        (language, Some(crate::chat::Where::Figure)),
+                    ]
+                })
+            {
+                let mut session = Session::new();
+                session.mode = Mode::List(Vec::new(), None);
+                session.card = card;
+                let whole = session.header(language);
+                let (_, _, shown) = session.glass_picture(&theme, &frame, (language, false));
+                let lines: Vec<&str> = shown.lines().collect();
+                assert_eq!(lines.join(" "), whole);
+                assert!(f64::from(u32::try_from(lines.len()).unwrap_or(0)) * 20.0 <= HEADER);
+                for line in lines {
+                    let width =
+                        Line::new(line, Type::Small, Material::of(false).muted).width(&theme);
+                    assert!(width <= room, "{line} is {width} wide in {room}");
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
 }

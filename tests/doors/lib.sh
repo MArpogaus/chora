@@ -49,6 +49,10 @@
 #                   of a second (default 40)
 #   key KEYS, click X Y       an injected shortcut, an injected click
 #   has_text TEXT   a node of the scene shows the text
+#   says_whole TEXT a node of the scene shows the text whole, its lines
+#                   joined by spaces; a line cut at its edge ends in an
+#                   ellipsis in the meta, so a cut fails
+#   says_no_helper  the chat says both sentences of No helper whole
 #   center ID       the middle of the node, `X Y`; click_node ID clicks it
 #   doors_voice [none]  starts chora-voice with the stand-in helper of
 #                   services/voice/tests/fake-acp.sh and the project demo;
@@ -103,6 +107,11 @@ click() {
     echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
 }
 has_text() { ctl query '*' 2>/dev/null | grep -Fq -- "$1"; }
+says_whole() {
+    ctl query '*' 2>/dev/null |
+        jq -e --arg text "$1" 'any(.[]; (.meta.text // "") | gsub("\n"; " ") | contains($text))' >/dev/null
+}
+says_no_helper() { says_whole "No helper is set up. Ask the person who set up this computer."; }
 center() {
     ctl query "id:$1" 2>/dev/null |
         jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"'
