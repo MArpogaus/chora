@@ -681,6 +681,10 @@ impl Client {
             }
         } else if data["done"] == true && self.confirming {
             self.confirming = false;
+            #[allow(
+                clippy::disallowed_methods,
+                reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
+            )]
             self.rt.ungrab_all()?;
             self.grab()?;
         }
@@ -698,6 +702,10 @@ impl Client {
     /// Hands the settings to the core and grabs the key again.
     fn apply(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
+        )]
         self.rt.ungrab_all().map_err(rejected)?;
         self.grab().map_err(rejected)?;
         let config = Box::new(self.settings.value.clone());
