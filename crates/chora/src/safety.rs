@@ -67,7 +67,16 @@ const OWNER_BUDGET: u64 = 4000;
 const BUSY_NOTE_PAUSE: Duration = Duration::from_secs(60);
 
 /// The folder of the threads of this process in `/proc`.
-const TASKS: &str = "/proc/self/task";
+const PROC_TASKS: &str = "/proc/self/task";
+
+/// The folder that the frame clock reads. The tests of the core run in
+/// parallel in one process, and the wait of the other tests would count
+/// as host load, so there the clock reads no folder.
+const TASKS: &str = if cfg!(test) {
+    "/nonexistent"
+} else {
+    PROC_TASKS
+};
 
 /// The time that all threads of the process waited on a run queue for a
 /// CPU since their start: the second field of each `schedstat`, in
@@ -680,10 +689,10 @@ mod tests {
             Some(Duration::from_millis(7))
         );
         assert_eq!(wait_of(""), None);
-        let Some(before) = wait_in(Path::new(TASKS)) else {
+        let Some(before) = wait_in(Path::new(PROC_TASKS)) else {
             return;
         };
-        assert!(wait_in(Path::new(TASKS)).is_some_and(|now| now >= before));
+        assert!(wait_in(Path::new(PROC_TASKS)).is_some_and(|now| now >= before));
     }
 
     /// A `/proc/self/task` of the main thread and four renderer threads,
