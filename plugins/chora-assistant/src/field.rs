@@ -6,10 +6,10 @@
 //! `place`, and nowhere else: the field ignores its environment.
 
 use std::{
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     ops::Not,
     process::{Child, ChildStdin, Command, Stdio},
-    sync::mpsc::{Receiver, channel},
+    sync::mpsc::{Receiver, SyncSender, sync_channel},
     thread,
 };
 
@@ -34,6 +34,12 @@ pub enum FieldEvent {
     /// The field is this many logical pixels high now.
     Height(i32),
 }
+
+/// The most bytes of a line of the field; a longer line is dropped.
+const MAX_LINE: usize = 64 << 10;
+/// The most events that wait for the host; a field that sends more waits
+/// on its pipe.
+const QUEUE: usize = 64;
 
 /// A running field.
 pub struct Field {
@@ -60,6 +66,50 @@ fn parse(line: &str) -> Option<FieldEvent> {
     }
 }
 
+/// Sends the events of the lines of the field until its output ends or
+/// the host is gone. A line of more than [`MAX_LINE`] bytes is dropped.
+fn relay(mut output: impl BufRead, tx: &SyncSender<FieldEvent>) {
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        let limit = u64::try_from(MAX_LINE).unwrap_or(u64::MAX) + 1;
+        match (&mut output).take(limit).read_until(b'\n', &mut line) {
+            Ok(0) | Err(_) => return,
+            Ok(_) => {}
+        }
+        if line.last() != Some(&b'\n') && line.len() > MAX_LINE {
+            if skip_line(&mut output).is_err() {
+                return;
+            }
+            continue;
+        }
+        let event = std::str::from_utf8(&line)
+            .ok()
+            .and_then(|l| parse(l.trim_end()));
+        if let Some(event) = event
+            && tx.send(event).is_err()
+        {
+            return;
+        }
+    }
+}
+
+/// Reads past the end of the current line.
+fn skip_line(output: &mut impl BufRead) -> std::io::Result<()> {
+    loop {
+        let buffer = output.fill_buf()?;
+        if buffer.is_empty() {
+            return Ok(());
+        }
+        if let Some(end) = buffer.iter().position(|b| *b == b'\n') {
+            output.consume(end + 1);
+            return Ok(());
+        }
+        let all = buffer.len();
+        output.consume(all);
+    }
+}
+
 impl Field {
     /// Starts the field with `command`, which is `chora-chat --input NAME`.
     /// The field gets neither `CHORA_SOCKET` nor an activation token in its
@@ -78,16 +128,8 @@ impl Field {
         let (Some(input), Some(output)) = (child.stdin.take(), child.stdout.take()) else {
             return Err(std::io::Error::other("the field has no pipe"));
         };
-        let (tx, events) = channel();
-        thread::spawn(move || {
-            for line in BufReader::new(output).lines().map_while(Result::ok) {
-                if let Some(event) = parse(&line)
-                    && tx.send(event).is_err()
-                {
-                    return;
-                }
-            }
-        });
+        let (tx, events) = sync_channel(QUEUE);
+        thread::spawn(move || relay(BufReader::new(output), &tx));
         Ok(Self {
             child,
             input,
