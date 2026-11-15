@@ -3,7 +3,7 @@
 ## Now (2026-11-15 00:39 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: Fable 71 % at 16:44, near its limit now (workers report overage); use it up, max 2 lanes; then opus
-session branch: 5dd34fcd (train 9, 00:39 UTC: ci r4 fontconfig, pk1 package deps; train 10 vkms gate running).
+session branch: 8bcbdc73 (train 10, 01:10 UTC: vkms guard; train 9 5dd34fcd: fontconfig, package deps).
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
