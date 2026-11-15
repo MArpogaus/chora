@@ -1666,4 +1666,112 @@ mod tests {
         }
         let _ = std::fs::remove_dir_all(cache);
     }
+
+    fn long_prompt() -> String {
+        let words = "Please tidy the notes folder and sort every item by its date";
+        let mut prompt = String::from("Read this first.\nThen ");
+        while prompt.chars().count() < 1800 {
+            prompt.push_str(words);
+            prompt.push_str(".\n");
+        }
+        prompt
+    }
+
+    fn chat_session(task: &str) -> Session {
+        let mut session = Session::new();
+        session.mode = Mode::Chat("coder".into());
+        session.status.state = "working".into();
+        session.status.task = task.into();
+        session
+    }
+
+    fn plain_frames() -> Vec<Frame> {
+        let styles = [ChatStyle::Plain, ChatStyle::Bubble];
+        let widths = [None, Some(240)];
+        let areas = [[0, 0, 1280, 770], [0, 0, 1024, 738]];
+        let mut frames = Vec::new();
+        for (style, width, area) in product(&styles, &widths, &areas) {
+            frames.push(Frame {
+                area,
+                size: [area[2], area[3] + 30],
+                look: Look {
+                    style,
+                    width,
+                    ..Look::default()
+                },
+                ..idle_frame(IdleStop::Hide)
+            });
+        }
+        frames
+    }
+
+    fn product<A: Copy, B: Copy, C: Copy>(a: &[A], b: &[B], c: &[C]) -> Vec<(A, B, C)> {
+        a.iter()
+            .flat_map(|&x| {
+                b.iter()
+                    .flat_map(move |&y| c.iter().map(move |&z| (x, y, z)))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_long_prompt_keeps_the_header_of_every_plain_look_at_two_lines() {
+        let (theme, _, cache) = crate::tests::loaded("plain-long-prompt");
+        let prompt = long_prompt();
+        let named = chat_session("x").header(Language::En);
+        let named = named.trim_end_matches('x');
+        for frame in plain_frames() {
+            let case = format!(
+                "{:?} {:?} {:?}",
+                frame.look.style, frame.look.width, frame.area
+            );
+            let room = f64::from(frame.rect()[2] - 2 * PAD);
+            let mut idle = Session::new();
+            idle.mode = Mode::List(Vec::new(), None);
+            let two = idle.parts(&theme, &frame, Language::En);
+            assert_eq!(two.header.lines().count(), 2, "{case}");
+            let parts = chat_session(&prompt).parts(&theme, &frame, Language::En);
+            let lines: Vec<&str> = parts.header.lines().collect();
+            assert!(lines.len() <= 2, "{case}: {} lines", lines.len());
+            assert!(lines.join(" ").starts_with(named), "{case}: {lines:?}");
+            assert!(
+                lines.last().is_some_and(|l| l.ends_with('\u{2026}')),
+                "{case}"
+            );
+            let widest = lines.iter().map(|l| theme.text_width(l, Font::BodyBold));
+            let widest = widest.fold(0.0, f64::max);
+            assert!(
+                widest <= room,
+                "{case}: {lines:?} is {widest} wide in {room}"
+            );
+            assert_eq!(parts.top_row, two.top_row, "{case}: Stop and Close move");
+            assert_eq!(parts.body_top, two.body_top, "{case}: the transcript moves");
+            assert!(parts.top_row + BUTTON[1] < parts.rect[3], "{case}");
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_meta_calls_a_header_line_cut_at_the_bottom_not_whole() {
+        let (theme, _, cache) = crate::tests::loaded("plain-cut-bottom");
+        let mut session = Session::new();
+        session.mode = Mode::List(Vec::new(), None);
+        let frame = Frame {
+            look: Look::default(),
+            tip: None,
+            ..idle_frame(IdleStop::Hide)
+        };
+        let mut parts = session.parts(&theme, &frame, Language::En);
+        let lines: Vec<String> = parts.header.lines().map(str::to_owned).collect();
+        assert_eq!(lines.len(), 2);
+        parts.rect[3] = PAD + LINE + LINE / 2;
+        let shown = shown_lines(&theme, &parts, parts.rect[2]);
+        assert_eq!(shown[0], lines[0]);
+        assert_ne!(
+            shown[1], lines[1],
+            "a line cut at the bottom is called whole"
+        );
+        assert!(shown[1].ends_with('\u{2026}'), "{}", shown[1]);
+        let _ = std::fs::remove_dir_all(cache);
+    }
 }

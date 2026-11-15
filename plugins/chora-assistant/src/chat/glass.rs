@@ -654,4 +654,103 @@ mod tests {
         }
         let _ = std::fs::remove_dir_all(cache);
     }
+
+    fn glass_frame(area: [i32; 4], width: u32) -> Frame {
+        Frame {
+            output: "HEADLESS-1".into(),
+            size: [area[2], area[3] + 30],
+            area,
+            look: chora_kit::hud::Chat {
+                style: chora_kit::hud::ChatStyle::Glass,
+                anchor: Some(chora_kit::hud::Anchor::Right),
+                width: Some(width),
+                margin: 32,
+                ..chora_kit::hud::Chat::default()
+            },
+            slot: None,
+            clear: Vec::new(),
+            tip: None,
+            field: 36,
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
+        }
+    }
+
+    fn small_width(theme: &Theme, line: &str) -> f64 {
+        Line::new(line, Type::Small, Material::of(false).muted).width(theme)
+    }
+
+    #[test]
+    fn the_glass_header_without_a_state_word_keeps_two_lines_at_the_narrowest_width() {
+        let (theme, _, cache) = crate::tests::loaded("glass-narrow");
+        let areas = [[0, 0, 1280, 770], [0, 0, 1024, 738]];
+        let cases = areas.iter().flat_map(|&area| {
+            [240, 480].into_iter().flat_map(move |width| {
+                [Language::En, Language::De]
+                    .into_iter()
+                    .flat_map(move |language| {
+                        [
+                            (area, width, language, false),
+                            (area, width, language, true),
+                        ]
+                    })
+            })
+        });
+        for (area, width, language, offline) in cases {
+            let frame = glass_frame(area, width);
+            let room = f64::from(frame.rect()[2]) - 2.0 * PAD;
+            let mut session = Session::new();
+            session.mode = Mode::List(Vec::new(), None);
+            session.offline = offline;
+            let (_, _, shown) = session.glass_picture(&theme, &frame, (language, false));
+            let lines: Vec<&str> = shown.lines().collect();
+            let case = format!("{width} {language:?} {offline}");
+            assert!(lines.len() <= 2, "{case}: {lines:?}");
+            let widest = lines
+                .iter()
+                .map(|l| small_width(&theme, l))
+                .fold(0.0, f64::max);
+            assert!(
+                widest <= room,
+                "{case}: {lines:?} is {widest} wide in {room}"
+            );
+            let whole = session.header(language);
+            let cut = lines.last().is_some_and(|l| l.ends_with('\u{2026}'));
+            assert!(lines.join(" ") == whole || cut, "{case}: {lines:?}");
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_long_prompt_keeps_the_name_and_ends_the_task_beside_the_glass_state_word() {
+        let (theme, _, cache) = crate::tests::loaded("glass-long-prompt");
+        let mut prompt = String::from("Read this first.\nThen ");
+        while prompt.chars().count() < 1800 {
+            prompt.push_str("Please tidy the notes folder and sort every item by its date.\n");
+        }
+        for area in [[0, 0, 1280, 770], [0, 0, 1024, 738]] {
+            for width in [240, 480] {
+                let frame = glass_frame(area, width);
+                let mut session = Session::new();
+                session.mode = Mode::Chat("coder".into());
+                session.status.state = "working".into();
+                session.status.task = prompt.clone();
+                let (word, _) = session.glass_head(Language::En);
+                let (_, _, shown) = session.glass_picture(&theme, &frame, (Language::En, false));
+                let lines: Vec<&str> = shown.lines().collect();
+                let case = format!("{width} {area:?}");
+                assert_eq!(lines.len(), 2, "{case}: {lines:?}");
+                assert_eq!(lines[0], word, "{case}");
+                assert!(lines[1].starts_with("coder · "), "{case}: {}", lines[1]);
+                assert!(lines[1].ends_with('\u{2026}'), "{case}: {}", lines[1]);
+                let word_w = Line::new(&word, Type::Label, Material::of(false).text).width(&theme);
+                let room = f64::from(frame.rect()[2]) - 3.0 * PAD - word_w;
+                let wide = small_width(&theme, lines[1]);
+                assert!(wide <= room, "{case}: {wide} wide in {room}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
 }
