@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-15 10:07 UTC)
+## Now (2026-11-15 10:28 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: all models 33 % (09:20 owner). Week resets Sat 11-21 10:59 Bangkok = 03:59 UTC. Pace: at most 93 % at the reset = 10 % a UTC day (0.4 %/h); Sun is over: running opus lanes finish, nothing new on opus before Mon 00:00 UTC.
 models (rules.md 5; owner 09:27): haiku (low) tests, gates, personas; sonnet (medium) builds; opus only reviews and hard causes; Model line in every brief.
@@ -14,7 +14,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
-| 4 | CI green | PR #106: 61d885f0 green; e2e red on 0e303d60, 2d9f306f (F25; ci f25 r1: not local): core watchdog |
+| 4 | CI green | PR #106: 5aa30b54 all green (10:28); F25 red on 0e303d60, 2d9f306f: intermittent, lead sh-22 (core watchdog) |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; 13 MEDIUM security: lanes security a, b r1 |
 | 7 | deny, machete | clean (ci-rc) |
