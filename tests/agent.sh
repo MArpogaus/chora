@@ -367,8 +367,9 @@ wait_for xs_are "0 0 0"
 step "18. exit: an MCP client describes the screen, sets the layout, sees it, and waits for events"
 # Two windows in one color each instead of the terminals.
 # Every foot of this core: the steps started some through choractl run.
-for p in $(pgrep -s 0 -x foot) $(pgrep -P "$chora_pid" -x foot); do
-    grep -qzx "WAYLAND_DISPLAY=$inner" "/proc/$p/environ" 2>/dev/null && kill "$p"
+for p in $(pgrep -s 0 -x foot); do
+    grep -qzx "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" "/proc/$p/environ" 2>/dev/null &&
+        grep -qzx "WAYLAND_DISPLAY=$inner" "/proc/$p/environ" 2>/dev/null && kill "$p"
 done
 wait_for count_is 0 'true'
 WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 255 0 0 >>"$out/windows.log" 2>&1 &

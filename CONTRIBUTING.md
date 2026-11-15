@@ -236,7 +236,7 @@ step fails on a non-zero exit code, on a line that starts with `FAIL:` or
 and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
 and only from a clean work tree. `--jobs N` runs up to N steps after
 2d-guard at once. The gate scripts mostly wait, so `--jobs 3` on four
-CPUs keeps their times and cuts the gate from about 27 to about 12
+CPUs keeps their times and cuts the gate from about 27 to about 10
 minutes. A gate script judges its programs by pid (`session_pids` of
 `tests/gate-lib.sh`), never by name, since the steps beside it start the
 same programs. `tests/merge-gate-selftest.sh` proves this with fake steps
