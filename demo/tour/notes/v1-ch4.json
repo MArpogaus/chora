@@ -1,0 +1,17 @@
+{
+ "04-01-start": "Pale sky, marble floor with reflections, three panes ahead (wobbly.rs left, sunset middle, chora right) tilted toward the middle; label SUNSET under the middle pane; OPEN CUBE chip bottom right. No ring or HUD state shown (voice HUD off).",
+ "04-02-walk-forward": "Holding w 2 s moves the camera forward only a little: the panes grow by about 10 percent. The walk is slow compared with a 2 s hold.",
+ "04-03-turn-right": "Holding e 1.2 s turns the view to the right; the chora pane moves toward the middle and the left pane leaves the screen.",
+ "04-04-turn-left": "Holding q 2.4 s turns the view left past the start; the three panes appear nearly as at the start (turn is symmetric).",
+ "04-05-turn-back": "After e 1.2 s the view is turned a little to the right again; the sunset pane is left of the middle, not centred.",
+ "04-06-walk-back": "s 1.5 s walks back; panes get smaller; the sunset pane is near the middle.",
+ "04-07-fly-in": "Return flies into the sunset pane: it fills about 760x480 at the middle (1:1) with the neighbours cut at the edges; the label vanished.",
+ "04-08-fly-out": "Alt+Escape flies back out to the pose before; the three panes are in view; the pointer sits on the sunset pane.",
+ "04-09-window-list": "Tab opens a glass WINDOWS list with sunset (selected), wobbly.rs, chora, load and wobble.rs; load and wobble.rs are marked not in view. The list is light glass over the panes.",
+ "04-10-list-down": "Two Down presses move the selection to chora.",
+ "04-11-list-choice": "Return flies to the chora pane, which shows at 1:1 with the sunset pane cut at the left edge.",
+ "04-12-fly-out-2": "Alt+Escape flies out again to the pose before.",
+ "04-13-help": "F1 shows a KEYS panel: walk, step, turn, look, home, Return, Super+t, Super+space, Super+x, Tab, F1, Alt+Escape, Super+drag, Super+wheel. The panel is see-through: the bright sun of the sunset pane shows through the text lines (hard to read at the top).",
+ "04-14-help-gone": "F1 again hides the help panel.",
+ "04-15-notice": "z shows the notice The keys walk here. F1 shows them all. in a white pill at the bottom middle."
+}

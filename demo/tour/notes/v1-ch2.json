@@ -1,0 +1,22 @@
+{
+ "02-01-empty": "Empty dark desktop, waybar at the top shows clock, Volume 40% and Connected; the Chat ... pill sits over the bar at the top right. No tag indicator in the bar (tags 1-9 not shown; the tag number is not visible anywhere).",
+ "02-02-window-1": "First terminal (Notes content) fills the whole area under the bar, 4 px gaps.",
+ "02-03-window-2": "Second window (wobbly.rs code) opens as master on the left, first window to the right (new_window: master).",
+ "02-04-window-3": "Third window: master left, two stacked on the right.",
+ "02-05-window-4": "Fourth window: master left, three stacked on the right; the chart content is cut off at the top of its tile.",
+ "02-07-layout-tile_left": "tile_left: master on the right, stack on the left; mirrored layout as expected.",
+ "02-08-layout-tile_bottom": "tile_bottom: master on top, three windows in a row below.",
+ "02-09-layout-tile_top": "tile_top: master at the bottom, stack above.",
+ "02-10-layout-fair": "fair: 2x2 grid.",
+ "02-11-layout-fair_horizontal": "fair_horizontal: 2x2 grid; looks the same as fair with four windows.",
+ "02-12-focus-next": "Focus moves; no visible focus mark on the windows (no border change) so the change is hard to see.",
+ "02-13-swap": "Windows swap places; focus mark again not visible.",
+ "02-14-master-wider": "Master grows to 5 percent wider.",
+ "02-15-tag-2": "Tag 2 empty: plain dark colour only, the bar looks unchanged (no sign of which tag is shown).",
+ "02-16-tag-1": "The four windows are back in their layout.",
+ "02-17-bar-hover": "Pointer over Connected shows a tooltip eth0 192.0.2.2/24 under the bar.",
+ "02-18-chat-panel": "Super+a opens the chat panel at the right (white, about 340 wide) over the tiles; header Chat with a helper, Close, 1 atlas; the tooltip of the bar still shows on it.",
+ "02-19-typed": "Typed text shows in the field at the bottom of the panel (the keyboard goes to the field at once, no click needed).",
+ "02-20-no-helper": "After Return: hint Pick a helper first: type its number and press Enter, or click it. The typed text stays in the field.",
+ "02-21-chat-closed": "Escape closes the panel; the tooltip of the bar is still on screen after it, now over the terminal."
+}
