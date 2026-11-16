@@ -30,7 +30,7 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 | secfix-a-r2.md (rc 6) | sonnet med, claude/secfix-a | r1 FIX (FIFO open, TOCTOU); r2 10:0x |
 | xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r1 MERGE-OK (train 26); r2 xp-25..27 10:4x |
 | tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
-| mc-r1.md (rc 1, 11) | sonnet high, claude/mc | mc-32 BLOCK, mc-33..37; 10:1x |
+| mc-r1.md (rc 1, 11) | sonnet high, claude/mc | r1 back 11:21 (mc-32, 35a, 36, 37 fixed; 34, 35b open); review 11:2x; mc-33, 36 script to media r3 |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
