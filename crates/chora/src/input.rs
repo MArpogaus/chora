@@ -453,7 +453,10 @@ fn press_action(
     grab_action(state, mods, syms, false)
 }
 
-/// The grab of a binding, unless the session is locked.
+/// The grab of a binding, unless the session is locked. A grab that waits
+/// for the manager under the pointer swallows the key: it must not reach
+/// the focused client as a raw key. An injected key has no pointer, and
+/// goes to the grab.
 fn grab_action(
     state: &State,
     mods: &ModifiersState,
@@ -463,13 +466,22 @@ fn grab_action(
     if state.lock.is_some() {
         return None;
     }
+    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |_| true)?;
+    if injected {
+        return Some(KeyAction::Grab(conn, binding, true));
+    }
     let place = key_place(state);
-    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |conn| {
+    let held_back = |conn| {
         place
             .as_deref()
-            .is_none_or(|place| !holds_other_claim(state, conn, place))
-    })?;
-    Some(KeyAction::Grab(conn, binding, injected))
+            .is_some_and(|place| holds_other_claim(state, conn, place))
+    };
+    Some(
+        match state.ipc.grab_for_where(mods, syms, |c| !held_back(c)) {
+            Some((conn, binding)) => KeyAction::Grab(conn, binding, false),
+            None => KeyAction::Swallow,
+        },
+    )
 }
 
 /// The window manager whose claim holds the pointer: where the person
