@@ -354,3 +354,11 @@ Resolved 2026-11-15: fixed: security a r3 brief named the invariant; tests/injec
 ## 52 (2026-11-16 00:3x UTC): the security class reopened a fourth time through events without the flag
 security a r3 fixed every event that carries `injected`; review r3 found InputButton, PointerEntered and PointerScroll carry none, so a grab, focus-follows-mouse and scroll still act on injected input. Friction 51's brief rule (name the invariant) held, but the invariant was enforced per path. Change: r4 puts the flag in the event type so the compiler lists every match, and optout.py refuses patterns that ignore it. Rule for briefs: an invariant over events is enforced in the type, not in handlers.
 Resolved 2026-11-16: guarded by the type change of security a r4 (compile errors at every match) and injected-optout.py.
+
+## 53 (2026-11-16 11:3x UTC): the disk ran out again during a merge train (48 recurred)
+Train 26 run 2 failed clippy with ENOSPC: two review worktrees, their targets and a 6 GB sccache cache sat beside the gate. The fix of 48 (own target dir per review, deleted on handback) held for one review at a time but not for reviews in parallel with a gate, and nothing cleared sccache.
+Resolved 2026-11-16: guarded: routines.md "Disk" line (df before every review or train; under 20 G free one build at a time, clear sccache); merge-gate df check is harness item F30 for the next harness lane.
+
+## 54 (2026-11-16 12:09 UTC): a lane gate differs from the PM gate by container
+xp-polish r2 reported doors FAIL in mc (no grim, no set-mute) and 2d-guard NOT RUN (no base2d); the same doors step passed in train 27 on the PM container. Lane containers drift (F27 fuzzel too).
+Resolved 2026-11-16: closed: the PM train gate is the authority (rules.md 8); a lane step that fails only in its container is noted in the report and checked by the next train, as done for train 27.

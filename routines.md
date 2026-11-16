@@ -15,6 +15,7 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
   duplication across plugins); results as lines in state.md or backlog items.
 
 ## By event
+- Before a review or a train (friction 53): `df -h /`; under 20 G free one build at a time and `rm -rf /root/.cache/sccache/*`; reviews build in /tmp/rev-target, removed on handback.
 - A harness branch is MERGE-OK: its own train at once, before other trains; then tell the running
   lanes to merge the session branch. A new hook or check shows it never blocks a valid commit.
 - A FIX verdict or a CI-only failure: name the earliest gate that could have caught it; if none
