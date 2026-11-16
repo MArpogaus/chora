@@ -456,7 +456,8 @@ fn press_action(
 /// The grab of a binding, unless the session is locked. A grab that waits
 /// for the manager under the pointer swallows the key: it must not reach
 /// the focused client as a raw key. An injected key has no pointer, and
-/// goes to the grab.
+/// goes to the grab, except in the test mode of `injected_press_is_real`,
+/// where it counts as a key of the person.
 fn grab_action(
     state: &State,
     mods: &ModifiersState,
@@ -467,7 +468,7 @@ fn grab_action(
         return None;
     }
     let (conn, binding) = state.ipc.grab_for_where(mods, syms, |_| true)?;
-    if injected {
+    if injected && !state.injected_press_is_real {
         return Some(KeyAction::Grab(conn, binding, true));
     }
     let place = key_place(state);
@@ -478,7 +479,7 @@ fn grab_action(
     };
     Some(
         match state.ipc.grab_for_where(mods, syms, |c| !held_back(c)) {
-            Some((conn, binding)) => KeyAction::Grab(conn, binding, false),
+            Some((conn, binding)) => KeyAction::Grab(conn, binding, injected),
             None => KeyAction::Swallow,
         },
     )
@@ -3001,5 +3002,14 @@ mod tests {
             false,
         );
         assert!(none.is_none(), "a plain key goes to the client");
+    }
+    #[test]
+    fn an_injected_key_that_counts_as_real_keeps_the_pointer_gate() {
+        let (mut core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        core.state.injected_press_is_real = true;
+        assert!(
+            matches!(alt_y(&core, true), Some(super::KeyAction::Swallow)),
+            "in the test mode an injected key is a key of the person"
+        );
     }
 }
