@@ -163,7 +163,17 @@ grep -q "needs a grant" "$out/denied.err" || fail "denied: $(cat "$out/denied.er
 "$bin/choractl" grants | jq -e '.agent == ["screen.capture"]' >/dev/null ||
     fail "grants: $("$bin/choractl" grants)"
 
+bar_shows() {
+    ctl capture "$out/bar.png" >/dev/null 2>&1 &&
+        test "$(png_pixel "$out/bar.png" 570 24)" != "$(png_pixel "$out/bar.png" 570 44)"
+}
+
 step "6. a capture of the output shows what the host shows"
+for _ in $(seq 60); do
+    bar_shows && break
+    sleep 0.5
+done
+bar_shows || fail "the bar of the tiling flavor does not show after 30 s"
 ctl capture "$out/screen.png" >"$out/screen.json" || fail "the capture failed"
 jq -e '.width == 1280 and .height == 800 and .scale == 1' "$out/screen.json" >/dev/null ||
     fail "picture: $(cat "$out/screen.json")"
