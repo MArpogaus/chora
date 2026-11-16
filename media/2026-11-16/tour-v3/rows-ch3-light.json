@@ -1,0 +1,178 @@
+[
+ {
+  "chapter": "3 mc (light)",
+  "act": 1,
+  "frame": 53,
+  "kind": "look",
+  "description": "The person reads the first scene",
+  "expected": "Scene 1 AGENDA: times in the margin, the right column with Notifications, Chat, the keys and the doors",
+  "still": "03-01-start-light",
+  "happened": "",
+  "abs": 128
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 2,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Next in the footer",
+  "expected": "The scene fades to number 2",
+  "still": "03-02-next-scene-2-light",
+  "happened": "",
+  "abs": 279
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 3,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Next in the footer",
+  "expected": "The scene fades to number 3",
+  "still": "03-03-next-scene-3-light",
+  "happened": "",
+  "abs": 473
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 4,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Next in the footer",
+  "expected": "The scene fades to number 4",
+  "still": "03-04-next-scene-4-light",
+  "happened": "",
+  "abs": 633
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 5,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Next in the footer",
+  "expected": "The scene fades to number 5",
+  "still": "03-05-next-scene-5-light",
+  "happened": "",
+  "abs": 797
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 6,
+  "frame": 198,
+  "kind": "key",
+  "description": "Slip: press Super+Left twice, one scene too far back",
+  "expected": "The scenes go back; the person goes forward again with the footer",
+  "still": "03-07-back-light",
+  "happened": "",
+  "abs": 964
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 7,
+  "frame": 332,
+  "kind": "key",
+  "description": "Press Super+o (overview)",
+  "expected": "The overview lists the scenes",
+  "still": "03-08-overview-light",
+  "happened": "",
+  "abs": 1098
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 8,
+  "frame": 486,
+  "kind": "key",
+  "description": "Press Super+Home (agenda)",
+  "expected": "The agenda again",
+  "still": "03-09-agenda-light",
+  "happened": "",
+  "abs": 1252
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 9,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Programs in the column, the visible door",
+  "expected": "The launcher opens",
+  "still": "03-10-launcher-light",
+  "happened": "",
+  "abs": 1362
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 10,
+  "frame": 195,
+  "kind": "key",
+  "description": "Escape closes the launcher; the person opens the terminal scene with Super+Return",
+  "expected": "Scene Terminal with a shell",
+  "still": "03-11-terminal-light",
+  "happened": "",
+  "abs": 1526
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 11,
+  "frame": 374,
+  "kind": "keys",
+  "description": "Type ls and cat friday.md with a slip, then open the file in nano",
+  "expected": "The shell prints the Friday list; nano shows the file",
+  "still": "03-12-nano-light",
+  "happened": "",
+  "abs": 1705
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 12,
+  "frame": 866,
+  "kind": "key",
+  "description": "Press Super+Home",
+  "expected": "Back to the agenda",
+  "still": "03-13-agenda-back-light",
+  "happened": "",
+  "abs": 2197
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 13,
+  "frame": 975,
+  "kind": "key",
+  "description": "Press Super+n (hide the column)",
+  "expected": "The right column hides",
+  "still": "03-14-right-light",
+  "happened": "",
+  "abs": 2306
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 14,
+  "frame": 1114,
+  "kind": "key",
+  "description": "Press Super+n again",
+  "expected": "The column shows again",
+  "still": "03-14b-right-back-light",
+  "happened": "",
+  "abs": 2445
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 15,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click the chat door in the column",
+  "expected": "The chat opens in the right column with the helper list",
+  "still": "03-15-chat-drawer-light",
+  "happened": "",
+  "abs": 2625
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 16,
+  "frame": 210,
+  "kind": "key",
+  "description": "Press Escape",
+  "expected": "The chat closes",
+  "still": "03-17-chat-closed-light",
+  "happened": "",
+  "abs": 2804
+ }
+]

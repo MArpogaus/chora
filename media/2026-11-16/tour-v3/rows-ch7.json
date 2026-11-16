@@ -1,0 +1,141 @@
+{
+ "rows": [
+  {
+   "chapter": "7 window drags between looks",
+   "act": 1,
+   "frame": 92,
+   "kind": "look",
+   "description": "Two screens: xp on the left, tiling on the right (empty)",
+   "expected": "xp desktop with taskbar; tiling desktop empty",
+   "still": "07-01-two-screens",
+   "happened": "",
+   "abs": 167
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 2,
+   "frame": 176,
+   "kind": "pointer",
+   "description": "Click Start",
+   "expected": "The Start menu opens on the xp screen",
+   "still": "07-02-start",
+   "happened": "",
+   "abs": 251
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 3,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "Click Editor",
+   "expected": "A text editor opens on the xp screen",
+   "still": "07-03-editor-open",
+   "happened": "",
+   "abs": 388
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 4,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "DRAG 1: pull the title bar of the editor window from xp to the tiling screen",
+   "expected": "the editor window leaves xp and tiles in the tiling screen (full height)",
+   "still": "07-04-drag-xp-to-tiling",
+   "happened": "",
+   "abs": 578
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 5,
+   "frame": 31,
+   "kind": "keys",
+   "description": "The person types a line in the editor on its new screen",
+   "expected": "The text appears in the editor on the tiling screen",
+   "still": "07-04b-typed-on-tiling",
+   "happened": "",
+   "abs": 886
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 6,
+   "frame": 286,
+   "kind": "pointer",
+   "description": "DRAG 2: Super+drag the editor window from tiling to the construct screen",
+   "expected": "the editor window leaves tiling and becomes a pane in the construct space",
+   "still": "07-05-drag-tiling-to-construct",
+   "happened": "",
+   "abs": 1141
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 7,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "DRAG 3: Super+drag the the editor window pane from construct to the xp screen",
+   "expected": "the editor window leaves the construct and shows in xp with a title bar and a task button",
+   "still": "07-06-drag-construct-to-xp",
+   "happened": "",
+   "abs": 1390
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 8,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "DRAG 4: pull the title bar of the editor window from xp to the mc screen",
+   "expected": "the editor window becomes the window of an mc scene",
+   "still": "07-07-drag-xp-to-mc",
+   "happened": "",
+   "abs": 1634
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 9,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "DRAG 5: Super+drag the editor window out of mc to the xp screen",
+   "expected": "the editor window leaves mc and shows in xp",
+   "still": "07-08-drag-mc-out",
+   "happened": "",
+   "abs": 1935
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 10,
+   "frame": 31,
+   "kind": "key",
+   "description": "GIVE BY KEY: Super+Alt+1 (give the focused window to tiling)",
+   "expected": "the editor window goes to tiling and fills its screen",
+   "still": "07-09-give-key-tiling",
+   "happened": "",
+   "abs": 2180
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 11,
+   "frame": 31,
+   "kind": "key",
+   "description": "GIVE BY KEY: Super+Alt+2 (give the focused window to xp)",
+   "expected": "the editor window goes back to xp",
+   "still": "07-10-give-key-xp",
+   "happened": "",
+   "abs": 2332
+  }
+ ],
+ "observed": {
+  "07-03-editor-open": "owner xp, focused True, rects {'HEADLESS-2': [28.0, 49.0, 700.0, 500.0]}",
+  "07-04-drag-xp-to-tiling": "owner tiling, focused True, rects {'HEADLESS-3': [14.0, 14.0, 1252.0, 692.0]}",
+  "07-05-drag-tiling-to-construct": "owner construct, focused True, rects {'HEADLESS-1': [14.0, 14.0, 1252.0, 692.0]}",
+  "07-06-drag-construct-to-xp": "owner xp, focused True, rects {'HEADLESS-2': [58.0, 79.0, 700.0, 500.0]}",
+  "07-07-drag-xp-to-mc": "owner mc, focused True, rects {'HEADLESS-4': [0.0, 56.0, 1280.0, 664.0]}",
+  "07-08-drag-mc-out": "owner xp, focused True, rects {'HEADLESS-2': [88.0, 109.0, 700.0, 500.0]}",
+  "07-09-give-key-tiling": "owner tiling, focused True, rects {'HEADLESS-3': [14.0, 14.0, 1252.0, 692.0]}",
+  "07-10-give-key-xp": "owner xp, focused True, rects {'HEADLESS-2': [24.0, 25.0, 700.0, 500.0]}",
+  "audit": [
+   [
+    "s1",
+    "xp"
+   ]
+  ]
+ }
+}

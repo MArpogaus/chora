@@ -1,0 +1,200 @@
+[
+ {
+  "chapter": "1 xp",
+  "act": 1,
+  "frame": 53,
+  "kind": "look",
+  "description": "The person sits down at the xp desktop and looks around",
+  "expected": "Desktop picture, taskbar with Start, four desktop buttons, volume, clock",
+  "still": "01-01-desktop",
+  "happened": "",
+  "abs": 128
+ },
+ {
+  "chapter": "1 xp",
+  "act": 2,
+  "frame": 10,
+  "kind": "pointer",
+  "description": "Move to Start and click it",
+  "expected": "The Start menu opens: Terminal, Chat with a helper, four programs",
+  "still": "01-02-start-menu",
+  "happened": "",
+  "abs": 243
+ },
+ {
+  "chapter": "1 xp",
+  "act": 3,
+  "frame": 13,
+  "kind": "pointer",
+  "description": "Pick Terminal",
+  "expected": "A terminal window opens, a task button appears",
+  "still": "01-03-terminal-open",
+  "happened": "",
+  "abs": 385
+ },
+ {
+  "chapter": "1 xp",
+  "act": 4,
+  "frame": 201,
+  "kind": "keys",
+  "description": "Type ls with a slip (lss), correct it, then cat friday.md",
+  "expected": "ls lists the notes (the slip is deleted before Return); cat prints the Friday list",
+  "still": "01-04-shell",
+  "happened": "",
+  "abs": 573
+ },
+ {
+  "chapter": "1 xp",
+  "act": 5,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Slip: open Start and click Chat with a helper by mistake, wanting the Editor",
+  "expected": "Start menu opens, then the chat of the helper opens instead of an editor",
+  "still": "01-05-slip-chat",
+  "happened": "",
+  "abs": 878
+ },
+ {
+  "chapter": "1 xp",
+  "act": 6,
+  "frame": 31,
+  "kind": "key",
+  "description": "Notice it is the chat, press Escape",
+  "expected": "The chat closes",
+  "still": "01-06-slip-closed",
+  "happened": "",
+  "abs": 1129
+ },
+ {
+  "chapter": "1 xp",
+  "act": 7,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Start again and pick the Editor",
+  "expected": "A text editor opens on friday.md in its own window",
+  "still": "01-07-editor-open",
+  "happened": "",
+  "abs": 1257
+ },
+ {
+  "chapter": "1 xp",
+  "act": 8,
+  "frame": 196,
+  "kind": "keys",
+  "description": "Type a line in the editor, then save with Ctrl+O and Return",
+  "expected": "The new line is in the text; the editor asks for the file name and keeps it",
+  "still": "01-08-editor-typed",
+  "happened": "",
+  "abs": 1525
+ },
+ {
+  "chapter": "1 xp",
+  "act": 9,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Drag the title bar of the editor to the right",
+  "expected": "The window follows and bends like jelly, then settles",
+  "still": "01-09-wobbly-drag",
+  "happened": "",
+  "abs": 1851
+ },
+ {
+  "chapter": "1 xp",
+  "act": 10,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click the terminal button on the taskbar",
+  "expected": "The terminal comes to the front",
+  "still": "01-10-taskbar-terminal",
+  "happened": "",
+  "abs": 2080
+ },
+ {
+  "chapter": "1 xp",
+  "act": 11,
+  "frame": 174,
+  "kind": "key",
+  "description": "Open the key list: Super+F1",
+  "expected": "A help window lists the keys in groups",
+  "still": "01-11-key-list",
+  "happened": "",
+  "abs": 2223
+ },
+ {
+  "chapter": "1 xp",
+  "act": 12,
+  "frame": 289,
+  "kind": "key",
+  "description": "Close the help with Escape",
+  "expected": "The help closes, the windows stay",
+  "still": "01-12-key-list-closed",
+  "happened": "",
+  "abs": 2338
+ },
+ {
+  "chapter": "1 xp",
+  "act": 13,
+  "frame": 121,
+  "kind": "key",
+  "description": "Press Super+A, the key the list names for the helper",
+  "expected": "The chat opens with the helper's transcript",
+  "still": "01-13-chat-open",
+  "happened": "",
+  "abs": 2571
+ },
+ {
+  "chapter": "1 xp",
+  "act": 14,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click into the message field and type",
+  "expected": "The field takes the keyboard; the text shows",
+  "still": "01-15-typed",
+  "happened": "",
+  "abs": 2687
+ },
+ {
+  "chapter": "1 xp",
+  "act": 15,
+  "frame": 336,
+  "kind": "key",
+  "description": "Press Return",
+  "expected": "The message is sent: the field empties",
+  "still": "01-16-sent",
+  "happened": "",
+  "abs": 2992
+ },
+ {
+  "chapter": "1 xp",
+  "act": 16,
+  "frame": 61,
+  "kind": "voice event",
+  "description": "The helper asks a question; the person reads it",
+  "expected": "A question card with Yes and No shows in the chat",
+  "still": "01-17-question",
+  "happened": "",
+  "abs": 3129
+ },
+ {
+  "chapter": "1 xp",
+  "act": 17,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Yes",
+  "expected": "The click answers the question",
+  "still": "01-18-answered",
+  "happened": "",
+  "abs": 3250
+ },
+ {
+  "chapter": "1 xp",
+  "act": 18,
+  "frame": 37,
+  "kind": "pointer",
+  "description": "Click Close",
+  "expected": "The chat closes; only the paperclip stays",
+  "still": "01-19-chat-closed",
+  "happened": "",
+  "abs": 3398
+ }
+]
