@@ -1,6 +1,6 @@
 # flakes r6 (rc 3: three greens in a row)
 
-Model: Fable, effort high (hard causes: three flakes that survived five rounds; owner 11-16 16:5x)
+Model: Fable, effort high (because three flakes survived five rounds and block rc 3; owner 11-16 16:49)
 Lane: cloud, new branch claude/flakes-r6 from the session branch
 claude/autonomous-dev-session-3w-i33pg7 (6a067e39 or newer). One round. Stop at 250 k context
 and hand over. Read rules.md, conventions.md (with the skills it names) and reports/flakes-r5.md
