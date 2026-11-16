@@ -362,3 +362,8 @@ Resolved 2026-11-16: guarded: routines.md "Disk" line (df before every review or
 ## 54 (2026-11-16 12:09 UTC): a lane gate differs from the PM gate by container
 xp-polish r2 reported doors FAIL in mc (no grim, no set-mute) and 2d-guard NOT RUN (no base2d); the same doors step passed in train 27 on the PM container. Lane containers drift (F27 fuzzel too).
 Resolved 2026-11-16: closed: the PM train gate is the authority (rules.md 8); a lane step that fails only in its container is noted in the report and checked by the next train, as done for train 27.
+
+## 55 (2026-11-16 14:2x UTC): a train merged the branch head, not the reviewed commit
+Train 26 merged claude/xp-polish at 64432a5b; review r1 covered 1df6d8ad. xp-25 and xp-26 of round 2 landed unreviewed (gate passed; review r2 then found them already merged and could not check them). Same risk for every lane that keeps pushing after its review.
+Resolved 2026-11-16: guarded (manual until built): the train merges the head named in the review report, never origin/<lane>; to build: tools/train.sh reads the head from reports/review-<lane>.md.
+Also: tests/merge-gate.sh step header conflicts at every train that adds a step (trains 27, 31); to build: list derived from the step table (harness lane with F30).
