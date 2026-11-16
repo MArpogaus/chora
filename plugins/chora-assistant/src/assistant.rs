@@ -1555,6 +1555,40 @@ mod tests {
         assert_eq!(low[1], 720 - 26, "inside the area");
     }
 
+    fn sentence_values(extra: &str) -> Values {
+        let text = format!(
+            "hud: 1\npanels:\n- {{id: line, source: say, anchor: top_right, style: plain, \
+             text: '{{text}}'{extra}}}\n"
+        );
+        let hud = chora_kit::hud::parse(&text).unwrap();
+        Values::from_hud(&hud, &chora_kit::hud::Context::default(), |_| None)
+    }
+
+    fn sentence_left(values: &Values, text: &str) -> f64 {
+        let (mut theme, ..) = crate::tests::loaded("sentence-size");
+        let mut a = assistant(values, "speaking", Instant::now());
+        let commands = a.say(&mut theme, text, Duration::ZERO, Instant::now());
+        commands
+            .iter()
+            .find_map(|c| match c {
+                Command::Create { id, props, .. } if id == SPEECH => props.transform,
+                _ => None,
+            })
+            .map(|t| t.translation_2d().0)
+            .expect("the sentence is drawn")
+    }
+
+    #[test]
+    fn a_sentence_with_a_size_is_drawn_larger_than_the_small_text_of_the_host() {
+        let text = "Tomorrow it will be dry in Zurich.";
+        let small = sentence_left(&sentence_values(""), text);
+        let large = sentence_left(&sentence_values(", size: 19"), text);
+        assert!(
+            small - large >= 50.0,
+            "the sentence starts at {small} small and {large} at 19 px"
+        );
+    }
+
     #[test]
     fn a_tail_at_the_left_lets_the_bubble_grow_to_the_right() {
         let style = Style {

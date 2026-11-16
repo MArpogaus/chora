@@ -1464,6 +1464,16 @@ mod tests {
     }
 
     #[test]
+    fn a_panel_names_the_size_of_its_text_from_14_to_48_pixels() {
+        for bad in ["size: 13", "size: 49", "size: 0"] {
+            assert!(errors(parse(&one_panel(bad))).contains("size"), "{bad}");
+        }
+        for good in ["size: 14", "size: 19", "size: 48"] {
+            assert!(parse(&one_panel(good)).is_ok(), "{good}");
+        }
+    }
+
+    #[test]
     fn the_chat_takes_a_radius_a_well_and_a_card_look() {
         let hud = parse("hud: 1\nchat: {radius: 10, well: [1, 2, 3], card: chat}\n").unwrap();
         assert_eq!(hud.chat.radius, Some(10));
