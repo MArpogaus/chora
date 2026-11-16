@@ -975,7 +975,7 @@ impl Wm {
     /// What the speaker of the taskbars shows: the icon only.
     fn speaker(&self) -> taskbar::Speaker {
         match self.volume {
-            Some(Reading::Level(level)) if !level.muted => taskbar::Speaker::On,
+            Some(Reading::Level(level)) if !level.muted => taskbar::Speaker::On(level.percent),
             _ => taskbar::Speaker::Off,
         }
     }
