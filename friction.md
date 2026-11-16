@@ -367,3 +367,4 @@ Resolved 2026-11-16: closed: the PM train gate is the authority (rules.md 8); a 
 Train 26 merged claude/xp-polish at 64432a5b; review r1 covered 1df6d8ad. xp-25 and xp-26 of round 2 landed unreviewed (gate passed; review r2 then found them already merged and could not check them). Same risk for every lane that keeps pushing after its review.
 Resolved 2026-11-16: guarded (manual until built): the train merges the head named in the review report, never origin/<lane>; to build: tools/train.sh reads the head from reports/review-<lane>.md.
 Also: tests/merge-gate.sh step header conflicts at every train that adds a step (trains 27, 31); to build: list derived from the step table (harness lane with F30).
+- 11-16 20:42 PM asked testwatch for single gate cells without a build step; it ran 17:52 binaries and reported 11/11 F28 fails (false alarm, 15 min haiku). Fix: every single-cell request names `cargo build --locked --workspace` first; merge-gate.sh builds itself.
