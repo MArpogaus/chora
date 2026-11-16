@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-16 09:21 UTC)
+## Now (2026-11-16 09:22 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 41 % at 09:17 Mon (owner). forecast (tokens.py 09:17): 8.0 %/day, ~79 % at reset; target ~12 %/day; 40->41 in 28 min with 9 lanes: WIP 6 build lanes, no new lane before the next reading.
-models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
-session branch: 66588880 (train 23, 08:3x UTC: media; all steps incl. doors passed). Train 24 (claude/f25 df101c14) gate running. CI green 66588880 (train 23).
+models: haiku low tests; sonnet medium builds; opus reviews, hard causes, complex lanes (reason). Cap 12.5 %/day from train 24.
+session branch: caf9c80d (train 24, 09:2x: f25 damage scissor; all steps passed). CI on PR #106 pending.
 burn-down (daily): MAJOR open 5 (sh-23, co-16, xp-23, xp-24, ti-21), lanes 6 build, 4.6 d left; tag Fri if the MAJORs close by Wed and the Thu round is clean.
 
 ## RC (design/rc.md)
@@ -14,7 +14,7 @@ burn-down (daily): MAJOR open 5 (sh-23, co-16, xp-23, xp-24, ti-21), lanes 6 bui
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
-| 4 | CI green | PR #106: green 5aa30b54, 4693fe07; green 8e7effad, 3c0603e8; F25 cause found (f25 r2, df101c1f): damage scissor; review, then train |
+| 4 | CI green | F25 fix merged (train 24, caf9c80d); CI e2e step 6 to watch on PR #106 |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
@@ -25,7 +25,6 @@ burn-down (daily): MAJOR open 5 (sh-23, co-16, xp-23, xp-24, ti-21), lanes 6 bui
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| f25-r2.md (rc 4) | done, claude/f25 df101c1f | MERGE-OK; train 24 gate running |
 | multilook-r1.md (rc 1) | sonnet med, claude/multilook | running 08:46; sh-23, co-16; ti-20 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a-r1.md (rc 6) | sonnet med, claude/secfix-a | raa-23 fix; raa-3 words |

@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Mon 16 Nov, 05:23 UTC (12:23 Bangkok)</span>
+      <span>Updated Mon 16 Nov, 09:25 UTC (16:25 Bangkok)</span>
       <span>Day 8 of 22</span>
       <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
@@ -119,22 +119,23 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merging the fix for the red CI pixel (found: the glow was drawn twice over the old frame); test gate running</li>
-          <li>Fixing two big bugs the new tour found: with xp and tiling side by side the tiling half stays black and keys go to xp; after a drag in 3D the cube can slide off the screen (lane waiting for a cloud machine)</li>
+          <li>Fixing the 5 big look bugs: xp and tiling side by side (keys, black pane), the cube sliding off screen, the xp paperclip missing, xp text fields, the tiling bar not matching the cyberpunk style (plus wobbly windows in tiling)</li>
+          <li>Fixing the 4 security issues the code reviews found (no serious ones; every area is now reviewed)</li>
+          <li>Recording tour v4: one real use per look, about 5 minutes; a cheap tester reruns all checks after every merge</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget: 40 % of the week (08:49 UTC). Your order: use the whole week, so the pace goes up to about 12 % a day with more lanes in parallel, cheap testers after every merge</li>
-          <li>Screencast v3 is recorded (13:37 min, all four looks); you get it once the two bugs above are fixed, your objections within 24 h count</li>
-          <li>Tue: user test round 4 and code reviews per area; Wed-Thu: last flaky tests; Fri 20 Nov: release candidate</li>
+          <li>Budget: 41 % of the week (09:17 UTC), about 8 % a day so far; cap 12.5 % a day; no new lanes until the next reading shows the pace</li>
+          <li>Look fix loop: record, PM watches every chapter plus one reviewer, fix, record again; the last round starts Thu 12:00 UTC (19:00 Bangkok)</li>
+          <li>Wed: user test round 4. Thu 18:00 UTC: the final tour to you. Fri 20 Nov: release candidate, then cleanup sprint (settings alike in every look, duplicate code)</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>Nothing. Watch the tour above when you have 14 minutes; objections within 24 h count.</li>
+          <li>Nothing.</li>
         </ul>
       </div>
     </div>
@@ -177,8 +178,12 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Mon 16 Nov</span><span>4 entries</span></summary>
+      <summary><span>Mon 16 Nov</span><span>8 entries</span></summary>
       <ul class="timeline">
+        <li><time>09:22</time><p><span class="tag ok">merged</span>Train 24: the red CI pixel is fixed. The glow and shadow were drawn twice over the old frame; now only the changed parts are drawn (30 of 30 runs green before the merge).</p></li>
+        <li><time>09:20</time><p><span class="tag info">plan</span>New working rules from your review: a cost and tag check for every request, at most 6 lanes that change code, no new features before the release candidate, a daily burn-down line.</p></li>
+        <li><time>09:04</time><p><span class="tag ok">fixed</span>Slow cloud workers: the setup script built four tools from source and failed on any missing one. It now downloads them; workers start within a minute.</p></li>
+        <li><time>08:59</time><p><span class="tag info">review</span>Code review of all eight areas: no serious finding; four medium security findings go to two fix lanes.</p></li>
         <li><time>05:23</time><p><span class="tag ok">merged</span>Train 22: the tiling bar no longer dies when it is signalled before it is ready (it sometimes did not show), and the launcher click and this bar case now run in every merge and in CI. The first merge check failed on a known flaky mc door click; the rerun passed.</p></li>
         <li><time>04:17</time><p><span class="tag ok">merged</span>Train 21: security fixes a. Every input event now carries a "faked by a program" mark in its type, so no look can forget to check it; faked clicks, moves, hovers and scrolls change nothing a person would see. Tests prove a real click on the chat row still opens the chat.</p></li>
         <li><time>01:33</time><p><span class="tag ok">CI</span>The CI pull request is green on train 20: all 10 jobs, end-to-end included. The corner-pixel failure came and went before, so two more green runs are needed before it counts as fixed.</p></li>
