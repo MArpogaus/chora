@@ -36,6 +36,13 @@ impl Icons {
         found
     }
 
+    /// The file of the icon a notification sender names. A path is used
+    /// only as a small PNG file; anything else falls back to the theme
+    /// icon of the file name without its extension.
+    pub fn for_sender(&mut self, name: &str) -> Option<PathBuf> {
+        self.find(name)
+    }
+
     /// The file of the icon of a program, else the generic program
     /// icon `application-x-executable`.
     pub fn program(&mut self, name: &str) -> Option<PathBuf> {
@@ -68,6 +75,11 @@ impl Icons {
         names.iter().find_map(|n| self.find_sized(n, size))
     }
 }
+
+#[allow(dead_code)]
+pub(crate) const MAX_SENDER_BYTES: usize = 512 * 1024;
+#[allow(dead_code)]
+pub(crate) const MAX_SENDER_PIXELS: u32 = 512;
 
 fn search_all(order: &[String], name: &str, size: Option<u32>) -> Option<PathBuf> {
     // Desktop files may name an icon by its path.
@@ -152,4 +164,59 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn png(width: u32, height: u32, padding: usize) -> Vec<u8> {
+        let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        bytes.extend(width.to_be_bytes());
+        bytes.extend(height.to_be_bytes());
+        bytes.extend([8, 6, 0, 0, 0]);
+        bytes.resize(bytes.len() + padding, 0);
+        bytes
+    }
+
+    fn file(name: &str, bytes: &[u8]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("chora-icons-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        fs::write(&path, bytes).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_sender_path_to_an_svg_is_refused() {
+        let svg = file("sender.svg", b"<svg xmlns='http://www.w3.org/2000/svg'/>");
+        assert_eq!(Icons::new(["none"]).for_sender(svg.to_str().unwrap()), None);
+    }
+
+    #[test]
+    fn a_sender_path_to_an_svg_named_png_is_refused() {
+        let svg = file(
+            "sender-lie.png",
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        );
+        assert_eq!(Icons::new(["none"]).for_sender(svg.to_str().unwrap()), None);
+    }
+
+    #[test]
+    fn an_oversized_sender_png_is_refused() {
+        let wide = file("wide.png", &png(MAX_SENDER_PIXELS + 1, 8, 0));
+        let heavy = file("heavy.png", &png(8, 8, MAX_SENDER_BYTES));
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.for_sender(wide.to_str().unwrap()), None);
+        assert_eq!(icons.for_sender(heavy.to_str().unwrap()), None);
+    }
+
+    #[test]
+    fn a_small_sender_png_still_shows() {
+        let small = file("small.png", &png(48, 48, 100));
+        assert_eq!(
+            Icons::new(["none"]).for_sender(small.to_str().unwrap()),
+            Some(small)
+        );
+    }
 }
