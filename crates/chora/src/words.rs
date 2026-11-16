@@ -491,8 +491,9 @@ mod tests {
     }
 
     /// A handler that sleeps, as one that waits for the lock of malloc
-    /// does, is stuck: the alarm says so and ends the process with the
-    /// signal of the fault.
+    /// does, is stuck: the alarm says so, names the state of `/proc`
+    /// that it found (F17: a cut backtrace then names its cause), and
+    /// ends the process with the signal of the fault.
     #[test]
     fn a_stuck_handler_ends_with_the_signal_of_its_fault() {
         use std::os::unix::process::ExitStatusExt as _;
@@ -509,6 +510,10 @@ mod tests {
         assert!(
             words.contains("chora: the handler of SIGBUS is stuck after"),
             "{words}"
+        );
+        assert!(
+            words.contains(" ms in the state S: no backtrace"),
+            "the line does not name the state that the alarm found: {words}"
         );
     }
 
