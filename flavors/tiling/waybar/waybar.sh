@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Starts waybar with the configuration of the tiling flavor on the outputs
 # of chora-tiling only: an output of another window manager, such as
 # chora-xp beside tiling, gets no panel. The outputs come from
@@ -78,12 +78,10 @@ while :; do
     jq -n --arg include "$dir/config.jsonc" --argjson outputs "${outputs:-[\"*\"]}" \
         '{include: [$include], output: $outputs}' >"$config"
     prepare
-    (
-        # shellcheck disable=SC2172
-        trap '' USR1 USR2 35
-        exec waybar --config "$config" --style "$style/style.css"
-    ) &
+    trap '' USR1 USR2 RTMIN+1
+    waybar --config "$config" --style "$style/style.css" &
     pid=$!
+    trap - USR1 USR2 RTMIN+1
     echo "$pid" >"$pids/waybar.pid"
     while kill -0 "$pid" 2>/dev/null; do
         sleep 2
