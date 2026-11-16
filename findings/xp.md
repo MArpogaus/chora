@@ -21,3 +21,5 @@ xp-19 | MINOR | pixel-xp-r4:56 | open | Workspace buttons 1-4 are own flat blue 
 xp-20 | COSMETIC | ux-deep-xp:57,59,61 | open | Start: "Chat with a helper" icon is a green dot; Control Panel rows mix icon and none; both windows titled "foot"
 xp-21 | COSMETIC | pixel-xp-r4:23,34-38 | open | Turn Off flat rows, submenu rows flat and without separators, pale fallback icons, Send vs input height, Help close box only
 xp-22 | COSMETIC | pixel-xp-r4:58 | open | Turn Off uses own power art and a ring instead of the XP flag logo (not importable from the sparse set)
+xp-23 | MAJOR | owner 11-16 09:01; media-r1 tour v3 | open | The paperclip (xp.md: the one helper door) is gone from the xp desktop; bring it back and gate it (a cell that finds it at its place)
+xp-24 | MAJOR | owner 11-16 09:01 | open | Text fields poorly aligned (Run, search, dialogs): label baseline, field height and padding off the XP grid; a polish round with pixel asserts

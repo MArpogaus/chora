@@ -60,10 +60,23 @@ if ! command -v lychee >/dev/null 2>&1; then
     rm -rf "$tmp"
 fi
 
-command -v sccache >/dev/null 2>&1 || { log "cargo install sccache"; cargo install -q --locked sccache; }
-for c in cargo-deny cargo-machete; do
-    cargo "${c#cargo-}" --version >/dev/null 2>&1 || { log "cargo install $c"; cargo install -q --locked "$c"; }
-done
+# Prebuilt binaries first (seconds); cargo install only as a fallback (minutes on a fresh container).
+bin_get() { # name url
+    local tmp; tmp=$(mktemp -d)
+    timeout 120 curl -fsSL "$2" | tar -xz -C "$tmp" 2>/dev/null &&
+        install -m 755 "$(find "$tmp" -name "$1" -type f | head -1)" "$HOME/.cargo/bin/$1"
+    local rc=$?; rm -rf "$tmp"; return $rc
+}
+mkdir -p "$HOME/.cargo/bin"
+command -v sccache >/dev/null 2>&1 ||
+    bin_get sccache https://github.com/mozilla/sccache/releases/download/v0.19.0/sccache-v0.19.0-x86_64-unknown-linux-musl.tar.gz ||
+    { log "cargo install sccache"; cargo install -q --locked sccache; }
+cargo deny --version >/dev/null 2>&1 ||
+    bin_get cargo-deny https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz ||
+    { log "cargo install cargo-deny"; cargo install -q --locked cargo-deny; }
+cargo machete --version >/dev/null 2>&1 ||
+    bin_get cargo-machete https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.2/cargo-machete-v0.9.2-x86_64-unknown-linux-musl.tar.gz ||
+    { log "cargo install cargo-machete"; cargo install -q --locked cargo-machete; }
 
 grep -q 'incremental' "$HOME/.cargo/config.toml" 2>/dev/null || {
     mkdir -p "$HOME/.cargo"
@@ -94,5 +107,7 @@ else
     log "no /home/user/chora: repo checks skipped (a session without the repo, such as the heartbeat)"
 fi
 git -C /home/user/agent_skills rev-parse -q --verify origin/dev >/dev/null 2>&1 || log "WARNING: no agent_skills dev; read the skills with add_repo MArpogaus/agent_skills or the GitHub tools (conventions.md)"
-if [ "${#missing[@]}" -gt 0 ]; then log "MISSING: ${missing[*]}"; exit 1; fi
+# Never exit non-zero: a failed setup leaves the session PENDING (friction 45, 11-16); a lane
+# reports a missing tool as a blocker instead.
+if [ "${#missing[@]}" -gt 0 ]; then log "MISSING: ${missing[*]}"; exit 0; fi
 log "done, all present"

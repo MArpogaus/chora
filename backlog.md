@@ -155,3 +155,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - WD3 (review-core-watchdog-r2 MINOR): safety.rs:~137 a thread missing from the first read is credited its whole wait (skip it; gate: unit test). After rc.
 - SA9 (review-security-a-r3 COSMETIC): xp main.rs:177-181 last_move coalesces a real move into a later injected one that is dropped; duplicate comment :178. After rc.
 - SA10 (COSMETIC, review-security-a-r5): injected-optout.py docstring still says a plain `injected: name` passes; fix the wording.
+C10 | 11-16 | after tag | config parity (owner 09:01 "Are the looks similarly confogurable?"): every look gets the same top sections (style, effects, bindings, programs, clock); xp.yaml has 26 setting lines and no bindings; before the tag only a table in docs/configuration.md
