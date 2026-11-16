@@ -377,6 +377,7 @@ ok "a drag of more than 45 degrees turns the cube by one face; a slow short drag
 
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live drag"
+sleep 2
 rest_width=$(width construct-cube-face-0)
 drag 1250 50
 sleep 1
