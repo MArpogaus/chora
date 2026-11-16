@@ -223,6 +223,29 @@ pub fn draw(
     })
 }
 
+/// Draws as [`draw`], once into each window of the target, so that the
+/// pixels outside of them stay as they were, and gives the scissor of the
+/// frame back. The damage tracker of Smithay clears its damage and nothing
+/// else; a translucent draw past it blends over the frame before.
+pub fn draw_within(
+    frame: &mut GlesFrame<'_, '_>,
+    program: &Program,
+    call: &Draw<'_>,
+    windows: &[backdrop::Window],
+) -> Result<(), GlesError> {
+    let viewport = backdrop::viewport(frame)?;
+    let mut result = Ok(());
+    for [x, y, w, h] in windows {
+        // SAFETY: a plain state change on the current context.
+        frame.with_context(|gl| unsafe { gl.Scissor(*x, *y, *w, *h) })?;
+        result = result.and(draw(frame, program, call));
+    }
+    let [x, y, w, h] = viewport;
+    // SAFETY: as above.
+    frame.with_context(|gl| unsafe { gl.Scissor(x, y, w, h) })?;
+    result
+}
+
 /// Sets alpha 1 in rectangles of the target of a frame and keeps their
 /// colors.
 pub fn make_opaque(

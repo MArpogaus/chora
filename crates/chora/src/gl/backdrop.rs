@@ -163,7 +163,7 @@ pub fn window_rect(
     Ok((width > 0 && height > 0).then_some([left, bottom, width, height]))
 }
 
-fn viewport(frame: &mut GlesFrame<'_, '_>) -> Result<[i32; 4], GlesError> {
+pub(crate) fn viewport(frame: &mut GlesFrame<'_, '_>) -> Result<[i32; 4], GlesError> {
     // SAFETY: VIEWPORT writes four integers.
     frame.with_context(|gl| unsafe {
         let mut viewport = [0; 4];
