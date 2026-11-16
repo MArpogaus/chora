@@ -2,7 +2,7 @@
 
 ## Now (2026-11-16 16:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 now; media r3 after train 32.
+budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 6a067e39 (train 28). Train 32 = construct r1 (81ff7b60) + xp r2-r4 (e095d113) gating since 16:4x; then review tiling r2.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
