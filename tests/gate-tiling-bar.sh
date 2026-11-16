@@ -81,11 +81,11 @@ isbar 640 24 || fail "no centre island"
 isbar 480 24 && isbar 520 24 && fail "the gap between the left and the centre island is filled"
 ok "three islands, 32 high, 8 from the top, 12 from the sides, corner radius"
 
-sep=$(for x in $(seq 60 140); do [ "$(pixel "$shot" "$x" 24)" = "58 64 84 255" ] && { echo "$x"; break; }; done)
+sep=$(for x in $(seq 60 140); do [ "$(pixel "$shot" "$x" 24)" = "46 51 68 255" ] && { echo "$x"; break; }; done)
 [ -n "$sep" ] || fail "no separator after Apps"
-[ "$(pixel "$shot" "$sep" 15)" != "58 64 84 255" ] || fail "the separator touches the top hairline"
-[ "$(pixel "$shot" "$sep" 16)" = "58 64 84 255" ] && [ "$(pixel "$shot" "$sep" 31)" = "58 64 84 255" ] || fail "the separator is not 16 high from y 16"
-[ "$(pixel "$shot" "$sep" 32)" != "58 64 84 255" ] || fail "the separator is higher than 16"
+[ "$(pixel "$shot" "$sep" 15)" != "46 51 68 255" ] || fail "the separator touches the top hairline"
+[ "$(pixel "$shot" "$sep" 16)" = "46 51 68 255" ] && [ "$(pixel "$shot" "$sep" 31)" = "46 51 68 255" ] || fail "the separator is not 16 high from y 16"
+[ "$(pixel "$shot" "$sep" 32)" != "46 51 68 255" ] || fail "the separator is higher than 16"
 ok "the separator is 16 px high and clear of the island hairline"
 
 isend=$(for x in $(seq 100 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)

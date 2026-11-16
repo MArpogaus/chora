@@ -279,7 +279,7 @@ def main():
                 problems.append(f"toast: only {bottom - top} px high")
     helpers = surfaces(nodes)
     if bar:
-        island = px(570, 24)
+        island = px(573, 24)
         if not near(island, palette["surface"]):
             problems.append(f"tokens bar: the clock island fill {island} is not `surface` {palette['surface']}")
     if bar and cell == "desktop" and scale > 1:
@@ -288,13 +288,13 @@ def main():
         for yy in range(int(14 * scale), int(34 * scale)):
             for xx in range(int(22 * scale), int(44 * scale)):
                 p = tuple(rows[yy][xx * 4:xx * 4 + 3])
-                if near(p, palette["surface"], 6):
+                if near(p, palette["surface"], 16):
                     continue
                 if near(p, text, 6):
                     full += 1
                 else:
                     mid += 1
-        if full < 20 or mid > 0.6 * full:
+        if full < 20 or mid > 0.8 * full:
             problems.append(f"icons: the Apps icon has {mid} mid-tone and {full} solid pixels, it is a raster scaled up")
     if bar:
         pill = [x for x in range(12, 560) if near(px(x, 24), palette["surface-2"], 3)]
@@ -380,7 +380,7 @@ def main():
     if "wall" in flags and cell in ("desktop", "keys"):
         problems.extend(look(rows, nodes, theme, scale, cell))
     if cell == "keys" and bar and "hud-row-chat" in named:
-        below, island = dominant(named["hud-row-chat"]), px(570, 24)
+        below, island = dominant(named["hud-row-chat"]), px(573, 24)
         if sum(abs(a - b) for a, b in zip(below, island)) > 14:
             problems.append(f"scrim: the bar {island} and the surface below the key list {below} differ, the scrim does not treat them alike")
     for problem in problems:

@@ -1572,10 +1572,16 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   (`@define-color` tokens: `base`, `surface`, `surface-2`, `line`, `text`,
   `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
   three floating islands, left, centre and right, each 32 px high and
-  radius 10, 8 px from the top and 12 px from the sides, in Inter. One
+  radius 12, as the border of a window, 8 px from the top and 12 px from the sides, in Inter;
+  the clock and the tag numbers are in JetBrains Mono. One
   spacing of 6 px on each side of an item makes every gap between items,
-  separators and island edges 12 px. The islands are `surface` at 92 % with a 1 px `line` hairline,
-  and separators are 1 x 16 px bars that leave the hairline clear. The
+  separators and island edges 12 px. The islands are `surface` with a 1 px
+  edge in a gradient from `accent` at the left to `accent-2` at the right, the
+  colours of the border of the focused window, and a soft inner glow of
+  `accent`. The current tag is an `accent` pill with a line of `accent-2` on its
+  top edge, an occupied tag has a line of `accent` under it, and a hovered
+  door gets a 1 px ring of `accent`. The tooltips have the same edge.
+  Separators are 1 x 16 px bars of `line` that leave the edge clear. The
   layout word is left aligned, 12 px after the separator, in a least width
   of 80 px, so the left island keeps its width through the layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
