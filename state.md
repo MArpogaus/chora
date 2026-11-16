@@ -14,7 +14,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
-| 4 | CI green | green on 6a067e39 (PR #106, 16:21); aba97fec pending; F25 fix holds |
+| 4 | CI green | green on aba97fec (PR #106, 18:09); F25 fix holds |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
