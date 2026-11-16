@@ -862,7 +862,9 @@ impl Session {
         Ok(())
     }
 
-    /// Closes the view and the field.
+    /// Closes the view and the field. The field hears it also when it
+    /// took its surface away itself, on Esc: a place that the host wrote
+    /// before it read that shows the field again, with no view.
     pub fn hide(&mut self, out: &mut dyn Outside) {
         self.close_chat(out);
         self.mode = Mode::Closed;
@@ -871,13 +873,6 @@ impl Session {
         if let Some(link) = self.link.as_mut() {
             link.hide();
         }
-    }
-
-    fn close_view(&mut self, out: &mut dyn Outside) {
-        self.close_chat(out);
-        self.mode = Mode::Closed;
-        self.keyboard = false;
-        self.spoken = None;
     }
 
     /// The same chat in the look of another folder or on another output:
@@ -914,7 +909,7 @@ impl Session {
                 }
                 FieldEvent::Keyboard(on) => self.keyboard = on,
                 FieldEvent::Closed => {
-                    self.close_view(out);
+                    self.hide(out);
                     changed = true;
                 }
                 FieldEvent::Stop => changed |= self.cancel(out),
