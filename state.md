@@ -5,7 +5,7 @@ pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 45 % at 12:10 Mon (owner); tokens.py 12:11: PM 3.7 %. Measured 1 %/h (38->45, 01:17-12:10) = 24 %/d, over the 12.5 cap: hold ledger r3, media r3 to next reading; few PM turns.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 9c4f1301 (train 27, 12:4x: multilook r1; all steps passed). Train 29 secfix-a gating; xp-polish r2 in review.
-burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00 check).
+burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -25,7 +25,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| construct-r1.md (rc 1) | sonnet high, claude/construct | multilook r1 merged (train 27); co-18 BLOCK, co-19, co-20, sh-24 10:5x |
+| construct-r1.md (rc 1) | sonnet high, claude/construct | r1 handback 13:22 (81ff7b60): co-18 BLOCK, co-19, 20, sh-24; K12 pull-out removed; review after mc r2 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | r2 MERGE-OK (train 29) |
 | xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r2 handback 12:09 (5a17aab6); review after train 27 (disk); mc doors FAIL in its run, train 27 doors PASS: lane container |
