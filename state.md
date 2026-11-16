@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 09:09 UTC)
+## Now (2026-11-16 09:17 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day, ~74 % at reset; owner 08:52: use the whole week -> target ~12 %/day (cap 12.5 % from next merge). More lanes in parallel.
+budget: 41 % at 09:17 Mon (owner). forecast (tokens.py 09:17): 8.0 %/day, ~79 % at reset; target ~12 %/day; 40->41 in 28 min with 9 lanes: WIP 6 build lanes, no new lane before the next reading.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 66588880 (train 23, 08:3x UTC: media; all steps incl. doors passed). Train 24 (claude/f25 df101c14) gate running. CI green 66588880 (train 23).
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
@@ -36,7 +36,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: train 24 (f25), CI on PR #106; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
-2. UX loop (owner 09:08): tour v4 -> PM views every chapter + 1 reviewer -> fix lanes -> re-record until no MAJOR; persona r4 (haiku) Tue. (rc 1, 2, 11)
+2. UX loop: tour v4 -> PM views + 1 reviewer -> fixes -> re-record; last round starts Thu 12:00 (owner 09:16); persona r4 Wed. WIP 6 build lanes. (rc 1, 2, 11)
 3. Wed-Thu: flakes F17, F24, F26, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
 
