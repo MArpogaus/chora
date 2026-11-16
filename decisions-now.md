@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T09:08:00Z
+screened-through: 2026-11-16T09:11:00Z
 
 - 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. Make sure configurabilit code dedup and cleanup is addressed right after next rc tag. Confirm and give condensed overviews of current tasks and targets" -> PM views tour, UX loop; C10 sprint 1
 - 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? Bring it back. Textfields poorly aligned we need an other ux/ui polish there. Screen cast way to slow and repetitively. Design special usages scenarios for every look and make brakes shorter. Why no wobbely windows? Waybar does not mach cyberpunk looks of remaining style in tiling. Get inspiration from hyperland rices. Are the looks similarly confogurable?" -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4 by scenario; C10 after tag
