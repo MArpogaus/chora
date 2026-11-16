@@ -1,14 +1,15 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T10:58:00Z
+screened-through: 2026-11-16T11:05:00Z
 
+- 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 - 11-16 10:58Z "What can we learn from Ron? https://github.com/ronb1964/TuxTalk/blob/main/CLAUDE.md#code-a-human-reviewer-would-respect--every-change" -> idea: C11 ratchet, sprint 1; reviews run tests
 - 11-16 10:05Z "Agree, keep column visible, but toggle in demo. 43 %. Floating windows in cube?" -> column stays; media r3 shows Super+n; reading 43 %
 - 11-16 10:04Z "Floating windows? Why keys etc alleys shown on side? Can be toggeled?" -> questions; mc column toggles by Super+n (mc-37: page must widen)
 
 - 11-16 09:20Z "Agree, apply all six improvements. Adjust project goal and plan as you go." -> six at train 24
-- 11-16 09:16Z "Agree, Thu cutoff and persona Wed. ... Be skeptical ... stabilized and Tory up ..." -> Thu 12:00 cutoff, persona Wed, WIP 6
+- 11-16 09:16Z "Agree, Thu cutoff and persona Wed. ..." -> Thu 12:00 cutoff, persona Wed, WIP 6
 - 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. ..." -> PM views tour, UX loop; C10 sprint 1
-- 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? ... Waybar does not mach cyberpunk ... Are the looks similarly confogurable?" -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4; C10 after tag
+- 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? ..." -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4; C10 after tag
 - 11-16 08:55Z "Maybe setup script is the problem?" -> yes; fixed 09:0x
 - 11-16 08:52Z "Use IP whole budget during the week. Areas tasks equally and have cheap workers test continuously after changes land." -> ~100 % by reset; lanes over areas; haiku testwatch
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
@@ -25,7 +26,7 @@ screened-through: 2026-11-16T10:58:00Z
 - 11-09 08:20Z "You shall use my github email and name as in all previous commits." -> his identity; no AI lines
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
 - 11-09 05:05Z "Push to limit" view in user tests -> both persona kinds
-- 11-09 05:11Z "All user agents shall report issues and draft feature request. You shall review rank and address them by iprtance." -> by severity
+- 11-09 05:11Z "All user agents shall report issues ... address them by iprtance." -> by severity
 - 11-12 04:26Z "...perfect behavior replication and a pixel-perfect experience..." -> MS assets: optional user import, never shipped; RC on fallback art (11-14)
 - 11-14 05:30Z "...first three ... 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like"..." -> own aesthetic per look
