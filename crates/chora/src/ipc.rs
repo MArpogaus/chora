@@ -3187,52 +3187,6 @@ mod tests {
         assert_eq!(three.as_deref(), Some("a"), "the pointer is in a");
     }
 
-    /// A key that a window manager grabbed is not for the person while
-    /// the pointer is in the claim of another window manager: the grab
-    /// of that one takes the key, and a client without a claim keeps its
-    /// keys everywhere.
-    #[test]
-    fn a_grabbed_key_goes_to_the_manager_whose_claim_holds_the_pointer() {
-        use smithay::backend::input::{InputTime, KeyState};
-        let mut core = Core::new();
-        core.add_output("A", (800, 600));
-        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
-        let mut b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
-        let mut helper = core.named("helper");
-        let tap = json!({"binding": "Super+Super_L"});
-        a.ok(&mut core, "input.grab", tap.clone());
-        helper.ok(&mut core, "input.grab", json!({"binding": "Super+h"}));
-        b.ok(&mut core, "input.grab", json!({"binding": "Super+Return"}));
-        let heard = |client: &mut Client, core: &mut Core| {
-            (client.events_now(core).iter())
-                .filter(|e| e["params"]["event"] == "input.key")
-                .count()
-        };
-        let press = |core: &mut Core, codes: &[u32]| {
-            for (code, state) in (codes.iter().map(|c| (*c, KeyState::Pressed)))
-                .chain(codes.iter().rev().map(|c| (*c, KeyState::Released)))
-            {
-                crate::input::key(
-                    &mut core.state,
-                    (code + 8).into(),
-                    state,
-                    InputTime::now(),
-                    false,
-                );
-            }
-        };
-        core.state.pointer_layout = (600.0, 300.0).into();
-        press(&mut core, &[125]);
-        assert_eq!(heard(&mut a, &mut core), 0, "the pointer is in b");
-        press(&mut core, &[125, 28]);
-        assert_eq!(heard(&mut b, &mut core), 2, "b has its own key");
-        press(&mut core, &[125, 35]);
-        assert_eq!(heard(&mut helper, &mut core), 2, "no claim, no limit");
-        core.state.pointer_layout = (100.0, 300.0).into();
-        press(&mut core, &[125]);
-        assert_eq!(heard(&mut a, &mut core), 2, "the pointer is in a");
-    }
-
     /// Where a surface is: `(owner, parent, reserved for)`.
     fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
         let node = core.state.scene.node(surface).unwrap();

@@ -480,14 +480,28 @@ fn key_place(state: &State) -> Option<String> {
     chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n)).map(String::from)
 }
 
-/// Whether the client of `conn` holds a claim, and the pointer is in the
-/// claim of another window manager, `place`: its key grabs are not for
-/// the person there.
-fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
+/// Whether the client of `conn` is a window manager of virtual outputs,
+/// other than `place`, the one under the pointer: its claims all lie on
+/// virtual outputs, as those of a manager in a pane or on a face of a
+/// cube do. A space that shows them on a screen is no such manager, and
+/// keeps its keys.
+pub(crate) fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
     let Some(name) = state.ipc.name(conn).filter(|name| *name != place) else {
         return false;
     };
-    (state.scene.nodes()).any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
+    let virtuals: Vec<_> = (state.assets.virtuals.iter())
+        .map(|v| crate::output::output_area(v.output()).to_f64())
+        .collect();
+    let mut claims = (state.scene.nodes())
+        .filter(|n| n.owner.as_deref() == Some(name))
+        .filter_map(|n| n.props.claim)
+        .peekable();
+    claims.peek().is_some()
+        && claims.all(|[x, y, _, _]| {
+            virtuals
+                .iter()
+                .any(|area| area.contains(Point::<f64, Logical>::from((x, y))))
+        })
 }
 
 /// Relative motion, as from a mouse on real hardware. The pointer stays on
