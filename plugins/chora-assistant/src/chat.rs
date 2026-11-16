@@ -1825,6 +1825,27 @@ mod tests {
         assert_eq!(calls(&log, "chat.close"), [json!({"name": "atlas"})]);
     }
 
+    /// The field takes its surface away on Esc and says so. A place that
+    /// the host wrote before it read that, as the one that follows the
+    /// box of a slot, shows the field again: over the doors of the column
+    /// of mc, with no view (F26). The host that closes the view tells the
+    /// field to hide.
+    #[test]
+    fn a_view_that_the_field_closed_hides_a_field_that_was_placed_again() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        session.restyle(&frame);
+        log.borrow_mut().events.push(FieldEvent::Closed);
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.mode(), &Mode::Closed);
+        assert_eq!(
+            log.borrow().hides,
+            1,
+            "the field shows again by the place that crossed its Esc"
+        );
+    }
+
     #[test]
     fn ctrl_period_in_the_field_stops_the_helper() {
         let (mut session, mut out, log) = setup();
