@@ -1,10 +1,11 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T11:17:00Z
+screened-through: 2026-11-16T12:10:00Z
 
+- 11-16 12:10Z "45" -> budget reading 45 %
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 - 11-16 10:58Z "What can we learn from Ron? ...TuxTalk/blob/main/CLAUDE.md..." -> idea: C11 ratchet, sprint 1; reviews run tests
-- 11-16 10:05Z "Agree, keep column visible, but toggle in demo. 43 %. Floating windows in cube?" -> column stays; media r3 shows Super+n; reading 43 %
+- 11-16 10:05Z "Agree, keep column visible... 43 %..." -> column stays; Super+n in media r3; 43 %
 - 11-16 10:04Z "Floating windows? ... Can be toggeled?" -> questions; mc column toggles by Super+n (mc-37: page must widen)
 
 - 11-16 09:20Z "Agree, apply all six improvements. Adjust project goal and plan as you go." -> six at train 24

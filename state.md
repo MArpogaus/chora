@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 10:06 UTC)
+## Now (2026-11-16 12:11 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 43 % at 10:05 Mon (owner). forecast (tokens.py 10:05): 9.7 %/day, ~89 % at reset; room 12 %/day. 41->43 in 48 min: fewer PM turns, compact at 200 k, sonnet reviews.
+budget: 45 % at 12:10 Mon (owner; 43 at 10:05); tokens.py 12:11: PM 3.7 % today. ~1 %/h; 55 % left for 4.7 d = 11.8 %/day. No new lane today beyond queue; few PM turns.
 models: haiku low tests; sonnet medium builds; opus reviews, hard causes, complex lanes (reason). Cap 12.5 %/day from train 24.
 session branch: 5d801b2f (train 26, 12:02: xp-polish r1; all steps passed on rerun 3, F29 flake). Train 27 multilook r1 gating 12:05 (merge-gate.sh conflict resolved: pane-keys + xp steps).
 burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14 tour) ; lanes 6 build, 4.6 d left. Tag Fri at risk: check Wed 12:00, if a BLOCK or >5 MAJOR open, tag Tue 11-24.
