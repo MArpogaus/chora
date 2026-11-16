@@ -1,17 +1,18 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T11:05:00Z
+screened-through: 2026-11-16T11:17:00Z
 
+- 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
-- 11-16 10:58Z "What can we learn from Ron? https://github.com/ronb1964/TuxTalk/blob/main/CLAUDE.md#code-a-human-reviewer-would-respect--every-change" -> idea: C11 ratchet, sprint 1; reviews run tests
+- 11-16 10:58Z "What can we learn from Ron? ...TuxTalk/blob/main/CLAUDE.md..." -> idea: C11 ratchet, sprint 1; reviews run tests
 - 11-16 10:05Z "Agree, keep column visible, but toggle in demo. 43 %. Floating windows in cube?" -> column stays; media r3 shows Super+n; reading 43 %
-- 11-16 10:04Z "Floating windows? Why keys etc alleys shown on side? Can be toggeled?" -> questions; mc column toggles by Super+n (mc-37: page must widen)
+- 11-16 10:04Z "Floating windows? ... Can be toggeled?" -> questions; mc column toggles by Super+n (mc-37: page must widen)
 
 - 11-16 09:20Z "Agree, apply all six improvements. Adjust project goal and plan as you go." -> six at train 24
 - 11-16 09:16Z "Agree, Thu cutoff and persona Wed. ..." -> Thu 12:00 cutoff, persona Wed, WIP 6
 - 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. ..." -> PM views tour, UX loop; C10 sprint 1
 - 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? ..." -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4; C10 after tag
 - 11-16 08:55Z "Maybe setup script is the problem?" -> yes; fixed 09:0x
-- 11-16 08:52Z "Use IP whole budget during the week. Areas tasks equally and have cheap workers test continuously after changes land." -> ~100 % by reset; lanes over areas; haiku testwatch
+- 11-16 08:52Z "Use IP whole budget during the week. ... cheap workers test continuously ..." -> ~100 % by reset; lanes over areas; haiku testwatch
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)
