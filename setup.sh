@@ -37,13 +37,15 @@ if ! fuzzel_ok; then
         command -v meson >/dev/null 2>&1 || pip3 install -q --user --break-system-packages meson
         tmp=$(mktemp -d)
         trap 'rm -rf "$tmp"' EXIT
-        curl -fsSL -o "$tmp/f.tgz" "https://codeberg.org/dnkl/fuzzel/archive/$fuzzel_wanted.tar.gz"
-        echo "$fuzzel_sha256  $tmp/f.tgz" | sha256sum -c --quiet -
-        tar -xzf "$tmp/f.tgz" -C "$tmp"
+        curl -fsSL -o "$tmp/f.tgz" "https://codeberg.org/dnkl/fuzzel/archive/$fuzzel_wanted.tar.gz" || exit 1
+        echo "$fuzzel_sha256  $tmp/f.tgz" | sha256sum -c --quiet - || exit 1
+        tar -xzf "$tmp/f.tgz" -C "$tmp" || exit 1
         # the man pages need scdoc, which the container lacks (fuzzel r2); errors stay visible
         sed -i "/^subdir('doc')/d" "$tmp/fuzzel/meson.build"
-        meson setup "$tmp/fuzzel/build" "$tmp/fuzzel" --prefix="$HOME/.local" --buildtype=release >/dev/null
-        ninja -C "$tmp/fuzzel/build" install >/dev/null
+        # set -e is off inside "( ) ||", so stop by hand and show meson's own error (F27)
+        meson setup "$tmp/fuzzel/build" "$tmp/fuzzel" --prefix="$HOME/.local" --buildtype=release >"$tmp/meson.log" 2>&1 ||
+            { grep -iE "error|not found" "$tmp/meson.log" | head -5 >&2; exit 1; }
+        ninja -C "$tmp/fuzzel/build" install >/dev/null || exit 1
     ) || log "FAILED fuzzel build (apt fuzzel stays)"
 fi
 
