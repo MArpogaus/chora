@@ -4,7 +4,7 @@
 # theme at one scale, and one PNG for each state:
 #
 #   scene-head     the first page, at rest
-#   hover          the pointer over the key row "Start a program"
+#   hover          the pointer over the key row "Start a program or run a command"
 #   all-keys       Super+F1, the whole key list
 #   agenda         the first page with notifications, an urgent line and a
 #                  helper that asks
@@ -101,9 +101,9 @@ until_ok 'text_shows "AGENDA"' || fail "no first page"
 
 shot scene-head
 
-until_ok '[ -n "$(text_rect "Start a program" 2>/dev/null)" ]' 120 ||
+until_ok '[ -n "$(text_rect "Start a program or run a command" 2>/dev/null)" ]' 120 ||
     fail "no key row to hover: $(ctl query "owner:mc kind:text" | jq -c '[.[] | select(.visible) | .text]')"
-read -r x y <<<"$(jq -r '"\(.[0] + 40) \(.[1] + .[3] / 2)"' <<<"$(text_rect "Start a program")")"
+read -r x y <<<"$(jq -r '"\(.[0] + 40) \(.[1] + .[3] / 2)"' <<<"$(text_rect "Start a program or run a command")")"
 move_to "$x" "$y"
 until_ok 'ctl query "owner:mc kind:rect" | jq -e "[.[] | select((.id | endswith(\"-mark\")) and .opacity == 1)] | length > 0" >/dev/null' ||
     fail "no hover mark on the key row"

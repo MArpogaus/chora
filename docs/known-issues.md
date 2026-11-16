@@ -89,6 +89,6 @@ yet. Larger faults are tracked as issues on
 | sh-13 | minor | verify | State word spelled three ways, helper surface counted twice (tiling pill+card, mc row+list); one surface per conversation; helper list "1 atlas" |
 | sh-14 | minor | open | Mute word missing in tiling and xp (dot or red sign only); mc: mc-4 |
 | sh-15 | minor | open | Esc differs: xp closes the chat, tiling closes list and keys, mc first Esc closes the card and keeps the chat; keys sheet blocked while chat is open |
-| sh-16 | minor | open | Launcher words: xp "Open:", tiling "Apps", mc ">" prompt with no label; help says "Run a program" in xp and tiling, "Start a program" in mc |
+| sh-16 | minor | fixed | Launcher words: xp "Open:", tiling "Apps", mc ">" prompt with no label; help says "Run a program" in xp and tiling, "Start a program" in mc; words now consistent across looks, review raa-3 |
 | sh-17 | minor | verify | HUD colours per theme: chat field over the xp taskbar; assistant surfaces must follow a theme change |
 | sh-18 | cosmetic | open | Door wording differs ("Chat ..." pill, "Chat with a helper ...", "Ask in your words"); notification shape differs per look (balloon, count, toast) |

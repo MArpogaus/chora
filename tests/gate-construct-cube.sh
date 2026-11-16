@@ -21,7 +21,8 @@
 #    and takes the keyboard; Return steps in and the window of before
 #    takes typed text again, but not after a step into another face. A click on a face and a click on the chip
 #    STEP IN step in, and so does a click during the step back. In navigate mode the edge of the face under the
-#    pointer is lit, and a drag on a face turns the cube by one face.
+#    pointer is lit, and a drag on a face turns the cube by one face. A drag
+#    that begins beside the cube leaves it where it is.
 #    With the grant input.grab-any and fly_out Escape, Escape alone
 #    steps back; without the grant the chip names no key. After the
 #    switcher of xp showed and closed,
@@ -376,6 +377,13 @@ ok "a drag of more than 45 degrees turns the cube by one face; a slow short drag
 
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live drag"
+sleep 2
+rest_width=$(width construct-cube-face-0)
+drag 1250 50
+sleep 1
+until_ok "$stood_back" 20 || fail "a drag that began beside the cube moved it out of the view: face 0 is $(width construct-cube-face-0) px wide, at rest $rest_width, the label says $(prop construct-face-label-words text)"
+[ "$(width construct-cube-face-0)" = "$rest_width" ] || fail "a drag that began beside the cube moved it: face 0 is $(width construct-cube-face-0) px wide, at rest $rest_width"
+ok "a drag that begins beside the cube leaves it where it is"
 windows_before=$(ctl query kind:surface | jq length)
 at_rest() {
     local seen

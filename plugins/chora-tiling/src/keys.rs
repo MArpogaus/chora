@@ -239,7 +239,7 @@ const ORDER: [&str; 45] = [
     "Previous tag",
     "Tag before",
     "Terminal",
-    "Run a program",
+    "Run a program or a typed command",
     "Chat with a helper",
     "Lock the screen",
     "Power menu",

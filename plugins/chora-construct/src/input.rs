@@ -391,7 +391,8 @@ impl Construct {
 
     /// A press on the space or on a pane that shows a node texture, at a
     /// point of the output: with the modifier on a pane, it starts to move
-    /// the pane; else a drag looks around. The walk takes the keyboard.
+    /// the pane; else a drag looks around, unless a cube is open: its view
+    /// is fixed, and the cube must not leave it. The walk takes the keyboard.
     pub(crate) fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
         self.pointer = Some(at);
         if self.flown.is_none() {
@@ -412,7 +413,7 @@ impl Construct {
                 let target = crate::wobble::wobble_target(pane);
                 self.effects.grab_sail(&pane.name, &target, [u, v, 0.0]);
             }
-        } else {
+        } else if self.cube.is_none() {
             self.drag = Some(Drag {
                 press: at,
                 last: at,
