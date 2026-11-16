@@ -14,6 +14,8 @@
 #    switch on each takes the window as a pane.
 # 3. tiling and xp: two windows, the second has the focus; an injected
 #    click on the first (xp: on its task button) leaves the focus, a click with the switch on moves it.
+# 4. tiling with focus: follow_mouse (its default): an injected pointer move
+#    over the first window leaves the focus, a move with the switch on moves it.
 #
 # Usage: tests/gate-injected-presses.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its code later
@@ -94,7 +96,8 @@ list_with_probe() {
     ctl wait --timeout 10 id:construct-look >/dev/null || fail "no space over tiling"
     until_ok '[ "$(taken)" = none ]' || fail "the probe is $(taken) before the list opens"
     barrier construct
-    until_ok 'key Tab; ctl wait --timeout 2 "id:construct-list meta:state=open" >/dev/null 2>&1' 5 || fail "Tab opened no list"
+    key Tab
+    until_ok 'ctl wait --timeout 2 "id:construct-list meta:state=open" >/dev/null 2>&1' 5 || fail "Tab opened no list"
     if [ "$switch" = off ]; then
         call construct settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
         barrier construct
@@ -165,3 +168,22 @@ for wm in tiling xp; do
     focus_cell "$wm" off
     focus_cell "$wm" on
 done
+
+follow_cell() {
+    local switch=$1 target
+    printf 'test_accept_injected_keys: %s\n' "$([ "$switch" = on ] && echo true || echo false)" >"$work/chora/chora-tiling.yaml"
+    CHORA_TEST_ACCEPT_INJECTED_KEYS=$([ "$switch" = on ] && echo 1 || echo 0) two_windows tiling
+    target=$(unfocused)
+    inject "[{\"pointer_move\": {\"position\": [$(center "$target")]}}]"
+    barrier tiling
+    if [ "$switch" = on ]; then
+        until_ok '[ -n "$(unfocused)" ] && [ "$(unfocused)" != "$target" ]' || fail "tiling: with the switch on a move did not focus $target"
+        ok "tiling with follow_mouse: with the switch on an injected move focuses the window under it"
+    else
+        [ "$(unfocused)" = "$target" ] || fail "tiling: an injected move focused $target with follow_mouse"
+        ok "tiling with follow_mouse: an injected move over the other window leaves the focus"
+    fi
+    end_session
+}
+follow_cell off
+follow_cell on
