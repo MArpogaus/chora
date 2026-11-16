@@ -6,10 +6,10 @@
 //! `place`, and nowhere else: the field ignores its environment.
 
 use std::{
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     ops::Not,
     process::{Child, ChildStdin, Command, Stdio},
-    sync::mpsc::{Receiver, channel},
+    sync::mpsc::{Receiver, SyncSender, sync_channel},
     thread,
 };
 
@@ -34,6 +34,12 @@ pub enum FieldEvent {
     /// The field is this many logical pixels high now.
     Height(i32),
 }
+
+/// The most bytes of a line of the field; a longer line is dropped.
+const MAX_LINE: usize = 64 << 10;
+/// The most events that wait for the host; a field that sends more waits
+/// on its pipe.
+const QUEUE: usize = 64;
 
 /// A running field.
 pub struct Field {
@@ -60,6 +66,50 @@ fn parse(line: &str) -> Option<FieldEvent> {
     }
 }
 
+/// Sends the events of the lines of the field until its output ends or
+/// the host is gone. A line of more than [`MAX_LINE`] bytes is dropped.
+fn relay(mut output: impl BufRead, tx: &SyncSender<FieldEvent>) {
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        let limit = u64::try_from(MAX_LINE).unwrap_or(u64::MAX) + 1;
+        match (&mut output).take(limit).read_until(b'\n', &mut line) {
+            Ok(0) | Err(_) => return,
+            Ok(_) => {}
+        }
+        if line.last() != Some(&b'\n') && line.len() > MAX_LINE {
+            if skip_line(&mut output).is_err() {
+                return;
+            }
+            continue;
+        }
+        let event = std::str::from_utf8(&line)
+            .ok()
+            .and_then(|l| parse(l.trim_end()));
+        if let Some(event) = event
+            && tx.send(event).is_err()
+        {
+            return;
+        }
+    }
+}
+
+/// Reads past the end of the current line.
+fn skip_line(output: &mut impl BufRead) -> std::io::Result<()> {
+    loop {
+        let buffer = output.fill_buf()?;
+        if buffer.is_empty() {
+            return Ok(());
+        }
+        if let Some(end) = buffer.iter().position(|b| *b == b'\n') {
+            output.consume(end + 1);
+            return Ok(());
+        }
+        let all = buffer.len();
+        output.consume(all);
+    }
+}
+
 impl Field {
     /// Starts the field with `command`, which is `chora-chat --input NAME`.
     /// The field gets neither `CHORA_SOCKET` nor an activation token in its
@@ -78,16 +128,8 @@ impl Field {
         let (Some(input), Some(output)) = (child.stdin.take(), child.stdout.take()) else {
             return Err(std::io::Error::other("the field has no pipe"));
         };
-        let (tx, events) = channel();
-        thread::spawn(move || {
-            for line in BufReader::new(output).lines().map_while(Result::ok) {
-                if let Some(event) = parse(&line)
-                    && tx.send(event).is_err()
-                {
-                    return;
-                }
-            }
-        });
+        let (tx, events) = sync_channel(QUEUE);
+        thread::spawn(move || relay(BufReader::new(output), &tx));
         Ok(Self {
             child,
             input,
@@ -302,5 +344,34 @@ mod tests {
         let params = say_params("coder", "hello");
         assert_eq!(params["tool"], "agent_say");
         assert_eq!(params["name"], "coder");
+    }
+
+    /// The field is the process that reads untrusted text; an endless line
+    /// or a flood of lines grew the memory of the host (review plugins
+    /// r1, AS-B-05). A line of a MiB is dropped and the next one counts.
+    #[test]
+    fn a_line_too_long_is_dropped() {
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            r#"printf '{"say":"'; head -c 1048576 /dev/zero | tr '\0' a; printf '"}\n{"say":"ok"}\n'"#,
+        ]);
+        let field = Field::start(command).expect("a field");
+        let event = field.events.recv_timeout(Duration::from_secs(5));
+        assert_eq!(event, Ok(FieldEvent::Say("ok".into())));
+    }
+
+    /// The queue of events is bounded: a field that floods waits on its
+    /// pipe until the host takes the events.
+    #[test]
+    fn a_flood_of_lines_waits_for_the_host() {
+        let mut command = Command::new("sh");
+        command.args(["-c", r#"yes '{"event":"shown"}' | head -n 200000"#]);
+        let field = Field::start(command).expect("a field");
+        let first = field.events.recv_timeout(Duration::from_secs(5));
+        assert_eq!(first, Ok(FieldEvent::Shown));
+        std::thread::sleep(Duration::from_secs(1));
+        let queued = field.events().len();
+        assert!(queued < 10_000, "{queued} events queued");
     }
 }

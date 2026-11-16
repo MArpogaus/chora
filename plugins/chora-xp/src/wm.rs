@@ -417,6 +417,13 @@ pub struct Wm {
     volume_read: Instant,
 }
 
+/// Whether the window manager acts on an event: not for a key, a press, a
+/// drag or a release of `input.inject` unless it takes injected input as
+/// the person's.
+fn hears(event: &Event, accepts_injected: bool) -> bool {
+    chora_kit::runtime::from_person(event, accepts_injected)
+}
+
 impl Plugin for Wm {
     type Action = Key;
 
@@ -425,6 +432,9 @@ impl Plugin for Wm {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !hears(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         self.handle(event)
     }
 
@@ -463,9 +473,19 @@ impl give::Windows for Wm {
 impl Wm {
     /// Connects, creates the scene of the plugin and adopts the windows
     /// that have no owner. `outputs` are the names of `--output`.
-    #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
     pub fn start(
         outputs: Vec<String>,
+        theme: Theme,
+        settings: settings::File<Config>,
+        slow: f64,
+    ) -> Result<Self, ClientError> {
+        Self::start_on(Runtime::connect(NAME, outputs)?, theme, settings, slow)
+    }
+
+    /// As [`Self::start`], on a runtime that is connected already.
+    #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
+    fn start_on(
+        rt: Runtime<Key>,
         theme: Theme,
         settings: settings::File<Config>,
         slow: f64,
@@ -484,7 +504,7 @@ impl Wm {
             &mut icons,
         );
         let mut wm = Self {
-            rt: Runtime::connect(NAME, outputs)?,
+            rt,
             clock: String::new(),
             desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.effects),
@@ -789,10 +809,10 @@ impl Wm {
                 node,
                 button,
                 position,
-                ..
+                .. // injected: hears drops an injected press unless xp accepts them
             } => self.pressed(&node, button, position),
-            Event::PointerMoved { position, .. } => self.dragged(position),
-            Event::PointerReleased { node, position, .. } => self.released(&node, position),
+            Event::PointerMoved { position, .. } => self.dragged(position), // injected: hears drops an injected move unless xp accepts them
+            Event::PointerReleased { node, position, .. } => self.released(&node, position), // injected: hears drops an injected release unless xp accepts them
             Event::OutputChanged { output } => {
                 let output = without_reserve(&self.reserved, output);
                 [self.rescale()?, self.output_changed(&output)].concat()
@@ -817,11 +837,11 @@ impl Wm {
                     Vec::new()
                 }
             }
-            event @ (Event::InputKey { .. }
-            | Event::InputButton { .. }
-            | Event::InputMoved { .. }
-            | Event::NodeKey { .. }) => self.input(event),
-            Event::PointerEntered { node, .. } => self.hovered(&node, true),
+            event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
+            | Event::InputButton { .. } // injected: hears drops an injected event unless xp accepts them
+            | Event::InputMoved { .. } // injected: hears drops an injected event unless xp accepts them
+            | Event::NodeKey { .. }) => self.input(event), // injected: hears drops an injected key unless xp accepts them
+            Event::PointerEntered { node, .. } => self.hovered(&node, true), // injected: hears drops an injected event unless xp accepts them
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
             Event::FocusChanged {
@@ -1791,7 +1811,10 @@ impl Wm {
                 key,
                 state: PressState::Pressed,
                 modifiers,
-                ..
+                node: _,
+                code: _,
+                text: _,
+                injected: _, // injected: hears drops an injected key unless xp accepts them
             } => {
                 // Shift+F10 and the Menu key open a context menu, as on XP.
                 let shift = modifiers.iter().any(|m| m == "Shift");
@@ -1802,15 +1825,15 @@ impl Wm {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key(&binding),
             Event::InputKey {
                 binding,
                 state: PressState::Released,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key_released(&binding),
             Event::InputButton {
-                state, position, ..
+                state, position, .. // injected: hears drops an injected event unless xp accepts them
             } => match state {
                 PressState::Pressed => self.grab_cube(position),
                 PressState::Released => {
@@ -1818,7 +1841,7 @@ impl Wm {
                     Vec::new()
                 }
             },
-            Event::InputMoved { position, .. } => self.drag_cube(position),
+            Event::InputMoved { position, .. } => self.drag_cube(position), // injected: hears drops an injected event unless xp accepts them
             _ => Vec::new(),
         }
     }
@@ -4251,6 +4274,51 @@ mod tests {
         assert_eq!(desktop_plan(&hidden, &shown, &all_back), Plan::Away(shown));
     }
 
+    /// A click on Start or on a menu entry started a program, and the
+    /// Menu key opened the context menu, from `input.inject` and without a
+    /// person (review security a r2, MINOR 5).
+    type Make = fn(bool) -> Event;
+
+    #[test]
+    fn an_injected_press_or_key_does_nothing_in_xp() {
+        let press = |injected| Event::PointerPressed {
+            node: "xp-start".into(),
+            button: 272,
+            position: [0.0; 2],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+        };
+        let release = |injected| Event::PointerReleased {
+            node: "xp-menu-item".into(),
+            button: 272,
+            position: [0.0; 2],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+            time: 0,
+        };
+        let menu_key = |injected| Event::NodeKey {
+            node: "xp-look".into(),
+            key: "Menu".into(),
+            code: 127,
+            state: PressState::Pressed,
+            modifiers: Vec::new(),
+            text: None,
+            injected,
+        };
+        let makers: [(&str, Make); 3] = [
+            ("a press", press),
+            ("a release", release),
+            ("the Menu key", menu_key),
+        ];
+        for (name, make) in makers {
+            assert!(hears(&make(false), false), "{name} of the person");
+            assert!(!hears(&make(true), false), "{name} injected");
+            assert!(hears(&make(true), true), "{name} injected in a test");
+        }
+    }
+
     #[test]
     fn the_keys_of_the_other_looks_are_bound_here_too() {
         let bound: Vec<&str> = KEYS.iter().map(|(b, ..)| *b).collect();
@@ -4316,6 +4384,108 @@ mod tests {
         });
         let conn = Conn::connect_at(NAME, &path).unwrap();
         (Runtime::with(conn, NAME, Vec::new()), calls)
+    }
+
+    /// A window manager on a fake core that answers `scene.query` with no
+    /// nodes and every other request with null, and the methods that it saw.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn wm_on_fake_core(tag: &str) -> (Wm, Arc<Mutex<Vec<String>>>) {
+        let dir = std::env::temp_dir().join(format!("chora-xp-wm-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("core.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        let methods = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&methods);
+        let output = chora_scene::OutputInfo {
+            name: "X".into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 800],
+            default_work_area: [0, 0, 1280, 800],
+            is_virtual: None,
+            owner: None,
+        };
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).unwrap();
+                let method = request["method"].as_str().unwrap_or_default().to_owned();
+                let result = match method.as_str() {
+                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
+                    "input.grab" => request["params"]["binding"].clone(),
+                    "scene.query" => json!([]),
+                    "output.list" => json!([output]),
+                    _ => Value::Null,
+                };
+                seen.lock().unwrap().push(method);
+                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                writeln!(writer, "{answer}").unwrap();
+            }
+        });
+        let conn = Conn::connect_at(NAME, &path).unwrap();
+        let mut rt = Runtime::with(conn, NAME, Vec::new());
+        rt.pin_accepts_injected(false);
+        let theme_dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
+        let theme = Theme::load(
+            &theme_dir,
+            &dir.join("cache"),
+            &crate::sheets::ALL,
+            crate::sheets::FAMILY,
+        )
+        .expect("the theme loads");
+        let file = dir.join("chora-xp.yaml");
+        let settings = settings::File::<Config>::load(file, crate::config::DEFAULT).unwrap();
+        let wm = Wm::start_on(rt, theme, settings, 1.0).expect("xp starts on the fake core");
+        (wm, methods)
+    }
+
+    /// An event as the core sends it.
+    fn wire(event: Value) -> Event {
+        serde_json::from_value(event).expect("an event of the core")
+    }
+
+    #[test]
+    fn an_injected_pointer_event_changes_nothing_in_xp() {
+        let (mut wm, methods) = wm_on_fake_core("injected-pointer");
+        let entered = |injected| {
+            wire(
+                json!({"event": "pointer.entered", "node": "xp-start", "moved": true,
+                "injected": injected}),
+            )
+        };
+        let seen = methods.lock().unwrap().len();
+        wm.event(entered(true)).unwrap();
+        assert_eq!(wm.hover, None, "an injected entry");
+        assert_eq!(methods.lock().unwrap().len(), seen, "nothing sent");
+        wm.event(entered(false)).unwrap();
+        assert_eq!(
+            wm.hover.as_deref(),
+            Some("xp-start"),
+            "the entry of the person"
+        );
+    }
+
+    #[test]
+    fn an_injected_button_grab_turns_no_cube_in_xp() {
+        let (mut wm, _methods) = wm_on_fake_core("injected-cube");
+        assert!(!wm.bars.is_empty(), "xp has an output");
+        let press = |injected| {
+            wire(json!({"event": "input.button", "binding": "Super+BTN_LEFT",
+                "state": "pressed", "position": [100.0, 100.0], "output": "X",
+                "local": [100.0, 100.0], "injected": injected}))
+        };
+        wm.event(press(true)).unwrap();
+        assert_eq!(wm.cube_grab, None, "an injected press");
+        wm.event(press(false)).unwrap();
+        assert_eq!(wm.cube_grab, Some(100.0), "the press of the person");
     }
 
     /// When the cube of xp goes, as on the faces of a cube of the

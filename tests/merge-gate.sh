@@ -159,7 +159,7 @@ ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh &&
 2d-guard|tests/2d-guard.sh 8742dee
 package-deps|tests/gate-package-deps.sh
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh

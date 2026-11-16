@@ -144,7 +144,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         time,
         |state, mods, handle| {
             if key_state == KeyState::Released {
-                released_key(state, code, mods, &handle)
+                released_key(state, code, mods, &handle, injected)
             } else {
                 pressed_key(state, code, mods, &handle, injected)
             }
@@ -211,6 +211,7 @@ fn released_key(
     code: Keycode,
     mods: &ModifiersState,
     handle: &KeysymHandle<'_>,
+    injected: bool,
 ) -> FilterResult<KeyAction> {
     if state.held.repeat.as_ref().is_some_and(|r| r.code == code) {
         state.held.repeat = None;
@@ -234,7 +235,7 @@ fn released_key(
     };
     FilterResult::Intercept(match state.held.keys.remove(i).1 {
         Suppressed::Node(owner, node) => {
-            let release = node_key(node, mods, handle, PressState::Released);
+            let release = node_key(node, mods, handle, PressState::Released, injected);
             KeyAction::Node(owner, Box::new(release))
         }
         Suppressed::Swallow => KeyAction::Swallow,
@@ -256,7 +257,7 @@ fn pressed_key(
     let (action, suppressed) = if let Some(action) = press_action(state, mods, &syms, injected) {
         (action, Suppressed::Swallow)
     } else if let Some((node, owner)) = state.key_node() {
-        let event = node_key(node.clone(), mods, handle, PressState::Pressed);
+        let event = node_key(node.clone(), mods, handle, PressState::Pressed, injected);
         let (rate, delay) = state.repeat();
         if rate > 0 && !handle.modified_sym().is_modifier_key() {
             let next = state.time.now() + Duration::from_millis(delay.into());
@@ -352,6 +353,7 @@ impl State {
             return;
         };
         let SceneEvent::NodeKey { node, .. } = &repeat.event else {
+            // injected: the repeat resends a key with the flag it was sent with
             return;
         };
         if self.key_node() != Some((node.clone(), repeat.owner.clone())) {
@@ -378,6 +380,7 @@ fn node_key(
     mods: &ModifiersState,
     handle: &KeysymHandle<'_>,
     state: PressState,
+    injected: bool,
 ) -> SceneEvent {
     let sym = handle.modified_sym();
     let plain = !(mods.ctrl || mods.alt || mods.logo);
@@ -392,6 +395,7 @@ fn node_key(
         state,
         modifiers: modifier_names(mods),
         text,
+        injected,
     }
 }
 
@@ -617,6 +621,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
             position: [spot.scene.x, spot.scene.y],
             output: spot.output.name(),
             local: [spot.local.x, spot.local.y],
+            injected: state.injecting,
         };
         state.ipc.send_to(conn, &event);
     }
@@ -730,58 +735,80 @@ pub fn press_button(
     }
 }
 
+/// The connection, the binding and the state of the grab that a button
+/// press or release started or ended: whether the grab took the pointer,
+/// and whether its press did not come from the person.
+type Grabbed = (u64, String, PressState, bool, bool);
+
+/// The grab that a press of a button with modifiers starts, if a client
+/// grabbed the binding. As for a new toplevel: without an output, the
+/// pointer is in no claim.
+fn open_button_grab(state: &mut State, code: u32) -> Option<Grabbed> {
+    if state.button_grab.is_some() || state.lock.is_some() {
+        return None;
+    }
+    let keyboard = state.keyboard();
+    let mods = keyboard.modifier_state();
+    let pointer =
+        (state.spot(state.pointer_layout)).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+    let (conn, binding) = state
+        .ipc
+        .button_grab_for(&mods, code, &state.scene, pointer)?;
+    let binding = binding.to_string();
+    let to_pointer = binding == MOVE;
+    let window = window_under_pointer(state);
+    let real = real_press_of(state, code);
+    state.button_grab = Some(ButtonGrab {
+        conn,
+        binding: binding.clone(),
+        button: code,
+        real,
+        to_pointer,
+        given: None,
+        window,
+    });
+    Some((
+        conn,
+        binding,
+        PressState::Pressed,
+        to_pointer,
+        real.is_none(),
+    ))
+}
+
+/// The grab that the release of its button ends.
+fn close_button_grab(state: &mut State, code: u32) -> Option<Grabbed> {
+    if state.drop_stray_grab() {
+        state.refresh_pointer();
+    }
+    let grab = state.button_grab.take_if(|g| g.button == code)?;
+    Some((
+        grab.conn,
+        grab.binding,
+        PressState::Released,
+        grab.to_pointer,
+        grab.real.is_none(),
+    ))
+}
+
 /// A button with modifiers that a client grabbed: the press, the moves and
 /// the release go to the client of the grab and to no surface. The release
 /// comes also when the modifiers went up first. Returns whether the grab
 /// took the button.
 fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: InputTime) -> bool {
     let grab = if button_state == ButtonState::Pressed {
-        if state.button_grab.is_some() || state.lock.is_some() {
-            return false;
-        }
-        let keyboard = state.keyboard();
-        let mods = keyboard.modifier_state();
-        // As for a new toplevel: without an output, the pointer is in no claim.
-        let pointer =
-            (state.spot(state.pointer_layout)).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
-        let Some((conn, binding)) = state
-            .ipc
-            .button_grab_for(&mods, code, &state.scene, pointer)
-        else {
-            return false;
-        };
-        let binding = binding.to_string();
-        let to_pointer = binding == MOVE;
-        let window = window_under_pointer(state);
-        state.button_grab = Some(ButtonGrab {
-            conn,
-            binding: binding.clone(),
-            button: code,
-            real: real_press_of(state, code),
-            to_pointer,
-            given: None,
-            window,
-        });
-        (conn, binding, PressState::Pressed, to_pointer)
+        open_button_grab(state, code)
     } else {
-        if state.drop_stray_grab() {
-            state.refresh_pointer();
-        }
-        let Some(grab) = state.button_grab.take_if(|g| g.button == code) else {
-            return false;
-        };
-        (
-            grab.conn,
-            grab.binding,
-            PressState::Released,
-            grab.to_pointer,
-        )
+        close_button_grab(state, code)
     };
-    let (conn, binding, press, moved) = grab;
+    let Some(grab) = grab else {
+        return false;
+    };
+    let (conn, binding, press, moved, injected) = grab;
     if press == PressState::Pressed {
         state.note_act(vec![conn]);
     }
-    send_button(state, conn, binding, press, None);
+    send_button(state, (conn, binding), press, None, injected);
     if moved {
         // The press of a move reached the pointer, so its release does too,
         // to no surface.
@@ -839,30 +866,39 @@ pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial
     };
     // The click of the client ends here; the core keeps the button.
     pointer.unset_grab(state, SERIAL_COUNTER.next_serial(), InputTime::now());
+    let real = real_press_of(state, button);
     state.button_grab = Some(ButtonGrab {
         conn,
         binding: MOVE.into(),
         button,
-        real: real_press_of(state, button),
+        real,
         to_pointer: true,
         given: None,
         window: Some(surface.into()),
     });
     let window = Some((surface, None));
-    send_button(state, conn, MOVE.into(), PressState::Pressed, window);
+    let injected = real.is_none();
+    send_button(
+        state,
+        (conn, MOVE.into()),
+        PressState::Pressed,
+        window,
+        injected,
+    );
     move_pointer(state, state.pointer_layout, InputTime::now());
 }
 
 /// Sends `input.button` to the connection of a button grab, with the
 /// window of a move and the state of a drag that came with it. Without
 /// an output under the pointer the event has the pointer in the layout
-/// and no output name, so that a release always arrives.
+/// and no output name, so that a release always arrives. `injected` is
+/// set when the press of the grab did not come from the person.
 fn send_button(
     state: &mut State,
-    conn: u64,
-    binding: String,
+    (conn, binding): (u64, String),
     press: PressState,
     window: Option<(&str, Option<GivenGrab>)>,
+    injected: bool,
 ) {
     let (surface, grab) = window.unzip();
     let layout = [state.pointer_layout.x, state.pointer_layout.y];
@@ -881,6 +917,7 @@ fn send_button(
         local,
         surface: surface.map(String::from),
         grab: grab.flatten(),
+        injected,
     };
     state.ipc.send_to(conn, &event);
 }
@@ -1087,7 +1124,13 @@ impl State {
         });
         self.unpin_press(to);
         let window = Some((surface, Some(grab)));
-        send_button(self, receiver, MOVE.into(), PressState::Pressed, window);
+        send_button(
+            self,
+            (receiver, MOVE.into()),
+            PressState::Pressed,
+            window,
+            false,
+        );
     }
 
     /// Ends a pointer grab that came with a window when its holder does
@@ -1111,7 +1154,9 @@ impl State {
             return false;
         }
         if let Some(stray) = self.button_grab.take() {
-            send_button(self, stray.conn, stray.binding, PressState::Released, None);
+            let injected = stray.real.is_none();
+            let to = (stray.conn, stray.binding);
+            send_button(self, to, PressState::Released, None, injected);
         }
         true
     }
@@ -1159,7 +1204,12 @@ fn hover(state: &mut State, spot: &Spot, moved: bool) {
         state.emit(&SceneEvent::PointerLeft { node });
     }
     if let Some(node) = node {
-        state.emit(&SceneEvent::PointerEntered { node, moved });
+        let injected = state.injecting;
+        state.emit(&SceneEvent::PointerEntered {
+            node,
+            moved,
+            injected,
+        });
     }
 }
 
@@ -1591,6 +1641,7 @@ fn scroll_node(state: &mut State, delta: [f64; 2], discrete: [f64; 2], source: A
             AxisSource::Continuous => ScrollSource::Continuous,
         },
         modifiers: modifiers(state),
+        injected: state.injecting,
     };
     state.ipc.send_to_client(&owner, &event);
 }
@@ -2087,6 +2138,110 @@ mod tests {
         click(&mut core, false);
         let pressed = named(&events(&mut wm, &mut core), "pointer.pressed");
         assert_eq!(pressed[0]["node"], "s1");
+    }
+
+    /// The events of a client of one of the kinds, each with its `injected`
+    /// flag, `false` when the event has none.
+    fn flags(events: &[Value], names: &[&str]) -> Vec<(String, bool)> {
+        events
+            .iter()
+            .filter_map(|e| {
+                let name = e["event"].as_str().filter(|n| names.contains(n))?;
+                Some((name.to_string(), e["injected"].as_bool().unwrap_or(false)))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn an_injected_click_with_an_injected_modifier_reaches_the_button_grab_flagged() {
+        let (mut core, mut wayland, window, mut wm, _xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        wm.ok(
+            &mut core,
+            "input.grab",
+            json!({"binding": "Super+BTN_LEFT"}),
+        );
+        move_to(&mut core, 50.0, 50.0);
+        events(&mut wm, &mut core);
+        core.state.injecting = true;
+        super::key(
+            &mut core.state,
+            Keycode::new(SUPER + 8),
+            KeyState::Pressed,
+            InputTime::now(),
+            true,
+        );
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), true);
+        move_to(&mut core, 60.0, 70.0);
+        let up = ButtonState::Released;
+        super::press_button(&mut core.state, 272, up, InputTime::now(), true);
+        core.state.injecting = false;
+        let got = flags(
+            &events(&mut wm, &mut core),
+            &["input.button", "input.moved"],
+        );
+        let injected = |name: &str| (name.to_string(), true);
+        assert_eq!(
+            got,
+            [
+                injected("input.button"),
+                injected("input.moved"),
+                injected("input.button")
+            ]
+        );
+    }
+
+    #[test]
+    fn a_click_of_the_person_reaches_the_button_grab_unflagged() {
+        let (mut core, mut wayland, window, mut wm, _xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        wm.ok(
+            &mut core,
+            "input.grab",
+            json!({"binding": "Super+BTN_LEFT"}),
+        );
+        move_to(&mut core, 50.0, 50.0);
+        events(&mut wm, &mut core);
+        press(&mut core, SUPER, true);
+        click(&mut core, true);
+        move_to(&mut core, 60.0, 70.0);
+        click(&mut core, false);
+        let got = flags(
+            &events(&mut wm, &mut core),
+            &["input.button", "input.moved"],
+        );
+        assert_eq!(got.len(), 3, "{got:?}");
+        assert!(got.iter().all(|(_, injected)| !injected), "{got:?}");
+    }
+
+    #[test]
+    fn an_injected_move_and_an_injected_scroll_reach_the_owner_flagged() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        move_to(&mut core, 300.0, 300.0);
+        events(&mut xp, &mut core);
+        core.state.injecting = true;
+        move_to(&mut core, 50.0, 50.0);
+        super::scroll(&mut core.state, 0.0, 15.0, InputTime::now());
+        core.state.injecting = false;
+        let got = flags(
+            &events(&mut xp, &mut core),
+            &["pointer.entered", "pointer.scroll"],
+        );
+        let injected = |name: &str| (name.to_string(), true);
+        assert_eq!(
+            got,
+            [injected("pointer.entered"), injected("pointer.scroll")]
+        );
+        move_to(&mut core, 300.0, 300.0);
+        move_to(&mut core, 50.0, 50.0);
+        super::scroll(&mut core.state, 0.0, 15.0, InputTime::now());
+        let got = flags(
+            &events(&mut xp, &mut core),
+            &["pointer.entered", "pointer.scroll"],
+        );
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert!(got.iter().all(|(_, injected)| !injected), "{got:?}");
     }
 
     /// A window manager whose group claims an area.

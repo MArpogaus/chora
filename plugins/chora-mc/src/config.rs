@@ -341,8 +341,9 @@ pub struct Config {
     /// Who draws the voice HUD: `own` or `host`.
     #[serde(default)]
     pub voice_hud: VoiceHud,
-    /// For tests only: take the keys of `input.inject` as keys of the
-    /// user. Off, the bindings ignore injected keys.
+    /// For tests only: take the keys and the pointer presses of
+    /// `input.inject` as the user's. Off, the bindings ignore injected
+    /// keys, and the hits and the agent columns injected presses.
     #[serde(default)]
     pub test_accept_injected_keys: bool,
     pub themes: Themes,

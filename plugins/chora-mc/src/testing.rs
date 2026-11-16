@@ -138,7 +138,8 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
     static CONNECT: Mutex<()> = Mutex::new(());
     let one = CONNECT.lock().unwrap();
     let conn = Conn::connect_at(NAME, socket()).unwrap();
-    let rt = Runtime::with(conn, NAME, Vec::new());
+    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    rt.pin_accepts_injected(false);
     let model = MODELS.lock().unwrap().last().unwrap().clone();
     drop(one);
     let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));

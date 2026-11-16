@@ -599,7 +599,8 @@ const EVENTS: [&str; 19] = [
 const TRAIL: usize = 32;
 
 /// The methods; those that start programs or write files are privileged
-/// (D62), because a caller with `methods.call` alone must not run commands.
+/// (D62), because a caller with `methods.call` alone must not run commands;
+/// so are those that write the words of the agent or a notification.
 #[allow(clippy::too_many_lines)] // one entry per method
 fn exported_methods() -> Vec<ExportMethod> {
     let lines = json!({"type": "array", "items": {"type": "string"}});
@@ -653,14 +654,14 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["scene", "panel", "lines"],
         ),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "hud.set",
             "Sets the HUD line: the state of the agent, such as listening, thinking or \
              working, and a short message; both empty hide it.",
             json!({"state": {"type": "string"}, "text": {"type": "string"}}),
             &[],
-        ),
-        runtime::method(
+        )),
+        runtime::privileged(runtime::method(
             "hud.say",
             "Shows the text in the HUD word by word over duration_ms, the time that the \
              voice takes to speak it; a state as in hud.set shows before it.",
@@ -670,7 +671,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "duration_ms": {"type": "number"},
             }),
             &["text", "duration_ms"],
-        ),
+        )),
         runtime::method(
             "pane.focus",
             "Gives the keyboard to the app of the scene NAME, else to its page; a plugin that \
@@ -774,7 +775,12 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["title"],
         )),
-        runtime::method("notify.clear", "Empties the notifications.", json!({}), &[]),
+        runtime::privileged(runtime::method(
+            "notify.clear",
+            "Empties the notifications.",
+            json!({}),
+            &[],
+        )),
         chora_kit::give::method(),
     ]
 }
@@ -806,6 +812,9 @@ impl Plugin for Mc {
 
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         match event {
             Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
             Event::SurfaceCreated {
@@ -849,7 +858,7 @@ impl Plugin for Mc {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => {
                 self.act(&binding);
                 Ok(())
@@ -859,7 +868,7 @@ impl Plugin for Mc {
                 state,
                 position,
                 surface,
-                ..
+                .. // injected: Plugin::event drops an injected pointer event first
             } => {
                 self.drag(&binding, state, position, surface);
                 Ok(())
@@ -877,19 +886,22 @@ impl Plugin for Mc {
                 key,
                 state: PressState::Pressed,
                 modifiers,
-                ..
+                node: _,
+                code: _,
+                text: _,
+                injected,
             } => {
-                self.page_key(&key, &modifiers);
+                self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
-            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
+            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy), // injected: Plugin::event drops an injected pointer event first
             Event::PointerPressed {
                 node,
                 position,
                 injected,
                 ..
             } => self.press(&node, position, injected),
-            Event::PointerEntered { node, .. } => self.mark(&node, true),
+            Event::PointerEntered { node, .. } => self.mark(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.mark(&node, false),
             _ => Ok(()),
         }
@@ -1025,12 +1037,12 @@ impl Mc {
                     title,
                     lines,
                 } = runtime::params(params)?;
-                self.set_text(&content, title, |_| lines)?;
+                self.set_client_text(&content, title, |_| lines)?;
                 Ok(Value::Null)
             }
             "content.add" => {
                 let AddLine { content, line } = runtime::params(params)?;
-                self.set_text(&content, None, |mut lines| {
+                self.set_client_text(&content, None, |mut lines| {
                     lines.push(line);
                     let extra = lines.len().saturating_sub(MAX_LINES);
                     lines.split_off(extra)
@@ -1126,10 +1138,21 @@ impl Mc {
         }
     }
 
+    /// Whether input is a person's: not from `input.inject`, or mc takes
+    /// that as the person's.
+    fn by_person(&self, injected: bool) -> bool {
+        !injected || self.rt.accepts_injected()
+    }
+
     /// A press of the pointer: on a column of a helper it opens the chat,
-    /// else it is a click.
+    /// else it is a click. The columns and the hits ignore a press of
+    /// `input.inject`, as the bindings do.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.click_agent(node, at) || self.click_mic(node, injected) || self.click_hit(node) {
+        let person = self.by_person(injected);
+        if (person && self.click_agent(node, at))
+            || self.click_mic(node, injected)
+            || (person && self.click_hit(node))
+        {
             return Ok(());
         }
         self.click(node, at, injected)
@@ -1199,9 +1222,9 @@ impl Mc {
 
     /// A key without a modifier while a page has the keyboard: Right and
     /// Left turn the page, Escape goes back one step.
-    fn page_key(&mut self, key: &str, modifiers: &[String]) {
+    fn page_key(&mut self, key: &str, modifiers: &[String], injected: bool) {
         let action = match key {
-            _ if !modifiers.is_empty() => return,
+            _ if !modifiers.is_empty() || !self.by_person(injected) => return,
             "Right" => Action::NextScene,
             "Left" => Action::PreviousScene,
             "Escape" => return self.back(),
@@ -3048,6 +3071,20 @@ impl Mc {
             .collect();
     }
 
+    /// Changes a text content for `content.set` or `content.add`; the
+    /// contents that mc writes itself are refused.
+    fn set_client_text(
+        &mut self,
+        content: &str,
+        title: Option<String>,
+        change: impl FnOnce(Vec<String>) -> Vec<String>,
+    ) -> Result<(), RpcError> {
+        if agent::OWN_TEXTS.contains(&content) {
+            return Err(invalid(format!("{content} is written by mc alone")));
+        }
+        self.set_text(content, title, change)
+    }
+
     /// Changes the lines of a text content, and its title.
     fn set_text(
         &mut self,
@@ -3099,6 +3136,11 @@ impl Mc {
             title,
             lines,
         } = set;
+        if agent::OWN_SCENES.contains(&scene.as_str()) {
+            return Err(invalid(format!(
+                "the panels of {scene} are written by mc alone"
+            )));
+        }
         let found = (self.scenes.get(&scene))
             .and_then(|v| v.panels.iter().find(|p| p.id == panel))
             .ok_or_else(|| invalid(format!("no panel {panel} in scene {scene}")))?;
@@ -3490,6 +3532,10 @@ mod tests {
     }
 
     fn press_key(mc: &mut super::Mc, key: &str, modifiers: &[&str]) {
+        press_key_from(mc, key, modifiers, false);
+    }
+
+    fn press_key_from(mc: &mut super::Mc, key: &str, modifiers: &[&str], injected: bool) {
         use chora_kit::runtime::Plugin as _;
         mc.event(chora_scene::Event::NodeKey {
             node: super::page_id("agenda"),
@@ -3498,6 +3544,7 @@ mod tests {
             state: chora_scene::ipc::PressState::Pressed,
             modifiers: modifiers.iter().map(|m| (*m).to_owned()).collect(),
             text: None,
+            injected,
         })
         .unwrap();
     }
@@ -4133,7 +4180,9 @@ mod tests {
     }
 
     /// A client with `methods.call` alone ran commands through app.open and
-    /// scene.save (W12).
+    /// scene.save (W12), and wrote the words of the agent through hud.set
+    /// and hud.say (review plugins r1, MC-03), and emptied the notifications
+    /// through notify.clear (review security a r1).
     #[test]
     fn the_methods_that_start_programs_are_privileged() {
         let privileged: Vec<String> = super::exported_methods()
@@ -4147,12 +4196,15 @@ mod tests {
                 "scene.save",
                 "scene.rename",
                 "scene.move",
+                "hud.set",
+                "hud.say",
                 "app.open",
                 "region.toggle",
                 "region.put",
                 "region.solo",
                 "agent.set",
                 "notify.push",
+                "notify.clear",
                 "window.give"
             ]
         );
@@ -4365,5 +4417,130 @@ mod tests {
             "mc sent a focus after the hand: {focuses:?}"
         );
         assert_eq!(mc.focused, None);
+    }
+
+    /// A client with `methods.call` alone rewrote the detail of a spoken
+    /// confirmation and the notifications through content.set and
+    /// content.add (review plugins r1, MC-02 and MC-03): the contents that
+    /// mc writes itself refuse both.
+    #[test]
+    fn the_contents_that_mc_writes_refuse_content_set_and_add() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("own-contents", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ask = json!({"id": "c1", "prompt": "Run it?", "detail": "rm -r build"});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        mc.method(
+            "notify.push",
+            json!({"title": "Disk is full", "urgency": "critical"}),
+        )
+        .unwrap();
+        let before = mc.texts.clone();
+        for content in ["confirm", "notify", "urgent"] {
+            let set = json!({"content": content, "title": "Run it?", "lines": ["ls"]});
+            assert!(
+                mc.method("content.set", set).is_err(),
+                "content.set {content}"
+            );
+            let add = json!({"content": content, "line": "ls"});
+            assert!(
+                mc.method("content.add", add).is_err(),
+                "content.add {content}"
+            );
+        }
+        assert_eq!(mc.texts, before);
+        let notes = json!({"content": "notes", "lines": ["x"]});
+        mc.method("content.set", notes).unwrap();
+    }
+
+    /// `panel.set` is unprivileged and rewrote the columns of the agents,
+    /// the words that the page shows as the agent's, and the list of the
+    /// overview (review security a r1, MC-03 alias): mc writes those alone.
+    #[test]
+    fn panel_set_refuses_the_scenes_that_mc_writes_itself() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("own-panels", [1920, 1080]);
+        for (scene, panel) in [("agents", "agent-1"), ("overview", "scenes")] {
+            let before = mc.scenes[scene].panels.clone();
+            let set = json!({"scene": scene, "panel": panel, "title": "Run it", "lines": ["rm"]});
+            assert!(mc.method("panel.set", set).is_err(), "panel.set {scene}");
+            assert!(
+                mc.scenes[scene].panels == before,
+                "{scene} changed although panel.set was refused"
+            );
+        }
+        let lines = json!({"scene": "agenda", "panel": "today", "lines": ["09:00\tStand-up"]});
+        mc.method("panel.set", lines).unwrap();
+    }
+
+    /// A pointer press of `input.inject` on the urgent line cleared it,
+    /// as a key row ran its binding (review plugins r1, MC-04): the hits
+    /// and the agent columns ignore injected presses, as the bindings do.
+    #[test]
+    fn an_injected_press_on_a_hit_does_nothing() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("injected-hit", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.method(
+            "notify.push",
+            json!({"title": "Disk is full", "urgency": "critical"}),
+        )
+        .unwrap();
+        let item = (mc.items("agenda").into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id.ends_with("-urgent"))
+            .expect("the urgent line");
+        let hit = format!("{}-hit", item.id);
+        mc.press(&hit, [0.0, 0.0], true).unwrap();
+        assert!(
+            !mc.texts["urgent"].1.is_empty(),
+            "an injected press cleared it"
+        );
+        mc.press(&hit, [0.0, 0.0], false).unwrap();
+        assert!(mc.texts["urgent"].1.is_empty(), "the press of the person");
+    }
+
+    /// A key of `input.inject` turned the page, or went back along the
+    /// pages, as the key of a person (review security a r2, MINOR 4): the
+    /// keys of the page are the person's, as the bindings are.
+    #[test]
+    fn an_injected_key_does_not_turn_the_page() {
+        let (mut mc, _) = crate::testing::mc("injected-page-key", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        press_key_from(&mut mc, "Right", &[], true);
+        assert_eq!(mc.current.as_deref(), Some("agenda"), "Right injected");
+        press_key_from(&mut mc, "Right", &[], false);
+        assert_eq!(mc.current.as_deref(), Some("morning"), "Right of a person");
+        press_key_from(&mut mc, "Escape", &[], true);
+        assert_eq!(mc.current.as_deref(), Some("morning"), "Escape injected");
+        press_key_from(&mut mc, "Escape", &[], false);
+        assert_eq!(mc.current.as_deref(), Some("agenda"), "Escape of a person");
+    }
+
+    fn mark_opacity(model: &crate::testing::Model, id: &str) -> Option<f64> {
+        Some(model.lock().unwrap().scene.node(id)?.props.opacity)
+    }
+
+    /// The hover mark of a hit shows for a pointer of a person and stays
+    /// out for a pointer that `input.inject` moves.
+    #[test]
+    fn an_injected_pointer_event_does_not_reach_the_hover_of_mc() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("injected-hover", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let hit = "mc-s-agenda-chapter-head-hit";
+        let mark = "mc-s-agenda-chapter-head-mark";
+        let entered = |injected| chora_scene::Event::PointerEntered {
+            node: hit.to_owned(),
+            moved: true,
+            injected,
+        };
+        mc.event(entered(true)).unwrap();
+        assert_ne!(mark_opacity(&model, mark), Some(1.0), "a program hovered");
+        mc.event(entered(false)).unwrap();
+        assert_eq!(mark_opacity(&model, mark), Some(1.0), "a person hovered");
     }
 }

@@ -87,9 +87,16 @@ impl Plugin for Notify {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         let commands = match event {
-            Event::PointerPressed { node, .. } if Card::owns(&node) => self.press(&node)?,
-            Event::PointerEntered { node, .. } => self.hover(&node, true),
+            Event::PointerPressed { node, injected, .. }
+                if Card::owns(&node) && (!injected || self.rt.accepts_injected()) =>
+            {
+                self.press(&node)?
+            }
+            Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => self.redraw()?,
             _ => Vec::new(),
@@ -351,6 +358,108 @@ mod tests {
         let (_, values) = load_assets(&dir, &cache).expect("the XP folder loads");
         assert!(values.card.tail > 0, "the tail of XP's balloon");
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    struct KillOnDrop(std::process::Child);
+
+    impl Drop for KillOnDrop {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    /// A notify on a private session bus and a fake core that answers
+    /// every request with null and `output.list` with no outputs. `None`
+    /// without a `dbus-daemon` to start.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn on_private_bus(tag: &str) -> Option<(Notify, KillOnDrop)> {
+        use std::io::{BufRead as _, BufReader, Write as _};
+        let daemon = std::process::Command::new("dbus-daemon")
+            .args(["--session", "--nofork", "--print-address"])
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .ok()?;
+        let mut daemon = KillOnDrop(daemon);
+        let mut address = String::new();
+        let stdout = daemon.0.stdout.take().unwrap();
+        BufReader::new(stdout).read_line(&mut address).unwrap();
+        let connection = zbus::blocking::connection::Builder::address(address.trim())
+            .unwrap()
+            .build()
+            .unwrap();
+        let dir = cache(tag);
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("core.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).unwrap();
+                let result = match request["method"].as_str().unwrap_or_default() {
+                    "hello" => serde_json::json!({"version": chora_scene::ipc::VERSION}),
+                    "output.list" => serde_json::json!([]),
+                    _ => Value::Null,
+                };
+                let answer =
+                    serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                writeln!(writer, "{answer}").unwrap();
+            }
+        });
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+        let (theme, values) = load_assets(&assets, &dir.join("cache")).expect("the assets load");
+        let settings =
+            settings::File::<Config>::load(dir.join("chora-notify.yaml"), config::DEFAULT).unwrap();
+        let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
+        let mut rt = Runtime::with(conn, NAME, Vec::new());
+        rt.pin_accepts_injected(false);
+        let notify = Notify {
+            rt,
+            queue: Queue::new(settings.value),
+            settings,
+            theme,
+            values,
+            icons: Icons::new(icons::THEMES),
+            bus: Bus::on(connection).expect("the name is free"),
+            card: None,
+        };
+        Some((notify, daemon))
+    }
+
+    #[test]
+    fn an_injected_press_on_the_card_closes_nothing() {
+        let Some((mut notify, _daemon)) = on_private_bus("injected-card") else {
+            return;
+        };
+        let note = Note {
+            id: 7,
+            icon: String::new(),
+            summary: "title".into(),
+            body: "text".into(),
+            actions: Vec::new(),
+            expire_ms: 0,
+        };
+        notify.queue.push(note.clone(), Instant::now());
+        let press = |injected| {
+            serde_json::from_value::<Event>(serde_json::json!({
+                "event": "pointer.pressed", "node": "notify-card-close", "button": 272,
+                "position": [0.0, 0.0], "injected": injected}))
+            .unwrap()
+        };
+        notify.event(press(true)).unwrap();
+        assert_eq!(notify.queue.current(), Some(&note), "an injected press");
+        notify.rt.pin_accepts_injected(true);
+        notify.event(press(true)).unwrap();
+        assert_eq!(notify.queue.current(), None, "an injected press in a test");
+        notify.queue.push(note.clone(), Instant::now());
+        notify.rt.pin_accepts_injected(false);
+        notify.event(press(false)).unwrap();
+        assert_eq!(notify.queue.current(), None, "the press of the person");
     }
 
     #[test]

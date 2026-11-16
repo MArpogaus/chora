@@ -191,9 +191,14 @@ impl Mc {
     }
 
     /// A click of the user: on a window or a docked app it gives that the
-    /// keyboard, on a line of the overview it shows that scene.
+    /// keyboard, on a line of the overview it shows that scene. A press of
+    /// `input.inject` does neither, unless the plugin accepts injected
+    /// input.
     pub fn click(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
         if self.press_answer(node, injected) {
+            return Ok(());
+        }
+        if injected && !self.rt.accepts_injected() {
             return Ok(());
         }
         let mut ours = self.windows.values().chain(self.docks.values());
@@ -472,6 +477,32 @@ mod tests {
         )
         .unwrap();
         assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// A press of `input.inject` on a line of the overview showed a scene
+    /// and on a window gave it the keyboard, as a binding does that ignores
+    /// injected keys (review security a r1): a click acts for the person.
+    #[test]
+    fn an_injected_press_on_the_overview_or_a_window_does_nothing() {
+        let (mut mc, model) = testing::mc("injected-click", [1920, 1080]);
+        mc.show(super::OVERVIEW, true).unwrap();
+        let panel = mc.overview_panel().unwrap();
+        let [_, top, _, _] = mc.place(super::OVERVIEW, &panel).unwrap();
+        let line = mc.ty("body", None).line;
+        let on_line = [400.0, top + 1.5 * line];
+        let wheel = crate::wheel_id(super::OVERVIEW);
+        mc.click(&wheel, on_line, true).unwrap();
+        assert_eq!(mc.current.as_deref(), Some(super::OVERVIEW), "a scene");
+        mc.windows.insert("terminal".into(), "s1".into());
+        let focuses = || model.lock().unwrap().focuses.len();
+        let before = focuses();
+        mc.click("s1", on_line, true).unwrap();
+        assert_eq!(focuses(), before, "a window took the keyboard");
+        assert_eq!(mc.focused, None);
+        mc.click("s1", on_line, false).unwrap();
+        assert_eq!(mc.focused.as_deref(), Some("s1"), "the press of the person");
+        mc.click(&wheel, on_line, false).unwrap();
+        assert_eq!(mc.current.as_deref(), Some("morning"), "the person");
     }
 
     /// Live: a key that switched to the terminal, an app of the launcher

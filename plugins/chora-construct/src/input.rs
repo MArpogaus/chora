@@ -36,7 +36,85 @@ pub(crate) fn keys_walk_due(last: Option<Instant>, now: Instant) -> bool {
     last.is_none_or(|at| now.duration_since(at) >= KEYS_WALK_AGAIN)
 }
 
+/// The row of the window list that a press chooses: a left press of the
+/// person, or of `input.inject` while the plugin `accepts_injected`.
+pub(crate) fn pressed_row(event: &Event, accepts_injected: bool) -> Option<usize> {
+    let Event::PointerPressed {
+        node,
+        button: BTN_LEFT,
+        injected,
+        ..
+    } = event
+    else {
+        return None;
+    };
+    if *injected && !accepts_injected {
+        return None;
+    }
+    (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok())
+}
+
+/// A key press of the open window list: the key, its modifiers and its text.
+pub(crate) type ListKey<'a> = (&'a str, &'a [String], Option<&'a str>);
+
+/// The key of a press on the look that the walk, the cube and the open
+/// window list act on: a key of the person, or of `input.inject` while the
+/// plugin `accepts_injected`.
+pub(crate) fn walk_key(event: &Event, accepts_injected: bool) -> Option<ListKey<'_>> {
+    match event {
+        Event::NodeKey {
+            node,
+            key,
+            state: PressState::Pressed,
+            modifiers,
+            text,
+            code: _,
+            injected,
+        } if node == LOOK && (!injected || accepts_injected) => {
+            Some((key, modifiers, text.as_deref()))
+        }
+        _ => None,
+    }
+}
+
+/// Whether a press, a move or a release of the pointer on the look or on
+/// a pane texture acts: one of the person, or of `input.inject` while the
+/// plugin `accepts_injected`. The press focuses the look and starts a
+/// drag that looks around or moves a pane.
+pub(crate) fn look_pointer(event: &Event, accepts_injected: bool) -> bool {
+    chora_kit::runtime::from_person(event, accepts_injected)
+}
+
 impl Construct {
+    /// Whether a node is the look or a pane that shows a node texture.
+    fn on_look(&self, node: &str) -> bool {
+        node == LOOK || self.texture_pane(node).is_some()
+    }
+
+    /// The act of a key press of the walk: the terminal, the close key, the
+    /// windows, the cube, the stride keys and the rest of the actions.
+    fn walk_press(
+        &mut self,
+        key: &str,
+        modifiers: &[String],
+        typed: bool,
+    ) -> Result<(), ClientError> {
+        match self.settings.value.action(key, modifiers) {
+            Some(Action::Terminal) => self.start_terminal(),
+            Some(action) if Action::SHARED.contains(&action) => return self.shared_key(action),
+            Some(Action::Close) => return self.close_ahead(),
+            Some(Action::Windows) => return self.open_list(),
+            Some(Action::Cube) => return self.cube_key(),
+            Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
+                self.stride_press(key, action);
+            }
+            Some(action) => self.act(action),
+            None if typed => return self.keys_walk(),
+            None => {}
+        }
+        Ok(())
+    }
+
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
     fn keys_walk(&mut self) -> Result<(), ClientError> {
@@ -178,9 +256,13 @@ impl Construct {
             node,
             key,
             state: PressState::Released,
-            ..
+            code: _,
+            modifiers: _,
+            text: _,
+            injected,
         } = &event
             && node == LOOK
+            && (!injected || self.rt.accepts_injected())
         {
             self.stride_release(key);
         }
@@ -193,33 +275,15 @@ impl Construct {
         {
             return Ok(());
         }
+        let accepts = self.rt.accepts_injected();
+        if let Some((key, modifiers, text)) = walk_key(&event, accepts) {
+            return self.walk_press(key, modifiers, text.is_some());
+        }
         match event {
-            Event::NodeKey {
-                node,
-                key,
-                state: PressState::Pressed,
-                modifiers,
-                text,
-                ..
-            } if node == LOOK => match self.settings.value.action(&key, &modifiers) {
-                Some(Action::Terminal) => self.start_terminal(),
-                Some(action) if Action::SHARED.contains(&action) => {
-                    return self.shared_key(action);
-                }
-                Some(Action::Close) => return self.close_ahead(),
-                Some(Action::Windows) => return self.open_list(),
-                Some(Action::Cube) => return self.cube_key(),
-                Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
-                    self.stride_press(&key, action);
-                }
-                Some(action) => self.act(action),
-                None if text.is_some() => return self.keys_walk(),
-                None => {}
-            },
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
@@ -229,7 +293,7 @@ impl Construct {
                 };
             }
             Event::InputButton {
-                state, position, ..
+                state, position, .. // injected: Construct::event drops an injected pointer event first
             } => {
                 let at = self.local(position);
                 let inside = self.inside();
@@ -242,7 +306,7 @@ impl Construct {
                     PressState::Released => self.release(at, None),
                 };
             }
-            Event::InputMoved { position, .. } => return self.moved(self.local(position)),
+            Event::InputMoved { position, .. } => return self.moved(self.local(position)), // injected: Construct::event drops an injected pointer event first
             Event::PointerPressed {
                 node,
                 button,
@@ -252,7 +316,7 @@ impl Construct {
                 self.answer(&node, injected);
                 return Ok(());
             }
-            Event::PointerEntered { node, .. } => {
+            Event::PointerEntered { node, .. } => { // injected: Construct::event drops an injected pointer event first
                 let hovered = self.own_window(&node).then_some(node);
                 if hovered != self.hovered {
                     self.hovered = hovered;
@@ -275,27 +339,22 @@ impl Construct {
                 node,
                 position,
                 modifiers,
-                injected,
-                ..
-            } if node == LOOK || self.texture_pane(&node).is_some() => {
+                .. // injected: look_pointer in the guard drops an injected press
+            } if look_pointer(&event, accepts) && self.on_look(&node) => {
                 let held = modifiers.contains(&self.settings.value.modifier);
-                self.press(position, held)?;
-                if let Some(drag) = &mut self.drag {
-                    drag.injected = injected && !self.rt.accepts_injected();
-                }
-                return Ok(());
+                return self.press(position, held);
             }
-            Event::PointerMoved { node, position, .. }
-                if node == LOOK || self.texture_pane(&node).is_some() =>
+            Event::PointerMoved { node, position, .. } // injected: look_pointer in the guard drops an injected move
+                if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.moved(position);
             }
-            Event::PointerReleased { node, position, .. }
-                if node == LOOK || self.texture_pane(&node).is_some() =>
+            Event::PointerReleased { node, position, .. } // injected: look_pointer in the guard drops an injected release
+                if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.release(position, self.texture_pane(&node));
             }
-            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => {
+            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => { // injected: Construct::event drops an injected pointer event first
                 if let Some(command) = self.voice.scroll(dy) {
                     self.rt.conn.apply(vec![command])?;
                 }
@@ -305,7 +364,7 @@ impl Construct {
                 position,
                 dy,
                 modifiers,
-                ..
+                .. // injected: Construct::event drops an injected pointer event first
             } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
                 let pane = self.texture_pane(&node).or_else(|| self.pane_at(position));
@@ -358,7 +417,6 @@ impl Construct {
                 press: at,
                 last: at,
                 moved: false,
-                injected: false,
             });
         }
         Ok(())
@@ -430,7 +488,7 @@ impl Construct {
             self.effects.release(&moving.name);
             return self.drop_pane(&moving, at);
         }
-        let click = self.drag.take().is_some_and(|d| !d.moved && !d.injected);
+        let click = self.drag.take().is_some_and(|d| !d.moved);
         if let Some(i) = pane.filter(|_| click) {
             return self.fly_in(i);
         }
@@ -517,11 +575,11 @@ impl Construct {
                 }
                 Ok(true)
             }
-            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node } // injected: Construct::event drops an injected pointer event first
                 if row_of(node).is_some() =>
             {
                 let row = row_of(node);
-                let over = matches!(event, Event::PointerEntered { .. });
+                let over = matches!(event, Event::PointerEntered { .. }); // injected: Construct::event drops an injected pointer event first
                 let hovered = if over {
                     row
                 } else {
@@ -553,9 +611,10 @@ impl Construct {
             {
                 self.hint_press(node)
             }
-            Event::PointerEntered { node, .. } => self.hint_hovered(node, true),
+            Event::PointerEntered { node, .. } => self.hint_hovered(node, true), // injected: Construct::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hint_hovered(node, false),
             Event::InputMoved { position, .. } => {
+                // injected: Construct::event drops an injected pointer event first
                 let [_, y] = self.local(*position);
                 self.hint_pointer(y)?;
                 Ok(false)
@@ -588,16 +647,13 @@ impl Construct {
             return Ok(false);
         };
         match event {
-            Event::NodeKey {
-                node,
-                key,
-                state: PressState::Pressed,
-                modifiers,
-                text,
-                ..
-            } if node == LOOK => {
+            Event::NodeKey { node, state, .. } if node == LOOK => { // injected: walk_key below drops an injected key, which the list takes
+                let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected())
+                else {
+                    return Ok(*state == PressState::Pressed);
+                };
                 let toggle = self.settings.value.keys.get(key) == Some(&Action::Windows);
-                match key.as_str() {
+                match key {
                     "Escape" if searching => self.search_list(String::clear),
                     "Escape" => self.close_list(),
                     _ if toggle => self.close_list(),
@@ -607,23 +663,21 @@ impl Construct {
                     "BackSpace" => self.search_list(|q| {
                         q.pop();
                     }),
-                    _ => match typed(text.as_deref(), modifiers) {
+                    _ => match typed(text, modifiers) {
                         Some(typed) => self.search_list(|q| q.push_str(&typed)),
                         None => Ok(()),
                     },
                 }?;
             }
-            Event::PointerPressed { node, .. } if node.starts_with(LIST) => {
-                let row =
-                    (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok());
-                if let Some(k) = row {
+            Event::PointerPressed { node, .. } if node.starts_with(LIST) => { // injected: pressed_row ignores an injected press
+                if let Some(k) = pressed_row(event, self.rt.accepts_injected()) {
                     self.choose(k)?;
                 }
             }
-            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node } // injected: Construct::event drops an injected pointer event first
                 if node.starts_with(LIST_ROW) =>
             {
-                let over = matches!(event, Event::PointerEntered { .. });
+                let over = matches!(event, Event::PointerEntered { .. }); // injected: Construct::event drops an injected pointer event first
                 let row = (node.strip_prefix(LIST_ROW)).and_then(|r| r.parse::<usize>().ok());
                 let hovered = if over { row } else { None };
                 if let Some(list) = self.list.as_mut().filter(|l| l.hovered != hovered) {
@@ -631,7 +685,9 @@ impl Construct {
                     self.draw_list(false)?;
                 }
             }
-            Event::PointerPressed { node, .. } if node == LOOK => {
+            Event::PointerPressed { node, .. } // injected: look_pointer in the guard drops an injected press
+                if node == LOOK && look_pointer(event, self.rt.accepts_injected()) =>
+            {
                 self.close_list()?;
                 return Ok(false);
             }
@@ -658,22 +714,11 @@ impl Construct {
         if !self.help {
             return Ok(false);
         }
-        let Event::NodeKey {
-            node,
-            key,
-            state: PressState::Pressed,
-            modifiers,
-            text,
-            ..
-        } = event
-        else {
+        let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected()) else {
             return Ok(false);
         };
-        if node != LOOK {
-            return Ok(false);
-        }
         let own = self.settings.value.action(key, modifiers) == Some(Action::Help);
-        match key.as_str() {
+        match key {
             "Escape" if !self.help_query.is_empty() => {
                 self.help_query.clear();
                 self.help_sel = 0;
@@ -686,7 +731,7 @@ impl Construct {
                 self.help_query.pop();
                 self.help_sel = 0;
             }
-            _ => match typed(text.as_deref(), modifiers) {
+            _ => match typed(text, modifiers) {
                 Some(typed) => {
                     self.help_query.push_str(&typed);
                     self.help_sel = 0;

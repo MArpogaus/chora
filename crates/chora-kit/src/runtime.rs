@@ -19,6 +19,42 @@ use serde_json::{Value, json};
 
 use crate::{conn::Conn, settings::Store};
 
+/// Whether an event counts as the person's: it did not come from
+/// `input.inject`, or the plugin takes injected input as the person's
+/// (the setting `test_accept_injected_keys`). A window manager lets the
+/// other events go on and ignores the rest.
+#[must_use]
+pub fn from_person(event: &Event, accepts_injected: bool) -> bool {
+    let injected = match event {
+        Event::InputKey { injected, .. }
+        | Event::NodeKey { injected, .. }
+        | Event::PointerPressed { injected, .. }
+        | Event::PointerMoved { injected, .. }
+        | Event::PointerReleased { injected, .. }
+        | Event::PointerEntered { injected, .. }
+        | Event::PointerScroll { injected, .. }
+        | Event::InputButton { injected, .. }
+        | Event::InputMoved { injected, .. } => *injected,
+        _ => false,
+    };
+    accepts_injected || !injected
+}
+
+/// Whether a plugin acts on a button grab, a drag move, a hover or a
+/// scroll of the pointer: those of the person, or of `input.inject` while
+/// the plugin takes it as the person's. Every other event is true here: a
+/// plugin judges a key or a press itself, with [`from_person`].
+#[must_use]
+pub fn hears_pointer(event: &Event, accepts_injected: bool) -> bool {
+    match event {
+        Event::InputButton { injected, .. }
+        | Event::InputMoved { injected, .. }
+        | Event::PointerEntered { injected, .. }
+        | Event::PointerScroll { injected, .. } => accepts_injected || !injected,
+        _ => true,
+    }
+}
+
 /// The time between two tries to grab give keys that another client held.
 const REGRAB: Duration = Duration::from_secs(2);
 
@@ -157,6 +193,13 @@ impl<A> Runtime<A> {
     /// on too.
     pub fn accept_injected(&mut self, setting: bool) {
         self.inject_ok = setting || test_session();
+    }
+
+    /// Pins whether the plugin takes input of `input.inject` as the
+    /// person's, whatever the environment says; for the unit tests of a
+    /// plugin, which must not change with `CHORA_TEST_ACCEPT_INJECTED_KEYS`.
+    pub fn pin_accepts_injected(&mut self, on: bool) {
+        self.inject_ok = on;
     }
 
     /// Whether the plugin takes input of `input.inject` as the person's:
@@ -903,8 +946,10 @@ mod tests {
 
         let (path, _core) = fake_core::serve(|_, _| Answer::Result(Value::Null));
         let conn = Conn::connect_at("tiling", &path).unwrap();
+        let mut rt = Runtime::with(conn, "tiling", Vec::new());
+        rt.pin_accepts_injected(false);
         Recorder {
-            rt: Runtime::with(conn, "tiling", Vec::new()),
+            rt,
             seen: Vec::new(),
         }
     }
@@ -916,11 +961,80 @@ mod tests {
         assert_eq!(plugin.seen, []);
         dispatch(&mut plugin, key(false)).unwrap();
         assert_eq!(plugin.seen.len(), 1);
-        plugin.rt.accept_injected(true);
+        plugin.rt.pin_accepts_injected(true);
         dispatch(&mut plugin, key(true)).unwrap();
         assert_eq!(plugin.seen.len(), 2);
-        plugin.rt.accept_injected(false);
+        plugin.rt.pin_accepts_injected(false);
         dispatch(&mut plugin, key(true)).unwrap();
         assert_eq!(plugin.seen.len(), 2);
+    }
+
+    #[test]
+    fn from_person_knows_every_event_with_an_injected_flag() {
+        let events = include_str!("../../chora-scene/src/event.rs");
+        let source = include_str!("runtime.rs");
+        let body = &source[source.find("pub fn from_person").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let mut names = 0;
+        let mut variant = "";
+        for line in events.lines() {
+            if let Some(name) = line.strip_prefix("    ").and_then(|l| l.strip_suffix(" {")) {
+                variant = name;
+            }
+            if line.trim() == "injected: bool," {
+                assert!(body.contains(&format!("Event::{variant} {{")), "{variant}");
+                names += 1;
+            }
+        }
+        assert_eq!(names, 9);
+    }
+
+    #[test]
+    fn hears_pointer_knows_the_events_that_a_plugin_does_not_judge_itself() {
+        let events = include_str!("../../chora-scene/src/event.rs");
+        let source = include_str!("runtime.rs");
+        let body = &source[source.find("pub fn hears_pointer").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let judged_by_the_plugin = [
+            "InputKey",
+            "NodeKey",
+            "PointerPressed",
+            "PointerReleased",
+            "PointerMoved",
+        ];
+        let mut variant = "";
+        let mut flagged = 0;
+        for line in events.lines() {
+            if let Some(name) = line.strip_prefix("    ").and_then(|l| l.strip_suffix(" {")) {
+                variant = name;
+            }
+            if line.trim() == "injected: bool," {
+                let listed = body.contains(&format!("Event::{variant} {{"));
+                assert_eq!(
+                    listed,
+                    !judged_by_the_plugin.contains(&variant),
+                    "{variant}"
+                );
+                flagged += 1;
+            }
+        }
+        assert_eq!(flagged, 9);
+    }
+
+    #[test]
+    fn an_injected_pointer_event_is_not_heard_unless_the_plugin_accepts_them() {
+        let events = [
+            json!({"event": "pointer.entered", "node": "a", "injected": true}),
+            json!({"event": "pointer.scroll", "node": "a", "position": [0, 0], "dx": 0, "dy": 1,
+                   "discrete": [0, 0], "source": "wheel", "injected": true}),
+        ];
+        for event in events {
+            let event: Event = serde_json::from_value(event.clone()).expect("the event");
+            assert!(!hears_pointer(&event, false), "{event:?}");
+            assert!(hears_pointer(&event, true), "{event:?}");
+        }
+        let person: Event =
+            serde_json::from_value(json!({"event": "pointer.entered", "node": "a"})).unwrap();
+        assert!(hears_pointer(&person, false));
     }
 }

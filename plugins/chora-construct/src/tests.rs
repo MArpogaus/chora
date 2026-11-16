@@ -1,7 +1,12 @@
 //! Unit tests of the construct plugin.
 
 use super::*;
-use crate::{adopt::*, camera::*, input::keys_walk_due, list::row_of};
+use crate::{
+    adopt::*,
+    camera::*,
+    input::{keys_walk_due, look_pointer, pressed_row, walk_key},
+    list::row_of,
+};
 
 /// `x` and Return act on a pane that shows, not on one beyond the
 /// depth of the view (review 2.5).
@@ -396,4 +401,229 @@ fn taking_the_flight_into_a_pane_keeps_a_plain_glide() {
         Some("s1".into())
     );
     assert!(flying.is_none());
+}
+
+/// A press on the window list was taken for any button and from
+/// `input.inject` (review plugins r1, CON-B-10): only a left press of the
+/// person chooses a row.
+#[test]
+fn only_a_left_press_of_the_person_chooses_a_row() {
+    let press = |button, injected| Event::PointerPressed {
+        node: format!("{LIST_ROW}3"),
+        button,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected,
+    };
+    assert_eq!(pressed_row(&press(BTN_LEFT, false), false), Some(3));
+    assert_eq!(
+        pressed_row(&press(273, false), false),
+        None,
+        "the right button"
+    );
+    assert_eq!(pressed_row(&press(BTN_LEFT, true), false), None, "injected");
+    assert_eq!(pressed_row(&press(BTN_LEFT, true), true), Some(3), "a test");
+}
+
+/// A key of `input.inject` chose a row of the window list, flew to a
+/// window or gave one away without a person (review security a r1,
+/// CON-B-10): the list acts on a key of the person, or of a test session.
+#[test]
+fn an_injected_key_does_not_drive_the_window_list() {
+    let key = |name: &str, injected| Event::NodeKey {
+        node: LOOK.into(),
+        key: name.into(),
+        code: 28,
+        state: PressState::Pressed,
+        modifiers: Vec::new(),
+        text: None,
+        injected,
+    };
+    for name in ["Return", "Down", "Tab", "Escape"] {
+        assert!(
+            walk_key(&key(name, false), false).is_some(),
+            "{name} of the person"
+        );
+        assert!(
+            walk_key(&key(name, true), false).is_none(),
+            "{name} injected"
+        );
+        assert!(
+            walk_key(&key(name, true), true).is_some(),
+            "{name} in a test"
+        );
+    }
+}
+
+/// A key of `input.inject` flew to a window, closed a pane, typed the
+/// terminal key or turned the scene without a person (review security a
+/// r2, MAJOR 1): the walk acts on a key of the person, or of a test
+/// session.
+#[test]
+fn an_injected_key_does_not_drive_the_walk() {
+    let key = |name: &str, injected| Event::NodeKey {
+        node: LOOK.into(),
+        key: name.into(),
+        code: 28,
+        state: PressState::Pressed,
+        modifiers: Vec::new(),
+        text: None,
+        injected,
+    };
+    for name in ["Return", "Up", "Left", "Escape", "w", "c", "t"] {
+        assert!(
+            walk_key(&key(name, false), false).is_some(),
+            "{name} of the person"
+        );
+        assert!(
+            walk_key(&key(name, true), false).is_none(),
+            "{name} injected"
+        );
+        assert!(
+            walk_key(&key(name, true), true).is_some(),
+            "{name} in a test"
+        );
+    }
+}
+
+/// A press of `input.inject` on the look took the keyboard, and with the
+/// modifier moved a pane or looked around, with the switch off.
+#[test]
+fn an_injected_pointer_does_not_drive_the_look() {
+    let pressed = |injected| Event::PointerPressed {
+        node: LOOK.into(),
+        button: BTN_LEFT,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: vec!["Super".into()],
+        injected,
+    };
+    let moved = |injected| Event::PointerMoved {
+        node: LOOK.into(),
+        position: [4.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected,
+        time: 0,
+    };
+    let released = |injected| Event::PointerReleased {
+        node: LOOK.into(),
+        button: BTN_LEFT,
+        position: [4.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected,
+        time: 0,
+    };
+    let cases = [
+        ("a press", pressed(false), pressed(true)),
+        ("a move", moved(false), moved(true)),
+        ("a release", released(false), released(true)),
+    ];
+    for (name, person, injected) in cases {
+        assert!(look_pointer(&person, false), "{name} of the person");
+        assert!(!look_pointer(&injected, false), "{name} injected");
+        assert!(look_pointer(&injected, true), "{name} in a test");
+    }
+}
+
+/// A construct on a fake core that answers every request with null, and
+/// the methods that it saw.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "the test connects to its fake core"
+)]
+fn on_fake_core(tag: &str) -> (Construct, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+    use std::{
+        io::{BufRead as _, BufReader, Write as _},
+        os::unix::net::UnixListener,
+        sync::{Arc, Mutex},
+    };
+    let dir = std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("core.sock");
+    let listener = UnixListener::bind(&path).unwrap();
+    let methods = Arc::new(Mutex::new(Vec::new()));
+    let seen = Arc::clone(&methods);
+    std::thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        let mut writer = stream.try_clone().unwrap();
+        for line in BufReader::new(&stream).lines().map_while(Result::ok) {
+            let request: Value = serde_json::from_str(&line).unwrap();
+            let method = request["method"].as_str().unwrap_or_default().to_owned();
+            let result = match method.as_str() {
+                "hello" => json!({"version": chora_scene::ipc::VERSION}),
+                "scene.query" => json!([]),
+                _ => Value::Null,
+            };
+            seen.lock().unwrap().push(method);
+            let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+            writeln!(writer, "{answer}").unwrap();
+        }
+    });
+    let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
+    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    rt.pin_accepts_injected(false);
+    let settings =
+        settings::File::<Config>::load(dir.join("chora-construct.yaml"), config::DEFAULT).unwrap();
+    let shaders = |name: &str, _: &str| Ok(format!("{}/{name}", dir.display()));
+    let mut construct = Construct::new(rt, settings, false, &shaders).unwrap();
+    construct.active = true;
+    (construct, methods)
+}
+
+/// An event as the core sends it.
+fn wire(event: Value) -> Event {
+    serde_json::from_value(event).expect("an event of the core")
+}
+
+/// An injected key, button grab, drag move or scroll turned the scene, took
+/// the look or walked the camera with the switch off; the same events of
+/// the person still do.
+#[test]
+fn an_injected_input_drives_the_construct_only_when_the_setting_takes_it() {
+    let (mut construct, _methods) = on_fake_core("injected-input");
+    let key = |injected| {
+        json!({"event": "node.key", "node": LOOK, "key": "w", "code": 17,
+            "state": "pressed", "modifiers": [], "injected": injected})
+    };
+    let scroll = |injected| {
+        json!({"event": "pointer.scroll", "node": LOOK, "position": [10.0, 10.0],
+            "dx": 0.0, "dy": 120.0, "discrete": [0.0, 1.0], "source": "wheel",
+            "modifiers": [], "injected": injected})
+    };
+    let grab = |injected| {
+        json!({"event": "input.button", "binding": "Super+BTN_LEFT", "state": "pressed",
+            "position": [10.0, 10.0], "output": "X", "local": [10.0, 10.0],
+            "injected": injected})
+    };
+    let walks = |construct: &Construct| construct.glide.is_some();
+    let strides = |construct: &Construct| construct.stride.is_some();
+    let looks = |construct: &Construct| construct.drag.is_some();
+    for (name, event, acted) in [
+        (
+            "a key",
+            key as fn(bool) -> Value,
+            strides as fn(&Construct) -> bool,
+        ),
+        ("a scroll", scroll, walks),
+        ("a button grab", grab, looks),
+    ] {
+        construct.glide = None;
+        construct.drag = None;
+        construct.stride = None;
+        construct.rt.pin_accepts_injected(false);
+        construct.event(wire(event(true))).unwrap();
+        assert!(!acted(&construct), "{name} injected");
+        construct.event(wire(event(false))).unwrap();
+        assert!(acted(&construct), "{name} of the person");
+        construct.glide = None;
+        construct.drag = None;
+        construct.stride = None;
+        construct.rt.pin_accepts_injected(true);
+        construct.event(wire(event(true))).unwrap();
+        assert!(acted(&construct), "{name} injected in a test");
+    }
 }

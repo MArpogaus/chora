@@ -629,82 +629,96 @@ fn shader(name: &str, text: &str) -> std::io::Result<String> {
     shader_file(runtime, "chora-construct", name, text).map(|p| p.to_string_lossy().into_owned())
 }
 
-#[allow(
-    clippy::too_many_lines,
-    reason = "the state of the construct, field by field"
-)]
+impl Construct {
+    /// A construct on a connected runtime. `shaders` writes a shader of
+    /// the plugin and returns its path.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the state of the construct, field by field"
+    )]
+    fn new(
+        rt: Runtime<Grab>,
+        settings: settings::File<Config>,
+        overlay: bool,
+        shaders: &dyn Fn(&str, &str) -> std::io::Result<String>,
+    ) -> std::io::Result<Self> {
+        let start = Pose::default();
+        let mut construct = Self {
+            fog_scale: fog_scale(rt.conn.software()),
+            rt,
+            settings,
+            overlay,
+            active: false,
+            current: None,
+            radius: None,
+            waiting: Vec::new(),
+            hidden: Vec::new(),
+            moving: None,
+            fog_shader: shaders("fog.frag", FOG_SHADER)?,
+            pane_shader: shaders("pane.frag", PANE_SHADER)?,
+            source_shader: shaders("source.frag", SOURCE_SHADER)?,
+            mirror_shader: shaders("mirror.frag", MIRROR_SHADER)?,
+            glass_shader: shaders("glass.frag", GLASS_SHADER)?,
+            glow_shader: shaders("glow.frag", GLOW_SHADER)?,
+            shadow_shader: shaders("shadow.frag", SHADOW_SHADER)?,
+            thumb_shader: shaders("thumb.frag", THUMB_SHADER)?,
+            launcher: None,
+            launcher_window: None,
+            launched: None,
+            keys_walked: None,
+            output: None,
+            lens: Lens::new(1280.0, 800.0),
+            pose: start,
+            glide: None,
+            stride: None,
+            panes: Vec::new(),
+            sent: None,
+            flown: None,
+            drag: None,
+            list: None,
+            focus_before: None,
+            voice: Voice::default(),
+            metrics: Metrics::default(),
+            help: false,
+            help_query: String::new(),
+            help_sel: 0,
+            hints: hints::State::default(),
+            doors: doors::State::new(),
+            mixer: chora_kit::volume::Mixer::new(NAME),
+            start_card: start::State::default(),
+            face_card: None,
+            face_place: None,
+            asked: false,
+            hint_hover: None,
+            label_drawn: false,
+            label_text: String::new(),
+            unfilled: Vec::new(),
+            notice_drawn: false,
+            claim: Claim { due: true },
+            glass: Glass::default(),
+            pointer: None,
+            labelled: None,
+            neighbours: std::collections::BTreeMap::new(),
+            hovered: None,
+            backs: std::collections::BTreeSet::new(),
+            glow: None,
+            drifts: HashMap::new(),
+            glow_bend: wobble::GlowBend::default(),
+            effects: effects::Driver::default(),
+            cube: None,
+            managed: Vec::new(),
+        };
+        construct.effects.set(&construct.settings.value.effects);
+        Ok(construct)
+    }
+}
+
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-construct")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     config::log_warnings(&settings.value);
     let rt = Runtime::connect(NAME, Vec::new())?;
-    let start = Pose::default();
-    let mut construct = Construct {
-        fog_scale: fog_scale(rt.conn.software()),
-        rt,
-        settings,
-        overlay: args.overlay,
-        active: false,
-        current: None,
-        radius: None,
-        waiting: Vec::new(),
-        hidden: Vec::new(),
-        moving: None,
-        fog_shader: shader("fog.frag", FOG_SHADER)?,
-        pane_shader: shader("pane.frag", PANE_SHADER)?,
-        source_shader: shader("source.frag", SOURCE_SHADER)?,
-        mirror_shader: shader("mirror.frag", MIRROR_SHADER)?,
-        glass_shader: shader("glass.frag", GLASS_SHADER)?,
-        glow_shader: shader("glow.frag", GLOW_SHADER)?,
-        shadow_shader: shader("shadow.frag", SHADOW_SHADER)?,
-        thumb_shader: shader("thumb.frag", THUMB_SHADER)?,
-        launcher: None,
-        launcher_window: None,
-        launched: None,
-        keys_walked: None,
-        output: None,
-        lens: Lens::new(1280.0, 800.0),
-        pose: start,
-        glide: None,
-        stride: None,
-        panes: Vec::new(),
-        sent: None,
-        flown: None,
-        drag: None,
-        list: None,
-        focus_before: None,
-        voice: Voice::default(),
-        metrics: Metrics::default(),
-        help: false,
-        help_query: String::new(),
-        help_sel: 0,
-        hints: hints::State::default(),
-        doors: doors::State::new(),
-        mixer: chora_kit::volume::Mixer::new(NAME),
-        start_card: start::State::default(),
-        face_card: None,
-        face_place: None,
-        asked: false,
-        hint_hover: None,
-        label_drawn: false,
-        label_text: String::new(),
-        unfilled: Vec::new(),
-        notice_drawn: false,
-        claim: Claim { due: true },
-        glass: Glass::default(),
-        pointer: None,
-        labelled: None,
-        neighbours: std::collections::BTreeMap::new(),
-        hovered: None,
-        backs: std::collections::BTreeSet::new(),
-        glow: None,
-        drifts: HashMap::new(),
-        glow_bend: wobble::GlowBend::default(),
-        effects: effects::Driver::default(),
-        cube: None,
-        managed: Vec::new(),
-    };
-    construct.effects.set(&construct.settings.value.effects);
+    let mut construct = Construct::new(rt, settings, args.overlay, &shader)?;
     construct.start()?;
     construct.serve()?;
     Ok(())
@@ -751,9 +765,6 @@ struct Drag {
     press: [f64; 2],
     last: [f64; 2],
     moved: bool,
-    /// Whether the press came from `input.inject` without the test
-    /// setting: its click flies nowhere.
-    injected: bool,
 }
 #[cfg(test)]
 mod tests;

@@ -138,6 +138,7 @@ comment_case "form feed does not shift the line numbers" fail a.rs "" 'let s = "
 comment_case "python pragma" pass a.py "" 'x = 1  # pragma: no cover\n'
 comment_case "rust rustfmt skip comment" fail a.rs "" '// rustfmt::skip\nfn a() {}\n'
 comment_case "rust four slashes" fail a.rs "" '//// banner\nfn a() {}\n'
+comment_case "rust injected reason" pass a.rs "" 'Event::PointerPressed { node, .. } => 1, // injected: draws a hover\n'
 comment_case "rust SAFETY without space" pass a.rs "" '//SAFETY: checked\nfn a() {}\n'
 comment_case "rust double quote char" fail a.rs "" "fn a() { let c = '\"'; } // explain\\n"
 comment_case "rust slashes after quote char" pass a.rs "" "fn a() { let c = '\"'; let s = \"//\"; }\\n"
@@ -298,6 +299,50 @@ sync_case "same settings and a plugin list" pass '# c\na = 1\nb = 2\n' 'b = 2\nd
 sync_case "a setting only in the root" fail 'a = 1\nb = 2\n' 'a = 1\n'
 sync_case "a setting only in the plugins" fail 'a = 1\n' 'a = 1\nb = 2\n'
 sync_case "a changed value" fail 'a = 1\n' 'a = 2\n'
+
+optout_case() {
+  local label=$1 want=$2 text=$3
+  printf '%b' "$text" >"$work/optout.rs"
+  python3 -I "$tests_dir/injected-optout.py" "$work/optout.rs" >/dev/null
+  verdict "injected-optout: $label" "$want" $?
+}
+
+optout_case "a key pattern that drops the field with a wildcard" fail 'match e { Event::NodeKey { node, injected: _, .. } => 1 }\n'
+optout_case "a key pattern that ends in the rest pattern" fail 'match e { Event::NodeKey { node, state, .. } => 1 }\n'
+optout_case "a press pattern that ends in the rest pattern" fail 'if let Event::PointerPressed { node, .. } = e {}\n'
+optout_case "a release pattern that ends in the rest pattern" fail 'if let Event::PointerReleased { node, .. } = e {}\n'
+optout_case "a drag pattern that ends in the rest pattern" fail 'matches!(e, Event::PointerMoved { .. })\n'
+optout_case "the wildcard on a line of its own" fail 'Event::NodeKey {\n    node,\n    injected: _,\n} => 1,\n'
+optout_case "the rest pattern on a line of its own" fail 'Event::NodeKey {\n    node,\n    ..\n} => 1,\n'
+optout_case "the wildcard with a reason" pass 'Event::NodeKey {\n    node,\n    injected: _, // injected: the look draws no key\n} => 1,\n'
+optout_case "the rest pattern with a reason" pass 'Event::PointerPressed { node, .. } => 1, // injected: only draws a hover\n'
+optout_case "the reason on the next line" pass 'let Event::NodeKey { node, .. } = e else {\n    // injected: a repeat\n    return;\n};\n'
+optout_case "a comment without a reason does not count" fail 'Event::PointerPressed { node, .. } => 1, // injected:\n'
+optout_case "every field named" pass 'Event::NodeKey { node, key, code, state, modifiers, text, injected } => 1,\n'
+optout_case "the field named with a rest pattern" pass 'Event::PointerPressed { node, injected, .. } => 1,\n'
+optout_case "the field compared with a rest pattern" pass 'Event::InputKey { injected: true, .. } => 1,\n'
+optout_case "a constructor with a base" pass 'let e = Event::NodeKey { node, injected: false, ..base };\n'
+optout_case "a slice rest pattern inside a field" pass 'Event::NodeKey { modifiers: [first, ..], injected, node } => 1,\n'
+optout_case "a hover pattern that ends in the rest pattern" fail 'Event::PointerEntered { node, .. } => 1,\n'
+optout_case "a scroll pattern that ends in the rest pattern" fail 'Event::PointerScroll { node, dy, .. } => 1,\n'
+optout_case "a button grab pattern that ends in the rest pattern" fail 'Event::InputButton { state, .. } => 1,\n'
+optout_case "a grab move pattern that ends in the rest pattern" fail 'Event::InputMoved { position, .. } => 1,\n'
+optout_case "the field bound by reference to an unused name" fail 'Event::NodeKey { node, injected: ref _x, .. } => 1,\n'
+optout_case "the field bound with at to a wildcard" fail 'Event::NodeKey { node, injected: x @ _, .. } => 1,\n'
+optout_case "the field in a parenthesized wildcard" fail 'Event::NodeKey { node, injected: (_), .. } => 1,\n'
+optout_case "the field in an or pattern with a wildcard" fail 'Event::NodeKey { node, injected: _ | true, .. } => 1,\n'
+optout_case "the field bound to a plain name" fail 'Event::NodeKey { node, injected: flag, .. } => 1,\n'
+optout_case "the field bound to an expression" pass 'let e = Event::NodeKey { node, injected: state.injecting, .. };\n'
+optout_case "the field named in a button grab pattern" pass 'Event::InputButton { state, injected, .. } => 1,\n'
+optout_case "the field bound to a name with an underscore" fail 'Event::NodeKey { node, injected: _inj, .. } => 1,\n'
+optout_case "the field bound to a bare underscore name" fail 'Event::NodeKey { node, injected: _, .. } => 1,\n'
+optout_case "the field bound to another name" fail 'Event::NodeKey { node, injected: heard, .. } => 1,\n'
+optout_case "the flag bound into another field" fail 'Event::NodeKey { node, text: Some(injected), .. } => 1,\n'
+optout_case "the flag bound into another field on its own line" fail 'Event::NodeKey {\n    node,\n    text: Some(injected),\n    ..\n} => 1,\n'
+optout_case "the field and a name that holds it" pass 'Event::NodeKey { node, text: Some(injected_text), injected, .. } => 1,\n'
+optout_case "the field set from an expression" pass 'let e = Event::InputMoved { position, injected: state.injecting };\n'
+optout_case "an event without the field" pass 'Event::SurfaceCreated { surface, .. } => 1,\n'
+optout_case "the pattern in a comment" pass '/// Event::NodeKey { node, .. }\n'
 
 message_output_case() {
   local label=$1 text=$2 want=$3

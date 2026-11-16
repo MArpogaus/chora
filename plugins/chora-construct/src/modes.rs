@@ -17,6 +17,7 @@ use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Duration, FLY_MS, Grab, InputMode, LOOK,
     NAME, NodeKind, PropsUpdate, Query, RpcError, create, cube,
     faces::{self, Health},
+    input::walk_key,
 };
 
 /// The group of the chips, and the prefix of a chip.
@@ -525,7 +526,7 @@ impl Construct {
     /// release tries again, an injected one outside a test session not.
     fn card_act(&self, event: &Event) -> Option<Pressed> {
         match event {
-            Event::PointerPressed { node, button, .. }
+            Event::PointerPressed { node, button, .. } // injected: the press only takes the card; its release checks the flag
                 if *button == BTN_LEFT && node.starts_with(faces::CARD) =>
             {
                 Some(Pressed::Nothing)
@@ -582,25 +583,22 @@ impl Construct {
             return Ok(true);
         }
         let card = self.card_act(event);
+        let walked = walk_key(event, self.rt.accepts_injected());
         let pressed = match event {
             _ if card.is_some() => card,
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => match self.rt.action(binding) {
                 Some(&Grab::StepBack) => Some(Pressed::Act(Act::StepBack)),
                 Some(&Grab::Turn(by)) => Some(Pressed::Act(Act::Turn(by))),
                 _ => None,
             },
-            Event::NodeKey {
-                node,
-                key,
-                state: PressState::Pressed,
-                modifiers,
-                ..
-            } if node == LOOK => self.key_act(view, key, modifiers),
-            Event::PointerEntered { node, .. } => return self.hover_act(node, true),
+            _ if walked.is_some() => {
+                walked.and_then(|(key, modifiers, _)| self.key_act(view, key, modifiers))
+            }
+            Event::PointerEntered { node, .. } => return self.hover_act(node, true), // injected: Construct::event drops an injected pointer event first
             Event::PointerLeft { node } => return self.hover_act(node, false),
             _ => self.pointer_act(view, event)?,
         };

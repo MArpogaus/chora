@@ -192,7 +192,25 @@ The window managers chora-tiling, chora-xp, chora-mc and chora-construct
 ignore a key that `input.inject` sent (`injected` is true in
 `input.key`), for every binding. A client with the inject grant cannot
 press a binding for the user, so automation calls the methods of the
-window manager instead, such as `window.give`. The setting
+window manager instead, such as `window.give`. The same setting covers
+every key and pointer press, drag and release of `input.inject` that
+would act for the person. In tiling and xp that is every `node.key`,
+`pointer.pressed`, `pointer.moved` and `pointer.released`, so an
+injected click focuses no window and starts no program and the Menu key
+opens no menu. In the construct it is the keys of the walk (the walk
+keys, the terminal, close, windows and cube keys, and `Return` to fly
+into a window), the keys of the window list and the help, and a press on
+the space, on a pane, on a row of the list or on a cube face. In mc it
+is a press on a hit, an agent column, a line of the overview or a
+window, and the keys that turn the page and go back. A notification card
+takes no injected press either. The pointer events that are no press
+carry the flag as well: an injected `Super` and click (`input.button`
+and `input.moved`) drags no window, turns no cube and moves no pane; an
+injected pointer move (`pointer.entered`) focuses no window with
+`focus: follow_mouse` and marks no hover; an injected scroll
+(`pointer.scroll`) walks no camera, resizes no pane and scrolls no
+page. In the assistant an injected press on the row that opens the chat,
+on Close, on a helper row or on the figure does nothing. The setting
 `test_accept_injected_keys` of each of the four is `false`, and it is for
 tests only: `tests/headless-session.sh` and the persona session turn it
 on through the environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1`
@@ -499,22 +517,22 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `scene.save` | privileged. `name`, `grid`, `panels` or `app`: a shell command or the name of a content of kind `app`, such as `shell`; writes the file |
 | `scene.rename` | privileged. `name` and `to`: renames the scene file and its entry in `order`; a built-in scene without a file has none to rename |
 | `scene.move` | privileged. `name` and `to`, the new number from 1: the scene moves there in `order`, which the settings file keeps, and every number shows anew at once. The scene of an app stays at the end |
-| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
-| `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
-| `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
+| `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start; not for the scenes `agents` and `overview`, whose panels mc writes itself. A line with a tab puts the part before the first tab in the margin |
+| `hud.set` | privileged. `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
+| `hud.say` | privileged. `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
 | `app.open` | privileged. `command`: a shell command that starts in a scene of its own, with a head and the next number. The scene goes when the program has no window left and has ended, so `ls` leaves no scene behind |
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
-| `content.set` | `content`, `lines` and an optional `title` of a text content |
-| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
+| `content.set` | `content`, `lines` and an optional `title` of a text content; not of `notify`, `urgent` or `confirm`, which mc writes itself |
+| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines; not to `notify`, `urgent` or `confirm` |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
 | `agent.set` | privileged. `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
 | `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red in the text `urgent`, until the next one or a click on that line of the footer, which leaves it in `notify` |
-| `notify.clear` | none; empties `notify` and `urgent` |
+| `notify.clear` | privileged; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
 outlines line by line, and the fill follows. This happens when a scene
@@ -624,7 +642,8 @@ with `settings.reload`:
   manager goes to that one. mc moves no window itself, so a release
   elsewhere changes nothing.
 - `test_accept_injected_keys`: `false`; for tests only, the bindings
-  take the keys of `input.inject` as keys of the user (see
+  take the keys of `input.inject` as keys of the user, and the hits and
+  the agent columns its pointer presses (see
   [Injected keys](#injected-keys)).
 - `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
   to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
@@ -921,7 +940,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
-| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings, the keys of the window list and its pointer presses take the input of `input.inject` as the user's (see [Injected keys](#injected-keys)) |
 | `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
@@ -1315,17 +1334,20 @@ file again, without its comments. Edits by hand apply with
 | `shortest` | `10` | the shortest time that a notification shows, in seconds, at least 1 |
 | `longest` | `30` | the longest time, not less than `shortest` |
 
-Each notification shows as a card in the corner: a rounded rectangle with
-a border, the icon of the notification, a bold title, the text wrapped at
-300 pixels and a close button. One card shows at a time, and the others
-wait their turn. A card closes after its time: the shortest time by
-default, a time of the client between the shortest and the longest time,
-and never for a time of 0, until a click. A click on the close button
-dismisses the card; a click on the card invokes the action `default` of
-the notification, if it has one, and dismisses it too. If another server,
-such as GNOME Shell, owns the name on the bus, `chora-notify` logs the
-owner and ends with status 0, so that its unit does not restart it; it
-never takes the name from its owner.
+Each notification shows as a card in the corner: a rounded rectangle
+with a border, the icon of the notification, a bold title, the text
+wrapped at 300 pixels and a close button. An icon that the client names
+by its path is at most 1 MiB and 2048 pixels on a side, as a picture of
+a HUD folder, and an SVG icon links no file; else the place of the icon
+stays empty. One card shows at a time, and the others wait their turn. A
+card closes after its time: the shortest time by default, a time of the
+client between the shortest and the longest time, and never for a time
+of 0, until a click. A click on the close button dismisses the card; a
+click on the card invokes the action `default` of the notification, if
+it has one, and dismisses it too. If another server, such as GNOME
+Shell, owns the name on the bus, `chora-notify` logs the owner and ends
+with status 0, so that its unit does not restart it; it never takes the
+name from its owner.
 
 The look of the card comes from the asset folder. A folder replaces the
 neutral one and does not merge with it. A missing or broken file stops the

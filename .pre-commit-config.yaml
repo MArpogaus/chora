@@ -46,6 +46,12 @@ repos:
     language: system
     types_or: [rust, shell, python]
     stages: [pre-commit]
+  - id: injected-optout
+    name: a pattern on an event with `injected` names the field or says why not (// injected:)
+    entry: python3 -I tests/injected-optout.py
+    language: system
+    types: [rust]
+    stages: [pre-commit]
   - id: no-session-files
     name: no session logs, reports or media in the repository
     entry: session logs, reports and media belong outside the repository
@@ -62,7 +68,7 @@ repos:
     name: guard test (tests/guards.sh proves the commit guards red and green)
     entry: bash tests/guards.sh
     language: system
-    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py|no-foreign-kill\.sh|clippy-config-sync\.sh)|\.pre-commit-config\.yaml)$
+    files: ^(tests/(guards\.sh|no-inline-comments\.py|injected-optout\.py|commit-message-length\.py|no-foreign-kill\.sh|clippy-config-sync\.sh)|\.pre-commit-config\.yaml)$
     pass_filenames: false
     stages: [pre-commit]
   - id: lychee

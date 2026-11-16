@@ -415,6 +415,13 @@ const EVENTS: [&str; 15] = [
     "node.key",
 ];
 
+/// Whether tiling acts on an event: not for a key, a press, a drag or a
+/// release of `input.inject` unless it takes injected input as the
+/// person's.
+fn hears(event: &Event, accepts_injected: bool) -> bool {
+    chora_kit::runtime::from_person(event, accepts_injected)
+}
+
 impl Plugin for Tiling {
     type Action = Action;
 
@@ -423,6 +430,9 @@ impl Plugin for Tiling {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !hears(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         if matches!(&event, Event::EffectsDropped { client } if client == NAME) {
             return self.effects_dropped();
         }
@@ -668,7 +678,7 @@ impl Tiling {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
-                ..
+                .. // injected: the runtime drops an injected binding key unless it accepts them
             } => return self.act(&binding),
             Event::InputButton {
                 binding,
@@ -676,21 +686,21 @@ impl Tiling {
                 position,
                 surface,
                 grab,
-                ..
+                .. // injected: hears drops an injected event unless tiling accepts them
             } => {
                 self.drag(&binding, state, position, surface);
                 self.take_given_drag(grab);
             }
             // A window that follows the pointer.
             Event::InputMoved {
-                binding, position, ..
+                binding, position, .. // injected: hears drops an injected event unless tiling accepts them
             } if self.drag_to(&binding, position) => {}
-            Event::PointerEntered { node, moved } => {
+            Event::PointerEntered { node, moved, .. } => { // injected: hears drops an injected entry unless tiling accepts them
                 if !self.pointer_focus(&node, false, moved) {
                     return Ok(());
                 }
             }
-            Event::PointerPressed { node, .. } => {
+            Event::PointerPressed { node, .. } => { // injected: hears drops an injected press unless tiling accepts them
                 if !self.pointer_focus(&node, true, true) {
                     return Ok(());
                 }
@@ -868,11 +878,19 @@ impl Tiling {
     /// the keys that it takes go nowhere else. `None` for any other event.
     fn overlay_event(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
         match event {
-            Event::NodeKey { key, state, .. } => {
+            Event::NodeKey {
+                key,
+                state,
+                node: _,
+                code: _,
+                modifiers: _,
+                text: _,
+                injected: _, // injected: hears drops an injected key unless tiling accepts them
+            } => {
                 let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
                 Some(if escape { self.hide_keys() } else { Ok(()) })
             }
-            Event::PointerPressed { node, .. }
+            Event::PointerPressed { node, .. } // injected: hears drops an injected press unless tiling accepts them
                 if self.keys_open && node.starts_with(keys::KEYS) =>
             {
                 Some(if node.ends_with("scrim") {
@@ -2371,12 +2389,14 @@ mod tests {
             local: position,
             surface: Some(surface.into()),
             grab: None,
+            injected: false,
         };
         let moved = |position: [f64; 2]| Event::InputMoved {
             binding: give::MOVE.into(),
             position,
             output: "X".into(),
             local: position,
+            injected: false,
         };
         tiling.event(press(PressState::Pressed, points[0])).unwrap();
         for point in &points[1..] {
@@ -2627,12 +2647,14 @@ mod tests {
             local: position,
             surface: Some(surface.into()),
             grab: None,
+            injected: false,
         };
         let moved = Event::InputMoved {
             binding: give::MOVE.into(),
             position: [230.0, 170.0],
             output: "X".into(),
             local: [230.0, 170.0],
+            injected: false,
         };
         tiling.event(press("s1", [190.0, 150.0])).unwrap();
         tiling.event(moved).unwrap();
@@ -2666,12 +2688,14 @@ mod tests {
             local: [190.0, 150.0],
             surface: Some("s1".into()),
             grab,
+            injected: false,
         };
         let moved = Event::InputMoved {
             binding: give::MOVE.into(),
             position: [230.0, 170.0],
             output: "X".into(),
             local: [230.0, 170.0],
+            injected: false,
         };
         tiling.event(press).unwrap();
         tiling.event(moved).unwrap();
@@ -2849,6 +2873,152 @@ mod tests {
         // Another window manager still takes it with its own window.
         shown.moved(Some("s9"));
         assert!(shown.lost && !shown.sends(Some("s4")));
+    }
+
+    /// A press on a window took the focus, and Escape hid the key list,
+    /// from `input.inject` and without a person (review security a r2,
+    /// MINOR 5).
+    type Make = fn(bool) -> Event;
+
+    #[test]
+    fn an_injected_press_or_key_does_nothing_in_tiling() {
+        let press = |injected| Event::PointerPressed {
+            node: "s1".into(),
+            button: 272,
+            position: [0.0; 2],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+        };
+        let escape = |injected| Event::NodeKey {
+            node: "tiling-keys".into(),
+            key: "Escape".into(),
+            code: 1,
+            state: PressState::Pressed,
+            modifiers: Vec::new(),
+            text: None,
+            injected,
+        };
+        let makers: [(&str, Make); 2] = [("a press", press), ("Escape", escape)];
+        for (name, make) in makers {
+            assert!(hears(&make(false), false), "{name} of the person");
+            assert!(!hears(&make(true), false), "{name} injected");
+            assert!(hears(&make(true), true), "{name} injected in a test");
+        }
+    }
+
+    /// An event as the core sends it, so that a test names the field
+    /// `injected` of an event that the type does not carry yet.
+    fn wire(event: Value) -> Event {
+        serde_json::from_value(event).expect("an event of the core")
+    }
+
+    #[test]
+    fn an_injected_pointer_move_does_not_move_the_focus_with_follow_mouse() {
+        let (mut tiling, _methods) = on_fake_core("injected-follow");
+        tiling.rt.pin_accepts_injected(false);
+        assert_eq!(tiling.wm.config.focus, config::Focus::FollowMouse);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.wm.focus("s1");
+        let entered = |injected| {
+            wire(
+                json!({"event": "pointer.entered", "node": "s2", "moved": true,
+                "injected": injected}),
+            )
+        };
+        tiling.event(entered(true)).unwrap();
+        assert_eq!(tiling.wm.focused(), Some("s1"), "an injected entry");
+        tiling.event(entered(false)).unwrap();
+        assert_eq!(tiling.wm.focused(), Some("s2"), "the person's entry");
+        tiling.wm.focus("s1");
+        tiling.rt.pin_accepts_injected(true);
+        tiling.event(entered(true)).unwrap();
+        assert_eq!(
+            tiling.wm.focused(),
+            Some("s2"),
+            "an injected entry in a test"
+        );
+    }
+
+    #[test]
+    fn an_injected_press_and_an_injected_drag_move_nothing_in_tiling() {
+        let (mut tiling, methods) = on_fake_core("injected-press");
+        tiling.grab_all().unwrap();
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.wm.focus("s1");
+        let send = |tiling: &mut Tiling, event: Value| {
+            tiling.rt.pin_accepts_injected(false);
+            tiling.event(wire(event)).unwrap();
+        };
+        let press = |injected| {
+            json!({"event": "pointer.pressed", "node": "s2", "button": 272,
+                "position": [10.0, 10.0], "injected": injected})
+        };
+        send(&mut tiling, press(true));
+        assert_eq!(tiling.wm.focused(), Some("s1"), "an injected press");
+        send(&mut tiling, press(false));
+        assert_eq!(tiling.wm.focused(), Some("s2"), "the press of the person");
+        let grab = |injected| {
+            json!({"event": "input.button", "binding": give::MOVE, "state": "pressed",
+                "position": [10.0, 10.0], "output": "X", "local": [10.0, 10.0],
+                "surface": "s2", "injected": injected})
+        };
+        let moved = |injected| {
+            json!({"event": "input.moved", "binding": give::MOVE, "position": [90.0, 90.0],
+                "output": "X", "local": [90.0, 90.0], "injected": injected})
+        };
+        tiling.wm.act(&Action::ToggleFloating);
+        tiling.relayout().unwrap();
+        send(&mut tiling, grab(false));
+        assert!(
+            tiling.dragged.is_some(),
+            "the press of the person starts a drag"
+        );
+        let before = methods.lock().unwrap().len();
+        send(&mut tiling, moved(true));
+        assert_eq!(methods.lock().unwrap().len(), before, "an injected move");
+        send(&mut tiling, moved(false));
+        assert!(
+            methods.lock().unwrap().len() > before,
+            "the move of the person"
+        );
+    }
+
+    #[test]
+    fn an_injected_button_grab_drags_no_window_in_tiling() {
+        let (mut tiling, _methods) = on_fake_core("injected-grab");
+        tiling.grab_all().unwrap();
+        tiling.rt.pin_accepts_injected(false);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        let press = |injected| {
+            wire(
+                json!({"event": "input.button", "binding": give::MOVE, "state": "pressed",
+                "position": [10.0, 10.0], "output": "X", "local": [10.0, 10.0],
+                "surface": "s1", "injected": injected}),
+            )
+        };
+        let send = |tiling: &mut Tiling, accepts, injected| {
+            tiling.rt.pin_accepts_injected(accepts);
+            tiling.event(press(injected)).unwrap();
+        };
+        send(&mut tiling, false, false);
+        assert!(tiling.dragged.is_some(), "the person's press");
+        tiling.dragged = None;
+        send(&mut tiling, false, true);
+        assert_eq!(tiling.dragged, None, "an injected press");
+        send(&mut tiling, true, true);
+        assert!(tiling.dragged.is_some(), "an injected press in a test");
     }
 
     fn tiler(windows: &[&str]) -> Wm {
