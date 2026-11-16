@@ -361,6 +361,9 @@ const NEXT: &str = "next";
 const PREV: &str = "prev";
 const URGENT: &str = "urgent";
 
+/// The content of the last notifications, which give way in a full side.
+const NOTIFY: &str = "notify";
+
 /// One text node of a region.
 pub struct Item {
     pub id: String,
@@ -379,6 +382,8 @@ pub struct Item {
     pub hit: Option<String>,
     /// A close mark stands before the text: two bars, drawn, not a glyph.
     pub mark: bool,
+    /// The item gives way when its side is too full, the last first.
+    pub shed: bool,
 }
 
 /// Where an item of a side stands.
@@ -442,6 +447,7 @@ impl Item {
             before: 0.0,
             hit: None,
             mark: false,
+            shed: false,
         }
     }
 }
@@ -508,6 +514,17 @@ impl Mc {
                 .into_iter()
                 .map(|(r, v)| (r, v.into_iter().map(|(s, n)| (s, n.into())).collect()))
                 .collect();
+        if !self.shown(Region::Right, name)
+            && let Some(slots) = placed.get_mut(&Region::Right)
+            && let Some(at) = slots.iter().position(|(_, c)| c == URGENT)
+        {
+            slots.remove(at);
+            placed
+                .entry(Region::Footer)
+                .or_default()
+                .push((0, URGENT.into()));
+            placed.retain(|_, slots| !slots.is_empty());
+        }
         if let Some(solo) = &self.solo {
             for slots in placed.values_mut() {
                 slots.retain(|(_, c)| *c != solo.content);
@@ -757,6 +774,15 @@ impl Mc {
     }
 
     fn text_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
+        let mut items = self.text_items_of(region, slot, (name, scene));
+        let notifications = name == NOTIFY && !region.is_line();
+        for item in &mut items {
+            item.shed = notifications;
+        }
+        items
+    }
+
+    fn text_items_of(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let (title, text) = self.content_text(name, content, scene);
         let (mut text, hit) = self.filled(region, (name, scene), &text);
@@ -776,7 +802,7 @@ impl Mc {
             if quiet && !is_title {
                 props.color = self.settings.value.colors().get("muted").copied();
             }
-            let urgent = name == URGENT && region.is_line();
+            let urgent = name == URGENT;
             Item {
                 hit: if urgent {
                     Some("urgent:clear".into())
@@ -1263,7 +1289,7 @@ impl Mc {
         }
         let faint = colors.get("faint").copied().unwrap_or(config.background());
         for item in items {
-            let room = (width - item.x).max(1.0);
+            let room = (width - item.x - lead(item)).max(1.0);
             let props = PropsUpdate {
                 max_width: (!region.is_line()).then_some(room),
                 ..item.props.clone()
@@ -1326,10 +1352,12 @@ impl Mc {
             let at = left_of(item, width - w + trailing(&item.props), after);
             lefts.push(at);
         }
-        let (flow, end) = lines(items, &heights, false, baseline);
+        let (_, foot_end) = lines(items, &heights, true, baseline);
+        let keep = fit(items, &heights, height - foot_end - baseline, baseline);
+        let (flow, end) = lines_of(items, &heights, false, baseline, &keep);
         let (foot, foot_end) = lines(items, &heights, true, baseline);
         let foot_top = (height - foot_end).max(end);
-        let mut commands = Vec::new();
+        let mut commands = shed_updates(items, &keep);
         if let Some(at) = items.iter().position(|i| i.put == Put::Slot)
             && let Some((_, y)) = flow.iter().find(|(i, _)| *i == at)
         {
@@ -1343,7 +1371,9 @@ impl Mc {
             let item = &items[idx];
             let ink = props_ink(&item.props);
             let shift = self.to_grid(top + y + ink.top + ink.height);
-            commands.push(move_to(item.id.clone(), lefts[idx], y + shift));
+            commands.push(move_to(item.id.clone(), lefts[idx] + lead(item), y + shift));
+            let centre = y + shift + ink.top + ink.height / 2.0;
+            commands.extend(close_place(item, [lefts[idx], centre]));
             if item.hit.is_some() {
                 let [x, w] = if item.put.own_width() {
                     [lefts[idx], widths[idx]]
@@ -1999,7 +2029,6 @@ pub const CLOSE: f64 = 14.0;
 /// The space between the close mark and the words.
 const CLOSE_GAP: f64 = 8.0;
 
-/// The room that an item keeps before its text for its close mark.
 /// The left edge of an item of a side: flush right at `flush`, right
 /// after the item before it at `after`, else at its own `x`.
 fn left_of(item: &Item, flush: f64, after: Option<f64>) -> f64 {
@@ -2010,6 +2039,7 @@ fn left_of(item: &Item, flush: f64, after: Option<f64>) -> f64 {
     }
 }
 
+/// The room that an item keeps before its text for its close mark.
 fn lead(item: &Item) -> f64 {
     if item.mark { CLOSE + CLOSE_GAP } else { 0.0 }
 }
@@ -2095,11 +2125,21 @@ pub fn lines(
     foot: bool,
     baseline: f64,
 ) -> (Vec<(usize, f64)>, f64) {
+    lines_of(items, heights, foot, baseline, &vec![true; items.len()])
+}
+
+fn lines_of(
+    items: &[Item],
+    heights: &[f64],
+    foot: bool,
+    baseline: f64,
+    keep: &[bool],
+) -> (Vec<(usize, f64)>, f64) {
     let (mut y, mut line, mut out) = (0.0, 0.0, Vec::new());
     for (i, item) in items
         .iter()
         .enumerate()
-        .filter(|(_, it)| it.put.foot() == foot)
+        .filter(|(i, it)| keep[*i] && it.put.foot() == foot)
     {
         if item.put.row() {
             out.push((i, line));
@@ -2115,6 +2155,46 @@ pub fn lines(
         y += heights[i];
     }
     (out, y)
+}
+
+/// Shows the items that give way where they stay and hides the others.
+fn shed_updates(items: &[Item], keep: &[bool]) -> Vec<Command> {
+    (items.iter().zip(keep))
+        .filter(|(item, _)| item.shed)
+        .map(|(item, kept)| Command::Update {
+            id: item.id.clone(),
+            props: PropsUpdate {
+                visible: Some(*kept),
+                ..PropsUpdate::default()
+            },
+        })
+        .collect()
+}
+
+/// Which items of a side stay when its flow must end within `room`: the
+/// items that give way go from the last one, and a title with no entry
+/// left goes with them.
+pub fn fit(items: &[Item], heights: &[f64], room: f64, baseline: f64) -> Vec<bool> {
+    let mut keep = vec![true; items.len()];
+    let end = |keep: &[bool]| lines_of(items, heights, false, baseline, keep).1;
+    while end(&keep) > room {
+        let Some(last) = (0..items.len()).rev().find(|&i| keep[i] && items[i].shed) else {
+            return keep;
+        };
+        keep[last] = false;
+    }
+    let shed = |i: &usize| items[*i].shed && keep[*i];
+    let left: Vec<usize> = (0..items.len()).filter(shed).collect();
+    let dropped = items
+        .iter()
+        .zip(&keep)
+        .any(|(item, kept)| item.shed && !kept);
+    if dropped && left.iter().all(|&i| items[i].id.ends_with("-title")) {
+        for i in left {
+            keep[i] = false;
+        }
+    }
+    keep
 }
 
 /// Cuts the text of an item to a share of its width, with an ellipsis;
@@ -2217,20 +2297,68 @@ mod tests {
             .collect()
     }
 
+    fn stacked(id: &str, shed: bool, first: bool) -> Item {
+        Item {
+            shed,
+            ..Item::text(id.into(), 0, PropsUpdate::default(), first)
+        }
+    }
+
+    #[test]
+    fn the_oldest_notifications_give_way_when_the_side_is_full() {
+        let items = [
+            stacked("door", false, true),
+            stacked("notify-title", true, true),
+            stacked("notify-0", true, false),
+            stacked("notify-1", true, false),
+        ];
+        let heights = [28.0; 4];
+        let kept = |room| fit(&items, &heights, room, 28.0);
+        assert_eq!(kept(400.0), [true; 4], "all fit");
+        assert_eq!(
+            kept(130.0),
+            [true, true, true, false],
+            "the oldest goes first"
+        );
+        assert_eq!(
+            kept(60.0),
+            [true, false, false, false],
+            "no title stands over no entry"
+        );
+        assert_eq!(
+            kept(10.0),
+            [true, false, false, false],
+            "the rest never gives way"
+        );
+    }
+
+    #[test]
+    fn a_critical_notice_stands_in_the_column_and_in_the_footer_without_one() {
+        let (mut mc, _model) = crate::testing::mc("urgent-card", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        assert!(mc.shown(Region::Right, "agenda"), "a column");
+        let at = |mc: &crate::Mc| -> Vec<Region> {
+            (mc.placed("agenda").into_iter())
+                .filter(|(_, slots)| slots.iter().any(|(_, c)| c == URGENT))
+                .map(|(region, _)| region)
+                .collect()
+        };
+        assert_eq!(at(&mc), [Region::Right]);
+        mc.toggle(Region::Right, Some(false), false).unwrap();
+        assert_eq!(at(&mc), [Region::Footer]);
+    }
+
     #[test]
     fn the_first_rule_wins_by_content_kind_and_scene() {
         let config = parse::<Config>(DEFAULT).unwrap();
         let page = layout(&config.rules, &config.contents, "agenda", false);
         let app = layout(&config.rules, &config.contents, "foot", true);
         assert_eq!(names(&page, Region::Header), ["head", "clock"]);
-        assert_eq!(
-            names(&page, Region::Footer),
-            ["prev", "hud", "urgent", "next"]
-        );
+        assert_eq!(names(&page, Region::Footer), ["prev", "hud", "next"]);
         assert_eq!(
             names(&page, Region::Right),
             [
-                "state", "agents", "notes", "notify", "chat", "keys", "doors"
+                "state", "urgent", "agents", "notes", "notify", "chat", "keys", "doors"
             ]
         );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
@@ -2238,8 +2366,16 @@ mod tests {
             names(&app, Region::Header),
             ["head", "hud", "agents", "clock"]
         );
-        assert_eq!(names(&app, Region::Footer), ["urgent"]);
-        // A rule of the session goes first; one by kind catches the rest.
+        assert!(
+            !app.contains_key(&Region::Footer),
+            "no footer line in an app"
+        );
+        assert_eq!(names(&app, Region::Right)[..2], ["state", "urgent"]);
+    }
+
+    #[test]
+    fn a_rule_of_the_session_goes_first_and_one_by_kind_catches_the_rest() {
+        let config = parse::<Config>(DEFAULT).unwrap();
         let mut rules = vec![Rule {
             content: None,
             kind: Some(Kind::Text),
@@ -2263,7 +2399,7 @@ mod tests {
         assert_eq!(
             names(&other, Region::Right),
             [
-                "state", "agents", "notes", "notify", "chat", "keys", "doors"
+                "state", "urgent", "agents", "notes", "notify", "chat", "keys", "doors"
             ]
         );
     }
