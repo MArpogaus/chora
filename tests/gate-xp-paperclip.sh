@@ -38,6 +38,8 @@ wait_figure() {
 }
 wait_figure || fail "no helper: a fresh xp session shows no paperclip: $(tail -n 3 "$shots/assistant.log")"
 at_its_place "no helper"
+sleep 1
+ctl capture "$shots/xp-paperclip-no-helper.png" >/dev/null || fail "no helper: the capture failed"
 mkfifo "$shots/voice.in"
 python3 -I "$repo/tests/fake-voice.py" "$shots/claims" <"$shots/voice.in" >"$shots/voice.log" 2>&1 &
 pids+=($!)

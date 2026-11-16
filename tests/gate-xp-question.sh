@@ -57,4 +57,6 @@ question_cell() {
     gate_cleanup 0
     pids=()
 }
-question_cell "${SCALE:-1}"
+for scale in ${SCALE:-1 2}; do
+    question_cell "$scale"
+done
