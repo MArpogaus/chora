@@ -3593,6 +3593,28 @@ mod tests {
         assert_eq!(focused, Some(super::page_id("morning")));
     }
 
+    /// A helper that fills a panel builds the page anew, and the page
+    /// keeps the keyboard, so that the arrows of the remote still turn it.
+    #[test]
+    fn a_page_keeps_the_keyboard_when_a_helper_fills_a_panel() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("page-keyboard-fill", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        let focused = || {
+            model
+                .lock()
+                .unwrap()
+                .scene
+                .focused_node()
+                .map(str::to_owned)
+        };
+        assert_eq!(focused(), Some(super::page_id("agenda")), "before");
+        let lines =
+            serde_json::json!({"scene": "agenda", "panel": "today", "lines": ["09:00\tStand-up"]});
+        mc.method("panel.set", lines).unwrap();
+        assert_eq!(focused(), Some(super::page_id("agenda")), "after");
+    }
+
     /// Beside other window managers a page takes no keyboard, since the
     /// node with the keyboard would draw their new windows to mc, and
     /// the key list names the bindings.
