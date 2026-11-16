@@ -66,7 +66,8 @@ chat_close() {
     until_ok '! chat_open' 20
 }
 door_state() {
-    ctl query '*' | jq -c '[.[] | select((.id | test("door|hit")) and (.owner == "mc")) | {id, visible, text, r: (.rects | to_entries[0].value)}]' >&2
+    ctl query '*' | jq -c '[.[] | select((.id | test("doors-(screenshot|volume)")) and (.owner == "mc") and (.rects | length > 0)) | {id, visible, text, r: (.rects | to_entries[0].value)}]' >&2
+    ctl query kind:surface | jq -c '[.[] | {id, owner, rects}]' >&2
 }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 header_words() {
