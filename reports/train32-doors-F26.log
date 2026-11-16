@@ -1,0 +1,41 @@
+
+cell             xp        tiling    mc        construct
+keys-key         pass      pass      pass      pass
+keys-alias       pass      pass      pass      pass
+keys-names       pass      pass      pass      pass
+keys-door        pass      pass      pass      pass
+f1-free          pass      pass      pass      pass
+launcher-key     pass      pass      pass      pass
+launcher-door    pass      pass      pass      pass
+launcher-chat    pass      pass      pass      pass
+helper-key       pass      pass      pass      pass
+helper-door      pass      pass      pass      pass
+helper-none      pass      pass      pass      pass
+lock-key         pass      pass      pass      pass
+lock-door        pass      pass      pass      pass
+power-key        pass      pass      pass      pass
+power-door       pass      pass      pass      pass
+screenshot-key   pass      pass      pass      pass
+screenshot-door  pass      pass      missing   pass
+volume-key       pass      pass      pass      pass
+volume-door      pass      pass      missing   pass
+clock-door       pass      pass      pass      pass
+--- xp: last lines of its log
+check xp log-off pass
+--- tiling: last lines of its log
+--- mc: last lines of its log
+screenshot-door: no grim after the click
+[{"id":"mc-r0-right-doors-screenshot","visible":true,"text":"Screenshot","r":[888.0,756.0,77.0,28.0]},{"id":"mc-r0-right-doors-screenshot-hit","visible":true,"text":null,"r":[888.0,756.0,77.0,28.0]},{"id":"mc-r0-right-doors-screenshot-mark","visible":true,"text":null,"r":[876.0,765.0,2.0,10.0]},{"id":"mc-r0-right-doors-volume","visible":true,"text":"Volume 50%","r":[988.0,756.0,87.0,28.0]},{"id":"mc-r0-right-doors-volume-hit","visible":true,"text":null,"r":[988.0,756.0,87.0,28.0]},{"id":"mc-r0-right-doors-volume-mark","visible":true,"text":null,"r":[976.0,765.0,2.0,10.0]}]
+[{"id":"s1","owner":"mc","rects":{"HEADLESS-1":[0.0,56.0,832.0,744.0]}}]
+volume-door: no set-mute after the click
+[{"id":"mc-r0-right-doors-screenshot","visible":true,"text":"Screenshot","r":[888.0,756.0,77.0,28.0]},{"id":"mc-r0-right-doors-screenshot-hit","visible":true,"text":null,"r":[888.0,756.0,77.0,28.0]},{"id":"mc-r0-right-doors-screenshot-mark","visible":true,"text":null,"r":[876.0,765.0,2.0,10.0]},{"id":"mc-r0-right-doors-volume","visible":true,"text":"Volume 50%","r":[988.0,756.0,87.0,28.0]},{"id":"mc-r0-right-doors-volume-hit","visible":true,"text":null,"r":[988.0,756.0,87.0,28.0]},{"id":"mc-r0-right-doors-volume-mark","visible":true,"text":null,"r":[976.0,765.0,2.0,10.0]}]
+[{"id":"s1","owner":"mc","rects":{"HEADLESS-1":[0.0,56.0,832.0,744.0]}}]
+check mc header-1280x800 pass
+--- construct: last lines of its log
+check construct helper-exit pass
+jq: error (at <stdin>:1): null (null) has no keys
+check construct pane-corner pass
+ok: construct doors: layout audit: 27 nodes, no finding
+check construct layout-1280x800 pass
+check construct cube-doors pass
+FAIL: 2 cells or checks are not pass

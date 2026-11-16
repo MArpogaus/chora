@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-16 16:50 UTC)
+## Now (2026-11-16 17:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 6a067e39 (train 28). Train 32 = construct r1 (81ff7b60) + xp r2-r4 (e095d113) gating since 16:4x; then review tiling r2.
+session branch: 6a067e39 (train 28). Train 32 (construct r1 81ff7b60 + xp e095d113) FAIL 17:12 at doors: mc screenshot/volume door = F26; rerun 32b 17:12; then tiling r2 review.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
@@ -26,7 +26,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r1.md (rc 1) | sonnet high, claude/construct | MERGE-OK 16:3x (review-construct-r1: 3 LOW, 2 COSM.); train 32 |
-| testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 ended 17:07: 7 heads; F26 1/9, F28 1, e2e F27 5 (old fuzzel in its container); idle |
+| testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 17:07: 7 heads; F26 1/9, F28 1, F27 5 (its old fuzzel); idle |
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | r4 e095d113 stale 16b assert; MERGE-OK (PM); train 32 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |

@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T16:56:00Z
+screened-through: 2026-11-16T16:57:00Z
 
+- 11-16 16:57Z "Ever on the flakes of Opus?" -> question, chat: r5 opus (F16, F18, F19); F26, F28 first cause lane r6
 - 11-16 16:56Z "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus..." -> Fable lane ends 18:21 (hand over 18:15); rest on opus; assume 5-10 %
 - 11-16 16:53Z "...expecting you to discuss this before starting Fable... Fable ... counts in the same token budget... only one Fable track" -> one Fable lane (flakes r6), then none; ask before a model change
 - 11-16 16:49Z "We're at 46%. Would a other Fable run help..." -> 46 %; Fable flakes lane now
@@ -32,4 +33,3 @@ screened-through: 2026-11-16T16:56:00Z
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
 - 11-09 05:11Z "All user agents shall report issues ... address them by iprtance." -> by severity
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like"..." -> own aesthetic per look
-- 11-11 12:45Z "Make it minimal yet complete. Avoid buttons." -> construct HUD: glass, bindings overlay
