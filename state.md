@@ -1,16 +1,16 @@
 # State
 
-## Now (2026-11-16 09:17 UTC)
+## Now (2026-11-16 09:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 41 % at 09:17 Mon (owner). forecast (tokens.py 09:17): 8.0 %/day, ~79 % at reset; target ~12 %/day; 40->41 in 28 min with 9 lanes: WIP 6 build lanes, no new lane before the next reading.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 66588880 (train 23, 08:3x UTC: media; all steps incl. doors passed). Train 24 (claude/f25 df101c14) gate running. CI green 66588880 (train 23).
-rc target: Fri 11-20 (tag). Burn-down check 11-16.
+burn-down (daily): MAJOR open 5 (sh-23, co-16, xp-23, xp-24, ti-21), lanes 6 build, 4.6 d left; tag Fri if the MAJORs close by Wed and the Thu round is clean.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | sh-23, co-16 (multilook r1), xp-23, xp-24, ti-21 (owner 09:01) MAJOR open; ti-1 not chora, Apps cell in CI e2e, fuzzel>=1.11 pinned (train 22) |
+| 1 | UX: no BLOCK or MAJOR open | 5 MAJOR open (burn-down line); ti-1 not chora, fuzzel>=1.11 pinned |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
@@ -20,7 +20,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
 | 9 | Logging audit, flakes closed | logging audit merged (train 14); flakes r5 merged (train 17) |
-| 11 | Visual acceptance screencast | tour v3 merged (train 23); to the owner after sh-23, co-16 fixed |
+| 11 | Tour, UX loop (testable, 09:20) | v4 recording (media r2); last round Thu 12:00 |
 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
