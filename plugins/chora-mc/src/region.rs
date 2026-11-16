@@ -399,6 +399,8 @@ pub enum Put {
     Row,
     /// In the line of the item before it, flush right.
     End,
+    /// In the line of the item before it, right after it.
+    After,
     /// Where the box of the chat begins: it runs to the foot of the side.
     Slot,
 }
@@ -411,8 +413,19 @@ impl Put {
         )
     }
 
+    fn own_width(self) -> bool {
+        matches!(
+            self,
+            Self::End | Self::After | Self::Row | Self::FootRow | Self::FootStart
+        )
+    }
+
+    fn at_left(self) -> bool {
+        matches!(self, Self::End | Self::After)
+    }
+
     fn row(self) -> bool {
-        matches!(self, Self::FootRow | Self::Row | Self::End)
+        matches!(self, Self::FootRow | Self::Row | Self::End | Self::After)
     }
 }
 
@@ -1303,15 +1316,14 @@ impl Mc {
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
+        let gap = self.settings.value.page.gap * self.settings.value.scale.base;
         let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
         for item in items {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
             heights.push(h.max(baseline));
             widths.push(w);
-            let at = match item.put {
-                Put::End => (width - w + trailing(&item.props)).max(0.0),
-                _ => item.x,
-            };
+            let after = lefts.last().zip(widths.last()).map(|(l, w)| l + w + gap);
+            let at = left_of(item, width - w + trailing(&item.props), after);
             lefts.push(at);
         }
         let (flow, end) = lines(items, &heights, false, baseline);
@@ -1333,16 +1345,12 @@ impl Mc {
             let shift = self.to_grid(top + y + ink.top + ink.height);
             commands.push(move_to(item.id.clone(), lefts[idx], y + shift));
             if item.hit.is_some() {
-                let own = matches!(
-                    item.put,
-                    Put::End | Put::Row | Put::FootRow | Put::FootStart
-                );
-                let [x, w] = if own {
+                let [x, w] = if item.put.own_width() {
                     [lefts[idx], widths[idx]]
                 } else {
                     [0.0, width]
                 };
-                let at = if item.put == Put::End { x } else { item.x };
+                let at = if item.put.at_left() { x } else { item.x };
                 let ink = Ink {
                     top: ink.top + shift,
                     ..ink
@@ -1992,6 +2000,16 @@ pub const CLOSE: f64 = 14.0;
 const CLOSE_GAP: f64 = 8.0;
 
 /// The room that an item keeps before its text for its close mark.
+/// The left edge of an item of a side: flush right at `flush`, right
+/// after the item before it at `after`, else at its own `x`.
+fn left_of(item: &Item, flush: f64, after: Option<f64>) -> f64 {
+    match item.put {
+        Put::End => flush.max(0.0),
+        Put::After => after.unwrap_or(item.x),
+        _ => item.x,
+    }
+}
+
 fn lead(item: &Item) -> f64 {
     if item.mark { CLOSE + CLOSE_GAP } else { 0.0 }
 }
