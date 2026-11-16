@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 08:42 UTC)
+## Now (2026-11-16 08:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 39 % at 07:00 Mon (owner). forecast (tokens.py 07:58): 6.6 %/day since Sun 09:20, ~71 % at reset Sat 03:59 UTC; room 12.5 %/day; cap 10 %/day. Local count sees only the PM container.
+budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day since Sun 09:20, ~74 % at reset Sat 03:59 UTC; room 12.5 %/day; cap 10 %/day.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 66588880 (train 23, 08:3x UTC: media; all steps incl. doors passed). Train 24 (claude/f25 df101c14) gate running. CI green 8e7effad, 3c0603e8; e2e F25 red 66f13d68.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.

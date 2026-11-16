@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T07:00:00Z
+screened-through: 2026-11-16T08:49:00Z
 
+- 11-16 08:49Z "40%" -> 7.2 %/day, ~74 % at reset
 - 11-16 07:00Z "39 %" -> 6.6 %/day, ~71 % at reset (tokens.py --forecast)
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-16 01:17Z "38 %" -> 12 %/day room, cap 10 %
@@ -11,8 +12,8 @@ screened-through: 2026-11-16T07:00:00Z
 - 11-15 02:10Z "...We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
 - 11-14 17:17Z "Du bist der Projektmanager." -> decide all, rc too
-- 11-14 16:43Z "...robuster gestalten" -> fail-open hooks
-- 11-14 05:33Z "try to really parallelize what's possible" -> parallel lanes
+- 11-14 16:43Z "robuster" -> fail-open hooks
+- 11-14 05:33Z "really parallelize" -> parallel lanes
 - 11-12 05:47Z "stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority" -> priority; "collect those, put them in the backlog if they are feasible, push back if they conflict" -> ideas never redirect a lane; "You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation." -> name unreachable goals
 - 11-12 02:42Z "Next time I say plan ... Put it to the backlog" -> plan = backlog; "Really push back when you see that certain task is useless or not necessary right now." -> push back, also on his words
 - 11-12 01:45Z "Don't rely on me." -> decide the reversible
