@@ -17,6 +17,7 @@ use chora_scene::{
 };
 
 use crate::{
+    chat::Face,
     config::{Figure, Values},
     island::{self, Content},
 };
@@ -67,6 +68,8 @@ const FADE: f64 = 160.0;
 
 /// The widest line of a sentence without a box.
 const MAX_PLAIN: f64 = 420.0;
+/// The widest line of a sentence that names a size.
+const MAX_PLAIN_SIZED: f64 = 640.0;
 /// The gap between the figure and a sentence without a box.
 const BESIDE: i32 = 8;
 /// The gap between the figure and an open chat panel.
@@ -995,24 +998,49 @@ impl Assistant {
         [from, y - BALLOON_REACH, to - from, h + 2 * BALLOON_REACH]
     }
 
+    /// The face of a sentence that names a size: the font of the chat, and
+    /// a serif where the host has not that family.
+    fn sentence_face(&self, size: u32) -> Face {
+        let look = chora_kit::hud::Chat {
+            size,
+            ..self.values.chat()
+        };
+        Face::of(&look).unwrap_or_else(|| Face::serif(size))
+    }
+
     /// A sentence without a box, beside the figure, on a backing in the
-    /// fill of the chat, so that it reads on any window behind it.
+    /// fill of the chat, so that it reads on any window behind it. A folder
+    /// that names a size gets the font of its chat at that size, else the
+    /// small text of the host.
     fn plain(&mut self, theme: &mut Theme, text: &str) -> Vec<Command> {
-        let width = |s: &str| theme.text_width(s, Font::Ui);
-        let lines = wrap(text, MAX_PLAIN, width);
+        let face = self.values.line.size.map(|size| self.sentence_face(size));
+        let width = |s: &str| match &face {
+            Some(face) => theme.svg_width(&face.element(s, [0, 0], [0, 0, 0])),
+            None => theme.text_width(s, Font::Ui),
+        };
+        let (most, row) = face
+            .as_ref()
+            .map_or((MAX_PLAIN, LINE), |face| (MAX_PLAIN_SIZED, face.line()));
+        let lines = wrap(text, most, width);
         let widest = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
         #[allow(clippy::cast_possible_truncation)]
         let w = (widest.ceil() as i32).max(1) + 2 * BACKING;
-        let h = i32::try_from(lines.len()).unwrap_or(0).max(1) * LINE + 2 * BACKING;
+        let h = i32::try_from(lines.len()).unwrap_or(0).max(1) * row + 2 * BACKING;
         let [red, green, blue] = self.values.speech.fill;
         let backing = format!(
             r#"<rect width="{w}" height="{h}" rx="{BACKING}" fill="rgb({red},{green},{blue})"/>"#
         );
         let mut picture = Picture::new(w, h).svg(backing);
         let colour = self.values.speech.text_rgba();
-        for (line, y) in lines.iter().zip((BACKING..).step_by(LINE as usize)) {
-            let place = [BACKING, y, w - 2 * BACKING, LINE];
-            picture = picture.text(Text::new(line, Font::Ui, colour, place));
+        let ink = [colour[0], colour[1], colour[2]];
+        for (n, line) in (0..).zip(&lines) {
+            let y = BACKING + n * row;
+            picture = if let Some(face) = &face {
+                picture.svg(face.element(line, [BACKING, y], ink))
+            } else {
+                let place = [BACKING, y, w - 2 * BACKING, row];
+                picture.text(Text::new(line, Font::Ui, colour, place))
+            };
         }
         let [bx, by] = beside([w, h], self.with_word(), self.area);
         self.speech_node(theme, &picture, [bx - self.origin[0], by - self.origin[1]])

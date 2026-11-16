@@ -31,6 +31,7 @@ panels:
   style: plain
   text: '{text}'
   max_chars: 160
+  size: 19
 chat:
   style: plain
   font: TeX Gyre Pagella
