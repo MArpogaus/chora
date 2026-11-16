@@ -1184,8 +1184,9 @@ impl Mc {
     }
 
     /// Gives the keyboard to the page that shows, when no window and no
-    /// node has it: at the start and after the chat of the host closed,
-    /// so that the plain keys of a page work without a click.
+    /// node has it: at the start, after the chat of the host closed and
+    /// after a panel built the page anew, so that the plain keys of a page
+    /// work without a click.
     fn take_free_keyboard(&mut self) -> Result<(), ClientError> {
         let Some(name) = self.current.clone() else {
             return Ok(());
@@ -3206,6 +3207,13 @@ impl Mc {
         };
         self.apply(commands)
             .and_then(|()| self.align(&scene))
+            .and_then(|()| {
+                if moved && shown {
+                    self.take_free_keyboard()
+                } else {
+                    Ok(())
+                }
+            })
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
 
