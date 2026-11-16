@@ -91,6 +91,9 @@ def injected_binding(field):
     return match.group(1) if match else None
 
 
+EXPRESSION = re.compile(r"[.&:+!<>=]|\bif\b|\w\(")
+
+
 def opt_outs(code, start, end):
     fields = list(top_level_fields(code, start, end))
     bindings = [(offset, injected_binding(field)) for offset, field in fields]
@@ -98,10 +101,10 @@ def opt_outs(code, start, end):
     for offset, target in bindings:
         if target is None:
             continue
-        if re.match(r"_\w*\Z", target):
-            yield offset
-        else:
+        if target in ("injected", "true", "false") or EXPRESSION.search(target):
             decided = True
+        else:
+            yield offset
     for offset, field in fields:
         if field == ".." and not decided:
             yield offset
