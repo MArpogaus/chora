@@ -137,22 +137,24 @@ cell_tooltip() {
 }
 
 cell_door() {
-    local theme=$1 shot=$work/door.png rows
+    local theme=$1 shot=$work/door.png rows word
     ctl run "$bin/chora-tiling" --launch foot -T w3 sh -c 'echo hello; sleep 600' >/dev/null || fail "$theme door: foot"
     sleep 2
     echo 'voice.state {"state": "listening", "task": "", "said": ""}' >&3
-    sleep 2
+    sleep 3
+    word=$(sh "$flavor/waybar/helper.sh" | jq -r .text)
+    [ "$word" = "No helper" ] || fail "$theme door: the bar word is \"$word\" without a helper"
     shoot "$shot" || fail "$theme door: the capture"
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-door-none-$theme.png"
     rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row-")) | .id] | join(" ")')
-    [ -z "$rows" ] || fail "$theme door: the \"Chat ...\" row floats over the tiles without a helper: $rows"
+    [ -z "$rows" ] || fail "$theme door: a \"Chat ...\" row floats over the tiles beside the bar word \"$word\": $rows"
     echo 'voice.state {"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 1, "steps": 2, "seq": 4}' >&3
     sleep 3
     shoot "$shot" || fail "$theme door: the capture"
-    [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-door-helper-$theme.png"
+    [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-door-working-$theme.png"
     rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row-")) | .id] | join(" ")')
-    [ -z "$rows" ] || fail "$theme door: a row of the chat floats over the tiles with a helper: $rows"
-    ok "$theme door: no \"Chat ...\" row over the tiles, with a helper or without"
+    [ -z "$rows" ] || fail "$theme door: a row of a helper floats over the tiles: $rows"
+    ok "$theme door: the bar word is the one door, no \"Chat ...\" row floats over the tiles"
 }
 
 cell_power() {
