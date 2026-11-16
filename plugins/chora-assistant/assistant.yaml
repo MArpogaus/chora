@@ -21,8 +21,9 @@ hud: neutral
 # focused window), `space` (the window manager of the space around it),
 # `app` (its app_id), `state` (of the voice agent), `agents`, `chat` and
 # `output`. The context stays while a question waits. Each look shows
-# its own folder; tiling shows `hud`.
+# its own folder.
 huds:
 - {when: {space: construct}, folder: construct}
 - {when: {wm: mc}, folder: mc}
 - {when: {wm: xp}, folder: xp}
+- {when: {space: tiling}, folder: tiling}

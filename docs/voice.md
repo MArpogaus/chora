@@ -1503,7 +1503,8 @@ The host draws the view in the `chat:` look of the folder that shows, at
 the edge that `anchor` and `width` name, and puts the field at its
 bottom.
 
-- A click on the "Chat ..." row, which every look has, shows the numbered
+- A click on the "Chat ..." row, which every look has but tiling, whose bar
+  word of the helper is the door and whose figure opens the chat, shows the numbered
   list: a helper by its name, a project without one as "New helper for
   PROJECT" (`agent_list`). A click on an entry, or its number or name and
   Enter in the field, opens the chat; a project starts its helper first.

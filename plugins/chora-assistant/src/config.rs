@@ -588,7 +588,7 @@ mod tests {
     #[test]
     fn the_default_shows_each_look_with_its_own_folder() {
         let config: Config = parse(DEFAULT).unwrap();
-        assert_eq!(config.folder(&context("tiling", "foot")), "neutral");
+        assert_eq!(config.folder(&context("tiling", "foot")), "tiling");
         assert_eq!(config.folder(&context("xp", "foot")), "xp");
         assert_eq!(config.folder(&context("mc", "foot")), "mc");
         assert_eq!(config.folder(&context("construct", "")), "construct");

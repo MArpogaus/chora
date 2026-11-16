@@ -329,7 +329,7 @@ def main():
             fill = dominant(keys)
             if not near(fill, palette["surface"]):
                 problems.append(f"tokens keys: the key list fill {fill} is not `surface` {palette['surface']}")
-    if cell not in ("fullscreen", "keys", "toast", "layout", "tooltip", "launcher", "chattoast"):
+    if cell not in ("desktop", "fullscreen", "keys", "toast", "layout", "tooltip", "launcher", "chattoast"):
         if not helpers:
             problems.append(f"{cell}: no helper surface on the screen")
         for name, rect in helpers.items():

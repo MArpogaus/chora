@@ -184,7 +184,7 @@ mod tests {
     fn the_source_tree_has_the_folder_of_each_look() {
         let own = Path::new(env!("CARGO_MANIFEST_DIR")).join("huds");
         let names: Vec<String> = list(&[own]).into_iter().map(|(name, _)| name).collect();
-        assert_eq!(names, ["construct", "mc", "neutral", "xp"]);
+        assert_eq!(names, ["construct", "mc", "neutral", "tiling", "xp"]);
     }
 
     #[test]

@@ -1436,7 +1436,10 @@ without one is an asset folder, which holds:
 | `fonts/` | font files, optional |
 
 `plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
-changes its color with the state.
+changes its color with the state, and the row "Chat ..." with a row for each
+helper. `plugins/chora-assistant/huds/tiling` is the folder of the tiling
+flavor: the same dot, which opens the chat, and no row, since the helper word
+of the bar is the door.
 
 ## Flavors
 
