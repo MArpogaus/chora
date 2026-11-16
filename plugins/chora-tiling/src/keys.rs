@@ -1004,7 +1004,24 @@ mod tests {
                 }
             }
         }
-        assert_eq!(named, 4);
+        assert_eq!(named, 1);
+    }
+
+    #[test]
+    fn the_doors_of_the_bar_have_no_tooltip() {
+        let flavor =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/waybar");
+        let text = std::fs::read_to_string(flavor.join("config.jsonc")).unwrap();
+        for door in ["apps", "helper", "keys", "power"] {
+            let from = text
+                .find(&format!("\"custom/{door}\": {{"))
+                .unwrap_or_else(|| panic!("no module custom/{door}"));
+            let block = &text[from..from + text[from..].find("\n  }").unwrap()];
+            assert!(
+                block.contains("\"tooltip\": false"),
+                "custom/{door} has a tooltip:\n{block}"
+            );
+        }
     }
 
     #[test]
