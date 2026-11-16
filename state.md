@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 05:43 UTC)
+## Now (2026-11-16 05:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 1.3 % local (tokens.py 05:23). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -14,7 +14,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
-| 4 | CI green | PR #106: green 5aa30b54, 4693fe07; green 8e7effad, 3c0603e8; F25 red 66f13d68 (same values, one frame): f25 r2 on opus |
+| 4 | CI green | PR #106: green 5aa30b54, 4693fe07; green 8e7effad, 3c0603e8; F25 red 66f13d68 (same values, one frame): f25 r2 on sonnet high |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; security a (r5) and b merged; area reviews Tue |
 | 7 | deny, machete | clean (ci-rc) |
@@ -25,7 +25,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| f25 r2 (rc 4) | cloud opus medium, claude/f25 (66f13d68) | briefs/f25-r2.md | 4th start 05:43 (opus PENDING 3x) |
+| f25 r2 (rc 4) | cloud sonnet high, claude/f25 (66f13d68) | briefs/f25-r2.md | opus PENDING 4x (05:28-05:49); sonnet high start 05:5x |
 | media r1 (rc 11, 1b, 1) | cloud sonnet medium, claude/media (66f13d68) | briefs/media-r1.md | running since 05:37 (session ...QEesX) |
 
 ## Queue (by day; budget 10 % a UTC day)
