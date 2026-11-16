@@ -252,7 +252,7 @@ default map:
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
-| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
+| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[wobbly]`; `[]` turns it off |
 | `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.

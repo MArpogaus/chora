@@ -78,7 +78,7 @@ style:
 # The effects that tiling drives on its own windows: wobbly, a floating
 # window that bends while it is dragged. Empty turns them off. lamp is
 # refused, because tiling has no task button.
-effects: []
+effects: [wobbly]
 
 bindings:
   # Windows
