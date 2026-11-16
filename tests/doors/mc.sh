@@ -65,6 +65,9 @@ chat_close() {
     key Escape
     until_ok '! chat_open' 20
 }
+door_state() {
+    ctl query '*' | jq -c '[.[] | select((.id | test("door|hit")) and (.owner == "mc")) | {id, visible, text, r: (.rects | to_entries[0].value)}]' >&2
+}
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 header_words() {
     ctl query '*' | jq -c '
@@ -221,7 +224,10 @@ cell_screenshot_door() {
         return 1
     }
     click_text "Screenshot"
-    marked '^grim' && until_ok shots 20
+    marked '^grim' && until_ok shots 20 && return 0
+    echo "screenshot-door: no grim after the click" >&2
+    door_state
+    return 1
 }
 cell_volume_key() {
     unmark
@@ -235,7 +241,10 @@ cell_volume_door() {
     }
     unmark
     click_text "Volume 50%"
-    marked '^wpctl set-mute'
+    marked '^wpctl set-mute' && return 0
+    echo "volume-door: no set-mute after the click" >&2
+    door_state
+    return 1
 }
 cell_clock_door() {
     ctl query "owner:mc kind:text" |
