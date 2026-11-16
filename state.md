@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 18:15 UTC)
+## Now (2026-11-16 18:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -13,7 +13,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | 1 | UX: no BLOCK or MAJOR open | 2 BLOCK, 19 MAJOR (journey-1); ti-1 not chora |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
-| 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
+| 3 | Three greens in a row | F26 mc, F28 fixed in flakes r6 (review); F17 propose close |
 | 4 | CI green | green on aba97fec (PR #106, 18:09); F25 fix holds |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
@@ -29,11 +29,11 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 17:07 + aba97fec 18:12 (doors, chat-keys pass; F27 env); idle |
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | merged train 32 17:49 |
-| tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
-| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | 18:00: F26 fix pushed, mc 0/42 fails; stop 18:21, rest opus (session_016iS3kNAW1ykWfSGnf2Mgmz) |
+| tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | MERGE-OK 18:1x (2 MINOR); train 30 (208c657a) gating |
+| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | ended 18:22 (limit), e3fb7d46: F26 mc, F28 fixed; F17 close; review after train 30; no opus r7 |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: Fable flakes r6 (F26, F28, F17; rc 3). testwatch haiku between merges (rc 3, 4).
+1. Now: train 30 (tiling); then review + train flakes r6 (rc 3). testwatch haiku between merges (rc 3, 4).
 2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
