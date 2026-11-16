@@ -59,7 +59,7 @@ inject '[{"pointer_move": {"position": [640, 400]}}]'
 pids+=($!)
 until_ok 'windows | grep -q "xp face"' 80 || fail "the probe window came to no face: $(windows)"
 surface=$(windows | awk '$2 == "xp" {print $1; exit}')
-call view.step_back '{}' >/dev/null || fail "view.step_back"
+key Alt+Escape
 until_ok "$stood_back" 20 || fail "no step back"
 until_ok 'test -n "$(plane_middle "$surface")"' 40 || fail "no floating plane of the window"
 sleep 2
@@ -86,5 +86,7 @@ eval "$stood_back" || fail "Escape with the overlay left the stood-back view"
 
 plain Escape
 until_ok 'test -z "$(virtuals)"' 40 || fail "Escape stood back did not close the cube: $(virtuals)"
-until_ok '[ "$(windows | wc -l)" = "$(echo "$before" | wc -l)" ]' 40 || fail "a window is lost by closing the cube: before $before, after $(windows); list $(call window.list "{}" | tr -d "\n "); pane $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
+until_ok 'read -r _ owner out <<<"$(windows | grep "^$surface ")"; test "$out" = HEADLESS-1 || { test "$owner" != xp && test "$owner" != None; }' 60 ||
+    fail "the window $surface is lost by closing the cube: before $before, after $(windows)"
+[ "$(windows | wc -l)" = "$(echo "$before" | wc -l)" ] || fail "a window is lost by closing the cube: before $before, after $(windows)"
 ok "Escape stood back closes the cube, and no window is lost: $(windows | tr '\n' ';')"

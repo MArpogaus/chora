@@ -17,8 +17,7 @@ use chora_scene::{
 use serde_json::{Value, json};
 
 use super::{
-    BTN_LEFT, ClientError, Construct, Event, FLY_MS, Moving, NAME, PressState, cube, float, give,
-    space,
+    BTN_LEFT, ClientError, Construct, Event, FLY_MS, Moving, NAME, PressState, cube, give, space,
 };
 
 /// How long the window manager of a face may take to place a window.
@@ -235,61 +234,6 @@ impl Construct {
             );
         }
         Ok(true)
-    }
-
-    /// Pulls the window of a floating plane out of the stood-back cube
-    /// (K12): its window manager gives it to the construct, which goes
-    /// on with the drag of the person, held at the point of the window
-    /// under the pointer. A refused give leaves the window on its face.
-    pub(crate) fn pull_plane(&mut self, surface: &str, at: [f64; 2]) -> Result<(), ClientError> {
-        let Some(screen) = self.output.as_ref().map(|o| o.name.clone()) else {
-            return Ok(());
-        };
-        let face = (self.cube.as_ref()).and_then(|host| {
-            let faces = 0..host.outputs().len();
-            faces.into_iter().find_map(|i| {
-                host.floats_of(i)?
-                    .iter()
-                    .find(|w| w.surface == surface)
-                    .map(|w| (i, w.rect))
-            })
-        });
-        let Some((face, rect)) = face else {
-            return Ok(());
-        };
-        let plane: Vec<Value> = (self.rt.conn).call(
-            "scene.query",
-            Query::new(format!("id:{}", float::plane_id(face, surface))),
-        )?;
-        let shown = plane.first().and_then(|node| {
-            let r = node["rects"].get(&screen)?;
-            Some([0, 1, 2, 3].map(|i| r.get(i).and_then(Value::as_f64).unwrap_or(0.0)))
-        });
-        let point = shown.filter(|r| r[2] > 0.0 && r[3] > 0.0).map_or(
-            [rect[2] / 2.0, rect[3] / 2.0],
-            |r| {
-                [
-                    (at[0] - r[0]) / r[2] * rect[2],
-                    (at[1] - r[1]) / r[3] * rect[3],
-                ]
-            },
-        );
-        let call = MethodCall {
-            client: cube::MANAGER.into(),
-            method: give::METHOD.into(),
-            params: json!({"surface": surface, "to": NAME}),
-        };
-        let given: Result<Value, _> = (self.rt.conn).call_within("methods.call", call, PLACE_WAIT);
-        if let Err(err) = given {
-            eprintln!("chora-construct: {surface} stays on its face: {err}");
-            return Ok(());
-        }
-        let grab = GivenGrab {
-            point,
-            velocity: [0.0; 2],
-            wobble: None,
-        };
-        self.take_pulled(surface, at, &grab)
     }
 
     /// The moves and the release of the drag of a window pulled from a

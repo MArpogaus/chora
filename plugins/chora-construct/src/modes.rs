@@ -398,14 +398,22 @@ impl Construct {
         self.regrab()
     }
 
-    /// The act of a key that the look node got. In navigate mode the
-    /// keys of the view act and the others go on to the walk. In use
+    /// The act of a key that the look node got. In navigate mode F1 shows
+    /// the keys, Escape closes the cube, the other keys of the view act
+    /// and the rest go on to the walk. In use
     /// mode the keys of the walk do nothing, so that the face stays at
     /// 1:1; the keys that open something go on.
     fn key_act(&self, view: View, key: &str, modifiers: &[String]) -> Option<Pressed> {
         let front_failed = self.cube.as_ref().is_some_and(cube::Host::front_failed);
         if front_failed && key == "Return" {
             return Some(Pressed::Retry);
+        }
+        if view.mode() == Mode::Navigate && modifiers.is_empty() {
+            match key {
+                "F1" => return Some(Pressed::Help),
+                "Escape" => return Some(Pressed::Close),
+                _ => {}
+            }
         }
         if let Some(act) = view.key(key) {
             return Some(Pressed::Act(act));
@@ -434,16 +442,14 @@ impl Construct {
         let face = cube::face_of(node).filter(|_| view.mode() == Mode::Navigate);
         let pressed = press_of(chip, face, injected && !self.rt.accepts_injected())?;
         if let (Pressed::Face(face), Some(host)) = (&pressed, &mut self.cube) {
-            let window = super::float::plane_window(*face, node).map(String::from);
-            host.press(*face, window, at);
+            host.press(*face, at);
             return Some(Pressed::Nothing);
         }
         Some(pressed)
     }
 
     /// The pointer moved during a press on a face: the cube follows the
-    /// hand; a drag on the floating plane of a window pulls the window
-    /// out. An injected move ends the press: it is not the hand of the
+    /// hand, also when the press began on a floating window. An injected move ends the press: it is not the hand of the
     /// person. `time` is the time of the input of the move.
     fn drag_act(
         &mut self,
@@ -468,10 +474,6 @@ impl Construct {
             cube::Dragged::Yaw(_) => {
                 self.frame()?;
                 self.sync_float()?;
-            }
-            cube::Dragged::Pull(window) => {
-                host.forget_press(now);
-                self.pull_plane(&window, at)?;
             }
             cube::Dragged::Nothing => {}
         }
@@ -606,6 +608,8 @@ impl Construct {
             Some(Pressed::Retry) => self.retry_cube()?,
             Some(Pressed::Act(act)) => self.mode_act(act, By::Person)?,
             Some(Pressed::Face(face)) => self.step_into(face)?,
+            Some(Pressed::Help) => self.toggle_help()?,
+            Some(Pressed::Close) => self.close_cube()?,
             Some(Pressed::Nothing) => {}
             None => return Ok(false),
         }
@@ -737,6 +741,10 @@ fn press_of(chip: Option<Word>, face: Option<usize>, ignored: bool) -> Option<Pr
 enum Pressed {
     Act(Act),
     Face(usize),
+    /// F1 stood back: no program is there to take it.
+    Help,
+    /// Escape stood back: the way out of the cube.
+    Close,
     Retry,
     Nothing,
 }

@@ -170,6 +170,7 @@ doors|BIN=$repo/target/debug tests/gate-doors.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
+out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
 pane-keys|BIN=$repo/target/debug tests/gate-construct-pane-keys.sh

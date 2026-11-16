@@ -92,8 +92,9 @@ impl View {
     }
 
     /// The act of a key that the plugin has without a modifier: only in
-    /// navigate mode, where the plugin has the keyboard. `Escape` backs
-    /// out of the step back and `Return` steps in.
+    /// navigate mode, where the plugin has the keyboard. `Return` steps in,
+    /// and `Escape` does too unless the plugin takes it for another way
+    /// out first.
     #[must_use]
     pub fn key(&self, key: &str) -> Option<Act> {
         let stood_back = self.mode == Mode::Navigate;
