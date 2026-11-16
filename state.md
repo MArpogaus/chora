@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 03:37 UTC)
+## Now (2026-11-16 03:43 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 1.0 % local (tokens.py 03:37). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -25,7 +25,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| harness rc r2 (rc 1, 3, 4) | cloud sonnet low, claude/harness-rc | briefs/harness-rc-r2.md | r1 FIX: F16 red test not in CI e2e; | F16 fixed (waybar killed by early signals); F25 same-frame retry, unproven; F26 diag only |
+| harness rc r2 (rc 1, 3, 4) | MERGE-OK (PM re-review); train 22 after train 21 | briefs/harness-rc-r2.md | F16 fixed (waybar killed by early signals); F25 same-frame retry, unproven; F26 diag only |
 | security a r5 (rc 6, 1) | MERGE-OK (sonnet re-review); train 21 gate running (3c0603e8) | briefs/security-a-r5.md | 2 COSMETIC to backlog SA10 |
 
 ## Queue (by day; budget 10 % a UTC day)
