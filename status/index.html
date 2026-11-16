@@ -119,21 +119,23 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Pictures and screencast: one new picture per look, README screenshots, and the tour rewritten so it moves like a person (by Wed)</li>
+          <li>Merging the fix for the red CI pixel (found: the glow was drawn twice over the old frame); test gate running</li>
+          <li>Fixing two big bugs the new tour found: with xp and tiling side by side the tiling half stays black and keys go to xp; after a drag in 3D the cube can slide off the screen (lane waiting for a cloud machine)</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget: 38 % of the week (your reading); Monday about 1.3 % so far of a 10 % day; everything on Sonnet</li>
-          <li>Wed: the screencast for you to watch; your objections within 24 h count</li>
-          <li>Tue: user test round 4 and code reviews per area; Wed-Thu: last flaky tests and two clean review rounds; Fri 20 Nov: release candidate</li>
+          <li>Budget: 39 % of the week (your reading, 07:00 UTC); at this pace about 71 % at the Saturday reset; cap 10 % a day</li>
+          <li>Screencast v3 is recorded (13:37 min, all four looks); you get it once the two bugs above are fixed, your objections within 24 h count</li>
+          <li>Tue: user test round 4 and code reviews per area; Wed-Thu: last flaky tests; Fri 20 Nov: release candidate</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>Optional: may the PM add a prompt hook that repeats its main duties on every message (your 09:32)? Without an answer: no; the duties stay in the files read at each start.</li>
+          <li>A glance: the xp pictures use our own fallback wallpaper (CC-BY-SA), whose green hills resemble the xp original. Licensing is yours; without an answer it stays.</li>
+          <li>Optional: a prompt hook that repeats the PM's main duties on every message (your 09:32)? Without an answer: no.</li>
         </ul>
       </div>
     </div>
@@ -149,7 +151,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
       <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. Open: one flaky mc door click; CI green twice since the watchdog fix.</span></div>
-      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">1 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: dependency checks clean. Packages build, but the installed-session start check is still open. Close: docs, code review (security fixes in review), CI (one red pixel). Open: tiling launcher clicks (fuzzel 1.11, Mon), user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
+      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">1 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: dependency checks clean. Close: docs, code review (security merged), CI (pixel fix merging now). Open: two big bugs from the tour, user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
     </div>
   </section>
 
@@ -161,21 +163,14 @@ footer { font-size: 13px; color: var(--muted); }
       <button type="button" data-filter="looks" aria-pressed="false">Looks</button>
     </div>
     <div class="shots">
-      <figure data-kind="cube"><img src="img/cube-float.png" alt="The xp cube in the 3D construct at an angle, windows floating in depth in front of two faces" loading="lazy"><figcaption><b>xp cube, stood back.</b> Windows float off the faces like the old xp cube. 11 Nov.</figcaption></figure>
-      <figure data-kind="cube"><img src="img/construct-swing.gif" alt="A sunset window swung through the construct, bending like a sail" loading="lazy"><figcaption><b>Wobble in 3D.</b> A window swung through the construct. 11 Nov.</figcaption></figure>
-      <figure data-kind="cube"><img src="img/cube.png" alt="Two faces of the xp cube, each a full xp desktop with its own taskbar" loading="lazy"><figcaption><b>xp cube faces.</b> Each face is a full xp with its own taskbar. 10 Nov.</figcaption></figure>
-      <figure data-kind="cube"><img src="img/construct-3d.png" alt="Three terminal panes in the bright 3D construct" loading="lazy"><figcaption><b>Construct on the 3D base.</b> Clicks go into tilted windows. 10 Nov.</figcaption></figure>
-      <figure data-kind="hud"><img src="img/hud-chat-question.png" alt="A chat panel with a question card asking to allow writing a file" loading="lazy"><figcaption><b>Question card.</b> A key or a click answers, never a spoken yes. 10 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/tiling-v2.png" alt="Tiling look v2: two terminals with rounded corners and a gradient focus border under three floating bar islands" loading="lazy"><figcaption><b>Tiling v2, dark.</b> Floating bar islands, a gradient border on the focused window, rounded corners. 12 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/tiling-v2-keys.png" alt="Tiling key list overlay" loading="lazy"><figcaption><b>Tiling v2 key list.</b> Super+/ or the Keys button, built from the live bindings. 12 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/tiling-v2-paper.png" alt="Tiling look v2 in the light Paper theme" loading="lazy"><figcaption><b>Tiling v2, light.</b> Follows the system light or dark setting. 12 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/mc-v2.png" alt="mc look v2: The Morning page with the right margin column" loading="lazy"><figcaption><b>mc v2.</b> A printed page; helpers, notifications and keys live in the right margin. 12 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/mc-v2-chat-dark.png" alt="mc look v2 dark: the chat and a question card in the right margin" loading="lazy"><figcaption><b>mc v2 chat, dark.</b> The chat and the question card stay in the margin; the page does not move. Test text in the field. 12 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/xp-v2-start.png" alt="xp look v2: the Start menu open" loading="lazy"><figcaption><b>xp v2 Start menu.</b> Build 8f358fa, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/xp-v2-run.png" alt="xp look v2: the Run box in xp colours" loading="lazy"><figcaption><b>xp v2 Run.</b> Build 8f358fa, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/xp-wobbly.png" alt="xp desktop with a terminal bending while dragged" loading="lazy"><figcaption><b>xp wobble.</b> One shared effects driver. 10 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/mc.png" alt="The media center look with the Agenda page" loading="lazy"><figcaption><b>mc.</b> The calm media-center look. 9 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/xp-cube-3d.png" alt="The old xp desktop cube with two floating terminals" loading="lazy"><figcaption><b>Old xp cube.</b> The look the construct cube now matches. 9 Nov.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/xp-desktop.png" alt="xp desktop: a terminal and an editor, the editor bending while dragged" loading="lazy"><figcaption><b>xp.</b> A terminal and an editor; the dragged one bends. Build 7d90f049, 16 Nov, reviewed.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/tiling-fair.png" alt="Tiling look: windows in the fair layout under the bar" loading="lazy"><figcaption><b>Tiling.</b> Fair layout under the bar (the stuck tooltip at the top right is a known small bug). Build 7d90f049, 16 Nov.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/mc-light.png" alt="mc look, light: The Morning page with the column at the right" loading="lazy"><figcaption><b>mc, light.</b> The Morning page, column at the right. Build 7d90f049, 16 Nov.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/mc-dark.png" alt="mc look, dark: the same page in the dark theme" loading="lazy"><figcaption><b>mc, dark.</b> The same page, dark theme. Build 7d90f049, 16 Nov.</figcaption></figure>
+      <figure data-kind="cube"><img src="img/construct-panes.png" alt="Construct: three terminals as panes in the space, stepped back" loading="lazy"><figcaption><b>Construct.</b> Three panes in the space, stepped back, key hints below. Build 7d90f049, 16 Nov.</figcaption></figure>
+      <figure data-kind="cube"><img src="img/construct-cube-xp.png" alt="The cube of four xp desktops, stepped back" loading="lazy"><figcaption><b>xp cube.</b> Four xp desktops on the cube, stepped back. Build 7d90f049, 16 Nov.</figcaption></figure>
+      <figure data-kind="hud"><img src="img/helper-chat.png" alt="The helper chat in xp with a question card, Yes and No" loading="lazy"><figcaption><b>Helper chat.</b> A question card with Yes and No. Build 7d90f049, 16 Nov.</figcaption></figure>
+      <figure data-kind="hud"><img src="img/key-list.png" alt="Tiling key list opened with Super+/" loading="lazy"><figcaption><b>Key list.</b> Every key of the look, from the live bindings. Build 7d90f049, 16 Nov.</figcaption></figure>
     </div>
     <p style="color:var(--muted);font-size:14px">All captures: software rendering in a cloud container. A screencast of the new looks follows when construct v2 merges. Pictures name the look version; v2 pictures passed an independent review.</p>
   </section>

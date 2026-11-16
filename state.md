@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-16 08:21 UTC)
+## Now (2026-11-16 08:42 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 39 % at 07:00 Mon (owner). forecast (tokens.py 07:58): 6.6 %/day since Sun 09:20, ~71 % at reset Sat 03:59 UTC; room 12.5 %/day; cap 10 %/day. Local count sees only the PM container.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
-session branch: 66f13d68 (train 22, 05:23 UTC: harness rc; train 21 3c0603e8). CI green 8e7effad, 3c0603e8; e2e F25 red 66f13d68.
+session branch: 66588880 (train 23, 08:3x UTC: media; all steps incl. doors passed). Train 24 (claude/f25 df101c14) gate running. CI green 8e7effad, 3c0603e8; e2e F25 red 66f13d68.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -20,20 +20,20 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
 | 9 | Logging audit, flakes closed | logging audit merged (train 14); flakes r5 merged (train 17) |
-| 11 | Visual acceptance screencast | tour v3 recorded (13:37, media/2026-11-16/tour-v3); merge after review |
+| 11 | Visual acceptance screencast | tour v3 merged (train 23); to the owner after sh-23, co-16 fixed |
 
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| f25 r2 (rc 4) | handed back 08:15, claude/f25 df101c1f | briefs/f25-r2.md | MERGE-OK (reports/review-f25-r2.md, 2 MINOR); train 24 after train 23 |
-| media r1 (rc 11, 1b, 1) | handed back 07:56, claude/media 00225164 | briefs/media-r1.md | MERGE-OK (reports/review-media-r1.md, 3 MINOR); train 23 gate from 08:0x |
+| f25 r2 (rc 4) | handed back 08:15, claude/f25 df101c1f | briefs/f25-r2.md | MERGE-OK (reports/review-f25-r2.md, 2 MINOR); train 24 gate running |
 | multilook r1 (rc 1) | cloud sonnet medium, claude/multilook (66f13d68) | briefs/multilook-r1.md | 3rd start 08:15 (PENDING 2x); sh-23, co-16 MAJOR; ti-20 verify |
 
 ## Queue (by day; budget 10 % a UTC day)
-1. Mon: media r1 review and train; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 11, 1b, 1)
+1. Mon: train 24 (f25), CI on PR #106; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
 2. Tue: persona round 4 (haiku swarm), triage.py; rc 6 area reviews on sonnet medium, opus only on HIGH. (rc 2, 6)
 3. Wed-Thu: flakes F17, F24, F26, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3)
 
 ## Needs owner
+- xp fallback wallpaper (CC-BY-SA) resembles Bliss in the pictures: a glance (licensing is yours). Default: keep.
 - Prompt hook: a fail-open UserPromptSubmit hook in settings.local.json with the main duties (your 09:32)? Default: no; duties stay in the injected state.md and rules.
