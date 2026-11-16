@@ -25,14 +25,14 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| f25 r2 (rc 4) | done, claude/f25 df101c1f | MERGE-OK; train 24 gate running |
-| multilook r1 (rc 1) | sonnet med, claude/multilook | running 08:46; sh-23, co-16; ti-20 |
-| testwatch r1 (rc 3, 4) | haiku low, session branch | started 08:55 |
-| secfix a r1 (rc 6) | sonnet med, claude/secfix-a | raa-23 fix; raa-3 words |
-| secfix b r1 (rc 6) | sonnet med, claude/secfix-b | rab-60, rab-61 |
-| xp polish r1 (rc 1) | sonnet med, claude/xp-polish | xp-23 paperclip, xp-24 fields |
-| tiling look r1 (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
-| media r2 (rc 11) | sonnet med, claude/media | tour v4 by scenario, ~5 min |
+| f25-r2.md (rc 4) | done, claude/f25 df101c1f | MERGE-OK; train 24 gate running |
+| multilook-r1.md (rc 1) | sonnet med, claude/multilook | running 08:46; sh-23, co-16; ti-20 |
+| testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
+| secfix-a-r1.md (rc 6) | sonnet med, claude/secfix-a | raa-23 fix; raa-3 words |
+| secfix-b-r1.md (rc 6) | sonnet med, claude/secfix-b | rab-60, rab-61 |
+| xp-polish-r1.md (rc 1) | sonnet med, claude/xp-polish | xp-23 paperclip, xp-24 fields |
+| tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
+| media-r2.md (rc 11) | sonnet med, claude/media | tour v4 by scenario, ~5 min |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: train 24 (f25), CI on PR #106; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
