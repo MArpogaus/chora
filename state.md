@@ -29,7 +29,7 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | r2 MERGE-OK (train 29); MINOR /tmp fallback dir to backlog |
 | xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r1 MERGE-OK (train 26); r2 xp-25..27 10:4x |
-| tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
+| tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | r1 back 11:44 (ti-21 bar, wobbly default); review 11:4x; r2 ti-22..24 after |
 | mc-r2.md (rc 1, 11) | sonnet high, claude/mc | r1 MERGE-OK (train 28); r2 mc-34, 35b 11:4x |
 
 ## Queue (by day; budget 10 % a UTC day)
