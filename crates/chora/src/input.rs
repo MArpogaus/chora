@@ -2093,6 +2093,110 @@ mod tests {
         assert_eq!(pressed[0]["node"], "s1");
     }
 
+    /// The events of a client of one of the kinds, each with its `injected`
+    /// flag, `false` when the event has none.
+    fn flags(events: &[Value], names: &[&str]) -> Vec<(String, bool)> {
+        events
+            .iter()
+            .filter_map(|e| {
+                let name = e["event"].as_str().filter(|n| names.contains(n))?;
+                Some((name.to_string(), e["injected"].as_bool().unwrap_or(false)))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn an_injected_click_with_an_injected_modifier_reaches_the_button_grab_flagged() {
+        let (mut core, mut wayland, window, mut wm, _xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        wm.ok(
+            &mut core,
+            "input.grab",
+            json!({"binding": "Super+BTN_LEFT"}),
+        );
+        move_to(&mut core, 50.0, 50.0);
+        events(&mut wm, &mut core);
+        core.state.injecting = true;
+        super::key(
+            &mut core.state,
+            Keycode::new(SUPER + 8),
+            KeyState::Pressed,
+            InputTime::now(),
+            true,
+        );
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), true);
+        move_to(&mut core, 60.0, 70.0);
+        let up = ButtonState::Released;
+        super::press_button(&mut core.state, 272, up, InputTime::now(), true);
+        core.state.injecting = false;
+        let got = flags(
+            &events(&mut wm, &mut core),
+            &["input.button", "input.moved"],
+        );
+        let injected = |name: &str| (name.to_string(), true);
+        assert_eq!(
+            got,
+            [
+                injected("input.button"),
+                injected("input.moved"),
+                injected("input.button")
+            ]
+        );
+    }
+
+    #[test]
+    fn a_click_of_the_person_reaches_the_button_grab_unflagged() {
+        let (mut core, mut wayland, window, mut wm, _xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        wm.ok(
+            &mut core,
+            "input.grab",
+            json!({"binding": "Super+BTN_LEFT"}),
+        );
+        move_to(&mut core, 50.0, 50.0);
+        events(&mut wm, &mut core);
+        press(&mut core, SUPER, true);
+        click(&mut core, true);
+        move_to(&mut core, 60.0, 70.0);
+        click(&mut core, false);
+        let got = flags(
+            &events(&mut wm, &mut core),
+            &["input.button", "input.moved"],
+        );
+        assert_eq!(got.len(), 3, "{got:?}");
+        assert!(got.iter().all(|(_, injected)| !injected), "{got:?}");
+    }
+
+    #[test]
+    fn an_injected_move_and_an_injected_scroll_reach_the_owner_flagged() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        move_to(&mut core, 300.0, 300.0);
+        events(&mut xp, &mut core);
+        core.state.injecting = true;
+        move_to(&mut core, 50.0, 50.0);
+        super::scroll(&mut core.state, 0.0, 15.0, InputTime::now());
+        core.state.injecting = false;
+        let got = flags(
+            &events(&mut xp, &mut core),
+            &["pointer.entered", "pointer.scroll"],
+        );
+        let injected = |name: &str| (name.to_string(), true);
+        assert_eq!(
+            got,
+            [injected("pointer.entered"), injected("pointer.scroll")]
+        );
+        move_to(&mut core, 300.0, 300.0);
+        move_to(&mut core, 50.0, 50.0);
+        super::scroll(&mut core.state, 0.0, 15.0, InputTime::now());
+        let got = flags(
+            &events(&mut xp, &mut core),
+            &["pointer.entered", "pointer.scroll"],
+        );
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert!(got.iter().all(|(_, injected)| !injected), "{got:?}");
+    }
+
     /// A window manager whose group claims an area.
     fn claimer(core: &mut Core, name: &str, claim: [f64; 4]) -> Client {
         let mut wm = core.named(name);
