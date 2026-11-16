@@ -19,6 +19,8 @@
 #   --net       keep the network of the host
 #   -h, --help  this text
 #   AGENT_SANDBOX_HOME  the home directory inside the sandbox
+#   AGENT_SANDBOX_UNSET  names of variables to unset inside, separated by
+#               blanks, for example the variables with API keys
 # Exit status: that of COMMAND; 2 a usage error or a refused directory.
 set -u
 
@@ -63,6 +65,10 @@ if [ -n "${CHORA_SOCKET:-}" ]; then
     esac
     [ -z "$sockets" ] || hidden+=("$sockets")
 fi
+unset_names=()
+for name in ${AGENT_SANDBOX_UNSET:-}; do
+    unset_names+=(--unsetenv "$name")
+done
 empty=()
 for dir in "${hidden[@]}"; do
     [ -d "$dir" ] && empty+=(--tmpfs "$dir")
@@ -79,6 +85,7 @@ exec bwrap \
     --unsetenv CHORA_SOCKET \
     --unsetenv WAYLAND_DISPLAY \
     --unsetenv DBUS_SESSION_BUS_ADDRESS \
+    "${unset_names[@]}" \
     --unshare-user --unshare-ipc --unshare-pid --unshare-uts \
     "${net[@]}" \
     --new-session \

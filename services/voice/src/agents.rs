@@ -104,6 +104,8 @@ struct Inner {
 struct Settings {
     /// The command with the sandbox; empty turns the tools off.
     cmd: Vec<String>,
+    /// The variables with the API keys, which no agent gets.
+    keys: Vec<String>,
     projects: BTreeMap<String, String>,
     voices: Vec<String>,
     said_chars: usize,
@@ -118,6 +120,7 @@ impl Settings {
     fn new(config: &Config) -> Self {
         Self {
             cmd: config.spawn(&config.agent_cmd),
+            keys: config.key_envs(),
             projects: config.agent_projects.clone(),
             voices: config.agent_voices.clone(),
             said_chars: config.agent_said_chars as usize,
@@ -991,7 +994,8 @@ impl Actor {
         log: &Path,
         mut cmds: mpsc::UnboundedReceiver<Cmd>,
     ) -> Result<bool, String> {
-        let (mut child, mut rpc) = spawn(command, dir, log).await?;
+        let keys = self.agents.lock().settings.keys.clone();
+        let (mut child, mut rpc) = spawn(command, &keys, dir, log).await?;
         let _group = Group::new(child.id());
         let pid = child.id();
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
@@ -1325,6 +1329,7 @@ fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
 /// (mode 0600); sends `initialize`.
 async fn spawn(
     command: &[String],
+    keys: &[String],
     dir: &Path,
     log: &Path,
 ) -> Result<(tokio::process::Child, Rpc), String> {
@@ -1339,15 +1344,16 @@ async fn spawn(
         .map_err(|e| format!("{}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
     let (program, args) = command.split_first().ok_or("agent_cmd is empty")?;
-    let mut child = tokio::process::Command::new(program)
+    let mut command = tokio::process::Command::new(program);
+    command
         .args(args)
         .current_dir(dir)
         .process_group(0)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(err)
-        .spawn()
-        .map_err(|e| format!("{program}: {e}"))?;
+        .stderr(err);
+    crate::config::without_keys(command.as_std_mut(), keys);
+    let mut child = command.spawn().map_err(|e| format!("{program}: {e}"))?;
     let mut rpc = Rpc {
         stdin: child.stdin.take().expect("piped"),
         log: tokio::fs::File::from_std(file),
@@ -1686,10 +1692,10 @@ exec cat >/dev/null"#;
         let _ = std::fs::remove_dir_all(&data);
     }
 
-    /// The agent keeps the variables that the settings name for the API
-    /// keys: a harness may use the same key as the voice LLM.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn the_agent_keeps_the_api_key_variables() {
+    /// The agent does not get the variables that the settings name for
+    /// the API keys: it is driven by an LLM that could print them.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn the_agent_gets_no_api_key_variable() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
         let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&data);
@@ -1716,7 +1722,7 @@ exec cat >/dev/null"#;
         let home = std::fs::read_to_string(&seen).unwrap_or_default();
         agents.stop("keys");
         let _ = std::fs::remove_dir_all(&data);
-        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+        assert_eq!(home.trim(), "unset");
     }
 
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its
