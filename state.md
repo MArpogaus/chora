@@ -26,7 +26,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r1.md (rc 1) | sonnet high, claude/construct | MERGE-OK 16:3x (review-construct-r1: 3 LOW, 2 COSM.); train 32 |
-| testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
+| testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 ended 17:07: 7 heads; F26 1/9, F28 1, e2e F27 5 (old fuzzel in its container); idle |
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | r4 e095d113 stale 16b assert; MERGE-OK (PM); train 32 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
