@@ -335,13 +335,16 @@ impl Agent {
             return Ok(Vec::new());
         }
         self.open_balloon_for_question();
+        self.chat.question_of(question.agent.as_deref());
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
         };
         self.card_fonts();
         self.card_theme.set_scale(scale);
         let figure = self.figure_rect(&output);
-        let mut commands = self.ensure_top(&output.name);
+        let top = self.ensure_top(&output.name);
+        self.apply(top)?;
+        let mut commands = Vec::new();
         let mut shown = self.new_card(question, (data["buttons"] == true, &output.name), now);
         self.place_card(&mut shown, figure, &output)?;
         if self.chat.question_asked() == Where::Chat && self.chat.is_open() {
@@ -463,6 +466,10 @@ impl Agent {
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
             (None, Some((frame, _))) => {
+                let frame = chat::Frame {
+                    lift: size[1] + chat::GAP,
+                    ..frame
+                };
                 let hint = self.chat.hint_room(theme, &frame, language);
                 let origin = chat::card_origin(&frame, size, hint);
                 self.chat.card_shown(origin[1], size[1]);
