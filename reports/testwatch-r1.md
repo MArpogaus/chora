@@ -9,3 +9,14 @@ Lines: UTC time, head, gate result, agent.sh passes of 5, logs.
 - 2026-11-16T13:09:44Z 9c4f13010b3f0e3f6252a64987f1952e27da6695 gate=FAIL:chat-keys agent=5/5 gate_log=/tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw-state/gate-9c4f1301.out logs: 9c4f1301-chat-keys.log
 - 2026-11-16T13:40:54Z c949cc84b92600bef34814aba02c107c720969d4 gate=FAIL:e2e agent=5/5 gate_log=/tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw-state/gate-c949cc84.out logs: c949cc84-e2e.log
 - 2026-11-16T16:01:42Z 6a067e390d144761f8ca3cad8757d8c5fa792376 gate=FAIL:e2e agent=5/5 gate_log=/tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw-state/gate-6a067e39.out logs: 6a067e39-e2e.log
+
+## Summary (r1)
+- heads tested: 7
+- failures per cell: see events; 7 failure events
+- F26 doors rate: 1 fails of 9 runs (no-change polls)
+- 2026-11-16T17:50:02Z aba97fecd762ce822e5f8a526f56666e2d1fcddf gate=FAIL:e2e agent=5/5 gate_log=/tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw-state/gate-aba97fec.out logs: aba97fec-e2e.log
+
+## Summary (r1)
+- heads tested: 8
+- failures per cell: see events; 8 failure events
+- F26 doors rate: 1 fails of 9 runs (no-change polls)
