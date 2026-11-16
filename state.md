@@ -4,7 +4,7 @@
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 45 % at 12:10 Mon (owner; 43 at 10:05); tokens.py 12:11: PM 3.7 % today. ~1 %/h; 55 % left for 4.7 d = 11.8 %/day. No new lane today beyond queue; few PM turns.
 models: haiku low tests; sonnet medium builds; opus reviews, hard causes, complex lanes (reason). Cap 12.5 %/day from train 24.
-session branch: 5d801b2f (train 26, 12:02: xp-polish r1; all steps passed on rerun 3, F29 flake). Train 27 multilook r1 gating 12:05.
+session branch: 9c4f1301 (train 27, 12:4x: multilook r1; all steps passed; CI green on 5d801b2f). Train 29 secfix-a gating; review xp-polish r2 running; mc r2 review next.
 burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14 tour) ; lanes 6 build, 4.6 d left. Tag Fri at risk: check Wed 12:00, if a BLOCK or >5 MAJOR open, tag Tue 11-24.
 
 ## RC (design/rc.md)
@@ -25,7 +25,7 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| construct-r1.md (rc 1) | sonnet high, claude/construct | multilook r1 MERGE-OK (train 27); co-18 BLOCK, co-19, co-20, sh-24 10:5x |
+| construct-r1.md (rc 1) | sonnet high, claude/construct | multilook r1 merged (train 27); co-18 BLOCK, co-19, co-20, sh-24 10:5x |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | r2 MERGE-OK (train 29) |
 | xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r2 handback 12:09 (5a17aab6); review after train 27 (disk); mc doors FAIL in its run, train 27 doors PASS: lane container |
