@@ -55,10 +55,11 @@ const ACCESSORIES: &str = "Accessories";
 
 /// The plain text editors with a window of their own, the first that is
 /// installed serves.
-const EDITORS: [&str; 11] = [
-    "gnome-text-editor",
-    "gedit",
+const EDITORS: [&str; 12] = [
+    "lowriter",
     "mousepad",
+    "gedit",
+    "gnome-text-editor",
     "kwrite",
     "kate",
     "xed",
