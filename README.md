@@ -37,6 +37,18 @@ All four share the same doors: a launcher, a key list, the voice
 helper, and the safety layer. Their keys differ in places; see the
 known issues.
 
+### Looks
+
+Screenshots of build 7d90f049 from 2026-11-16, taken in a headless session
+with software rendering. xp shows only its own fallback art.
+
+| | |
+|---|---|
+| ![chora-xp: a terminal and an editor on the xp desktop; the editor is being dragged.](docs/img/xp.png) | ![chora-tiling: four terminals tiled, the bar on top.](docs/img/tiling.png) |
+| xp: a terminal and an editor; the editor is dragged and bends. | tiling: four terminals in the fair layout. |
+| ![chora-mc: a scene with a heading and text, a column at the right.](docs/img/mc.png) | ![chora-construct: three terminals as panes in a space.](docs/img/construct.png) |
+| mc: one scene, with the column for the helper at the right. | construct: three terminals as panes, seen from a step back. |
+
 ## Install
 
 Each [release](https://github.com/MArpogaus/chora/releases) has an RPM for
