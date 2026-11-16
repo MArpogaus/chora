@@ -2290,6 +2290,21 @@ mod tests {
         );
     }
 
+    /// A page whose grid is wider than the room beside the column takes
+    /// the room of the column when it hides, and gives it back when it
+    /// shows again.
+    #[test]
+    fn the_page_widens_when_the_column_hides() {
+        let (mut mc, _model) = crate::testing::mc("wide", [1280, 720]);
+        mc.show("morning", true).unwrap();
+        let with = mc.geometry("morning").unwrap().text;
+        mc.toggle(Region::Right, Some(false), true).unwrap();
+        let without = mc.geometry("morning").unwrap().text;
+        assert!(without[2] > with[2], "{with:?} and {without:?}");
+        mc.toggle(Region::Right, Some(true), true).unwrap();
+        assert_eq!(mc.geometry("morning").unwrap().text, with);
+    }
+
     /// Live at 1156 logical pixels (scale 1.5): the right side showed
     /// as open but drew nothing, since the sides had to leave room for
     /// all four columns of the grid, which wrap there anyway.

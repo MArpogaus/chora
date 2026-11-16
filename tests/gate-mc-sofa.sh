@@ -7,6 +7,9 @@
 #               click, Right and Left of the remote turn the page and Escape
 #               goes back one step (mc-32)
 #
+#   wide        Super+n hides the column and the page takes its room; Super+n
+#               gives it back (mc-37)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -84,6 +87,31 @@ cell_remote() {
     shot remote
 }
 
+lead_width() {
+    ctl query "owner:mc kind:text" | jq -r --arg t "$1" \
+        '[.[] | select(.visible and (.rects | length) > 0 and (.text | startswith($t)))][0].rects | to_entries[0].value[2]'
+}
+cell_wide() {
+    local before after
+    key Super+Home
+    key Super+Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "no page 2: $(current)"
+    panel morning lead '["Boil the water", "Fill the large pot with two litres of water, add a spoon of salt and bring it to a rolling boil, then add the spaghetti and cook it for nine minutes."]'
+    sleep 1
+    before=$(lead_width "Boil the water")
+    shot wide-column
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    sleep 1.5
+    after=$(lead_width "Boil the water")
+    shot wide-page
+    [ "$(jq -n "$after > $before + 100")" = true ] || fail "the page does not widen when the column hides: $before then $after"
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    sleep 1.5
+    [ "$(lead_width "Boil the water")" = "$before" ] || fail "the page does not narrow when the column is back: $(lead_width "Boil the water") not $before"
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -94,7 +122,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote)
+cells=(remote wide)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
