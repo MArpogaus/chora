@@ -28,7 +28,7 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 | construct-r1.md (rc 1) | sonnet high, claude/construct | multilook r1 MERGE-OK (train 27); co-18 BLOCK, co-19, co-20, sh-24 10:5x |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | r2 MERGE-OK (train 29); MINOR /tmp fallback dir to backlog |
-| xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r1 MERGE-OK (train 26); r2 xp-25..27 10:4x |
+| xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r2 handback 12:09 (5a17aab6); review after train 27 (disk); mc doors FAIL in its run, train 27 doors decides |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r1 MERGE-OK (train 30); r2 ti-22..24 11:5x |
 | mc-r2.md (rc 1, 11) | sonnet high, claude/mc | r1 MERGE-OK (train 28); r2 mc-34, 35b 11:4x |
 
