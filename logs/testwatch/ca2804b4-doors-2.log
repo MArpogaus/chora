@@ -1,0 +1,4 @@
+merge-gate: waits for /tmp/chora-gate.lock
+run directory: /tmp/merge-gate.j7kmy8
+doors      PASS   317s /tmp/merge-gate.j7kmy8/doors.log
+partial run: nothing is pushed
