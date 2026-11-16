@@ -2,6 +2,7 @@
 """Sum the token use of Claude Code sessions per day and model.
 
 Usage: tokens.py [DAY] [--carry CACHE_READ,OUTPUT]   (plain integers, no separators)
+       tokens.py --forecast   (pace and projected use at the reset from READINGS)
   DAY as YYYY-MM-DD in Asia/Bangkok, default today. --carry adds the
   totals of earlier containers of the same day (the `carry` column of
   archive/ledger.md) before the estimate.

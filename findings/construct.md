@@ -14,3 +14,5 @@ co-12 | MINOR | fb-swarm2:93; backlog:50 | open | Cube faces B, C, D show wallpa
 co-13 | COSMETIC | pixel-construct-r5:21-23 | open | Tray text differs 1x/2x, duplicate captures, "XP 1  · face" spacing, tiny terminal text in side panes
 co-14 | COSMETIC | pixel-construct-r5:39-41 | verify | Pull frame: blank blue slab and a yellow 12 px square (harness pointer marker per fb-swarm4-c4, not construct); mid-turn sawtooth; blurred side reflections
 co-15 | COSMETIC | fb-swarm2:203 | open | Empty floor gives no landmark that walking works (the start card helps; verify it shows with no program)
+co-16 | MAJOR | media-r1 tour v3 06-06 to 06-11 (tour-all 10:56-11:39) | open | After a drag in the stepped-back view the cube leaves the screen to the right; empty floor labelled "XP 2 face 2 of 4" for about 40 s, only the step-in brings it back (ch6 used stale drag coordinates; a person can still land here)
+co-17 | MINOR | media-r1 tour v3 04-13 (08:21) | open | Window list: three terminals all titled "foot" (no way to tell them apart)

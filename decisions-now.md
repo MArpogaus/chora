@@ -1,9 +1,10 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T06:58:00Z
+screened-through: 2026-11-16T07:00:00Z
 
+- 11-16 07:00Z "39 %" -> 6.6 %/day, ~71 % at reset (tokens.py --forecast)
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-16 01:17Z "38 %" -> 12 %/day room, cap 10 %
-- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow. You keep forgetting your main role tasks" -> 12:50 UTC close; duties in the injected state.md and rules (hook: Needs owner)
+- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)
 - 11-15 09:27Z ti-1 "Yes, build under $HOME" -> setup.sh builds fuzzel 1.11; media: status, screencast, README
 - 11-15 09:20Z "prune and update screenshots and screencast" -> media lane
