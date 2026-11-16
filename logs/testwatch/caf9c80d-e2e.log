@@ -1,0 +1,28 @@
+== 1. tests/settings-docs.sh /tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw/target/debug
+== 2. tests/gate-0.9-session-units.sh
+SKIP gate-0.9-session-units: desktop-file-validate is not installed here
+== 3. tests/gate-0.9-shader-hang.sh
+== 4. tests/gate-0.9-input.sh
+== 5. tests/nested.sh /tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw/target/debug /tmp/e2e-sequence.9S6WkK
+== 6. tests/xp.sh /tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw/target/debug /tmp/e2e-sequence.9S6WkK/xp
+== 7. tests/agent.sh /tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw/target/debug /tmp/e2e-sequence.9S6WkK/agent
+== 8. tests/gate-0.7-6.sh
+SKIP gate-0.7-6: xkeyboard-config here has no fkeys option
+== 9. tests/gate-0.7-10.sh
+== 10. tests/gate-0.7-8.sh
+== 11. tests/e2e-fonts.sh
+== 12. tests/gate-0.8-1.sh
+== 13. tests/gate-0.8-2.sh
+== 14. tests/gate-0.8-3.sh
+== 15. tests/gate-0.8-4.sh
+== 16. tests/gate-0.8-6.sh
+== 17. tests/gate-0.8-7.sh
+== 18. tests/gate-0.8-9.sh
+== 19. tests/gate-0.8-10.sh
+== 20. tests/gate-0.8-tiling-style.sh
+== 21. tests/gate-0.8-tiling-look.sh
+== 22. tests/gate-0.9-tiling-tags.sh
+== 23. tests/gate-tiling-apps.sh
+== 24. tests/gate-tiling-apps-click.sh
+FAIL: a click on the Zebra row did not start zebra
+FAIL: scripts failed: gate-tiling-apps-click (logs in /tmp/e2e-sequence.9S6WkK)
