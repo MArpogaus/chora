@@ -17,6 +17,9 @@
 #   status      the word Mute of mc stands beside its state word and never
 #               under the state word of the host (mc-36)
 #
+#   empty-head  the column that came back after Super+n twice draws no head
+#               over a text without lines (mc-35)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -163,6 +166,18 @@ cell_status() {
         fail "Mute $mute stands under the state word of the host $word"
 }
 
+cell_empty_head() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    sleep 1
+    has_text "NOTES" && fail "an empty head NOTES stands in the column: $(texts | tr '\n' '|')"
+    shot empty-head
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -173,7 +188,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status)
+cells=(remote wide door status empty-head)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
