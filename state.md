@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 08:49 UTC)
+## Now (2026-11-16 08:54 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day since Sun 09:20, ~74 % at reset Sat 03:59 UTC; room 12.5 %/day; cap 10 %/day.
+budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day, ~74 % at reset; owner 08:52: use the whole week -> target ~12 %/day (cap 12.5 % from next merge). More lanes in parallel.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 66588880 (train 23, 08:3x UTC: media; all steps incl. doors passed). Train 24 (claude/f25 df101c14) gate running. CI green 8e7effad, 3c0603e8; e2e F25 red 66f13d68.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
@@ -26,14 +26,17 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | f25 r2 (rc 4) | handed back 08:15, claude/f25 df101c1f | briefs/f25-r2.md | MERGE-OK (reports/review-f25-r2.md, 2 MINOR); train 24 gate running |
-| multilook r1 (rc 1) | cloud sonnet medium, claude/multilook (66f13d68) | briefs/multilook-r1.md | 3rd start 08:15 (PENDING 2x); sh-23, co-16 MAJOR; ti-20 verify |
+| multilook r1 (rc 1) | cloud sonnet medium, claude/multilook (66f13d68) | briefs/multilook-r1.md | 4th start 08:46 (session ...NhsR4); sh-23, co-16 MAJOR; ti-20 verify |
+
+| testwatch r1 (rc 3, 4) | cloud haiku low, session branch | briefs/testwatch-r1.md | starting 09:0x |
+| review areas a r1 (rc 6) | cloud sonnet medium, read-only | briefs/review-areas-a-r1.md | kit, xp, tiling, notify |
+| review areas b r1 (rc 6) | cloud sonnet medium, read-only | briefs/review-areas-b-r1.md | mc, construct, assistant, voice |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: train 24 (f25), CI on PR #106; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
-2. Tue: persona round 4 (haiku swarm), triage.py; rc 6 area reviews on sonnet medium, opus only on HIGH. (rc 2, 6)
+2. Tue: persona round 4 (haiku swarm) after multilook, triage.py; area review fixes (sonnet). (rc 2, 6)
 3. Wed-Thu: flakes F17, F24, F26, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3)
 
 ## Needs owner
-- xp fallback wallpaper (CC-BY-SA) resembles Bliss in the pictures: a glance (licensing is yours). Default: keep.
-- Prompt hook: a fail-open UserPromptSubmit hook in settings.local.json with the main duties (your 09:32)? Default: no; duties stay in the injected state.md and rules.
+- none (wallpaper and prompt-hook questions withdrawn 08:52: PM decided)
