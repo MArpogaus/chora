@@ -53,7 +53,7 @@ click_text() {
     click $at
 }
 key Super+n
-until_ok 'shows "Start a program"' 80 || fail "no column: $(texts | tr '\n' '|')"
+until_ok 'shows "Start a program or run a command"' 80 || fail "no column: $(texts | tr '\n' '|')"
 
 keys_open() { shows "Show overview"; }
 keys_close() {
@@ -125,9 +125,9 @@ header_states() {
     header_step "all keys" keys_open || bad=1
     keys_close
     key Super+n
-    header_step "no column" '! shows "Start a program"' || bad=1
+    header_step "no column" '! shows "Start a program or run a command"' || bad=1
     key Super+n
-    header_step "the column again" 'shows "Start a program"' || bad=1
+    header_step "the column again" 'shows "Start a program or run a command"' || bad=1
     return "$bad"
 }
 

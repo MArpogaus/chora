@@ -90,7 +90,7 @@
     "tooltip": false
   },
   "custom/apps": {
-    "exec": "echo '{\"text\": \"Apps\", \"tooltip\": \"Run a program (Super+Space)\"}'",
+    "exec": "echo '{\"text\": \"Apps\", \"tooltip\": \"Run a program or a typed command (Super+Space)\"}'",
     "return-type": "json",
     "interval": "once",
     "on-click": "choractl run -- chora-tiling --launch fuzzel"

@@ -46,11 +46,11 @@ shot() { ctl capture "${SHOTS:-/tmp}/mc-column-$1.png" >/dev/null || fail "captu
 
 until_ok 'has_text "AGENDA"' || fail "no first screen: $(texts | tr '\n' '|')"
 
-for t in "Super+F1" "All keys" "← →" "Turn the page" "Super+Space" "Start a program" \
+for t in "Super+F1" "All keys" "← →" "Turn the page" "Super+Space" "Start a program or run a command" \
     "Super+n" "Hide this column" "Esc" "Back one step"; do
     has_text "$t" || fail "the key list lacks \"$t\" on the first screen"
 done
-rect=$(text_rect "Start a program")
+rect=$(text_rect "Start a program or run a command")
 [ "$(jq -n --argjson r "$rect" '$r[0] >= 700')" = true ] || fail "the key list is not in the right margin: $rect"
 ok "the first screen shows the six rows of the key list in the right margin"
 
@@ -59,7 +59,7 @@ until_ok 'has_text "Show overview"' || fail "Super+F1 does not open the full lis
 ok "Super+F1 opens the full list of keys"
 key Super+F1
 until_ok '! has_text "Show overview"' || fail "Super+F1 does not close the full list"
-has_text "Start a program" || fail "the six rows do not come back"
+has_text "Start a program or run a command" || fail "the six rows do not come back"
 ok "Super+F1 closes the full list"
 
 move_to() { echo "[{\"pointer_move\": {\"position\": [$1, $2]}}]" | ctl inject >/dev/null || fail "inject move"; }
@@ -79,9 +79,9 @@ bars() { ctl query "owner:mc kind:rect" | jq -r '[.[] | select((.id | endswith("
 current() { ctl call mc scene.list '{}' | jq -r '.current'; }
 
 [ "$(bars)" = 0 ] || fail "a focus bar shows without the pointer"
-read -r x y <<<"$(center_of "Start a program")"
+read -r x y <<<"$(center_of "Start a program or run a command")"
 move_to "$x" "$y"
-until_ok '[ "$(bars)" = 1 ]' 8 || fail "no focus bar over the row Start a program"
+until_ok '[ "$(bars)" = 1 ]' 8 || fail "no focus bar over the row Start a program or run a command"
 ok "the pointer over a key row shows the focus bar"
 move_to 400 400
 until_ok '[ "$(bars)" = 0 ]' 8 || fail "the focus bar stays after the pointer left"
