@@ -162,6 +162,8 @@ xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
+xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
+xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
 tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh

@@ -1,0 +1,64 @@
+#!/bin/bash
+# The text fields of xp (xp-24) stand on the grid of xp-v2.md: the edit box
+# of the chat is 28 px high with a 1 px border of #7F9DB9, and its top and
+# bottom edges are those of the Send button beside it, at scale 1 and 2.
+# The Run box is fuzzel: its settings stay on the grid of 4 px, and the
+# label is in the text colour.
+# BIN: directory with the binaries, SHOTS: directory for the captures.
+set -u
+. "$(dirname "$0")/gate-lib.sh"
+need jq
+need fuzzel
+need_bins chora choractl chora-xp chora-assistant
+shots=${SHOTS:-$(mktemp -d /tmp/gate-xp-fields.XXXXXX)}
+mkdir -p "$shots"
+
+fuzzel_ini=$repo/flavors/xp/theme/fuzzel.ini
+setting() { sed -n "s/^$1=//p" "$fuzzel_ini" | head -n 1; }
+for key in horizontal-pad vertical-pad inner-pad line-height; do
+    value=$(setting "$key")
+    [ $((value % 4)) = 0 ] || fail "the Run box: $key=$value is off the grid of 4 px"
+done
+[ "$(setting prompt-color)" = "000000ff" ] || fail "the Run box: the label is not in the text colour"
+ok "the Run box stands on the grid of 4 px with a label in the text colour"
+
+field_cell() {
+    local scale=$1 entries pid
+    temp_config
+    export HOME=$XDG_CONFIG_HOME/home
+    mkdir -p "$HOME"
+    session_start "1280x800@$scale" -- "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
+    "$bin/chora-assistant" >"$shots/assistant-$scale.log" 2>&1 &
+    pids+=($!)
+    grant screen.capture
+    entries=$shots/entries.json
+    echo '[{"seq": 1, "role": "user", "text": "Please write notes.txt"}]' >"$entries"
+    mkfifo "$shots/voice-$scale.in"
+    FAKE_VOICE_ENTRIES=$entries python3 -I "$repo/tests/fake-voice.py" "$shots/claims-$scale" \
+        <"$shots/voice-$scale.in" >"$shots/voice-$scale.log" 2>&1 &
+    pid=$!
+    pids+=("$pid")
+    exec 5>"$shots/voice-$scale.in"
+    echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 2}' >&5
+    sleep 2
+    ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
+    for _ in $(seq 50); do
+        [ "$(ctl query id:hud-chat-send | jq length)" = 1 ] && break
+        sleep 0.2
+    done
+    sleep 1.5
+    ctl capture "$shots/chat-field-${scale}x.png" >/dev/null || fail "the capture failed"
+    local sx sy
+    read -r sx sy <<<"$(ctl query id:hud-chat-send | jq -r '.[0].rects | to_entries[0].value | [.[0], .[1]] | map(floor) | join(" ")')"
+    local top height
+    read -r top height <<<"$(python3 -I "$repo/tests/xp-field-rows.py" "$shots/chat-field-${scale}x.png" $((sx - 40)) "$scale")"
+    [ "$top" != none ] || fail "${scale}x: no edit box found left of Send"
+    [ "$height" = 28 ] || fail "${scale}x: the edit box is $height px high, not 28"
+    [ "$top" = "$sy" ] || fail "${scale}x: the edit box starts at y $top, Send at $sy"
+    ok "${scale}x: the edit box of the chat is 28 px high and level with Send"
+    exec 5>&-
+    gate_cleanup 0
+    pids=()
+}
+field_cell 1
+field_cell 2
