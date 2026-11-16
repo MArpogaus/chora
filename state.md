@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 03:02 UTC)
+## Now (2026-11-16 03:37 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 38 % at 01:17 Mon (owner); Mon Bkk day 0.7 % local (tokens.py 01:17). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
+budget: 38 % at 01:17 Mon (owner); Mon Bkk day 1.0 % local (tokens.py 03:37). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 8e7effad (train 20, 01:16 UTC: core watchdog; train 19 1014dddf). CI 10/10 green on 8e7effad.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
@@ -26,7 +26,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | harness rc r2 (rc 1, 3, 4) | cloud sonnet low, claude/harness-rc | briefs/harness-rc-r2.md | r1 FIX: F16 red test not in CI e2e; | F16 fixed (waybar killed by early signals); F25 same-frame retry, unproven; F26 diag only |
-| security a r5 (rc 6, 1) | cloud sonnet medium, claude/security-a | briefs/security-a-r5.md | r4 review FIX: no test that a real chat-row click opens the chat; 3 MINOR |
+| security a r5 (rc 6, 1) | MERGE-OK (sonnet re-review); train 21 gate running (3c0603e8) | briefs/security-a-r5.md | 2 COSMETIC to backlog SA10 |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: security a r5 and harness rc r2 reviews on sonnet medium, trains on MERGE-OK. (rc 1, 3, 4, 6)

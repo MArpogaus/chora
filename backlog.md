@@ -152,3 +152,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - F26 (core watchdog r2, 11-15): merge gate doors step failed once (mc column, screenshot-door, volume-door "missing"), passed on rerun. Haiku series of 10 runs, then sonnet fix. (rc 3) Again train 20 gate 1 (11-16 00:4x): tiling keys-alias "missing"; harness rc r1 owns it.
 - WD3 (review-core-watchdog-r2 MINOR): safety.rs:~137 a thread missing from the first read is credited its whole wait (skip it; gate: unit test). After rc.
 - SA9 (review-security-a-r3 COSMETIC): xp main.rs:177-181 last_move coalesces a real move into a later injected one that is dropped; duplicate comment :178. After rc.
+- SA10 (COSMETIC, review-security-a-r5): injected-optout.py docstring still says a plain `injected: name` passes; fix the wording.
