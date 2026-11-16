@@ -36,7 +36,7 @@ burn-down (daily): MAJOR open 5 (sh-23, co-16, xp-23, xp-24, ti-21), lanes 6 bui
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
 2. UX loop: tour v4 -> PM views + 1 reviewer -> fixes -> re-record; last round starts Thu 12:00 (owner 09:16); persona r4 Wed. WIP 6 build lanes. (rc 1, 2, 11)
-3. Wed-Thu: flakes F17, F24, F26, CI6; final review rounds. (rc 3, 4, 8)
+3. Wed-Thu: flakes F17, F24, F26, F27, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
 
 ## Needs owner
