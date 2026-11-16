@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-16 23:28 UTC)
+## Now (2026-11-16 23:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 46 % at 16:49 Mon (owner); tokens.py 21:46: +0.4 % since 19:01. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
+budget: 46 % at 16:49 Mon (owner); tokens.py 23:50: estimate 0.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 4105f8d1 (train 33 23:27: ci-fix r1-r2). Next: testwatch, CI on 4105f8d1.
+session branch: 4105f8d1 (train 33 23:27: ci-fix r1-r2); CI 10/10 green 23:50. Next: testwatch.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
@@ -14,8 +14,8 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | 30b 20:23, 33 23:27 green (2); F26 held (doors 2/2), F28 holds (3/3 after rebuild); F17 open |
-| 4 | CI green | F31 fixed train 33; CI on 4105f8d1 pending |
-| 5 | Packaging smoke | arch hud.yaml fixed train 33 (static checks); CI arch job pending |
+| 4 | CI green | green on 4105f8d1 23:50 (10/10 jobs) |
+| 5 | Packaging smoke | arch, rpm, podman green on 4105f8d1 23:50 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
@@ -33,7 +33,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | merged train 30b 20:23 (review MERGE-OK, 2 MINOR); no r7 |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: CI on 4105f8d1 (rc 4, 5); testwatch (rc 3); backlog r6 Open, tiling rv-3, rv-5.
+1. Now: testwatch (rc 3); backlog r6 Open, tiling rv-3, rv-5.
 2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
