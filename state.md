@@ -30,7 +30,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | r4 e095d113 stale 16b assert; MERGE-OK (PM); train 32 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
-| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | F26, F28, F17 causes; started 16:51 (session_016iS3kNAW1ykWfSGnf2Mgmz) |
+| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | F26, F28, F17; 16:51-18:21 (owner 1.5 h), then opus (session_016iS3kNAW1ykWfSGnf2Mgmz) |
 
 ## Queue (by day; budget 12.5 % a UTC day)
 1. Now: Fable flakes r6 (F26, F28, F17; rc 3). testwatch haiku between merges (rc 3, 4).
