@@ -104,6 +104,9 @@ struct Inner {
 struct Settings {
     /// The command with the sandbox; empty turns the tools off.
     cmd: Vec<String>,
+    /// The variables with the API keys, which no agent gets.
+    #[expect(dead_code, reason = "read when the spawn removes the keys")]
+    keys: Vec<String>,
     projects: BTreeMap<String, String>,
     voices: Vec<String>,
     said_chars: usize,
@@ -118,6 +121,7 @@ impl Settings {
     fn new(config: &Config) -> Self {
         Self {
             cmd: config.spawn(&config.agent_cmd),
+            keys: config.key_envs(),
             projects: config.agent_projects.clone(),
             voices: config.agent_voices.clone(),
             said_chars: config.agent_said_chars as usize,
@@ -1686,10 +1690,10 @@ exec cat >/dev/null"#;
         let _ = std::fs::remove_dir_all(&data);
     }
 
-    /// The agent keeps the variables that the settings name for the API
-    /// keys: a harness may use the same key as the voice LLM.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn the_agent_keeps_the_api_key_variables() {
+    /// The agent does not get the variables that the settings name for
+    /// the API keys: it is driven by an LLM that could print them.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn the_agent_gets_no_api_key_variable() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
         let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&data);
@@ -1716,7 +1720,7 @@ exec cat >/dev/null"#;
         let home = std::fs::read_to_string(&seen).unwrap_or_default();
         agents.stop("keys");
         let _ = std::fs::remove_dir_all(&data);
-        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+        assert_eq!(home.trim(), "unset");
     }
 
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its

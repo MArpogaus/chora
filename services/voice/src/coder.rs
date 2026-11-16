@@ -54,6 +54,8 @@ pub struct Coder {
 
 struct Inner {
     cmd: Vec<String>,
+    /// The variables with the API keys, which the harness does not get.
+    keys: Vec<String>,
     job: Option<Job>,
     /// The spoken result of the last task.
     last: String,
@@ -79,6 +81,7 @@ impl Coder {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 cmd,
+                keys: Vec::new(),
                 job: None,
                 last: String::new(),
             })),
@@ -95,6 +98,12 @@ impl Coder {
     /// goes on.
     pub fn set_cmd(&self, cmd: Vec<String>) {
         self.lock().cmd = cmd;
+    }
+
+    /// The variables with the API keys (`Config::key_envs`); no harness
+    /// gets them.
+    pub fn set_keys(&self, keys: Vec<String>) {
+        self.lock().keys = keys;
     }
 
     /// The function specs for the LLM; none without a harness.
@@ -565,22 +574,23 @@ mod tests {
         let _ = std::fs::remove_dir_all(&data);
     }
 
-    /// The harness keeps the variables with the API keys: it may use the
-    /// same key as the voice LLM.
-    #[tokio::test]
-    async fn the_harness_keeps_the_api_key_variables() {
+    /// The harness does not get the variables with the API keys: it is
+    /// driven by an LLM that could print them.
+    #[tokio::test(flavor = "current_thread")]
+    async fn the_harness_gets_no_api_key_variable() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
         let data = temp("coder-keys");
         let (tx, rx) = mpsc::channel();
         let script = r#"echo "${HOME-unset}" > home.txt"#;
         let coder = Coder::new(sh(script), data.clone(), tx);
+        coder.set_keys(vec!["HOME".into()]);
         coder.call("code_task", &json!({"task": "warte"}));
         tokio::task::spawn_blocking(move || events(&rx))
             .await
             .unwrap();
         let home = std::fs::read_to_string(data.join("worktrees/1/home.txt")).unwrap();
         let _ = std::fs::remove_dir_all(&data);
-        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+        assert_eq!(home.trim(), "unset");
     }
 
     #[tokio::test]
