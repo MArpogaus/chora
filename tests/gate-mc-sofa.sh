@@ -10,6 +10,10 @@
 #   wide        Super+n hides the column and the page takes its room; Super+n
 #               gives it back (mc-37)
 #
+#   door        a press of the mouse on the chat door in the column opens the
+#               chat, also while a helper works and its row has moved the
+#               door down (mc-33)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -17,7 +21,7 @@
 #          mc-sofa-CELL-THEME.png
 # shellcheck disable=SC2016 # until_ok evaluates its first argument
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-mc chora-assistant
+need_bins chora choractl chora-mc chora-assistant chora-chat
 need jq
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
@@ -36,6 +40,7 @@ until_ok() {
     return 1
 }
 move_to() { echo "[{\"pointer_move\": {\"position\": [$1, $2]}}]" | ctl inject >/dev/null || fail "inject move"; }
+emit() { echo "$1 $2" >&3; }
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject $1"; }
 shown='select(.visible and (.rects | length) > 0)'
 texts() { ctl query "owner:mc kind:text" | jq -r ".[] | $shown | .text"; }
@@ -112,6 +117,32 @@ cell_wide() {
     [ "$(lead_width "Boil the water")" = "$before" ] || fail "the page does not narrow when the column is back: $(lead_width "Boil the water") not $before"
 }
 
+click_rect() {
+    local x y
+    x=$(jq -n --argjson r "$1" '$r[0] + ([$r[2] / 2, 40] | min) | floor')
+    y=$(jq -n --argjson r "$1" '$r[1] + $r[3] / 2 | floor')
+    move_to "$x" "$y"
+    sleep 0.4
+    echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
+        ctl inject >/dev/null || fail "inject click"
+}
+text_rect() {
+    ctl query "owner:mc kind:text" | jq -c --arg t "$1" \
+        '[.[] | select(.visible and (.rects | length) > 0 and .text == $t)][0].rects | to_entries[0].value'
+}
+cell_door() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Reminder", "step": 1, "steps": 1, "seq": 4}'
+    until_ok 'has_text "HELPERS"' 20 || fail "no helper row: $(texts | tr '\n' '|')"
+    sleep 1
+    click_rect "$(text_rect "Chat with a helper ...")"
+    until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "a press on the chat door opens no chat: $(texts | tr '\n' '|')"
+    shot door
+    key Escape
+    until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -122,7 +153,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide)
+cells=(remote wide door)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
