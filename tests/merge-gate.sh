@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, walk, keys, pixels, mc-paths, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, winit, wm-pane, walk, keys, pixels, mc-paths, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
