@@ -40,7 +40,15 @@ impl Icons {
     /// only as a small PNG file; anything else falls back to the theme
     /// icon of the file name without its extension.
     pub fn for_sender(&mut self, name: &str) -> Option<PathBuf> {
-        self.find(name)
+        let path = Path::new(name);
+        if !path.is_absolute() {
+            return self.find(name);
+        }
+        if is_small_png(path) {
+            return Some(path.into());
+        }
+        let stem = path.file_stem()?.to_str()?;
+        self.find(stem)
     }
 
     /// The file of the icon of a program, else the generic program
@@ -76,10 +84,27 @@ impl Icons {
     }
 }
 
-#[allow(dead_code)]
-pub(crate) const MAX_SENDER_BYTES: usize = 512 * 1024;
-#[allow(dead_code)]
-pub(crate) const MAX_SENDER_PIXELS: u32 = 512;
+const MAX_SENDER_BYTES: usize = 512 * 1024;
+const MAX_SENDER_PIXELS: u32 = 512;
+
+fn is_small_png(path: &Path) -> bool {
+    use std::io::Read;
+    let Ok(file) = fs::File::open(path) else {
+        return false;
+    };
+    let Ok(meta) = file.metadata() else {
+        return false;
+    };
+    if !meta.is_file() || meta.len() > MAX_SENDER_BYTES as u64 {
+        return false;
+    }
+    let mut head = [0u8; 24];
+    if file.take(24).read_exact(&mut head).is_err() || head[..8] != *b"\x89PNG\r\n\x1a\n" {
+        return false;
+    }
+    let side = |at: usize| u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]]);
+    (1..=MAX_SENDER_PIXELS).contains(&side(16)) && (1..=MAX_SENDER_PIXELS).contains(&side(20))
+}
 
 fn search_all(order: &[String], name: &str, size: Option<u32>) -> Option<PathBuf> {
     // Desktop files may name an icon by its path.

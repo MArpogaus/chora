@@ -247,7 +247,7 @@ impl Notify {
         self.theme.set_scale(scale);
         let icon = Some(note.icon.as_str())
             .filter(|i| !i.is_empty())
-            .and_then(|i| self.icons.find(i));
+            .and_then(|i| self.icons.for_sender(i));
         let corner = self.settings.value.position;
         let card = Card::new(
             &mut self.theme,
