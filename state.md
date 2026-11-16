@@ -28,7 +28,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | construct-r1.md (rc 1) | sonnet high, claude/construct | r1 handback 13:22 (81ff7b60): co-18 BLOCK, co-19, 20, sh-24; K12 pull-out removed; review after mc r2 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | merged train 29 |
-| xp-polish-r3.md (rc 1, 3) | sonnet med, claude/xp-polish | r2 MERGE-OK; train 31 FAIL 14:59 xp-question; flake 1 of 2 (15:05); r3 hint fix started 15:1x |
+| xp-polish-r3.md (rc 1, 3) | sonnet med, claude/xp-polish | r3 handback 15:5x (edd0034: draw-order bug, 20/20 runs); review 16:0x |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
 | mc-r2.md (rc 1, 11) | done | merged train 28 (mc-32 BLOCK, mc-34, 35, 37) |
 
