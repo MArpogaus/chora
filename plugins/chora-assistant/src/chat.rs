@@ -1097,6 +1097,20 @@ impl Session {
         changed
     }
 
+    /// A question of `agent` is about to show, before its card is placed:
+    /// when it is the open helper's, or names none, the state is question
+    /// at once, so the card and the hint show in the same frame.
+    pub fn question_of(&mut self, agent: Option<&str>) {
+        let ours = match (&self.mode, agent) {
+            (Mode::Chat(open), Some(agent)) => open.eq_ignore_ascii_case(agent),
+            (Mode::Chat(_), None) => true,
+            _ => false,
+        };
+        if ours {
+            "question".clone_into(&mut self.status.state);
+        }
+    }
+
     /// A question appeared: where its card goes, fixed until it ends.
     pub fn question_asked(&mut self) -> Where {
         self.answered = Answered::No;
@@ -2369,9 +2383,8 @@ mod tests {
         let (mut session, mut out, _log) = setup();
         let frame = frame(Look::default());
         session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_of(None);
         session.question_asked();
-        let confirm = json!({"id": "51", "prompt": "Write the file?", "buttons": true});
-        session.voice_event(&mut out, "voice.confirm", &confirm);
         assert_eq!(
             session.hint(Language::En).as_deref(),
             Some("Typing does not answer."),

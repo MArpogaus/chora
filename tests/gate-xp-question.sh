@@ -46,7 +46,7 @@ question_cell() {
         cards=$(jq '[.[] | select(.id == "hud-card")] | length' "$nodes")
         hints=$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")
         [ "$cards" = 0 ] && continue
-        [ "$hints" != 0 ] || fail "${scale}x: the card showed without the hint (poll $polls)"
+        [ "$hints" != 0 ] || fail "${scale}x: the card showed without the hint (poll $polls): $(jq -c "[.[].id]" "$nodes")"
         break
     done
     [ "$cards" != 0 ] || fail "${scale}x: no card within 10 s"
