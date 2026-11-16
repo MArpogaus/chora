@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 01:33 UTC)
+## Now (2026-11-16 02:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 0.7 % local (tokens.py 01:17). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -26,7 +26,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | harness rc r1 (rc 1, 3, 4) | cloud sonnet medium, claude/harness-rc | briefs/harness-rc-r1.md | F25, F16/F26 test-side; fuzzel cell + rpm pin |
-| security a r4 (rc 6) | cloud sonnet high, claude/security-a (3rd start 00:48 ran) | briefs/security-a-r4.md | r3 review FIX: events without the flag (grab, enter, scroll) |
+| security a r4 (rc 6) | done 02:22, 250b3716; review on sonnet medium running (local) | briefs/security-a-r4.md | flag in the event type; hud cell now refuses injected row click |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: security a r4 and harness rc r1 reviews on sonnet medium, trains on MERGE-OK. (rc 1, 3, 4, 6)
