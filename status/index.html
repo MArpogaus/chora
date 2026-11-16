@@ -119,15 +119,16 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Fixing the 5 big look bugs: xp and tiling side by side (keys, black pane), the cube sliding off screen, the xp paperclip missing, xp text fields, the tiling bar not matching the cyberpunk style (plus wobbly windows in tiling)</li>
-          <li>Fixing the 4 security issues the code reviews found (no serious ones; every area is now reviewed)</li>
-          <li>Recording tour v4: one real use per look, about 5 minutes; a cheap tester reruns all checks after every merge</li>
+          <li>Fixes from tour v4 (2 blockers, 19 big issues): the cube drag that loses a window, F1 keys and a way out of the cube; the mc remote that does not turn the page, mc help cards; xp editor, volume feedback and question card; tiling bar style</li>
+          <li>Last security fix (picture files); train 26 merging the xp paperclip and text fields; the side-by-side and cube fixes merge next</li>
+          <li>A cheap tester reruns all checks after every merge</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget: 41 % of the week (09:17 UTC), about 8 % a day so far; cap 12.5 % a day; no new lanes until the next reading shows the pace</li>
+          <li>Budget: 43 % of the week (10:05 UTC), about 89 % forecast at the reset; cap 12.5 % a day</li>
+          <li>Tag decision Wed 12:00 UTC: with a blocker or more than 5 big issues open, the release candidate moves to Tue 24 Nov</li>
           <li>Look fix loop: record, PM watches every chapter plus one reviewer, fix, record again; the last round starts Thu 12:00 UTC (19:00 Bangkok)</li>
           <li>Wed: user test round 4. Thu 18:00 UTC: the final tour to you. Fri 20 Nov: release candidate, then cleanup sprint (settings alike in every look, duplicate code)</li>
         </ul>
@@ -178,8 +179,10 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Mon 16 Nov</span><span>8 entries</span></summary>
+      <summary><span>Mon 16 Nov</span><span>10 entries</span></summary>
       <ul class="timeline">
+        <li><time>10:55</time><p><span class="tag ok">merged</span>Train 25: helper programs no longer see your API keys, and a confirm list must cover starting programs (two security fixes, all checks passed). Reviewed and passed: the xp paperclip and text fields, keys in side-by-side looks, the cube no longer sliding away.</p></li>
+        <li><time>10:47</time><p><span class="tag info">plan</span>Cube round started: the drag that loses a window, F1 key list, Escape closes the cube, and no stray key into a window.</p></li>
         <li><time>10:04</time><p><span class="tag warn">review</span>Tour v4 (3:18) reviewed by the PM and one independent reviewer: not fit to show yet. 2 BLOCK (cube drag loses a window; mc remote does not turn the page) and 14 new MAJOR. Fix lanes per look started; the Friday tag is at risk, decision Wed 12:00 UTC (19:00 Bangkok), else Tue 11-24.</p></li>
         <li><time>09:41</time><p><span class="tag ok">CI</span>CI is green on the merged train 24 (caf9c80d): the e2e step that failed before now passes.</p></li>
         <li><time>09:22</time><p><span class="tag ok">merged</span>Train 24: the red CI pixel is fixed. The glow and shadow were drawn twice over the old frame; now only the changed parts are drawn (30 of 30 runs green before the merge).</p></li>
