@@ -512,6 +512,7 @@ pub fn field_place_for(frame: &Frame, token: Option<&str>, to: Option<&str>) -> 
             "text": [0, 0, 0, 255],
             "border": [127, 157, 185, 255],
             "hint": [77, 77, 77, 255],
+            "pad": 4,
         });
         width = w - view::XP_SEND[0] - view::GAP - 2;
     }

@@ -6,7 +6,7 @@
 # One gate runs at a time: the gate and the gate scripts take the lock
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
-# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, hud,
+# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, hud,
 # layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, walk, keys, pixels, mc-paths, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
@@ -162,6 +162,8 @@ xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
+xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
+xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
 tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh

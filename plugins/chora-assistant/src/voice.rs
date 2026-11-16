@@ -606,8 +606,11 @@ impl Agent {
     /// card and no badge.
     pub fn sync_assistant(&mut self, now: Instant) -> Result<Vec<Command>, ClientError> {
         let enabled = self.settings.value.enabled;
-        let want = self.voice.as_ref().map(|(_, s)| *s).filter(|_| enabled);
-        self.switcher.set_state(want.unwrap_or("asleep"), now);
+        let heard = self.voice.as_ref().map(|(_, s)| *s);
+        self.switcher
+            .set_state(heard.filter(|_| enabled).unwrap_or("asleep"), now);
+        let door = self.values.chat().form == ChatForm::Xp;
+        let want = enabled.then(|| heard.or(door.then_some("idle"))).flatten();
         let label = want
             .map(|state| self.state_label(state))
             .unwrap_or_default();

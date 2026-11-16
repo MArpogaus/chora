@@ -42,13 +42,20 @@ pub const HELPER: i32 = 32;
 const HELPER_SHAPE: &str = r##"<path d="M6.5 5.5V10.5a1.75 1.75 0 0 0 3.5 0V4.25a3.5 3.5 0 0 0-7 0V10a5 5 0 0 0 10 0V5" stroke="#ffffff" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>"##;
 /// The speaker of the notification area, left of the clock: 4 pixels
 /// of room before the 16 pixel icon and 4 after, so that the icons stand
-/// 8 pixels apart. A click mutes or unmutes. It keeps its width: the level
-/// and the word "Muted" are in its tooltip.
+/// 8 pixels apart. A click mutes or unmutes. It keeps its width: a bar
+/// right of the cone rises with the level, and the tooltip says it in words.
 pub const SPEAKER: i32 = 24;
 /// The speaker on a grid of 16 pixels.
 const SPEAKER_SHAPE: &str = r##"<path d="M1.5 5.75H5L9 2.25v11.5L5 10.25H1.5z" fill="#ffffff"/>"##;
-/// The waves of a speaker that plays.
-const SPEAKER_WAVE: &str = r##"<path d="M11.5 5.5a3.5 3.5 0 0 1 0 5M13.25 3.5a6.25 6.25 0 0 1 0 9" stroke="#ffffff" fill="none" stroke-width="1.5"/>"##;
+/// The level of a speaker that plays: a bar right of the cone on the
+/// grid of 16 pixels that rises from 1 to 12 pixels with the percent.
+fn level_bar(percent: u32) -> String {
+    let height = 1.0 + 11.0 * f64::from(percent.min(100)) / 100.0;
+    format!(
+        r##"<rect x="11" y="{}" width="3" height="{height}" fill="#ffffff"/>"##,
+        14.0 - height
+    )
+}
 /// The red no-sign over a speaker that is muted or has no output, round
 /// the middle of its grid of 16 pixels.
 const NO_SIGN: &str = r##"<circle cx="8" cy="8" r="6.5" fill="none" stroke="#D8321F" stroke-width="2"/><path d="M3.4 3.4L12.6 12.6" stroke="#D8321F" stroke-width="2"/>"##;
@@ -158,8 +165,8 @@ pub struct Icons {
 /// What the speaker of the notification area shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Speaker {
-    /// Sound plays.
-    On,
+    /// Sound plays at this percent.
+    On(u32),
     /// Muted, or no output device: the red no-sign.
     Off,
 }
@@ -648,7 +655,7 @@ fn tray(theme: &Theme, width: i32, clock: Option<&str>, icons: Icons) -> Picture
         .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
     let speaker = match icons.speaker {
-        Speaker::On => format!("{SPEAKER_SHAPE}{SPEAKER_WAVE}"),
+        Speaker::On(percent) => format!("{SPEAKER_SHAPE}{}", level_bar(percent)),
         Speaker::Off => format!("{SPEAKER_SHAPE}{NO_BADGE}"),
     };
     let helper = if icons.mic_off {
@@ -767,7 +774,7 @@ pub fn preview(
                 width,
                 clock,
                 Icons {
-                    speaker: Speaker::On,
+                    speaker: Speaker::On(40),
                     mic_off: false,
                 },
             );
@@ -1040,7 +1047,7 @@ mod tests {
                 &theme,
                 width,
                 Some("6:46 AM"),
-                icons(Speaker::On, false)
+                icons(Speaker::On(40), false)
             )),
             ["6:46 AM"]
         );
@@ -1089,7 +1096,7 @@ mod tests {
     }
 
     fn check_tray_grid(clock: &str, step: i32) {
-        let (runs, width) = tray_runs(clock, icons(Speaker::On, false), step);
+        let (runs, width) = tray_runs(clock, icons(Speaker::On(40), false), step);
         assert_eq!(runs.len(), 3, "{runs:?} at scale {step}");
         let [helper, speaker, text] = [runs[0], runs[1], runs[2]];
         for icon in [helper, speaker] {
@@ -1126,7 +1133,7 @@ mod tests {
 
     #[test]
     fn the_speaker_has_ink_and_the_no_sign_is_the_palette_red() {
-        let (runs, _) = tray_runs("3:26 AM", icons(Speaker::On, false), 1);
+        let (runs, _) = tray_runs("3:26 AM", icons(Speaker::On(40), false), 1);
         let speaker = runs[1];
         assert!(
             speaker.count * 10 >= speaker.width() * speaker.height() * 3,
@@ -1161,6 +1168,33 @@ mod tests {
     }
 
     #[test]
+    fn the_speaker_shows_the_level_in_ink_at_1x() {
+        let ink = |percent| {
+            let (mut theme, cache) = crate::sheets::tests::theme("tray-level");
+            let picture = tray(
+                &theme,
+                tray_width(true),
+                None,
+                icons(Speaker::On(percent), false),
+            );
+            let image = crate::sheets::tests::draw(&mut theme, &picture);
+            let left = HELPER + (SPEAKER - TRAY_ICON) / 2 + 9;
+            let top = (HEIGHT - TRAY_ICON) / 2;
+            let count = (left..left + 7)
+                .flat_map(|x| (top..top + TRAY_ICON).map(move |y| [x, y]))
+                .filter(|[x, y]| light(crate::sheets::tests::rgb(&image, *x, *y)))
+                .count();
+            let _ = std::fs::remove_dir_all(cache);
+            count
+        };
+        let levels = [ink(0), ink(25), ink(50), ink(75), ink(100)];
+        assert!(
+            levels.windows(2).all(|pair| pair[0] < pair[1]),
+            "the ink right of the cone does not grow with the level: {levels:?}"
+        );
+    }
+
+    #[test]
     fn a_muted_speaker_keeps_its_cone_and_wears_the_no_sign_as_a_badge() {
         let (mut theme, cache) = crate::sheets::tests::theme("tray-cone");
         let mut cone = |speaker| {
@@ -1176,7 +1210,7 @@ mod tests {
                 })
                 .count()
         };
-        let (on, off) = (cone(Speaker::On), cone(Speaker::Off));
+        let (on, off) = (cone(Speaker::On(40)), cone(Speaker::Off));
         let _ = std::fs::remove_dir_all(cache);
         assert!(on >= 40, "the cone has {on} white pixels");
         assert!(
@@ -1189,7 +1223,12 @@ mod tests {
     fn the_tray_has_the_same_width_muted_or_not() {
         let (theme, cache) = crate::sheets::tests::theme("tray-width");
         let width = tray_width(true);
-        let on = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On, false));
+        let on = tray(
+            &theme,
+            width,
+            Some("6:46 AM"),
+            icons(Speaker::On(40), false),
+        );
         let off = tray(&theme, width, Some("6:46 AM"), icons(Speaker::Off, true));
         let _ = std::fs::remove_dir_all(cache);
         assert_eq!(on.size, off.size);
@@ -1220,8 +1259,13 @@ mod tests {
     fn the_helper_shows_the_red_no_sign_while_the_microphone_is_off_at_the_same_width() {
         let (theme, cache) = crate::sheets::tests::theme("tray-mic");
         let width = tray_width(true);
-        let on = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On, false));
-        let off = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On, true));
+        let on = tray(
+            &theme,
+            width,
+            Some("6:46 AM"),
+            icons(Speaker::On(40), false),
+        );
+        let off = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On(40), true));
         let _ = std::fs::remove_dir_all(cache);
         assert_eq!(on.size, off.size);
         assert_ne!(on, off);
