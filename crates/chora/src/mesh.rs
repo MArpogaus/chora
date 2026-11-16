@@ -996,12 +996,17 @@ impl<R: MeshRenderer> RenderElement<R> for MeshElement {
         &self,
         frame: &mut R::Frame<'_, '_>,
         _src: Rectangle<f64, BufferCoords>,
-        _dst: Rectangle<i32, Physical>,
-        _damage: &[Rectangle<i32, Physical>],
+        dst: Rectangle<i32, Physical>,
+        damage: &[Rectangle<i32, Physical>],
         _opaque_regions: &[Rectangle<i32, Physical>],
         _cache: Option<&smithay::utils::user_data::UserDataMap>,
     ) -> Result<(), R::Error> {
         let frame = R::gles_frame(frame);
+        let mut windows = Vec::with_capacity(damage.len());
+        for rect in damage {
+            let at = Rectangle::new(rect.loc + dst.loc, rect.size);
+            windows.extend(gl::backdrop::window_rect(frame, at).map_err(R::from_gles)?);
+        }
         let program = gl::plain_program(frame).map_err(R::from_gles)?;
         let (clip, uv) = clip_space(&self.vertices, frame.projection());
         let call = gl::Draw {
@@ -1015,7 +1020,7 @@ impl<R: MeshRenderer> RenderElement<R> for MeshElement {
             textures: &[],
             seconds: None,
         };
-        gl::draw(frame, &program, &call).map_err(R::from_gles)
+        gl::draw_within(frame, &program, &call, &windows).map_err(R::from_gles)
     }
 }
 
