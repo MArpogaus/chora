@@ -144,9 +144,22 @@ kill -0 "$chora_pid" || fail "chora died"
 png_pixel() { python3 -I "$tests/png-pixel.py" "$@"; }
 # Prints the color of a pixel of a screenshot of the host as "r g b". The
 # header of a 1280x800 PPM file has 16 bytes.
+ppm_pixel() {
+    od -An -tu1 -j $((16 + ($3 * 1280 + $2) * 3)) -N 3 "$1" | awk '{print $1, $2, $3}'
+}
 host_pixel() {
     grim -t ppm "$out/host.ppm"
-    od -An -tu1 -j $((16 + ($2 * 1280 + $1) * 3)) -N 3 "$out/host.ppm" | awk '{print $1, $2, $3}'
+    ppm_pixel "$out/host.ppm" "$1" "$2"
+}
+capture_in_one_frame() {
+    for _ in $(seq 50); do
+        grim -t ppm "$out/host-before.ppm"
+        ctl capture "$out/screen.png" >"$out/screen.json" || fail "the capture failed"
+        grim -t ppm "$out/host-after.ppm"
+        if cmp -s "$out/host-before.ppm" "$out/host-after.ppm"; then return 0; fi
+        sleep 0.2
+    done
+    fail "the host frame kept changing for 10 s: no capture in one frame"
 }
 # Succeeds when two colors differ by at most 8 in each of r, g and b.
 close_to() {
@@ -163,24 +176,14 @@ grep -q "needs a grant" "$out/denied.err" || fail "denied: $(cat "$out/denied.er
 "$bin/choractl" grants | jq -e '.agent == ["screen.capture"]' >/dev/null ||
     fail "grants: $("$bin/choractl" grants)"
 
-bar_shows() {
-    ctl capture "$out/bar.png" >/dev/null 2>&1 &&
-        test "$(png_pixel "$out/bar.png" 570 24)" != "$(png_pixel "$out/bar.png" 570 44)"
-}
-
 step "6. a capture of the output shows what the host shows"
-for _ in $(seq 60); do
-    bar_shows && break
-    sleep 0.5
-done
-bar_shows || fail "the bar of the tiling flavor does not show after 30 s"
-ctl capture "$out/screen.png" >"$out/screen.json" || fail "the capture failed"
+capture_in_one_frame
 jq -e '.width == 1280 and .height == 800 and .scale == 1' "$out/screen.json" >/dev/null ||
     fail "picture: $(cat "$out/screen.json")"
 for point in "320 400" "960 400" "5 5" "1270 790"; do
     read -r x y <<<"$point"
     inner_color=$(png_pixel "$out/screen.png" "$x" "$y")
-    host_color=$(host_pixel "$x" "$y")
+    host_color=$(ppm_pixel "$out/host-after.ppm" "$x" "$y")
     close_to "$inner_color" "$host_color" ||
         fail "pixel $point: $inner_color, the host shows $host_color"
 done
