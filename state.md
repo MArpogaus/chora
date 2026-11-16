@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-16 01:19 UTC)
+## Now (2026-11-16 01:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 0.7 % local (tokens.py 01:17). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
-session branch: 8e7effad (train 20, 01:16 UTC: core watchdog; train 19 1014dddf). CI on 8e7effad shows whether F25 was sh-22.
+session branch: 8e7effad (train 20, 01:16 UTC: core watchdog; train 19 1014dddf). CI 10/10 green on 8e7effad.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -14,7 +14,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; open F16 (tiling bar), F17 (words alarm) |
-| 4 | CI green | PR #106: green 5aa30b54, 4693fe07; F25 red on 0e303d60, 2d9f306f, 1014dddf; sh-22 fix merged 8e7effad, CI pending |
+| 4 | CI green | PR #106: green 5aa30b54, 4693fe07; all 10 green on 8e7effad (sh-22 fix); F25 was 3 of 5 red before, so one green is not proof: watch 2 more runs |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | core done; plugins r1 HIGH fixed; 13 MEDIUM security: lanes security a, b r1 |
 | 7 | deny, machete | clean (ci-rc) |
