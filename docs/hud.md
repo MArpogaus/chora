@@ -192,6 +192,7 @@ chat:
 | `style` | `bubble` or `plain`; `island` on a panel with `source: voice`. |
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
+| `size` | The text size in pixels of a `plain` sentence, 14 to 48, set in the font of the chat. Left out, the sentence is the small text of the host. A `bubble` sentence ignores it. |
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
 | `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |

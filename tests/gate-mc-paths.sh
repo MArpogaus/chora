@@ -31,9 +31,9 @@
 #                  the chat closes: the page of mc gets the keyboard
 #   all-keys       with notifications the full key list stays in the
 #                  column and on the screen, and its rule crosses no text
-#   urgent         a critical notification is named Urgent in the column
-#                  and in the footer in at least 14 px, a press on the
-#                  footer line takes it away, and the arrows still work
+#   urgent         a critical notification is a card in the column, named Urgent,
+#                  in full and at 14 px or more; a press on it takes it away
+#                  and the arrows still work
 #
 # The gate ends with the window audit: the terminal of the terminal page
 # is still there.
@@ -393,20 +393,23 @@ cell_all_keys() {
 }
 
 cell_urgent() {
-    local hit foot
+    local hit card full
+    full="Urgent: Disk is full: The notes have no room left, free some space before the night copy."
     ctl call mc notify.push '{"title": "Update ready"}' >/dev/null || fail "notify.push"
-    ctl call mc notify.push '{"title": "Disk is full", "urgency": "critical"}' >/dev/null || fail "notify.push critical"
+    ctl call mc notify.push '{"title": "Disk is full", "body": "The notes have no room left, free some space before the night copy.", "urgency": "critical"}' >/dev/null || fail "notify.push critical"
     until_ok 'says "Disk is full"' 20 || fail "no critical notification"
     sleep 1
     shot urgent
-    [ "$(texts | grep -cxF "Urgent: Disk is full")" = 2 ] ||
-        fail "the column and the footer do not both say Urgent: Disk is full: $(texts | grep -iF 'disk' | tr '\n' '|')"
-    foot=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select(.visible and (.rects | length) > 0 and .text == "Urgent: Disk is full") | {y: (.rects | to_entries[0].value[1]), size: .font_size}] | max_by(.y)')
-    jq -ne --argjson f "$foot" '$f.y > 740 and $f.size >= 14' >/dev/null || fail "the footer line is not at least 14 px: $foot"
+    [ "$(texts | grep -cxF "$full")" = 2 ] ||
+        fail "the card and the list do not both say the whole notice: $(texts | grep -iF 'disk' | tr '\n' '|')"
+    card=$(ctl query "owner:mc kind:text" | jq -c --arg t "$full" '[.[] | select(.visible and (.rects | length) > 0 and .text == $t) | {r: (.rects | to_entries[0].value), size: .font_size}] | min_by(.r[1])')
+    jq -ne --argjson c "$card" '$c.r[0] >= 860 and $c.r[0] + $c.r[2] <= 1230 and $c.r[1] + $c.r[3] <= 740 and $c.size >= 14' >/dev/null ||
+        fail "the notice is not a card in the column of at least 14 px: $card"
+    jq -ne --argjson c "$card" '$c.r[3] >= 40' >/dev/null || fail "the card does not wrap its notice: $card"
     hit=$(hit_rect urgent)
-    jq -ne --argjson r "$hit" '$r[2] >= 28 and $r[3] >= 28' >/dev/null || fail "the footer line takes a press on less than 28 by 28: $hit"
+    jq -ne --argjson r "$hit" '$r[0] >= 860 and $r[2] >= 28 and $r[3] >= 28' >/dev/null || fail "the card takes a press on less than 28 by 28 in the column: $hit"
     click_rect "$hit"
-    until_ok '[ "$(texts | grep -cxF "Urgent: Disk is full")" = 1 ]' 20 || fail "a press on the footer line does not take it away"
+    until_ok '[ "$(texts | grep -cxF "$full")" = 1 ]' 20 || fail "a press on the card does not take it away"
     has_text "Update ready" || fail "the press took the other notifications too"
     key Right
     until_ok '[ "$(current)" = morning ]' 20 || fail "Right does not turn the page after the press: $(current)"
