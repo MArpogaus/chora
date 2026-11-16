@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 06:58 UTC)
+## Now (2026-11-16 07:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner). Pace from owner readings: 33 % Sun 09:20 -> 38 % Mon 01:17 = 7.5 %/day; forecast Sat 03:59 ~76 % at this pace. tokens.py 06:57 counts only this PM container (1.6 %), not cloud lanes. Cap 10 %/day.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.

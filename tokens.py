@@ -37,8 +37,44 @@ def day_of(stamp):
     return datetime.fromisoformat(stamp.replace("Z", "+00:00")).astimezone(ZONE).date().isoformat()
 
 
+# Weekly readings of the owner (UTC, percent of the week, all models).
+# Append each new reading; --forecast fits the pace since the week reset.
+RESET = "2026-11-21T03:59"  # next reset, Saturday 03:59 UTC
+READINGS = [
+    ("2026-11-15T03:32", 20),
+    ("2026-11-15T09:20", 33),
+    ("2026-11-16T01:17", 38),
+    ("2026-11-16T07:00", 39),
+]
+
+
+def forecast():
+    """Print the pace (percent a day) and the projected use at the reset.
+
+    Uses the owner's readings, which include the cloud lanes that the
+    local transcript count cannot see. Pace: last reading against the
+    reading about a day earlier (or the first one).
+    """
+    utc = ZoneInfo("UTC")
+    pts = [(datetime.fromisoformat(t).replace(tzinfo=utc), v) for t, v in READINGS]
+    now = datetime.now(utc)
+    last_t, last_v = pts[-1]
+    base = next((p for p in reversed(pts[:-1]) if (last_t - p[0]).total_seconds() >= 20 * 3600), pts[0])
+    days = (last_t - base[0]).total_seconds() / 86400
+    pace = (last_v - base[1]) / days if days > 0 else 0.0
+    reset = datetime.fromisoformat(RESET).replace(tzinfo=utc)
+    left_days = (reset - last_t).total_seconds() / 86400
+    print(f"last reading: {last_v} % at {last_t:%a %H:%M} UTC ({(now - last_t).total_seconds() / 3600:.1f} h ago)")
+    print(f"pace: {pace:.1f} %/day since {base[0]:%a %H:%M} UTC")
+    print(f"forecast at reset {reset:%a %H:%M} UTC: {last_v + pace * left_days:.0f} %")
+    print(f"room: {(100 - last_v) / left_days:.1f} %/day over {left_days:.1f} days")
+
+
 def main():
     args = sys.argv[1:]
+    if args[:1] == ["--forecast"]:
+        forecast()
+        return
     carry = (0, 0)
     if "--carry" in args:
         i = args.index("--carry")
