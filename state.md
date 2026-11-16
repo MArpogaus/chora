@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 20:42 UTC)
+## Now (2026-11-16 21:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 46 % at 16:49 Mon (owner); tokens.py 19:01: PM +0.2 % since 16:50. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
+budget: 46 % at 16:49 Mon (owner); tokens.py 21:46: +0.4 % since 19:01. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: ca2804b4 (train 30b 20:23: tiling r2 + flakes r6). Next: testwatch, CI on ca2804b4.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
@@ -27,13 +27,13 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 |---|---|---|
 | construct-r1.md (rc 1) | sonnet high, claude/construct | merged train 32 17:49 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | ca2804b4: doors 2/2, tiling-look, chat-keys 3/3 pass (11 fails were stale binaries); idle |
-| ci-fix-r1.md (rc 4, 5) | sonnet med, claude/ci-fix | started 20:4x: arch tiling hud.yaml, F31 |
+| ci-fix-r1.md (rc 4, 5) | sonnet med, claude/ci-fix | handed back 21:45 cd98d2c8 (gate pass in 2 parts); sonnet review running |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | merged train 32 17:49 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | merged train 30b 20:23 |
 | flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | merged train 30b 20:23 (review MERGE-OK, 2 MINOR); no r7 |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: ci-fix r1 (rc 4, 5: arch hud.yaml, F31); backlog r6 Open, tiling rv-3, rv-5.
+1. Now: ci-fix r1 review, train 33 (rc 4, 5); backlog r6 Open, tiling rv-3, rv-5.
 2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
