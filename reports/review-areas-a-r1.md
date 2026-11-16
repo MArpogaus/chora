@@ -11,14 +11,14 @@ Nothing was run (no build, no tests). Line numbers are those of the head sha abo
 
 ## Counts
 
-| area | HIGH | MEDIUM | LOW | security (included in the counts) |
+| area | HIGH | MEDIUM | LOW | security (included) |
 |---|---|---|---|---|
-| chora-kit | 0 | 2 | 5 | 1 MEDIUM, 2 LOW |
-| chora-xp | 0 | 1 | 6 | 1 LOW |
-| chora-tiling | 0 | 2 | 4 | 0 |
-| chora-notify | 0 | 2 | 4 | 1 MEDIUM, 1 LOW |
-| across plugins | 0 | 2 | 1 | 0 |
-| total | 0 | 9 | 20 | 2 MEDIUM, 4 LOW |
+| chora-kit | 0 | 3 | 5 | 1 MEDIUM (raa-3), 1 LOW (raa-4) |
+| chora-xp | 0 | 1 | 6 | 1 LOW (raa-10) |
+| chora-tiling | 0 | 2 | 4 | none |
+| chora-notify | 0 | 3 | 4 | 1 MEDIUM (raa-23) |
+| across plugins | 0 | 2 | 1 | none |
+| total | 0 | 11 | 20 | 2 MEDIUM, 2 LOW |
 
 No new HIGH. The three HIGH of review-plugins-r1 (XP-B-01, MC-01, NO-01) are fixed (confirmed by review-plugins-high-r1 and by the code, card.rs:26-30, 202-208).
 
@@ -35,7 +35,7 @@ No new HIGH. The three HIGH of review-plugins-r1 (XP-B-01, MC-01, NO-01) are fix
 
 ## chora-xp
 
-- raa-9 MEDIUM simplicity plugins/chora-xp/src/wm.rs (4773 lines, one `Wm`): wm.rs grew by 556 lines since r1 (XP-A-07 still holds and is worse; the file is now larger than the whole of chora-notify, chora-kit/shared and launcher together by a factor of ten). The injected-input comments (see raa-12) and the grabs (raa-1) show the cost: six concerns edit one impl. Fix: split by the seams that already exist in `wm/` (settings dialogs, taskbars, keys, switcher, session, volume) before more is added; known issue with a reason if not done in rc.
+- raa-9 MEDIUM simplicity plugins/chora-xp/src/wm.rs (4773 lines, one `Wm`): wm.rs grew by 556 lines since r1 (XP-A-07 still holds and is worse). The injected-input comments (see raa-12) and the grabs (raa-1) show the cost: six concerns edit one impl. Fix: split by the seams that already exist in `wm/` (settings dialogs, taskbars, keys, switcher, session, volume) before more is added; known issue with a reason if not done in rc.
 - raa-10 LOW SEC plugins/chora-xp/src/session.rs:383-395: Turn Off, Restart, Stand By and Log Off run the command of `xp.yaml` with plain `sh -c` in a thread, outside `choractl run` (no unit, no activation token, no confirm). The defaults are now the shared power script, so a user who edits `turn_off` gets a shell with the full environment of the plugin. Same user and file, so LOW; the other launches go through `chora_kit::run`. Fix: use `chora_kit::run` for these commands, or document that the four commands are plain shell.
 - raa-11 LOW simplicity plugins/chora-xp/src/sound.rs:45-48: `sh -c "{player} \"$1\" ... &"` only to detach the player; the player is one of three constants. Fix: `Command::new(program).args(rest).arg(&file).spawn()` and reap the child, or call `chora_kit::run`.
 - raa-12 LOW simplicity plugins/chora-xp/src/wm.rs:812-815, 840-844, 1817-1844, main.rs:179-181: 17 trailing `// injected: ... hears drops ...` comments on match arms, the same sentence copied (project rule: no inline comments in function bodies; r1 XP-A-21 and XP-B-18 are the same finding). Tiling has 7 (main.rs:681-703, 888, 893) and notify 1. Fix: one doc line on `hears` and delete the arm comments; `node: _, code: _, modifiers: _, text: _, injected: _` in tiling main.rs (NodeKey arm) says nothing and can be `..`.
