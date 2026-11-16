@@ -1069,9 +1069,14 @@ impl Session {
     }
 
     /// A question appeared: where its card goes, fixed until it ends.
+    /// The field of a chat holds Enter while it waits. The field of the
+    /// list does not, as in a list that opens after the question: the
+    /// list has no helper whose question it could be, and its Enter picks.
     pub fn question_asked(&mut self) -> Where {
         self.answered = Answered::No;
-        if let Some(link) = self.link.as_mut() {
+        if self.helper().is_some()
+            && let Some(link) = self.link.as_mut()
+        {
             link.question(true);
         }
         let place = if self.is_open() {
