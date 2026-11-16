@@ -2922,4 +2922,72 @@ mod tests {
         let (_, message) = tiling.fails(&mut core, "scene.apply", give);
         assert!(message.contains("wobble"), "{message}");
     }
+    const SLOT_1: f64 = -262_144.0;
+
+    /// A manager of a virtual output that grabbed Alt+y, one on the
+    /// screen under the pointer, and the pointer there.
+    fn manager_of_a_face_and_one_under_the_pointer() -> (Core, Client, Client) {
+        let mut core = Core::new();
+        let mut face = core.named("face");
+        face.ok(
+            &mut core,
+            "output.add",
+            json!({"spec": "32x32", "virtual": true}),
+        );
+        core.add_output("screen", (64, 48));
+        apply(
+            &mut face,
+            &mut core,
+            &json!([{"create": {"id": "face", "kind": "group", "parent": "root",
+                "props": {"claim": [SLOT_1, SLOT_1, 32.0, 32.0]}}}]),
+        );
+        face.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        let space = claimer(&mut core, "space", [0.0, 0.0, 64.0, 48.0]);
+        move_to(&mut core, 5.0, 5.0);
+        (core, face, space)
+    }
+
+    fn alt_y(core: &Core, injected: bool) -> Option<super::KeyAction> {
+        let mods = smithay::input::keyboard::ModifiersState {
+            alt: true,
+            ..Default::default()
+        };
+        super::grab_action(
+            &core.state,
+            &mods,
+            &[smithay::input::keyboard::Keysym::y],
+            injected,
+        )
+    }
+
+    #[test]
+    fn a_grab_held_back_by_the_pointer_is_swallowed_not_passed_on() {
+        let (core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "the key must not reach the focused client"
+        );
+    }
+
+    #[test]
+    fn an_injected_key_skips_the_pointer_gate() {
+        let (core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        assert!(
+            matches!(alt_y(&core, true), Some(super::KeyAction::Grab(_, _, true))),
+            "an injected key goes to the grab"
+        );
+    }
+
+    #[test]
+    fn a_key_without_a_grab_is_not_swallowed() {
+        let (core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        let mods = smithay::input::keyboard::ModifiersState::default();
+        let none = super::grab_action(
+            &core.state,
+            &mods,
+            &[smithay::input::keyboard::Keysym::y],
+            false,
+        );
+        assert!(none.is_none(), "a plain key goes to the client");
+    }
 }
