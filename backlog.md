@@ -156,3 +156,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - SA9 (review-security-a-r3 COSMETIC): xp main.rs:177-181 last_move coalesces a real move into a later injected one that is dropped; duplicate comment :178. After rc.
 - SA10 (COSMETIC, review-security-a-r5): injected-optout.py docstring still says a plain `injected: name` passes; fix the wording.
 C10 | 11-16 | after tag | config parity (owner 09:01 "Are the looks similarly confogurable?"): every look gets the same top sections (style, effects, bindings, programs, clock); xp.yaml has 26 setting lines and no bindings; before the tag only a table in docs/configuration.md
+R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow cloud clone fails with "Needed a single revision" (testwatch r1); fetch --unshallow (or deepen) in the gate when the base is missing
