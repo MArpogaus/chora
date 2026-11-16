@@ -4,7 +4,7 @@
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 45 % at 12:10 Mon (owner); tokens.py 12:11: PM 3.7 %. Measured 1 %/h (38->45, 01:17-12:10) = 24 %/d, over the 12.5 cap: hold ledger r3, media r3 to next reading; few PM turns.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: c949cc84 (train 29, 13:3x: secfix-a r2, all passed). Train 31 FAIL (hint flake, xp r3). Train 28 mc r1+r2 (6a067e39) gating 15:1x; then reviews construct r1, tiling r2.
+session branch: 6a067e39 (train 28, 15:58: mc r1+r2, all passed). xp r3 running (hint order); review construct r1 next, then tiling r2.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
@@ -30,10 +30,10 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r3.md (rc 1, 3) | sonnet med, claude/xp-polish | r2 MERGE-OK; train 31 FAIL 14:59 xp-question; flake 1 of 2 (15:05); r3 hint fix started 15:1x |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
-| mc-r2.md (rc 1, 11) | sonnet high, claude/mc | r2 MERGE-OK; train 28 gating 15:1x |
+| mc-r2.md (rc 1, 11) | done | merged train 28 (mc-32 BLOCK, mc-34, 35, 37) |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Tue 00:xx: opus F26 doors cause lane (rc 3), replaces ledger r3. testwatch haiku between merges (rc 3, 4). mc r1 alone if r2 not MERGE-OK by 18:00.
+1. Tue 00:xx: opus F26 doors cause lane (rc 3), replaces ledger r3. testwatch haiku between merges (rc 3, 4).
 2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
