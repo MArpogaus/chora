@@ -11,6 +11,7 @@
 # 3. Escape stood back closes the cube; its windows are all still there.
 #
 # Usage: tests/gate-construct-out.sh   BIN: directory with the binaries
+#   OUT_SHOTS  a directory that keeps a capture after each step
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -47,6 +48,7 @@ nodes = json.load(sys.stdin)
 r = nodes[0]["rects"].get("HEADLESS-1") if nodes and nodes[0].get("visible") else None
 print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
 }
+shot() { [ -z "${OUT_SHOTS:-}" ] || ctl capture "$OUT_SHOTS/$1.png" >/dev/null || fail "capture $1"; }
 stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(prop construct-mode-step-in visible)" = True'
 
 session_start 1280x800 -- "$bin/chora-construct"
@@ -72,12 +74,14 @@ inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
     {\"button\": {\"state\": \"released\"}}]"
 until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 20 || fail "a drag that began on a floating window did not turn the cube: $(prop construct-face-label-words text), windows before $before, after $(windows); list $(call window.list "{}" | tr -d "\n "); pane $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
 [ "$(windows)" = "$before" ] || fail "a drag on the cube changed its windows: before $before, after $(windows); list $(call window.list "{}" | tr -d "\n "); pane $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
+shot drag-turn
 ok "stood back, a drag that begins on a floating window turns the cube and loses no window: $(windows | tr '\n' ';')"
 key Ctrl+Alt+Left
 until_ok 'prop construct-face-label-words text | grep -q "face 1 of 4"' 20 || fail "no turn back to face 1"
 
 plain F1
 until_ok 'test "$(prop construct-help opacity)" = 1.0' 20 || fail "F1 stood back shows no bindings overlay: $(prop construct-help opacity)"
+shot keys
 ok "stood back, F1 shows the bindings overlay"
 plain Escape
 until_ok 'test "$(prop construct-help opacity)" != 1.0' 20 || fail "Escape did not close the overlay"
@@ -89,4 +93,5 @@ until_ok 'test -z "$(virtuals)"' 40 || fail "Escape stood back did not close the
 until_ok 'read -r _ owner out <<<"$(windows | grep "^$surface ")"; test "$out" = HEADLESS-1 || { test "$owner" != xp && test "$owner" != None; }' 60 ||
     fail "the window $surface is lost by closing the cube: before $before, after $(windows)"
 [ "$(windows | wc -l)" = "$(echo "$before" | wc -l)" ] || fail "a window is lost by closing the cube: before $before, after $(windows)"
+shot closed
 ok "Escape stood back closes the cube, and no window is lost: $(windows | tr '\n' ';')"
