@@ -100,6 +100,7 @@ class Tour:
         self.chunk_no = 0
         self.pair = None
         self.pointer_output = None
+        self.cuts = []
 
     def begin(self, chapter, slug):
         self.chapter = chapter
@@ -110,6 +111,33 @@ class Tour:
         self.chapter_frames = 0
         self.act_no = 0
         self.stills_wanted = []
+        self.cuts = []
+
+    def cut(self, seconds):
+        """Let `seconds` pass on the clock but keep them out of the video."""
+        start = self.frame + 1
+        self.wait(seconds)
+        self.cuts.append((start, self.frame))
+
+    def cut_before(self, frame):
+        return sum(min(b, frame - 1) - a + 1 for a, b in self.cuts if a < frame)
+
+    def apply_cuts(self, frames_dir, count):
+        if not self.cuts:
+            return count
+        drop = set()
+        for a, b in self.cuts:
+            drop.update(range(a, b + 1))
+        keep = [n for n in range(1, count + 1) if n not in drop]
+        for new, old in enumerate(keep, 1):
+            src = os.path.join(frames_dir, f"frame-{old:05d}.png")
+            if new != old:
+                os.replace(src, os.path.join(frames_dir, f"frame-{new:05d}.png"))
+        for n in range(len(keep) + 1, count + 1):
+            path = os.path.join(frames_dir, f"frame-{n:05d}.png")
+            if os.path.exists(path):
+                os.remove(path)
+        return len(keep)
 
     def cue(self, method, params, frame=None):
         self.cues.append((self.frame if frame is None else frame, method, params))
@@ -183,9 +211,9 @@ class Tour:
     def drag(self, x1, y1, x2, y2, seconds=1.5, mods=(), button=272, hold=0.3, mid_still=None):
         """Press at the start, move over `seconds`, release at the end."""
         self.move(x1, y1, 1.0)
-        for m in mods:
-            self.inject([{"key": {"key": m, "state": "pressed"}}])
-        self.inject([{"button": {"button": button, "state": "pressed", "hold": True}}])
+        presses = [{"key": {"key": m, "state": "pressed"}} for m in mods]
+        presses.append({"button": {"button": button, "state": "pressed", "hold": True}})
+        self.inject(presses)
         self.wait(hold)
         if mid_still:
             xm, ym = x1 + (x2 - x1) * 0.6, y1 + (y2 - y1) * 0.6
@@ -197,9 +225,7 @@ class Tour:
         else:
             self.move(x2, y2, seconds)
         self.wait(hold)
-        self.inject([{"button": {"button": button, "state": "released"}}])
-        for m in reversed(mods):
-            self.inject([{"key": {"key": m, "state": "released"}}])
+        self.inject([{"button": {"button": button, "state": "released"}}] + [{"key": {"key": m, "state": "released"}} for m in reversed(mods)])
         self.frame += 1
 
     def still(self, name, after=0.0):
@@ -293,6 +319,7 @@ class Tour:
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(self.out, "stills", f"{name}.png"))
         self.stills_wanted = []
+        count = self.apply_cuts(frames_dir, count)
         self.chunk_no += 1
         chunk = os.path.join(self.work, f"{self.slug}-{self.chunk_no:03d}.mkv")
         subprocess.run(
@@ -307,15 +334,14 @@ class Tour:
         print(f"segment {label}: {count} frames in {took:.0f}s ({count / max(took, 0.1):.1f} fps)", flush=True)
         self.cues = []
         self.frame = 0
-        for row in self.rows:
-            pass
+        self.cuts = []
 
     def flush(self, label=""):
         """Record what is pending; rows keep their time in the chapter."""
         offset = self.chapter_frames
         for row in self.rows:
             if "abs" not in row and row["chapter"] == self.chapter:
-                row["abs"] = offset + row["frame"]
+                row["abs"] = offset + row["frame"] - self.cut_before(row["frame"])
         self.run_segment(label)
 
     def finish(self, mp4_name, slide=None):
