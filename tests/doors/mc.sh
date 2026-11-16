@@ -65,6 +65,10 @@ chat_close() {
     key Escape
     until_ok '! chat_open' 20
 }
+door_state() {
+    ctl query '*' | jq -c '[.[] | select((.id | test("doors-(screenshot|volume)")) and (.owner == "mc") and (.rects | length > 0)) | {id, visible, text, r: (.rects | to_entries[0].value)}]' >&2
+    ctl query kind:surface | jq -c '[.[] | {id, owner, rects}]' >&2
+}
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 header_words() {
     ctl query '*' | jq -c '
@@ -216,8 +220,15 @@ cell_screenshot_key() {
 cell_screenshot_door() {
     rm -rf "$XDG_PICTURES_DIR/Screenshots"
     unmark
+    until_ok 'shows "Screenshot"' 20 || {
+        echo "screenshot-door: the words of mc are $(texts | tr '\n' '|')" >&2
+        return 1
+    }
     click_text "Screenshot"
-    marked '^grim' && until_ok shots 20
+    marked '^grim' && until_ok shots 20 && return 0
+    echo "screenshot-door: no grim after the click" >&2
+    door_state
+    return 1
 }
 cell_volume_key() {
     unmark
@@ -225,10 +236,16 @@ cell_volume_key() {
     marked '^wpctl set-volume'
 }
 cell_volume_door() {
-    until_ok 'shows "Volume 50%"' 20 || return 1
+    until_ok 'shows "Volume 50%"' 20 || {
+        echo "volume-door: the words of mc are $(texts | tr '\n' '|')" >&2
+        return 1
+    }
     unmark
     click_text "Volume 50%"
-    marked '^wpctl set-mute'
+    marked '^wpctl set-mute' && return 0
+    echo "volume-door: no set-mute after the click" >&2
+    door_state
+    return 1
 }
 cell_clock_door() {
     ctl query "owner:mc kind:text" |

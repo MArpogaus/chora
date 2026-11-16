@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Starts waybar with the configuration of the tiling flavor on the outputs
 # of chora-tiling only: an output of another window manager, such as
 # chora-xp beside tiling, gets no panel. The outputs come from
@@ -16,6 +16,10 @@
 # the colors.css of the folder chora/tiling of the config directory wins
 # when it is newer than the one that chora-tiling wrote. A SIGUSR2 copies
 # them again, so a new theme shows after the reload of the unit.
+# Waybar starts with SIGUSR1, SIGUSR2 and SIGRTMIN+1 ignored: a push from
+# chora-tiling that arrives before waybar has its handlers is lost, where
+# the default action would end waybar without a word. Waybar sets its own
+# handlers later.
 # Usage: sh waybar.sh DIR   DIR: the waybar folder of the flavor
 command -v jq >/dev/null 2>&1 || {
     echo "waybar.sh: jq is not installed; the panel of the tiling flavor needs it" >&2
@@ -74,8 +78,10 @@ while :; do
     jq -n --arg include "$dir/config.jsonc" --argjson outputs "${outputs:-[\"*\"]}" \
         '{include: [$include], output: $outputs}' >"$config"
     prepare
+    trap '' USR1 USR2 RTMIN+1
     waybar --config "$config" --style "$style/style.css" &
     pid=$!
+    trap - USR1 USR2 RTMIN+1
     echo "$pid" >"$pids/waybar.pid"
     while kill -0 "$pid" 2>/dev/null; do
         sleep 2

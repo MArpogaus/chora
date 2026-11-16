@@ -123,7 +123,13 @@ round() {
         ctl capture "$shots/probe-$tag.png" >"$shots/probe-$tag.log" 2>&1 &&
             [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && bar_shows=1 && break
     done
-    [ -n "$bar_shows" ] || { echo "FAIL: $tag: no bar after 30 s: the last capture says $(tail -n 1 "$shots/probe-$tag.log"), waybar says $(tail -n 5 "$shots/waybar-$tag.log")"; failed=1; }
+    [ -n "$bar_shows" ] || {
+        bar_pid=$(cat "$XDG_RUNTIME_DIR/chora-tiling/waybar.pid" 2>/dev/null)
+        bar_state=dead
+        kill -0 "${bar_pid:-0}" 2>/dev/null && bar_state=alive
+        echo "FAIL: $tag: no bar after 30 s: waybar pid ${bar_pid:-none} is $bar_state, the last capture says $(tail -n 1 "$shots/probe-$tag.log"), waybar says $(tail -n 5 "$shots/waybar-$tag.log")"
+        failed=1
+    }
     token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
     [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
         { echo "FAIL: tokens colors.css: line is ${token:-missing} in $theme"; failed=1; }

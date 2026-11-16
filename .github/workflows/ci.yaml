@@ -175,6 +175,12 @@ jobs:
       run: tests/gate-0.8-tiling-look.sh
     - name: get_tags and the tags module of waybar follow a window
       run: tests/gate-0.9-tiling-tags.sh
+    - name: the Apps list of the tiling flavor shows the installed programs
+      run: tests/gate-tiling-apps.sh
+    - name: a click on a row of the Apps list starts that row
+      run: tests/gate-tiling-apps-click.sh
+    - name: waybar survives the signals of the tiling bar sent right after its start
+      run: tests/gate-tiling-bar-early-signal.sh
     - name: the portal shares an output through xdg-desktop-portal-wlr
       run: tests/gate-0.9-screencast.sh
     - name: an X11 program through xwayland-satellite is a tiled surface
