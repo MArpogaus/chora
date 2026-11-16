@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T01:19:00Z
+screened-through: 2026-11-16T06:58:00Z
 
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-16 01:17Z "38 %" -> 12 %/day room, cap 10 %

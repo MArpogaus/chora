@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 06:40 UTC)
+## Now (2026-11-16 06:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 38 % at 01:17 Mon (owner); Mon Bkk day 1.3 % local (tokens.py 05:23). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
+budget: 38 % at 01:17 Mon (owner). Pace from owner readings: 33 % Sun 09:20 -> 38 % Mon 01:17 = 7.5 %/day; forecast Sat 03:59 ~76 % at this pace. tokens.py 06:57 counts only this PM container (1.6 %), not cloud lanes. Cap 10 %/day.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 66f13d68 (train 22, 05:23 UTC: harness rc; train 21 3c0603e8). CI green 8e7effad, 3c0603e8; e2e F25 red 66f13d68.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.

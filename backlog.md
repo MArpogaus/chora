@@ -138,6 +138,7 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - R14 (harness, harness r5): the guards hook refuses a commit whose guards.sh is red, so a test-only red commit for a guard is impossible (r3, r5 put test and fix in one commit); let the hook accept a commit that only adds failing guard cases (red-first evidence).
 - R15 (harness, review-harness-r5 m1, m2): gate-0.8-plugin-runtime.sh:22 keeps an allow window open when the attribute line does not end in `)]` (`#[allow(x)] /* c */ let z = 2;` is rustfmt-clean and hides a later string call; fail closed: close on any line containing `)]`); no-foreign-kill.sh:72 refuses `if ! command -v pgrep pkill jq >/dev/null; then` and quoted tool names (fails closed).
 - R16 (harness, PM 11-16 05:50): tools/start_lane.sh matches "opus" anywhere in the Model line, so a sonnet line whose reason names opus is refused; match only the model word right after "Model: ".
+- R17 (PM tool, owner 11-16 06:58): tokens.py --forecast: fit the owner's weekly readings (answers.md) to a %/day pace and print the projected use at the Sat 03:59 UTC reset; say plainly that cloud lanes are not in the local count.
 - W16-1: now findings mc-31 (verify in persona round 4 or ledger r3).
 - UX-G1 (gate, review-ux-r3): no cell checks the chat header with a long task or narrow chat.width; the doors helper-none cells run at 1280x800 1x only.
 - L14 (MINOR, review-logging-r2): chora-report -o onto an existing 0644 file keeps 0644; chmod the output.
