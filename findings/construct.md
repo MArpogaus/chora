@@ -16,3 +16,5 @@ co-14 | COSMETIC | pixel-construct-r5:39-41 | verify | Pull frame: blank blue sl
 co-15 | COSMETIC | fb-swarm2:203 | open | Empty floor gives no landmark that walking works (the start card helps; verify it shows with no program)
 co-16 | MAJOR | media-r1 tour v3 06-06 to 06-11 (tour-all 10:56-11:39) | open | After a drag in the stepped-back view the cube leaves the screen to the right; empty floor labelled "XP 2 face 2 of 4" for about 40 s, only the step-in brings it back (ch6 used stale drag coordinates; a person can still land here)
 co-17 | MINOR | media-r1 tour v3 04-13 (08:21) | open | Window list: three terminals all titled "foot" (no way to tell them apart)
+co-18 | BLOCK | journey-1 (tour v4, opus review) C1 04-05-drag-turn.png | open | Drag on the stepped-back cube does not turn it; the chora window disappears from face 1 for good (lost window); chips lose key caps; likely with co-16
+co-19 | MAJOR | journey-1 (tour v4, opus review) C2 04-09-keys.png | open | F1 in the stepped-back view shows no key overlay

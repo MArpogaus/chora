@@ -19,8 +19,10 @@ Reviewers: PM (contact sheets every 2.5 s, scratchpad pm-tour/) and one independ
 
 Pace: 3:18 total (owner 09:01 "too slow"): met. freezedetect 19 spans 1.5-2.4 s: media r3.
 
-## Independent reviewer
-(pending)
+## Independent reviewer (opus, 10:0x; frames 1 fps + drags; did not read media-r2)
+Ledger: xp-25..28, ti-22..25, mc-32..37, co-18..19, sd-h1..h2. Tour-only (media r3): H1 handover layout, X8 scenario drift,
+X9 holds 3.4-3.6 s, T8 slow opening, C4 four XP faces, H6 window audit missing. Known lanes: X7 paperclip (xp-23), T3 bar (ti-21).
+Reviewer verdict: not fit to show the owner (two BLOCK: co-18 lost window, mc-32 dead remote).
 
-## Verdict
-FIX: five MAJOR (j1-1..j1-5); j1-1 and j1-4 are already in running lanes, j1-2, j1-3, j1-5 new.
+## Verdict (PM, both reviews)
+FIX. 2 BLOCK, 14 MAJOR new. BLOCKs need a red cell first (an injection fault is not a product bug). Lanes: multilook (co-16, sh-23 likely cover co-18, sd-h1), mc r1 new, xp-polish r2, tiling-look r2, construct after multilook, media r3 last.

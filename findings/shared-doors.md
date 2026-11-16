@@ -27,3 +27,5 @@ RC bar: a visible way to start a program, the key list and the helper (mouse and
 - Clock visible in all looks; "Chat with a helper" row in every launcher; the helper door always shows a state word, "No helper" included.
 - Cost: F1 no longer reaches clients (vim help); the actions come from the tiling scripts (power.sh, screenshot.sh) moved to a shared folder.
 PM decision 11-14: B, with one change: the key list opens on Super+F1 in every look (Super+/ silent alias); F1 is never grabbed and always reaches the client (POLS: F1 is app help; fixes xp-3). Lane: briefs/doors-r1.md.
+sd-h1 | MAJOR | journey-1 (tour v4, opus review) H2 05-01-two-screens-R.png | open | Empty tiling output in a two-screen setup is pure black: no bar, no start door (likely with sh-23)
+sd-h2 | MAJOR | journey-1 (tour v4, opus review) H3 05-08-drag-mc-out-R.png | open | xp Start menu stays open through a drag and key gives, covering the window

@@ -1,15 +1,25 @@
-# mc r1 (rc 1)
+# mc r1 (rc 1, 11): the BLOCK and MAJOR of journey 1 in chora-mc
 
-Lane: Fable, cloud, branch claude/mc-fix from the session branch head. One round.
-Input: findings/mc.md (claude/session-log) mc-1, mc-3 .. mc-8. Not yours: mc-2 and
-the shared doors (lane doors: launcher, lock, power, volume, screenshot, clock,
-column-foot doors); do not touch the column foot.
-Goal: every listed MAJOR fixed or, for "verify", shown fixed with a capture and a gate
-cell. mc-1: plain Left/Right turn pages, Escape goes back, hint and key list agree.
-mc-3: a mouse way back. mc-4: a visible Mute with a word. mc-5..8 per the ledger.
-Method: red cell first, then the fix; one capture per fix at 1x (keep in the worker).
-Done when: the full merge gate passes. Report: per id fixed/verified/open with cell
-and capture path, commits.
-Rules: author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no AI
-attribution lines; never --no-verify; stage by name; no force push; no pull request;
-never commit Microsoft files or captures with them. Stop at 250 k context and hand over. Push only claude/mc-fix.
+Model: sonnet, effort high (one BLOCK of unknown cause plus five UI fixes in one look)
+Lane: cloud, branch claude/mc from the session branch (caf9c80d). One round.
+Stop at 250 k context. Read reports/journey-1.md, findings/mc.md mc-32..mc-37, the stills named
+there (media/2026-11-16/tour-v4/stills on claude/session-log) and demo/tour ch3 scripts on
+claude/media (2ef891d) for the exact inputs.
+
+1. mc-32 BLOCK first: remote Right/Home do not turn the page in dark mc. Reproduce with the same
+   injected keys as the tour script in a gate cell. If the cell passes, the fault is the script:
+   close mc-32 as not real with 10 passes and name the script line. If it fails: red cell, fix.
+2. mc-35 MAJOR: a critical notice in mc is a readable card (not a truncated footer line); the
+   column keeps its layout (no divider through Chat, KEYS not on top, no empty NOTES heading).
+3. mc-34 MAJOR: the voice HUD (heard text, answer) is legible at a distance: at least the body
+   size of the page, not grey footer text.
+4. mc-36 MAJOR: the helper pill shows the helper's real state (no "No helper" while it answers)
+   and never overlaps the status word.
+5. mc-37 MAJOR: Super+n widens the page to the freed space.
+6. mc-33 MAJOR: the chat door by mouse opens the chat.
+For each: a red gate cell or unit test first (its own commit), then the fix; no tolerance or
+retry. Pixel-check the light and dark themes (captures in the report). Done when: the new cells
+pass 10 times, tests/merge-gate.sh passes once. Report to the PM session
+session_016iS3kLFcYmUQ3S8Zp7sDaN (at most 8 lines) and as reports/mc-r1.md on claude/session-log:
+each claim with its gate cell and capture. Rules as briefs/flakes-r2.md, push only claude/mc and
+that report; never end a turn to wait for a long background job.
