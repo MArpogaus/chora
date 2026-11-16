@@ -7,14 +7,14 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, e2e. `layout` audits
+# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
-# construct; `pull` drags a window out of a face of that cube and back.
+# construct; `pull` drags a window out of a face of that cube and back; `out` turns the stood-back cube by a drag on a window, shows its keys and closes it.
 # `winit` runs a virtual output with xp in a chora nested on the winit
 # backend; `wm-pane` runs xp and tiling each in a pane of the construct; `pane-keys` gives the keys to the pane that a click chose; `walk` taps the walk keys of the
 # construct and reads the pose of the camera at exact times; `keys` types text
