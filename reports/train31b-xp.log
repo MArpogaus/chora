@@ -1,0 +1,29 @@
+== host: headless sway
+== 1. chora -- chora-xp starts nested
+== 1b. chora-notify and chora-assistant start with the XP assets
+== 2. the taskbar is blue, and the start button at its left is green
+== 2b. the work area of the core ends above the taskbar, for the other clients
+== 3. two foot windows get title bars
+== 3b. the caption buttons are 21 by 21 with 2 pixels between and 4 from the frame edge
+== 4. the close button and the start button light up under the pointer
+== 5. a drag of a title bar moves the window and bends it like jelly
+== 6. the minimize button hides the window, its task button shows it
+== 7. the start button opens the start menu
+== 7b. resting on the label of Control Panel for 400 ms opens its cascade
+== 8. the Terminal entry of the start menu starts a terminal
+== 9. the maximize button fills the area above the taskbar
+== 10. the close button closes the window
+== 11. the desktop buttons turn the cube to the second desktop and back
+== 11b. a tooltip names the desktop button that the pointer rests on, and goes with it
+== 12. Ctrl+Alt+Right turns the cube, and Ctrl+Alt+Left turns it back
+== 12b. Super+F1 opens Help and Support with a task button, and Escape closes both
+== 12c. Super alone opens and closes the start menu; Super+d shows the desktop and brings it back
+== 13. My Documents of the start menu starts the file manager
+== 14. the exported methods do what the clicks do
+== 14b. no name of a Microsoft product in the strings of the flavor
+== 15. a notification shows as the balloon of XP, and a click closes it
+u 1
+== 16. the paperclip shows the state and the sentence of the voice agent
+u 2
+== 16b. the chat has XP's form: a close box, Stop and Send, and a card with Yes and No of 80 by 28
+FAIL: timeout: chat_says Atlas — Working
