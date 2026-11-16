@@ -263,7 +263,9 @@ A keyword-spotting model can replace this later.
 
 A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
-`call_method`. The agent speaks the `prompt` of the rule, with the
+`call_method`. A `confirm` list replaces the default, and the settings
+are refused unless one of its rules asks before `run_program` for every
+program (no `argv0`). The agent speaks the `prompt` of the rule, with the
 program of `run_program` in place of `{program}`, the argument `NAME`
 in place of `{NAME}` (a missing one stays as it is) and all text,
 number and boolean arguments in place of `{args}` ("Shall I change the

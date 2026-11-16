@@ -1141,6 +1141,10 @@ impl Config {
         if let Some(rule) = self.confirm.iter().find(|r| r.prompt.trim().is_empty()) {
             return Err(format!("confirm: the rule of {} has no prompt", rule.tool));
         }
+        let any_program = serde_json::json!({"argv": ["a-program-no-rule-names"]});
+        if crate::tools::rule(&self.confirm, "run_program", &any_program).is_none() {
+            return Err("confirm: no rule asks before run_program for every program".into());
+        }
         Ok(())
     }
 }
