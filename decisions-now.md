@@ -1,5 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T12:10:00Z
+screened-through: 2026-11-16T16:47:00Z
+
+- 11-16 16:47Z "Summarize you progress..." -> question, chat
 
 - 11-16 12:10Z "45" -> budget reading 45 %
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
@@ -20,7 +22,6 @@ screened-through: 2026-11-16T12:10:00Z
 - 11-15 09:27Z ti-1 "Yes, build under $HOME" -> setup.sh builds fuzzel 1.11; media: status, screencast, README
 - 11-15 02:10Z "...We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-12 05:47Z "stability and the aesthetics, looks, UX and UI, shall always win over new functionality..." -> ideas to the backlog, push back
-- 11-12 02:42Z "Next time I say plan ... Put it to the backlog"; "Really push back..." -> push back, also on his words
 - 11-11 10:10Z "After ui ux clean. Finalize foundational work and review code ... before feat sprints." -> order: UX/UI, code review, rc, reflection, sprints
 - 11-11 10:31Z "You may released when all clean." -> PM opens CI PR, tags, publishes when rc.md holds
 - 11-11 10:53Z "After the release candidate, we need an extensive user testing round..." -> persona round 5
