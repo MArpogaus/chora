@@ -463,8 +463,45 @@ fn grab_action(
     if state.lock.is_some() {
         return None;
     }
-    let (conn, binding) = state.ipc.grab_for(mods, syms)?;
+    let place = key_place(state);
+    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |conn| {
+        place
+            .as_deref()
+            .is_none_or(|place| !holds_other_claim(state, conn, place))
+    })?;
     Some(KeyAction::Grab(conn, binding, injected))
+}
+
+/// The window manager whose claim holds the pointer: where the person
+/// is when a key goes down.
+fn key_place(state: &State) -> Option<String> {
+    let spot = state.spot(state.pointer_layout)?;
+    let point = [spot.scene.x, spot.scene.y];
+    chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n)).map(String::from)
+}
+
+/// Whether the client of `conn` is a window manager of virtual outputs,
+/// other than `place`, the one under the pointer: its claims all lie on
+/// virtual outputs, as those of a manager in a pane or on a face of a
+/// cube do. A space that shows them on a screen is no such manager, and
+/// keeps its keys.
+pub(crate) fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
+    let Some(name) = state.ipc.name(conn).filter(|name| *name != place) else {
+        return false;
+    };
+    let virtuals: Vec<_> = (state.assets.virtuals.iter())
+        .map(|v| crate::output::output_area(v.output()).to_f64())
+        .collect();
+    let mut claims = (state.scene.nodes())
+        .filter(|n| n.owner.as_deref() == Some(name))
+        .filter_map(|n| n.props.claim)
+        .peekable();
+    claims.peek().is_some()
+        && claims.all(|[x, y, _, _]| {
+            virtuals
+                .iter()
+                .any(|area| area.contains(Point::<f64, Logical>::from((x, y))))
+        })
 }
 
 /// Relative motion, as from a mouse on real hardware. The pointer stays on

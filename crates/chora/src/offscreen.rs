@@ -855,6 +855,37 @@ mod tests {
         (core, construct, screen)
     }
 
+    /// A client with a group whose claim has the corner `at`.
+    fn claiming(core: &mut Core, name: &str, at: (i32, i32)) -> crate::testing::Client {
+        let mut wm = core.named(name);
+        let claim = [f64::from(at.0), f64::from(at.1), 32.0, 32.0];
+        let group = json!({"commands": [{"create": {"id": name, "kind": "group",
+            "parent": "root", "props": {"claim": claim}}}]});
+        wm.ok(core, "scene.apply", group);
+        wm
+    }
+
+    #[test]
+    fn a_manager_of_virtual_outputs_gives_way_to_the_one_under_the_pointer() {
+        let (mut core, mut construct, _screen) = core_with_a_virtual_output();
+        add_virtual(&mut core, &mut construct, "32x32");
+        let slot_2 = SLOT_1 - 262_144;
+        let _a = claiming(&mut core, "a", (SLOT_1, SLOT_1));
+        let _b = claiming(&mut core, "b", (slot_2, SLOT_1));
+        let _space = claiming(&mut core, "space", (0, 0));
+        let conn = |core: &Core, name: &str| core.state.ipc.conns_of(name)[0];
+        let waits = |core: &Core, name: &str, place: &str| {
+            crate::input::holds_other_claim(&core.state, conn(core, name), place)
+        };
+        assert!(waits(&core, "a", "b"), "a manager on a virtual output");
+        assert!(!waits(&core, "a", "a"), "it is the one under the pointer");
+        assert!(
+            !waits(&core, "space", "b"),
+            "a claim on a screen keeps its keys"
+        );
+        assert!(!waits(&core, "construct", "b"), "no claim, no limit");
+    }
+
     fn names(outputs: &[Output]) -> Vec<String> {
         outputs.iter().map(Output::name).collect()
     }
