@@ -130,6 +130,10 @@ pub enum Event {
         /// window (`give_grab`): only at such a press of `move`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         grab: Option<crate::GivenGrab>,
+        /// The event came from `input.inject`, not from a button. A
+        /// client that takes a click for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The pointer moved while the button of a grabbed binding is down.
     #[serde(rename = "input.moved")]
@@ -142,6 +146,10 @@ pub enum Event {
         output: String,
         /// The pointer in the logical coordinates of the output.
         local: [f64; 2],
+        /// The event came from `input.inject`, not from a pointer. A
+        /// client that takes a drag for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// A key went down or up while a node of the client has the keyboard
     /// focus of `focus_node`. Only the connections of the owner of the node
@@ -207,6 +215,10 @@ pub enum Event {
         /// pointer that stood still.
         #[serde(default)]
         moved: bool,
+        /// The event came from `input.inject`, not from a pointer. A
+        /// client that takes a hover for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The pointer left the node of the last `pointer.entered`.
     #[serde(rename = "pointer.left")]
@@ -298,6 +310,10 @@ pub enum Event {
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The event came from `input.inject`, not from a wheel. A
+        /// client that takes a scroll for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// Frames took too long again and again, so the watchdog of the core
     /// removed the effects of the nodes of the client whose nodes cost the

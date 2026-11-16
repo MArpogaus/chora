@@ -686,16 +686,16 @@ impl Tiling {
                 position,
                 surface,
                 grab,
-                ..
+                .. // injected: hears drops an injected event unless tiling accepts them
             } => {
                 self.drag(&binding, state, position, surface);
                 self.take_given_drag(grab);
             }
             // A window that follows the pointer.
             Event::InputMoved {
-                binding, position, ..
+                binding, position, .. // injected: hears drops an injected event unless tiling accepts them
             } if self.drag_to(&binding, position) => {}
-            Event::PointerEntered { node, moved } => {
+            Event::PointerEntered { node, moved, .. } => { // injected: hears drops an injected entry unless tiling accepts them
                 if !self.pointer_focus(&node, false, moved) {
                     return Ok(());
                 }
@@ -2389,12 +2389,14 @@ mod tests {
             local: position,
             surface: Some(surface.into()),
             grab: None,
+            injected: false,
         };
         let moved = |position: [f64; 2]| Event::InputMoved {
             binding: give::MOVE.into(),
             position,
             output: "X".into(),
             local: position,
+            injected: false,
         };
         tiling.event(press(PressState::Pressed, points[0])).unwrap();
         for point in &points[1..] {
@@ -2645,12 +2647,14 @@ mod tests {
             local: position,
             surface: Some(surface.into()),
             grab: None,
+            injected: false,
         };
         let moved = Event::InputMoved {
             binding: give::MOVE.into(),
             position: [230.0, 170.0],
             output: "X".into(),
             local: [230.0, 170.0],
+            injected: false,
         };
         tiling.event(press("s1", [190.0, 150.0])).unwrap();
         tiling.event(moved).unwrap();
@@ -2684,12 +2688,14 @@ mod tests {
             local: [190.0, 150.0],
             surface: Some("s1".into()),
             grab,
+            injected: false,
         };
         let moved = Event::InputMoved {
             binding: give::MOVE.into(),
             position: [230.0, 170.0],
             output: "X".into(),
             local: [230.0, 170.0],
+            injected: false,
         };
         tiling.event(press).unwrap();
         tiling.event(moved).unwrap();
@@ -2941,6 +2947,7 @@ mod tests {
     #[test]
     fn an_injected_button_grab_drags_no_window_in_tiling() {
         let (mut tiling, _methods) = on_fake_core("injected-grab");
+        tiling.grab_all().unwrap();
         tiling.rt.pin_accepts_injected(false);
         tiling
             .wm
@@ -2953,13 +2960,16 @@ mod tests {
                 "surface": "s1", "injected": injected}),
             )
         };
-        tiling.event(press(false)).unwrap();
+        let send = |tiling: &mut Tiling, accepts, injected| {
+            tiling.rt.pin_accepts_injected(accepts);
+            tiling.event(press(injected)).unwrap();
+        };
+        send(&mut tiling, false, false);
         assert!(tiling.dragged.is_some(), "the person's press");
         tiling.dragged = None;
-        tiling.event(press(true)).unwrap();
+        send(&mut tiling, false, true);
         assert_eq!(tiling.dragged, None, "an injected press");
-        tiling.rt.pin_accepts_injected(true);
-        tiling.event(press(true)).unwrap();
+        send(&mut tiling, true, true);
         assert!(tiling.dragged.is_some(), "an injected press in a test");
     }
 

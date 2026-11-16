@@ -293,7 +293,7 @@ impl Construct {
                 };
             }
             Event::InputButton {
-                state, position, ..
+                state, position, .. // injected: Construct::event drops an injected pointer event first
             } => {
                 let at = self.local(position);
                 let inside = self.inside();
@@ -306,7 +306,7 @@ impl Construct {
                     PressState::Released => self.release(at, None),
                 };
             }
-            Event::InputMoved { position, .. } => return self.moved(self.local(position)),
+            Event::InputMoved { position, .. } => return self.moved(self.local(position)), // injected: Construct::event drops an injected pointer event first
             Event::PointerPressed {
                 node,
                 button,
@@ -316,7 +316,7 @@ impl Construct {
                 self.answer(&node, injected);
                 return Ok(());
             }
-            Event::PointerEntered { node, .. } => {
+            Event::PointerEntered { node, .. } => { // injected: Construct::event drops an injected pointer event first
                 let hovered = self.own_window(&node).then_some(node);
                 if hovered != self.hovered {
                     self.hovered = hovered;
@@ -354,7 +354,7 @@ impl Construct {
             {
                 return self.release(position, self.texture_pane(&node));
             }
-            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => {
+            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => { // injected: Construct::event drops an injected pointer event first
                 if let Some(command) = self.voice.scroll(dy) {
                     self.rt.conn.apply(vec![command])?;
                 }
@@ -364,7 +364,7 @@ impl Construct {
                 position,
                 dy,
                 modifiers,
-                ..
+                .. // injected: Construct::event drops an injected pointer event first
             } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
                 let pane = self.texture_pane(&node).or_else(|| self.pane_at(position));
@@ -575,11 +575,11 @@ impl Construct {
                 }
                 Ok(true)
             }
-            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node } // injected: Construct::event drops an injected pointer event first
                 if row_of(node).is_some() =>
             {
                 let row = row_of(node);
-                let over = matches!(event, Event::PointerEntered { .. });
+                let over = matches!(event, Event::PointerEntered { .. }); // injected: Construct::event drops an injected pointer event first
                 let hovered = if over {
                     row
                 } else {
@@ -611,9 +611,10 @@ impl Construct {
             {
                 self.hint_press(node)
             }
-            Event::PointerEntered { node, .. } => self.hint_hovered(node, true),
+            Event::PointerEntered { node, .. } => self.hint_hovered(node, true), // injected: Construct::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hint_hovered(node, false),
             Event::InputMoved { position, .. } => {
+                // injected: Construct::event drops an injected pointer event first
                 let [_, y] = self.local(*position);
                 self.hint_pointer(y)?;
                 Ok(false)
@@ -673,10 +674,10 @@ impl Construct {
                     self.choose(k)?;
                 }
             }
-            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node } // injected: Construct::event drops an injected pointer event first
                 if node.starts_with(LIST_ROW) =>
             {
-                let over = matches!(event, Event::PointerEntered { .. });
+                let over = matches!(event, Event::PointerEntered { .. }); // injected: Construct::event drops an injected pointer event first
                 let row = (node.strip_prefix(LIST_ROW)).and_then(|r| r.parse::<usize>().ok());
                 let hovered = if over { row } else { None };
                 if let Some(list) = self.list.as_mut().filter(|l| l.hovered != hovered) {

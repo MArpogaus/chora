@@ -14,7 +14,11 @@ impl Plugin for Construct {
         &mut self.rt
     }
 
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         let Some(event) = self.pulled(event)? else {
             return Ok(());
         };

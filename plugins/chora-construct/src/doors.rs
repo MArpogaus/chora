@@ -405,6 +405,7 @@ impl Construct {
                 Ok(true)
             }
             Event::PointerEntered { node, .. } => {
+                // injected: Construct::event drops an injected pointer event first
                 self.doors.hover = Door::of(node).or(self.doors.hover);
                 Ok(false)
             }

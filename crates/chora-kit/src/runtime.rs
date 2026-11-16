@@ -30,10 +30,29 @@ pub fn from_person(event: &Event, accepts_injected: bool) -> bool {
         | Event::NodeKey { injected, .. }
         | Event::PointerPressed { injected, .. }
         | Event::PointerMoved { injected, .. }
-        | Event::PointerReleased { injected, .. } => *injected,
+        | Event::PointerReleased { injected, .. }
+        | Event::PointerEntered { injected, .. }
+        | Event::PointerScroll { injected, .. }
+        | Event::InputButton { injected, .. }
+        | Event::InputMoved { injected, .. } => *injected,
         _ => false,
     };
     accepts_injected || !injected
+}
+
+/// Whether a plugin acts on a button grab, a drag move, a hover or a
+/// scroll of the pointer: those of the person, or of `input.inject` while
+/// the plugin takes it as the person's. Every other event is true here: a
+/// plugin judges a key or a press itself, with [`from_person`].
+#[must_use]
+pub fn hears_pointer(event: &Event, accepts_injected: bool) -> bool {
+    match event {
+        Event::InputButton { injected, .. }
+        | Event::InputMoved { injected, .. }
+        | Event::PointerEntered { injected, .. }
+        | Event::PointerScroll { injected, .. } => accepts_injected || !injected,
+        _ => true,
+    }
 }
 
 /// The time between two tries to grab give keys that another client held.
@@ -967,6 +986,6 @@ mod tests {
                 names += 1;
             }
         }
-        assert_eq!(names, 5);
+        assert_eq!(names, 9);
     }
 }

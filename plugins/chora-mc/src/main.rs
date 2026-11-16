@@ -812,6 +812,9 @@ impl Plugin for Mc {
 
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         match event {
             Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
             Event::SurfaceCreated {
@@ -865,7 +868,7 @@ impl Plugin for Mc {
                 state,
                 position,
                 surface,
-                ..
+                .. // injected: Plugin::event drops an injected pointer event first
             } => {
                 self.drag(&binding, state, position, surface);
                 Ok(())
@@ -891,14 +894,14 @@ impl Plugin for Mc {
                 self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
-            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
+            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy), // injected: Plugin::event drops an injected pointer event first
             Event::PointerPressed {
                 node,
                 position,
                 injected,
                 ..
             } => self.press(&node, position, injected),
-            Event::PointerEntered { node, .. } => self.mark(&node, true),
+            Event::PointerEntered { node, .. } => self.mark(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.mark(&node, false),
             _ => Ok(()),
         }

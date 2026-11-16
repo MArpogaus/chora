@@ -242,9 +242,12 @@ impl Plugin for Agent {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
-            Event::PointerEntered { node, .. } => self.hover(&node, true),
+            Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
                 self.switcher.touch(Instant::now());

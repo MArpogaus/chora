@@ -828,10 +828,10 @@ impl Wm {
                 }
             }
             event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
-            | Event::InputButton { .. }
-            | Event::InputMoved { .. }
+            | Event::InputButton { .. } // injected: hears drops an injected event unless xp accepts them
+            | Event::InputMoved { .. } // injected: hears drops an injected event unless xp accepts them
             | Event::NodeKey { .. }) => self.input(event), // injected: hears drops an injected key unless xp accepts them
-            Event::PointerEntered { node, .. } => self.hovered(&node, true),
+            Event::PointerEntered { node, .. } => self.hovered(&node, true), // injected: hears drops an injected event unless xp accepts them
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
             Event::FocusChanged {
@@ -1823,7 +1823,7 @@ impl Wm {
                 .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key_released(&binding),
             Event::InputButton {
-                state, position, ..
+                state, position, .. // injected: hears drops an injected event unless xp accepts them
             } => match state {
                 PressState::Pressed => self.grab_cube(position),
                 PressState::Released => {
@@ -1831,7 +1831,7 @@ impl Wm {
                     Vec::new()
                 }
             },
-            Event::InputMoved { position, .. } => self.drag_cube(position),
+            Event::InputMoved { position, .. } => self.drag_cube(position), // injected: hears drops an injected event unless xp accepts them
             _ => Vec::new(),
         }
     }

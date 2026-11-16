@@ -598,7 +598,7 @@ impl Construct {
             _ if walked.is_some() => {
                 walked.and_then(|(key, modifiers, _)| self.key_act(view, key, modifiers))
             }
-            Event::PointerEntered { node, .. } => return self.hover_act(node, true),
+            Event::PointerEntered { node, .. } => return self.hover_act(node, true), // injected: Construct::event drops an injected pointer event first
             Event::PointerLeft { node } => return self.hover_act(node, false),
             _ => self.pointer_act(view, event)?,
         };

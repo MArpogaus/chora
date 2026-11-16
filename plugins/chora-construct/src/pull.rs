@@ -132,7 +132,7 @@ impl Construct {
                 position,
                 output,
                 local,
-                ..
+                .. // injected: Construct::event drops an injected pointer event first
             } => Some((output.clone(), *local, self.local(*position))),
             _ => None,
         };
@@ -151,7 +151,7 @@ impl Construct {
                 position,
                 surface: Some(surface),
                 grab: Some(grab),
-                ..
+                .. // injected: Construct::event drops an injected pointer event first
             } if binding == give::MOVE => {
                 let at = self.local(position);
                 self.take_pulled(&surface, at, &grab).map(|()| None)
@@ -160,7 +160,7 @@ impl Construct {
                 binding,
                 state: PressState::Pressed,
                 grab: None,
-                ..
+                .. // injected: Construct::event drops an injected pointer event first
             } if binding == give::MOVE && self.inside().is_some() => Ok(None),
             event => Ok(Some(event)),
         }
