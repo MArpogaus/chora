@@ -27,7 +27,7 @@ burn-down (daily): MAJOR open 5 (sh-23, co-16, xp-23, xp-24, ti-21), lanes 6 bui
 |---|---|---|
 | multilook-r1.md (rc 1) | sonnet med, claude/multilook | running 08:46; sh-23, co-16; ti-20 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
-| secfix-a-r1.md (rc 6) | sonnet med, claude/secfix-a | raa-23 fix; raa-3 words |
+| secfix-a-r2.md (rc 6) | sonnet med, claude/secfix-a | r1 FIX (FIFO open, TOCTOU); r2 10:0x |
 | secfix-b-r1.md (rc 6) | sonnet med, claude/secfix-b | rab-60, rab-61 |
 | xp-polish-r1.md (rc 1) | sonnet med, claude/xp-polish | xp-23 paperclip, xp-24 fields |
 | tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
