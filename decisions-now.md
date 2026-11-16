@@ -1,12 +1,13 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T10:05:00Z
+screened-through: 2026-11-16T10:58:00Z
 
+- 11-16 10:58Z "What can we learn from Ron? https://github.com/ronb1964/TuxTalk/blob/main/CLAUDE.md#code-a-human-reviewer-would-respect--every-change" -> idea: C11 ratchet, sprint 1; reviews run tests
 - 11-16 10:05Z "Agree, keep column visible, but toggle in demo. 43 %. Floating windows in cube?" -> column stays; media r3 shows Super+n; reading 43 %
 - 11-16 10:04Z "Floating windows? Why keys etc alleys shown on side? Can be toggeled?" -> questions; mc column toggles by Super+n (mc-37: page must widen)
 
 - 11-16 09:20Z "Agree, apply all six improvements. Adjust project goal and plan as you go." -> six at train 24
 - 11-16 09:16Z "Agree, Thu cutoff and persona Wed. ... Be skeptical ... stabilized and Tory up ..." -> Thu 12:00 cutoff, persona Wed, WIP 6
-- 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. Make sure configurabilit code dedup and cleanup is addressed right after next rc tag. Confirm and give condensed overviews of current tasks and targets" -> PM views tour, UX loop; C10 sprint 1
+- 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. ..." -> PM views tour, UX loop; C10 sprint 1
 - 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? ... Waybar does not mach cyberpunk ... Are the looks similarly confogurable?" -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4; C10 after tag
 - 11-16 08:55Z "Maybe setup script is the problem?" -> yes; fixed 09:0x
 - 11-16 08:52Z "Use IP whole budget during the week. Areas tasks equally and have cheap workers test continuously after changes land." -> ~100 % by reset; lanes over areas; haiku testwatch
@@ -26,6 +27,6 @@ screened-through: 2026-11-16T10:05:00Z
 - 11-09 05:05Z "Push to limit" view in user tests -> both persona kinds
 - 11-09 05:11Z "All user agents shall report issues and draft feature request. You shall review rank and address them by iprtance." -> by severity
 - 11-12 04:26Z "...perfect behavior replication and a pixel-perfect experience..." -> MS assets: optional user import, never shipped; RC on fallback art (11-14)
-- 11-14 05:30Z "...first three as rather important features ... 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0
+- 11-14 05:30Z "...first three ... 1.0 release" -> after rc: B2-B4, C0/A15/V1-3, L1b for 1.0
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like"..." -> own aesthetic per look
 - 11-11 12:45Z "Make it minimal yet complete. Avoid buttons." -> construct HUD: glass, bindings overlay

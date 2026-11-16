@@ -162,3 +162,4 @@ R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow
 - secfix-b LOW (review 10:19): reload wiring test; docs/voice.md scope of stripped keys; AGENT_SANDBOX_UNSET knob doc or drop. (after tag)
 - F28 (multilook r1 gate, 11-16 10:43): chat-keys failed once in the merge gate, 3/3 alone; watch in testwatch. (rc 3)
 - multilook LOW (review 10:47): tests of grab_action wiring, pointer leave, removed virtual output. (after tag)
+- C11 (owner 11-16 10:58, TuxTalk CLAUDE.md): code-health ratchet gate: files over 1,500 lines (24 now, top xp wm.rs 4,773) may only shrink, baseline file in the repo, raised only with owner OK; CODE_HEALTH.md register (our LOW findings), each release closes one; monthly whole-code sweep (review_due.py); a check for AI tells in comments and commit text. Sprint 1 with C10. (after tag)
