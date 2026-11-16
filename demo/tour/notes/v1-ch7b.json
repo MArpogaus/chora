@@ -1,0 +1,7 @@
+{
+ "07b-01-start": "The Start menu opens on the xp screen.",
+ "07b-02-notes-open": "Notes opens on xp (28,54, 700x500).",
+ "07b-03-menu-control-panel": "Control Panel highlighted with its submenu open.",
+ "07b-04-menu-shortcuts": "The pointer goes right into the submenu first, then down: Keyboard Shortcuts opens its list: Super+Alt+1: window to tiling, +2 xp, +3 mc, +4 construct, Super+a: chat. (A diagonal path across the Run... row closes the submenu; see 07-12.)",
+ "07b-05-give-menu-tiling": "The click on Super+Alt+1: window to tiling gives Notes to tiling: it fills the tiling screen, xp is empty and the menu is closed. Audit at the end: one window, owner tiling, none lost."
+}
