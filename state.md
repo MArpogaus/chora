@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 02:59 UTC)
+## Now (2026-11-16 03:02 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 0.7 % local (tokens.py 01:17). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -25,11 +25,11 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| harness rc r1 (rc 1, 3, 4) | done 02:59, 74a6b037; review sonnet medium running (local) | briefs/harness-rc-r1.md | F16 fixed (waybar killed by early signals); F25 same-frame retry, unproven; F26 diag only |
+| harness rc r2 (rc 1, 3, 4) | cloud sonnet low, claude/harness-rc | briefs/harness-rc-r2.md | r1 FIX: F16 red test not in CI e2e; | F16 fixed (waybar killed by early signals); F25 same-frame retry, unproven; F26 diag only |
 | security a r5 (rc 6, 1) | cloud sonnet medium, claude/security-a | briefs/security-a-r5.md | r4 review FIX: no test that a real chat-row click opens the chat; 3 MINOR |
 
 ## Queue (by day; budget 10 % a UTC day)
-1. Mon: security a r5 and harness rc r1 reviews on sonnet medium, trains on MERGE-OK. (rc 1, 3, 4, 6)
+1. Mon: security a r5 and harness rc r2 reviews on sonnet medium, trains on MERGE-OK. (rc 1, 3, 4, 6)
 2. Mon-Tue: media lane on sonnet medium (screencast by Wed for the 24 h window), then ledger r3 (haiku). (rc 11, 1b, 1)
 3. Tue: persona round 4 (haiku swarm), triage.py; rc 6 area reviews on sonnet medium, opus only on HIGH. (rc 2, 6)
 4. Wed-Thu: flakes F17, F24, CI6; final review rounds. (rc 3, 4, 8)
