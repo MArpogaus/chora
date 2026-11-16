@@ -794,7 +794,7 @@ impl Mc {
                 .into_iter()
                 .collect();
         }
-        let opened = self.toggled.get(&region) == Some(&true);
+        let opened = self.toggled.get(&region) == Some(&true) && region != Region::Right;
         let mut items = Vec::new();
         if !title.is_empty() && (opened || !text.is_empty()) {
             items.push(item(format!("{id}-title"), true, &title, true));
