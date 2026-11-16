@@ -1,0 +1,3 @@
+run directory: /tmp/merge-gate.MIGZki
+doors      PASS   325s /tmp/merge-gate.MIGZki/doors.log
+partial run: nothing is pushed
