@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-16 17:12 UTC)
+## Now (2026-11-16 17:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 6a067e39 (train 28). Train 32 (construct r1 81ff7b60 + xp e095d113) FAIL 17:12 at doors: mc screenshot/volume door = F26; rerun 32b 17:12; then tiling r2 review.
+session branch: aba97fec (train 32: construct r1 + xp r2-r4, 17:49; 32a F26 at doors). Next: tiling r2 review, train 30.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
@@ -14,7 +14,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
-| 4 | CI green | green on 6a067e39 (PR #106, 16:21); F25 fix holds |
+| 4 | CI green | green on 6a067e39 (PR #106, 16:21); aba97fec pending; F25 fix holds |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
@@ -25,10 +25,10 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| construct-r1.md (rc 1) | sonnet high, claude/construct | MERGE-OK 16:3x (review-construct-r1: 3 LOW, 2 COSM.); train 32 |
+| construct-r1.md (rc 1) | sonnet high, claude/construct | merged train 32 17:49 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 17:07: 7 heads; F26 1/9, F28 1, F27 5 (its old fuzzel); idle |
 | secfix-a (rc 6) | done | merged train 29 |
-| xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | r4 e095d113 stale 16b assert; MERGE-OK (PM); train 32 |
+| xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | merged train 32 17:49 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
 | flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | F26, F28, F17; 16:51-18:21 (owner 1.5 h), then opus (session_016iS3kNAW1ykWfSGnf2Mgmz) |
 
