@@ -87,11 +87,14 @@ pub fn pick_of(node: &str) -> Option<usize> {
     node.strip_prefix(PICK)?.parse().ok()
 }
 
-/// Whether a press on `node` that a program made counts for nothing: Stop
-/// and the entries of the list.
+/// Whether a press on `node` that a program made counts for nothing: every
+/// button of the chat. Stop, Send, Close, the entries of the list, and the
+/// rows that open the chat or a helper.
 #[must_use]
 pub fn refuses_injected(node: &str) -> bool {
-    node == STOP || node == SEND || pick_of(node).is_some()
+    [STOP, SEND, CLOSE, ROW].contains(&node)
+        || pick_of(node).is_some()
+        || crate::rows::helper_of(node).is_some()
 }
 
 /// The top-left corner of a card inside the view, a gap above the hint of
@@ -1649,12 +1652,18 @@ mod tests {
     }
 
     #[test]
-    fn stop_and_the_entries_refuse_a_press_of_a_program() {
-        assert!(refuses_injected(STOP));
-        assert!(refuses_injected(SEND));
-        assert!(refuses_injected("hud-chat-pick-2"));
-        assert!(!refuses_injected(ROW));
-        assert!(!refuses_injected(CLOSE));
+    fn every_button_of_the_chat_refuses_a_press_of_a_program() {
+        for node in [
+            STOP,
+            SEND,
+            "hud-chat-pick-2",
+            ROW,
+            CLOSE,
+            "hud-row-chat-helper",
+        ] {
+            assert!(refuses_injected(node), "{node}");
+        }
+        assert!(!refuses_injected(HINT), "the hint is no button");
     }
 
     #[test]

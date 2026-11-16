@@ -480,7 +480,7 @@ impl Agent {
         if self.chat_pressed(node, injected)? {
             return Ok(Vec::new());
         }
-        if (Assistant::owns(node) || Assistant::speaks(node)) && self.values.chats {
+        if toggles_chat(node, self.values.chats, injected) {
             if self.chat.is_open() {
                 self.chat_hide()?;
             } else {
@@ -493,6 +493,12 @@ impl Agent {
         }
         Ok(Vec::new())
     }
+}
+
+/// Whether a press on `node` opens or hides the chat: one on the figure or
+/// its words when the folder has chats, and not one that a program made.
+fn toggles_chat(node: &str, chats: bool, injected: bool) -> bool {
+    chats && !injected && (Assistant::owns(node) || Assistant::speaks(node))
 }
 
 /// Forgets the item under the pointer when `commands` remove its node: the
@@ -666,6 +672,16 @@ mod tests {
     }
     use super::*;
     use crate::config::Figure;
+
+    #[test]
+    fn a_press_of_a_program_on_the_figure_neither_opens_nor_hides_the_chat() {
+        for node in ["hud-figure", "hud-line"] {
+            assert!(toggles_chat(node, true, false), "{node} of the person");
+            assert!(!toggles_chat(node, true, true), "{node} injected");
+            assert!(!toggles_chat(node, false, false), "{node} without chats");
+        }
+        assert!(!toggles_chat("hud-chat", true, false), "other nodes");
+    }
 
     #[test]
     fn the_item_under_the_pointer_is_forgotten_when_its_node_goes() {
