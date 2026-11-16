@@ -5,12 +5,14 @@ Usage: injected-optout.py [FILE...]   (pre-commit passes the files; none = all t
 
 The events with an `injected` field are read from crates/chora-scene/src/event.rs
 (NodeKey, PointerPressed, PointerReleased, and every other one with the field).
-A pattern on such an event that names the field as `injected: _`, or that ends in
-the rest pattern `..`, drops the field without a decision, so an injected key or
-press (from `input.inject`) acts as a person's. Every such line needs a
+A pattern on such an event that binds the field to a name that starts with an
+underscore (`injected: _`, `injected: _flag`), or that ends in the rest pattern `..`
+without naming the field, drops the flag without a decision, so an injected key,
+press or move (from `input.inject`) acts as a person's. The flag bound inside
+another field (`text: Some(injected)`) does not name the field. Every such line needs a
 `// injected: <reason>` comment on that line (or alone on the next line, where rustfmt puts a
 comment that follows a brace) that says why the event is safe to take as it is.
-A pattern that names the field (`injected,` or `injected: true`) may end in `..`.
+A pattern that names the field (`injected,`, `injected: true` or `injected: name`) may end in `..`.
 """
 import pathlib
 import re
@@ -64,28 +66,45 @@ def bodies(code, names):
         yield match.group(0), start, index
 
 
-def names_injected(body):
-    return re.search(r"\binjected\b(?!\s*:\s*_(?!\w))", body) is not None
-
-
-def opt_outs(code, start, end):
+def top_level_fields(code, start, end):
+    """The comma-separated items of a pattern or literal at its own depth: (offset, text)."""
     depth = 0
-    decided = names_injected(code[start:end])
-    for index in range(start, end):
-        char = code[index]
+    item = start
+    for index in range(start, end + 1):
+        char = code[index] if index < end else ","
         if char in "([{":
             depth += 1
         elif char in ")]}":
             depth -= 1
-        elif depth == 0 and not decided and code.startswith("..", index):
-            before = code[index - 1] if index else " "
-            after = code[index + 2 : index + 3]
-            if before != "." and not (after.isalnum() or after in "_.="):
-                yield index
-        if depth == 0 and code.startswith("injected: _", index):
-            tail = code[index + 11 : index + 12]
-            if not (tail.isalnum() or tail == "_"):
-                yield index
+        elif char == "," and depth == 0:
+            text = code[item:index]
+            if text.strip():
+                yield item + len(text) - len(text.lstrip()), text.strip()
+            item = index + 1
+
+
+def injected_binding(field):
+    """The target of the field `injected` in an item, or None for any other item."""
+    if field == "injected":
+        return "injected"
+    match = re.match(r"injected\s*:\s*(.*)\Z", field, re.S)
+    return match.group(1) if match else None
+
+
+def opt_outs(code, start, end):
+    fields = list(top_level_fields(code, start, end))
+    bindings = [(offset, injected_binding(field)) for offset, field in fields]
+    decided = False
+    for offset, target in bindings:
+        if target is None:
+            continue
+        if re.match(r"_\w*\Z", target):
+            yield offset
+        else:
+            decided = True
+    for offset, field in fields:
+        if field == ".." and not decided:
+            yield offset
 
 
 def violations(path, names):
