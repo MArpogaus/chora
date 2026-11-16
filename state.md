@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 20:30 UTC)
+## Now (2026-11-16 20:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 46 % at 16:49 Mon (owner); tokens.py 19:01: PM +0.2 % since 16:50. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -13,7 +13,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | 1 | UX: no BLOCK or MAJOR open | 2 BLOCK, 19 MAJOR (journey-1); ti-1 not chora |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
-| 3 | Three greens in a row | 30b green 20:23 (1); F26 mc, F28 fixed (r6 merged); F17 open (diag) |
+| 3 | Three greens in a row | 30b green 20:23 (1); F26 held (doors 2/2 testwatch); F28 again in testwatch (chat-keys, series of 10 running); F17 open |
 | 4 | CI green | ca2804b4 e2e FAIL F31 (xp.sh cleanup race, cases pass); rerun 20:3x |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
@@ -26,7 +26,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r1.md (rc 1) | sonnet high, claude/construct | merged train 32 17:49 |
-| testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 17:07 + aba97fec 18:12 (doors, chat-keys pass; F27 env); idle |
+| testwatch-r1.md (rc 3, 4) | haiku low, session branch | ca2804b4 20:35: doors 2/2, tiling-look pass, chat-keys FAIL (F28); series of 10 |
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | merged train 32 17:49 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | merged train 30b 20:23 |
