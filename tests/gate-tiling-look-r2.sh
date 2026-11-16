@@ -144,13 +144,13 @@ cell_door() {
     sleep 2
     shoot "$shot" || fail "$theme door: the capture"
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-door-none-$theme.png"
-    rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row")) | .id] | join(" ")')
+    rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row-")) | .id] | join(" ")')
     [ -z "$rows" ] || fail "$theme door: the \"Chat ...\" row floats over the tiles without a helper: $rows"
     echo 'voice.state {"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 1, "steps": 2, "seq": 4}' >&3
     sleep 3
     shoot "$shot" || fail "$theme door: the capture"
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-door-helper-$theme.png"
-    rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row")) | .id] | join(" ")')
+    rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row-")) | .id] | join(" ")')
     [ -z "$rows" ] || fail "$theme door: a row of the chat floats over the tiles with a helper: $rows"
     ok "$theme door: no \"Chat ...\" row over the tiles, with a helper or without"
 }
