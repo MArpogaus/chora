@@ -2346,6 +2346,24 @@ mod tests {
         assert_eq!(log.borrow().questions.last(), Some(&true));
     }
 
+    /// The list is a chat with no helper, so a question that appears
+    /// while it shows is not one of its helper: Enter in the field still
+    /// picks, as it does when the list opens after the question (F28).
+    #[test]
+    fn a_question_while_the_list_shows_does_not_hold_the_field() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert!(matches!(session.mode(), Mode::List(..)));
+        assert_eq!(log.borrow().questions.last(), Some(&false));
+        assert_eq!(session.question_asked(), Where::Chat);
+        assert_eq!(
+            log.borrow().questions.last(),
+            Some(&false),
+            "the field of the list holds Enter for a question of some helper"
+        );
+    }
+
     #[test]
     fn an_answered_question_leaves_the_field_without_its_note() {
         let (mut session, mut out, log) = setup();
