@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 08:58 UTC)
+## Now (2026-11-16 08:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day, ~74 % at reset; owner 08:52: use the whole week -> target ~12 %/day (cap 12.5 % from next merge). More lanes in parallel.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -16,7 +16,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | 3 | Three greens in a row | r3 merged; F16 fixed (train 22); F17, F26 open |
 | 4 | CI green | PR #106: green 5aa30b54, 4693fe07; green 8e7effad, 3c0603e8; F25 cause found (f25 r2, df101c1f): damage scissor; review, then train |
 | 5 | Packaging smoke | rpm and arch jobs green on 61d885f0 |
-| 6 | Code review per area | core done; plugins r1 HIGH fixed; security a (r5) and b merged; area reviews Tue |
+| 6 | Code review per area | all areas reviewed, no HIGH; 4 sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
 | 9 | Logging audit, flakes closed | logging audit merged (train 14); flakes r5 merged (train 17) |
@@ -29,9 +29,9 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | multilook r1 (rc 1) | cloud sonnet medium, claude/multilook (66f13d68) | briefs/multilook-r1.md | 4th start 08:46 (session ...NhsR4); sh-23, co-16 MAJOR; ti-20 verify |
 
 | testwatch r1 (rc 3, 4) | cloud haiku low, session branch | briefs/testwatch-r1.md | starting 09:0x |
-| review areas a r1 (rc 6) | cloud sonnet medium, read-only | briefs/review-areas-a-r1.md | kit, xp, tiling, notify |
-| review areas b r1 (rc 6) | done 08:58 | briefs/review-areas-b-r1.md | 74 findings, no HIGH; sec MEDIUM rab-60, 61 |
-| secfix b r1 (rc 6) | cloud sonnet medium, claude/secfix-b | briefs/secfix-b-r1.md | rab-60, rab-61; starting 09:0x |
+| review areas a, b r1 (rc 6) | done 08:59 | reports/review-areas-*.md | no HIGH; sec MEDIUM raa-3, raa-23, rab-60, rab-61 |
+| secfix a r1 (rc 6) | cloud sonnet medium, claude/secfix-a | briefs/secfix-a-r1.md | raa-23 fix; raa-3 words |
+| secfix b r1 (rc 6) | cloud sonnet medium, claude/secfix-b | briefs/secfix-b-r1.md | rab-60, rab-61 |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: train 24 (f25), CI on PR #106; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
