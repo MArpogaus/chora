@@ -463,8 +463,31 @@ fn grab_action(
     if state.lock.is_some() {
         return None;
     }
-    let (conn, binding) = state.ipc.grab_for(mods, syms)?;
+    let place = key_place(state);
+    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |conn| {
+        place
+            .as_deref()
+            .is_none_or(|place| !holds_other_claim(state, conn, place))
+    })?;
     Some(KeyAction::Grab(conn, binding, injected))
+}
+
+/// The window manager whose claim holds the pointer: where the person
+/// is when a key goes down.
+fn key_place(state: &State) -> Option<String> {
+    let spot = state.spot(state.pointer_layout)?;
+    let point = [spot.scene.x, spot.scene.y];
+    chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n)).map(String::from)
+}
+
+/// Whether the client of `conn` holds a claim, and the pointer is in the
+/// claim of another window manager, `place`: its key grabs are not for
+/// the person there.
+fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
+    let Some(name) = state.ipc.name(conn).filter(|name| *name != place) else {
+        return false;
+    };
+    (state.scene.nodes()).any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
 }
 
 /// Relative motion, as from a mouse on real hardware. The pointer stays on
