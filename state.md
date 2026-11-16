@@ -2,10 +2,10 @@
 
 ## Now (2026-11-16 12:11 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 45 % at 12:10 Mon (owner; 43 at 10:05); tokens.py 12:11: PM 3.7 % today. ~1 %/h; 55 % left for 4.7 d = 11.8 %/day. No new lane today beyond queue; few PM turns.
-models: haiku low tests; sonnet medium builds; opus reviews, hard causes, complex lanes (reason). Cap 12.5 %/day from train 24.
-session branch: 9c4f1301 (train 27, 12:4x: multilook r1; all steps passed; CI green on 5d801b2f). Train 29 secfix-a gating; review xp-polish r2 running; mc r2 review next.
-burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14 tour) ; lanes 6 build, 4.6 d left. Tag Fri at risk: check Wed 12:00, if a BLOCK or >5 MAJOR open, tag Tue 11-24.
+budget: 45 % at 12:10 Mon (owner); tokens.py 12:11: PM 3.7 %. Measured 1 %/h (38->45, 01:17-12:10) = 24 %/d, over the 12.5 cap: hold ledger r3, media r3 to next reading; few PM turns.
+models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
+session branch: 9c4f1301 (train 27, 12:4x: multilook r1; all steps passed). Train 29 secfix-a gating; xp-polish r2 in review.
+burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00 check).
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -32,11 +32,11 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r1 MERGE-OK (train 30); r2 ti-22..24 11:5x |
 | mc-r2.md (rc 1, 11) | sonnet high, claude/mc | r2 handback 12:39 (66ca64a9, mc-34, 35b); review after train 27; train 28 = r1+r2 if MERGE-OK |
 
-## Queue (by day; budget 10 % a UTC day)
-1. Mon: multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
+## Queue (by day; budget 12.5 % a UTC day)
+1. Tue 00:xx: opus F26 doors cause lane (rc 3), replaces ledger r3. testwatch haiku between merges (rc 3, 4). mc r1 alone if r2 not MERGE-OK by 18:00.
 2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
 
 ## Needs owner
-- none (setup fix applied 09:0x, owner OK)
+- none

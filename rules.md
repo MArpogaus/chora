@@ -29,7 +29,7 @@ MERGE-OK branch merges within 12 h. Before a budget stop: merge first, start
 nothing. Guard: merge-gate.sh (lock, steps); lanes.py (12 h).
 9. Budget is the main job (owner 11-15). Week resets Sat 03:59 UTC; pace in
 state.md, at most 12.5 % a UTC day; each brief names model and effort (haiku tests;
-sonnet builds; opus reviews, hard causes, complex lanes with a reason). Compact at 300 k;
+sonnet builds, reviews; opus security, hard causes, complex (reason)). Compact at 300 k;
 message the owner only on change, need or merge; log once per merge or hour.
 Guard: start_lane.sh (Model line); lanes.py; pace manual.
 10. Rules. Ten rules, 3,000 bytes. A Guard names a check that exists or says manual

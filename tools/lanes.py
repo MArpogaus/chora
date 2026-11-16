@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CODE = Path("/home/user/chora")
 BASE_BRANCH = "claude/autonomous-dev-session-3w-i33pg7"
 LOG_BRANCH = "claude/session-log"
-MAX_LANES = 4
+MAX_LANES = 6
 MAX_COMMITS_HOUR = 3
 REVIEW_MAX_AGE = timedelta(hours=12)
 TAG = re.compile(r"\((?:rc [^)]*|process)\)")
