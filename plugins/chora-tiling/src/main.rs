@@ -2901,6 +2901,68 @@ mod tests {
         }
     }
 
+    /// An event as the core sends it, so that a test names the field
+    /// `injected` of an event that the type does not carry yet.
+    fn wire(event: Value) -> Event {
+        serde_json::from_value(event).expect("an event of the core")
+    }
+
+    #[test]
+    fn an_injected_pointer_move_does_not_move_the_focus_with_follow_mouse() {
+        let (mut tiling, _methods) = on_fake_core("injected-follow");
+        tiling.rt.pin_accepts_injected(false);
+        assert_eq!(tiling.wm.config.focus, config::Focus::FollowMouse);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.wm.focus("s1");
+        let entered = |injected| {
+            wire(
+                json!({"event": "pointer.entered", "node": "s2", "moved": true,
+                "injected": injected}),
+            )
+        };
+        tiling.event(entered(true)).unwrap();
+        assert_eq!(tiling.wm.focused(), Some("s1"), "an injected entry");
+        tiling.event(entered(false)).unwrap();
+        assert_eq!(tiling.wm.focused(), Some("s2"), "the person's entry");
+        tiling.wm.focus("s1");
+        tiling.rt.pin_accepts_injected(true);
+        tiling.event(entered(true)).unwrap();
+        assert_eq!(
+            tiling.wm.focused(),
+            Some("s2"),
+            "an injected entry in a test"
+        );
+    }
+
+    #[test]
+    fn an_injected_button_grab_drags_no_window_in_tiling() {
+        let (mut tiling, _methods) = on_fake_core("injected-grab");
+        tiling.rt.pin_accepts_injected(false);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        let press = |injected| {
+            wire(
+                json!({"event": "input.button", "binding": give::MOVE, "state": "pressed",
+                "position": [10.0, 10.0], "output": "X", "local": [10.0, 10.0],
+                "surface": "s1", "injected": injected}),
+            )
+        };
+        tiling.event(press(false)).unwrap();
+        assert!(tiling.dragged.is_some(), "the person's press");
+        tiling.dragged = None;
+        tiling.event(press(true)).unwrap();
+        assert_eq!(tiling.dragged, None, "an injected press");
+        tiling.rt.pin_accepts_injected(true);
+        tiling.event(press(true)).unwrap();
+        assert!(tiling.dragged.is_some(), "an injected press in a test");
+    }
+
     fn tiler(windows: &[&str]) -> Wm {
         let mut wm = Wm::new(settings::parse(crate::config::DEFAULT).unwrap());
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
