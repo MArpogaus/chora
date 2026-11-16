@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 09:03 UTC)
+## Now (2026-11-16 09:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day, ~74 % at reset; owner 08:52: use the whole week -> target ~12 %/day (cap 12.5 % from next merge). More lanes in parallel.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -36,9 +36,9 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: train 24 (f25), CI on PR #106; multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
-2. Tue: persona round 4 (haiku swarm) after multilook, triage.py; area review fixes (sonnet). (rc 2, 6)
+2. UX loop (owner 09:08): tour v4 -> PM views every chapter + 1 reviewer -> fix lanes -> re-record until no MAJOR; persona r4 (haiku) Tue. (rc 1, 2, 11)
 3. Wed-Thu: flakes F17, F24, F26, CI6; final review rounds. (rc 3, 4, 8)
-4. Fri 11-20: three greens, tag, CI PR. (rc 3)
+4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
 
 ## Needs owner
 - none (setup fix applied 09:0x, owner OK)
