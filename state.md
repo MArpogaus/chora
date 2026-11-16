@@ -2,7 +2,7 @@
 
 ## Now (2026-11-16 10:06 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 43 % at 10:05 Mon (owner). forecast (tokens.py 10:05): 9.7 %/day, ~89 % at reset; room 12 %/day. 41->43 in 48 min (burst; PM opus context is most of the local cost): fewer PM turns, compact at 200 k, sonnet reviews.
+budget: 43 % at 10:05 Mon (owner). forecast (tokens.py 10:05): 9.7 %/day, ~89 % at reset; room 12 %/day. 41->43 in 48 min: fewer PM turns, compact at 200 k, sonnet reviews.
 models: haiku low tests; sonnet medium builds; opus reviews, hard causes, complex lanes (reason). Cap 12.5 %/day from train 24.
 session branch: 13f86740 (train 25, 10:55: secfix-b r1; all steps passed). Train 26 xp-polish r1: tiling-audit flake F29, gate rerun 11:2x; train 27 multilook r1 next.
 burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14 tour) ; lanes 6 build, 4.6 d left. Tag Fri at risk: check Wed 12:00, if a BLOCK or >5 MAJOR open, tag Tue 11-24.
@@ -27,7 +27,7 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 |---|---|---|
 | construct-r1.md (rc 1) | sonnet high, claude/construct | multilook r1 MERGE-OK (train 27); co-18 BLOCK, co-19, co-20, sh-24 10:5x |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
-| secfix-a-r2.md (rc 6) | sonnet med, claude/secfix-a | r1 FIX (FIFO open, TOCTOU); r2 10:0x |
+| secfix-a-r2.md (rc 6) | sonnet med, claude/secfix-a | r2 back 11:23 (FIFO, TOCTOU fixed; doors flake?); review 11:2x |
 | xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r1 MERGE-OK (train 26); r2 xp-25..27 10:4x |
 | tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
 | mc-r1.md (rc 1, 11) | sonnet high, claude/mc | r1 back 11:21 (mc-32, 35a, 36, 37 fixed; 34, 35b open); review 11:2x; mc-33, 36 script to media r3 |
