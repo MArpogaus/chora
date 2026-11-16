@@ -2,8 +2,10 @@
 //! title bars and task buttons.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fs,
+    io::{Read, Write},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
     path::{Path, PathBuf},
 };
 
@@ -11,6 +13,22 @@ use std::{
 pub struct Icons {
     themes: Vec<String>,
     found: HashMap<String, Option<PathBuf>>,
+    /// Private copies of sender icons, oldest first.
+    copies: VecDeque<PathBuf>,
+}
+
+/// Numbers the copies of all `Icons` of a process.
+static SERIAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Copies of sender icons kept at once.
+const KEPT_COPIES: usize = 16;
+
+impl Drop for Icons {
+    fn drop(&mut self) {
+        for copy in self.copies.drain(..) {
+            let _ = fs::remove_file(copy);
+        }
+    }
 }
 
 impl Icons {
@@ -22,6 +40,7 @@ impl Icons {
         Self {
             themes: themes.into_iter().map(Into::into).collect(),
             found: HashMap::new(),
+            copies: VecDeque::new(),
         }
     }
 
@@ -34,6 +53,55 @@ impl Icons {
         let found = search_all(&self.themes, name, None);
         self.found.insert(name.into(), found.clone());
         found
+    }
+
+    /// The file of the icon a notification sender names. A path is used
+    /// only as a small PNG file, read once and handed on as a private
+    /// copy that the sender cannot write; anything else falls back to the
+    /// theme icon of the file name without its extension.
+    pub fn for_sender(&mut self, name: &str) -> Option<PathBuf> {
+        let path = Path::new(name);
+        if !path.is_absolute() {
+            return self.find(name);
+        }
+        if let Some(copy) = read_small_png(path).and_then(|bytes| self.private_copy(&bytes)) {
+            return Some(copy);
+        }
+        let stem = path.file_stem()?.to_str()?;
+        self.find(stem)
+    }
+
+    /// Writes bytes to a new file of mode 0600 in a private folder.
+    fn private_copy(&mut self, bytes: &[u8]) -> Option<PathBuf> {
+        let base = std::env::var_os("XDG_RUNTIME_DIR")
+            .map(PathBuf::from)
+            .filter(|d| d.is_dir())
+            .unwrap_or_else(std::env::temp_dir);
+        let dir = base.join(format!("chora-icons-{}", std::process::id()));
+        match fs::DirBuilder::new().mode(0o700).create(&dir) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(_) => return None,
+        }
+        let serial = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = dir.join(format!("{serial}.png"));
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)
+            .ok()?;
+        if file.write_all(bytes).is_err() {
+            let _ = fs::remove_file(&path);
+            return None;
+        }
+        self.copies.push_back(path.clone());
+        while self.copies.len() > KEPT_COPIES {
+            if let Some(old) = self.copies.pop_front() {
+                let _ = fs::remove_file(old);
+            }
+        }
+        Some(path)
     }
 
     /// The file of the icon of a program, else the generic program
@@ -67,6 +135,35 @@ impl Icons {
     pub fn first_sized(&mut self, names: &[&str], size: u32) -> Option<PathBuf> {
         names.iter().find_map(|n| self.find_sized(n, size))
     }
+}
+
+const MAX_SENDER_BYTES: usize = 512 * 1024;
+const MAX_SENDER_PIXELS: u32 = 512;
+
+/// The bytes of a PNG file of a sender, if it is a regular file of at most
+/// 512 KiB and a PNG of 1 to 512 pixels on a side. The open does not
+/// block on a FIFO, and the type is checked on the handle.
+fn read_small_png(path: &Path) -> Option<Vec<u8>> {
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(path)
+        .ok()?;
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() || meta.len() > MAX_SENDER_BYTES as u64 {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_SENDER_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() > MAX_SENDER_BYTES || bytes.len() < 24 || bytes[..8] != *b"\x89PNG\r\n\x1a\n" {
+        return None;
+    }
+    let side =
+        |at: usize| u32::from_be_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
+    ((1..=MAX_SENDER_PIXELS).contains(&side(16)) && (1..=MAX_SENDER_PIXELS).contains(&side(20)))
+        .then_some(bytes)
 }
 
 fn search_all(order: &[String], name: &str, size: Option<u32>) -> Option<PathBuf> {
@@ -152,4 +249,116 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn png(width: u32, height: u32, padding: usize) -> Vec<u8> {
+        let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        bytes.extend(width.to_be_bytes());
+        bytes.extend(height.to_be_bytes());
+        bytes.extend([8, 6, 0, 0, 0]);
+        bytes.resize(bytes.len() + padding, 0);
+        bytes
+    }
+
+    fn file(name: &str, bytes: &[u8]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("chora-icons-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        fs::write(&path, bytes).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_sender_path_to_an_svg_is_refused() {
+        let svg = file("sender.svg", b"<svg xmlns='http://www.w3.org/2000/svg'/>");
+        assert_eq!(Icons::new(["none"]).for_sender(svg.to_str().unwrap()), None);
+    }
+
+    #[test]
+    fn a_sender_path_to_an_svg_named_png_is_refused() {
+        let svg = file(
+            "sender-lie.png",
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        );
+        assert_eq!(Icons::new(["none"]).for_sender(svg.to_str().unwrap()), None);
+    }
+
+    #[test]
+    fn an_oversized_sender_png_is_refused() {
+        let wide = file("wide.png", &png(MAX_SENDER_PIXELS + 1, 8, 0));
+        let heavy = file("heavy.png", &png(8, 8, MAX_SENDER_BYTES));
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.for_sender(wide.to_str().unwrap()), None);
+        assert_eq!(icons.for_sender(heavy.to_str().unwrap()), None);
+    }
+
+    #[test]
+    fn a_small_sender_png_still_shows() {
+        let small = file("small.png", &png(48, 48, 100));
+        let mut icons = Icons::new(["none"]);
+        let shown = icons.for_sender(small.to_str().unwrap()).unwrap();
+        assert_eq!(fs::read(shown).unwrap(), png(48, 48, 100));
+    }
+
+    #[test]
+    fn a_fifo_as_a_sender_path_falls_back_at_once() {
+        let dir = std::env::temp_dir().join(format!("chora-icons-fifo-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let fifo = dir.join("pipe.png");
+        let _ = fs::remove_file(&fifo);
+        let made = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .unwrap();
+        assert!(made.success());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let name = fifo.to_str().unwrap().to_string();
+        std::thread::spawn(move || {
+            let _ = tx.send(Icons::new(["none"]).for_sender(&name));
+        });
+        let got = rx.recv_timeout(std::time::Duration::from_secs(1));
+        assert_eq!(got, Ok(None));
+    }
+
+    #[test]
+    fn a_sender_file_swapped_after_the_check_is_not_read() {
+        let path = file("swap.png", &png(32, 32, 0));
+        let mut icons = Icons::new(["none"]);
+        let shown = icons.for_sender(path.to_str().unwrap()).unwrap();
+        fs::write(&path, b"<svg xmlns='http://www.w3.org/2000/svg'/>").unwrap();
+        assert_eq!(fs::read(&shown).unwrap(), png(32, 32, 0));
+        let mode =
+            std::os::unix::fs::PermissionsExt::mode(&fs::metadata(&shown).unwrap().permissions());
+        assert_eq!(mode & 0o077, 0, "the copy is private");
+    }
+
+    #[test]
+    fn the_limits_hold_at_their_edges() {
+        let mut icons = Icons::new(["none"]);
+        let at = |icons: &mut Icons, name: &str, bytes: &[u8]| {
+            let path = file(name, bytes);
+            icons.for_sender(path.to_str().unwrap()).is_some()
+        };
+        assert!(at(&mut icons, "e512.png", &png(512, 512, 0)));
+        assert!(!at(&mut icons, "e513w.png", &png(513, 512, 0)));
+        assert!(!at(&mut icons, "e513h.png", &png(512, 513, 0)));
+        let full = MAX_SENDER_BYTES - png(8, 8, 0).len();
+        assert!(at(&mut icons, "k512.png", &png(8, 8, full)));
+        assert!(!at(&mut icons, "k512p1.png", &png(8, 8, full + 1)));
+        assert!(!at(&mut icons, "empty.png", b""));
+    }
+
+    #[test]
+    fn the_copies_are_removed_with_the_icons() {
+        let path = file("gone.png", &png(8, 8, 0));
+        let mut icons = Icons::new(["none"]);
+        let copy = icons.for_sender(path.to_str().unwrap()).unwrap();
+        assert!(copy.is_file());
+        drop(icons);
+        assert!(!copy.exists());
+    }
 }

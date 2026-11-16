@@ -97,7 +97,11 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
         rows.push(Row::new(keys, "Turn the page", Some(next)));
     }
     if let Some(key) = find(&|a| matches!(a, Action::Run(_))) {
-        rows.push(Row::new(human(key), "Start a program", Some(key)));
+        rows.push(Row::new(
+            human(key),
+            "Start a program or run a command",
+            Some(key),
+        ));
     }
     if let Some(key) = find(&|a| *a == Action::Chat) {
         rows.push(Row::new(human(key), "Chat with a helper", Some(key)));
@@ -174,7 +178,9 @@ fn words(action: &Action) -> Option<String> {
         Action::NextScene => "Next page".to_owned(),
         Action::PreviousScene => "Previous page".to_owned(),
         Action::Scene(name) => format!("Show {}", crate::title_of(name).to_lowercase()),
-        Action::Run(command) if command.starts_with("fuzzel") => "Start a program".to_owned(),
+        Action::Run(command) if command.starts_with("fuzzel") => {
+            "Start a program or run a command".to_owned()
+        }
         Action::Run(command) => format!("Run {}", command.split_whitespace().next()?),
         Action::Give(to) => format!("Give the window to {to}"),
         Action::Drag => return None,
@@ -282,7 +288,7 @@ mod tests {
             "Show agenda",
             "Show terminal",
             "Show overview",
-            "Start a program",
+            "Start a program or run a command",
             "Chat with a helper",
             "Hide this column",
             "Show or hide the header",

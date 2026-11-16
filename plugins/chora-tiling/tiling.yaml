@@ -186,9 +186,9 @@ bindings:
 # of its action, and run its command.
 labels:
   MOD+Return: Terminal
-  MOD+space: Run a program
+  MOD+space: Run a program or a typed command
   MOD+a: Chat with a helper
-  MOD+r: Run a program
+  MOD+r: Run a program or a typed command
   MOD+Shift+Escape: Lock the screen
   MOD+Shift+e: Power menu
   MOD+Print: Screenshot
