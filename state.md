@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 08:54 UTC)
+## Now (2026-11-16 08:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 40 % at 08:49 Mon (owner). forecast (tokens.py 08:49): 7.2 %/day, ~74 % at reset; owner 08:52: use the whole week -> target ~12 %/day (cap 12.5 % from next merge). More lanes in parallel.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -39,4 +39,4 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 4. Fri 11-20: three greens, tag, CI PR. (rc 3)
 
 ## Needs owner
-- none (wallpaper and prompt-hook questions withdrawn 08:52: PM decided)
+- setup.sh fast start (drafts/setup-fast.diff: prebuilt sccache, deny, machete; never exit 1): default apply 12:00 UTC

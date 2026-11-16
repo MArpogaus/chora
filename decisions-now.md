@@ -1,9 +1,9 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T08:52:00Z
+screened-through: 2026-11-16T08:55:00Z
 
-- 11-16 08:52Z "Use IP whole budget during the week. Areas tasks equally and have cheap workers test continuously after changes land." -> spend ~100 % by reset (cap 12.5 %/day at next merge); lanes spread over areas; haiku testwatch after each merge
+- 11-16 08:55Z "Maybe setup script is the problem?" -> likely (exit 1 = PENDING, source builds); fix drafted, owner (environment)
+- 11-16 08:52Z "Use IP whole budget during the week. Areas tasks equally and have cheap workers test continuously after changes land." -> ~100 % by reset (cap 12.5 %/day next merge); lanes spread over areas; haiku testwatch after each merge
 - 11-16 08:49Z "40%" -> 7.2 %/day
-- 11-16 07:00Z "39 %" -> 6.6 %/day, ~71 % at reset (tokens.py --forecast)
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-16 01:17Z "38 %" -> 12 %/day room, cap 10 %
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
