@@ -928,4 +928,139 @@ mod tests {
         assert!(matches!(last, chora_scene::Command::Create { parent, .. } if parent == card::TOP));
         let _ = std::fs::remove_dir_all(root);
     }
+
+    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn on_fake_core(tag: &str, chats: bool) -> Agent {
+        use std::io::BufRead as _;
+        let dir =
+            std::env::temp_dir().join(format!("chora-assistant-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("core.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            for line in std::io::BufReader::new(&stream)
+                .lines()
+                .map_while(Result::ok)
+            {
+                let request: Value = serde_json::from_str(&line).unwrap();
+                let result = match request["method"].as_str().unwrap_or_default() {
+                    "hello" => serde_json::json!({"version": chora_scene::ipc::VERSION}),
+                    "output.list" => serde_json::json!([{
+                        "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
+                        "scale": 1.0, "camera": chora_scene::Transform::default(),
+                        "work_area": [0, 0, 1920, 1080]
+                    }]),
+                    _ => Value::Null,
+                };
+                let answer =
+                    serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                writeln!(writer, "{answer}").unwrap();
+            }
+        });
+        let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
+        let (theme, mut values, cache) = loaded(tag);
+        values.chats = chats;
+        let settings =
+            settings::File::<Config>::load(dir.join("chora-assistant.yaml"), config::DEFAULT)
+                .unwrap();
+        let card_theme = card::theme(&cache, HOST_FAMILY).unwrap();
+        Agent {
+            rt: Runtime::with(conn, NAME, Vec::new()),
+            settings,
+            source: Source {
+                assets: None,
+                roots: vec![huds()],
+                cache: cache.clone(),
+                loads: 1,
+            },
+            theme,
+            values,
+            folder: NEUTRAL.to_owned(),
+            switcher: Switcher::new(),
+            look_context: Context::default(),
+            failed: None,
+            deferred: Vec::new(),
+            stale: Vec::new(),
+            helpers: BTreeMap::new(),
+            slot: None,
+            slot_client: None,
+            look_cache: cache,
+            card_theme,
+            card_family: HOST_FAMILY.to_owned(),
+            language: Language::En,
+            assistant: None,
+            in_pane: false,
+            voice: None,
+            muted: false,
+            card: None,
+            badge: false,
+            top: None,
+            claim_due: false,
+            state_ask: None,
+            chat: Session::new(),
+            chat_pulled: Instant::now(),
+            announced: None,
+            chat_seen: None,
+            chat_retried: Instant::now(),
+            row: None,
+            chat_row: None,
+            said: None,
+            hovered: None,
+            flash: None,
+            keyboard_told: false,
+        }
+    }
+
+    fn pressed(node: &str, injected: bool) -> Event {
+        Event::PointerPressed {
+            node: node.to_owned(),
+            button: 272,
+            position: [0.0, 0.0],
+            local: [0.0, 0.0],
+            modifiers: Vec::new(),
+            injected,
+        }
+    }
+
+    fn entered(node: &str, injected: bool) -> Event {
+        Event::PointerEntered {
+            node: node.to_owned(),
+            moved: true,
+            injected,
+        }
+    }
+
+    #[test]
+    fn a_press_of_a_person_on_the_chat_row_opens_the_chat_and_one_of_a_program_does_not() {
+        let mut agent = on_fake_core("row-press", false);
+        agent.event(pressed("hud-row-chat", true)).unwrap();
+        assert!(!agent.chat.is_open(), "a program pressed the row");
+        agent.event(pressed("hud-row-chat", false)).unwrap();
+        assert!(agent.chat.is_open(), "a person pressed the row");
+    }
+
+    #[test]
+    fn a_press_of_a_person_on_the_figure_opens_the_chat_and_one_of_a_program_does_not() {
+        let mut agent = on_fake_core("figure-press", true);
+        agent.event(pressed("hud-figure", true)).unwrap();
+        assert!(!agent.chat.is_open(), "a program pressed the figure");
+        agent.event(pressed("hud-figure", false)).unwrap();
+        assert!(agent.chat.is_open(), "a person pressed the figure");
+    }
+
+    #[test]
+    fn a_hover_of_a_program_leaves_no_mark_and_one_of_a_person_does() {
+        let mut agent = on_fake_core("hover", false);
+        agent.event(entered("hud-chat-close", true)).unwrap();
+        assert_eq!(agent.hovered, None, "a program moved the pointer");
+        agent.event(entered("hud-chat-close", false)).unwrap();
+        assert_eq!(agent.hovered.as_deref(), Some("hud-chat-close"));
+    }
 }

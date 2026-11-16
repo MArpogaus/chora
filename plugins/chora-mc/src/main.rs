@@ -4519,4 +4519,28 @@ mod tests {
         press_key_from(&mut mc, "Escape", &[], false);
         assert_eq!(mc.current.as_deref(), Some("agenda"), "Escape of a person");
     }
+
+    fn mark_opacity(model: &crate::testing::Model, id: &str) -> Option<f64> {
+        Some(model.lock().unwrap().scene.node(id)?.props.opacity)
+    }
+
+    /// The hover mark of a hit shows for a pointer of a person and stays
+    /// out for a pointer that `input.inject` moves.
+    #[test]
+    fn an_injected_pointer_event_does_not_reach_the_hover_of_mc() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("injected-hover", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let hit = "mc-s-agenda-chapter-head-hit";
+        let mark = "mc-s-agenda-chapter-head-mark";
+        let entered = |injected| chora_scene::Event::PointerEntered {
+            node: hit.to_owned(),
+            moved: true,
+            injected,
+        };
+        mc.event(entered(true)).unwrap();
+        assert_ne!(mark_opacity(&model, mark), Some(1.0), "a program hovered");
+        mc.event(entered(false)).unwrap();
+        assert_eq!(mark_opacity(&model, mark), Some(1.0), "a person hovered");
+    }
 }

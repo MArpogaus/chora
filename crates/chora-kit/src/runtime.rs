@@ -988,4 +988,53 @@ mod tests {
         }
         assert_eq!(names, 9);
     }
+
+    #[test]
+    fn hears_pointer_knows_the_events_that_a_plugin_does_not_judge_itself() {
+        let events = include_str!("../../chora-scene/src/event.rs");
+        let source = include_str!("runtime.rs");
+        let body = &source[source.find("pub fn hears_pointer").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let judged_by_the_plugin = [
+            "InputKey",
+            "NodeKey",
+            "PointerPressed",
+            "PointerReleased",
+            "PointerMoved",
+        ];
+        let mut variant = "";
+        let mut flagged = 0;
+        for line in events.lines() {
+            if let Some(name) = line.strip_prefix("    ").and_then(|l| l.strip_suffix(" {")) {
+                variant = name;
+            }
+            if line.trim() == "injected: bool," {
+                let listed = body.contains(&format!("Event::{variant} {{"));
+                assert_eq!(
+                    listed,
+                    !judged_by_the_plugin.contains(&variant),
+                    "{variant}"
+                );
+                flagged += 1;
+            }
+        }
+        assert_eq!(flagged, 9);
+    }
+
+    #[test]
+    fn an_injected_pointer_event_is_not_heard_unless_the_plugin_accepts_them() {
+        let events = [
+            json!({"event": "pointer.entered", "node": "a", "injected": true}),
+            json!({"event": "pointer.scroll", "node": "a", "position": [0, 0], "dx": 0, "dy": 1,
+                   "discrete": [0, 0], "source": "wheel", "injected": true}),
+        ];
+        for event in events {
+            let event: Event = serde_json::from_value(event.clone()).expect("the event");
+            assert!(!hears_pointer(&event, false), "{event:?}");
+            assert!(hears_pointer(&event, true), "{event:?}");
+        }
+        let person: Event =
+            serde_json::from_value(json!({"event": "pointer.entered", "node": "a"})).unwrap();
+        assert!(hears_pointer(&person, false));
+    }
 }
