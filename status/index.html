@@ -120,7 +120,7 @@ footer { font-size: 13px; color: var(--muted); }
         <h3>Running</h3>
         <ul class="plain run">
           <li>Fixes from tour v4 (2 blockers, 19 big issues): the cube drag that loses a window, F1 keys and a way out of the cube; the mc remote that does not turn the page, mc help cards; xp editor, volume feedback and question card; tiling bar style</li>
-          <li>Cube fixes (no lost window when dragging, F1 key list, Escape closes the cube, no stray keys) and xp fixes (question-card hint, draw order) merged 17:49 UTC (00:49 Bangkok, train 32). Next: tiling bar style review. One flaky mc door click (F26) being fixed until 18:15 UTC.</li>
+          <li>Tiling bar style and the fix for the flaky mc door click merged 20:23 UTC (03:23 Bangkok, train 30b); first of three green runs in a row. Next: the cheap tester reruns all checks, then CI.</li>
           <li>A cheap tester reruns all checks after every merge</li>
         </ul>
       </div>
@@ -151,7 +151,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">Moving windows between window managers</span><span class="pct">85 of 85</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="note">A hard requirement: every case passes by key, command, drag and voice, also across virtual screens and the cube.</span></div>
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
-      <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. Open: one flaky mc door click; CI green twice since the watchdog fix.</span></div>
+      <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. The flaky mc door click is fixed (20:23); one rare flake (F17) is still watched; CI green twice since the watchdog fix.</span></div>
       <div class="bar warn"><span class="name">Release candidate</span><span class="pct">1 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: dependency checks clean. Close: docs, code review (security merged), CI (pixel fix merging now). Open: two big bugs from the tour, user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
     </div>
   </section>
@@ -179,8 +179,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Mon 16 Nov</span><span>11 entries</span></summary>
+      <summary><span>Mon 16 Nov</span><span>12 entries</span></summary>
       <ul class="timeline">
+        <li><time>20:23</time><p><span class="tag ok">merged</span>Train 30b: tiling bar style (round 2) and the fix for the flaky mc door click: the chat field now hides on every close, so it no longer covers the screenshot and volume buttons. Train 30 without the fix hit that click again; with it, all checks passed.</p></li>
         <li><time>17:49</time><p><span class="tag ok">merged</span>Train 32: the cube no longer loses a window, F1 shows the key list, Escape closes the cube; xp question-card hint and draw order. The first run hit the known flaky mc door click; the rerun passed.</p></li>
         <li><time>15:58</time><p><span class="tag ok">merged</span>Train 28: the mc remote turns the page again (one of the two blockers), the empty column head and help cards are fixed; all checks passed.</p></li>
         <li><time>10:55</time><p><span class="tag ok">merged</span>Train 25: helper programs no longer see your API keys, and a confirm list must cover starting programs (two security fixes, all checks passed). Reviewed and passed: the xp paperclip and text fields, keys in side-by-side looks, the cube no longer sliding away.</p></li>
