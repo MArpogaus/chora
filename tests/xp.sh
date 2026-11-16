@@ -577,7 +577,7 @@ test "$(node_size hud-card-yes)" = "[80,28]" || fail "Yes is not 80 by 28: $(nod
 test $(($(node_x hud-card-no) - $(node_x hud-card-yes))) = 88 || fail "Yes and No are not 8 pixels apart"
 node_y() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[1] | floor'; }
 node_h() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[3] | floor'; }
-wait_for chat_says "Atlas — Working"
+wait_for chat_says "Atlas — Question"
 has_node id:hud-chat-stop || fail "the question hides Stop (scale ${XP_SCALE:-1})"
 test "$(node_y hud-chat)" -le "$(node_y hud-card-yes)" || fail "the card stands above the balloon: chat y $(node_y hud-chat), Yes y $(node_y hud-card-yes)"
 chat_high() { test "$(node_h hud-chat)" -ge 380; }
