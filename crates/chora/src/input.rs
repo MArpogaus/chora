@@ -453,7 +453,11 @@ fn press_action(
     grab_action(state, mods, syms, false)
 }
 
-/// The grab of a binding, unless the session is locked.
+/// The grab of a binding, unless the session is locked. A grab that waits
+/// for the manager under the pointer swallows the key: it must not reach
+/// the focused client as a raw key. An injected key has no pointer, and
+/// goes to the grab, except in the test mode of `injected_press_is_real`,
+/// where it counts as a key of the person.
 fn grab_action(
     state: &State,
     mods: &ModifiersState,
@@ -463,13 +467,22 @@ fn grab_action(
     if state.lock.is_some() {
         return None;
     }
+    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |_| true)?;
+    if injected && !state.injected_press_is_real {
+        return Some(KeyAction::Grab(conn, binding, true));
+    }
     let place = key_place(state);
-    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |conn| {
+    let held_back = |conn| {
         place
             .as_deref()
-            .is_none_or(|place| !holds_other_claim(state, conn, place))
-    })?;
-    Some(KeyAction::Grab(conn, binding, injected))
+            .is_some_and(|place| holds_other_claim(state, conn, place))
+    };
+    Some(
+        match state.ipc.grab_for_where(mods, syms, |c| !held_back(c)) {
+            Some((conn, binding)) => KeyAction::Grab(conn, binding, injected),
+            None => KeyAction::Swallow,
+        },
+    )
 }
 
 /// The window manager whose claim holds the pointer: where the person
@@ -2921,5 +2934,82 @@ mod tests {
         give["commands"][1]["give_grab"]["wobble"] = json!("w".repeat(20_000));
         let (_, message) = tiling.fails(&mut core, "scene.apply", give);
         assert!(message.contains("wobble"), "{message}");
+    }
+    const SLOT_1: f64 = -262_144.0;
+
+    /// A manager of a virtual output that grabbed Alt+y, one on the
+    /// screen under the pointer, and the pointer there.
+    fn manager_of_a_face_and_one_under_the_pointer() -> (Core, Client, Client) {
+        let mut core = Core::new();
+        let mut face = core.named("face");
+        face.ok(
+            &mut core,
+            "output.add",
+            json!({"spec": "32x32", "virtual": true}),
+        );
+        core.add_output("screen", (64, 48));
+        apply(
+            &mut face,
+            &mut core,
+            &json!([{"create": {"id": "face", "kind": "group", "parent": "root",
+                "props": {"claim": [SLOT_1, SLOT_1, 32.0, 32.0]}}}]),
+        );
+        face.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        let space = claimer(&mut core, "space", [0.0, 0.0, 64.0, 48.0]);
+        move_to(&mut core, 5.0, 5.0);
+        (core, face, space)
+    }
+
+    fn alt_y(core: &Core, injected: bool) -> Option<super::KeyAction> {
+        let mods = smithay::input::keyboard::ModifiersState {
+            alt: true,
+            ..Default::default()
+        };
+        super::grab_action(
+            &core.state,
+            &mods,
+            &[smithay::input::keyboard::Keysym::y],
+            injected,
+        )
+    }
+
+    #[test]
+    fn a_grab_held_back_by_the_pointer_is_swallowed_not_passed_on() {
+        let (core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "the key must not reach the focused client"
+        );
+    }
+
+    #[test]
+    fn an_injected_key_skips_the_pointer_gate() {
+        let (core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        assert!(
+            matches!(alt_y(&core, true), Some(super::KeyAction::Grab(_, _, true))),
+            "an injected key goes to the grab"
+        );
+    }
+
+    #[test]
+    fn a_key_without_a_grab_is_not_swallowed() {
+        let (core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        let mods = smithay::input::keyboard::ModifiersState::default();
+        let none = super::grab_action(
+            &core.state,
+            &mods,
+            &[smithay::input::keyboard::Keysym::y],
+            false,
+        );
+        assert!(none.is_none(), "a plain key goes to the client");
+    }
+    #[test]
+    fn an_injected_key_that_counts_as_real_keeps_the_pointer_gate() {
+        let (mut core, _face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        core.state.injected_press_is_real = true;
+        assert!(
+            matches!(alt_y(&core, true), Some(super::KeyAction::Swallow)),
+            "in the test mode an injected key is a key of the person"
+        );
     }
 }

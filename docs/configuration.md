@@ -932,7 +932,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c`, `Super+a`, `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help`, `cube` (opens the cube of `cube_manager`), `chat` (runs `chora-chat`), `lock`, `power` (the power menu), `screenshot`, `volume_up`, `volume_down` or `mute`. `F1` is no binding: it reaches the program of a pane. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; with Shift, `Super+Shift+e` is tried first and then the key as the keymap shifts it, as in `Super+E`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c`, `Super+a`, `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help`, `cube` (opens the cube of `cube_manager`), `chat` (runs `chora-chat`), `lock`, `power` (the power menu), `screenshot`, `volume_up`, `volume_down` or `mute`. `F1` is no binding: it reaches the program of a pane, and shows the keys while a cube stands back. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; with Shift, `Super+Shift+e` is tried first and then the key as the keymap shifts it, as in `Super+E`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -947,14 +947,15 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
 `Ctrl+Alt+Right`, which turn the cube by one face, and in use mode
 `fly_out`, which steps back from the front face. A turn key during a
-turn queues one more turn. In navigate mode `Return` and `Escape` step
-in again ([cube modes](cube-modes.md)). In use mode the keys of the walk
+turn queues one more turn. In navigate mode `Return` steps in again,
+`Escape` closes the cube, and `F1` shows the keys ([cube modes](cube-modes.md)). In use mode the keys of the walk
 do nothing, so that the face stays at 1:1; `terminal`, `launcher`,
 `windows` and `help` still work. A binding that another client holds is
 logged, and the chips still work. In navigate mode the edge of the face
 under the pointer is lit, a click on a face steps into it, and a drag on
 a face turns the cube by one face for each third of the width of the
-view; an injected move or release during a press does nothing outside a
+view, also when the press began on a window that floats in front of the
+face; an injected move or release during a press does nothing outside a
 test session. With `fly_out: Escape` and the grant `input.grab-any`,
 `Escape` alone steps back; the chip `STEP BACK` names its key only while
 the construct holds it. While the window switcher of xp shows on a face,

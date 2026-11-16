@@ -45,7 +45,8 @@ in a construct without a cube and in xp (principle 1).
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
 | turn the cube by one face | a click on `TURN LEFT` or `TURN RIGHT`; in navigate mode also a drag on the cube | `Ctrl+Alt+Left` and `Ctrl+Alt+Right`, in both modes | "turn left", "turn right"; `cube.turn` |
 | walk and look, in navigate mode | a drag on the empty space, the wheel | the walk keys of the construct | the methods of the walk |
-| back out of navigate mode | a click on a face | `Escape` steps in again, to the face of before | "step in" |
+| show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
+| close the cube, in navigate mode | none | `Escape`; the key list names it | `cube.close` |
 
 `Ctrl+Alt+Left` and `Ctrl+Alt+Right` are the turn keys of the cube of
 xp on a screen. On virtual outputs xp does not grab them, so the cube of
@@ -55,8 +56,10 @@ the construct is the one cube that they turn.
 window on the face has the keyboard, and a program needs `Escape` for
 itself, so the construct takes `Escape` there only with the grant that
 the person gave; `Alt+Escape` always works. In navigate mode the
-construct has the keyboard, and `Escape` goes one step back to use
-mode.
+construct has the keyboard, and `Escape` closes the cube, so that the
+person is never stuck in it; `Return` steps in. `F1` reaches the program
+of a pane, but stood back no program is there, so it shows the keys.
+An open key list takes `Escape` first and closes itself.
 
 ## The visible way in
 
@@ -127,7 +130,7 @@ The four acts that complete the flows above. Each has a second path
 | find the face to step into | in navigate mode, moves the pointer over a face or over a window that floats in front of it | the edge of that face lit in the accent colour, 2 px on the screen at any depth of the cube, with a glow that reaches 16 px out at 0.35, and the hint `Return Step in` with its hover fill; all light at once and go out over 120 ms when the pointer leaves | not during a turn or a drag, where they are out at once, and not in use mode; the keyboard needs no edge, as `Return` always steps into the front face |
 | turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube follows the hand: a drag over the width of the view is a quarter turn, from the press, without a threshold and without lag; at the release it settles on the nearest face over 320 ms, eased out, or on the next face when the drag went past 45 degrees or the hand flicked faster than 1.5 widths of the view a second | a press that moves less than 8 px in any direction is a click and steps in on the release; a press while the cube turns does nothing; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected press, move or release does nothing outside a test session, and an injected move during a press of the person ends that press, which settles the cube |
 | speak | says "step back", "step in", "turn left" or "turn right", or the German words of the table of words | the same states as with the chips; the agent answers "I stepped back", "I stepped in", "I turned the cube to the left" | the agent calls `view.step_back`, `view.step_in` and `cube.turn` as its other plugin tools; the keyboard stays where it is |
-| step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and steps in again in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
+| step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and closes the cube in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
 
 ## Turning
 
@@ -135,7 +138,7 @@ A turn by `Ctrl+Alt+Left`, `Ctrl+Alt+Right` or a chip takes 360 ms,
 eased out; a second press during a turn queues one more turn, and a
 third does nothing. A turn by hand shows every pixel of the drag: no
 turn waits for the release. A drag that starts on a floating window
-moves that window and does not turn the cube.
+turns the cube as well: stood back, a plain drag pulls no window out.
 
 While the cube turns in navigate mode the hints stay. The face label
 names the face nearest to the front, so it changes at 45 degrees; the
@@ -186,17 +189,11 @@ and then ends still closes the cube with its outputs, as before.
 
 ## What the construct does today
 
-In navigate mode a drag on the floating plane of a window pulls the
-window out of the cube: its window manager gives it to the construct,
-which goes on with the drag; a drop over a face of the resting cube
-gives it back to that face, at the drop point. The same plain drag on
-the pane of a pulled window moves it and, dropped over a face, gives it
-back: while the cube stands back, the windows of the panes take no
-pointer input. A press on a plane that
-moves less than 8 px is a click on its face. Outside a test session an
-injected drag pulls nothing, and an injected move or release during a
-pull ends it in the space, where the pane stays; the keyboard stays
-where it was.
+In navigate mode a drag on a face or on a window that floats in front of
+it turns the cube. A press on a plane that moves less than 8 px is a
+click on its face. A pane of a pulled window moves by a plain drag
+and, dropped over a face, gives its window back to that face: while the
+cube stands back, the windows of the panes take no pointer input.
 
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never

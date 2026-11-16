@@ -496,6 +496,8 @@ impl Config {
                         chord("Ctrl+Alt+Right"),
                     ),
                     row("Step into the face", chord("Return"), Vec::new()),
+                    row("Close the cube, stood back", chord("Escape"), Vec::new()),
+                    row("Show these keys, stood back", chord("F1"), Vec::new()),
                 ],
             });
         }

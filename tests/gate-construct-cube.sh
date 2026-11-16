@@ -463,11 +463,11 @@ call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_o
 sleep 0.5
 plain Escape
 until_ok "$stood_back" 20 || fail "Escape alone did not step back with input.grab-any"
-plain Escape
-until_ok "$stepped_in" 20 || fail "Escape did not step in again"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in after the step back by Escape"
 until_ok 'test "$(step_keys)" = Esc' 20 || fail "the hint does not name Escape: $(step_keys)"
 call settings.set '{"fly_out": "Alt+Escape"}' >/dev/null || fail "settings.set fly_out Alt+Escape"
-ok "with input.grab-any and fly_out Escape, Escape alone steps back and in, and the hint names Escape"
+ok "with input.grab-any and fly_out Escape, Escape alone steps back, Return steps in, and the hint names Escape"
 
 inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "Tab", "state": "pressed"}}, {"key": {"key": "Tab", "state": "released"}}, {"key": {"key": "Alt_L", "state": "released"}}]'
 sleep 0.5
