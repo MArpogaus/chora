@@ -1,6 +1,6 @@
 # xp polish r3 (rc 1, 3): question-card hint flake
 
-Model: sonnet, effort medium (one bounded cause in one cell; not hard enough for opus)
+Model: sonnet, effort medium (one bounded cause in one cell)
 Lane: cloud, branch claude/xp-polish (r2 head 5a17aab6, MERGE-OK); merge the session branch
 first (c949cc84; conflict in the tests/merge-gate.sh "# Steps:" header: keep both lists). One round.
 Stop at 250 k context. Read reports/review-xp-polish-r2.md, dev-rules.md.
