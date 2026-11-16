@@ -187,13 +187,11 @@ fn fill_id(i: usize) -> String {
     format!("{FILL}{i}")
 }
 
-/// A press on a face in navigate mode: the face, the window whose
-/// floating plane took the press, where the pointer was at the press, and
-/// whether the pointer went farther than a click does.
+/// A press on a face in navigate mode: the face, where the pointer was at
+/// the press, and whether the pointer went farther than a click does.
 #[derive(Clone)]
 struct Press {
     face: usize,
-    window: Option<String>,
     start: [f64; 2],
     dragged: bool,
 }
@@ -204,13 +202,11 @@ pub(crate) enum Dragged {
     Nothing,
     /// The cube follows the hand: the drag so far in x.
     Yaw(f64),
-    /// The drag on the floating plane of a window pulls the window out.
-    Pull(String),
 }
 
 /// A move of the pointer to `at` during a press: once it went farther
-/// than a click, the cube follows the hand from the press; a press on the
-/// floating plane of a window pulls the window out instead.
+/// than a click, the cube follows the hand from the press, whatever is
+/// under the pointer.
 fn drag_of(press: &mut Option<Press>, at: [f64; 2]) -> Dragged {
     let Some(press) = press else {
         return Dragged::Nothing;
@@ -220,10 +216,7 @@ fn drag_of(press: &mut Option<Press>, at: [f64; 2]) -> Dragged {
     if !press.dragged {
         return Dragged::Nothing;
     }
-    match press.window.clone() {
-        Some(window) => Dragged::Pull(window),
-        None => Dragged::Yaw(at[0] - press.start[0]),
-    }
+    Dragged::Yaw(at[0] - press.start[0])
 }
 
 /// The cube while the hand holds it: the angle at the press, the width
@@ -801,14 +794,13 @@ impl Host {
         self.hover
     }
 
-    /// A press on a face, or on the floating plane of `window` on it, in
+    /// A press on a face, or on the floating plane of a window on it, in
     /// navigate mode at a point of the screen. A press while the cube
     /// turns does nothing; a press during a step counts.
-    pub(crate) fn press(&mut self, face: usize, window: Option<String>, at: [f64; 2]) {
+    pub(crate) fn press(&mut self, face: usize, at: [f64; 2]) {
         let turns = self.turn.is_some() || self.live.is_some();
         self.press = (!turns).then_some(Press {
             face,
-            window,
             start: at,
             dragged: false,
         });
@@ -1653,7 +1645,6 @@ mod tests {
 
     const PRESS: Press = Press {
         face: 0,
-        window: None,
         start: [600.0, 300.0],
         dragged: false,
     };
@@ -1670,19 +1661,6 @@ mod tests {
         );
         let mut none = None;
         assert_eq!(drag_of(&mut none, [0.0, 0.0]), Dragged::Nothing);
-    }
-
-    #[test]
-    fn a_drag_on_a_floating_plane_pulls_its_window_instead_of_turning() {
-        let mut held = Some(Press {
-            window: Some("s1".into()),
-            ..PRESS.clone()
-        });
-        assert_eq!(drag_of(&mut held, [605.0, 300.0]), Dragged::Nothing);
-        assert_eq!(
-            drag_of(&mut held, [100.0, 300.0]),
-            Dragged::Pull("s1".into())
-        );
     }
 
     fn floating(rect: [f64; 4]) -> Floating {
@@ -1881,7 +1859,7 @@ mod tests {
         let at = Instant::now();
         let ms = Duration::from_millis;
         let mut host = host_of(4);
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         host.drag([560.0, 300.0], 1280.0, ms(0));
         assert!(
             (host.angle - yaw_of(-40.0, 1280.0)).abs() < 1e-9,
@@ -1907,7 +1885,7 @@ mod tests {
         let at = Instant::now();
         let ms = Duration::from_millis;
         let mut host = host_of(4);
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         host.drag([-111.0, 300.0], 1280.0, ms(0));
         let released = at + ms(900);
         host.release(released, ms(900));
@@ -1922,7 +1900,7 @@ mod tests {
         let at = Instant::now();
         let ms = Duration::from_millis;
         let mut host = host_of(4);
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         host.drag([540.0, 300.0], 1280.0, ms(10));
         host.drag([440.0, 300.0], 1280.0, ms(60));
         host.release(at + ms(70), ms(70));
@@ -1931,7 +1909,7 @@ mod tests {
             "160 px in 50 ms is faster than 1.5 widths a second"
         );
         let mut host = host_of(4);
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         host.drag([604.0, 300.0], 1280.0, ms(0));
         assert_eq!(
             host.release(at + ms(50), ms(50)),
@@ -1946,14 +1924,14 @@ mod tests {
         let at = Instant::now();
         let ms = Duration::from_millis;
         let mut host = host_of(4);
-        host.press(0, None, [740.0, 400.0]);
+        host.press(0, [740.0, 400.0]);
         for (x, time) in [(680.0, 5000), (560.0, 5001), (440.0, 5002)] {
             host.drag([x, 400.0], 1280.0, ms(time));
         }
         host.release(at + ms(900), ms(5003));
         assert_eq!(host.front, 1, "a flick that the construct handled late");
         let mut host = host_of(4);
-        host.press(0, None, [740.0, 400.0]);
+        host.press(0, [740.0, 400.0]);
         for (x, time) in [(680.0, 5000), (560.0, 5001), (440.0, 5002)] {
             host.drag([x, 400.0], 1280.0, ms(time));
         }
@@ -1970,7 +1948,7 @@ mod tests {
         let later = input_time(0);
         assert!(later >= first + ms(20), "{first:?} then {later:?}");
         let mut host = host_of(4);
-        host.press(0, None, [740.0, 400.0]);
+        host.press(0, [740.0, 400.0]);
         for x in [700.0, 680.0, 660.0] {
             host.drag([x, 400.0], 1280.0, input_time(0));
             std::thread::sleep(ms(40));
@@ -1985,14 +1963,14 @@ mod tests {
         let ms = Duration::from_millis;
         let mut host = host_of(4);
         assert!(host.act(Act::StepBack, at));
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         assert_eq!(
             host.release(at + ms(50), ms(50)),
             Some(0),
             "a click during the step back is lost"
         );
         host.turn = Some(Turn::new(0.0, Cube::turn_of(1), at, TURN));
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         assert_eq!(
             host.release(at + ms(60), ms(60)),
             None,
@@ -2051,7 +2029,7 @@ mod tests {
         let mut host = host_of(4);
         host.stand = 1.0;
         let rest = host.drawn_angle() - host.angle;
-        host.press(0, None, [600.0, 300.0]);
+        host.press(0, [600.0, 300.0]);
         host.drag([560.0, 300.0], 1280.0, Duration::ZERO);
         assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
         assert!(host.angle < 0.0, "the hand still turns the cube");

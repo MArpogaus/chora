@@ -263,7 +263,9 @@ A keyword-spotting model can replace this later.
 
 A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
-`call_method`. The agent speaks the `prompt` of the rule, with the
+`call_method`. A `confirm` list replaces the default, and the settings
+are refused unless one of its rules asks before `run_program` for every
+program (no `argv0`). The agent speaks the `prompt` of the rule, with the
 program of `run_program` in place of `{program}`, the argument `NAME`
 in place of `{NAME}` (a missing one stays as it is) and all text,
 number and boolean arguments in place of `{args}` ("Shall I change the
@@ -584,7 +586,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_url`, `asr_model` | `ws://127.0.0.1:8881/v1/realtime?intent=transcription`, `gufo` |
 | `tts_url`, `tts_model` | `ws://127.0.0.1:8882/v1/audio/speech/stream`, `gufo` |
 | `llm_url`, `llm_model` | `http://127.0.0.1:8888/v1`, `gufo` |
-| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key; `chora_mcp` starts without these variables; the sub-agents and the coding harness keep them, so a harness can use the same key) |
+| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key; `chora_mcp`, the sub-agents and the coding harness start without these variables) |
 | `asr_api_key_file`, `tts_api_key_file`, `llm_api_key_file` | `""` (no key; else the file with the key, `%d` is `$CREDENTIALS_DIRECTORY`) |
 | `asr_headers`, `tts_headers`, `llm_headers` | `{}` (extra headers, name: value) |
 | `asr_language` | `auto` (the ASR finds the language; else a code such as `de`) |
@@ -1501,7 +1503,8 @@ The host draws the view in the `chat:` look of the folder that shows, at
 the edge that `anchor` and `width` name, and puts the field at its
 bottom.
 
-- A click on the "Chat ..." row, which every look has, shows the numbered
+- A click on the "Chat ..." row, which every look has but tiling, whose bar
+  word of the helper is the door and whose figure opens the chat, shows the numbered
   list: a helper by its name, a project without one as "New helper for
   PROJECT" (`agent_list`). A click on an entry, or its number or name and
   Enter in the field, opens the chat; a project starts its helper first.

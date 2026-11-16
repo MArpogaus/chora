@@ -413,10 +413,22 @@ impl Ipc {
     }
 
     /// The connection that grabbed the pressed binding, and the binding.
+    #[cfg(test)]
     pub fn grab_for(&self, mods: &ModifiersState, syms: &[Keysym]) -> Option<(u64, Binding)> {
+        self.grab_for_where(mods, syms, |_| true)
+    }
+
+    /// As [`Self::grab_for`], among the connections that `allowed` accepts.
+    pub fn grab_for_where(
+        &self,
+        mods: &ModifiersState,
+        syms: &[Keysym],
+        allowed: impl Fn(u64) -> bool,
+    ) -> Option<(u64, Binding)> {
         self.grab_of(
             mods,
             |t| matches!(t, Trigger::Key(sym) if syms.contains(&sym)),
+            allowed,
         )
     }
 
@@ -437,7 +449,7 @@ impl Ipc {
         scene: &Scene,
         pointer: [f64; 2],
     ) -> Option<(u64, Binding)> {
-        let first = self.grab_of(mods, |t| t == Trigger::Button(button))?;
+        let first = self.grab_of(mods, |t| t == Trigger::Button(button), |_| true)?;
         let grabbers: Vec<u64> = (self.grabs.iter())
             .filter(|(b, t, _)| b.mods == first.1.mods && *t == Trigger::Button(button))
             .map(|(_, _, conn)| *conn)
@@ -453,13 +465,15 @@ impl Ipc {
         &self,
         mods: &ModifiersState,
         matches: impl Fn(Trigger) -> bool,
+        allowed: impl Fn(u64) -> bool,
     ) -> Option<(u64, Binding)> {
         self.grabs
             .iter()
-            .find(|(b, trigger, _)| {
+            .find(|(b, trigger, conn)| {
                 let m = b.mods;
                 (m.ctrl, m.alt, m.shift, m.logo) == (mods.ctrl, mods.alt, mods.shift, mods.logo)
                     && matches(*trigger)
+                    && allowed(*conn)
             })
             .map(|(b, _, conn)| (*conn, b.clone()))
     }

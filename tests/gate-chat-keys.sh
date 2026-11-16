@@ -9,7 +9,10 @@
 # reaches the window; a failure prints the enter, leave and key events
 # that the window got. With a second helper Super+a opens the list: text
 # typed there reaches no helper until the number of one follows, and
-# then the helper of that number.
+# then the helper of that number. The first helper asks its question
+# while the list shows (FAKE_ACP_ASK_AFTER of the fake agent), and the
+# number still picks: a question of some helper does not hold the Enter
+# of the list (F28).
 #
 # Usage: tests/gate-chat-keys.sh   BIN: directory with the binaries
 set -u
@@ -18,6 +21,7 @@ need_bins chora choractl chora-tiling chora-voice chora-assistant chora-chat cho
 temp_config
 work=$XDG_CONFIG_HOME
 export XDG_DATA_HOME=$work/data XDG_STATE_HOME=$work/state PATH=$bin:$PATH
+export FAKE_ACP_ASK_AFTER=$work/ask
 mkdir -p "$XDG_CONFIG_HOME/chora" "$work/demo"
 cat >"$XDG_CONFIG_HOME/chora/chora-voice.yaml" <<YAML
 capture_cmd: [sh, -c, exec sleep 1000]
@@ -92,6 +96,8 @@ type_text moin
 key Return
 sleep 1
 helper_got coder moin && fail "a text went to a helper that nobody picked"
+: >"$FAKE_ACP_ASK_AFTER"
+until_ok "ctl query id:hud-card | grep -q '\"id\"'" 40 || fail "the question of the first helper does not show"
 type_text 2
 key Return
 until_ok 'helper_got second moin' 40 || fail "the text typed before the pick did not reach the picked helper"

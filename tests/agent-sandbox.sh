@@ -46,6 +46,7 @@ check "the home directory is another one" hidden seen "$HOME/secret"
 check "the runtime directory is empty" hidden seen "$XDG_RUNTIME_DIR/wayland-0"
 check "the socket of chora is not there" hidden seen "$CHORA_SOCKET"
 check "CHORA_SOCKET is unset" "" "$box" sh -c 'echo "${CHORA_SOCKET:-}"'
+check "the variables of AGENT_SANDBOX_UNSET are unset" "|kept" env AGENT_SANDBOX_UNSET="API_KEY_A API_KEY_B" API_KEY_A=a API_KEY_B=b KEPT=kept "$box" sh -c 'echo "${API_KEY_A:-}${API_KEY_B:-}|${KEPT:-}"'
 check "there is no network" "lo" links
 check "--net keeps the network" "$(sed -n '3,$s/:.*//p' /proc/net/dev | sort | xargs)" links --net
 check "the home directory is no project" 2 refused "$HOME"

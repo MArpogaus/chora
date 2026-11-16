@@ -369,7 +369,7 @@ fn page_rows(
         let lines = no_widow(wrap(&text, room, measure), room, measure);
         rows.extend(lines.into_iter().map(|line| (set, line)));
     }
-    if parts == usize::MAX && shown.buttons && !shown.too_long {
+    if parts == usize::MAX && shown.buttons && !shown.too_long && !face.is_xp() {
         let measure = |line: &str| theme.svg_width(&element(Set::Note, face, line, [0, 0], [0; 3]));
         let said = Word::TypingNoAnswer.text(language);
         let lines = no_widow(wrap(said, width, measure), width, measure);
@@ -511,32 +511,31 @@ fn page_layout(
     let most = screen[1] * 8 / 10 - lead - below;
     let (rows, too_long) = page_content(theme, shown, language, (&face, inner, most));
     let buttons_shown = shown.buttons && !too_long;
+    let (rows, hints) = if xp && buttons_shown {
+        split_hints(rows)
+    } else {
+        (rows, Vec::new())
+    };
     let content = page_height(&face, &rows);
+    let hints_room = i32::try_from(hints.len()).unwrap_or(0) * note_row(&face);
     let height = if buttons_shown {
-        lead + content + below
+        lead + content + below + hints_room
     } else {
         2 * pad + content
     };
     let top = pad + content + pad;
     let noted = buttons_shown && shown.notice;
-    let shown_notice: &[String] = if noted { &notice } else { &[] };
+    let under = under_lines(&hints, &notice, noted);
     let body = page_body(
         &face,
-        (&rows, shown_notice),
+        (&rows, &under),
         (shown.ink.text, muted),
         (width, pad, top + button[1]),
     );
     let picture = Picture::new(width, height)
         .svg(shown.ink.style().shape([width, height], 0))
         .svg(body);
-    let mut text = rows
-        .iter()
-        .map(|(_, line)| line.as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
-    if noted {
-        text = format!("{text}\n{injected}");
-    }
+    let mut text = card_text(&rows, &hints, noted.then_some(injected));
     text.truncate(floor_boundary(&text, MAX_TEXT_META));
     Layout {
         picture,
@@ -544,6 +543,29 @@ fn page_layout(
         text,
         too_long,
     }
+}
+
+/// The lines under the buttons: the key words, then the notice.
+fn under_lines(hints: &[String], notice: &[String], noted: bool) -> Vec<String> {
+    let notice = notice.iter().filter(|_| noted);
+    hints.iter().chain(notice).cloned().collect()
+}
+
+/// The text of a card as its meta says it: the rows, the key words under
+/// the buttons and the notice.
+fn card_text(rows: &[(Set, String)], hints: &[String], notice: Option<&str>) -> String {
+    let lines = rows.iter().map(|(_, line)| line.as_str());
+    let lines = lines.chain(hints.iter().map(String::as_str));
+    lines.chain(notice).collect::<Vec<_>>().join("\n")
+}
+
+/// The rows of the key words, which XP's card sets in grey under its
+/// buttons, apart from the rows above the buttons.
+fn split_hints(rows: Vec<(Set, String)>) -> (Vec<(Set, String)>, Vec<String>) {
+    let (hints, above): (Vec<_>, Vec<_>) = rows
+        .into_iter()
+        .partition(|(set, _)| matches!(set, Set::Keys | Set::Note));
+    (above, hints.into_iter().map(|(_, line)| line).collect())
 }
 
 /// The title and the prompt, and the words that the question is refused.
@@ -1202,9 +1224,34 @@ mod tests {
         let [yes, no] = laid.buttons.expect("buttons");
         assert_eq!([yes[0], no[0] - yes[0]], [12, 80 + 8]);
         assert_eq!(yes[1], no[1]);
-        assert_eq!(laid.picture.size[1], yes[1] + 28 + 12);
         assert!(laid.text.contains("Question from Atlas"), "{}", laid.text);
         assert!(laid.text.contains("Alt+Y"), "{}", laid.text);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_xp_card_keeps_its_keys_under_the_buttons_and_leaves_typing_to_the_field() {
+        let cache = cache("xp-keys");
+        let theme = theme(&cache, "Tahoma").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::XP;
+        card.face = Some(Face::of(&xp_look()).unwrap());
+        card.max_width = Some(312);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        let [yes, _] = laid.buttons.expect("buttons");
+        assert!(
+            !laid.text.contains("Typing does not answer"),
+            "the field says it once: {}",
+            laid.text
+        );
+        let keys_row = laid.text.lines().position(|l| l.contains("Alt+Y"));
+        let prompt_row = laid.text.lines().position(|l| l.contains("wants to"));
+        assert!(keys_row > prompt_row, "{}", laid.text);
+        assert!(
+            laid.picture.size[1] > yes[1] + 28 + 12,
+            "the key words stand under the buttons: {:?}",
+            laid.picture.size
+        );
         let _ = std::fs::remove_dir_all(cache);
     }
 

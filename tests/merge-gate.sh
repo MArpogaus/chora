@@ -6,21 +6,21 @@
 # One gate runs at a time: the gate and the gate scripts take the lock
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
-# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, walk, keys, pixels, mc-paths, e2e. `layout` audits
+# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
+# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
-# construct; `pull` drags a window out of a face of that cube and back.
+# construct; `pull` drags a window out of a face of that cube and back; `out` turns the stood-back cube by a drag on a window, shows its keys and closes it.
 # `winit` runs a virtual output with xp in a chora nested on the winit
-# backend; `wm-pane` runs xp and tiling each in a pane of the construct; `walk` taps the walk keys of the
+# backend; `wm-pane` runs xp and tiling each in a pane of the construct; `pane-keys` gives the keys to the pane that a click chose; `walk` taps the walk keys of the
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `red-first` checks the range BASE..HEAD (commits that are not merges, oldest
 # first, in topological order): each `fix` or `feat` commit needs a commit
@@ -155,27 +155,35 @@ gate-lib|tests/gate-lib-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
-ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py
+ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/packaging-files-selftest.sh
 2d-guard|tests/2d-guard.sh 8742dee
 package-deps|tests/gate-package-deps.sh
+package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
+xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
+xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
+xp-question|BIN=$repo/target/debug tests/gate-xp-question.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
 tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh
+tiling-look|BIN=$repo/target/debug tests/gate-tiling-wobbly.sh && BIN=$repo/target/debug tests/gate-tiling-bar-palette.sh && BIN=$repo/target/debug tests/gate-tiling-look-r2.sh
 chat-keys|BIN=$repo/target/debug tests/gate-chat-keys.sh
 doors|BIN=$repo/target/debug tests/gate-doors.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
+out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
+pane-keys|BIN=$repo/target/debug tests/gate-construct-pane-keys.sh
 walk|BIN=$repo/target/debug tests/gate-construct-walk.sh
 keys|BIN=$repo/target/debug tests/gate-construct-keys.sh
 pixels|tests/gate-construct-pixels.sh
 mc-paths|BIN=$repo/target/debug tests/gate-mc-paths.sh
+mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }

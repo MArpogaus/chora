@@ -36,7 +36,7 @@ mod view;
 
 pub use face::Face;
 pub use host::{Announced, ShowParams, exported, token_of};
-pub use view::{card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
+pub use view::{GAP, card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;
@@ -76,6 +76,9 @@ pub struct Frame {
     pub tip: Option<[i32; 2]>,
     /// The height of the field at the bottom of the view.
     pub field: i32,
+    /// The room of the question card in the view with its gap, 0 for
+    /// none: a balloon grows to hold it under its header.
+    pub lift: i32,
 }
 
 impl Frame {
@@ -130,7 +133,33 @@ impl Frame {
         let left = (right - w).max(ax);
         let bottom = (tip_y - TAIL).max(ay + 1);
         let top = (bottom - ah * 6 / 10).max(ay);
-        [left, top, w, bottom - top]
+        let need = self.card_need();
+        if need <= bottom - top {
+            return [left, top, w, bottom - top];
+        }
+        if bottom - ay >= need {
+            return [left, bottom - need, w, need];
+        }
+        [left, ay, w, need.min(ah)]
+    }
+
+    /// The height that a balloon needs for the card of a question under
+    /// its header with a few rows of the transcript above, 0 without a
+    /// card.
+    fn card_need(&self) -> i32 {
+        if self.lift == 0 {
+            return 0;
+        }
+        let xp = self.look.form == chora_kit::hud::ChatForm::Xp;
+        let (_, body_top) = view::tops(false, xp);
+        let row = Face::of(&self.look).as_ref().map_or(view::LINE, Face::line);
+        body_top
+            + view::GAP
+            + self.field
+            + view::PAD
+            + view::GAP
+            + self.lift
+            + view::CARD_ROWS * row
     }
 
     /// Where the tail of a balloon chat leaves its bottom edge, from its
@@ -512,6 +541,7 @@ pub fn field_place_for(frame: &Frame, token: Option<&str>, to: Option<&str>) -> 
             "text": [0, 0, 0, 255],
             "border": [127, 157, 185, 255],
             "hint": [77, 77, 77, 255],
+            "pad": 4,
         });
         width = w - view::XP_SEND[0] - view::GAP - 2;
     }
@@ -861,7 +891,9 @@ impl Session {
         Ok(())
     }
 
-    /// Closes the view and the field.
+    /// Closes the view and the field. The field hears it also when it
+    /// took its surface away itself, on Esc: a place that the host wrote
+    /// before it read that shows the field again, with no view.
     pub fn hide(&mut self, out: &mut dyn Outside) {
         self.close_chat(out);
         self.mode = Mode::Closed;
@@ -870,13 +902,6 @@ impl Session {
         if let Some(link) = self.link.as_mut() {
             link.hide();
         }
-    }
-
-    fn close_view(&mut self, out: &mut dyn Outside) {
-        self.close_chat(out);
-        self.mode = Mode::Closed;
-        self.keyboard = false;
-        self.spoken = None;
     }
 
     /// The same chat in the look of another folder or on another output:
@@ -913,7 +938,7 @@ impl Session {
                 }
                 FieldEvent::Keyboard(on) => self.keyboard = on,
                 FieldEvent::Closed => {
-                    self.close_view(out);
+                    self.hide(out);
                     changed = true;
                 }
                 FieldEvent::Stop => changed |= self.cancel(out),
@@ -1067,10 +1092,29 @@ impl Session {
         changed
     }
 
+    /// A question of `agent` is about to show, before its card is placed:
+    /// when it is the open helper's, or names none, the state is question
+    /// at once, so the card and the hint show in the same frame.
+    pub fn question_of(&mut self, agent: Option<&str>) {
+        let ours = match (&self.mode, agent) {
+            (Mode::Chat(open), Some(agent)) => open.eq_ignore_ascii_case(agent),
+            (Mode::Chat(_), None) => true,
+            _ => false,
+        };
+        if ours {
+            "question".clone_into(&mut self.status.state);
+        }
+    }
+
     /// A question appeared: where its card goes, fixed until it ends.
+    /// The field of a chat holds Enter while it waits. The field of the
+    /// list does not, as in a list that opens after the question: the
+    /// list has no helper whose question it could be, and its Enter picks.
     pub fn question_asked(&mut self) -> Where {
         self.answered = Answered::No;
-        if let Some(link) = self.link.as_mut() {
+        if self.helper().is_some()
+            && let Some(link) = self.link.as_mut()
+        {
             link.question(true);
         }
         let place = if self.is_open() {
@@ -1491,6 +1535,7 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            lift: 0,
             tip: None,
             field: ONE_LINE_FIELD,
         }
@@ -1817,6 +1862,27 @@ mod tests {
         switcher.hold_field(session.keyboard(), start);
         assert!(switcher.due().is_some());
         assert_eq!(calls(&log, "chat.close"), [json!({"name": "atlas"})]);
+    }
+
+    /// The field takes its surface away on Esc and says so. A place that
+    /// the host wrote before it read that, as the one that follows the
+    /// box of a slot, shows the field again: over the doors of the column
+    /// of mc, with no view (F26). The host that closes the view tells the
+    /// field to hide.
+    #[test]
+    fn a_view_that_the_field_closed_hides_a_field_that_was_placed_again() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        session.restyle(&frame);
+        log.borrow_mut().events.push(FieldEvent::Closed);
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.mode(), &Mode::Closed);
+        assert_eq!(
+            log.borrow().hides,
+            1,
+            "the field shows again by the place that crossed its Esc"
+        );
     }
 
     #[test]
@@ -2334,6 +2400,20 @@ mod tests {
     }
 
     #[test]
+    fn a_card_that_names_no_other_helper_has_its_hint_before_voice_says_question() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_of(None);
+        session.question_asked();
+        assert_eq!(
+            session.hint(Language::En).as_deref(),
+            Some("Typing does not answer."),
+            "the card and the hint show in the same frame"
+        );
+    }
+
+    #[test]
     fn a_second_question_in_an_open_chat_tells_the_field_to_wait() {
         let (mut session, mut out, log) = setup();
         let frame = frame(Look::default());
@@ -2343,6 +2423,24 @@ mod tests {
         assert_eq!(log.borrow().questions.last(), Some(&false));
         assert_eq!(session.question_asked(), Where::Chat);
         assert_eq!(log.borrow().questions.last(), Some(&true));
+    }
+
+    /// The list is a chat with no helper, so a question that appears
+    /// while it shows is not one of its helper: Enter in the field still
+    /// picks, as it does when the list opens after the question (F28).
+    #[test]
+    fn a_question_while_the_list_shows_does_not_hold_the_field() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert!(matches!(session.mode(), Mode::List(..)));
+        assert_eq!(log.borrow().questions.last(), Some(&false));
+        assert_eq!(session.question_asked(), Where::Chat);
+        assert_eq!(
+            log.borrow().questions.last(),
+            Some(&false),
+            "the field of the list holds Enter for a question of some helper"
+        );
     }
 
     #[test]

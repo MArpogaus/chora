@@ -252,7 +252,7 @@ default map:
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
-| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
+| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[wobbly]`; `[]` turns it off |
 | `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
@@ -531,7 +531,7 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red in the text `urgent`, until the next one or a click on that line of the footer, which leaves it in `notify` |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red as a card on top of the column, in the footer where the column does not show, in the text `urgent`, until the next one or a click on the card, which leaves it in `notify`; the oldest lines of `notify` give way while the column is full |
 | `notify.clear` | privileged; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
@@ -932,7 +932,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c`, `Super+a`, `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help`, `cube` (opens the cube of `cube_manager`), `chat` (runs `chora-chat`), `lock`, `power` (the power menu), `screenshot`, `volume_up`, `volume_down` or `mute`. `F1` is no binding: it reaches the program of a pane. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; with Shift, `Super+Shift+e` is tried first and then the key as the keymap shifts it, as in `Super+E`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `Super+F1`, `Super+slash`, `Super+c`, `Super+a`, `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help`, `cube` (opens the cube of `cube_manager`), `chat` (runs `chora-chat`), `lock`, `power` (the power menu), `screenshot`, `volume_up`, `volume_down` or `mute`. `F1` is no binding: it reaches the program of a pane, and shows the keys while a cube stands back. The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; with Shift, `Super+Shift+e` is tried first and then the key as the keymap shifts it, as in `Super+E`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. Super+F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -947,14 +947,15 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
 `Ctrl+Alt+Right`, which turn the cube by one face, and in use mode
 `fly_out`, which steps back from the front face. A turn key during a
-turn queues one more turn. In navigate mode `Return` and `Escape` step
-in again ([cube modes](cube-modes.md)). In use mode the keys of the walk
+turn queues one more turn. In navigate mode `Return` steps in again,
+`Escape` closes the cube, and `F1` shows the keys ([cube modes](cube-modes.md)). In use mode the keys of the walk
 do nothing, so that the face stays at 1:1; `terminal`, `launcher`,
 `windows` and `help` still work. A binding that another client holds is
 logged, and the chips still work. In navigate mode the edge of the face
 under the pointer is lit, a click on a face steps into it, and a drag on
 a face turns the cube by one face for each third of the width of the
-view; an injected move or release during a press does nothing outside a
+view, also when the press began on a window that floats in front of the
+face; an injected move or release during a press does nothing outside a
 test session. With `fly_out: Escape` and the grant `input.grab-any`,
 `Escape` alone steps back; the chip `STEP BACK` names its key only while
 the construct holds it. While the window switcher of xp shows on a face,
@@ -1436,7 +1437,10 @@ without one is an asset folder, which holds:
 | `fonts/` | font files, optional |
 
 `plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
-changes its color with the state.
+changes its color with the state, and the row "Chat ..." with a row for each
+helper. `plugins/chora-assistant/huds/tiling` is the folder of the tiling
+flavor: the same dot, which opens the chat, and no row, since the helper word
+of the bar is the door.
 
 ## Flavors
 
@@ -1572,17 +1576,26 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   (`@define-color` tokens: `base`, `surface`, `surface-2`, `line`, `text`,
   `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
   three floating islands, left, centre and right, each 32 px high and
-  radius 10, 8 px from the top and 12 px from the sides, in Inter. One
+  radius 12, as the border of a window, 8 px from the top and 12 px from the sides, in Inter;
+  the clock and the tag numbers are in JetBrains Mono. One
   spacing of 6 px on each side of an item makes every gap between items,
-  separators and island edges 12 px. The islands are `surface` at 92 % with a 1 px `line` hairline,
-  and separators are 1 x 16 px bars that leave the hairline clear. The
+  separators and island edges 12 px. The islands are `surface` with a 1 px
+  edge in a gradient from `accent` at the left to `accent-2` at the right, the
+  colours of the border of the focused window, and a soft inner glow of
+  `accent`. The current tag is an `accent` pill with a line of `accent-2` on its
+  top edge, an occupied tag has a line of `accent` under it, and a hovered
+  door gets a 1 px ring of `accent`. The tooltips that remain, of the clock, the
+  network and the volume, have the same edge.
+  Separators are 1 x 16 px bars of `line` that leave the edge clear. The
   layout word is left aligned, 12 px after the separator, in a least width
   of 80 px, so the left island keeps its width through the layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
   colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
-  of the text; the tooltips of **Apps** and **Keys** name their keys,
-  spelled as the key list spells them, and the tooltips sit inside their
-  islands. The month of the clock marks today in bold and underlined.
+  of the text. The doors (**Apps**, the helper word, **Keys** and the power
+  icon) have no tooltip: a click shows what they open, and a tooltip under a
+  pointer at rest would stand over a tile when the launcher or a new window
+  takes the focus; the key list names their keys. The month of the clock
+  marks today in bold and underlined.
   Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
   directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a
@@ -2000,7 +2013,8 @@ keyboard does not work it (D45):
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
-  clock, the speaker is an icon of 16 pixels, with a red no-sign when the
+  clock, the speaker is an icon of 16 pixels with a bar right of the
+  cone that rises with the level, and a red no-sign when the
   sound is muted or unavailable. Its width never changes; the tooltip
   that shows after half a second says `Volume 40%`, `Muted`, `Sound
   unavailable` or `Change failed`, in the language of the session. The
@@ -2203,7 +2217,7 @@ that the file leaves out takes its default:
 | `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Without it, or when its program is not installed, the first installed editor with a window serves (gnome-text-editor, gedit, mousepad, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad, geany), else the editor of `VISUAL` or `EDITOR`, nano, vim or vi in the terminal. Without any of them the menu has no Notepad. All Programs lists only desktop files whose program is installed |
+| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Without it, or when its program is not installed, the first installed editor with a window serves (lowriter, mousepad, gedit, gnome-text-editor, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad, geany), else the editor of `VISUAL` or `EDITOR`, nano, vim or vi in the terminal. Without any of them the menu has no Notepad. All Programs lists only desktop files whose program is installed |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |

@@ -675,11 +675,11 @@ mod tests {
         }
     }
 
-    /// The urgent line of the footer is marked by a drawn close mark and
+    /// The urgent card is marked by a drawn close mark and
     /// not by a glyph: two bars at 45 degrees, in a hit of 14 pixels or
     /// more, and a click on it clears the line.
     #[test]
-    fn the_urgent_line_has_a_drawn_close_mark_of_14_pixels() {
+    fn the_urgent_card_has_a_drawn_close_mark_of_14_pixels() {
         use chora_kit::runtime::Plugin as _;
         let (mut mc, model) = crate::testing::mc("audit-urgent", [1280, 800]);
         mc.show("agenda", false).unwrap();
@@ -708,12 +708,12 @@ mod tests {
         }
         drop(core);
         assert!(mc.click_hit(&format!("{}-hit", item.id)));
-        assert!(mc.texts["urgent"].1.is_empty(), "the click clears the line");
+        assert!(mc.texts["urgent"].1.is_empty(), "the click clears the card");
     }
 
-    /// A critical notification says `Urgent` in the column and in the
-    /// footer, the footer line is not under 14 pixels, and a click on it
-    /// leaves the notification in the column.
+    /// A critical notification says `Urgent` in the column twice, as a card
+    /// and in the list, the card is not under 14 pixels, and a click on it
+    /// leaves the notification in the list.
     #[test]
     fn a_critical_notification_says_urgent_and_stays_in_the_column() {
         use chora_kit::runtime::Plugin as _;
@@ -726,7 +726,7 @@ mod tests {
             .find(|i| i.id.ends_with("-urgent"))
             .expect("the urgent line");
         assert_eq!(item.props.text.as_deref(), Some("Urgent: Disk is full"));
-        assert!(item.props.font_size.unwrap() >= 14.0, "the footer line");
+        assert!(item.props.font_size.unwrap() >= 14.0, "the card");
         assert!(mc.click_hit(&format!("{}-hit", item.id)));
         assert_eq!(mc.texts["notify"].1.len(), 1, "the column keeps it");
         assert!(mc.texts["notify"].1[0].ends_with("Urgent: Disk is full"));

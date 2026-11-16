@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Check that both packages install every file of the flavors and the HUDs.
 
-Usage: tests/packaging-files.py   (from any directory; exits 1 on a gap)
+Usage: tests/packaging-files.py [--pkgbuild FILE]   (from any directory; exits 1 on a gap)
+  --pkgbuild FILE  compare this PKGBUILD instead of dist/arch/PKGBUILD
 
 Reads the install lines of dist/arch/PKGBUILD and the assets of
 crates/chora/Cargo.toml (the RPM). Every regular file under flavors/ and
-plugins/*/hud must match a source of each; an executable file must match a
+plugins/*/{hud,huds,assets,collectors} must match a source of each; an executable file must match a
 755 source and no 644 one.
 """
 import os
@@ -65,7 +66,9 @@ def rpm_sources(text):
 
 def shipped():
     files = []
-    roots = [ROOT / "flavors"] + sorted((ROOT / "plugins").glob("*/hud"))
+    roots = [ROOT / "flavors"] + sorted((ROOT / "plugins").glob("*/hud*")) + sorted(
+        (ROOT / "plugins").glob("*/assets")
+    ) + sorted((ROOT / "plugins").glob("*/collectors"))
     for base in roots:
         for dirpath, _, names in os.walk(base):
             for name in names:
@@ -89,8 +92,11 @@ def check(label, sources, files):
 
 
 def main():
+    pkgbuild = ROOT / "dist/arch/PKGBUILD"
+    if sys.argv[1:2] == ["--pkgbuild"] and len(sys.argv) == 3:
+        pkgbuild = Path(sys.argv[2])
     files = shipped()
-    arch = arch_sources((ROOT / "dist/arch/PKGBUILD").read_text())
+    arch = arch_sources(pkgbuild.read_text())
     rpm = rpm_sources((ROOT / "crates/chora/Cargo.toml").read_text())
     bad = check("PKGBUILD", arch, files) + check("rpm", rpm, files)
     print("\n".join(bad))

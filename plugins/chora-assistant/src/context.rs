@@ -585,7 +585,8 @@ mod tests {
     }
 
     const SHIPPED: &str = "huds:\n  - {when: {space: construct}, folder: construct}\n  - {when: \
-        {wm: mc}, folder: mc}\n  - {when: {wm: xp}, folder: xp}\n";
+        {wm: mc}, folder: mc}\n  - {when: {wm: xp}, folder: xp}\n  - {when: {space: \
+        tiling}, folder: tiling}\n";
 
     fn context(place: &Place) -> Context {
         let mut switcher = Switcher::new();
@@ -677,7 +678,7 @@ mod tests {
             space: "tiling".into(),
             ..place
         };
-        assert_eq!(config.folder(&context(&tiling)), "neutral");
+        assert_eq!(config.folder(&context(&tiling)), "tiling");
     }
 
     #[test]

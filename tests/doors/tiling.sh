@@ -3,7 +3,10 @@
 # are the bindings of tiling.yaml, the doors are the modules of the bar
 # (Apps, the helper word, the clock, the volume word, Keys and the power
 # icon), clicked at their place in a bar of 1280 pixels, and the key list
-# is the panel tiling-keys. waybar, jq and the binaries are needed.
+# is the panel tiling-keys. The key list is open once it shows: tiling
+# makes it with opacity 0, measures it, and gives it the opacity 1 and
+# the keyboard in one step; an Escape before that step goes to the
+# window and the list stays. waybar, jq and the binaries are needed.
 #
 # Usage: tests/doors/tiling.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -43,7 +46,7 @@ volume_x=1018
 keys_x=1209
 power_x=1247
 
-keys_open() { ctl query id:tiling-keys 2>/dev/null | jq -e '.[0].visible' >/dev/null; }
+keys_open() { ctl query id:tiling-keys 2>/dev/null | jq -e '.[0] | .visible and .opacity == 1' >/dev/null; }
 keys_close() {
     keys_open || return 0
     key Escape

@@ -18,6 +18,7 @@
 # Needs: sway, foot, grim, jq, python3, pgrep, swaylock and a Mesa driver.
 set -euo pipefail
 
+. "$(dirname "$0")/proc-lib.sh"
 bin=$(realpath "$1")
 # The plugins start apps with `choractl run` from PATH (D42).
 export PATH="$bin:$PATH"
@@ -33,7 +34,7 @@ unset DBUS_SESSION_BUS_ADDRESS
 pids=()
 cleanup() {
     kill "${pids[@]}" 2>/dev/null || true
-    rm -rf "$XDG_RUNTIME_DIR"
+    remove_after_exit "$XDG_RUNTIME_DIR" "${pids[@]}"
 }
 trap cleanup EXIT
 fail() {

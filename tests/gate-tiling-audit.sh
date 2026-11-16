@@ -12,7 +12,8 @@
 #   chip, chat  the state word and its orb; Close and the input field
 #   terminal    the fill of the tiles is the `terminal` token
 #   look        the wallpaper, the glow of the focus and the shadows
-# The cells: desktop (two tiles and the "Chat ..." row), chat (the chat
+# The cells: desktop (two tiles; the bar word is the door of the chat, no
+# row floats over them), chat (the chat
 # open), question (the card), chatq (the chat open over the card), chattoast
 # (a notification with the chat open), toast (a notification of mako), keys (the key
 # list), layout (the chip of a layout change), tooltip (that of Keys),
@@ -44,7 +45,7 @@ export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work/shots}
 mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
-cp -rL "$repo/plugins/chora-assistant/huds/neutral" "$work/data/chora/huds/neutral"
+cp -rL "$repo/plugins/chora-assistant/huds/tiling" "$work/data/chora/huds/tiling"
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
 flavor=$repo/flavors/tiling
@@ -97,7 +98,7 @@ round() {
     scale=1
     [[ $size == *@* ]] && scale=${size##*@}
     mkdir -p "$work/chora"
-    printf 'enabled: true\nposition: null\nhud: neutral\nhuds: []\n' >"$work/chora/chora-assistant.yaml"
+    printf 'enabled: true\nposition: null\nhud: tiling\nhuds: []\n' >"$work/chora/chora-assistant.yaml"
     "$bin/chora-tiling" --print-config >"$work/chora/chora-tiling.yaml"
     sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
     core_log=$shots/chora-$tag.log
@@ -116,7 +117,7 @@ round() {
     XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant-$tag.log" 2>&1 &
     pids+=($!)
     for i in 1 2; do ctl run "$bin/chora-tiling" --launch foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$tag: foot"; done
-    ctl wait id:hud-row-chat --timeout 20 >/dev/null 2>&1
+    sleep 3
     bar_shows=''
     for _ in $(seq 30); do
         sleep 1

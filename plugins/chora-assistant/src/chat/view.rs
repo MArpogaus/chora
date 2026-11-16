@@ -528,10 +528,13 @@ fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
     [x, y + h - high, w, high]
 }
 
+/// The rows of the transcript that stay above a question card.
+pub(super) const CARD_ROWS: i32 = 3;
+
 /// The top of the row of buttons and the top of the transcript, under a
 /// header that always has the room of [`HEADER_LINES`], so that neither
 /// moves when the header changes.
-fn tops(margin: bool, xp: bool) -> (i32, i32) {
+pub(super) fn tops(margin: bool, xp: bool) -> (i32, i32) {
     match (margin, xp) {
         (true, _) => (0, 0),
         (false, true) => (XP_HEAD_Y, XP_BODY_TOP),
@@ -1241,6 +1244,7 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            lift: 0,
         };
         let most = frame.rect();
         let mut session = Session::new();
@@ -1290,6 +1294,7 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            lift: 0,
         };
         assert!(in_margin(&frame), "a slot in the plain look is the margin");
         let mut session = Session::new();
@@ -1396,6 +1401,7 @@ mod tests {
                 dark: false,
                 scale: 1,
                 card: None,
+                lift: 0,
             };
             let h = frame.rect()[3];
             let end = hint_top(h, field_room(&frame), 1, hint_lines_of(true)) + MARGIN_ROW;
@@ -1422,6 +1428,7 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            lift: 0,
         }
     }
 
@@ -1596,6 +1603,36 @@ mod tests {
         assert!(
             origin[1] >= parts.rect[1],
             "the card stands inside the balloon: {origin:?} in {:?}",
+            parts.rect
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_balloon_on_a_small_work_area_grows_to_hold_the_card_under_its_header() {
+        let (theme, _, cache) = crate::tests::loaded("card-small");
+        let frame = Frame {
+            area: [0, 0, 640, 372],
+            tip: Some([572, 330]),
+            scale: 2,
+            ..xp_frame(36)
+        };
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        session.agent_said("I will write notes.txt now.");
+        session.question_asked();
+        let size = [312, 167];
+        let frame = Frame {
+            lift: size[1] + GAP,
+            ..frame
+        };
+        let hint = session.hint_room(&theme, &frame, Language::En);
+        let origin = card_origin(&frame, size, hint);
+        session.card_shown(origin[1], size[1]);
+        let parts = session.parts(&theme, &frame, Language::En);
+        assert!(
+            origin[1] >= parts.rect[1] + parts.body_top,
+            "the card at {origin:?} covers the header of the balloon {:?}",
             parts.rect
         );
         let _ = std::fs::remove_dir_all(cache);

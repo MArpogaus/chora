@@ -620,6 +620,12 @@ mod tests {
     }
 
     #[test]
+    fn the_default_config_wobbles_floating_windows() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.effects, [chora_kit::effects::Kind::Wobbly]);
+    }
+
+    #[test]
     fn mistakes_fail() {
         let wrong = DEFAULT.replace("master_width: 0.5", "master_width: 2");
         assert!(parse::<Config>(&wrong).is_err());
@@ -641,7 +647,7 @@ mod tests {
         let proc = DEFAULT.replace("  effects: []", "  effects: [{shader: /proc/self/mem}]");
         let err = parse::<Config>(&proc).unwrap_err();
         assert!(err.contains("not a regular file"), "{err}");
-        let lamp = DEFAULT.replace("\neffects: []\n", "\neffects: [lamp]\n");
+        let lamp = DEFAULT.replace("\neffects: [wobbly]\n", "\neffects: [lamp]\n");
         let err = parse::<Config>(&lamp).unwrap_err();
         assert!(err.contains("effects"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");

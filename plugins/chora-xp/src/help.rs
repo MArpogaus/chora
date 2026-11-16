@@ -97,7 +97,10 @@ fn about(key: Key) -> Option<(&'static str, &'static str)> {
         Key::Switch(1) => (GROUPS[0], "Switch between windows"),
         Key::Help => (GROUPS[0], "Open this help"),
         Key::Desktop => (GROUPS[0], "Show the desktop; press again for the windows"),
-        Key::Launcher => (GROUPS[0], "Run a program: open the launcher"),
+        Key::Launcher => (
+            GROUPS[0],
+            "Run a program or a typed command: open the launcher",
+        ),
         Key::Files => (GROUPS[0], "Open the file manager"),
         Key::Chat => (GROUPS[1], "Chat with a helper"),
         Key::Close => (GROUPS[2], "Close the window"),

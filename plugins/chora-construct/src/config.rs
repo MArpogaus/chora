@@ -496,6 +496,8 @@ impl Config {
                         chord("Ctrl+Alt+Right"),
                     ),
                     row("Step into the face", chord("Return"), Vec::new()),
+                    row("Close the cube, stood back", chord("Escape"), Vec::new()),
+                    row("Show these keys, stood back", chord("F1"), Vec::new()),
                 ],
             });
         }
@@ -533,7 +535,11 @@ impl Config {
                 shared: true,
                 rows: vec![
                     row("Back out one step", chord("Escape"), Vec::new()),
-                    row("Start a program", one(Action::Launcher), Vec::new()),
+                    row(
+                        "Start a program or run a command",
+                        one(Action::Launcher),
+                        Vec::new(),
+                    ),
                     row("Show these keys", shared_help, Vec::new()),
                     row("Lock the screen", one(Action::Lock), Vec::new()),
                     row("Open the power menu", one(Action::Power), Vec::new()),

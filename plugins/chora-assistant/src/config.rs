@@ -178,6 +178,9 @@ pub struct Line {
     pub max_chars: Option<usize>,
     /// The sentence has no box and stands beside the figure.
     pub plain: bool,
+    /// The size of the text in pixels, in the font of the chat; the small
+    /// text of the host if the folder names none.
+    pub size: Option<u32>,
     /// The tail of the bubble is near its left end, and the bubble grows
     /// to the right.
     pub tail_left: bool,
@@ -189,6 +192,7 @@ impl Default for Line {
             text: "{text}".into(),
             max_chars: None,
             plain: false,
+            size: None,
             tail_left: false,
         }
     }
@@ -238,6 +242,7 @@ fn line_of(panel: &chora_kit::hud::Panel) -> Line {
         text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
         max_chars: panel.max_chars.map(|n| n as usize),
         plain: panel.style == Some(chora_kit::hud::Style::Plain),
+        size: panel.size,
         tail_left: panel.tail == Some(chora_kit::hud::Tail::Left),
     }
 }
@@ -588,7 +593,7 @@ mod tests {
     #[test]
     fn the_default_shows_each_look_with_its_own_folder() {
         let config: Config = parse(DEFAULT).unwrap();
-        assert_eq!(config.folder(&context("tiling", "foot")), "neutral");
+        assert_eq!(config.folder(&context("tiling", "foot")), "tiling");
         assert_eq!(config.folder(&context("xp", "foot")), "xp");
         assert_eq!(config.folder(&context("mc", "foot")), "mc");
         assert_eq!(config.folder(&context("construct", "")), "construct");

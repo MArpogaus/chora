@@ -59,10 +59,11 @@ impl Mc {
     }
 
     /// The word for the microphone as an item of the state line `id`: in
-    /// the line of the state word, flush right, or alone at the left edge
-    /// when mc draws no state word there. Beside the HUD host a muted
-    /// microphone has no word of mc: the badge of the host says so there
-    /// and turns it on.
+    /// the line of the state word, flush right, or beside the HUD host right
+    /// after the word, which the host's word would cover at the right edge,
+    /// or alone at the left edge when mc draws no state word there. Beside
+    /// the HUD host a muted microphone has no word of mc: the badge of the
+    /// host says so there and turns it on.
     pub fn mic_item(&self, id: &str, slot: i32, alone: bool) -> Option<Item> {
         let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
         if host && self.mic == Mic::Off {
@@ -71,7 +72,11 @@ impl Mc {
         let (word, mute) = self.mic.word()?;
         let props = self.ty("margin", None).props(word);
         Some(Item {
-            put: if alone { Put::Stack } else { Put::End },
+            put: match (alone, host) {
+                (true, _) => Put::Stack,
+                (false, true) => Put::After,
+                (false, false) => Put::End,
+            },
             hit: mute.map(|mute| format!("{HIT}:{}", if mute { "mute" } else { "on" })),
             ..Item::text(format!("{id}-mic"), slot, props, alone)
         })

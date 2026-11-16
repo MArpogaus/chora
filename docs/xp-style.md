@@ -107,8 +107,14 @@ honest state words.
 13. **The balloon has XP's form** (`form: xp`): a header of two lines (the
     name in bold with the state word after an em dash, then the task and
     the step in grey), a close box of 21 px at the top right, Stop and Send
-    as push buttons, the field in white with a 1 px rule of `#7F9DB9`, and
+    as push buttons, the field in white with a 1 px rule of `#7F9DB9`, 28 px high and level
+    with Send, and
     the question as a white group box with Yes and No as push buttons of
-    80 by 28 px, 8 px apart. No button is the default one.
+    80 by 28 px, 8 px apart. No button is the default one. The Run box is
+    fuzzel on a grid of 4 px, with its label in the text colour; fuzzel
+    draws no box around its input.
 14. **The balloon fades in 160 ms** and never rests half transparent: a
     capture 200 ms after it went finds it gone or whole.
+15. **The paperclip shows without a helper**: with no voice agent it
+    stands in its idle pose at its place, and a click opens the chat that
+    says so.

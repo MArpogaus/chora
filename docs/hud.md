@@ -22,7 +22,7 @@ fancy/
 A shipped folder lives in `chora/huds/NAME` of a directory of
 `$XDG_DATA_DIRS`, by default `/usr/share/chora/huds/NAME`, a user folder
 in `$XDG_DATA_HOME/chora/huds/NAME`. A user folder wins over a shipped one
-of the same name. chora ships `neutral`, `xp`, `mc` and `construct`. A folder that is dropped in changes nothing until a
+of the same name. chora ships `neutral`, `tiling`, `xp`, `mc` and `construct`. A folder that is dropped in changes nothing until a
 setting names it.
 
 ### Limits
@@ -88,13 +88,14 @@ trusts.
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
 always matches. The shipped settings have these rules, so each look
-shows its own folder and tiling shows `hud`:
+shows its own folder:
 
 ```yaml
 huds:
   - {when: {space: construct}, folder: construct}
   - {when: {wm: mc}, folder: mc}
   - {when: {wm: xp}, folder: xp}
+  - {when: {space: tiling}, folder: tiling}
 ```
 
 A matching rule overrides `hud`, and so `--use-hud`, which prints a warning
@@ -192,6 +193,7 @@ chat:
 | `style` | `bubble` or `plain`; `island` on a panel with `source: voice`. |
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
+| `size` | The text size in pixels of a `plain` sentence, 14 to 48, set in the font of the chat. Left out, the sentence is the small text of the host. A `bubble` sentence ignores it. |
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
 | `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |

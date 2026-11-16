@@ -46,6 +46,7 @@ assets = [
   # The neutral asset folder of each block (D73).
   { source = "../../plugins/chora-notify/assets/*", dest = "/usr/share/chora/notify/assets/", mode = "644" },
   { source = "../../plugins/chora-assistant/huds/neutral/*", dest = "/usr/share/chora/huds/neutral/", mode = "644" },
+  { source = "../../plugins/chora-assistant/huds/tiling/*", dest = "/usr/share/chora/huds/tiling/", mode = "644" },
   { source = "target/release/chora-mc", dest = "/usr/bin/chora-mc", mode = "755" },
   # chora-mc has its scenes, settings and shaders built in; the collectors
   # that fill the scenes run from here.

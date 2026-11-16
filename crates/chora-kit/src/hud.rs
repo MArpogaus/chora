@@ -221,6 +221,10 @@ pub struct Panel {
     pub text: Option<String>,
     /// The most characters of the text, from 1 to [`MAX_CHARS`].
     pub max_chars: Option<u32>,
+    /// The text size in pixels of a sentence (`source: say`), from
+    /// [`MIN_CHAT_SIZE`] to [`MAX_CHAT_SIZE`], in the font of the chat; the
+    /// small text of the host if left out.
+    pub size: Option<u32>,
     /// A template for one row of a list.
     pub rows: Option<String>,
     /// The most rows of a list, from 1 to [`MAX_ROWS`].
@@ -950,6 +954,13 @@ impl Panel {
                 fail(errors, at, key, &format!("{value} is not from 1 to {most}"));
             }
         }
+        if let Some(size) = self
+            .size
+            .filter(|s| !(MIN_CHAT_SIZE..=MAX_CHAT_SIZE).contains(s))
+        {
+            let message = format!("{size} is not from {MIN_CHAT_SIZE} to {MAX_CHAT_SIZE}");
+            fail(errors, at, "size", &message);
+        }
     }
 
     fn check_place(&self, at: &str, ids: &BTreeSet<&str>, errors: &mut Vec<String>) {
@@ -1459,6 +1470,16 @@ mod tests {
             "max_rows: 200",
             "max_rows: 1",
         ] {
+            assert!(parse(&one_panel(good)).is_ok(), "{good}");
+        }
+    }
+
+    #[test]
+    fn a_panel_names_the_size_of_its_text_from_14_to_48_pixels() {
+        for bad in ["size: 13", "size: 49", "size: 0"] {
+            assert!(errors(parse(&one_panel(bad))).contains("size"), "{bad}");
+        }
+        for good in ["size: 14", "size: 19", "size: 48"] {
             assert!(parse(&one_panel(good)).is_ok(), "{good}");
         }
     }
