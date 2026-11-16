@@ -1580,15 +1580,18 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   colours of the border of the focused window, and a soft inner glow of
   `accent`. The current tag is an `accent` pill with a line of `accent-2` on its
   top edge, an occupied tag has a line of `accent` under it, and a hovered
-  door gets a 1 px ring of `accent`. The tooltips have the same edge.
+  door gets a 1 px ring of `accent`. The tooltips that remain, of the clock, the
+  network and the volume, have the same edge.
   Separators are 1 x 16 px bars of `line` that leave the edge clear. The
   layout word is left aligned, 12 px after the separator, in a least width
   of 80 px, so the left island keeps its width through the layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
   colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
-  of the text; the tooltips of **Apps** and **Keys** name their keys,
-  spelled as the key list spells them, and the tooltips sit inside their
-  islands. The month of the clock marks today in bold and underlined.
+  of the text. The doors (**Apps**, the helper word, **Keys** and the power
+  icon) have no tooltip: a click shows what they open, and a tooltip under a
+  pointer at rest would stand over a tile when the launcher or a new window
+  takes the focus; the key list names their keys. The month of the clock
+  marks today in bold and underlined.
   Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
   directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a
