@@ -14,6 +14,9 @@
 #               chat, also while a helper works and its row has moved the
 #               door down (mc-33)
 #
+#   status      the word Mute of mc stands beside its state word and never
+#               under the state word of the host (mc-36)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -143,6 +146,23 @@ cell_door() {
     until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
 }
 
+node_rect() { ctl query "id:$1" | jq -c '.[0].rects | to_entries[0].value'; }
+cell_status() {
+    local word mute
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    ctl call mc hud.set '{"state": "speaking", "text": ""}' >/dev/null || fail "hud.set"
+    until_ok 'has_text "Mute" && has_text "speaking"' 20 || fail "no state word or no Mute: $(texts | tr '\n' '|')"
+    until_ok 'ctl query id:hud-word | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no state word"
+    sleep 1
+    word=$(node_rect hud-word)
+    mute=$(text_rect Mute)
+    shot status
+    jq -ne --argjson w "$word" --argjson m "$mute" '$m[0] + $m[2] <= $w[0]' >/dev/null ||
+        fail "Mute $mute stands under the state word of the host $word"
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -153,7 +173,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door)
+cells=(remote wide door status)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
