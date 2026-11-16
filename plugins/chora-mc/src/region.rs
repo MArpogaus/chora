@@ -2326,6 +2326,25 @@ mod tests {
         assert_eq!(mc.geometry("morning").unwrap().text, with);
     }
 
+    /// The column that came back after Super+n shows no head over a text
+    /// that has no lines, as it did not before.
+    #[test]
+    fn a_column_that_came_back_shows_no_empty_head() {
+        let (mut mc, _model) = crate::testing::mc("empty-head", [1280, 720]);
+        mc.show("agenda", true).unwrap();
+        let heads = |mc: &crate::Mc| -> Vec<String> {
+            let (items, _) = mc.items("agenda").remove(&Region::Right).unwrap();
+            (items.into_iter())
+                .map(|item| item.id)
+                .filter(|id| id.ends_with("-title"))
+                .collect()
+        };
+        let before = heads(&mc);
+        mc.toggle(Region::Right, Some(false), true).unwrap();
+        mc.toggle(Region::Right, Some(true), true).unwrap();
+        assert_eq!(heads(&mc), before);
+    }
+
     /// Live at 1156 logical pixels (scale 1.5): the right side showed
     /// as open but drew nothing, since the sides had to leave room for
     /// all four columns of the grid, which wrap there anyway.
