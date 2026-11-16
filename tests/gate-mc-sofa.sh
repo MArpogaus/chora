@@ -20,6 +20,10 @@
 #   empty-head  the column that came back after Super+n twice draws no head
 #               over a text without lines (mc-35)
 #
+#   answer      the answer that the host draws beside the state word is
+#               at least 14 px high in its text, not the 11 px of the
+#               host (mc-34)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -178,6 +182,20 @@ cell_empty_head() {
     shot empty-head
 }
 
+cell_answer() {
+    local rect
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    emit voice.say '{"text": "It is eight in the evening.", "duration_ms": 60000}'
+    until_ok 'ctl query id:hud-line | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no answer"
+    sleep 1
+    rect=$(node_rect hud-line)
+    shot answer
+    jq -ne --argjson r "$rect" '$r[3] >= 30' >/dev/null ||
+        fail "the answer of the host is $rect, a line of the small 11 px text"
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -188,7 +206,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head)
+cells=(remote wide door status empty-head answer)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
