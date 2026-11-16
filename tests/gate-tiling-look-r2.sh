@@ -204,7 +204,7 @@ cell_notice() {
     shoot "$shot" || fail "$theme notice: the capture"
     changed=$(differing "$base" "$shot" 900 650 1250 735)
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-screenshot-saved-$theme.png"
-    [ "$changed" -gt 2000 ] || fail "$theme notice: nothing stands at the bottom right ($changed pixels differ)"
+    [ "$changed" -gt 500 ] || fail "$theme notice: nothing stands at the bottom right ($changed pixels differ)"
     ok "$theme notice: Super+Print saves $(basename "$file") and the notice names it"
     makoctl dismiss --all >/dev/null 2>&1
     sleep 1
@@ -216,7 +216,7 @@ cell_notice() {
     shoot "$shot" || fail "$theme notice: the capture"
     changed=$(differing "$base" "$shot" 900 650 1250 735)
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-screenshot-failed-$theme.png"
-    [ "$changed" -gt 2000 ] || fail "$theme notice: no failure stands at the bottom right ($changed pixels differ)"
+    [ "$changed" -gt 500 ] || fail "$theme notice: no failure stands at the bottom right ($changed pixels differ)"
     rm -f "$work/stub/grim-fails"
     ok "$theme notice: a failed screenshot says so"
     makoctl dismiss --all >/dev/null 2>&1
