@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-15 13:49 UTC)
+## Now (2026-11-16 00:07 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 33 % at 09:20 (owner) + local opus 13.4 % this Bkk day (tokens.py 12:55; cloud lanes not counted): over the 10 %/day share. Reset Sat 03:59 UTC. No opus before Mon 00:00 UTC; log commits 1/h + 1/merge.
+budget: 33 % at 09:20 Sun (owner) + Sun over its share; Mon Bkk day 0.0 % local (tokens.py 00:07). Reset Sat 03:59 UTC. Mon: at most 10 %; opus only for the security a review.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 1014dddf (train 19, 11:24 UTC: ux r5; train 18 4693fe07). No train running.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
@@ -25,14 +25,13 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| fuzzel r2 (rc 1) | done, claude/fuzzel-click (tests only) | briefs/fuzzel-r2.md | cell 3/3; setup.sh scdoc fixed by PM |
-| security a r3 (rc 6) | done 85476db0, claude/security-a | briefs/security-a-r3.md | class gate (injected-optout.py) + 2 new finds; opus review Mon 00:05 UTC (Sun share used) |
-| core watchdog r2 (rc 4) | done 8313f011, claude/core-watchdog | briefs/core-watchdog-r2.md | max per-thread wait; audit export kept; starved gate tests the hatch; re-review Mon |
+| harness rc r1 (rc 1, 3, 4) | cloud sonnet medium, claude/harness-rc | briefs/harness-rc-r1.md | F25, F16/F26 test-side; fuzzel cell + rpm pin |
+| security a r3 (rc 6) | 85476db0; review opus medium (local) | briefs/security-a-r3.md | class gate + 2 new finds |
+| core watchdog r2 (rc 4) | done 8313f011, claude/core-watchdog | briefs/core-watchdog-r2.md | max per-thread wait; re-review sonnet medium (local) |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon 00:05: security a r3 review (opus medium); core watchdog r2 re-review on sonnet medium. (rc 4, 6)
-2. Mon: F25 and F16 test-side fixes on sonnet low. (rc 3, 4)
-3. Mon: fuzzel lane r3 (sonnet low): register the click cell in the gate, pin fuzzel>=1.11 in packaging; review haiku. (rc 1)
+2. Mon: train 20 (security a, core watchdog) on MERGE-OK; harness rc r1 review on sonnet. (rc 1, 3, 4)
 4. Mon-Tue: media lane on sonnet medium (screencast by Wed for the 24 h window), then ledger r3 (haiku). (rc 11, 1b, 1)
 5. Tue: persona round 4 (haiku swarm), triage.py; rc 6 area reviews on sonnet medium, opus only on HIGH. (rc 2, 6)
 6. Wed-Thu: flakes F17, F24, CI6; final review rounds. (rc 3, 4, 8)
