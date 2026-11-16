@@ -4,7 +4,7 @@
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 45 % at 12:10 Mon (owner); tokens.py 12:11: PM 3.7 %. Measured 1 %/h (38->45, 01:17-12:10) = 24 %/d, over the 12.5 cap: hold ledger r3, media r3 to next reading; few PM turns.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 6a067e39 (train 28, 15:58: mc r1+r2, all passed). Train 31b xp r2+r3 FAIL (xp 16b, r3 regression); xp r4. Next: review construct r1, tiling r2.
+session branch: 6a067e39 (train 28). Train 32 = construct r1 (81ff7b60) + xp r2-r4 (e095d113) gating since 16:4x; then review tiling r2.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
@@ -25,10 +25,10 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| construct-r1.md (rc 1) | sonnet high, claude/construct | r1 handback 13:22 (81ff7b60): co-18 BLOCK, co-19, 20, sh-24; K12 pull-out removed; review after mc r2 |
+| construct-r1.md (rc 1) | sonnet high, claude/construct | MERGE-OK 16:3x (review-construct-r1: 3 LOW, 2 COSM.); train 32 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | merged train 29 |
-| xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | train 31b FAIL 16:20: xp 16b "Atlas — Working" timeout after r3; r4 cause lane 16:21 (session_016iS3kP3mVqhMnVFem82dLs) |
+| xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | r4 e095d113 stale 16b assert; MERGE-OK (PM); train 32 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
 | mc-r2.md (rc 1, 11) | done | merged train 28 (mc-32 BLOCK, mc-34, 35, 37) |
 
