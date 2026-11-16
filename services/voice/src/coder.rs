@@ -54,6 +54,8 @@ pub struct Coder {
 
 struct Inner {
     cmd: Vec<String>,
+    /// The variables with the API keys, which the harness does not get.
+    keys: Vec<String>,
     job: Option<Job>,
     /// The spoken result of the last task.
     last: String,
@@ -79,6 +81,7 @@ impl Coder {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 cmd,
+                keys: Vec::new(),
                 job: None,
                 last: String::new(),
             })),
@@ -95,6 +98,12 @@ impl Coder {
     /// goes on.
     pub fn set_cmd(&self, cmd: Vec<String>) {
         self.lock().cmd = cmd;
+    }
+
+    /// The variables with the API keys (`Config::key_envs`); no harness
+    /// gets them.
+    pub fn set_keys(&self, keys: Vec<String>) {
+        self.lock().keys = keys;
     }
 
     /// The function specs for the LLM; none without a harness.
@@ -225,7 +234,12 @@ impl Coder {
         });
         let source = project.map(|p| self.data.join("inventory").join(p));
         let started = format!("the coding task started in {}", dir.display());
-        let (coder, cmd, task) = (self.clone(), inner.cmd.clone(), task.to_owned());
+        let (coder, cmd, keys, task) = (
+            self.clone(),
+            inner.cmd.clone(),
+            inner.keys.clone(),
+            task.to_owned(),
+        );
         crate::log::debug(&format!(
             "coder: task in {}, chars={}",
             dir.display(),
@@ -235,7 +249,7 @@ impl Coder {
         tokio::spawn(async move {
             let run = async {
                 clone(source.as_deref(), &dir, number).await?;
-                coder.run(&cmd, &task, &dir).await
+                coder.run(&cmd, &keys, &task, &dir).await
             };
             let (ok, state, result) = tokio::select! {
                 result = run => match result {
@@ -271,7 +285,13 @@ impl Coder {
 
     /// Runs the harness in `dir` and reads its output; answers whether it
     /// ended well, and its result.
-    async fn run(&self, cmd: &[String], task: &str, dir: &Path) -> Result<(bool, String), String> {
+    async fn run(
+        &self,
+        cmd: &[String],
+        keys: &[String],
+        task: &str,
+        dir: &Path,
+    ) -> Result<(bool, String), String> {
         let log_path = dir.with_file_name(format!(
             "{}.log",
             dir.file_name().unwrap_or_default().to_string_lossy()
@@ -281,7 +301,8 @@ impl Coder {
         let err = log.try_clone().map_err(|e| e.to_string())?;
         let (program, args) = cmd.split_first().ok_or("coder_cmd is empty")?;
         // Its own process group, so that a stop ends what it started too.
-        let mut child = tokio::process::Command::new(program)
+        let mut command = tokio::process::Command::new(program);
+        command
             .args(args)
             .arg(task)
             .current_dir(dir)
@@ -289,9 +310,9 @@ impl Coder {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(err)
-            .kill_on_drop(true)
-            .spawn()
-            .map_err(|e| format!("{program}: {e}"))?;
+            .kill_on_drop(true);
+        crate::config::without_keys(command.as_std_mut(), keys);
+        let mut child = command.spawn().map_err(|e| format!("{program}: {e}"))?;
         let group = Group::new(child.id());
         let out = BufReader::new(child.stdout.take().expect("piped"));
         let result = self.read(out, tokio::fs::File::from_std(log)).await?;
@@ -565,22 +586,23 @@ mod tests {
         let _ = std::fs::remove_dir_all(&data);
     }
 
-    /// The harness keeps the variables with the API keys: it may use the
-    /// same key as the voice LLM.
-    #[tokio::test]
-    async fn the_harness_keeps_the_api_key_variables() {
+    /// The harness does not get the variables with the API keys: it is
+    /// driven by an LLM that could print them.
+    #[tokio::test(flavor = "current_thread")]
+    async fn the_harness_gets_no_api_key_variable() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
         let data = temp("coder-keys");
         let (tx, rx) = mpsc::channel();
         let script = r#"echo "${HOME-unset}" > home.txt"#;
         let coder = Coder::new(sh(script), data.clone(), tx);
+        coder.set_keys(vec!["HOME".into()]);
         coder.call("code_task", &json!({"task": "warte"}));
         tokio::task::spawn_blocking(move || events(&rx))
             .await
             .unwrap();
         let home = std::fs::read_to_string(data.join("worktrees/1/home.txt")).unwrap();
         let _ = std::fs::remove_dir_all(&data);
-        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+        assert_eq!(home.trim(), "unset");
     }
 
     #[tokio::test]

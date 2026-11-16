@@ -1141,6 +1141,10 @@ impl Config {
         if let Some(rule) = self.confirm.iter().find(|r| r.prompt.trim().is_empty()) {
             return Err(format!("confirm: the rule of {} has no prompt", rule.tool));
         }
+        let any_program = serde_json::json!({"argv": ["a-program-no-rule-names"]});
+        if crate::tools::rule(&self.confirm, "run_program", &any_program).is_none() {
+            return Err("confirm: no rule asks before run_program for every program".into());
+        }
         Ok(())
     }
 }
@@ -1418,6 +1422,20 @@ mod tests {
             let err = parse::<Config>(yaml).unwrap_err();
             assert!(err.contains(key), "{yaml}: {err}");
         }
+    }
+
+    /// A `confirm` list replaces the default, so it must still ask before
+    /// `run_program` for every program.
+    #[test]
+    fn a_confirm_list_needs_a_rule_for_every_program() {
+        for yaml in [
+            "confirm: [{tool: apply_commands, prompt: Sure?}]",
+            "confirm: [{tool: run_program, argv0: [git], prompt: Sure?}]",
+        ] {
+            let err = parse::<Config>(yaml).unwrap_err();
+            assert!(err.contains("run_program"), "{yaml}: {err}");
+        }
+        assert!(parse::<Config>("confirm: [{tool: '*', prompt: Sure?}]").is_ok());
     }
 
     #[test]

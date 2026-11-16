@@ -1843,6 +1843,8 @@ mod context;
 #[cfg(test)]
 mod cost;
 #[cfg(test)]
+mod damage;
+#[cfg(test)]
 mod hit_guard;
 #[cfg(test)]
 mod marble;
