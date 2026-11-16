@@ -203,7 +203,14 @@ into a window), the keys of the window list and the help, and a press on
 the space, on a pane, on a row of the list or on a cube face. In mc it
 is a press on a hit, an agent column, a line of the overview or a
 window, and the keys that turn the page and go back. A notification card
-takes no injected press either. The setting
+takes no injected press either. The pointer events that are no press
+carry the flag as well: an injected `Super` and click (`input.button`
+and `input.moved`) drags no window, turns no cube and moves no pane; an
+injected pointer move (`pointer.entered`) focuses no window with
+`focus: follow_mouse` and marks no hover; an injected scroll
+(`pointer.scroll`) walks no camera, resizes no pane and scrolls no
+page. In the assistant an injected press on the row that opens the chat,
+on Close, on a helper row or on the figure does nothing. The setting
 `test_accept_injected_keys` of each of the four is `false`, and it is for
 tests only: `tests/headless-session.sh` and the persona session turn it
 on through the environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1`
