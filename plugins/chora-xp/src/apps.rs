@@ -239,6 +239,34 @@ mod tests {
     }
 
     #[test]
+    fn notepad_prefers_writer_then_mousepad_then_gedit_over_the_terminal() {
+        let none = |_: &str| None;
+        let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
+        assert_eq!(
+            editor(
+                None,
+                "foot",
+                none,
+                on(&["nano", "gedit", "mousepad", "lowriter"])
+            ),
+            Some("lowriter".into())
+        );
+        assert_eq!(
+            editor(None, "foot", none, on(&["nano", "gedit", "mousepad"])),
+            Some("mousepad".into())
+        );
+        assert_eq!(
+            editor(None, "foot", none, on(&["nano", "gedit"])),
+            Some("gedit".into())
+        );
+        let env = |name: &str| (name == "EDITOR").then(|| "nano".to_owned());
+        assert_eq!(
+            editor(None, "foot", env, on(&["nano", "gedit"])),
+            Some("gedit".into())
+        );
+    }
+
+    #[test]
     fn notepad_stands_among_the_accessories() {
         let run = |title: &str| Node {
             title: title.into(),
