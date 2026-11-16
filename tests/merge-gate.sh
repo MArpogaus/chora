@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, walk, keys, pixels, mc-paths, e2e. `layout` audits
+# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
@@ -16,7 +16,7 @@
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
 # construct; `pull` drags a window out of a face of that cube and back.
 # `winit` runs a virtual output with xp in a chora nested on the winit
-# backend; `wm-pane` runs xp and tiling each in a pane of the construct; `walk` taps the walk keys of the
+# backend; `wm-pane` runs xp and tiling each in a pane of the construct; `pane-keys` gives the keys to the pane that a click chose; `walk` taps the walk keys of the
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
@@ -172,6 +172,7 @@ cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
+pane-keys|BIN=$repo/target/debug tests/gate-construct-pane-keys.sh
 walk|BIN=$repo/target/debug tests/gate-construct-walk.sh
 keys|BIN=$repo/target/debug tests/gate-construct-keys.sh
 pixels|tests/gate-construct-pixels.sh
