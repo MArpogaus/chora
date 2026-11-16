@@ -463,6 +463,10 @@ impl Agent {
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
             (None, Some((frame, _))) => {
+                let frame = chat::Frame {
+                    lift: size[1] + chat::GAP,
+                    ..frame
+                };
                 let hint = self.chat.hint_room(theme, &frame, language);
                 let origin = chat::card_origin(&frame, size, hint);
                 self.chat.card_shown(origin[1], size[1]);

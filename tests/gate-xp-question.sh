@@ -10,7 +10,13 @@ need_bins chora choractl chora-xp chora-assistant
 shots=${SHOTS:-$(mktemp -d /tmp/gate-xp-question.XXXXXX)}
 mkdir -p "$shots"
 
-nodes_with() { ctl query owner:assistant | jq -r --arg w "$1" '[.[] | select(((.text // "") + (.label // "")) | contains($w))] | length'; }
+rect_of() { jq -r --arg id "$2" '[.[] | select(.id == $id)][0].rects | to_entries[0].value | map(floor) | join(" ")' "$1"; }
+inside() {
+    local ax ay aw ah bx by bw bh
+    read -r ax ay aw ah <<<"$1"
+    read -r bx by bw bh <<<"$2"
+    [ "$bx" -ge "$ax" ] && [ "$by" -ge "$ay" ] && [ $((bx + bw)) -le $((ax + aw)) ] && [ $((by + bh)) -le $((ay + ah)) ]
+}
 
 question_cell() {
     local scale=$1 entries
@@ -36,6 +42,18 @@ question_cell() {
     ctl capture "$shots/xp-question-${scale}x.png" >/dev/null || fail "the capture failed"
     ctl query owner:assistant >"$shots/nodes-$scale.json"
     exec 5>&-
+    local nodes=$shots/nodes-$scale.json chat card yes no hint
+    chat=$(rect_of "$nodes" hud-chat)
+    card=$(rect_of "$nodes" hud-card)
+    yes=$(rect_of "$nodes" hud-card-yes)
+    no=$(rect_of "$nodes" hud-card-no)
+    hint=$(rect_of "$nodes" hud-chat-hint)
+    inside "$chat" "$card" || fail "${scale}x: the card ($card) is not inside the balloon ($chat)"
+    inside "$card" "$yes" || fail "${scale}x: the Yes button ($yes) is not in the card ($card)"
+    inside "$card" "$no" || fail "${scale}x: the No button ($no) is not in the card ($card)"
+    [ "${yes##* }" = 28 ] || fail "${scale}x: the Yes button is not 28 px high: $yes"
+    [ "$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")" = 1 ] || fail "${scale}x: the hint is not shown once"
+    ok "${scale}x: the question card is in the balloon with Yes and No buttons, the typing hint once: $hint"
     gate_cleanup 0
     pids=()
 }

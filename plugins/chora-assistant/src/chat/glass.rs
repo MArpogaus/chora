@@ -626,6 +626,7 @@ mod tests {
                 dark: false,
                 scale: 1,
                 card: None,
+                lift: 0,
             };
             let room = f64::from(frame.rect()[2]) - 2.0 * PAD;
             for (language, card) in [Language::En, Language::De]
@@ -675,6 +676,7 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            lift: 0,
         }
     }
 

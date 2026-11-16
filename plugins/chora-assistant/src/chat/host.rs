@@ -263,6 +263,7 @@ impl Agent {
                 .as_ref()
                 .map(crate::assistant::Assistant::tip),
             field: self.chat.field_height(),
+            lift: self.chat.card_room(),
         };
         self.chat_seen = Some(frame.clone());
         Ok(Some(frame))
@@ -298,6 +299,7 @@ impl Agent {
         commands.extend(self.card_follows()?);
         commands.extend(self.card_clears(panel)?);
         self.apply(commands)?;
+        self.chat.restyle(&frame);
         self.switcher.set_chat(self.chat.is_open(), Instant::now());
         let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);
         self.chat_announce(&frame)?;

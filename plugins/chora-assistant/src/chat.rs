@@ -36,7 +36,7 @@ mod view;
 
 pub use face::Face;
 pub use host::{Announced, ShowParams, exported, token_of};
-pub use view::{card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
+pub use view::{GAP, card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;
@@ -76,6 +76,9 @@ pub struct Frame {
     pub tip: Option<[i32; 2]>,
     /// The height of the field at the bottom of the view.
     pub field: i32,
+    /// The room of the question card in the view with its gap, 0 for
+    /// none: a balloon grows to hold it under its header.
+    pub lift: i32,
 }
 
 impl Frame {
@@ -130,7 +133,33 @@ impl Frame {
         let left = (right - w).max(ax);
         let bottom = (tip_y - TAIL).max(ay + 1);
         let top = (bottom - ah * 6 / 10).max(ay);
-        [left, top, w, bottom - top]
+        let need = self.card_need();
+        if need <= bottom - top {
+            return [left, top, w, bottom - top];
+        }
+        if bottom - ay >= need {
+            return [left, bottom - need, w, need];
+        }
+        [left, ay, w, need.min(ah)]
+    }
+
+    /// The height that a balloon needs for the card of a question under
+    /// its header with a few rows of the transcript above, 0 without a
+    /// card.
+    fn card_need(&self) -> i32 {
+        if self.lift == 0 {
+            return 0;
+        }
+        let xp = self.look.form == chora_kit::hud::ChatForm::Xp;
+        let (_, body_top) = view::tops(false, xp);
+        let row = Face::of(&self.look).as_ref().map_or(view::LINE, Face::line);
+        body_top
+            + view::GAP
+            + self.field
+            + view::PAD
+            + view::GAP
+            + self.lift
+            + view::CARD_ROWS * row
     }
 
     /// Where the tail of a balloon chat leaves its bottom edge, from its
@@ -1492,6 +1521,7 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            lift: 0,
             tip: None,
             field: ONE_LINE_FIELD,
         }
