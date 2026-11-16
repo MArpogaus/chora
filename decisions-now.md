@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T16:47:00Z
+screened-through: 2026-11-16T16:49:00Z
 
+- 11-16 16:49Z "We're at 46%. Would a other Fable run help..." -> 46 %; Fable flakes lane now
 - 11-16 16:47Z "Summarize you progress..." -> question, chat
 
 - 11-16 12:10Z "45" -> budget reading 45 %
@@ -21,7 +22,6 @@ screened-through: 2026-11-16T16:47:00Z
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)
 - 11-15 09:27Z ti-1 "Yes, build under $HOME" -> setup.sh builds fuzzel 1.11; media: status, screencast, README
 - 11-15 02:10Z "...We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
-- 11-12 05:47Z "stability and the aesthetics, looks, UX and UI, shall always win over new functionality..." -> ideas to the backlog, push back
 - 11-11 10:10Z "After ui ux clean. Finalize foundational work and review code ... before feat sprints." -> order: UX/UI, code review, rc, reflection, sprints
 - 11-11 10:31Z "You may released when all clean." -> PM opens CI PR, tags, publishes when rc.md holds
 - 11-11 10:53Z "After the release candidate, we need an extensive user testing round..." -> persona round 5

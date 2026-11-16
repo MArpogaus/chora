@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-16 12:11 UTC)
+## Now (2026-11-16 16:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 45 % at 12:10 Mon (owner); tokens.py 12:11: PM 3.7 %. Measured 1 %/h (38->45, 01:17-12:10) = 24 %/d, over the 12.5 cap: hold ledger r3, media r3 to next reading; few PM turns.
+budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 now; media r3 after train 32.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 6a067e39 (train 28). Train 32 = construct r1 (81ff7b60) + xp r2-r4 (e095d113) gating since 16:4x; then review tiling r2.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
@@ -30,10 +30,10 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | r4 e095d113 stale 16b assert; MERGE-OK (PM); train 32 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
-| mc-r2.md (rc 1, 11) | done | merged train 28 (mc-32 BLOCK, mc-34, 35, 37) |
+| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | F26, F28, F17 causes; started 16:5x |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Tue 00:xx: opus F26 doors cause lane (rc 3), replaces ledger r3. testwatch haiku between merges (rc 3, 4).
+1. Now: Fable flakes r6 (F26, F28, F17; rc 3). testwatch haiku between merges (rc 3, 4).
 2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
