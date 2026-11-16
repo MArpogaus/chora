@@ -6,7 +6,7 @@
 # One gate runs at a time: the gate and the gate scripts take the lock
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
-# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
+# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
 # layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
@@ -158,6 +158,7 @@ clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
 ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py
 2d-guard|tests/2d-guard.sh 8742dee
 package-deps|tests/gate-package-deps.sh
+package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
