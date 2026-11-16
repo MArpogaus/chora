@@ -160,10 +160,10 @@ fn held_up_in(state: u8) -> bool {
     matches!(state, b'R' | b'D')
 }
 
-/// Whether a thread of this process waits only for a CPU or for the
-/// disk, by `/proc`, read without malloc.
+/// The state of a thread of this process by `/proc`, read without
+/// malloc.
 #[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
-fn held_up(thread: libc::pid_t) -> bool {
+fn state_of(thread: libc::pid_t) -> Option<u8> {
     use std::io::Write as _;
     let mut path = std::io::Cursor::new([0_u8; 64]);
     let _ = write!(path, "/proc/self/task/{thread}/stat\0");
@@ -172,14 +172,14 @@ fn held_up(thread: libc::pid_t) -> bool {
     let read = unsafe {
         let fd = libc::open(path.get_ref().as_ptr().cast(), libc::O_RDONLY);
         if fd < 0 {
-            return false;
+            return None;
         }
         let read = libc::read(fd, stat.as_mut_ptr().cast(), stat.len());
         libc::close(fd);
         read
     };
     let read = usize::try_from(read).unwrap_or(0);
-    state_in(&stat[..read]).is_some_and(held_up_in)
+    state_in(&stat[..read])
 }
 
 /// Whether a fault handler that the alarm found at this point may go
@@ -192,23 +192,22 @@ fn goes_on(used_cpu: bool, held_up: bool, ran_ms: u64) -> bool {
 
 /// The alarm of a fault handler. A handler that is slow goes on, so
 /// that load does not cut the backtrace; one that is stuck ends here,
-/// with the signal of its fault and not with SIGALRM.
+/// with the signal of its fault and not with SIGALRM. Its line names
+/// the state of `/proc` that the alarm found, `?` when it found none.
 extern "C" fn stuck(_sig: libc::c_int, _info: *mut libc::siginfo_t, _ctx: *mut libc::c_void) {
     let now = cpu_ns(WATCH.clock.load(Ordering::Relaxed));
     let used_cpu = now > WATCH.cpu_ns.swap(now, Ordering::Relaxed);
     let alarms = WATCH.alarms.fetch_add(1, Ordering::Relaxed) + 1;
     let ran_ms = u64::from(alarms) * u64::from(GIVE_UP_AFTER.load(Ordering::Relaxed));
-    if goes_on(
-        used_cpu,
-        held_up(WATCH.thread.load(Ordering::Relaxed)),
-        ran_ms,
-    ) {
+    let state = state_of(WATCH.thread.load(Ordering::Relaxed));
+    if goes_on(used_cpu, state.is_some_and(held_up_in), ran_ms) {
         return;
     }
     let sig = WATCH.signal.load(Ordering::Relaxed);
     say(format_args!(
-        "the handler of {} is stuck after {ran_ms} ms: no backtrace",
-        name(sig)
+        "the handler of {} is stuck after {ran_ms} ms in the state {}: no backtrace",
+        name(sig),
+        char::from(state.unwrap_or(b'?'))
     ));
     end_with(sig);
 }
@@ -430,8 +429,8 @@ mod tests {
         #[allow(unsafe_code, reason = "the id of the calling thread")]
         // SAFETY: gettid has no arguments and cannot fail.
         let thread = unsafe { libc::gettid() };
-        assert!(held_up(thread));
-        assert!(!held_up(0));
+        assert_eq!(state_of(thread), Some(b'R'));
+        assert_eq!(state_of(0), None);
     }
 
     /// Runs one test of this binary again in a child with a variable
@@ -491,8 +490,9 @@ mod tests {
     }
 
     /// A handler that sleeps, as one that waits for the lock of malloc
-    /// does, is stuck: the alarm says so and ends the process with the
-    /// signal of the fault.
+    /// does, is stuck: the alarm says so, names the state of `/proc`
+    /// that it found (F17: a cut backtrace then names its cause), and
+    /// ends the process with the signal of the fault.
     #[test]
     fn a_stuck_handler_ends_with_the_signal_of_its_fault() {
         use std::os::unix::process::ExitStatusExt as _;
@@ -509,6 +509,10 @@ mod tests {
         assert!(
             words.contains("chora: the handler of SIGBUS is stuck after"),
             "{words}"
+        );
+        assert!(
+            words.contains(" ms in the state S: no backtrace"),
+            "the line does not name the state that the alarm found: {words}"
         );
     }
 

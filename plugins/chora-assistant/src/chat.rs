@@ -891,7 +891,9 @@ impl Session {
         Ok(())
     }
 
-    /// Closes the view and the field.
+    /// Closes the view and the field. The field hears it also when it
+    /// took its surface away itself, on Esc: a place that the host wrote
+    /// before it read that shows the field again, with no view.
     pub fn hide(&mut self, out: &mut dyn Outside) {
         self.close_chat(out);
         self.mode = Mode::Closed;
@@ -900,13 +902,6 @@ impl Session {
         if let Some(link) = self.link.as_mut() {
             link.hide();
         }
-    }
-
-    fn close_view(&mut self, out: &mut dyn Outside) {
-        self.close_chat(out);
-        self.mode = Mode::Closed;
-        self.keyboard = false;
-        self.spoken = None;
     }
 
     /// The same chat in the look of another folder or on another output:
@@ -943,7 +938,7 @@ impl Session {
                 }
                 FieldEvent::Keyboard(on) => self.keyboard = on,
                 FieldEvent::Closed => {
-                    self.close_view(out);
+                    self.hide(out);
                     changed = true;
                 }
                 FieldEvent::Stop => changed |= self.cancel(out),
@@ -1112,9 +1107,14 @@ impl Session {
     }
 
     /// A question appeared: where its card goes, fixed until it ends.
+    /// The field of a chat holds Enter while it waits. The field of the
+    /// list does not, as in a list that opens after the question: the
+    /// list has no helper whose question it could be, and its Enter picks.
     pub fn question_asked(&mut self) -> Where {
         self.answered = Answered::No;
-        if let Some(link) = self.link.as_mut() {
+        if self.helper().is_some()
+            && let Some(link) = self.link.as_mut()
+        {
             link.question(true);
         }
         let place = if self.is_open() {
@@ -1864,6 +1864,27 @@ mod tests {
         assert_eq!(calls(&log, "chat.close"), [json!({"name": "atlas"})]);
     }
 
+    /// The field takes its surface away on Esc and says so. A place that
+    /// the host wrote before it read that, as the one that follows the
+    /// box of a slot, shows the field again: over the doors of the column
+    /// of mc, with no view (F26). The host that closes the view tells the
+    /// field to hide.
+    #[test]
+    fn a_view_that_the_field_closed_hides_a_field_that_was_placed_again() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        session.restyle(&frame);
+        log.borrow_mut().events.push(FieldEvent::Closed);
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.mode(), &Mode::Closed);
+        assert_eq!(
+            log.borrow().hides,
+            1,
+            "the field shows again by the place that crossed its Esc"
+        );
+    }
+
     #[test]
     fn ctrl_period_in_the_field_stops_the_helper() {
         let (mut session, mut out, log) = setup();
@@ -2402,6 +2423,24 @@ mod tests {
         assert_eq!(log.borrow().questions.last(), Some(&false));
         assert_eq!(session.question_asked(), Where::Chat);
         assert_eq!(log.borrow().questions.last(), Some(&true));
+    }
+
+    /// The list is a chat with no helper, so a question that appears
+    /// while it shows is not one of its helper: Enter in the field still
+    /// picks, as it does when the list opens after the question (F28).
+    #[test]
+    fn a_question_while_the_list_shows_does_not_hold_the_field() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert!(matches!(session.mode(), Mode::List(..)));
+        assert_eq!(log.borrow().questions.last(), Some(&false));
+        assert_eq!(session.question_asked(), Where::Chat);
+        assert_eq!(
+            log.borrow().questions.last(),
+            Some(&false),
+            "the field of the list holds Enter for a question of some helper"
+        );
     }
 
     #[test]
