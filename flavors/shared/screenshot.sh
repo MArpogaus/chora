@@ -4,14 +4,30 @@
 # pictures folder (`xdg-user-dir PICTURES` when that is installed, else
 # XDG_PICTURES_DIR, else ~/Pictures), a copy goes to the clipboard when wl-copy is there, and
 # a notice names the file. German with a German locale. grim is needed,
-# and slurp for an area.
+# and slurp for an area. When no notification daemon answers and
+# CHORA_NOTIFIER names one (a command), the script starts it and sends the
+# notice again, so that the person always sees the result; without a way
+# to show it, the result goes to stderr.
+# Environment:
+#   CHORA_NOTIFIER  the command that starts a notification daemon
 # Usage: sh screenshot.sh [full|area]
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
 de*) saved="Bildschirmfoto gespeichert" failed="Bildschirmfoto fehlgeschlagen" ;;
 *) saved="Screenshot saved" failed="Screenshot failed" ;;
 esac
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2" 2>/dev/null
+}
 say() {
-    command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2"
+    notify "$1" "$2" && return 0
+    if [ -n "${CHORA_NOTIFIER:-}" ]; then
+        setsid sh -c "$CHORA_NOTIFIER" >/dev/null 2>&1 &
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            sleep 0.3
+            notify "$1" "$2" && return 0
+        done
+    fi
+    echo "screenshot.sh: $1 $2" >&2
     return 0
 }
 pictures=""

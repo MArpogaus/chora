@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
@@ -168,6 +168,7 @@ xp-question|BIN=$repo/target/debug tests/gate-xp-question.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
 tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh
+tiling-look|BIN=$repo/target/debug tests/gate-tiling-wobbly.sh && BIN=$repo/target/debug tests/gate-tiling-bar-palette.sh && BIN=$repo/target/debug tests/gate-tiling-look-r2.sh
 chat-keys|BIN=$repo/target/debug tests/gate-chat-keys.sh
 doors|BIN=$repo/target/debug tests/gate-doors.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh

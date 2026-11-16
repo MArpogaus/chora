@@ -402,7 +402,7 @@ mod tests {
         let roots = vec![fixture("")];
         let file = dir.join("chora-assistant.yaml");
         let shipped = use_hud("mine", &roots, file.clone()).unwrap();
-        assert!(shipped.contains("Warning: huds has 3"), "{shipped}");
+        assert!(shipped.contains("Warning: huds has 4"), "{shipped}");
         std::fs::write(
             &file,
             "enabled: true\nposition: null\nhud: neutral\nhuds: []\n",

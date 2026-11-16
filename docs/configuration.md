@@ -252,7 +252,7 @@ default map:
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
-| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
+| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[wobbly]`; `[]` turns it off |
 | `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
@@ -1437,7 +1437,10 @@ without one is an asset folder, which holds:
 | `fonts/` | font files, optional |
 
 `plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
-changes its color with the state.
+changes its color with the state, and the row "Chat ..." with a row for each
+helper. `plugins/chora-assistant/huds/tiling` is the folder of the tiling
+flavor: the same dot, which opens the chat, and no row, since the helper word
+of the bar is the door.
 
 ## Flavors
 
@@ -1573,17 +1576,26 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   (`@define-color` tokens: `base`, `surface`, `surface-2`, `line`, `text`,
   `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
   three floating islands, left, centre and right, each 32 px high and
-  radius 10, 8 px from the top and 12 px from the sides, in Inter. One
+  radius 12, as the border of a window, 8 px from the top and 12 px from the sides, in Inter;
+  the clock and the tag numbers are in JetBrains Mono. One
   spacing of 6 px on each side of an item makes every gap between items,
-  separators and island edges 12 px. The islands are `surface` at 92 % with a 1 px `line` hairline,
-  and separators are 1 x 16 px bars that leave the hairline clear. The
+  separators and island edges 12 px. The islands are `surface` with a 1 px
+  edge in a gradient from `accent` at the left to `accent-2` at the right, the
+  colours of the border of the focused window, and a soft inner glow of
+  `accent`. The current tag is an `accent` pill with a line of `accent-2` on its
+  top edge, an occupied tag has a line of `accent` under it, and a hovered
+  door gets a 1 px ring of `accent`. The tooltips that remain, of the clock, the
+  network and the volume, have the same edge.
+  Separators are 1 x 16 px bars of `line` that leave the edge clear. The
   layout word is left aligned, 12 px after the separator, in a least width
   of 80 px, so the left island keeps its width through the layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
   colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
-  of the text; the tooltips of **Apps** and **Keys** name their keys,
-  spelled as the key list spells them, and the tooltips sit inside their
-  islands. The month of the clock marks today in bold and underlined.
+  of the text. The doors (**Apps**, the helper word, **Keys** and the power
+  icon) have no tooltip: a click shows what they open, and a tooltip under a
+  pointer at rest would stand over a tile when the launcher or a new window
+  takes the focus; the key list names their keys. The month of the clock
+  marks today in bold and underlined.
   Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
   directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a

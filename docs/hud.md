@@ -22,7 +22,7 @@ fancy/
 A shipped folder lives in `chora/huds/NAME` of a directory of
 `$XDG_DATA_DIRS`, by default `/usr/share/chora/huds/NAME`, a user folder
 in `$XDG_DATA_HOME/chora/huds/NAME`. A user folder wins over a shipped one
-of the same name. chora ships `neutral`, `xp`, `mc` and `construct`. A folder that is dropped in changes nothing until a
+of the same name. chora ships `neutral`, `tiling`, `xp`, `mc` and `construct`. A folder that is dropped in changes nothing until a
 setting names it.
 
 ### Limits
@@ -88,13 +88,14 @@ trusts.
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
 always matches. The shipped settings have these rules, so each look
-shows its own folder and tiling shows `hud`:
+shows its own folder:
 
 ```yaml
 huds:
   - {when: {space: construct}, folder: construct}
   - {when: {wm: mc}, folder: mc}
   - {when: {wm: xp}, folder: xp}
+  - {when: {space: tiling}, folder: tiling}
 ```
 
 A matching rule overrides `hud`, and so `--use-hud`, which prints a warning

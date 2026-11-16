@@ -252,6 +252,9 @@ fn launch(argv: &[String]) -> ExitCode {
             .env("CHORA_MENU", "chora-tiling --launch fuzzel")
             .env("CHORA_LOCKER", "chora-tiling --launch swaylock -f");
     }
+    if program == "screenshot" {
+        command.env("CHORA_NOTIFIER", "chora-tiling --launch mako");
+    }
     if program == "fuzzel" {
         let current = std::env::var("XDG_DATA_DIRS").ok();
         if let Some(data) = theme::data_dirs(&dirs, current.as_deref()) {
