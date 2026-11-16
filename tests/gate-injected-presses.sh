@@ -6,8 +6,8 @@
 # waits for a round trip to the plugin (settings.reload), which the
 # plugin answers after the input that came before it, not for a time.
 #
-# 1. mc: a critical notification stands in the footer; an injected click
-#    on its line leaves it, a click with the switch on clears it.
+# 1. mc: a critical notification stands as a card in the column; an injected click
+#    on it leaves it, a click with the switch on clears it.
 # 2. The construct over tiling: the window list stands open (opened with
 #    the switch on, which is then set off with settings.set); an injected
 #    Return and an injected click on a row take no window, and with the
@@ -61,7 +61,7 @@ press_urgent() {
     session_start 1280x800 -- "$bin/chora-mc"
     grant input.inject methods.call methods.privileged
     call mc notify.push '{"title": "Disk is full", "urgency": "critical"}' >/dev/null || fail "notify.push"
-    local hit=mc-r1-footer-urgent-hit
+    local hit=mc-r1-right-urgent-hit
     until_ok "ctl query id:$hit | grep -q rects" || fail "no line for the urgent notification"
     until_ok '[ -n "$(urgent_text)" ]' || fail "the notification did not reach the urgent text"
     click_on "$hit"
