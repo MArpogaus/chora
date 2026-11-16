@@ -1,10 +1,11 @@
 import sys, time, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from launch import *
-from tour import *
+from human import Human
+from tour import Session
 from slides import slide
 
-OUT = "/home/user/log/media/2026-11-12/tour-v3"
+OUT = os.environ.get("TOUR_OUT", "/home/user/log/media/2026-11-16/tour-v3")
 L = Launcher("construct3")
 stub = f"{L.dir}/stub"; os.makedirs(stub, exist_ok=True)
 open(f"{stub}/foot", "w").write("""#!/bin/sh
@@ -16,34 +17,38 @@ env = L.start([f"{BIN}/chora-construct"], flavor="construct", companions=[[f"{BI
 S = Session(env, L.pids, BIN)
 S.ctl("wait", "id:construct-look", "--timeout", "30")
 time.sleep(3)
-t = Tour(S, OUT, f"{L.dir}/work")
+t = Human(S, OUT, f"{L.dir}/work")
 t.begin("4 construct", "04-construct")
 O = "HEADLESS-1"
 C = f"python3 -I {CONTENT}"
 try:
-    t.jump(640, 500)
+    t.jump(640, 520)
     t.wait(1.5)
-    t.act("look", "The empty construct", "A start card stands on the floor: Nothing is open yet, Terminal, All programs, A cube of desktops", settle=0.5, still="04-01-start-card")
+    t.act("look", "The person looks at the empty construct", "A start card stands on the floor: Nothing is open yet, Terminal, All programs, A cube of desktops", settle=0.5, still="04-01-start-card")
     t.done()
     t.flush("card")
-    r = S.rect("id:construct-start-row-0", O) or S.rect("id:construct-start", O)
+    r = S.rect("id:construct-start-row-0", O)
     print("card rect", r, flush=True)
-    t.act("key", "Press Super+t (start a terminal)", "The card fades and a terminal opens flown in, with the hint Alt Esc Step back", settle=2.0, still="04-02-terminal-flown-in")
-    t.key("Super+t"); t.done()
+    t.act("pointer", "Click Terminal on the start card, the visible door", "The card fades and a terminal opens flown in, with the hint Alt Esc Step back", settle=2.0, still="04-02-terminal-flown-in")
+    if r:
+        t.press(r[0] + r[2] / 2, r[1] + r[3] / 2)
+    else:
+        t.key("Super+t")
+    t.done()
     t.act("keys", "Type ls, then cat friday.md", "Typed keys reach the terminal at once", settle=0.8, still="04-03-shell")
-    t.text("ls\n"); t.wait(0.4); t.text("cat friday.md\n"); t.done()
+    t.type_human("ls\n", typo_at=1, typo_char="k"); t.wait(0.6); t.type_human("cat friday.md\n", think=(0,)); t.done()
     t.act("key", "Press Alt+Escape (step back)", "The camera steps back: the terminal is a pane, hints W A S D Walk, Tab Windows, Super T Terminal, F1 All keys", settle=2.5, still="04-04-step-back")
     t.key("Alt+Escape"); t.done()
     t.act("key", "Press Super+t again (second terminal)", "A second terminal opens beside the first and flies in", settle=3.0, still="04-05-second-terminal")
     t.key("Super+t"); t.done()
-    t.act("keys", "Type a picture command", "The terminal shows a picture", settle=3.0, still="04-06-picture")
-    t.text(f"{C} mosaic 7\n"); t.done()
+    t.act("keys", "Open friday.md in the editor, add a line and save", "The editor shows the file and the new line", settle=3.0, still="04-06-picture")
+    t.type_human("nano friday.md\n", think=(0,)); t.wait(1.5); t.key("ctrl+End"); t.type_human("\n- Monday: plan the week"); t.wait(0.6); t.key("ctrl+o"); t.wait(0.8); t.tap("Return", 0.6); t.done()
     t.act("key", "Press Alt+Escape (step back)", "Two panes side by side with their labels", settle=2.5, still="04-07-two-panes")
     t.key("Alt+Escape"); t.done()
     t.act("key", "Press Super+t a third time", "A third terminal opens", settle=3.0, still="04-08-third")
     t.key("Super+t"); t.done()
     t.act("keys", "Type a page command", "The terminal shows a page", settle=3.0, still="04-09-page")
-    t.text(f"{C} page\n"); t.done()
+    t.type_human(f"{C} page\n", think=(0,)); t.done()
     t.act("key", "Press Alt+Escape (step back)", "Three panes", settle=2.5, still="04-10-three-panes")
     t.key("Alt+Escape"); t.done()
     t.act("key", "Hold w for 1.2 s (walk forward)", "The camera glides forward by pane steps", settle=0.4, still="04-11-walk")
@@ -59,10 +64,10 @@ try:
     t.act("key", "Press F1 (key overlay)", "A searchable list of the keys that work now", settle=1.2, still="04-16-keys")
     t.key("F1"); t.done()
     t.act("keys", "Type 'turn' into the search", "The list narrows to the turn keys", settle=0.8, still="04-17-keys-search")
-    t.text("turn"); t.done()
+    t.type_human("turn"); t.done()
     t.act("key", "Press Escape twice", "The first Escape clears the search, the second closes the overlay", settle=1.0, still="04-18-keys-closed")
     t.key("Escape"); t.wait(0.4); t.key("Escape"); t.done()
-    t.act("key", "Press z (a key that does nothing)", "A notice says what the keys do here", settle=1.0, still="04-19-notice")
+    t.act("key", "Slip: press z, which does nothing here", "A notice says what the keys do here", settle=1.0, still="04-19-notice")
     t.key("z"); t.done()
     t.flush("voice")
     L.emit("voice.state", {"state": "listening", "task": "", "said": ""})
@@ -76,12 +81,10 @@ try:
     t.flush("island")
     ix, iy = S.centre("id:hud-figure", O)
     t.act("pointer", "Click the HUD island", "The chat opens as a glass panel with the field focused", settle=1.8, still="04-21-chat-open")
-    t.move(ix, iy); t.click(); t.done()
-    t.act("keys", "Type 1 and press Return (pick Atlas)", "Atlas is picked", settle=1.5, still="04-22-picked")
-    t.text("1"); t.key("Return"); t.done()
+    t.press(ix, iy); t.done()
     msg = "Please also add Monday."
     t.act("keys", f"Type '{msg}' and press Return", "The message is sent", settle=1.2, still="04-23-sent")
-    t.text(msg); t.key("Return"); t.done()
+    t.type_human(msg, typo_at=7, typo_char="k"); t.wait(0.5); t.key("Return"); t.done()
     t.flush("question")
     L.emit("voice.state", {"name": "Atlas", "state": "question", "task": "Tidy notes", "seq": 5})
     L.emit("voice.confirm", {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/notes/friday-summary.txt (412 bytes)", "physical": True, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": True})
@@ -91,7 +94,7 @@ try:
     t.flush("card2")
     yx, yy = S.centre("id:hud-card-yes", O)
     t.act("pointer", "Click Yes", "The click answers the question", settle=1.2, still="04-25-yes")
-    t.move(yx, yy); t.click(); t.done()
+    t.press(yx, yy); t.done()
     t.flush("answered")
     L.emit("voice.confirm", {"id": "51", "done": True})
     L.emit("voice.state", {"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 2, "steps": 2, "seq": 6})

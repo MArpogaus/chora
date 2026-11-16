@@ -1,13 +1,14 @@
 import sys, time, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from launch import *
-from tour import *
+from human import Human
+from tour import Session
 from slides import slide
 
-OUT = "/home/user/log/media/2026-11-12/tour-v3"
+OUT = os.environ.get("TOUR_OUT", "/home/user/log/media/2026-11-16/tour-v3")
 L = SceneScript("cube", "scene-cube.sh", "light")
 S = Session(L.env, L.pids, BIN)
-t = Tour(S, OUT, f"{L.dir}/work")
+t = Human(S, OUT, f"{L.dir}/work")
 t.begin("6 xp cube", "06-cube")
 def front():
     for n in range(4):
@@ -41,23 +42,21 @@ try:
     t.act("look", "Wait for the turn to settle", "Face 3 (cube.rs and chart) stands in front", settle=2.5, still="06-07b-turned-drag")
     t.wait(2.0); t.done()
     t.act("pointer", "Move the pointer off the face, then onto it", "The edge of the face lights when the pointer is over it", settle=1.0, still="06-08-hover-off")
-    t.move(1000, 80, 1.0); t.done()
+    t.reach(1000, 80); t.done()
     t.act("pointer", "Move onto the face", "The edge of the face is lit", settle=1.0, still="06-09-hover-edge")
-    t.move(640, 330, 1.0); t.done()
+    t.reach(640, 330); t.done()
     t.flush("chips")
     cx, cy = S.centre("id:construct-mode-turn-left", "HEADLESS-1")
     t.act("pointer", "Click the TURN LEFT chip", "The cube turns back one face", settle=3.0, still="06-10-turn-chip")
-    t.move(cx, cy); t.click(); t.done()
+    t.press(cx, cy); t.done()
     t.act("key", "Press Ctrl+Alt+Left (turn back)", "The cube is on the first face again (sunset, chora)", settle=2.5, still="06-11-turn-back")
     t.key("Ctrl+Alt+Left"); t.done()
     t.flush("front")
     sx, sy = S.centre("id:construct-mode-step-in", "HEADLESS-1")
     t.act("pointer", "Click the face to step in", "The camera goes into the face: the xp desktop at 1:1 with the STEP BACK chip", settle=3.0, still="06-12-step-in")
-    t.move(640, 330, 1.0); t.click(); t.done()
+    t.press(640, 330); t.done()
     t.act("key", "Press Alt+Escape (step back again)", "The camera steps back from the face", settle=3.0, still="06-13-step-back-again")
     t.key("Alt+Escape"); t.done()
-    t.act("camera glide (method)", "Glide the camera to a view from the side", "The face seen at an angle, windows on it", settle=0.5, still="06-14-stood-off", lead=0.5)
-    t.call("construct", "camera.glide", {"x": -360, "z": -600, "yaw": 0.38, "pitch": -0.02, "ms": 1400}); t.wait(1.8); t.done()
     t.act("pointer", "Drag the title bar of the sunset window off the face", "The window leaves the face and becomes a pane in the space, with the label SUNSET", settle=0.5, still=None)
     t.drag(330, 186, 870, 250, seconds=1.6, hold=0.3, mid_still="06-15-pulling"); t.done()
     t.act("look", "Wait for the pane to settle", "The pane floats beside the face, the taskbar button of sunset is gone", settle=2.5, still="06-16-pane")

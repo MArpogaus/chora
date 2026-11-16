@@ -49,29 +49,36 @@ esac
 
 def programs_yaml(stub):
     items = [
-        ("Notes", "notes", "notes"),
-        ("wobbly.rs", "wobbly", f"code {REPO}/crates/chora-kit/src/wobbly.rs"),
-        ("Chart", "chart", "palette"),
-        ("Page", "page", "page"),
+        ("Editor", "editor", "nano /home/user/notes/friday.md"),
+        ("Notes", "notes", "python3 -I %s notes" % CONTENT),
+        ("Chart", "chart", "python3 -I %s palette" % CONTENT),
+        ("Page", "page", "python3 -I %s page" % CONTENT),
     ]
     out = "programs:\n"
-    for title, script, args in items:
+    for title, script, command in items:
         path = os.path.join(stub, f"chora-{script}")
         with open(path, "w") as f:
             f.write(
                 "#!/bin/sh\nexec foot --app-id=%s --title=%s -o pad=14x12 -o colors.background=1a1b26 "
                 "-o colors.foreground=c0caf5 -o 'font=DejaVu Sans Mono:size=9' -o cursor.blink=no "
-                "-e sh -c 'python3 -I %s %s; exec sleep infinity'\n" % (title, title, CONTENT, args)
+                "-e sh -c '%s; exec sleep infinity'\n" % (title, title, command)
             )
         os.chmod(path, 0o755)
         out += f"  - title: {title}\n    command: chora-{script}\n    icon: utilities-terminal\n"
     return out
 
 
+FRIDAY = "# Friday\n\n- Release notes for 0.9 (Anna, by noon)\n- Review the cube merge request\n- Design review at 15:30\n"
+
+
 class Launcher:
     def __init__(self, name, size="1280x720"):
         os.makedirs(SCRATCH, exist_ok=True)
         self.dir = tempfile.mkdtemp(prefix=f"{name}.", dir=SCRATCH)
+        os.makedirs("/home/user/notes", exist_ok=True)
+        with open("/home/user/notes/friday.md", "w") as f:
+            f.write(FRIDAY)
+        os.makedirs(f"{self.dir}/data/nano", exist_ok=True)
         self.name = name
         self.size = size
         self.pids = []
