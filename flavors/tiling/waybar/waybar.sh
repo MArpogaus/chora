@@ -16,6 +16,10 @@
 # the colors.css of the folder chora/tiling of the config directory wins
 # when it is newer than the one that chora-tiling wrote. A SIGUSR2 copies
 # them again, so a new theme shows after the reload of the unit.
+# Waybar starts with SIGUSR1, SIGUSR2 and SIGRTMIN+1 ignored: a push from
+# chora-tiling that arrives before waybar has its handlers is lost, where
+# the default action would end waybar without a word. Waybar sets its own
+# handlers later.
 # Usage: sh waybar.sh DIR   DIR: the waybar folder of the flavor
 command -v jq >/dev/null 2>&1 || {
     echo "waybar.sh: jq is not installed; the panel of the tiling flavor needs it" >&2
@@ -74,7 +78,11 @@ while :; do
     jq -n --arg include "$dir/config.jsonc" --argjson outputs "${outputs:-[\"*\"]}" \
         '{include: [$include], output: $outputs}' >"$config"
     prepare
-    waybar --config "$config" --style "$style/style.css" &
+    (
+        # shellcheck disable=SC2172
+        trap '' USR1 USR2 35
+        exec waybar --config "$config" --style "$style/style.css"
+    ) &
     pid=$!
     echo "$pid" >"$pids/waybar.pid"
     while kill -0 "$pid" 2>/dev/null; do
