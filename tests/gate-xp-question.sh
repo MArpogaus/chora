@@ -34,15 +34,28 @@ question_cell() {
         <"$shots/voice-$scale.in" >"$shots/voice-$scale.log" 2>&1 &
     pids+=($!)
     exec 5>"$shots/voice-$scale.in"
-    echo 'voice.state {"name": "Atlas", "state": "question", "task": "Write file", "step": 1, "steps": 1, "seq": 2}' >&5
+    echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 1, "steps": 1, "seq": 2}' >&5
     sleep 1.5
     ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
     echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/projects/notes/notes.txt (412 bytes)", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
-    sleep 3
+    local nodes=$shots/nodes-$scale.json polls=0 cards hints
+    while [ "$polls" -lt 100 ]; do
+        sleep 0.1
+        polls=$((polls + 1))
+        ctl query owner:assistant >"$nodes"
+        cards=$(jq '[.[] | select(.id == "hud-card")] | length' "$nodes")
+        hints=$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")
+        [ "$cards" = 0 ] && continue
+        [ "$hints" != 0 ] || fail "${scale}x: the card showed without the hint (poll $polls)"
+        break
+    done
+    [ "$cards" != 0 ] || fail "${scale}x: no card within 10 s"
+    echo 'voice.state {"name": "Atlas", "state": "question", "task": "Write file", "step": 1, "steps": 1, "seq": 2}' >&5
+    sleep 1
     ctl capture "$shots/xp-question-${scale}x.png" >/dev/null || fail "the capture failed"
-    ctl query owner:assistant >"$shots/nodes-$scale.json"
+    ctl query owner:assistant >"$nodes"
     exec 5>&-
-    local nodes=$shots/nodes-$scale.json chat card yes no hint
+    local chat card yes no hint
     chat=$(rect_of "$nodes" hud-chat)
     card=$(rect_of "$nodes" hud-card)
     yes=$(rect_of "$nodes" hud-card-yes)

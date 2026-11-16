@@ -2365,6 +2365,21 @@ mod tests {
     }
 
     #[test]
+    fn a_card_that_names_no_other_helper_has_its_hint_before_voice_says_question() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_asked();
+        let confirm = json!({"id": "51", "prompt": "Write the file?", "buttons": true});
+        session.voice_event(&mut out, "voice.confirm", &confirm);
+        assert_eq!(
+            session.hint(Language::En).as_deref(),
+            Some("Typing does not answer."),
+            "the card and the hint show in the same frame"
+        );
+    }
+
+    #[test]
     fn a_second_question_in_an_open_chat_tells_the_field_to_wait() {
         let (mut session, mut out, log) = setup();
         let frame = frame(Look::default());
