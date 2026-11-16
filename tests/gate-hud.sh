@@ -105,7 +105,7 @@ context-held-for-question pass
 context-picks-folder pass
 card-stays-on-focus-move pass
 chat-row-always pass
-chat-row-click-opens pass
+chat-row-injected-click-refused pass
 chat-show-hide pass
 sentence-in-open-chat pass
 chat-super-a-esc missing
@@ -415,10 +415,11 @@ cell_chat_row_below_bar() {
     waiting "$settle_s" node_exists hud-row-chat || return 1
     jq -ne --argjson r "$(node_rect hud-row-chat)" '($r | to_entries[0].value)[1] >= 48' >/dev/null
 }
-cell_chat_row_click_opens() {
+chat_closed() { ! node_exists hud-chat; }
+cell_chat_row_injected_click_refused() {
     waiting "$settle_s" node_exists hud-row-chat || return 1
     click hud-row-chat
-    waiting "$settle_s" node_exists hud-chat
+    watch_for 1.5 chat_closed
 }
 cell_chat_show_hide() {
     ctl call assistant chat.show '{}' >/dev/null 2>&1 || return 1
@@ -447,7 +448,7 @@ cell_chat_super_a_esc() {
 cell_typed_yes_held() {
     ask_notes
     waiting "$settle_s" node_exists hud-card || return 1
-    click hud-row-chat
+    ctl call assistant chat.show '{}' >/dev/null 2>&1 || return 1
     waiting "$settle_s" node_exists hud-chat || return 1
     inject '[{"text": {"text": "ja\n"}}]'
     waiting "$settle_s" node_has hud-chat-hint "Typing does not answer" || return 1
@@ -476,7 +477,7 @@ cell_xp_one_balloon() {
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
     emit voice.state '{"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2}'
     if waiting "$settle_s" node_exists hud-figure && watch_for 1.5 no_rows; then
-        click hud-figure 40 60
+        ctl call assistant chat.show '{}' >/dev/null 2>&1
         waiting "$settle_s" node_exists hud-chat && waiting "$settle_s" balloon_over_figure && shown=0
     fi
     use_folder neutral
@@ -782,7 +783,7 @@ run_cell context-picks-folder cell_context_picks_folder session
 run_cell card-stays-on-focus-move cell_card_stays_on_focus_move session
 run_cell chat-row-always cell_chat_row_always session
 run_cell chat-row-below-bar cell_chat_row_below_bar session
-run_cell chat-row-click-opens cell_chat_row_click_opens session
+run_cell chat-row-injected-click-refused cell_chat_row_injected_click_refused session
 run_cell chat-show-hide cell_chat_show_hide session
 run_cell sentence-in-open-chat cell_sentence_in_open_chat session
 run_cell chat-super-a-esc cell_chat_super_a_esc session
