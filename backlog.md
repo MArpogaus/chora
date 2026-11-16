@@ -151,3 +151,4 @@ R10 | 11-15 | harness | harness r1+r2: the hook blocked valid commits in two rev
 - WD2 (review-core-watchdog-r1 MINOR): safety.rs:84-89,114 the per-frame /proc/self/task read costs ~0.13 ms and ~104 syscalls per read on the frame path (cache an fd per tid, or read only renderer threads; gate: bench); safety.rs:75 cfg(test) FrameClock reads /nonexistent, so no unit test covers the real path (gate: gate-watchdog-starved). After rc, sonnet.
 - F26 (core watchdog r2, 11-15): merge gate doors step failed once (mc column, screenshot-door, volume-door "missing"), passed on rerun. Haiku series of 10 runs, then sonnet fix. (rc 3)
 - WD3 (review-core-watchdog-r2 MINOR): safety.rs:~137 a thread missing from the first read is credited its whole wait (skip it; gate: unit test). After rc.
+- SA9 (review-security-a-r3 COSMETIC): xp main.rs:177-181 last_move coalesces a real move into a later injected one that is dropped; duplicate comment :178. After rc.

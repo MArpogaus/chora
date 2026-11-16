@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 00:15 UTC)
+## Now (2026-11-16 00:17 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 33 % at 09:20 Sun (owner) + Sun over its share; Mon Bkk day 0.0 % local (tokens.py 00:07). Reset Sat 03:59 UTC. Mon: at most 10 %; opus only for the security a review.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -26,7 +26,7 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | harness rc r1 (rc 1, 3, 4) | cloud sonnet medium, claude/harness-rc | briefs/harness-rc-r1.md | F25, F16/F26 test-side; fuzzel cell + rpm pin |
-| security a r3 (rc 6) | 85476db0; review opus medium (local) | briefs/security-a-r3.md | class gate + 2 new finds |
+| security a r4 (rc 6) | cloud sonnet high, claude/security-a | briefs/security-a-r4.md | r3 review FIX: events without the flag (grab, enter, scroll) |
 | core watchdog r2 (rc 4) | MERGE-OK; train 20 gate running (8e7effad) | briefs/core-watchdog-r2.md | max per-thread wait; 1 MINOR to backlog WD3 |
 
 ## Queue (by day; budget 10 % a UTC day)

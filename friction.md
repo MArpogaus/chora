@@ -347,3 +347,7 @@ findings, not the invariant. Change: r3 brief states the invariant and starts wi
 (`injected: _` and `..` refused without a reason). Rule for briefs: a security fix brief names
 the class invariant and the gate that enforces it.
 Resolved 2026-11-15: fixed: security a r3 brief named the invariant; tests/injected-optout.py now gates the class in pre-commit (85476db0).
+
+## 52 (2026-11-16 00:3x UTC): the security class reopened a fourth time through events without the flag
+security a r3 fixed every event that carries `injected`; review r3 found InputButton, PointerEntered and PointerScroll carry none, so a grab, focus-follows-mouse and scroll still act on injected input. Friction 51's brief rule (name the invariant) held, but the invariant was enforced per path. Change: r4 puts the flag in the event type so the compiler lists every match, and optout.py refuses patterns that ignore it. Rule for briefs: an invariant over events is enforced in the type, not in handlers.
+Resolved 2026-11-16: guarded by the type change of security a r4 (compile errors at every match) and injected-optout.py.
