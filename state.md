@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 17:49 UTC)
+## Now (2026-11-16 18:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 46 % at 16:49 Mon (owner); tokens.py 16:50: PM 4.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 after next reading.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -26,11 +26,11 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r1.md (rc 1) | sonnet high, claude/construct | merged train 32 17:49 |
-| testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 17:07: 7 heads; F26 1/9, F28 1, F27 5 (its old fuzzel); idle |
+| testwatch-r1.md (rc 3, 4) | haiku low, session branch | r1 17:07 + aba97fec 18:12 (doors, chat-keys pass; F27 env); idle |
 | secfix-a (rc 6) | done | merged train 29 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | merged train 32 17:49 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
-| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | F26, F28, F17; 16:51-18:21 (owner 1.5 h), then opus (session_016iS3kNAW1ykWfSGnf2Mgmz) |
+| flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | 18:00: F26 fix pushed, mc 0/42 fails; stop 18:21, rest opus (session_016iS3kNAW1ykWfSGnf2Mgmz) |
 
 ## Queue (by day; budget 12.5 % a UTC day)
 1. Now: Fable flakes r6 (F26, F28, F17; rc 3). testwatch haiku between merges (rc 3, 4).
