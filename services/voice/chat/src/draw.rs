@@ -45,6 +45,9 @@ pub struct Look {
     pub hint: [u8; 4],
     /// The radius of the corners of the field; 0 is a square field.
     pub radius: u32,
+    /// The space above and below the text of a plain field; none is the
+    /// shared pad.
+    pub pad: Option<u32>,
     /// The glass of the construct HUD: the field is a well of 48 with
     /// Inter 16 and the focus ring of the accent while it has the keyboard.
     pub glass: Option<Glass>,
@@ -100,6 +103,7 @@ impl Default for Look {
             border: [96, 104, 120, 255],
             hint: [160, 168, 182, 255],
             radius: 0,
+            pad: None,
             glass: None,
             column: None,
         }
@@ -120,6 +124,8 @@ pub struct Layout {
     glass: bool,
     /// The layout of a field in the margin column: its inset.
     column: Option<u32>,
+    /// The space above and below the text of a plain field.
+    pad_y: u32,
 }
 
 impl Layout {
@@ -144,7 +150,7 @@ impl Layout {
         if self.column.is_some() {
             return rows.max(1) * COLUMN_LINE;
         }
-        2 * PAD + rows.max(1) * LINE
+        2 * self.pad_y + rows.max(1) * LINE
     }
 }
 
@@ -251,6 +257,7 @@ impl Painter {
             status,
             glass,
             column: column.map(|c| c.inset),
+            pad_y: look.pad.unwrap_or(PAD),
         }
     }
 
@@ -303,7 +310,7 @@ impl Painter {
             look.text
         };
         for (row, line) in layout.lines.iter().enumerate() {
-            let rect = row_rect(row, width, layout.text_left());
+            let rect = row_rect(row, (width, layout.pad_y), layout.text_left());
             self.line(&mut pixmap, line, rect, text_color);
         }
         let status_row = layout.lines.len();
@@ -311,12 +318,12 @@ impl Painter {
             self.line(
                 &mut pixmap,
                 line,
-                row_rect(status_row + row, width, PAD),
+                row_rect(status_row + row, (width, layout.pad_y), PAD),
                 look.hint,
             );
         }
         if let (true, Some((row, x))) = (focused, layout.caret) {
-            let top = PAD + u32::try_from(row).unwrap_or(0) * LINE + 2;
+            let top = layout.pad_y + u32::try_from(row).unwrap_or(0) * LINE + 2;
             let left = PAD + x.round() as u32;
             fill(&mut pixmap, [left, top, CARET, LINE - 4], look.text);
         }
@@ -545,8 +552,8 @@ fn glass_text(line: &str, [x, top]: [f32; 2], color: [u8; 4]) -> String {
 }
 
 /// The rectangle of a row of text in a field of `width`, from `left`.
-fn row_rect(row: usize, width: u32, left: u32) -> [i32; 4] {
-    let top = PAD + u32::try_from(row).unwrap_or(0) * LINE;
+fn row_rect(row: usize, (width, pad_y): (u32, u32), left: u32) -> [i32; 4] {
+    let top = pad_y + u32::try_from(row).unwrap_or(0) * LINE;
     [left, top, width.saturating_sub(left + PAD), LINE].map(|v| i32::try_from(v).unwrap_or(0))
 }
 
@@ -657,6 +664,17 @@ mod tests {
         assert_eq!(pixels.len(), 300 * layout.height() as usize * 4);
     }
 
+    #[test]
+    fn a_field_with_a_pad_of_four_is_one_line_of_the_grid_of_28() {
+        let painter = Painter::new();
+        let look = Look {
+            pad: Some(4),
+            ..Look::default()
+        };
+        let session = Session::new(Language::En);
+        assert_eq!(painter.layout(&session, 300, &look).height(), 28);
+    }
+
     fn column_look() -> Look {
         Look {
             background: [255, 255, 255, 255],
@@ -664,6 +682,7 @@ mod tests {
             border: [200, 0, 0, 255],
             hint: [0, 0, 200, 255],
             radius: 0,
+            pad: None,
             glass: None,
             column: Some(Column {
                 to: Some("Atlas".into()),

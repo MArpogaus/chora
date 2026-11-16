@@ -19,7 +19,7 @@ for key in horizontal-pad vertical-pad inner-pad line-height; do
     value=$(setting "$key")
     [ $((value % 4)) = 0 ] || fail "the Run box: $key=$value is off the grid of 4 px"
 done
-[ "$(setting prompt-color)" = "000000ff" ] || fail "the Run box: the label is not in the text colour"
+grep -qx "prompt=000000ff" "$fuzzel_ini" || fail "the Run box: the label is not in the text colour"
 ok "the Run box stands on the grid of 4 px with a label in the text colour"
 
 field_cell() {
