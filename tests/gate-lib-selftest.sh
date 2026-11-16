@@ -139,5 +139,22 @@ if kill -0 "$slow_client" 2>/dev/null && [ "$(ps -o stat= -p "$slow_client" | cu
     failures=$((failures + 1))
 fi
 kill -KILL "$slow_client" 2>/dev/null
+stubborn_dir=$work/stubborn
+mkdir "$stubborn_dir"
+bash -c 'trap "" TERM; while :; do sleep 0.1; done' &
+stubborn=$!
+sleep 0.3
+. "$repo/tests/proc-lib.sh"
+kill "$stubborn"
+timeout 12 bash -c '. "$1/tests/proc-lib.sh"; remove_after_exit "$2" "$3"' x "$repo" "$stubborn_dir" "$stubborn"
+if [ -e "$stubborn_dir" ]; then
+    echo "FAIL: remove_after_exit left the directory of a client that ignores TERM"
+    failures=$((failures + 1))
+fi
+if running "$stubborn"; then
+    echo "FAIL: remove_after_exit did not end a client that ignores TERM"
+    failures=$((failures + 1))
+fi
+kill -KILL "$stubborn" 2>/dev/null
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"
