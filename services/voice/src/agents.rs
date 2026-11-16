@@ -105,7 +105,6 @@ struct Settings {
     /// The command with the sandbox; empty turns the tools off.
     cmd: Vec<String>,
     /// The variables with the API keys, which no agent gets.
-    #[expect(dead_code, reason = "read when the spawn removes the keys")]
     keys: Vec<String>,
     projects: BTreeMap<String, String>,
     voices: Vec<String>,
@@ -995,7 +994,8 @@ impl Actor {
         log: &Path,
         mut cmds: mpsc::UnboundedReceiver<Cmd>,
     ) -> Result<bool, String> {
-        let (mut child, mut rpc) = spawn(command, dir, log).await?;
+        let keys = self.agents.lock().settings.keys.clone();
+        let (mut child, mut rpc) = spawn(command, &keys, dir, log).await?;
         let _group = Group::new(child.id());
         let pid = child.id();
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
@@ -1329,6 +1329,7 @@ fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
 /// (mode 0600); sends `initialize`.
 async fn spawn(
     command: &[String],
+    keys: &[String],
     dir: &Path,
     log: &Path,
 ) -> Result<(tokio::process::Child, Rpc), String> {
@@ -1343,15 +1344,16 @@ async fn spawn(
         .map_err(|e| format!("{}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
     let (program, args) = command.split_first().ok_or("agent_cmd is empty")?;
-    let mut child = tokio::process::Command::new(program)
+    let mut command = tokio::process::Command::new(program);
+    command
         .args(args)
         .current_dir(dir)
         .process_group(0)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(err)
-        .spawn()
-        .map_err(|e| format!("{program}: {e}"))?;
+        .stderr(err);
+    crate::config::without_keys(command.as_std_mut(), keys);
+    let mut child = command.spawn().map_err(|e| format!("{program}: {e}"))?;
     let mut rpc = Rpc {
         stdin: child.stdin.take().expect("piped"),
         log: tokio::fs::File::from_std(file),

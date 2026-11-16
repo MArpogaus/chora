@@ -234,7 +234,12 @@ impl Coder {
         });
         let source = project.map(|p| self.data.join("inventory").join(p));
         let started = format!("the coding task started in {}", dir.display());
-        let (coder, cmd, task) = (self.clone(), inner.cmd.clone(), task.to_owned());
+        let (coder, cmd, keys, task) = (
+            self.clone(),
+            inner.cmd.clone(),
+            inner.keys.clone(),
+            task.to_owned(),
+        );
         crate::log::debug(&format!(
             "coder: task in {}, chars={}",
             dir.display(),
@@ -244,7 +249,7 @@ impl Coder {
         tokio::spawn(async move {
             let run = async {
                 clone(source.as_deref(), &dir, number).await?;
-                coder.run(&cmd, &task, &dir).await
+                coder.run(&cmd, &keys, &task, &dir).await
             };
             let (ok, state, result) = tokio::select! {
                 result = run => match result {
@@ -280,7 +285,13 @@ impl Coder {
 
     /// Runs the harness in `dir` and reads its output; answers whether it
     /// ended well, and its result.
-    async fn run(&self, cmd: &[String], task: &str, dir: &Path) -> Result<(bool, String), String> {
+    async fn run(
+        &self,
+        cmd: &[String],
+        keys: &[String],
+        task: &str,
+        dir: &Path,
+    ) -> Result<(bool, String), String> {
         let log_path = dir.with_file_name(format!(
             "{}.log",
             dir.file_name().unwrap_or_default().to_string_lossy()
@@ -290,7 +301,8 @@ impl Coder {
         let err = log.try_clone().map_err(|e| e.to_string())?;
         let (program, args) = cmd.split_first().ok_or("coder_cmd is empty")?;
         // Its own process group, so that a stop ends what it started too.
-        let mut child = tokio::process::Command::new(program)
+        let mut command = tokio::process::Command::new(program);
+        command
             .args(args)
             .arg(task)
             .current_dir(dir)
@@ -298,9 +310,9 @@ impl Coder {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(err)
-            .kill_on_drop(true)
-            .spawn()
-            .map_err(|e| format!("{program}: {e}"))?;
+            .kill_on_drop(true);
+        crate::config::without_keys(command.as_std_mut(), keys);
+        let mut child = command.spawn().map_err(|e| format!("{program}: {e}"))?;
         let group = Group::new(child.id());
         let out = BufReader::new(child.stdout.take().expect("piped"));
         let result = self.read(out, tokio::fs::File::from_std(log)).await?;
