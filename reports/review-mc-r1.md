@@ -1,36 +1,22 @@
-# Review: mc r1 (rc 1), claude/mc-fix at 4feb4dc0
+# Review mc r1 (sonnet, read only)
 
-Reviewer lane: opus, read-only. Diff: `git diff claude/autonomous-dev-session-3w-i33pg7...4feb4dc0`
-(5 commits, 13 files). Brief: briefs/mc-r1.md; ledger findings/mc.md (mc-1, mc-3 to mc-8).
+Base caf9c80d, head c2c9c353 (11 commits, 5 files). Verdict: MERGE-OK (no open BLOCK or MAJOR among the fixed items).
 
-Gates (worktree /home/user/wt/mc):
-- `tests/merge-gate.sh --red-first-check`: passes (7f8f4f80 tests before the three fixes; 4feb4dc0 has its unit test).
-- `tests/merge-gate.sh --worker ''`: build, test, clippy PASS (211 s, 80 s, 90 s), exit 0.
-- `tests/gate-mc-paths.sh` on the branch binaries: all 8 cells and the window audit PASS ("every path of the mc gate").
-- Probe of the chat focus (MC-1): scratch script (session as gate-mc-paths): MC-1 reproduced.
+| # | sev | where | finding |
+|---|---|---|---|
+| 1 | holds | main.rs:3229-3236 (replace_panel), 1186 | mc-32 BLOCK: take_free_keyboard after a panel that moved/filled/emptied; it only acts when nothing has focus, so a click-focused window or node is not stolen. Correct. |
+| 2 | holds | region.rs:824, 1745, main.rs rebuild_pages | mc-37: a hidden side has width 0, a Left/Right toggle rebuilds all pages. Correct; restores the keyboard. |
+| 3 | holds | region.rs:402-428, 1319-1330, mic.rs:75 | mc-36 overlap: Put::After puts Mute beside the state word only beside the host. End/Stack unchanged, so xp/tiling/construct (no host-mc case) unaffected. |
+| 4 | holds | region.rs:797 | mc-35 empty head: `region != Right` means the column never draws a title for an empty text, also on a first explicit open. Fine (that was the bug); Left unchanged. |
+| 5 | verdicts | mc-33, mc-36 "No helper" | Both "not a product fault" accepted. "No helper" is the host's word for no helper and a resting agent; the tour fed hud.say of mc, which the host never sees. mc-33: the door moved 84 px after the helper row appeared; the new `door` cell waits for HELPERS and passes. Code agrees (mic.rs, the open-chat test the_open_chat_leaves_the_words_of_no_helper_to_the_host). |
+| 6 | LOW | region.rs:2003-2011 | `left_of` was inserted between the doc comment of `lead` and `lead`: the comment "The room that an item keeps before its text for its close mark" now sits on left_of. Move it back. |
+| 7 | LOW | mic.rs:62-66 | doc comment line over 100 chars, rustfmt-unfriendly. |
+| 8 | LOW | rebuild_pages | Rebuilds every scene on a side toggle, not only the current one; fine at this size. |
+| 9 | LOW | dda31e6a | mc-33 test is green at its red commit by design (script fault); no red-first needed, but the commit type `test` only. |
+| 10 | open, not blocking | mc-34 MAJOR, mc-35 (critical card, overflow guard) | Declared open for the next round. |
 
-## Fixes against their findings
-
-- mc-1: plain Right/Left and Escape on a page (main.rs:1166 `page_key`, :1180 `back`); key list names `← →` on a
-  page, `Super+ ← →` in a program scene. Matches, except with `--output` (MC-3).
-- mc-3: the footer of page 2 already had `← 1  Agenda`; cell mouse-back passed on the red commit too. Verified.
-- mc-4: word `Mute` on the state line (mic.rs), privileged `voice.mute` is reached over the main socket. Matches.
-- mc-5, mc-6, mc-7: verified by the cells first-page, terminal-chat, all-keys.
-- mc-8: `Urgent:` in column and footer, footer line in `margin` (>= 14 px), a click clears only the footer line. Matches.
-
-## Findings
-
-| id | sev | file:line | text | evidence |
-|---|---|---|---|---|
-| MC-1 | MAJOR | plugins/chora-mc/src/main.rs:2669 | `keyboard_to` gives the page node the keyboard on every page turn of the user, also while the chat field of the HUD host has it: with the chat open, Super+Right moves the keyboard from the chat to the page, so typed text is lost and plain arrows turn pages. Before, `Focus {surface: None}` left the node focus alone. `take_free_keyboard` checks for a focused node; `keyboard_to` does not. The cell terminal-chat checks only the place of the chat, not its keyboard | chora-scene scene.rs:1478 (`focus_node` overwrites `focused_node` of another owner), scene.rs:1438 (`focus` None keeps it); probe: chat opened with Super+a, plain Right leaves agenda (chat has the keyboard); Super+Right shows morning with the chat node still there; plain Right then shows agents |
-| MC-2 | MINOR | tests/merge-gate.sh:136 | tests/gate-mc-paths.sh is no step of the merge gate (as gate-mc-column, -host, -scale are not); the new cells guard nothing after the merge | grep of merge-gate.sh and xp.sh |
-| MC-3 | MINOR | plugins/chora-mc/src/main.rs:430 | With `--output` (every manager pane of a construct, the battle and handover gates) a page takes no keyboard, so mc-1 stays open there: the same page and footer, but plain arrows and Escape do nothing. The flag stands in for "beside other window managers"; documented in mc-style.md 16 and mc.yaml, but it is a design gap of D55 (a node focus routes new windows) for the PM | keys::PageKeys::Bound; tests/battle/w12.sh runs mc without --output beside tiling |
-| MC-4 | MINOR | plugins/chora-mc/src/mic.rs:47, 96 | After `Failed` or `Refused` the word has no hit until the next `voice.state`; a person cannot retry Mute with the mouse until the agent changes state | `word()` returns `None` as the press for both |
-| MC-5 | COSMETIC | plugins/chora-mc/src/mic.rs:49 | "Use your own mouse" reads as a reproach; the line should say what happened (for example "Only a click of a person mutes") | copy |
-| MC-6 | COSMETIC | plugins/chora-mc/src/main.rs:1101 | Each press computes the items of the scene twice (`click_mic` and `click_hit` both call `hit_token`) | region.rs:707 |
-
-## Verdict
-
-MC-1 is MAJOR and open: **FIX**. Fix: in `keyboard_to`, skip the `FocusNode` while `self.chat == Chat::Open`
-(or while a node of another owner has the focus, as `take_free_keyboard` checks), and add to cell
-terminal-chat a typed text that must reach the chat field after the page turn.
+## Rerun
+- `cargo test -p chora-mc` at HEAD: 122 passed, 0 failed.
+- Reds at their commits (sources touched, since a first run on stale mtimes falsely passed): 37d0803b a_page_keeps... FAILED (left None, right Some("mc-s-agenda-page")); d4938d1c the_page_widens... FAILED; 5a34fb82 a_column_that_came_back... FAILED (extra notes-title). All three green at HEAD.
+- tests/gate-mc-sofa.sh: unverified. It needs the built binaries (chora, choractl, chora-mc, chora-assistant, chora-chat); the workspace build failed with "No space left on device" (volume had 5 MB free). Read the script: cells remote, wide, door, status, empty-head assert the right things; merge-gate.sh step mc-sofa is wired. Builder's 10/10 runs accepted unchecked.
+- Build dir /home/user/wt/rev-mc/target removed.
