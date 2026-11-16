@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 05:58 UTC)
+## Now (2026-11-16 06:40 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 1.3 % local (tokens.py 05:23). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -25,8 +25,8 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| f25 r2 (rc 4) | cloud sonnet high, claude/f25 (66f13d68) | briefs/f25-r2.md | PENDING: opus 4x, sonnet 05:50 too; 6th start 05:58 |
-| media r1 (rc 11, 1b, 1) | cloud sonnet medium, claude/media (66f13d68) | briefs/media-r1.md | running since 05:37 (session ...QEesX) |
+| f25 r2 (rc 4) | cloud sonnet high, claude/f25 (66f13d68) | briefs/f25-r2.md | running since 06:30 (7th start, session ...LELQh) |
+| media r1 (rc 11, 1b, 1) | cloud sonnet medium, claude/media (66f13d68) | briefs/media-r1.md | running since 05:37 (session ...QEesX); tour ch1, ch4 recorded |
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon-Wed: media r1 running (screencast by Wed for the 24 h window), then ledger r3 (haiku). (rc 11, 1b, 1)
