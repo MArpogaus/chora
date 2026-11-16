@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-16 02:23 UTC)
+## Now (2026-11-16 02:34 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 38 % at 01:17 Mon (owner); Mon Bkk day 0.7 % local (tokens.py 01:17). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. Opus only for a complex lane with a reason.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
@@ -26,10 +26,10 @@ rc target: Fri 11-20 (tag). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | harness rc r1 (rc 1, 3, 4) | cloud sonnet medium, claude/harness-rc | briefs/harness-rc-r1.md | F25, F16/F26 test-side; fuzzel cell + rpm pin |
-| security a r4 (rc 6) | done 02:22, 250b3716; review on sonnet medium running (local) | briefs/security-a-r4.md | flag in the event type; hud cell now refuses injected row click |
+| security a r5 (rc 6, 1) | cloud sonnet medium, claude/security-a | briefs/security-a-r5.md | r4 review FIX: no test that a real chat-row click opens the chat; 3 MINOR |
 
 ## Queue (by day; budget 10 % a UTC day)
-1. Mon: security a r4 and harness rc r1 reviews on sonnet medium, trains on MERGE-OK. (rc 1, 3, 4, 6)
+1. Mon: security a r5 and harness rc r1 reviews on sonnet medium, trains on MERGE-OK. (rc 1, 3, 4, 6)
 2. Mon-Tue: media lane on sonnet medium (screencast by Wed for the 24 h window), then ledger r3 (haiku). (rc 11, 1b, 1)
 3. Tue: persona round 4 (haiku swarm), triage.py; rc 6 area reviews on sonnet medium, opus only on HIGH. (rc 2, 6)
 4. Wed-Thu: flakes F17, F24, CI6; final review rounds. (rc 3, 4, 8)
