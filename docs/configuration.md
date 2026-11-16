@@ -2000,7 +2000,8 @@ keyboard does not work it (D45):
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
-  clock, the speaker is an icon of 16 pixels, with a red no-sign when the
+  clock, the speaker is an icon of 16 pixels with a bar right of the
+  cone that rises with the level, and a red no-sign when the
   sound is muted or unavailable. Its width never changes; the tooltip
   that shows after half a second says `Volume 40%`, `Muted`, `Sound
   unavailable` or `Change failed`, in the language of the session. The

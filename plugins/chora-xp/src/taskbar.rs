@@ -42,13 +42,20 @@ pub const HELPER: i32 = 32;
 const HELPER_SHAPE: &str = r##"<path d="M6.5 5.5V10.5a1.75 1.75 0 0 0 3.5 0V4.25a3.5 3.5 0 0 0-7 0V10a5 5 0 0 0 10 0V5" stroke="#ffffff" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>"##;
 /// The speaker of the notification area, left of the clock: 4 pixels
 /// of room before the 16 pixel icon and 4 after, so that the icons stand
-/// 8 pixels apart. A click mutes or unmutes. It keeps its width: the level
-/// and the word "Muted" are in its tooltip.
+/// 8 pixels apart. A click mutes or unmutes. It keeps its width: a bar
+/// right of the cone rises with the level, and the tooltip says it in words.
 pub const SPEAKER: i32 = 24;
 /// The speaker on a grid of 16 pixels.
 const SPEAKER_SHAPE: &str = r##"<path d="M1.5 5.75H5L9 2.25v11.5L5 10.25H1.5z" fill="#ffffff"/>"##;
-/// The waves of a speaker that plays.
-const SPEAKER_WAVE: &str = r##"<path d="M11.5 5.5a3.5 3.5 0 0 1 0 5M13.25 3.5a6.25 6.25 0 0 1 0 9" stroke="#ffffff" fill="none" stroke-width="1.5"/>"##;
+/// The level of a speaker that plays: a bar right of the cone on the
+/// grid of 16 pixels that rises from 1 to 12 pixels with the percent.
+fn level_bar(percent: u32) -> String {
+    let height = 1.0 + 11.0 * f64::from(percent.min(100)) / 100.0;
+    format!(
+        r##"<rect x="11" y="{}" width="3" height="{height}" fill="#ffffff"/>"##,
+        14.0 - height
+    )
+}
 /// The red no-sign over a speaker that is muted or has no output, round
 /// the middle of its grid of 16 pixels.
 const NO_SIGN: &str = r##"<circle cx="8" cy="8" r="6.5" fill="none" stroke="#D8321F" stroke-width="2"/><path d="M3.4 3.4L12.6 12.6" stroke="#D8321F" stroke-width="2"/>"##;
@@ -648,7 +655,7 @@ fn tray(theme: &Theme, width: i32, clock: Option<&str>, icons: Icons) -> Picture
         .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
     let speaker = match icons.speaker {
-        Speaker::On(_) => format!("{SPEAKER_SHAPE}{SPEAKER_WAVE}"),
+        Speaker::On(percent) => format!("{SPEAKER_SHAPE}{}", level_bar(percent)),
         Speaker::Off => format!("{SPEAKER_SHAPE}{NO_BADGE}"),
     };
     let helper = if icons.mic_off {
