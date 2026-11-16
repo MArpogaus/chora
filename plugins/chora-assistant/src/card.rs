@@ -1202,9 +1202,34 @@ mod tests {
         let [yes, no] = laid.buttons.expect("buttons");
         assert_eq!([yes[0], no[0] - yes[0]], [12, 80 + 8]);
         assert_eq!(yes[1], no[1]);
-        assert_eq!(laid.picture.size[1], yes[1] + 28 + 12);
         assert!(laid.text.contains("Question from Atlas"), "{}", laid.text);
         assert!(laid.text.contains("Alt+Y"), "{}", laid.text);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_xp_card_keeps_its_keys_under_the_buttons_and_leaves_typing_to_the_field() {
+        let cache = cache("xp-keys");
+        let theme = theme(&cache, "Tahoma").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::XP;
+        card.face = Some(Face::of(&xp_look()).unwrap());
+        card.max_width = Some(312);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        let [yes, _] = laid.buttons.expect("buttons");
+        assert!(
+            !laid.text.contains("Typing does not answer"),
+            "the field says it once: {}",
+            laid.text
+        );
+        let keys_row = laid.text.lines().position(|l| l.contains("Alt+Y"));
+        let prompt_row = laid.text.lines().position(|l| l.contains("wants to"));
+        assert!(keys_row > prompt_row, "{}", laid.text);
+        assert!(
+            laid.picture.size[1] > yes[1] + 28 + 12,
+            "the key words stand under the buttons: {:?}",
+            laid.picture.size
+        );
         let _ = std::fs::remove_dir_all(cache);
     }
 
