@@ -43,6 +43,7 @@ flavor=$repo/flavors/tiling
 bus=$(dbus-daemon --session --print-address --fork 2>/dev/null | head -n 1 | cut -d, -f1)
 [ -n "$bus" ] || fail "no session bus"
 export DBUS_SESSION_BUS_ADDRESS=$bus
+export CHORA_TEST_KEEP_BUS=1
 printf '#!/bin/sh\n[ -e "%s/stub/grim-fails" ] && exit 1\nexec %s "$@"\n' "$work" "$(command -v grim)" >"$work/stub/grim"
 chmod +x "$work/stub/grim"
 
@@ -172,6 +173,17 @@ PY
     ok "$theme power: the bar shows the power icon at its right end"
 }
 
+listed_after() {
+    local out
+    for _ in $(seq 20); do
+        out=$(makoctl list 2>&1)
+        grep -q "$1" <<<"$out" && break
+        sleep 0.5
+    done
+    sleep 1
+    echo "$out"
+}
+
 cell_notice() {
     local theme=$1 shot=$work/notice.png base=$work/notice-base.png listed changed file
     ! makoctl list >/dev/null 2>&1 || fail "$theme notice: a notification daemon runs before the cell"
@@ -184,8 +196,7 @@ cell_notice() {
     done
     file=$(find "$XDG_PICTURES_DIR/Screenshots" -name "*.png" 2>/dev/null | head -n 1)
     [ -s "$file" ] || fail "$theme notice: Super+Print wrote no file"
-    sleep 2
-    listed=$(makoctl list 2>&1)
+    listed=$(listed_after "Screenshot saved")
     grep -q "Screenshot saved" <<<"$listed" || fail "$theme notice: no notice \"Screenshot saved\": $listed"
     grep -q "$file" <<<"$listed" || fail "$theme notice: the notice does not name the file $file: $listed"
     shoot "$shot" || fail "$theme notice: the capture"
@@ -198,8 +209,7 @@ cell_notice() {
     : >"$work/stub/grim-fails"
     shoot "$base" || fail "$theme notice: the capture"
     keys Super+Print
-    sleep 3
-    listed=$(makoctl list 2>&1)
+    listed=$(listed_after "Screenshot failed")
     grep -q "Screenshot failed" <<<"$listed" || fail "$theme notice: no notice \"Screenshot failed\" when grim fails: $listed"
     shoot "$shot" || fail "$theme notice: the capture"
     changed=$(differing "$base" "$shot" 900 650 1250 735)
