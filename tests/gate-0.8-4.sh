@@ -8,6 +8,7 @@
 # Usage: tests/gate-0.8-4.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
+. "$(dirname "$0")/proc-lib.sh"
 need sway
 need foot
 for what in chora choractl chora-tiling; do
@@ -15,7 +16,7 @@ for what in chora choractl chora-tiling; do
 done
 out=$(mktemp -d /tmp/gate4.XXXXXX)
 runtime=$(mktemp -d /tmp/gate4-rt.XXXXXX)
-trap 'kill "${pids[@]}" 2>/dev/null; rm -rf "$out" "$runtime"' EXIT
+trap 'kill "${pids[@]}" 2>/dev/null; remove_after_exit "$runtime" "${pids[@]}"; rm -rf "$out"' EXIT
 export XDG_RUNTIME_DIR=$runtime
 printf 'output HEADLESS-1 resolution 1280x800\ndefault_border none\n' >"$out/sway.conf"
 WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \

@@ -67,7 +67,7 @@ cleanup() {
         mapfile -t -O "${#doomed[@]}" doomed < <(descendants "$pid")
     done
     kill "${doomed[@]}" 2>/dev/null || true
-    rm -rf "$XDG_RUNTIME_DIR"
+    remove_after_exit "$XDG_RUNTIME_DIR" "${doomed[@]}"
 }
 trap cleanup EXIT
 fail() {

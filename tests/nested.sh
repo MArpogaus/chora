@@ -18,6 +18,7 @@
 # waybar with dbus-run-session, fuzzel, wlrctl, swaylock and wlr-randr.
 set -euo pipefail
 
+. "$(dirname "$0")/proc-lib.sh"
 bin=$(realpath "$1")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
@@ -27,7 +28,7 @@ export XDG_RUNTIME_DIR
 pids=()
 cleanup() {
     kill "${pids[@]}" 2>/dev/null || true
-    rm -rf "$XDG_RUNTIME_DIR"
+    remove_after_exit "$XDG_RUNTIME_DIR" "${pids[@]}"
 }
 trap cleanup EXIT
 fail() {

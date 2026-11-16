@@ -120,5 +120,41 @@ if ! grep -q 'no tool' "$work/skip.out"; then
     echo "FAIL: a skip under CI does not print its reason: $(cat "$work/skip.out")"
     failures=$((failures + 1))
 fi
+slow_client_dir=$work/slow-client
+mkdir "$slow_client_dir"
+bash -c 'trap "kill \$!; sleep 1; echo late >\"\$0/late\"; exit 0" TERM; sleep 60 & wait' "$slow_client_dir" &
+slow_client=$!
+sleep 0.3
+(
+    . "$repo/tests/proc-lib.sh"
+    kill "$slow_client"
+    remove_after_exit "$slow_client_dir" "$slow_client"
+)
+if [ -e "$slow_client_dir" ]; then
+    echo "FAIL: remove_after_exit left the directory of a client that was still exiting"
+    failures=$((failures + 1))
+fi
+if kill -0 "$slow_client" 2>/dev/null && [ "$(ps -o stat= -p "$slow_client" | cut -c1)" != Z ]; then
+    echo "FAIL: remove_after_exit returned while the client still ran"
+    failures=$((failures + 1))
+fi
+kill -KILL "$slow_client" 2>/dev/null
+stubborn_dir=$work/stubborn
+mkdir "$stubborn_dir"
+bash -c 'trap "" TERM; while :; do sleep 0.1; done' &
+stubborn=$!
+sleep 0.3
+. "$repo/tests/proc-lib.sh"
+kill "$stubborn"
+timeout 12 bash -c '. "$1/tests/proc-lib.sh"; remove_after_exit "$2" "$3"' x "$repo" "$stubborn_dir" "$stubborn"
+if [ -e "$stubborn_dir" ]; then
+    echo "FAIL: remove_after_exit left the directory of a client that ignores TERM"
+    failures=$((failures + 1))
+fi
+if running "$stubborn"; then
+    echo "FAIL: remove_after_exit did not end a client that ignores TERM"
+    failures=$((failures + 1))
+fi
+kill -KILL "$stubborn" 2>/dev/null
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"
