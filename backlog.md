@@ -160,3 +160,5 @@ C10 | 11-16 | sprint 1, right after the rc tag (owner 09:08) | config parity, co
 R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow cloud clone fails with "Needed a single revision" (testwatch r1); fetch --unshallow (or deepen) in the gate when the base is missing
 - media r3 (owner 10:05): mc chapter shows the column hidden and back by Super+n (after mc-37); construct shows a window pulled into the space (after co-18); handover full size, labelled (j1-3).
 - secfix-b LOW (review 10:19): reload wiring test; docs/voice.md scope of stripped keys; AGENT_SANDBOX_UNSET knob doc or drop. (after tag)
+- F28 (multilook r1 gate, 11-16 10:43): chat-keys failed once in the merge gate, 3/3 alone; watch in testwatch. (rc 3)
+- multilook LOW (review 10:47): tests of grab_action wiring, pointer leave, removed virtual output. (after tag)

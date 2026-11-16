@@ -18,3 +18,4 @@ co-16 | MAJOR | media-r1 tour v3 06-06 to 06-11 (tour-all 10:56-11:39) | open | 
 co-17 | MINOR | media-r1 tour v3 04-13 (08:21) | open | Window list: three terminals all titled "foot" (no way to tell them apart)
 co-18 | BLOCK | journey-1 (tour v4, opus review) C1 04-05-drag-turn.png | open | Drag on the stepped-back cube does not turn it; the chora window disappears from face 1 for good (lost window); chips lose key caps; likely with co-16
 co-19 | MAJOR | journey-1 (tour v4, opus review) C2 04-09-keys.png | open | F1 in the stepped-back view shows no key overlay
+co-20 | MAJOR | review-multilook-r1 6 (construct input.rs:416, cube.rs:1263) | open | With the cube open free look is off and no key closes the cube (only cube.close over IPC); POLS: Escape or the bindings overlay must offer a way out

@@ -25,7 +25,7 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| multilook-r1.md (rc 1) | sonnet med, claude/multilook | running 08:46; sh-23, co-16; ti-20 |
+| construct-r1.md (rc 1) | sonnet high, claude/construct | multilook r1 MERGE-OK (train 27); co-18 BLOCK, co-19, co-20, sh-24 10:5x |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a-r2.md (rc 6) | sonnet med, claude/secfix-a | r1 FIX (FIFO open, TOCTOU); r2 10:0x |
 | (train 25) secfix-b r1 | merged pending gate | MERGE-OK 10:19 |
@@ -35,8 +35,8 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 
 ## Queue (by day; budget 10 % a UTC day)
 1. Mon: multilook r1 (sh-23, co-16); then ledger r3 (haiku). (rc 1, 4, 11)
-2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 after multilook (co-18, co-19), media r3 last; persona r4 Wed; last round Thu 12:00.
-3. Wed-Thu: flakes F17, F24, F26, F27, CI6; final review rounds. (rc 3, 4, 8)
+2. UX loop (rc 1, 11): journey-1 FIX -> on handback xp-polish r2 (xp-25..27), tiling-look r2 (ti-22..24), construct r1 running (co-18..20, sh-24), media r3 last; persona r4 Wed; last round Thu 12:00.
+3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
 
 ## Needs owner
