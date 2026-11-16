@@ -808,7 +808,7 @@ impl Mc {
         let placed = self.placed(name);
         let output_w = f64::from(output.size[0]);
         let sides = [Region::Left, Region::Right].map(|region| {
-            if !placed.contains_key(&region) {
+            if !placed.contains_key(&region) || !self.shown(region, name) {
                 return 0.0;
             }
             let size = config.regions.get(region).size;
@@ -1734,6 +1734,9 @@ impl Mc {
             self.focus(window)?;
         }
         self.render()?;
+        if matches!(region, Region::Left | Region::Right) {
+            self.rebuild_pages()?;
+        }
         Ok(new)
     }
 

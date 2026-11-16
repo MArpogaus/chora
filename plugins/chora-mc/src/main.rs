@@ -2047,6 +2047,25 @@ impl Mc {
         em.unwrap_or([0.0; 2]).map(|e| e * ty.size)
     }
 
+    /// Builds the pages of all scenes anew, after a side took or gave back
+    /// its room, so that the text takes the room that is free.
+    fn rebuild_pages(&mut self) -> Result<(), ClientError> {
+        let names: Vec<String> = self.scenes.keys().cloned().collect();
+        let mut commands = Vec::new();
+        for name in &names {
+            commands.push(Command::Remove {
+                id: page_id(name),
+                to: None,
+            });
+            commands.extend(self.panels(name));
+        }
+        self.apply(commands)?;
+        if let Some(name) = self.current.clone() {
+            self.align(&name)?;
+        }
+        self.take_free_keyboard()
+    }
+
     /// Where the parts of the page of a scene go on the output.
     fn geometry(&self, name: &str) -> Option<Geometry> {
         self.geometry_of(name, self.scenes.get(name)?)
