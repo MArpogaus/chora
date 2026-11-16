@@ -1602,6 +1602,31 @@ mod tests {
     }
 
     #[test]
+    fn a_balloon_on_a_small_work_area_grows_to_hold_the_card_under_its_header() {
+        let (theme, _, cache) = crate::tests::loaded("card-small");
+        let frame = Frame {
+            area: [0, 0, 640, 372],
+            tip: Some([572, 330]),
+            scale: 2,
+            ..xp_frame(36)
+        };
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        session.agent_said("I will write notes.txt now.");
+        session.question_asked();
+        let size = [312, 167];
+        let origin = card_origin(&frame, size, 20);
+        session.card_shown(origin[1], size[1]);
+        let parts = session.parts(&theme, &frame, Language::En);
+        assert!(
+            origin[1] >= parts.rect[1] + parts.body_top,
+            "the card at {origin:?} covers the header of the balloon {:?}",
+            parts.rect
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn the_xp_header_leaves_room_for_the_buttons_and_the_rows_start_under_its_rule() {
         let (parts, _) = xp_commands("xp-header", false, true);
         assert_eq!(parts.top_row, XP_HEAD_Y);
