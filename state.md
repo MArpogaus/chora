@@ -4,7 +4,7 @@
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 45 % at 12:10 Mon (owner); tokens.py 12:11: PM 3.7 %. Measured 1 %/h (38->45, 01:17-12:10) = 24 %/d, over the 12.5 cap: hold ledger r3, media r3 to next reading; few PM turns.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: c949cc84 (train 29, 13:3x: secfix-a r2, all passed). Next train 30 tiling-look r1 (47fef21b) after xp-polish r2 review.
+session branch: c949cc84 (train 29, 13:3x: secfix-a r2, all passed). Reviews serial (disk): xp-polish r2, mc r2, construct r1, tiling r2.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
 
 ## RC (design/rc.md)
@@ -28,9 +28,9 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | construct-r1.md (rc 1) | sonnet high, claude/construct | r1 handback 13:22 (81ff7b60): co-18 BLOCK, co-19, 20, sh-24; K12 pull-out removed; review after mc r2 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a (rc 6) | done | merged train 29 |
-| xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r2 handback 12:09 (5a17aab6); review after train 27 (disk); mc doors FAIL in its run, train 27 doors PASS: lane container |
-| tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r1 MERGE-OK (train 30); r2 ti-22..24 11:5x |
-| mc-r2.md (rc 1, 11) | sonnet high, claude/mc | r2 handback 12:39 (66ca64a9, mc-34, 35b); review after train 27; train 28 = r1+r2 if MERGE-OK |
+| xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r2 handback 12:09 (5a17aab6), in review; lane mc doors FAIL = container |
+| tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | r2 handback 13:42 (e1dda18f); train 30 = r1+r2 after review, by 23:4x |
+| mc-r2.md (rc 1, 11) | sonnet high, claude/mc | r2 handback 12:39 (66ca64a9, mc-34, 35b); train 28 = r1+r2 if MERGE-OK |
 
 ## Queue (by day; budget 12.5 % a UTC day)
 1. Tue 00:xx: opus F26 doors cause lane (rc 3), replaces ledger r3. testwatch haiku between merges (rc 3, 4). mc r1 alone if r2 not MERGE-OK by 18:00.
