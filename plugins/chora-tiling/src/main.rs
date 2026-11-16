@@ -2945,6 +2945,54 @@ mod tests {
     }
 
     #[test]
+    fn an_injected_press_and_an_injected_drag_move_nothing_in_tiling() {
+        let (mut tiling, methods) = on_fake_core("injected-press");
+        tiling.grab_all().unwrap();
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.wm.focus("s1");
+        let send = |tiling: &mut Tiling, event: Value| {
+            tiling.rt.pin_accepts_injected(false);
+            tiling.event(wire(event)).unwrap();
+        };
+        let press = |injected| {
+            json!({"event": "pointer.pressed", "node": "s2", "button": 272,
+                "position": [10.0, 10.0], "injected": injected})
+        };
+        send(&mut tiling, press(true));
+        assert_eq!(tiling.wm.focused(), Some("s1"), "an injected press");
+        send(&mut tiling, press(false));
+        assert_eq!(tiling.wm.focused(), Some("s2"), "the press of the person");
+        let grab = |injected| {
+            json!({"event": "input.button", "binding": give::MOVE, "state": "pressed",
+                "position": [10.0, 10.0], "output": "X", "local": [10.0, 10.0],
+                "surface": "s2", "injected": injected})
+        };
+        let moved = |injected| {
+            json!({"event": "input.moved", "binding": give::MOVE, "position": [90.0, 90.0],
+                "output": "X", "local": [90.0, 90.0], "injected": injected})
+        };
+        tiling.wm.act(&Action::ToggleFloating);
+        tiling.relayout().unwrap();
+        send(&mut tiling, grab(false));
+        assert!(
+            tiling.dragged.is_some(),
+            "the press of the person starts a drag"
+        );
+        let before = methods.lock().unwrap().len();
+        send(&mut tiling, moved(true));
+        assert_eq!(methods.lock().unwrap().len(), before, "an injected move");
+        send(&mut tiling, moved(false));
+        assert!(
+            methods.lock().unwrap().len() > before,
+            "the move of the person"
+        );
+    }
+
+    #[test]
     fn an_injected_button_grab_drags_no_window_in_tiling() {
         let (mut tiling, _methods) = on_fake_core("injected-grab");
         tiling.grab_all().unwrap();
