@@ -28,8 +28,8 @@ burn-down (10:1x, journey 1): open 2 BLOCK (mc-32, co-18) + 19 MAJOR (5 old + 14
 | multilook-r1.md (rc 1) | sonnet med, claude/multilook | running 08:46; sh-23, co-16; ti-20 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | started 08:55 |
 | secfix-a-r2.md (rc 6) | sonnet med, claude/secfix-a | r1 FIX (FIFO open, TOCTOU); r2 10:0x |
-| secfix-b-r1.md (rc 6) | sonnet med, claude/secfix-b | rab-60, rab-61 |
-| xp-polish-r1.md (rc 1) | sonnet med, claude/xp-polish | xp-23 paperclip, xp-24 fields |
+| (train 25) secfix-b r1 | merged pending gate | MERGE-OK 10:19 |
+| xp-polish-r2.md (rc 1) | sonnet med, claude/xp-polish | r1 MERGE-OK (train 26); r2 xp-25..27 10:4x |
 | tiling-look-r1.md (rc 1) | sonnet high, claude/tiling-look | ti-21 waybar, wobbly |
 | mc-r1.md (rc 1, 11) | sonnet high, claude/mc | mc-32 BLOCK, mc-33..37; 10:1x |
 
