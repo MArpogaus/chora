@@ -1,10 +1,11 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-15T09:32:00Z
+screened-through: 2026-11-16T01:17:00Z
 
-- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow. You keep forgetting your main role tasks" -> 12:50 UTC close; duties in the injected state.md and rules (prompt hook not wired: Needs owner)
+- 11-16 01:17Z "38 %" -> budget reading; 12 %/day room, cap 10 %/day
+- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow. You keep forgetting your main role tasks" -> 12:50 UTC close; duties in the injected state.md and rules (hook: Needs owner)
 - 11-15 09:27Z budget week resets Sat 10:59 Bangkok = 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews and hard causes
 - 11-15 09:27Z ti-1 "Yes, build under $HOME" -> setup.sh builds fuzzel 1.11; media: status, screencast, README
-- 11-15 09:20Z "When ui fixes finished prune and update screenshots and screencast" -> media lane after UI fixes
+- 11-15 09:20Z "prune and update screenshots and screencast" -> media lane
 - 11-15 02:10Z "we want to include harness issues in our reflection rounds and sharpen our tooling wherever possible. We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
 - 11-14 17:17Z "Du bist der Projektmanager." -> decide all, rc too

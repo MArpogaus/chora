@@ -2,7 +2,7 @@
 
 ## Now (2026-11-16 01:17 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 33 % at 09:20 Sun (owner) + Sun over its share; Mon Bkk day 0.7 % local (tokens.py 01:17). Reset Sat 03:59 UTC. Mon: at most 10 %; no more opus today.
+budget: 38 % at 01:17 Mon (owner); Mon Bkk day 0.7 % local (tokens.py 01:17). 62 % left to reset Sat 03:59 UTC = 12 %/day; cap 10 %/day. No more opus today.
 models: haiku low tests, gates, trains; sonnet medium builds (high only with a reason); opus only first reviews and hard causes.
 session branch: 8e7effad (train 20, 01:16 UTC: core watchdog; train 19 1014dddf). CI on 8e7effad shows whether F25 was sh-22.
 rc target: Fri 11-20 (tag). Burn-down check 11-16.
