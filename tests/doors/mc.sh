@@ -216,6 +216,10 @@ cell_screenshot_key() {
 cell_screenshot_door() {
     rm -rf "$XDG_PICTURES_DIR/Screenshots"
     unmark
+    until_ok 'shows "Screenshot"' 20 || {
+        echo "screenshot-door: the words of mc are $(texts | tr '\n' '|')" >&2
+        return 1
+    }
     click_text "Screenshot"
     marked '^grim' && until_ok shots 20
 }
@@ -225,7 +229,10 @@ cell_volume_key() {
     marked '^wpctl set-volume'
 }
 cell_volume_door() {
-    until_ok 'shows "Volume 50%"' 20 || return 1
+    until_ok 'shows "Volume 50%"' 20 || {
+        echo "volume-door: the words of mc are $(texts | tr '\n' '|')" >&2
+        return 1
+    }
     unmark
     click_text "Volume 50%"
     marked '^wpctl set-mute'
