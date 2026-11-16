@@ -609,7 +609,8 @@ impl Agent {
         let heard = self.voice.as_ref().map(|(_, s)| *s);
         self.switcher
             .set_state(heard.filter(|_| enabled).unwrap_or("asleep"), now);
-        let want = enabled.then_some(heard.unwrap_or("idle"));
+        let door = self.values.chat().form == ChatForm::Xp;
+        let want = enabled.then(|| heard.or(door.then_some("idle"))).flatten();
         let label = want
             .map(|state| self.state_label(state))
             .unwrap_or_default();
