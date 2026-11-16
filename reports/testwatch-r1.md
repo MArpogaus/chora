@@ -14,3 +14,4 @@ Lines: UTC time, head, gate result, agent.sh passes of 5, logs.
 - heads tested: 7
 - failures per cell: see events; 7 failure events
 - F26 doors rate: 1 fails of 9 runs (no-change polls)
+- 2026-11-16T17:50:02Z aba97fecd762ce822e5f8a526f56666e2d1fcddf gate=FAIL:e2e agent=5/5 gate_log=/tmp/claude-0/-home-user-chora/f620fe0a-ad21-5f9b-b662-c38b444c44f4/scratchpad/tw-state/gate-aba97fec.out logs: aba97fec-e2e.log
