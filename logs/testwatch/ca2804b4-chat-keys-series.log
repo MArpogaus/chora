@@ -8,3 +8,7 @@ run 7 rc=1 FAIL: the text typed before the pick did not reach the picked helper
 run 8 rc=1 FAIL: the text typed before the pick did not reach the picked helper
 run 9 rc=1 FAIL: the text typed before the pick did not reach the picked helper
 run 10 rc=1 FAIL: the text typed before the pick did not reach the picked helper
+--- after cargo build --locked --workspace (binaries rebuilt 20:41 UTC, HEAD ca2804b4) ---
+post-build run 1 rc=0
+post-build run 2 rc=0
+post-build run 3 rc=0
