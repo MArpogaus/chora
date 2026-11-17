@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 17 Nov, 11:49 UTC (18:49 Bangkok)</span>
+      <span>Updated Tue 17 Nov, 13:44 UTC (20:44 Bangkok)</span>
       <span>Day 9 of 22</span>
       <span>Release candidate: today, quick and dirty (your call 10:47 UTC); this week: clean foundation; then feature sprints</span>
     </div>
@@ -126,8 +126,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget: 57 % of the week (10:31 UTC, your reading); 43 % left for 89 h, on pace</li>
-          <li>Today: list of known issues (cube seams, all open findings), CI on a pull request to dev, packaging check, release candidate tag</li>
+          <li>Budget: 58 % of the week (12:09 UTC, your reading); 42 % left for 87 h, 6 % over even pace</li>
+          <li>Release v0.9.0-rc.4 is ready (CI and packaging green on 29e2cd77); only the push to dev, main and the tag is left (Needs you)</li>
           <li>Then: one Fable lane plans the architecture (shared window logic, one cube, one settings service), checked by two opus reviewers; then cleanup slices with tests</li>
           <li>Week goal until Sat 03:59 UTC (10:59 Bangkok): clean, well tested, well designed code (design/foundation.md F1-F8); a goal counts as met only with a measurement and an independent check</li>
           <li>Afterwards, if you agree: polish the looks, build the collected features (xp tray, Quick Launch, Start menu lists, settings in every look), then the one-take demo (design/demo-playbook.md)</li>
@@ -136,7 +136,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
-          <li>Yes or no: the plan after this week and the demo playbook; bring back the burn effect (cut 10 Nov)?</li>
+          <li>Now: this session may not push dev, main or tags. Run: <code>git fetch origin claude/release-rc4 &amp;&amp; git push origin 7e2a287b:dev d060dc03:main &amp;&amp; git tag -a v0.9.0-rc.4 -m v0.9.0-rc.4 d060dc03 &amp;&amp; git push origin v0.9.0-rc.4</code></li>
           <li>By Thu: in the cloud environment menu, Edit and save the setup script again. Lanes still use an old setup from 15 Nov with an old launcher (fuzzel 1.9); until then the full test runs happen in the manager's container.</li>
         </ul>
       </div>
@@ -153,7 +153,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
       <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. The flaky mc door click is fixed (20:23); one rare flake (F17) is still watched; CI green twice since the watchdog fix.</span></div>
-      <div class="bar"><span class="name">Release candidate</span><span class="pct">quick and dirty, today</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">For this candidate only: green test runs (9 in a row), CI, packaging, dependency checks and an honest list of known issues. The look issues go on that list and into the cleanup.</span></div>
+      <div class="bar"><span class="name">Release candidate</span><span class="pct">prepared, your push</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">For this candidate only: green test runs (10 in a row), CI, packaging, dependency checks and an honest list of known issues. The look issues go on that list and into the cleanup.</span></div>
     </div>
   </section>
 
