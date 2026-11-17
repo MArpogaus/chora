@@ -3,7 +3,7 @@
 
 Reads state.md (## Lanes table, ## Queue) and git. Flags:
   rule 1  a lane row names no Queue item (queue N, its lane name in a Queue line) or criterion (rc N)
-  rule 1  a Queue line without an "(rc ...)" or "(process)" tag
+  rule 1  a Queue line without an "(rc ...)", "(F...)" or "(process)" tag
   rule 8  a Lanes row marked reviewed or MERGE-OK whose commit is not in the base branch and whose
           review report (reports/pixel-*.md naming the commit or lane, or a time in the row) is over 12 h old
   rule 9  more than 3 commits on claude/session-log in the last hour
@@ -25,7 +25,7 @@ LOG_BRANCH = "claude/session-log"
 MAX_LANES = 6
 MAX_COMMITS_HOUR = 3
 REVIEW_MAX_AGE = timedelta(hours=12)
-TAG = re.compile(r"\((?:rc [^)]*|process)\)")
+TAG = re.compile(r"\((?:rc [^)]*|process|F\d[^)]*)\)")
 REVIEWED = re.compile(r"(?<!un)reviewed|merge-ok", re.I)
 COMMIT = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b")
 TIME = re.compile(r"(?:(\d{4})-)?(\d{2})-(\d{2})[ T]+(\d{2}):(\d{2})")
@@ -52,7 +52,7 @@ def queue_lines(text):
 
 def names_queue_or_criterion(row, queue):
     joined = " ".join(row).lower()
-    if re.search(r"\b(?:queue|q)\s*#?\d+\b|\brc\s*\d+", joined):
+    if re.search(r"\b(?:queue|q)\s*#?\d+\b|\brc\s*\d+|\(f\d", joined):
         return True
     name = row[0].lower()
     return bool(name) and any(name in q.lower() for q in queue)
@@ -75,7 +75,7 @@ def flags(state, now, recent_commits, in_base, report_time):
             out.append(f"rule 1: lane '{row[0]}' names no Queue item or criterion")
     for line in queue:
         if not TAG.search(line):
-            out.append(f"rule 1: Queue line without (rc ...) or (process): {line.strip()[:70]}")
+            out.append(f"rule 1: Queue line without (rc ...), (F...) or (process): {line.strip()[:70]}")
     for row in rows:
         if not REVIEWED.search(" ".join(row)):
             continue

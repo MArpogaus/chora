@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 15:35 UTC)
+## Now (2026-11-17 16:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 15:35: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
+budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 16:04: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: c78eca98 (train 43 14:42: media harness, pull gate both drags); 11 greens (30b, 33-41, 43).
 burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3.5 days.
@@ -24,18 +24,18 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv1-cut1-r1.md (F4, F6) | sonnet med, claude/mv1-cut1 | s_..FkPJVB 14:56, start check ok 15:04; 2 % |
+| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r1 6d2ca7c2 FIX 16:03 (1 MAJOR stale list); r2 16:05; 1 % |
 | mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | s_..m8hdQJ 14:56, start check ok 15:04; 1.5 % |
 | mv2-mc-r1.md (F4) | sonnet med, claude/mv2-mc | s_..YZkfaC 14:56, start check ok 15:04; 1.5 % |
 | mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | s_..it8vfo 14:56, start check ok 15:04; 1.5 % |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
-1. Done: rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 merged 14:42.
+1. (process) Done: rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 merged 14:42.
 2. Now (F4, F6, 6.5 %): MV1+CUT1, MV2 x3 (arch-plan 4.2 Tue-Wed); trains one at a time.
-3. Wed-Thu (9 %): NET1 FakeCore + state.get; NET2 acts, I1 I3 I4 I7 I8 I14, known-red (opus, 2 lanes).
-4. Thu-Fri (8.5 %): WM1 tiling, KIT1, KIT2 mc, KIT4; Fri NET3 if NET2 in, docs F8 (6 %).
-5. PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
+3. Wed-Thu (F2, F3, 9 %): NET1 FakeCore + state.get; NET2 acts, I1 I3 I4 I7 I8 I14, known-red (opus, 2 lanes).
+4. Thu-Fri (F4, F5, F8, 8.5 %): WM1 tiling, KIT1, KIT2 mc, KIT4; Fri NET3 if NET2 in, docs F8 (6 %).
+5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).
