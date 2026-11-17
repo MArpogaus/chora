@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::chat::hides;
 use serde_json::{Value, json};
 use tokio::sync::{mpsc::UnboundedReceiver, oneshot};
 
@@ -194,6 +195,19 @@ pub(crate) fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String 
 /// and no question hides its tail (review rc3 round 4, 2.2).
 pub(crate) const DETAIL_LINES: usize = 400;
 pub(crate) const DETAIL_BYTES: usize = 64 * 1024;
+
+/// The answer to the LLM for a detail that does not show whole and as
+/// it is, without a question: too long, or it [`hides`] text; none for
+/// a detail that shows.
+pub(crate) fn unshowable(detail: &str) -> Option<String> {
+    if too_long(detail) {
+        return Some(format!(
+            "Refused: the command is too long to show the user ({DETAIL_LINES} lines or {} KiB at most); send a shorter command",
+            DETAIL_BYTES / 1024
+        ));
+    }
+    hides(detail).then(|| "Refused: the command holds characters that hide or reorder text (control, bidi or zero-width characters), so the user would see another command than the one that runs; send it without them".to_owned())
+}
 
 /// Whether a detail passes the cap.
 pub(crate) fn too_long(detail: &str) -> bool {
@@ -1159,12 +1173,9 @@ impl Chat {
             ));
             return Err(SAID_NEW.into());
         }
-        if too_long(&detail) {
-            crate::log::info(&format!("confirm {name}: refused, the detail is too long"));
-            return Err(format!(
-                "Refused: the command is too long to show the user ({DETAIL_LINES} lines or {} KiB at most); send a shorter command",
-                DETAIL_BYTES / 1024
-            ));
+        if let Some(refusal) = unshowable(&detail) {
+            crate::log::info(&format!("confirm {name}: {refusal}"));
+            return Err(refusal);
         }
         let (result, always) = self.ask(prompt, detail, out).await;
         crate::log::info(&format!(
@@ -2510,6 +2521,67 @@ mod tests {
         assert!(!events.contains(&"tool echo".to_owned()), "{events:?}");
         let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
         assert!(result["content"].as_str().unwrap().contains("shorter"));
+    }
+
+    /// A detail with a character that hides or reorders text is
+    /// refused without a question: the screen would show another
+    /// command than the one that runs (review security-confirm, sh-26).
+    #[tokio::test]
+    async fn a_detail_with_hidden_characters_is_refused() {
+        let script = vec![
+            Reply::Tool("echo", "{\"x\": \"safe\u{202e}fr- mr\"}"),
+            Reply::Text("Gut."),
+        ];
+        let config = Config {
+            confirm: vec![Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(script, config).await;
+        let (_, events) = turn(&mut chat, "Mach es.", false).await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        assert!(!events.contains(&"tool echo".to_owned()), "{events:?}");
+        let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
+        let content = result["content"].as_str().unwrap();
+        assert!(content.contains("hide or reorder"), "{content}");
+    }
+
+    /// Review secfix c r1, 3: only characters that hide or reorder text
+    /// refuse a detail; an emoji, a joiner, a non-breaking space, a mark
+    /// of direction or a carriage return are text.
+    #[test]
+    fn hides_refuses_only_what_hides_or_reorders() {
+        for text in [
+            "⚠️ rm",
+            "a\u{200d}b",
+            "می\u{200c}خواهم",
+            "10\u{a0}km",
+            "a\u{200e}b",
+            "a\r\nb",
+            "x\ty\nz",
+        ] {
+            assert!(!hides(text), "{text:?}");
+        }
+        for text in [
+            "a\u{202e}b",
+            "a\u{2066}b",
+            "a\u{1b}[2Jb",
+            "a\u{9d}b",
+            "a\u{200b}b",
+            "a\u{feff}b",
+            "a\u{0}b",
+            "a\u{2062}b",
+        ] {
+            assert!(hides(text), "{text:?}");
+        }
     }
 
     /// Each change of the agent's own settings asks with its key and

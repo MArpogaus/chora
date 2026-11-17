@@ -90,6 +90,29 @@ fn is_mark(c: char) -> bool {
     )
 }
 
+/// Whether a text holds a character that hides or reorders text where
+/// it shows, or starts a sequence of a terminal: a C0 control but tab,
+/// line feed and carriage return, a C1 control, a bidi embedding,
+/// override or isolate, a zero-width space, a word joiner or invisible
+/// operator, or a byte order mark. A command that holds one is refused,
+/// not cleaned (sh-26); emoji, joiners and marks of direction are text.
+#[must_use]
+pub fn hides(text: &str) -> bool {
+    text.chars().any(|c| {
+        matches!(c,
+            '\u{0}'..='\u{8}'
+            | '\u{b}'..='\u{c}'
+            | '\u{e}'..='\u{1f}'
+            | '\u{80}'..='\u{9f}'
+            | '\u{200b}'
+            | '\u{202a}'..='\u{202e}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{2066}'..='\u{2069}'
+            | '\u{feff}'
+        )
+    })
+}
+
 /// The text without the characters that an agent could use to run a
 /// terminal sequence, to hide text or to reorder it. A space separator
 /// becomes a plain space, and a character keeps at most two combining

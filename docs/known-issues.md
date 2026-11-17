@@ -92,3 +92,4 @@ yet. Larger faults are tracked as issues on
 | sh-16 | minor | fixed | Launcher words: xp "Open:", tiling "Apps", mc ">" prompt with no label; help says "Run a program" in xp and tiling, "Start a program" in mc; words now consistent across looks, review raa-3 |
 | sh-17 | minor | verify | HUD colours per theme: chat field over the xp taskbar; assistant surfaces must follow a theme change |
 | sh-18 | cosmetic | open | Door wording differs ("Chat ..." pill, "Chat with a helper ...", "Ask in your words"); notification shape differs per look (balloon, count, toast) |
+| sh-27 | minor | open | Voice questions: the raw `{args}`/`{name}` in a prompt are only cleaned where they show; the spoken prompt (a sub-agent's tool title) keeps bidi and hidden characters |

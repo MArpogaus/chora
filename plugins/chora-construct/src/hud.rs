@@ -17,6 +17,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::chat::sanitize;
 use chora_scene::{
     Border, Clip, Command, Easing, InputMode, NodeKind, PropsUpdate, Transform, Uniform,
 };
@@ -1070,8 +1071,8 @@ impl Voice {
                 }
                 self.ask = Some(Ask {
                     id: c.id,
-                    prompt: c.prompt,
-                    detail: c.detail,
+                    prompt: sanitize(&c.prompt),
+                    detail: sanitize(&c.detail),
                     keys: c.keys.filter(|_| c.physical),
                     buttons: c.buttons,
                     scroll: 0.0,
@@ -1493,6 +1494,32 @@ mod tests {
         assert!(voice.ask.is_some(), "another id");
         assert!(voice.follow("confirm", done(7), now).unwrap().ask);
         assert!(voice.ask.is_none());
+    }
+
+    /// The question shows no character that hides or reorders text,
+    /// whatever the event carries (sh-26).
+    #[test]
+    fn a_question_shows_no_bidi_character() {
+        let config = config();
+        let mut voice = Voice::default();
+        let now = Instant::now();
+        let ask = json!({"id": 8, "prompt": "Run\u{202e} it?",
+            "detail": "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J"});
+        assert!(voice.follow("confirm", ask, now).unwrap().ask);
+        let metrics = Metrics::default();
+        let commands = voice.ask(&look(&config, &metrics), [1920.0, 1080.0], true);
+        let text = |prefix: &str| -> Vec<String> {
+            (commands.iter())
+                .filter_map(|c| match c {
+                    Command::Create { id, props, .. } if id.starts_with(prefix) => {
+                        props.text.clone()
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(text("construct-ask-prompt"), ["Run it?"]);
+        assert_eq!(text("construct-ask-detail-").join(""), "echo safefr- mr");
     }
 
     /// Measures every miss as the core would with a monospace advance

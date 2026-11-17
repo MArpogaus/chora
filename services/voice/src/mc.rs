@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::{ask::show_key, conn::Conn};
+use chora_kit::{ask::show_key, chat::sanitize, conn::Conn};
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
 
@@ -185,7 +185,8 @@ impl Reporter {
         }
     }
 
-    /// Shows a question on the own HUD with `hud`, and emits it.
+    /// Shows a question on the own HUD with `hud`, and emits it; its
+    /// texts without the characters that hide or reorder text (sh-26).
     fn confirm(&mut self, report: Report) {
         let Report::Confirm {
             id,
@@ -198,11 +199,11 @@ impl Reporter {
         else {
             return;
         };
+        let (prompt, detail) = (sanitize(&prompt), sanitize(&detail));
+        let name = name.map(|n| sanitize(&n));
         if hud {
-            let keys = (keys.as_ref())
-                .map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
-                .unwrap_or_default();
-            self.question(Some(&question_text(&prompt, &detail, &keys)));
+            let line = keys_line(keys.as_ref());
+            self.question(Some(&question_text(&prompt, &detail, &line)));
         }
         // chora-mc reads the id as a text.
         let mut data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
@@ -345,20 +346,33 @@ impl Reporter {
 /// scene holds 4 KiB.
 const QUESTION_BYTES: usize = 4000;
 
+/// The line of the keys of a question on the own HUD; none without keys.
+fn keys_line(keys: Option<&ConfirmKeys>) -> String {
+    keys.map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
+        .unwrap_or_default()
+}
+
+/// Whether the own HUD shows the question whole, with the line of its
+/// keys; else the agent answers no before it shows (review secfix c r1,
+/// 2), so that no key confirms a command that the person cannot read.
+pub fn fits(prompt: &str, detail: &str, keys: Option<&ConfirmKeys>) -> bool {
+    let (prompt, detail) = (sanitize(prompt), sanitize(detail));
+    prompt.len() + "\n".len() + detail.len() + keys_line(keys).len() <= QUESTION_BYTES
+}
+
+/// The line of a question whose detail does not fit on the own HUD.
+const TOO_LONG: &str = "(the command is too long to show here)";
+
 /// The question on the own HUD: the prompt, the detail and the line of
-/// the keys, at most [`QUESTION_BYTES`]. A longer detail is cut and ends
-/// in `…`; the prompt and the keys stay. voice.confirm carries it whole.
+/// the keys, at most [`QUESTION_BYTES`]. A longer detail is never cut,
+/// which would hide its tail: [`TOO_LONG`] takes its place, and the
+/// prompt and the keys stay. voice.confirm carries it whole.
 fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
     let text = format!("{prompt}\n{detail}{keys}");
     if text.len() <= QUESTION_BYTES {
         return text;
     }
-    let room = QUESTION_BYTES.saturating_sub(prompt.len() + keys.len() + "\n…".len());
-    let mut end = room.min(detail.len());
-    while !detail.is_char_boundary(end) {
-        end -= 1;
-    }
-    let text = format!("{prompt}\n{}…{keys}", &detail[..end]);
+    let text = format!("{prompt}\n{TOO_LONG}{keys}");
     let mut end = text.len().min(QUESTION_BYTES);
     while !text.is_char_boundary(end) {
         end -= 1;
@@ -377,18 +391,43 @@ mod tests {
 
     use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
 
-    /// Review plugins r1, VO-B-06: a long detail is cut, with a mark, and
-    /// the prompt and the line of the keys stay.
+    /// Review plugins r1, VO-B-06 and sh-26: a detail too long for the
+    /// HUD is not cut, which would hide its tail: the HUD shows that it
+    /// is too long to show, and the prompt and the line of the keys stay.
     #[test]
     fn a_long_question_keeps_its_keys() {
         let keys = "\nAlt+y = yes, Alt+n = no";
         let detail = format!("allow_programs: {}", "ö".repeat(3000));
         let text = question_text("Shall I set allow programs?", &detail, keys);
         assert!(text.len() <= QUESTION_BYTES, "{}", text.len());
-        assert!(text.starts_with("Shall I set allow programs?\nallow_programs: ö"));
-        assert!(text.ends_with(&format!("…{keys}")), "{text}");
+        assert!(!text.contains("allow_programs"), "{text}");
+        assert!(text.starts_with("Shall I set allow programs?\n"), "{text}");
+        assert!(text.contains("too long to show"), "{text}");
+        assert!(text.ends_with(keys), "{text}");
         let short = question_text("Shall I?", "x: 1", keys);
         assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
+
+    /// The question goes out without a character that hides or reorders
+    /// text, on the own HUD and in `voice.confirm` (sh-26).
+    #[test]
+    fn a_question_emits_no_bidi_or_hidden_character() {
+        let (emits, emitted) = mpsc::channel();
+        let reports = start("voice", emits);
+        let confirm = Report::Confirm {
+            id: 6,
+            prompt: "Run\u{202e} this?".into(),
+            detail: "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J".into(),
+            hud: false,
+            keys: None,
+            name: Some("At\u{2066}las".into()),
+        };
+        reports.send(confirm).unwrap();
+        let (event, shown) = emitted.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, "confirm");
+        assert_eq!(shown["prompt"], "Run this?");
+        assert_eq!(shown["detail"], "echo safefr- mr");
+        assert_eq!(shown["name"], "Atlas");
     }
 
     #[test]

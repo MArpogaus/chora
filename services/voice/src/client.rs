@@ -222,19 +222,29 @@ fn security_patch(config: &Config, method: &str, params: &Value, file: &Path) ->
 
 /// Asks the user for a key of `confirm_keys`, or a click on a HUD
 /// button, before `patch` applies, as the agent asks before the LLM
-/// changes a security key; the answer comes through the receiver.
-fn ask_key(tx: &Sender<Input>, config: &Config, patch: &Value) -> oneshot::Receiver<bool> {
+/// changes a security key; the answer comes through the receiver. A
+/// detail that does not show whole and as it is gets no question: the
+/// refusal for the caller (review secfix c r1, 1).
+fn ask_key(
+    tx: &Sender<Input>,
+    config: &Config,
+    patch: &Value,
+) -> Result<oneshot::Receiver<bool>, String> {
+    let detail = crate::chat::detail("voice.settings.set", Some(patch), &json!({}));
+    if let Some(refusal) = crate::chat::unshowable(&detail) {
+        return Err(refusal);
+    }
     let (answer, rx) = oneshot::channel();
     let config = config.localized();
     let _ = tx.send(Input::Agent(crate::agents::Event::Ask {
         name: "settings".into(),
         voice: config.voice.clone(),
         prompt: config.settings_question(patch),
-        detail: crate::chat::detail("voice.settings.set", Some(patch), &json!({})),
+        detail,
         physical: true,
         answer,
     }));
-    rx
+    Ok(rx)
 }
 
 /// A change of a security key that waits for the answer of the user.
@@ -292,7 +302,7 @@ fn confirm_answer(
         Ok(true) => Ok(json!({})),
         Ok(false) => Err(RpcError::new(
             RpcError::REJECTED,
-            format!("confirm.answer: no open question {id}"),
+            format!("confirm.answer: no open question {id}, or it showed too briefly"),
         )),
         Err(_) => Err(gone()),
     }
@@ -737,7 +747,15 @@ impl Client {
         let Some(patch) = security_patch(&self.settings.value, method, params, &file) else {
             return Ok(Some(event));
         };
-        let answer = ask_key(&self.tx, &self.settings.value, &patch);
+        let answer = match ask_key(&self.tx, &self.settings.value, &patch) {
+            Ok(answer) => answer,
+            Err(refusal) => {
+                crate::log::info(&format!("{method}: a security setting refused: {refusal}"));
+                let refused = RpcError::new(RpcError::REJECTED, format!("{method}: {refusal}"));
+                self.rt.conn.answer(*call, Err(refused))?;
+                return Ok(None);
+            }
+        };
         let keys = self.settings.value.confirm_keys.clone();
         let message = format!(
             "{method}: a security setting waits for the user: {} applies it, {} declines",
@@ -1108,6 +1126,24 @@ mod tests {
         };
         assert!(physical);
         assert!(prompt.starts_with("Security setting!"), "{prompt}");
+    }
+
+    /// Review secfix c r1, 1: a security change whose detail hides text
+    /// (an OSC body that sanitize drops whole, a C1 character in a
+    /// list) or is too long to show is refused without a question.
+    #[test]
+    fn a_security_change_that_hides_text_is_refused() {
+        let config = Config::default();
+        let long = "x".repeat(crate::chat::DETAIL_BYTES + 1);
+        for patch in [
+            json!({"record_dir": "/tmp/rec\u{1b}]/home/user\u{7}"}),
+            json!({"agent_cmd": ["sh\u{9d}", "-c", "evil"]}),
+            json!({"agent_cmd": [long]}),
+        ] {
+            let (tx, rx) = mpsc::channel();
+            let _answer = ask_key(&tx, &config, &patch);
+            assert!(rx.try_recv().is_err(), "a question for {patch}");
+        }
     }
 
     /// A confined connection cannot answer by `confirm`, push to talk or
