@@ -83,7 +83,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 xcursor = "0.3"
-zbus = "5.19"
+zbus = "6.3"
 
 [workspace.dependencies.smithay]
 default-features = false
