@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
@@ -20,7 +20,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-handover` runs the cells of a window that goes to mc. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `red-first` checks the range BASE..HEAD (commits that are not merges, oldest
 # first, in topological order): each `fix` or `feat` commit needs a commit
@@ -184,6 +184,7 @@ keys|BIN=$repo/target/debug tests/gate-construct-keys.sh
 pixels|tests/gate-construct-pixels.sh
 mc-paths|BIN=$repo/target/debug tests/gate-mc-paths.sh
 mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh
+mc-handover|BIN=$repo/target/debug tests/gate-mc-handover.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }
