@@ -478,8 +478,8 @@ impl Wm {
         self.rt.conn.next_event_timeout(timeout)
     }
 
-    /// Handles one event of the core.
-    #[allow(clippy::too_many_lines)] // one arm per event
+    /// Handles one event of the core, with one arm per event.
+    #[allow(clippy::too_many_lines)]
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
             Event::SurfaceCreated {
