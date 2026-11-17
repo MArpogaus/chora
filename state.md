@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-17 09:07 UTC)
+## Now (2026-11-17 09:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 55 % at 06:21 Tue (owner); tokens.py 09:07: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
+budget: 55 % at 06:21 Tue (owner); tokens.py 09:18: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7375daa1. Tour v7 running.
+session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7e066694 09:18. Tour v7 running.
 burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 retest. Tag Fri 11-20 if v7 clean.
 
 ## RC (design/rc.md)
@@ -13,8 +13,8 @@ burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 r
 | 1 | UX: no BLOCK or MAJOR open | 0 BLOCK in v5; 7 MAJOR (review-tour-v5) in 4 lanes |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
-| 3 | Three greens in a row | 30b, 33-37 green (6); F26 held, F28 holds; F17 open |
-| 4 | CI green | green on 7375daa1 08:20 (train 38) |
+| 3 | Three greens in a row | 30b, 33-39 green (8); F26 held, F28 holds; F17 open |
+| 4 | CI green | green on 7e066694 09:18 (train 39) |
 | 5 | Packaging smoke | arch, rpm, podman green on 4105f8d1 23:50 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
