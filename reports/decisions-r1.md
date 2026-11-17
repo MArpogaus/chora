@@ -1,10 +1,14 @@
 # decisions r1 report
 
-Branch claude/decisions, head 3cc1450 (one commit, docs/decisions.md only). pre-commit and `mkdocs build --strict` pass.
+Branch claude/decisions, head 80a5931 after r2 (r1 3cc1450 plus one commit, docs/decisions.md only). pre-commit and `mkdocs build --strict` pass.
 
 ## Entries added
 - D78 injected flag, D79 API keys out of agent env (+ confirm needs run_program rule), D80 sender icons (PNG caps, FIFO, private copy), D81 logs and chora-report, D82 watchdog wait of all threads, D83 mc root below other plugins, D84 placed pane stays in view, D85 Notepad fallback chain, D86 tiling wobbly default.
-- D87-D94: debt-rc 3b D1-D8, status open, no decision text (new section "Open questions"). Not added: ti-12 (no focus-left/right key), it is in known-issues.md.
+- D87-D94: debt-rc 3b D1-D8; r1 had them open, r2 (owner, 2026-11-17 04:38) records the chosen option and consequences (section "Decisions of the debt audit"). Not added: ti-12 (no focus-left/right key), it is in known-issues.md.
+
+## r2
+- D88 timing: brief says nothing, answers.md says before the tag; D88 follows answers.md.
+- D94 is recorded without a docs/api.md change, as the brief asks. D57 keeps its fixed 4000 until implemented.
 
 ## Code and docs disagree (not decided)
 1. docs/architecture.md:525-531 still says only the main thread's wait counts; f67ad247 sums all threads (D82 follows the code).
