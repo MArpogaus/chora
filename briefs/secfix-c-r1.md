@@ -1,6 +1,6 @@
 # secfix c r1 (rc 1, 6): sanitize and guard the voice confirm question (sh-26, MAJOR)
 
-Model: opus, effort medium (security fix across voice, mc, construct; rule 9 opus security)
+Model: opus, effort medium because it is a security fix across voice, mc and construct (rule 9)
 Lane: cloud, new branch claude/secfix-c from claude/autonomous-dev-session-3w-i33pg7. One round.
 Stop at 250 k context. Review: reports/review-security-confirm.md (on claude/session-log).
 
