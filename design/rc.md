@@ -1,6 +1,6 @@
 # Release candidate: criteria and state
 
-All criteria must hold. Then the PM opens the pull request that CI needs, tags the rc
+Owner 11-17 10:47 UTC: "quick and dirty rc now". For this rc only 3 (greens 30b, 33-40), 4 (CI on the PR), 5 (packaging), 7 and 8 (honest known-issues list) must hold; 1, 1b, 2, 9 and 11 are waived, their open findings go to the known issues and to the refactor sprint. Otherwise all criteria must hold. Then the PM opens the pull request that CI needs, tags the rc
 and publishes it (owner 11-11 10:31 UTC: "You may released when all clean."). The state
 column is rewritten with state.md; plans and history are in git.
 

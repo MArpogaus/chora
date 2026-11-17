@@ -1,7 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:43:00Z
-- 11-17 10:43Z "Agree, go ahead ... rather push towards refactoring and cleaning up instead of patching ..." -> order (r4, v8, review steps) and goal change proposed: MINOR to known issues, no MINOR rounds; awaiting yes
-- 11-17 10:29Z "Can I see the tour?" -> question: tour v6 video and v7 stills on the status page; v7 mp4s lost with the archived media worker; the final tour Thu (media r6) commits its mp4s to session-log
+screened-through: 2026-11-17T10:47:00Z
+- 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> goal change: rc now (rc.md: 3, 4, 5, 7, 8 only); construct r4, MINOR rounds cancelled; tour v8 kept as baseline; then one Fable plan lane on architecture-rc.md, refactor sprint
 - 11-17 10:40Z "Why did you miss this?" -> question: reviews checked listed rows, nobody judged the look as a whole; fix: fresh-eyes pass per look, PM watches the tour, seam cell
 - 11-17 10:35Z "Rerecord the demo and save it ... cube seams broken ... Turn cube in xp ... Cube always lives in construct ... click in tray ... no welcome" -> order: tour v8 now, mp4s kept (media r6); bug co-21 MAJOR (construct r4); xp cube works (Ctrl+Alt+arrows, Super+drag), one cube in construct: DB12 sprint 1; xp-29, xp-30 MINOR to xp r8
 - 11-17 10:31Z "57 %" -> reading: 57 %, 0.48 %/h since 06:21, on pace; opus from 12:00 (critic only)
@@ -12,7 +11,6 @@ screened-through: 2026-11-17T10:43:00Z
 - 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
 
-- 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)
