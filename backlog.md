@@ -96,7 +96,7 @@ B2 | 11-09 | later | everyday-task gaps beyond the shared RC bar (archive/baseli
 B3 | 11-09 | later | `chora-system`: one plugin over D-Bus (NetworkManager, BlueZ, UPower, logind, UDisks2; `wpctl`) for all looks, its methods as voice tools; tests with python3-dbusmock.
 B4 | 11-09 | later | core protocols: wlr gamma control, output power management, wlr data control; a keyboard layout key in `input.configure`.
 S2 | 11-10 | later | cut by the owner 11-10, after 1.0: windowed chora (winit) with an agent as a 2D/3D canvas, and the Nix flake.
-S3 | 11-10 | later | cut by the owner 11-10, after 1.0: effects pack, off by default (burning and exploding windows on a snapshot).
+S3 | 11-10 | before 1.0 | cut by the owner 11-10, after 1.0: effects pack, off by default (burning and exploding windows on a snapshot). Reopened owner 11-17 11:54: before 1.0, for attention; one plugin on a scene effect API, on in the demo, frame-budget gate per effect.
 
 ## Closed
 W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflections/2026-11-14-w2-1-fable.md.
