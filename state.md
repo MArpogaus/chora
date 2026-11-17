@@ -2,7 +2,7 @@
 
 ## Now (2026-11-17 03:22 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 01:46: 0.7 %. Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
+budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 03:22: 1.1 % (PM container). Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 39fe12d2 (train 34 03:19: mc r6); CI 10/10 on 4105f8d1. Next: testwatch after train 35.
 burn-down 03:19: 0 BLOCK, 7 MAJOR in 4 lanes (mc merged, construct and tiling in train 35, xp r6). Likely tag Tue 11-24.
