@@ -278,6 +278,28 @@ need root or podman. `vkms` starts chora on the tty backend, and
 `podman` runs a client in a container. A gate check that needs a user
 manager runs by hand on the reference machine.
 
+### Size and cut checks
+
+`tools/size-ratchet` lists the Rust files over 1,500 production lines (the
+lines before the `#[cfg(test)] mod` of a file; test files count 0) in
+`tools/size-ratchet.list`. A listed file may not have more lines than at
+the merge base (the lower of the list and the base counts holds, so a
+stale list entry after a split does not block), and a new file over the
+limit fails; run `tools/size-ratchet --update` after an extraction to
+lower the list. The list is sorted by path and `--update` edits only the
+changed lines, so parallel split branches merge cleanly. The test cut
+needs the rustfmt form: `#[cfg(test)]` on one line, then `mod x {` on the
+next; any other form counts the tests as production lines.
+
+`tools/cut-check` asks whether a plugin could be packaged and moved to
+another repository alone. A dependency of one crate under `plugins/` or
+`services/` on another blocks. Assets outside the crate, the names of
+other plugins, workspace dependencies beyond chora-kit, chora-scene and
+chora-draw, and the copy rows of `tools/copies.toml` are reported; a copy
+row at `max = 0` that still matches blocks. A dev-dependency of one
+plugin on another blocks too. Both run in `ci-check` of the
+merge gate and in CI, each with a self-test under `tests/`.
+
 ## Demo media
 
 `demo/record.sh OUT_DIR` makes the demo media of `chora-construct`,

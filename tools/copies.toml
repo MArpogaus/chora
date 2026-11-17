@@ -1,0 +1,41 @@
+# Copies of mechanisms that moved to a shared part (tools/cut-check, check
+# "copies"). Per row: a regex, the path prefixes that may hold it, and the
+# count of matching lines allowed elsewhere. A count only falls; at 0 the
+# row blocks. `paths` limits the scan (default: crates, plugins, services).
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 3
+name = "surface-created filter"
+pattern = 'to != NAME'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 10
+name = "confirm.answer"
+pattern = '"confirm\.answer"'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 3
+name = "fn language"
+pattern = 'fn language\b'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 23
+name = "XDG_RUNTIME_DIR"
+pattern = 'XDG_RUNTIME_DIR'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 7
+name = "UnixListener::bind in plugin tests"
+paths = ["plugins"]
+pattern = 'UnixListener::bind'
+
+[[row]]
+allow = ["crates/chora-kit/src/wm"]
+max = 20
+name = "Command::Focus outside kit::wm"
+pattern = 'Command::Focus\b'
