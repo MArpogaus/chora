@@ -4,16 +4,17 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
 
 ## By time
 - Budget (owner 11-15 09:27, "your main job"): week resets Sat 03:59 UTC. At each reading and lane start check the pace line; over the day's share: no new opus that day. Model and effort in create_session.
-- Every 2 h: watchdog (tools/triggers.md), which also prunes idle child sessions (owner 11-17 01:48); heartbeat checks the PM from outside.
+- Every 2 h: watchdog (tools/triggers.md), prunes idle children (11-17); heartbeat checks the PM.
 - Daily 12:50 UTC (19:50 Bangkok), workday close (owner 11-15 09:35): self-check and main-duty
   questions, one independent opus critic, every open friction resolved, one workflow change;
-  reflections/selfcheck-<date>.md (text in tools/triggers.md).
-- Friday: reports/week-N.md, critical, no overselling (owner 11-09):
+  reflections/selfcheck-<date>.md.
+- Friday: reports/week-N.md, critical, no overselling:
   done, missed, rc burn-down, budget, owner decisions taken by the PM.
 - Weekly (Friday): `review_due.py` (split reviews at 5,000 lines, again at +50 %), extraction
   check (code for chora-kit, cross-plugin duplication); results in state.md or backlog.
 - Refactor proposals (owner 11-17): file and rank them in backlog.md at each handover; each
-  release takes the top cleanups; reports/debt-<tag>.md counts must not grow.
+  release takes the top cleanups; reports/debt-<tag>.md counts must not grow. Before each sprint an architect
+  persona (opus high, read-only) plans refactors; Fable only for one L item, asked first.
 
 ## By event
 - Review or train (friction 53): `df -h /`; under 20 G one build at a time, clear sccache.
