@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 17 Nov, 04:11 UTC (11:11 Bangkok)</span>
+      <span>Updated Tue 17 Nov, 06:28 UTC (13:28 Bangkok)</span>
       <span>Day 9 of 22</span>
       <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
     </div>
@@ -119,7 +119,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Tour v6 (since 05:56 UTC): all four looks recorded on the fixed build; each of the 7 big issues from tour v5 gets a time that shows it fixed or a still that shows it open.</li>
+          <li>Tiling fix round 4 (since 06:28 UTC): Super+Print must show a visible notice, and a Screenshot entry you can click.</li>
+          <li>xp fix round 7 (since 06:28 UTC): Notepad opens only a real editor window, never the terminal editor nano; with no editor installed it says so honestly.</li>
           <li>Security fix round 2 (since 06:03 UTC): the review found three gaps. A settings change could still hide text; a too-long question could be confirmed unseen; and normal emoji and Persian text were refused. Each gets a failing test first.</li>
           <li>Six green merge runs in a row (trains 30b, 33-37); CI green on train 36 (05:22 UTC).</li>
         </ul>
@@ -128,7 +129,7 @@ footer { font-size: 13px; color: var(--muted); }
         <h3>Next</h3>
         <ul class="plain">
           <li>Budget: 55 % of the week (06:21 UTC, your reading); 45 % left for 94 h, about 0.48 % an hour; the last two hours ran at 1 % an hour (two opus security runs), so no new opus until 12:00 UTC</li>
-          <li>Then: tour v6 checked by the manager and one reviewer, then shown to you</li>
+          <li>Then: construct round 3 (drag a pane back onto its face), and tour v7 after the two fixes</li>
           <li>Tag decision Wed 12:00 UTC: with a blocker or more than 5 big issues open, the release candidate moves to Tue 24 Nov</li>
           <li>Look fix loop: record, PM watches every chapter plus one reviewer, fix, record again; the last round starts Thu 12:00 UTC (19:00 Bangkok)</li>
           <li>Wed: user test round 4. Thu 18:00 UTC: the final tour to you. Fri 20 Nov: release candidate, then cleanup sprint (settings alike in every look, duplicate code)</li>
@@ -165,6 +166,10 @@ footer { font-size: 13px; color: var(--muted); }
       <button type="button" data-filter="looks" aria-pressed="false">Looks</button>
     </div>
     <div class="shots">
+      <figure data-kind="looks" style="grid-column:1/-1"><video src="video/tour-v6.mp4" controls preload="metadata" style="width:100%;height:auto;border-radius:8px" aria-label="Tour v6 of all four looks"></video><figcaption><b>Tour v6, 3:28 min.</b> xp, tiling, mc light and dark, construct, then one window through the looks. Build aa8aa8c0, 17 Nov, reviewed (reports/review-tour-v6.md): 5 of 7 big issues from v5 fixed; open: Super+Print shows nothing (1:41), Notepad is the terminal editor nano (0:03).</figcaption></figure>
+      <figure data-kind="looks"><img src="img/v6-xp-notepad.png" alt="xp: a window titled Notepad that holds the terminal editor nano" loading="lazy"><figcaption><b>Open: xp Notepad.</b> The Notepad window is nano, which a mouse-only user cannot finish. Fix running. Build aa8aa8c0, 17 Nov, reviewed.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/v6-tiling-print.png" alt="Tiling: after Super+Print the screen shows no notice" loading="lazy"><figcaption><b>Open: tiling screenshot.</b> One second after Super+Print: no notice. Fix running. Build aa8aa8c0, 17 Nov, reviewed.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/v6-handover-mc.png" alt="Handover: the window dragged from xp shows on the mc page" loading="lazy"><figcaption><b>Fixed: handover to mc.</b> The window dragged from xp shows in mc during and after the drop. Build aa8aa8c0, 17 Nov, reviewed.</figcaption></figure>
       <figure data-kind="looks" style="grid-column:1/-1"><video src="video/tour-all.mp4" controls preload="metadata" style="width:100%;height:auto;border-radius:8px" aria-label="Tour v3 of all four looks"></video><figcaption><b>Tour v3, 13:37 min.</b> A person uses xp, tiling, mc and the 3D construct, then moves one window through all of them. Build 7d90f049, 16 Nov. Two big bugs are visible in it (side-by-side panes at 9:33, the cube sliding off at 10:56); fixes running.</figcaption></figure>
       <figure data-kind="looks"><img src="img/xp-desktop.png" alt="xp desktop: a terminal and an editor, the editor bending while dragged" loading="lazy"><figcaption><b>xp.</b> A terminal and an editor; the dragged one bends. Build 7d90f049, 16 Nov, reviewed.</figcaption></figure>
       <figure data-kind="looks"><img src="img/tiling-fair.png" alt="Tiling look: windows in the fair layout under the bar" loading="lazy"><figcaption><b>Tiling.</b> Fair layout under the bar (the stuck tooltip at the top right is a known small bug). Build 7d90f049, 16 Nov.</figcaption></figure>
@@ -180,8 +185,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Tue 17 Nov</span><span>7 entries</span></summary>
+      <summary><span>Tue 17 Nov</span><span>8 entries</span></summary>
       <ul class="timeline">
+        <li><time>06:28</time><p><span class="tag warn">review</span>Tour v6 recorded (3:28) and reviewed: 5 of the 7 big issues from v5 are fixed (power menu in the tiling bar, bar spacing, window shows in mc after a drop, Helper in the 3D HUD, pane visible after step back). Two remain: Super+Print shows nothing in tiling, and Notepad in xp is a terminal editor. Two sonnet fix rounds started.</p></li>
         <li><time>05:55</time><p><span class="tag ok">merged</span>Train 37: the decision log gets the nine missing records, your proposals D1-D8 and the packaging plan, all marked as proposed and revisable. Sixth green run in a row.</p></li>
         <li><time>05:03</time><p><span class="tag ok">merged</span>Train 36: xp says Notepad opened only once its window shows, and no second editor starts. All checks passed; fifth green run in a row.</p></li>
         <li><time>06:03</time><p><span class="tag warn">review</span>Security fix round 1 reviewed: the cleaning and the click guard work, but three big gaps remain, so round 2 has started. The CI coverage failure is a known flaky test (F22), not this change.</p></li>
