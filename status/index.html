@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 17 Nov, 13:59 UTC (20:59 Bangkok)</span>
+      <span>Updated Tue 17 Nov, 14:42 UTC (21:42 Bangkok)</span>
       <span>Day 9 of 22</span>
       <span>Release candidate: today, quick and dirty (your call 10:47 UTC); this week: clean foundation; then feature sprints</span>
     </div>
@@ -119,18 +119,17 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merge run 40 green at 11:47 UTC (18:47 Bangkok): construct round 3 (drag back onto a face, pulled pane kept after restart). Nine green runs in a row.</li>
-          <li>Tour v8 recorded (4:04, Pictures tab): the baseline before the cleanup. Independent review follows after the tag.</li>
+          <li>Merge run 43 green at 14:42 UTC (21:42 Bangkok): the test harness of the media lane. Tour and screencast work stopped (your call, 14:20).</li>
+          <li>Fable architecture lane since 14:27 UTC: the cleanup plan, with act contracts and checks that catch glitches automatically as its first step; two opus reviewers</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget: 58 % of the week (12:09 UTC, your reading); 42 % left for 87 h, 6 % over even pace</li>
-          <li>Release v0.9.0-rc.4: dev and main updated 13:41 UTC (CI and packaging green); only the tag is left (Needs you)</li>
-          <li>Then: one Fable lane plans the architecture (shared window logic, one cube, one settings service), checked by two opus reviewers; then cleanup slices with tests</li>
+          <li>Budget: 58 % of the week (14:27 UTC, your reading); 42 % left for 85 h, 9 % over even pace</li>
+          <li>Order (your call, 14:24): cleanup, then an intensive simulated user test, then a new human-paced tour with automatic checks against the look guidelines</li>
+          <li>Then: cleanup slices with tests (sonnet builds, haiku tests), the glitch checks first</li>
           <li>Week goal until Sat 03:59 UTC (10:59 Bangkok): clean, well tested, well designed code (design/foundation.md F1-F8); a goal counts as met only with a measurement and an independent check</li>
-          <li>Afterwards, if you agree: polish the looks, build the collected features (xp tray, Quick Launch, Start menu lists, settings in every look), then the one-take demo (design/demo-playbook.md)</li>
         </ul>
       </div>
       <div class="panel">
@@ -189,8 +188,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Tue 17 Nov</span><span>9 entries</span></summary>
+      <summary><span>Tue 17 Nov</span><span>10 entries</span></summary>
       <ul class="timeline">
+        <li><time>14:42</time><p><span class="tag ok">merge</span>Merge run 43 green: the media test harness (pull gate checks both drags). rc.4 stays untagged (your call, 14:20). Plan changed: cleanup, simulated user test, then a new tour with automatic checks.</p></li>
         <li><time>13:41</time><p><span class="tag ok">release</span>v0.9.0-rc.4 on dev and main (CI and packaging green). The tag waits for the owner (this session may not push tags). Tour v8 (4:04) added to Pictures.</p></li>
         <li><time>08:56</time><p><span class="tag ok">merge</span>Merge run 39 green: the xp fix (Notepad opens only a real editor, or says none is installed) and the tiling fix (Super+Print shows a notice; Screenshot in the power menu of the bar) are in. Tour v7 started to show them.</p></li>
         <li><time>08:01</time><p><span class="tag ok">merge</span>Security fix round 2 merged (train 38, all checks green): the helper now refuses a question the screen cannot show in full, and refuses settings that would hide text, while emoji and Persian text pass. The xp and tiling fixes passed review and are in merge run 39.</p></li>
