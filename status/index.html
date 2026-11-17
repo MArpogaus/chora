@@ -100,9 +100,9 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 17 Nov, 08:59 UTC (15:59 Bangkok)</span>
+      <span>Updated Tue 17 Nov, 11:49 UTC (18:49 Bangkok)</span>
       <span>Day 9 of 22</span>
-      <span>Release candidate: target Fri 20 Nov; feature sprints from Mon 23 Nov</span>
+      <span>Release candidate: today, quick and dirty (your call 10:47 UTC); this week: clean foundation; then feature sprints</span>
     </div>
   </header>
 
@@ -119,24 +119,24 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Tour v7 (since 08:59 UTC): recorded on merge run 39, to show the two big issues of v6 fixed (Notepad, screenshot notice) and to retest the drag back in the construct.</li>
-          <li>Construct fix round 3 (since 07:03 UTC): a pane dragged back over a face goes back onto that face, and a pulled pane stays visible after a restart. First finding: the drag back works in the test, so the tour script may be at fault.</li>
-          <li>Eight green merge runs in a row (trains 30b, 33-39).</li>
+          <li>Merge run 40 green at 11:47 UTC (18:47 Bangkok): construct round 3 (drag back onto a face, pulled pane kept after restart). Nine green runs in a row.</li>
+          <li>Tour v8 starts now as the baseline before the cleanup; the videos are kept on their own branch this time.</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Budget: 55 % of the week (06:21 UTC, your reading); 45 % left for 94 h, about 0.48 % an hour; the last two hours ran at 1 % an hour (two opus security runs), so no new opus until 12:00 UTC</li>
-          <li>Then: tour v7 reviewed by the PM and one reviewer; construct round 3 reviewed and merged (run 40)</li>
-          <li>Tag decision Wed 12:00 UTC: with a blocker or more than 5 big issues open, the release candidate moves to Tue 24 Nov</li>
-          <li>Look fix loop: record, PM watches every chapter plus one reviewer, fix, record again; the last round starts Thu 12:00 UTC (19:00 Bangkok)</li>
-          <li>Wed: user test round 4. Thu 18:00 UTC: the final tour to you. Fri 20 Nov: release candidate, then cleanup sprint (settings alike in every look, duplicate code)</li>
+          <li>Budget: 57 % of the week (10:31 UTC, your reading); 43 % left for 89 h, on pace</li>
+          <li>Today: list of known issues (cube seams, all open findings), CI on a pull request to dev, packaging check, release candidate tag</li>
+          <li>Then: one Fable lane plans the architecture (shared window logic, one cube, one settings service), checked by two opus reviewers; then cleanup slices with tests</li>
+          <li>Week goal until Sat 03:59 UTC (10:59 Bangkok): clean, well tested, well designed code (design/foundation.md F1-F8); a goal counts as met only with a measurement and an independent check</li>
+          <li>Afterwards, if you agree: polish the looks, build the collected features (xp tray, Quick Launch, Start menu lists, settings in every look), then the one-take demo (design/demo-playbook.md)</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
+          <li>Yes or no: the plan after this week and the demo playbook; bring back the burn effect (cut 10 Nov)?</li>
           <li>By Thu: in the cloud environment menu, Edit and save the setup script again. Lanes still use an old setup from 15 Nov with an old launcher (fuzzel 1.9); until then the full test runs happen in the manager's container.</li>
         </ul>
       </div>
@@ -153,7 +153,7 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
       <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
       <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. The flaky mc door click is fixed (20:23); one rare flake (F17) is still watched; CI green twice since the watchdog fix.</span></div>
-      <div class="bar warn"><span class="name">Release candidate</span><span class="pct">1 of 11 criteria met</span><div class="track"><div class="fill" style="width:55%"></div></div><span class="note">Met: dependency checks clean. Close: docs, code review (security merged), CI (pixel fix merging now). Open: two big bugs from the tour, user test round 4 (Tue), three green test runs in a row, your look at the screencast.</span></div>
+      <div class="bar"><span class="name">Release candidate</span><span class="pct">quick and dirty, today</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">For this candidate only: green test runs (9 in a row), CI, packaging, dependency checks and an honest list of known issues. The look issues go on that list and into the cleanup.</span></div>
     </div>
   </section>
 

@@ -3,9 +3,9 @@
 Order: decisions-now.md, these rules, conventions.md (skills).
 KISS and POLS first. Stability beats look; look and UX beat anything new.
 
-1. Goal. Until the tag the only goal is the RC (design/rc.md): no new feature (backlog).
-Queue lines name their criterion. Re-plan on new data; daily burn-down line in state.md
-(MAJOR open, lanes, days, projected tag). Guard: lanes.py.
+1. Goal. rc tag (rc.md waiver), then foundation F1-F8 (foundation.md) to
+Sat 03:59; no new feature (backlog). Queue lines name their criterion. Re-plan on new
+data; burn-down line in state.md (open F, lanes, days). Guard: lanes.py.
 2. Owner input. Classify each message in the reply: reading, question, bug, idea, goal
 change, order. Bug: findings ledger. Idea: backlog. Goal change: reply with the cost,
 apply after a yes, at the next lane start. Each request: cost and effect on the tag
