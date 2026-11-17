@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `matrix` ends with the click that
@@ -176,6 +176,8 @@ doors|BIN=$repo/target/debug tests/gate-doors.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
+placed|BIN=$repo/target/debug tests/gate-construct-placed.sh
+construct-hud|BIN=$repo/target/debug tests/gate-construct-hud.sh
 out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh

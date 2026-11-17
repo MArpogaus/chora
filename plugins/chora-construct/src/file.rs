@@ -50,6 +50,10 @@ pub struct PaneFile {
     /// of the plugin's node.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size: Option<[f64; 2]>,
+    /// The pane was placed, moved or flown into; it stays in view when
+    /// the cube stands back.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub placed: bool,
 }
 
 /// A construct as its file has it.
@@ -245,6 +249,7 @@ mod tests {
                     at: Some([1.0 / 3.0, 2000.0]),
                     yaw: Some(-2.5),
                     size: Some([1280.0, 800.0]),
+                    placed: true,
                 },
                 PaneFile {
                     kind: Kind::Plugin,
@@ -255,6 +260,7 @@ mod tests {
                     at: Some([-1408.7, 1999.9]),
                     yaw: None,
                     size: None,
+                    placed: false,
                 },
             ],
         };
