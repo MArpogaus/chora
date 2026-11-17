@@ -75,13 +75,15 @@ pub enum Why {
     Slow,
     /// The program ended without a window.
     Exited,
+    /// No editor is installed that has a window.
+    NoEditor,
 }
 
 impl Why {
     /// What went wrong, after the name of a program.
     fn clause(self) -> String {
         match self {
-            Self::Missing => "is not installed.".into(),
+            Self::Missing | Self::NoEditor => "is not installed.".into(),
             Self::Refused => "could not be started.".into(),
             Self::Slow => format!("showed no window in {} seconds.", GIVE_UP.as_secs()),
             Self::Exited => "ended without a window.".into(),
@@ -112,6 +114,7 @@ impl Change {
                     Why::Refused => "The session could not start it.".into(),
                     Why::Slow => format!("No window opened in {} seconds.", GIVE_UP.as_secs()),
                     Why::Exited => "The program ended without a window.".into(),
+                    Why::NoEditor => "No text editor installed (for example mousepad).".into(),
                 };
                 (format!("Cannot open {name}"), body)
             }
@@ -288,7 +291,11 @@ impl Launches {
         now: Instant,
     ) -> Vec<Change> {
         if chain.is_empty() {
-            return Vec::new();
+            return vec![Change::Failed {
+                name: name.to_owned(),
+                note: None,
+                why: Why::NoEditor,
+            }];
         }
         let first = chain.remove(0);
         let status = template
@@ -812,6 +819,27 @@ mod tests {
             }
         );
         assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn an_empty_chain_says_that_no_text_editor_is_installed() {
+        let mut launches = Launches::new();
+        let changes = launches.run_chain("Notepad", (Vec::new(), None), None, Instant::now());
+        let [
+            change @ Change::Failed {
+                why: Why::NoEditor, ..
+            },
+        ] = changes.as_slice()
+        else {
+            panic!("{changes:?}");
+        };
+        assert_eq!(
+            change.text(),
+            (
+                "Cannot open Notepad".to_owned(),
+                "No text editor installed (for example mousepad).".to_owned()
+            )
+        );
     }
 
     fn early_editor(now: Instant, status: Option<&str>, rest: Vec<Candidate>) -> Launches {

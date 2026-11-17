@@ -32,6 +32,7 @@ yet. Larger faults are tracked as issues on
 | Id | Kind | State | Issue |
 |----|------|-------|-------|
 | xp-5 | minor | verify | Start lists LibreOffice though not installed: "Cannot open" after 30 s; list installed programs only |
+| xp-23 | minor | open | Notepad needs an editor with a window (mousepad is recommended); without one a click says so and no window opens |
 | xp-6 | minor | verify | No sign that a program is starting (slow start looks like a dead click); a busy cursor or taskbar button |
 | xp-7 | minor | verify | Notify balloon sat on the paperclip head, text 12 px under the 14 px floor |
 | xp-8 | minor | verify | Caption buttons 22 px, 4 apart; spec 24 px, 2 apart, 4 from the edge |

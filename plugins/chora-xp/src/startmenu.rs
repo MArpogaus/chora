@@ -973,9 +973,20 @@ fn fill_pool<'a>(config: &Config, apps: &'a [Node]) -> Vec<&'a Node> {
     }
     let mut pool = Vec::new();
     flatten(apps, &mut pool);
-    pool.retain(|n| !config.programs.iter().any(|p| p.title == n.title));
+    pool.retain(|n| {
+        !config.programs.iter().any(|p| p.title == n.title)
+            && (n.title == apps::NOTEPAD || pinnable(n, &config.terminal))
+    });
     pool.sort_by_key(|n| n.title != apps::NOTEPAD);
     pool
+}
+
+/// Whether a program of the desktop files fits the left column: it does
+/// not run in the terminal and its title has no raw suffix such as
+/// "(color depth=q16)".
+fn pinnable(node: &Node, terminal: &str) -> bool {
+    let runs_in_terminal = matches!(&node.kind, apps::Kind::Run(c) if c.starts_with(terminal));
+    !runs_in_terminal && !node.title.contains('(')
 }
 
 /// The name that the header shows: the full name of the account, else its
@@ -1437,6 +1448,25 @@ mod tests {
         assert_eq!(menu.entries[2].action, Action::Run("run-Notepad".into()));
         assert_eq!(menu.entries[3].title, "Calc");
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_fill_does_not_pin_terminal_programs_or_raw_entries_next_to_notepad() {
+        let apps: Vec<Node> = vec![
+            app(apps::NOTEPAD),
+            app("Calc"),
+            Node {
+                title: "Vim".into(),
+                icon: String::new(),
+                kind: apps::Kind::Run("kitty -e vim".into()),
+            },
+            app("ImageMagick (color depth=q16)"),
+        ];
+        let titles: Vec<&str> = fill_pool(&config(), &apps)
+            .iter()
+            .map(|n| n.title.as_str())
+            .collect();
+        assert_eq!(titles, ["Notepad", "Calc"]);
     }
 
     #[test]

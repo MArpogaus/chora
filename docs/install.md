@@ -40,6 +40,11 @@ On Arch Linux, install them as optional dependencies:
 sudo pacman -S --asdeps uwsm foot waybar mako swaybg swayidle swaylock kanshi
 ```
 
+Notepad of the xp look opens a text editor with a window, for example
+mousepad (recommended by the packages); it never opens a terminal editor
+unless the setting `editor` names one. On Arch Linux: `sudo pacman -S
+--asdeps mousepad`.
+
 [uwsm](https://github.com/Vladimir-csp/uwsm) is optional. The session
 "chora (uwsm)" shows on the login screen only when uwsm is installed.
 uwsm is not in Fedora 44; there the session "chora" is the way in.
