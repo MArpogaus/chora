@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 10:02 UTC)
+## Now (2026-11-17 10:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 55 % at 06:21 Tue (owner); tokens.py 10:02: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
+budget: 55 % at 06:21 Tue (owner); tokens.py 10:16: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7e066694 09:18. Tour v7 running.
 burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 retest. Tag Fri 11-20 if v7 clean.
@@ -26,7 +26,7 @@ burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 r
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r3.md (rc 1) | sonnet med, claude/construct | r3 MERGE-OK (3 MINOR) 10:03; train 40 10:02 |
-| media-r5.md (rc 11, 1) | sonnet med, claude/media | v7 done 10:00 (4:16): j1-5 fixed; F-1 new MAJOR (Notepad silent, no notice); N-1 disputed; mp4 upload, review next |
+| media-r5.md (rc 11, 1) | sonnet med, claude/media | v7 done 10:00 (4:16): j1-5 fixed; F-1 new MAJOR; N-1 disputed; mp4 stay in worker (permission); archived; review 10:16 |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | merged train 39 08:56 |
 | xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | merged train 39 08:56 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
