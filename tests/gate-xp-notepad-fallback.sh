@@ -9,6 +9,7 @@
 # gedit that opens a foot, a lowriter that ends without a window.
 #
 # Usage: tests/gate-xp-notepad-fallback.sh   BIN: directory with the binaries
+#   SHOTS  a directory that keeps the capture xp-notepad-fallback.png
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need foot
@@ -95,6 +96,7 @@ set_editor lowriter
 click_notepad
 ctl wait --timeout 15 'app_id:notepad-exits kind:surface' >/dev/null || fail "with an editor that ends without a window no window opened"
 wait_notice "Notepad opened with gedit" "lowriter ended without a window"
+[ -z "${SHOTS:-}" ] || ctl capture --output HEADLESS-1 "$SHOTS/xp-notepad-fallback.png" >/dev/null || fail "the capture"
 ok "the editor ends without a window: gedit opens and the notice names both"
 
 rm "$work/fakes/gedit"
