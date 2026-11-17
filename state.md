@@ -4,7 +4,7 @@
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 55 % at 06:21 Tue (owner); tokens.py 06:21: 2.7 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 7375daa1 (train 38 08:00: secfix c); CI green on f1a353a2 05:22. Next: tour v7 after 39.
+session branch: 7375daa1 (train 38 08:00: secfix c); CI green on 7375daa1 08:20. Next: tour v7 after 39.
 burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, j1-5, N1 MERGE-OK; secfix c MERGE-OK. Tag Fri 11-20 if v7 clean.
 
 ## RC (design/rc.md)
@@ -14,7 +14,7 @@ burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, j1-5, N1 MERGE-OK; secfix c ME
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | 30b, 33-37 green (6); F26 held, F28 holds; F17 open |
-| 4 | CI green | green on f1a353a2 05:22 (train 36) |
+| 4 | CI green | green on 7375daa1 08:20 (train 38) |
 | 5 | Packaging smoke | arch, rpm, podman green on 4105f8d1 23:50 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
