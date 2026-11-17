@@ -30,7 +30,7 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 merged (
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
 | decisions-r5.md (rc 8) | sonnet low, claude/decisions | bbf1264 MERGE-OK; r5 adds D95 (owner 04:46); train 37 running 05:03 |
 | secfix-c-r1.md (rc 1, 6) | opus med, claude/secfix-c | sh-26 MAJOR confirm text (opus review 04:53); starting |
-| testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 asked 05:03 |
+| testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
 1. Now: train 37 decisions (rc 8); secfix c sh-26 (rc 1, 6); testwatch; tour v6 media r4 (rc 11); then construct r3 DB1 with v6 findings, decision records DB2 (rc 8).
