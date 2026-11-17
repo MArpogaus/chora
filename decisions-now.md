@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T06:21:00Z
+screened-through: 2026-11-17T10:29:00Z
+- 11-17 10:29Z "Can I see the tour?" -> question: tour v6 video and v7 stills on the status page; v7 mp4s lost with the archived media worker; the final tour Thu (media r6) commits its mp4s to session-log
 - 11-17 06:21Z "55%" -> reading: 55 %, 1 %/h (twice pace, opus); no new opus until 12:00 but the secfix r2 diff review
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
@@ -10,8 +11,6 @@ screened-through: 2026-11-17T06:21:00Z
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
-- 11-16 16:56Z "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus..." -> Fable lane ends 18:21 (hand over 18:15); rest on opus; assume 5-10 %
-- 11-16 16:53Z "...expecting you to discuss this before starting Fable... Fable ... counts in the same token budget... only one Fable track" -> one Fable lane (flakes r6), then none; ask before a model change
 
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
