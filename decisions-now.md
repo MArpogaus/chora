@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T14:27:00Z
+screened-through: 2026-11-17T15:35:00Z
+- 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor
 - 11-17 14:20Z "OK, never mind. ... Current screen cast is horrible. ... No more time wasting on it. New demo has to become smoother and more "natural". We need stronger review guidelines to catch all issues automatically." -> no tag; no tour work; glitch gates proposal
 - 11-17 12:58Z "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> PM re-plans, pulls feats in when ahead
@@ -7,9 +8,7 @@ screened-through: 2026-11-17T14:27:00Z
 - 11-17 11:54Z "...Have unnecessary detailed and expensive desktop effects land before 1.0..." -> S3 effects pack before 1.0 (plugin, frame-budget gate)
 - 11-17 10:59Z "Be perfectionist and very critical about the met targets. We want to push towards perfection." -> F1-F8 met only with evidence and an independent check; no partial credit
 - 11-17 10:56Z "New goal for the week: super clean well tested good designed codebase as foundation for future feature sprints." -> goal: after the rc tag, design/foundation.md F1-F8; rules.md 1 at train 40
-- 11-17 10:54Z "Agree, learn from previous fix rounds..." -> Fable: 2 opus reviewers
-- 11-17 10:47Z "...quick and dirty rc now. Then run fable one..." -> rc now; one Fable plan lane, refactor sprint
-- 11-17 10:35Z "Rerecord the demo ... cube seams broken ... Cube always lives in construct" -> co-21 known issue, DB14; one cube DB12
+- 11-17 10:47Z "...quick and dirty rc now. Then run fable one..." -> rc now; one Fable plan lane (2 opus reviewers, 10:54), refactor sprint
 
 - 11-17 04:43Z "...every plugin separately packaged ... repo split ..." -> PK4; D95 proposed (04:46)
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
