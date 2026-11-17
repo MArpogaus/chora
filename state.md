@@ -4,7 +4,7 @@
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 03:22: 1.1 % (PM container). Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 39fe12d2 (train 34 03:19: mc r6); CI green on 39fe12d2 03:40. Next: testwatch after train 35.
+session branch: 39fe12d2 (train 34 02:42: mc r6); CI green on 39fe12d2 03:40. Next: testwatch after train 35.
 burn-down 03:19: 0 BLOCK, 7 MAJOR in 4 lanes (mc merged, construct and tiling in train 35, xp r6). Likely tag Tue 11-24.
 
 ## RC (design/rc.md)
@@ -28,7 +28,7 @@ burn-down 03:19: 0 BLOCK, 7 MAJOR in 4 lanes (mc merged, construct and tiling in
 | tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | aa245abd MERGE-OK (gate line); j1-4, j1-5, rv5-1 tour harness: check in tour v6; train 35 |
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | c7e4e59e MERGE-OK 03:23 (3 MINOR); train 36 after 35 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct |  59a16702 MERGE-OK (2 MINOR); train 35 running since 03:19 |
-| mc-r6.md (rc 1) | sonnet high, claude/mc | merged train 34 03:19; worker archived |
+| mc-r6.md (rc 1) | sonnet high, claude/mc | merged train 34 02:42; worker archived |
 | testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
 | older rounds | | merged or archived |
 
