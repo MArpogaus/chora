@@ -1,17 +1,16 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:35:00Z
+screened-through: 2026-11-17T10:40:00Z
 - 11-17 10:29Z "Can I see the tour?" -> question: tour v6 video and v7 stills on the status page; v7 mp4s lost with the archived media worker; the final tour Thu (media r6) commits its mp4s to session-log
+- 11-17 10:40Z "Why did you miss this?" -> question: reviews checked listed rows, nobody judged the look as a whole; fix: fresh-eyes pass per look, PM watches the tour, seam cell
 - 11-17 10:35Z "Rerecord the demo and save it ... cube seams broken ... Turn cube in xp ... Cube always lives in construct ... click in tray ... no welcome" -> order: tour v8 now, mp4s kept (media r6); bug co-21 MAJOR (construct r4); xp cube works (Ctrl+Alt+arrows, Super+drag), one cube in construct: DB12 sprint 1; xp-29, xp-30 MINOR to xp r8
 - 11-17 10:31Z "57 %" -> reading: 57 %, 0.48 %/h since 06:21, on pace; opus from 12:00 (critic only)
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
-- 11-17 04:38Z interview D1-D8: all recommended -> proposals (04:41)
 - 11-17 04:33Z "Have a arictect persona run as subagent to draft an plan refactorings with high effort. For the big ones you may use fable. ..." -> opus architect now (plan for sprint 1); interview D1-D8
 - 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
-- 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
 
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 
