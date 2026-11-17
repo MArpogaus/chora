@@ -120,7 +120,7 @@ footer { font-size: 13px; color: var(--muted); }
         <h3>Running</h3>
         <ul class="plain run">
           <li>Tour v6 (since 05:56 UTC): all four looks recorded on the fixed build; each of the 7 big issues from tour v5 gets a time that shows it fixed or a still that shows it open.</li>
-          <li>Security fix (sh-26): question text in mc and construct is cleaned of hidden and reversed characters, and a click right after a question appears no longer counts. Tests written first, all red before the fix.</li>
+          <li>Security fix round 2 (since 06:03 UTC): the review found three gaps. A settings change could still hide text; a too-long question could be confirmed unseen; and normal emoji and Persian text were refused. Each gets a failing test first.</li>
           <li>Six green merge runs in a row (trains 30b, 33-37); CI green on train 36 (05:22 UTC).</li>
         </ul>
       </div>
@@ -184,6 +184,7 @@ footer { font-size: 13px; color: var(--muted); }
       <ul class="timeline">
         <li><time>05:55</time><p><span class="tag ok">merged</span>Train 37: the decision log gets the nine missing records, your proposals D1-D8 and the packaging plan, all marked as proposed and revisable. Sixth green run in a row.</p></li>
         <li><time>05:03</time><p><span class="tag ok">merged</span>Train 36: xp says Notepad opened only once its window shows, and no second editor starts. All checks passed; fifth green run in a row.</p></li>
+        <li><time>06:03</time><p><span class="tag warn">review</span>Security fix round 1 reviewed: the cleaning and the click guard work, but three big gaps remain, so round 2 has started. The CI coverage failure is a known flaky test (F22), not this change.</p></li>
         <li><time>04:53</time><p><span class="tag info">review</span>Architecture plan for sprint 1 (shared code into kit modules) and a security review: question text in mc and construct can hide characters; fix started.</p></li>
         <li><time>04:11</time><p><span class="tag ok">merged</span>Train 35: construct keeps a pulled window visible when you step back and shows the Helper word; tiling adds a power-menu check to the merge test. All checks passed. The xp fix (round 6) passed its review and runs in train 36.</p></li>
         <li><time>03:40</time><p><span class="tag ok">CI</span>CI is green on train 34 (39fe12d2).</p></li>

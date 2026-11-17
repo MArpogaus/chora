@@ -29,11 +29,11 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 merged (
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | merged train 36 05:03 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
 | media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 on aa8aa8c0; starting 05:56 |
-| secfix-c-r1.md (rc 1, 6) | opus med, claude/secfix-c | cd7a8946 gate green; opus review running 05:58 |
+| secfix-c-r2.md (rc 1, 6) | opus med, claude/secfix-c | r1 review FIX (3 MAJOR) 06:03; r2 starting |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: tour v6 media r4 (rc 11); secfix c sh-26 (rc 1, 6); then construct r3 DB1 with v6 findings.
+1. Now: tour v6 media r4 (rc 11); secfix c r2, 3 MAJOR of review r1 (rc 1, 6); then construct r3 DB1 with v6 findings.
 2. UX loop (rc 1, 11): tour v6 (media r4) after the 4 lanes; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F22 (CI 06:00), F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
