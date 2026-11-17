@@ -10,7 +10,7 @@ plugins/chora-xp/src/wm.rs went from 4,794 lines to 1,391 (870 production lines,
 | wm/startup.rs | 298 | | wm/press.rs | 371 |
 | wm/dispatch.rs | 305 | | wm/pointer.rs | 502 |
 | wm/windows.rs | 630 | | wm/panels.rs | 621 |
-| wm/output.rs | 119 | | wm/choices.rs | 249 |
+| wm/output.rs | 119 | | wm/choices.rs | 253 |
 | wm/keys.rs | 370 | | | |
 
 Largest file: windows.rs, 630. All files are far under 1,500 production lines. The module is named `choices`, not `settings`, because `settings` is the chora_kit import of wm.rs. Free functions, types, constants and the existing wm/ children stay where they were; the target names of arch-plan 2.1 (book, focus, give, ...) are chora-kit modules, so none applies in xp.
