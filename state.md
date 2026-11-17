@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-17 03:23 UTC)
+## Now (2026-11-17 03:40 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 03:22: 1.1 % (PM container). Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 39fe12d2 (train 34 03:19: mc r6); CI 10/10 on 4105f8d1. Next: testwatch after train 35.
+session branch: 39fe12d2 (train 34 03:19: mc r6); CI green on 39fe12d2 03:40. Next: testwatch after train 35.
 burn-down 03:19: 0 BLOCK, 7 MAJOR in 4 lanes (mc merged, construct and tiling in train 35, xp r6). Likely tag Tue 11-24.
 
 ## RC (design/rc.md)
@@ -14,7 +14,7 @@ burn-down 03:19: 0 BLOCK, 7 MAJOR in 4 lanes (mc merged, construct and tiling in
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | 30b, 33, 34 green (3); F26 held, F28 holds; F17 open |
-| 4 | CI green | green on 4105f8d1 23:50 (10/10 jobs) |
+| 4 | CI green | green on 39fe12d2 03:40 (no failed suite) |
 | 5 | Packaging smoke | arch, rpm, podman green on 4105f8d1 23:50 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
 | 7 | deny, machete | clean (ci-rc) |
