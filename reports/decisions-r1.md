@@ -29,3 +29,9 @@ Branch claude/decisions, head 80a5931 after r2 (r1 3cc1450 plus one commit, docs
 
 ## r3
 - D87-D94 now read "proposed (owner, 2026-11-17)" with the sentence that a later review may revise or revert them; head 5ed35a5, pre-commit and mkdocs --strict pass.
+
+## r4 (review of r2)
+- MAJOR D78 fixed (decisions.md:73): setting only in construct, mc, tiling, xp (`.accept_injected`); notify and assistant follow the env var only.
+- MINOR node.key fixed in the D78 event list (also pressed/moved/released named).
+- MINOR gate named: tests/gate-injected-presses.sh (runs with the switch off).
+- COSMETIC fixed: "proposed (owner, 2026-11-17)" once in the intro, "debt-rc 3b D1 to D8", D89 cites "(D3, stable API only from 1.0)". Head bbf1264.
