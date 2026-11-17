@@ -1,5 +1,5 @@
 //! The doors of the construct: one glass capsule in the top left corner
-//! with the clock and the plain words Programs, Keys, Lock, Power,
+//! with the clock and the plain words Programs, Helper, Keys, Lock, Power,
 //! Screenshot and the volume word. It shows in the walk and stood back
 //! from a cube, and hides in a pane and in a face of a cube, whose
 //! window or look has the whole screen. A click on a word does what its key does (the keys of every
@@ -44,6 +44,7 @@ const READINGS: u8 = 50;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Door {
     Programs,
+    Helper,
     Keys,
     Lock,
     Power,
@@ -51,8 +52,9 @@ pub enum Door {
     Volume,
 }
 
-const ALL: [Door; 6] = [
+const ALL: [Door; 7] = [
     Door::Programs,
+    Door::Helper,
     Door::Keys,
     Door::Lock,
     Door::Power,
@@ -64,6 +66,7 @@ impl Door {
     fn name(self) -> &'static str {
         match self {
             Self::Programs => "programs",
+            Self::Helper => "helper",
             Self::Keys => "keys",
             Self::Lock => "lock",
             Self::Power => "power",
@@ -89,6 +92,7 @@ impl Door {
     pub const fn action(self) -> Action {
         match self {
             Self::Programs => Action::Launcher,
+            Self::Helper => Action::Chat,
             Self::Keys => Action::Help,
             Self::Lock => Action::Lock,
             Self::Power => Action::Power,
@@ -102,6 +106,7 @@ impl Door {
     pub fn word(self, language: Language, volume: Option<Reading>) -> String {
         let (en, de) = match self {
             Self::Programs => ("Programs", "Programme"),
+            Self::Helper => ("Helper", "Helfer"),
             Self::Keys => ("Keys", "Tasten"),
             Self::Lock => ("Lock", "Sperren"),
             Self::Power => ("Power", "Ausschalten"),
@@ -454,6 +459,9 @@ mod tests {
     fn the_words_come_in_english_and_german() {
         assert_eq!(Door::Programs.word(Language::En, None), "Programs");
         assert_eq!(Door::Lock.word(Language::De, None), "Sperren");
+        assert_eq!(Door::Helper.word(Language::En, None), "Helper");
+        assert_eq!(Door::Helper.word(Language::De, None), "Helfer");
+        assert_eq!(Door::Helper.action(), Action::Chat);
     }
 
     #[test]

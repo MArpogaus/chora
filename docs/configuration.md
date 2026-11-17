@@ -1182,16 +1182,17 @@ keyboard. A script or program that does not start gives a notice.
 
 Each key has a door that a click works. One glass capsule in the top
 left corner, 32 from the edges, shows the clock (`HH:MM`, local time,
-drawn again each minute) and the words `Programs`, `Keys`, `Lock`,
-`Power`, `Screenshot` and `Volume 50%`, in German `Programme`,
-`Tasten`, `Sperren`, `Ausschalten`, `Bildschirmfoto` and `Lautstärke
-50%`. The words are plain text without button chrome; the pointer over a
+drawn again each minute) and the words `Programs`, `Helper`, `Keys`,
+`Lock`, `Power`, `Screenshot` and `Volume 50%`, in German `Programme`,
+`Helfer`, `Tasten`, `Sperren`, `Ausschalten`, `Bildschirmfoto` and
+`Lautstärke 50%`. The words are plain text without button chrome; the pointer over a
 word shows the hover fill. A click does what the key does, and a click
 on the volume word mutes. The capsule shows in the walk. It hides in a
 pane, whose window gets every click, and while the key list or the
-window list shows; the keys work there too. The helper door
-is the island of the HUD host at the top right: it shows the state word
-of the helper, and a click opens the chat.
+window list shows; the keys work there too. The word `Helper` opens
+the chat, as `Super+a` does. The island of the HUD host at the top
+right shows the state word of the helper, and a click on it opens the
+chat too.
 
 ### The pane label
 
