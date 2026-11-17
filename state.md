@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-17 06:21 UTC)
+## Now (2026-11-17 06:25 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 55 % at 06:21 Tue (owner); tokens.py 06:21: 2.7 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00 but the secfix r2 diff review.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -28,7 +28,7 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 merged (
 | tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | merged train 35 04:11; j1-4, j1-5, rv5-1 checked in tour v6 |
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | merged train 36 05:03 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
-| media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 on aa8aa8c0; starting 05:56 |
+| media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 done 06:20 (5 of 7 v5 MAJOR fixed; j1-5, N1 open); review running; archived |
 | secfix-c-r2.md (rc 1, 6) | opus med, claude/secfix-c | r1 review FIX (3 MAJOR) 06:03; r2 starting |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
