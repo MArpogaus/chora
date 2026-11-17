@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T01:49:00Z
+screened-through: 2026-11-17T01:52:00Z
 
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
