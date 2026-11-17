@@ -1789,7 +1789,7 @@ impl Mc {
             .map(|name| (name.clone(), self.scene_commands(name)))
             .collect();
         self.apply_scenes(commands, scenes)?;
-        self.apply(vec![regions_on_top()])?;
+        self.apply(vec![regions_on_top(), under_other_plugins()])?;
         self.built = true;
         self.rendered = None;
         self.left = None;
@@ -3414,6 +3414,17 @@ fn needs_claim(action: &Action) -> bool {
 }
 
 /// Keeps the regions over a scene group that was just created.
+/// The root of mc below the roots of the other plugins, so that a window
+/// of another window manager that is dragged over the output shows above
+/// the opaque page and not behind it.
+fn under_other_plugins() -> Command {
+    Command::Move {
+        id: NAME.into(),
+        parent: None,
+        index: Some(0),
+    }
+}
+
 fn regions_on_top() -> Command {
     Command::Move {
         id: REGIONS.into(),
