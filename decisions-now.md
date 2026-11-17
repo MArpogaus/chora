@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T01:52:00Z
+screened-through: 2026-11-17T04:20:00Z
 
+- 11-17 04:20Z "53%" -> reading: 53 % (1 % since 01:46, 0.4 %/h, under pace)
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
 - 11-17 01:46Z "F 7, all 52" -> reading: Fable 7 %, all 52 %; pace eased 01:49

@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 04:11 UTC)
+## Now (2026-11-17 04:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 03:22: 1.1 % (PM container). Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
+budget: 53 % at 04:20 Tue (owner); tokens.py 03:22: 1.1 % (PM container). +1 % since 01:46 = 0.4 %/h; 47 % for 96 h = 0.49 %/h (opus ok, owner 01:49).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: fe8ba6d0 (train 35 04:11: construct r2, tiling r3); CI green on 39fe12d2. Next: train 36 xp, testwatch.
 burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train 36, tiling 3 to confirm in tour v6. Tag Fri 11-20 if v6 clean.
