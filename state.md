@@ -24,7 +24,7 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r1 6d2ca7c2 FIX 16:03 (1 MAJOR stale list); r2 16:05; 1 % |
+| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r1 6d2ca7c2 FIX 16:03 (1 MAJOR stale list); r2 s_..BHFV8 16:05; 1 % |
 | mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | s_..m8hdQJ 14:56, start check ok 15:04; 1.5 % |
 | mv2-mc-r1.md (F4) | sonnet med, claude/mv2-mc | s_..YZkfaC 14:56, start check ok 15:04; 1.5 % |
 | mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | s_..it8vfo 14:56, start check ok 15:04; 1.5 % |
