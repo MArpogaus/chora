@@ -24,3 +24,4 @@ ti-22 | MAJOR | journey-1 (tour v4, opus review) T1 02-25-screenshot.png | open 
 ti-23 | MAJOR | journey-1 (tour v4, opus review) T2 02-1-tile_bottom.png | open | Stale tooltip 'Run a program (Super+Space)' stays ~14 s over the master title
 ti-24 | MAJOR | journey-1 (tour v4, opus review) T4 02-24-key-list.png | open | No power or lock icon in the bar though the key list says so; 'Chat ...' pill floats over client content while the bar says No helper
 ti-25 | MINOR | journey-1 (tour v4, opus review) T5, T6, T7 | open | Stale/torn buffers after re-tile; launcher raw .desktop dump; floated window dropped half off-screen
+ti-26 | MINOR | architecture-rc 8 (theme.rs:707) | open | an empty LC_ALL="" masks LANG=de
