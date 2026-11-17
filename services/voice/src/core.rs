@@ -142,6 +142,9 @@ pub enum Input {
         yes: bool,
         open: Sender<bool>,
     },
+    /// The only screen of the question `id`, the own HUD, cannot show
+    /// it whole: a no (review secfix c r1, 2).
+    Unshowable(u64),
 }
 
 /// What the core asks the other actors to do.
@@ -567,6 +570,7 @@ impl Core {
             Input::PttDown => self.key(true),
             Input::ConfirmKey(yes) => self.confirm_key(yes),
             Input::ConfirmButton { id, yes, open } => self.confirm_button(id, yes, &open),
+            Input::Unshowable(id) => self.unshowable(id),
             Input::PttUp => self.key(false),
             Input::Call(call, reply) => {
                 let effects = self.call(call);
@@ -1156,6 +1160,18 @@ impl Core {
         }
         crate::log::info("confirm: by a button");
         self.answered(yes)
+    }
+
+    /// The question `id` cannot show whole: a no, with the error earcon;
+    /// another id, such as that of a question that ended, is nothing.
+    fn unshowable(&mut self, id: u64) -> Vec<Effect> {
+        if !self.confirming() || self.shown != Some(id) {
+            return Vec::new();
+        }
+        crate::log::info("confirm: the question is too long for the own HUD, a no");
+        let mut effects: Vec<Effect> = self.earcon(Earcon::Error).into_iter().collect();
+        effects.extend(self.answered(false));
+        effects
     }
 
     /// Whether the question on the screen showed for less than `delay`:

@@ -886,7 +886,7 @@ fn unshowable(detail: &str, name: &str, german: bool) -> Option<String> {
         } else {
             format!("{who} asked for something too long to show. Rejected.")
         }
-    } else if crate::chat::hides(detail) {
+    } else if chora_kit::chat::hides(detail) {
         if german {
             format!(
                 "{who} wollte etwas tun, das Zeichen enthält, die Text verbergen oder umstellen. Abgelehnt."

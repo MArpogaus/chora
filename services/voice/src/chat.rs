@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::chat::hides;
 use serde_json::{Value, json};
 use tokio::sync::{mpsc::UnboundedReceiver, oneshot};
 
@@ -198,7 +199,7 @@ pub(crate) const DETAIL_BYTES: usize = 64 * 1024;
 /// The answer to the LLM for a detail that does not show whole and as
 /// it is, without a question: too long, or it [`hides`] text; none for
 /// a detail that shows.
-fn unshowable(detail: &str) -> Option<String> {
+pub(crate) fn unshowable(detail: &str) -> Option<String> {
     if too_long(detail) {
         return Some(format!(
             "Refused: the command is too long to show the user ({DETAIL_LINES} lines or {} KiB at most); send a shorter command",
@@ -211,13 +212,6 @@ fn unshowable(detail: &str) -> Option<String> {
 /// Whether a detail passes the cap.
 pub(crate) fn too_long(detail: &str) -> bool {
     detail.len() > DETAIL_BYTES || detail.lines().count() > DETAIL_LINES
-}
-
-/// Whether a detail holds a character that hides or reorders text, or
-/// a sequence of a terminal: a screen would show another command than
-/// the one that runs (sh-26). Such a detail is refused.
-pub(crate) fn hides(detail: &str) -> bool {
-    chora_kit::chat::sanitize(detail) != detail
 }
 
 /// Whether an answer stops mid-sentence: its words do not end with

@@ -202,10 +202,8 @@ impl Reporter {
         let (prompt, detail) = (sanitize(&prompt), sanitize(&detail));
         let name = name.map(|n| sanitize(&n));
         if hud {
-            let keys = (keys.as_ref())
-                .map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
-                .unwrap_or_default();
-            self.question(Some(&question_text(&prompt, &detail, &keys)));
+            let line = keys_line(keys.as_ref());
+            self.question(Some(&question_text(&prompt, &detail, &line)));
         }
         // chora-mc reads the id as a text.
         let mut data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
@@ -347,6 +345,20 @@ impl Reporter {
 /// The most bytes of a question on the own HUD: a text node of the
 /// scene holds 4 KiB.
 const QUESTION_BYTES: usize = 4000;
+
+/// The line of the keys of a question on the own HUD; none without keys.
+fn keys_line(keys: Option<&ConfirmKeys>) -> String {
+    keys.map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
+        .unwrap_or_default()
+}
+
+/// Whether the own HUD shows the question whole, with the line of its
+/// keys; else the agent answers no before it shows (review secfix c r1,
+/// 2), so that no key confirms a command that the person cannot read.
+pub fn fits(prompt: &str, detail: &str, keys: Option<&ConfirmKeys>) -> bool {
+    let (prompt, detail) = (sanitize(prompt), sanitize(detail));
+    prompt.len() + "\n".len() + detail.len() + keys_line(keys).len() <= QUESTION_BYTES
+}
 
 /// The line of a question whose detail does not fit on the own HUD.
 const TOO_LONG: &str = "(the command is too long to show here)";

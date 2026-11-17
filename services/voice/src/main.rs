@@ -527,6 +527,11 @@ impl Agent {
                 physical,
                 name,
             } => {
+                let keys = physical.then(|| self.core.config().confirm_keys.clone());
+                if !self.claimed && !mc::fits(&prompt, &detail, keys.as_ref()) {
+                    let _ = self.tx.send(Input::Unshowable(id));
+                    return;
+                }
                 if physical {
                     self.physical.store(true, Ordering::Relaxed);
                 }
@@ -535,7 +540,7 @@ impl Agent {
                     prompt,
                     detail,
                     hud: !self.claimed,
-                    keys: physical.then(|| self.core.config().confirm_keys.clone()),
+                    keys,
                     name,
                 }
             }
