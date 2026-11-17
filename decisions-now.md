@@ -1,7 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:29:00Z
+screened-through: 2026-11-17T10:31:00Z
 - 11-17 10:29Z "Can I see the tour?" -> question: tour v6 video and v7 stills on the status page; v7 mp4s lost with the archived media worker; the final tour Thu (media r6) commits its mp4s to session-log
-- 11-17 06:21Z "55%" -> reading: 55 %, 1 %/h (twice pace, opus); no new opus until 12:00 but the secfix r2 diff review
+- 11-17 10:31Z "57 %" -> reading: 57 %, 0.48 %/h since 06:21, on pace; opus from 12:00 (critic only)
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins

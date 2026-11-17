@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 10:16 UTC)
+## Now (2026-11-17 10:31 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 55 % at 06:21 Tue (owner); tokens.py 10:16: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
+budget: 57 % at 10:31 Tue (owner); tokens.py 10:31: 3.4 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7e066694 09:18. Tour v7 running.
 burn-down 10:19: tour v7 review MERGE-OK: 0 BLOCK, 0 MAJOR (F-1, N-1 harness faults); MINOR rounds open. Tag Fri 11-20 on track.
