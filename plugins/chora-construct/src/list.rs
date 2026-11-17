@@ -93,6 +93,7 @@ impl Construct {
                 at: None,
                 yaw: None,
                 size: entry.size,
+                placed: false,
             };
             let hold = match entry.owner.as_deref() {
                 None if !self.overlay => Hold::Own,

@@ -382,6 +382,7 @@ impl Pane {
             at: Some(self.at),
             yaw: Some(self.yaw),
             size: Some(self.size),
+            placed: self.placed,
         })
     }
 }

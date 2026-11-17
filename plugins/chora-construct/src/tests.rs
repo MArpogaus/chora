@@ -292,6 +292,7 @@ fn a_waiting_program_expires_and_is_not_saved() {
         at: None,
         yaw: None,
         size: None,
+        placed: false,
     };
     let old = |kind| Waiting {
         since: Instant::now().checked_sub(LAUNCHED).unwrap(),

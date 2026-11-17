@@ -109,7 +109,7 @@ impl Construct {
             size,
             taken: hold == Hold::Taken,
             attached: hold == Hold::Own,
-            placed: false,
+            placed: file.is_some_and(|f| f.placed),
         };
         let mut commands = self.pane_nodes(&pane);
         self.add_placeholder(&mut commands, &pane)?;
@@ -279,6 +279,7 @@ impl Construct {
             at: spot.map(|(at, _)| at),
             yaw: spot.map(|(_, yaw)| yaw),
             size: None,
+            placed: false,
         };
         self.waiting.push(Waiting {
             key: true,
