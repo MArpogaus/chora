@@ -1,16 +1,14 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T04:22:00Z
+screened-through: 2026-11-17T04:30:00Z
 
+- 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
 - 11-17 04:20Z "53%" -> reading: 53 % (1 % since 01:46, 0.4 %/h, under pace)
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
-- 11-17 01:46Z "F 7, all 52" -> reading: Fable 7 %, all 52 %; pace eased 01:49
 - 11-16 16:56Z "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus..." -> Fable lane ends 18:21 (hand over 18:15); rest on opus; assume 5-10 %
 - 11-16 16:53Z "...expecting you to discuss this before starting Fable... Fable ... counts in the same token budget... only one Fable track" -> one Fable lane (flakes r6), then none; ask before a model change
-- 11-16 16:49Z "We're at 46%. Would a other Fable run help..." -> 46 %; Fable flakes lane now
 
-- 11-16 12:10Z "45" -> budget reading 45 %
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 - 11-16 10:05Z "Agree, keep column visible... 43 %..." -> column stays; Super+n in media r3; 43 %

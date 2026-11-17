@@ -29,6 +29,7 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | c7e4e59e MERGE-OK (3 MINOR); train 36 running since 04:11 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
 | mc-r6.md (rc 1) | sonnet high, claude/mc | merged train 34 02:42; worker archived |
+| decisions-r1.md (rc 8) | sonnet low, claude/decisions | starting 04:3x (DB2, owner 04:30) |
 | testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
 | older rounds | | merged or archived |
 

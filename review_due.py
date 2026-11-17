@@ -3,10 +3,11 @@
 
 Usage: review_due.py [REPO] [LAST_REVIEWED]
   REPO defaults to /home/user/chora, LAST_REVIEWED to the value in
-  state.md. Prints the weighted size of the unreviewed range, its
+  review-state.txt (the only record; state.md rewrites lost it on 11-14,
+  so a missing record stops the script instead of guessing). Prints the weighted size of the unreviewed range, its
   critical paths and DUE or NOT DUE with the reason (archive/charter.md section 3).
   Then the size of each plugin: SPLIT REVIEW DUE when it has
-  SPLIT_REVIEW_AT_LINES or more and state.md records no split review at
+  SPLIT_REVIEW_AT_LINES or more and review-state.txt records no split review at
   a size within SPLIT_REVIEW_REGROWTH of today (archive/charter.md section 1, item
   18). A recorded review is a line "split review: NAME LINES DATE".
 """
@@ -54,15 +55,24 @@ def lines_of_rust(directory):
     return sum(len(path.read_text(encoding="utf-8", errors="replace").splitlines()) for path in directory.rglob("*.rs"))
 
 
-def split_reviews(state_text):
+RECORD = Path(__file__).parent / "review-state.txt"
+
+
+def read_record(path):
+    """Return the last reviewed base and the split reviews by unit from the record file."""
+    if not path.is_file():
+        sys.exit(f"review_due: {path} is missing; write 'last_reviewed: <commit>' there")
+    text = path.read_text(encoding="utf-8")
+    base = re.search(r"^last_reviewed: (\w+)", text, re.M)
+    if base is None:
+        sys.exit(f"review_due: no 'last_reviewed: <commit>' line in {path}")
     reviewed = {}
-    for name, lines in re.findall(r"^split review: (\S+) (\d+)", state_text, re.M):
+    for name, lines in re.findall(r"^split review: (\S+) (\d+)", text, re.M):
         reviewed[name] = max(reviewed.get(name, 0), int(lines))
-    return reviewed
+    return base.group(1), reviewed
 
 
-def report_split_reviews(repo, state_text):
-    reviewed = split_reviews(state_text)
+def report_split_reviews(repo, reviewed):
     for pattern in UNITS:
         for unit in sorted(Path(repo).glob(pattern)):
             if not (unit / "src").is_dir():
@@ -80,14 +90,9 @@ def report_split_reviews(repo, state_text):
 
 def main():
     repo = sys.argv[1] if len(sys.argv) > 1 else "/home/user/chora"
-    state = (Path(__file__).parent / "state.md").read_text(encoding="utf-8")
+    last_reviewed, reviewed = read_record(RECORD)
     if len(sys.argv) > 2:
         last_reviewed = sys.argv[2]
-    else:
-        m = re.search(r"^last_reviewed: (\w+)", state, re.M)
-        if m is None:
-            m = re.search(r"^last_reviewed: (\w+)", (Path(__file__).parent / "review-state.txt").read_text(encoding="utf-8"), re.M)
-        last_reviewed = m.group(1)
     weighted, critical_paths = 0.0, set()
     for line in git(repo, "diff", "--numstat", f"{last_reviewed}..HEAD").splitlines():
         added, deleted, path = line.split("\t", 2)
@@ -107,7 +112,7 @@ def main():
     else:
         print("NOT DUE (a merge, a tag or the end of the week still needs a round)")
     print("plugin sizes:")
-    report_split_reviews(repo, state)
+    report_split_reviews(repo, reviewed)
 
 
 if __name__ == "__main__":

@@ -1,2 +1,2 @@
-# Base of the last per-area code review (rc 6, 2026-11-16 08:59 UTC); review_due.py reads it.
+# Record of code reviews; review_due.py reads only this file. A split review adds "split review: <unit> <lines> <date>".
 last_reviewed: caf9c80d

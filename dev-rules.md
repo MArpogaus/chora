@@ -65,3 +65,9 @@ the session overrides). Read it and the skills it names once per container.
   6. CI-only checks: run the CI scripts your change touches locally
      (`tests/ci-local.sh`, the grep gates of `.github/workflows/ci.yaml`) before
      you report, not only the merge gate.
+
+- **Refactor proposals (owner 11-17 04:3x).** Every worker report and every review ends with a
+  section "Refactor proposals": long-term refactors and code optimisations you saw (duplication,
+  a module too large, a weak mechanism, dead code, a missing abstraction in chora-kit), each with
+  file:line, the gain and a size S/M/L. Do not build them in your round unless the brief says so;
+  the PM ranks them in backlog.md. Code gets leaner and tidier with every release.
