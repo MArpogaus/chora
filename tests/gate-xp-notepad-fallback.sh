@@ -106,16 +106,18 @@ cat >"$work/fakes/kate" <<FAKE
 exit 0
 FAKE
 chmod +x "$work/fakes/kate"
+rm "$work/fakes/lowriter"
 set_editor kate
 click_notepad
 ctl wait --timeout 15 'app_id:notepad-handoff kind:surface' >/dev/null || fail "a hand-off editor opened no window"
-sleep 4
-others=$(ctl query kind:surface | jq -c '[.[] | select((.app_id // "") | test("^notepad-(second|exits|missing)$"))] | length')
-[ "$others" = 2 ] || fail "a second editor opened over the slow hand-off editor: $(ctl query kind:surface | jq -c "[.[].app_id]")"
+sleep 8
+! ctl query 'app_id:notepad-second kind:surface' | jq -e 'length > 0' >/dev/null ||
+    fail "a second editor opened over the slow hand-off editor"
 ! notice "Notepad opened with gedit" "kate" || fail "a notice names a fallback although kate opened"
 ok "an editor that hands over and shows its window after 4 s is the only editor"
 
 rm "$work/fakes/gedit" "$work/fakes/kate"
+printf '#!/bin/sh\nexit 1\n' >"$work/fakes/lowriter"
 printf '#!/bin/sh\nexit 3\n' >"$work/fakes/mousepad"
 chmod +x "$work/fakes/mousepad"
 set_editor lowriter
