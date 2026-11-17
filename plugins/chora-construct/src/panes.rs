@@ -141,6 +141,7 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
         at: None,
         yaw: None,
         size: Some(size),
+        placed: false,
     }
 }
 

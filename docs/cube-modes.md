@@ -201,7 +201,7 @@ covers it; a pane behind the resting front face in use mode is in the
 window list as `covered`. A pane that was pulled out or moved stays in
 view when the cube stands back, and a drag drops it on a face again; a
 pane that nobody placed gives way to a cube that stands back in front
-of it.
+of it. A saved construct file keeps `placed: true` of a pane, so it stays in view after a restart.
 
 While the cube stands back or turns, the windows on its faces float in
 front of them, the higher ones of the stack farther, as on the desktop

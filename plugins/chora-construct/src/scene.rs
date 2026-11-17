@@ -226,7 +226,7 @@ impl Construct {
             size,
             taken: false,
             attached: false,
-            placed: false,
+            placed: file.placed,
         };
         self.rt.conn.apply(self.pane_nodes(&pane))?;
         self.panes.push(pane);
