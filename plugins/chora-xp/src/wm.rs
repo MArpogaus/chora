@@ -406,6 +406,7 @@ pub struct Wm {
     kept: HashMap<String, restart::KeptWindow>,
     /// The programs that started and show no window yet.
     launches: Launches,
+    notepad: apps::Editors,
     notifier: Notifier,
     /// The reading that the speaker of the taskbars shows; none before
     /// the first.
@@ -497,6 +498,7 @@ impl Wm {
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
+        let notepad = apps::system_editors(&config.terminal, config.editor.as_deref());
         let menu = Menu::new(
             config,
             apps::load(&config.terminal, config.editor.as_deref()),
@@ -550,6 +552,7 @@ impl Wm {
             cube_grab: None,
             kept: HashMap::new(),
             launches: Launches::new(),
+            notepad,
             notifier: Notifier::new(),
             volume: None,
             helper: Helper::default(),
@@ -2976,6 +2979,22 @@ impl Wm {
             &self.settings.value.terminal,
         );
         let themed = shared::launcher(&themed);
+        if self
+            .notepad
+            .chain
+            .first()
+            .is_some_and(|c| c.command == command)
+        {
+            let notepad = (self.notepad.chain.clone(), self.notepad.skipped.clone());
+            let token = self.rt.conn.activation_token();
+            for change in self
+                .launches
+                .run_chain(apps::NOTEPAD, notepad, token, Instant::now())
+            {
+                self.tell(&change);
+            }
+            return;
+        }
         self.start_named(&themed, launch::program_name(command));
     }
 
@@ -3011,7 +3030,7 @@ impl Wm {
                 None,
                 i32::try_from(launch::GIVE_UP.as_millis()).unwrap_or(-1),
             ),
-            Change::Failed { note, .. } => (*note, -1),
+            Change::Failed { note, .. } | Change::Fallback { note, .. } => (*note, -1),
             Change::Done { .. } => return,
         };
         let message = Message {
@@ -3332,6 +3351,7 @@ impl Wm {
         commands.extend(self.set_taskbar(config.taskbar));
         self.effects.set_toggles(config.effects);
         self.desk.terminal.clone_from(&config.terminal);
+        self.notepad = apps::system_editors(&config.terminal, config.editor.as_deref());
         commands.extend(self.close_menu());
         commands.extend(self.menu.rebuild(
             &config,

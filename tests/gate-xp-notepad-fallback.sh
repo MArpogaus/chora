@@ -98,6 +98,7 @@ wait_notice "Notepad opened with gedit" "lowriter ended without a window"
 ok "the editor ends without a window: gedit opens and the notice names both"
 
 rm "$work/fakes/gedit"
+set_editor lowriter
 click_notepad
 wait_notice "Cannot open Notepad" "ended without a window"
 ok "no editor opens: one notice says Notepad cannot open"
