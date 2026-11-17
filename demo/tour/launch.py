@@ -149,6 +149,7 @@ class Launcher:
             addr = f"unix:path={self.dir}/bus"
             self.spawn(["dbus-daemon", "--session", "--nofork", f"--address={addr}"], env, "dbus.log")
             env["DBUS_SESSION_BUS_ADDRESS"] = addr
+            env["CHORA_TEST_KEEP_BUS"] = "1"
             time.sleep(0.5)
         head = self.spawn([f"{REPO}/tests/headless-session.sh", outputs or self.size] + (["--", *startup] if startup else []), env, "headless.out")
         self.session_pid = head.pid
