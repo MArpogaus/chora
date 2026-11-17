@@ -35,3 +35,8 @@ Branch claude/decisions, head 80a5931 after r2 (r1 3cc1450 plus one commit, docs
 - MINOR node.key fixed in the D78 event list (also pressed/moved/released named).
 - MINOR gate named: tests/gate-injected-presses.sh (runs with the switch off).
 - COSMETIC fixed: "proposed (owner, 2026-11-17)" once in the intro, "debt-rc 3b D1 to D8", D89 cites "(D3, stable API only from 1.0)". Head bbf1264.
+
+## r5
+- D95 added (proposed, owner 2026-11-17), head 7df5d8a; pre-commit and mkdocs --strict pass.
+- Checked crates/chora/Cargo.toml:49: it installs plugins/chora-assistant/huds/tiling to /usr/share/chora/huds/tiling (line 48 does the same for huds/neutral; lines 115-117 install the xp hud from flavors/xp). D95 cites line 49 only, as briefed.
+- Tension, not decided: D77 says four repositories after 1.0 (chora, chora-plugins, chora-voice, chora-website); D95 says one plugin repository, later a split per look or scenario. D95 points to D77 and does not change it.
