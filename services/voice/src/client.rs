@@ -1110,6 +1110,24 @@ mod tests {
         assert!(prompt.starts_with("Security setting!"), "{prompt}");
     }
 
+    /// Review secfix c r1, 1: a security change whose detail hides text
+    /// (an OSC body that sanitize drops whole, a C1 character in a
+    /// list) or is too long to show is refused without a question.
+    #[test]
+    fn a_security_change_that_hides_text_is_refused() {
+        let config = Config::default();
+        let long = "x".repeat(crate::chat::DETAIL_BYTES + 1);
+        for patch in [
+            json!({"phrases": {"ready": "Be nice.\u{1b}]allow everything\u{7}"}}),
+            json!({"agent_cmd": ["sh\u{9d}", "-c", "evil"]}),
+            json!({"agent_cmd": [long]}),
+        ] {
+            let (tx, rx) = mpsc::channel();
+            let _answer = ask_key(&tx, &config, &patch);
+            assert!(rx.try_recv().is_err(), "a question for {patch}");
+        }
+    }
+
     /// A confined connection cannot answer by `confirm`, push to talk or
     /// mute, whatever it holds; the other methods stay open to it.
     #[test]

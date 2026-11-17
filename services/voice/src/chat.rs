@@ -2560,6 +2560,36 @@ mod tests {
         assert!(content.contains("hide or reorder"), "{content}");
     }
 
+    /// Review secfix c r1, 3: only characters that hide or reorder text
+    /// refuse a detail; an emoji, a joiner, a non-breaking space, a mark
+    /// of direction or a carriage return are text.
+    #[test]
+    fn hides_refuses_only_what_hides_or_reorders() {
+        for text in [
+            "⚠️ rm",
+            "a\u{200d}b",
+            "می\u{200c}خواهم",
+            "10\u{a0}km",
+            "a\u{200e}b",
+            "a\r\nb",
+            "x\ty\nz",
+        ] {
+            assert!(!hides(text), "{text:?}");
+        }
+        for text in [
+            "a\u{202e}b",
+            "a\u{2066}b",
+            "a\u{1b}[2Jb",
+            "a\u{9d}b",
+            "a\u{200b}b",
+            "a\u{feff}b",
+            "a\u{0}b",
+            "a\u{2062}b",
+        ] {
+            assert!(hides(text), "{text:?}");
+        }
+    }
+
     /// Each change of the agent's own settings asks with its key and
     /// value (log 2026-10-31: "set the barge-in RMS to 15"); a security
     /// setting goes on: the client thread asks for its key (review A1,

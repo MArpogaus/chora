@@ -866,6 +866,44 @@ mod tests {
         (run, llm)
     }
 
+    /// Review secfix c r1, 2: without a plugin that claimed the
+    /// indicator only the own HUD shows the question, and a detail too
+    /// long for it is a no at once, never a blind yes by the key; a
+    /// short one waits for its answer.
+    #[test]
+    fn a_question_too_long_for_the_hud_is_refused() {
+        let (mut run, _llm) = agent();
+        let ask = |detail: String| {
+            let (answer, rx) = tokio::sync::oneshot::channel();
+            let input = Input::Agent(crate::agents::Event::Ask {
+                name: "settings".into(),
+                voice: String::new(),
+                prompt: "Security setting! Shall I set agent cmd?".into(),
+                detail,
+                physical: true,
+                answer,
+            });
+            (input, rx)
+        };
+        let answer = |run: &mut Run, detail: String| {
+            let (input, mut rx) = ask(detail);
+            run.step(input);
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while Instant::now() < deadline {
+                if let Ok(yes) = rx.try_recv() {
+                    return Some(yes);
+                }
+                if let Ok(input) = run.rx.recv_timeout(Duration::from_millis(50)) {
+                    run.step(input);
+                }
+            }
+            rx.try_recv().ok()
+        };
+        let long = format!("agent_cmd: [{}]", "x".repeat(5000));
+        assert_eq!(answer(&mut run, long), Some(false), "a no at once");
+        assert_eq!(answer(&mut run, "agent_cmd: [sh]".into()), None, "it waits");
+    }
+
     /// docs/voice.md section 13: recorded speech through the whole agent
     /// with the fake servers and tools. A question, a barge-in with a
     /// cancel word while the agent speaks, and the next question, whose
