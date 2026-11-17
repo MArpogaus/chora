@@ -31,11 +31,11 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
-1. Now (1 %): rc.4 on dev 7e2a287b, main d060dc03 (13:41); tag push 403, owner tags; train 43 media harness (b29fbf0a; rc 11).
-2. After the tag (F1, 6 %): Fable plan (marks the week's F2 subset, the F3 effect hook)+2 opus reviewers; v8 fresh-eyes review (1 %).
-3. Slices F2-F4 sonnet, haiku tests F5 (22 %); flakes F17, cut gate F6 (3 %); tour v9 F7 (3 %), docs F8 (1 %).
+1. Now (1 %): rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 media harness (b29fbf0a; rc 11).
+2. After the tag (F1, 6 %): Fable plan (marks the week's F2 subset, the F3 effect hook)+2 opus reviewers.
+3. Slices F2-F4 sonnet, haiku tests F5 (22 %); flakes F17, cut gate F6 (3 %); F7 glitch gates (6 %, proposal), docs F8 (1 %).
 4. Sat 03:59: foundation review; then reports/plan-after-foundation.md P2-P5 (to 11-30).
 
 ## Needs owner
-- Tag v0.9.0-rc.4 (environment, now): dev 7e2a287b and main d060dc03 pushed 13:41 (PR #106 merged); the tag push is denied (403). Command on the status page.
+- Glitch gates (reports/proposal-glitch-gates.md): F7 becomes act contracts, invariants, video checker (6 %, net +2 %). Default: yes at train 43.
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).
