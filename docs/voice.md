@@ -325,7 +325,7 @@ Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. A question about a
 security key also has `physical: true` and `keys: {yes, no}`. A question
 of a helper has its `name`, for the title "Question from NAME" of the
-card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one). A command with a character that hides or reorders text (a control, bidi or zero-width character, or a terminal sequence) is refused in the same way, since a screen would show another command than the one that runs. The agent emits `prompt`, `detail` and `name` without such characters, and chora-mc and the construct strip them again before they draw: the
+card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one). A command with a character that hides or reorders text is refused in the same way: a C0 control but tab, line feed and carriage return, a C1 control, a bidi embedding, override or isolate (U+202A to U+202E, U+2066 to U+2069), a zero-width space, a word joiner or invisible operator (U+2060 to U+2064), or a byte order mark; emoji, joiners, non-breaking spaces and marks of direction are text and pass, since a screen would show another command than the one that runs. The agent emits `prompt`, `detail` and `name` without such characters, and chora-mc and the construct strip them again before they draw: the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
@@ -338,10 +338,10 @@ see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
 `NAME-hud`, with the line of the yes and no keys. A text node holds
-4 KiB. A `detail` that does not fit is never cut there, which would
-hide its tail: the node shows "(the command is too long to show here)"
-in its place, between the prompt and the line of the keys; the event
-has all of it. Over the rate limit, the
+4 KiB. A question that does not fit there whole is never cut, which
+would hide its tail: the agent answers it no at once, with the error
+earcon, before it shows, so that no key confirms a command the person
+cannot read. With a claimer, the claimer shows the whole `detail`. Over the rate limit, the
 last `voice.confirm` goes again after 1 s.
 
 While a claimer of the indicator (section 10) is connected, the event
@@ -401,7 +401,9 @@ the user agrees:
   question at any time, so such a press was meant for the question
   before. A click of a button in the first 400 ms after its question
   shows, also one that replaced another, counts as nothing in the same
-  way; the HUD keeps the question and `confirm.answer` is refused.
+  way; the HUD keeps the question and `confirm.answer` is refused. The
+  400 ms count from when the agent shows the question, not from when
+  the plugin draws it.
 - No key press within `confirm_timeout_ms` is a no.
 - The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
@@ -438,7 +440,10 @@ the user agrees:
   `settings.reload` of a file that differs from the running settings in
   a security key, from any caller, also the LLM and `choractl`, asks the
   physical question with `phrases.settings_security` and answers the
-  call with a refusal that says so. The change applies when the user
+  call with a refusal that says so. A change whose detail is too long
+  to show or holds a character that hides or reorders text gets no
+  question: the call gets that refusal and the change is dropped.
+  The change applies when the user
   presses the yes key of `confirm_keys` or clicks Yes on a HUD; a no or
   a timeout drops it. A reload loads only the file that the question
   showed. While the question waits, the LLM gets no `inject_input`.
