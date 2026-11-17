@@ -1,96 +1,132 @@
 # Known issues
 
-This list holds the small faults that chora ships with at this release
-candidate: wrong words, missing hints, misplaced pixels. The review rated them minor or cosmetic. Each line is a state of the
-review of the last release candidate, not a promise of a fix.
+This is a quick release candidate. The faults below are known. Most of them
+are in the look layers (xp, tiling, mc, construct) and the doors they share,
+and the cleanup release that follows this candidate addresses them. Nothing
+here is a promise of a date. Severity comes first in every section: BLOCK,
+then MAJOR, then MINOR, then COSMETIC.
 
-"verify" means a later commit may have fixed it and nobody has checked
-yet. Larger faults are tracked as issues on
+"likely fixed" means a later commit names the fault or a gate cell covers it,
+but nobody has checked it by eye on a fresh capture. "verify" means the same,
+for older entries. Larger faults are also tracked on
 [GitHub](https://github.com/MArpogaus/chora/issues).
-
-## tiling
-
-| Id | Kind | State | Issue |
-|----|------|-------|-------|
-| ti-5 | minor | open | A toast whose mako starts while the chat is open is fully hidden under the chat panel (x896-1255 under 868-1268); read chat state at start |
-| ti-6 | minor | open | Tooltips Apps "Run a program" and Keys "Every key" stay after click or Esc (3 s late over fullscreen); set tooltip false on Apps, Keys, power |
-| ti-7 | minor | open | Fullscreen: the bar floats over the window and covers the first terminal line; put the bar under a fullscreen window |
-| ti-8 | minor | verify | New windows do not take the focus (Super+Return twice leaves typing in the first); focus new windows or say it in the key list |
-| ti-9 | minor | verify | Key list 692 px high (runs out on 720); "Window that asks" unexplained, say "Window with a question" |
-| ti-10 | minor | verify | Key list translucent over seams; layout chip sat on the seam between tiles |
-| ti-11 | minor | open | After settings.set look.theme, running programs and assistant surfaces keep the old palette (Ink and Paper side by side) |
-| ti-12 | minor | open | No focus-left/right key; Super+Right switches the tag and Super+l widens the master (awesome keymap, by design): list it or decide |
-| ti-13 | minor | verify | Bar network shows the address, not "Connected"/"Not connected"; Tile and sound words unlabelled and inert |
-| ti-14 | minor | open | Key list shows only keyboard chords, no mouse basics (low) |
-| ti-15 | cosmetic | open | 17 open pixel items: toast LCD fringes, orb ring, toast type, chat header, launcher size, tooltip shadow, 1.25 hairlines, island width jumps |
-| ti-16 | cosmetic | open | Question card one size (title bold not semibold, path not mono); empty chat panel while a question waits |
-| ti-17 | cosmetic | open | Ink shadows invisible; unfocused border lighter and uneven; left island fixed 448 px with empty space |
-| ti-18 | cosmetic | verify | Listening chip on the window border; three font families in one frame; key list says Super+Print while the note says Print |
 
 ## xp
 
-| Id | Kind | State | Issue |
-|----|------|-------|-------|
-| xp-5 | minor | verify | Start lists LibreOffice though not installed: "Cannot open" after 30 s; list installed programs only |
-| xp-23 | minor | open | Notepad needs an editor with a window (mousepad is recommended); without one a click says so and no window opens |
-| xp-6 | minor | verify | No sign that a program is starting (slow start looks like a dead click); a busy cursor or taskbar button |
-| xp-7 | minor | verify | Notify balloon sat on the paperclip head, text 12 px under the 14 px floor |
-| xp-8 | minor | verify | Caption buttons 22 px, 4 apart; spec 24 px, 2 apart, 4 from the edge |
-| xp-9 | minor | open | Turn Off dialog: Cancel about 56x16 (under 24 px target), icon captions 13 px, desktop not dimmed behind it |
-| xp-10 | minor | open | Date and Time: 12 px text, 72x20 buttons, single click on the clock does nothing, no taskbar button |
-| xp-11 | minor | open | Help window: Esc does not close, close box only, empty right pane on first topic, key table ends at y 712 with no scroll to more rows |
-| xp-12 | minor | verify | Chat reopened after the no-helper balloon: field detached from the balloon, over the clip |
-| xp-13 | minor | open | Recycle Bin hidden under the open chat balloon, label 13 px from the edge; desktop labels and titles about 12 px |
-| xp-14 | minor | verify | Question card: "Typing does not answer." outside the card, field shows two lines, card text not in the look font; no time left and no answer line |
-| xp-15 | minor | verify | Start menu: ImageMagick label truncated "(color depth=..."; header 65 px vs 54 |
-| xp-16 | minor | open | Paperclip helper is tiny and unlabelled in the corner (tray clip thin, own art); a tester did not find it |
-| xp-17 | minor | verify | Menu leftovers: keyboard focus hidden or on the wrong item, Sounds does nothing, Display has no taskbar button |
-| xp-18 | minor | verify | Alt+Tab switcher not seen in a 600 ms capture; verify with a test that holds Alt |
-| xp-19 | minor | open | Workspace buttons 1-4 are own flat blue squares in the taskbar and read as foreign; dim to the tray tone |
-| xp-20 | cosmetic | open | Start: "Chat with a helper" icon is a green dot; Control Panel rows mix icon and none; both windows titled "foot" |
-| xp-21 | cosmetic | open | Turn Off flat rows, submenu rows flat and without separators, pale fallback icons, Send vs input height, Help close box only |
-| xp-22 | cosmetic | open | Turn Off uses own power art and a ring instead of the XP flag logo (not importable from the sparse set) |
+MAJOR
+- xp-23: the paperclip helper was missing from the desktop. Likely fixed (commit 5d801b2f, gate cell 65f4510b); check on the next capture.
+- xp-24: text fields (Run, search, dialogs) are not aligned to the XP grid. Likely fixed (5d801b2f "fields on grid"); no pixel assert yet.
+- xp-25: Notepad opened nano in a dark terminal. Likely fixed (21799660, eb970cfd: only a GUI editor opens, otherwise a notice says no editor is installed). Install mousepad.
+- xp-26: after Sound is set to 75% in Control Panel the tray shows no level and the menu has no tick. Open.
+- xp-27: the question card uses another font and a white box, covers the transcript, and names keyboard keys (Alt+Y/N) to a mouse user. Open.
+
+MINOR
+- xp-9: Turn Off dialog: Cancel is about 56x16 (under the 24 px target), icon captions are 13 px, the desktop is not dimmed.
+- xp-10: Date and Time: 12 px text, small buttons, a single click on the clock does nothing, no taskbar button.
+- xp-11: Help window: Esc does not close it, empty right pane on the first topic, the key table has no scroll to more rows.
+- xp-13: Recycle Bin hides under the open chat balloon; desktop labels and titles are about 12 px.
+- xp-16: the paperclip helper is small and unlabelled; a tester did not find it.
+- xp-19: workspace buttons 1-4 are flat blue squares that read as foreign to the taskbar.
+- xp-28: chat header stays "Working, step 1 of 1" with Stop active after the answer; the editor opens over desktop icons.
+- xp-29: the helper chat opens from the tray icon; a click on the paperclip itself should open it.
+- xp-30: no welcome balloon at the first start; the paperclip should greet once.
+- xp-5, xp-6, xp-7, xp-8, xp-12, xp-14, xp-15, xp-17, xp-18 (verify): Start lists LibreOffice though not installed; no sign that a program is starting; notify balloon size and place; caption button size; chat field after the no-helper balloon; question card text; Start menu label truncation; menu leftovers; Alt+Tab not seen in capture.
+- Notepad needs an editor with a window; without one a click says so and no window opens. mousepad is recommended (xp-25).
+
+COSMETIC
+- xp-20: "Chat with a helper" icon is a green dot; Control Panel rows mix icon and none; two windows are titled "foot".
+- xp-21: Turn Off and submenu rows are flat, pale fallback icons, Send and input differ in height.
+- xp-22: Turn Off uses own power art instead of the XP flag logo (not importable from the sparse set).
+
+## tiling
+
+MAJOR
+- ti-21: the bar does not match the cyberpunk style of the rest of the look (borders, glow, chat, launcher). Open.
+- ti-22: Super+Print gave no notice. Likely fixed (29ee9ebc, ebf2bad1: notice shown with no bus, Screenshot in the power menu).
+- ti-23: a stale "Run a program" tooltip stayed about 14 s over the master title. Likely fixed (c1adc900, e1dda18f: no tooltip on the bar doors).
+- ti-24: no power or lock icon in the bar though the key list names it; a "Chat ..." pill floats over client content while the bar says "No helper". Open (the Screenshot entry in the power menu was added, 29ee9ebc).
+- ti-20 (verify): a click on Apps showed no launcher within 1.5 s in one headless run. If real this is MAJOR; a CI cell covers the click.
+
+MINOR
+- ti-5: a toast that starts while the chat is open is hidden under the chat panel.
+- ti-6, ti-19: tooltips "Run a program" and "Every key" stay after a click or Esc.
+- ti-7: in fullscreen the bar floats over the window and covers the first terminal line.
+- ti-11: after changing look.theme, running programs and assistant surfaces keep the old palette.
+- ti-12: there is no focus-left/right key; Super+Right switches the tag and Super+l widens the master (by design, to be listed).
+- ti-14: the key list shows only keyboard chords, no mouse basics.
+- ti-25: stale or torn buffers after a re-tile; the launcher shows raw .desktop text; a floated window can land half off-screen.
+- ti-26: an empty LC_ALL="" masks LANG=de.
+- ti-8, ti-9, ti-10, ti-13 (verify): new windows do not take focus; key list is 692 px high; key list is translucent over seams; bar network shows the address.
+
+COSMETIC
+- ti-15: about 17 small pixel items (toast fringes, orb ring, launcher size, tooltip shadow, hairlines, island width).
+- ti-16: question card uses one size and no mono for the path; the chat panel is empty while a question waits.
+- ti-17: Ink shadows are invisible; unfocused border is lighter and uneven; the left island is fixed at 448 px.
+- ti-18 (verify): listening chip on the window border; three font families in one frame; key list says Super+Print.
 
 ## mc
 
-| Id | Kind | State | Issue |
-|----|------|-------|-------|
-| mc-9 | minor | verify | Chat field is a 1.7:1 box with a generic placeholder, 36 px off the 28 grid |
-| mc-10 | minor | verify | Card text wraps badly (file name orphaned, "(412 / bytes)"), mono 14 px at the floor |
-| mc-11 | minor | verify | Stop is a 30x14 muted word on its own row, no "Stopped." line |
-| mc-12 | minor | verify | "NOTIFICATIONS 0" with chat open; the chat door jumps with each notice; title and body not told apart |
-| mc-13 | minor | open | Scene copy: "collector" jargon on page 2 reads as a failure, mixed fonts, red heads over nothing, divider off centre |
-| mc-14 | minor | open | Chat body 18 px/27 vs spec 19/28; "Super+ <- ->" key text has a stray space |
-| mc-15 | cosmetic | open | Yes/No hover thickens the rim (other hovers use the bar); stale hover bar; footer link flush right vs mock flush left |
-| mc-16 | cosmetic | open | Yes/No 32 px off grid; notification wraps with "a" at line end; duplicate head: "1 AGENDA" above the page title |
-| mc-17 | cosmetic | open | Serif/sans baseline and numeral indent ±1 px, Listening dot 3 px short of the edge, caret, Stop/Esc/Close gaps, 15 vs 14 px mono, thin 7:1 margins |
-| mc-18 | cosmetic | open | Light terminal is a black block on cream (foot rejects colors-dark here); the question is stated 3 times in the column |
+BLOCK
+- mc-32: in dark mc, remote presses (Right, Home) did not turn the page. Open; first check whether it is the product or the test injection.
+
+MAJOR
+- mc-33: the Programs/chat door by mouse opened no chat. Likely fixed (dda31e6a: a press on the chat door in the column opens the chat).
+- mc-34: the voice HUD text in the footer is about 11 px grey, hard to read from a distance. Open.
+- mc-35: a critical alarm is a truncated footer line, not a card; the column breaks. Open.
+- mc-36: a "No helper" pill shows while the helper answers and overlaps the status word. Open.
+- mc-37: Super+n hides the column but the page does not widen. Open.
+
+MINOR
+- mc-13: scene copy: "collector" on page 2 reads as a failure, mixed fonts, divider off centre.
+- mc-14: chat body 18 px instead of 19; stray space in "Super+ <- ->".
+- mc-9, mc-10, mc-11, mc-12 (verify): chat field shape, card text wrapping, Stop word, notification count with chat open.
+
+COSMETIC
+- mc-15, mc-16, mc-17: Yes/No hover and grid, wrapped notification, duplicate "1 AGENDA" head, baseline and margin offsets of 1 to 3 px.
+- mc-18: the light terminal is a black block on cream; the question is stated three times in the column.
 
 ## construct
 
-| Id | Kind | State | Issue |
-|----|------|-------|-------|
-| co-5 | minor | open | Step-back capsule missing at 2x after step-in (0 dark px); a 2x user sees no way out hint; show it on a timer, not on first paint |
-| co-6 | minor | open | Failed face stood back at 2x has no scene (flat bg, no horizon, floor or reflection); 1x has them |
-| co-7 | minor | open | Failed-face card not fitted to the face (spills 12 px left, flat, face reads as ghost); size inside the face with a 16 px margin |
-| co-8 | minor | verify | Old open items not evidenced: m1 failed face FIXED at 1x; m5 placeholder and m7 pull frame still lack captures |
-| co-9 | minor | verify | S5 leftovers: OPEN CUBE black for 16 frames and SUNSET pill on the face; OPEN CUBE overlaps the chat and moves at 2x |
-| co-10 | minor | verify | D in walk view drops into a fullscreen terminal; give-it-to keys answer with a toast that has no reason or nothing |
-| co-11 | minor | verify | A closed window leaves its foot pill on the face; launcher rows cut labels, no icons, no empty-result text |
-| co-12 | minor | open | Cube faces B, C, D show wallpaper only until each face runs its own manager; say so on the face |
-| co-13 | cosmetic | open | Tray text differs 1x/2x, duplicate captures, "XP 1  · face" spacing, tiny terminal text in side panes |
-| co-14 | cosmetic | verify | Pull frame: blank blue slab and a yellow 12 px square (a marker of the test harness); mid-turn sawtooth; blurred side reflections |
-| co-15 | cosmetic | open | Empty floor gives no landmark that walking works (the start card helps; verify it shows with no program) |
+BLOCK
+- co-18: a drag on the stepped-back cube did not turn it and the chora window vanished from face 1. Likely fixed (merge dbdfcce4 names it; bb8df12a). The ledger still lists it open and co-21 shows the stepped-back view is still wrong, so check by eye.
 
-## All looks
+MAJOR
+- co-21: stepped back, the cube is not closed: the neighbour face juts toward the viewer and is larger than face 1, the faces do not share an edge, the floor reflection does not line up (owner report 11-17, tour v7 stills 04-12, 04-13). Open.
+- co-16: after a drag in the stepped-back view the cube can leave the screen to the right and an empty floor is labelled "XP 2 face 2 of 4"; only step-in brings it back. Open.
+- co-19: F1 in the stepped-back view showed no key overlay. Likely fixed (merge dbdfcce4 names co-19).
+- co-20: with the cube open no key closes it (only cube.close over IPC). Likely fixed (merge dbdfcce4 names co-20); check that Escape or the bindings overlay offers a way out.
 
-| Id | Kind | State | Issue |
-|----|------|-------|-------|
-| sh-12 | minor | open | Question card: no time left (all looks) and no transcript line after an answer (xp, mc) |
-| sh-13 | minor | verify | State word spelled three ways, helper surface counted twice (tiling pill+card, mc row+list); one surface per conversation; helper list "1 atlas" |
-| sh-14 | minor | open | Mute word missing in tiling and xp (dot or red sign only); mc: mc-4 |
-| sh-15 | minor | open | Esc differs: xp closes the chat, tiling closes list and keys, mc first Esc closes the card and keeps the chat; keys sheet blocked while chat is open |
-| sh-16 | minor | fixed | Launcher words: xp "Open:", tiling "Apps", mc ">" prompt with no label; help says "Run a program" in xp and tiling, "Start a program" in mc; words now consistent across looks, review raa-3 |
-| sh-17 | minor | verify | HUD colours per theme: chat field over the xp taskbar; assistant surfaces must follow a theme change |
-| sh-18 | cosmetic | open | Door wording differs ("Chat ..." pill, "Chat with a helper ...", "Ask in your words"); notification shape differs per look (balloon, count, toast) |
-| sh-27 | minor | open | Voice questions: the raw `{args}`/`{name}` in a prompt are only cleaned where they show; the spoken prompt (a sub-agent's tool title) keeps bidi and hidden characters |
+MINOR
+- co-5: the step-back capsule is missing at 2x after step-in.
+- co-6: a failed face stood back at 2x has no scene (flat background).
+- co-7: the failed-face card is not fitted to its face.
+- co-12: faces B, C, D show wallpaper only until each runs its own manager; the face does not say so.
+- co-17: three terminals are all titled "foot" in the window list.
+- co-8, co-9, co-10, co-11 (verify): old capture gaps, OPEN CUBE leftovers, D in walk view drops into a fullscreen terminal, closed window leaves a pill.
+
+COSMETIC
+- co-13: tray text differs between 1x and 2x; tiny terminal text in side panes.
+- co-15: an empty floor gives no hint that walking works.
+- co-14 (verify): pull frame shows a blank slab and a yellow test marker.
+
+## All looks and shared doors
+
+MAJOR
+- sh-23 / sd-h1: xp and tiling in two panes: the tiling output stays black (no bar, no start door), and after a click into it Super+Return opens the xp Start menu in the other pane. Open.
+- sd-h2: the xp Start menu stays open through a drag and key gives and covers the window. Open.
+- sh-24: a grab gated by the pointer could fall through to the focused client as a raw key. Likely fixed (merge dbdfcce4 names it; 9c4f1301, 0a3224b8 carry the injected flag).
+- sh-26: a confirm question could show another command than the one that runs (bidi or hidden characters). The question text is now cleaned in mc, construct and the voice service, and the voice service waits 400 ms before it takes a button answer. The mc and construct question cards have no wait of their own yet. Partly fixed.
+
+MINOR
+- sh-12: the question card shows no time left; xp and mc add no transcript line after an answer.
+- sh-14: the mute state has no word in tiling and xp (a dot or red sign only).
+- sh-15: Esc differs between looks; the keys sheet is blocked while the chat is open.
+- sh-16: launcher wording differs ("Open:", "Apps", ">"; "Run a program" vs "Start a program"). Reported fixed earlier (review raa-3); the ledger lists it again.
+- sh-27: confirm buttons are hard-coded "Ja/Nein" in every language.
+- The spoken prompt of a sub-agent's tool title may still keep bidi or hidden characters (the shown text is cleaned).
+- sh-28: documentation is stale on mc telling an injected click, and on the icon fallback to the temp directory.
+- sh-13, sh-17 (verify): state word spelled three ways and helper surface counted twice; HUD colours per theme.
+
+COSMETIC
+- sh-18: door wording and notification shape differ per look.
+- sh-21: the task cut is per character and can leave a space before the ellipsis; a long task hides the step count.
