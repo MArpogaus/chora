@@ -1,8 +1,8 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:49:00Z
-- 11-17 10:49Z "Agree, go ahead. Dos opus artecture plan to bundle wm logic from all views in shared plugin/lib?" -> order: rc now as proposed; question: yes for mechanism (kit modules), not for policy; Fable brief asks for a shared wm core
+screened-through: 2026-11-17T10:52:00Z
+- 11-17 10:52Z "Before launching fable: look at ideas/feature/issue list and prioritize. Target arch shall make our live easier not just deliver cleaner code for a moment" -> order: ranked list (reports/priorities-sprint1.md) is Fable's input; target arch judged by the work it unblocks
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> goal change: rc now (rc.md: 3, 4, 5, 7, 8 only); construct r4, MINOR rounds cancelled; tour v8 kept as baseline; then one Fable plan lane on architecture-rc.md, refactor sprint
-- 11-17 10:40Z "Why did you miss this?" -> question: reviews checked listed rows, nobody judged the look as a whole; fix: fresh-eyes pass per look, PM watches the tour, seam cell
+- 11-17 10:40Z "Why did you miss this?" -> tour reviews start with a fresh-eyes pass per look; PM watches tour-all before reporting
 - 11-17 10:35Z "Rerecord the demo and save it ... cube seams broken ... Turn cube in xp ... Cube always lives in construct ... click in tray ... no welcome" -> order: tour v8 now, mp4s kept (media r6); bug co-21 MAJOR (construct r4); xp cube works (Ctrl+Alt+arrows, Super+drag), one cube in construct: DB12 sprint 1; xp-29, xp-30 MINOR to xp r8
 - 11-17 10:31Z "57 %" -> reading: 57 %, 0.48 %/h since 06:21, on pace; opus from 12:00 (critic only)
 
