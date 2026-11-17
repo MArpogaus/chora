@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "chora"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "base64",
  "calloop",
@@ -538,7 +538,7 @@ dependencies = [
 
 [[package]]
 name = "chora-assistant"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-draw",
  "chora-kit",
@@ -551,7 +551,7 @@ dependencies = [
 
 [[package]]
 name = "chora-chat"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-draw",
  "chora-kit",
@@ -569,7 +569,7 @@ dependencies = [
 
 [[package]]
 name = "chora-construct"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -583,7 +583,7 @@ dependencies = [
 
 [[package]]
 name = "chora-draw"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -596,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "chora-kit"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-scene",
  "libc",
@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "chora-mc"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -623,7 +623,7 @@ dependencies = [
 
 [[package]]
 name = "chora-notify"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-draw",
  "chora-kit",
@@ -637,7 +637,7 @@ dependencies = [
 
 [[package]]
 name = "chora-probe"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "rustix 1.1.6",
  "wayland-client",
@@ -648,7 +648,7 @@ dependencies = [
 
 [[package]]
 name = "chora-scene"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "glam",
  "imbl",
@@ -661,7 +661,7 @@ dependencies = [
 
 [[package]]
 name = "chora-tiling"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -673,7 +673,7 @@ dependencies = [
 
 [[package]]
 name = "chora-voice"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "base64",
  "chora-kit",
@@ -696,7 +696,7 @@ dependencies = [
 
 [[package]]
 name = "chora-xp"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "chora-draw",
  "chora-kit",
@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "choractl"
-version = "0.9.0-rc.3"
+version = "0.9.0-rc.4"
 dependencies = [
  "base64",
  "chora-scene",
