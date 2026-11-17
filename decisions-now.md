@@ -1,8 +1,9 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T01:48:00Z
+screened-through: 2026-11-17T01:49:00Z
 
+- 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
-- 11-17 01:46Z "F 7, all 52" -> reading: Fable 7 %, all 52 %; 0.67 %/h over 0.49: no opus, testwatch idle, one tour after all 4
+- 11-17 01:46Z "F 7, all 52" -> reading: Fable 7 %, all 52 %; pace eased 01:49
 - 11-16 16:56Z "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus..." -> Fable lane ends 18:21 (hand over 18:15); rest on opus; assume 5-10 %
 - 11-16 16:53Z "...expecting you to discuss this before starting Fable... Fable ... counts in the same token budget... only one Fable track" -> one Fable lane (flakes r6), then none; ask before a model change
 - 11-16 16:49Z "We're at 46%. Would a other Fable run help..." -> 46 %; Fable flakes lane now
@@ -12,13 +13,11 @@ screened-through: 2026-11-17T01:48:00Z
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 - 11-16 10:58Z "What can we learn from Ron? ...TuxTalk/blob/main/CLAUDE.md..." -> idea: C11 ratchet, sprint 1; reviews run tests
 - 11-16 10:05Z "Agree, keep column visible... 43 %..." -> column stays; Super+n in media r3; 43 %
-- 11-16 10:04Z "Floating windows? ... Can be toggeled?" -> questions; mc column toggles by Super+n (mc-37: page must widen)
 
 - 11-16 09:20Z "Agree, apply all six improvements. Adjust project goal and plan as you go." -> six at train 24
 - 11-16 09:16Z "Agree, Thu cutoff and persona Wed. ..." -> Thu 12:00 cutoff, persona Wed, WIP 6
 - 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. ..." -> PM views tour, UX loop; C10 sprint 1
 - 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? ..." -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4; C10 after tag
-- 11-16 08:55Z "Maybe setup script is the problem?" -> yes; fixed 09:0x
 - 11-16 08:52Z "Use IP whole budget during the week. ... cheap workers test continuously ..." -> ~100 % by reset; lanes over areas; haiku testwatch
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
