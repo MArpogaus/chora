@@ -390,3 +390,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-17 11:04 UTC "Pixil perfect sys tray with working volume sliders etc in xp in feat list?" -> idea: not listed before (only xp-26 MAJOR tray shows no level, N1 widget host); now backlog X10, sprint 1 after the widget API (N1) and shared audio door; absorbs xp-26.
 - 2026-11-17 11:05 UTC "OK soilds good. Shall include expand button for owefull trays" -> idea: added to X10 (XP chevron that shows hidden icons when the tray is overfull).
 - 2026-11-17 11:07 UTC "Also plan to add Quick start louncers and resize /rearrange as in original." -> idea: backlog X11 (Quick Launch, lock/unlock, grips to resize and reorder, saved layout), sprint 1 after N1.
+- 2026-11-17 11:23 UTC "Also start menu pinned and recent programs like original" -> idea: backlog X12 (pinned and most-used lists in the Start menu), sprint 1 after N1.
