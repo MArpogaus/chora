@@ -1,6 +1,6 @@
 # net2 r1 (F3): tests/acts with the first invariants (two lanes)
 
-Model: opus, effort high (complex: harness API and invariant semantics that every later slice relies on)
+Model: opus, effort high, because the harness API and invariant semantics carry every later slice (complex)
 Lanes: cloud, two branches from the session branch after NET1 merges:
 - claude/net2-harness: `tests/acts` (`Session`, `act`, `Expect`, quiet = every `busy` empty or timeout),
   I1, I3, I4, I7, I8, I14, `tests/acts/known-red.toml` (a listed pass fails), gate step `acts`.

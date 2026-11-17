@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 20:35 UTC)
+## Now (2026-11-17 23:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 20:35: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
+budget: 62 % at 23:59 Tue (owner: pace good; Fable plan was most); tokens.py 23:59: 5.0 % (PM container). Even pace 55 %: 7 % over; 38 % for 76 h. Full reset available (owner 15:35): use near 95 %.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 87d8aae2 (train 47 20:35: mv2-xp split); 15 greens (30b, 33-41, 43-47); MV1, MV2 x3, CUT1 in.
 burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3.5 days.
@@ -24,6 +24,7 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
+| net1-r1.md (F2) | sonnet med, claude/net1 | start 23:59 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
