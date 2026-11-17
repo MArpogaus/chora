@@ -87,7 +87,7 @@ class Launcher:
 
     def base_env(self):
         env = dict(os.environ)
-        env["PATH"] = f"{self.dir}/stub:{BIN}:{env['PATH']}"
+        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(env['PATH'])}"
         env["CHORA_TEST_ACCEPT_INJECTED_KEYS"] = "1"
         env["CHORA_FRAME_BUDGET_US"] = "500000"
         env.pop("DBUS_SESSION_BUS_ADDRESS", None)
@@ -101,6 +101,18 @@ class Launcher:
             env["LD_LIBRARY_PATH"] = f"{egl}/usr/lib64:{env.get('LD_LIBRARY_PATH', '')}"
             env["__EGL_VENDOR_LIBRARY_FILENAMES"] = f"{egl}/usr/share/glvnd/egl_vendor.d/50_mesa.json"
         return env
+
+    def path_without_writer(self, path):
+        """PATH with /usr/bin replaced by a link farm that lacks lowriter: this container has
+        LibreOffice, which opens no window in the headless session, so Notepad would try it first
+        and say nothing (tour v7 finding). Without a GUI editor Notepad shows its honest notice."""
+        farm = f"{self.dir}/usrbin"
+        if not os.path.isdir(farm):
+            os.makedirs(farm)
+            for name in os.listdir("/usr/bin"):
+                if name not in ("lowriter", "mousepad"):
+                    os.symlink(f"/usr/bin/{name}", f"{farm}/{name}")
+        return ":".join(farm if p == "/usr/bin" else p for p in path.split(":"))
 
     def spawn(self, argv, env, log, **kw):
         out = open(os.path.join(self.dir, log), "w")
