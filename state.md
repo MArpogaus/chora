@@ -25,7 +25,7 @@ burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, open j1-5 (tiling), N1 (xp); s
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
+| construct-r3.md (rc 1) | sonnet med, claude/construct | N-1 drag-back, DB1 placed, B4 hud; starting 07:02 |
 | media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 done 06:20 (5 of 7 v5 MAJOR fixed; j1-5, N1 open); review running; archived |
 | secfix-c-r2.md (rc 1, 6) | opus med, claude/secfix-c | r2 done 75bc62e6 gate green; opus review 07:01 |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | j1-5 Print sign + mouse path; starting 06:27 |
@@ -33,7 +33,7 @@ burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, open j1-5 (tiling), N1 (xp); s
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: v6 review FIX (j1-5, N1 open): tiling r4, xp r7 (rc 1); secfix c r2 (rc 1, 6); then construct r3 DB1 + N-1 drag-back (rc 1).
+1. Now: v6 review FIX (j1-5, N1 open): tiling r4, xp r7 (rc 1); secfix c r2 (rc 1, 6); construct r3 (rc 1).
 2. UX loop (rc 1, 11): tour v7 after tiling r4, xp r7; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F22 (CI 06:00), F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
