@@ -8,7 +8,6 @@ reports/review-arch-plan-fit.md); section 6 says what changed and what I did not
 estimates in % of the week. "Production lines" are the lines above the trailing `mod tests`.
 
 ## 0. In brief
-
 - **Yes: one shared window-management core, a library `chora_kit::wm`, not a plugin.** A model without
   IO: events and intents in, changes out; the look turns changes into scene commands and settles them.
   Shared: lifecycle (ARC's `book`), focus, the open shell surfaces, desks, handover state, kept state
@@ -265,7 +264,6 @@ A finding seen by eye becomes a new row before it is fixed.
   frozen and reverting frames, without decoding. Needs the kit clock in every look.
 
 ## 4. Slices
-
 One merge each through tests/merge-gate.sh. A fix or feature is red first; MV, NET and CUT slices cannot
 be red first and carry a selftest instead (a planted breach must fail). Pattern for a shared part: kit
 module with FakeCore tests and a pilot look in one merge; then the other looks, one lane per look. A port
