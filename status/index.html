@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 17 Nov, 14:42 UTC (21:42 Bangkok)</span>
+      <span>Updated Tue 17 Nov, 17:13 UTC (00:13 Wed Bangkok)</span>
       <span>Day 9 of 22</span>
       <span>Release candidate: today, quick and dirty (your call 10:47 UTC); this week: clean foundation; then feature sprints</span>
     </div>
@@ -119,8 +119,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Merge run 43 green at 14:42 UTC (21:42 Bangkok): the test harness of the media lane. Tour and screencast work stopped (your call, 14:20).</li>
-          <li>Fable architecture lane since 14:27 UTC: the cleanup plan, with act contracts and checks that catch glitches automatically as its first step; two opus reviewers</li>
+          <li>Merge run 44 green at 17:13 UTC (00:13 Bangkok): mc's main.rs split into 8 modules, no logic change</li>
+          <li>Merge run 45 (tiling split) running; xp split reviewed, next; size and dependency checks in re-review</li>
         </ul>
       </div>
       <div class="panel">
@@ -188,8 +188,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Tue 17 Nov</span><span>10 entries</span></summary>
+      <summary><span>Tue 17 Nov</span><span>11 entries</span></summary>
       <ul class="timeline">
+        <li><time>17:13</time><p><span class="tag ok">merge</span>Merge run 44 green: the first cleanup slice, mc's 3,456-line main.rs split into 8 modules by pure moves (reviewed). Tiling and xp splits reviewed clean and queued; the size check needed one fix round.</p></li>
         <li><time>14:42</time><p><span class="tag ok">merge</span>Merge run 43 green: the media test harness (pull gate checks both drags). rc.4 stays untagged (your call, 14:20). Plan changed: cleanup, simulated user test, then a new tour with automatic checks.</p></li>
         <li><time>13:41</time><p><span class="tag ok">release</span>v0.9.0-rc.4 on dev and main (CI and packaging green). The tag waits for the owner (this session may not push tags). Tour v8 (4:04) added to Pictures.</p></li>
         <li><time>08:56</time><p><span class="tag ok">merge</span>Merge run 39 green: the xp fix (Notepad opens only a real editor, or says none is installed) and the tiling fix (Super+Print shows a notice; Screenshot in the power menu of the bar) are in. Tour v7 started to show them.</p></li>

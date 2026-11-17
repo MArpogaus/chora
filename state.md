@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-17 17:04 UTC)
+## Now (2026-11-17 17:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 17:04: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
+budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 17:13: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: c78eca98 (train 43 14:42: media harness, pull gate both drags); 11 greens (30b, 33-41, 43).
+session branch: cc2b5f31 (train 44 17:13: mv2-mc split); 12 greens (30b, 33-41, 43, 44).
 burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3.5 days.
 
 ## RC (design/rc.md)
@@ -24,10 +24,9 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r1 6d2ca7c2 FIX 16:03 (1 MAJOR stale list); r2 s_..BHFV8 16:05, start check ok 16:14; 1 % |
+| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r2 3d2c00ce hand-back 17:13; re-review 17:13; archived |
 | mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | 690a787a MERGE-OK 17:04 (pure moves); train 46 |
-| mv2-mc-r1.md (F4) | sonnet med, claude/mv2-mc | 20fac444 MERGE-OK 16:11 (MAJOR doc hoist -> MINOR, hook; H-move); train 44 16:11 |
-| mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | bcf430ed MERGE-OK 16:14 (pure moves; doc hoists MINOR); train 45 |
+| mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | bcf430ed MERGE-OK 16:14 (pure moves; doc hoists MINOR); train 45 17:13 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
