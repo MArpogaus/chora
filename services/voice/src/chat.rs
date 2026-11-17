@@ -195,9 +195,29 @@ pub(crate) fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String 
 pub(crate) const DETAIL_LINES: usize = 400;
 pub(crate) const DETAIL_BYTES: usize = 64 * 1024;
 
+/// The answer to the LLM for a detail that does not show whole and as
+/// it is, without a question: too long, or it [`hides`] text; none for
+/// a detail that shows.
+fn unshowable(detail: &str) -> Option<String> {
+    if too_long(detail) {
+        return Some(format!(
+            "Refused: the command is too long to show the user ({DETAIL_LINES} lines or {} KiB at most); send a shorter command",
+            DETAIL_BYTES / 1024
+        ));
+    }
+    hides(detail).then(|| "Refused: the command holds characters that hide or reorder text (control, bidi or zero-width characters), so the user would see another command than the one that runs; send it without them".to_owned())
+}
+
 /// Whether a detail passes the cap.
 pub(crate) fn too_long(detail: &str) -> bool {
     detail.len() > DETAIL_BYTES || detail.lines().count() > DETAIL_LINES
+}
+
+/// Whether a detail holds a character that hides or reorders text, or
+/// a sequence of a terminal: a screen would show another command than
+/// the one that runs (sh-26). Such a detail is refused.
+pub(crate) fn hides(detail: &str) -> bool {
+    chora_kit::chat::sanitize(detail) != detail
 }
 
 /// Whether an answer stops mid-sentence: its words do not end with
@@ -1159,12 +1179,9 @@ impl Chat {
             ));
             return Err(SAID_NEW.into());
         }
-        if too_long(&detail) {
-            crate::log::info(&format!("confirm {name}: refused, the detail is too long"));
-            return Err(format!(
-                "Refused: the command is too long to show the user ({DETAIL_LINES} lines or {} KiB at most); send a shorter command",
-                DETAIL_BYTES / 1024
-            ));
+        if let Some(refusal) = unshowable(&detail) {
+            crate::log::info(&format!("confirm {name}: {refusal}"));
+            return Err(refusal);
         }
         let (result, always) = self.ask(prompt, detail, out).await;
         crate::log::info(&format!(
@@ -2541,35 +2558,6 @@ mod tests {
         let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
         let content = result["content"].as_str().unwrap();
         assert!(content.contains("hide or reorder"), "{content}");
-    }
-
-    /// A question too long for the text node of the own HUD is refused
-    /// without a question, so that no screen cuts its tail.
-    #[tokio::test]
-    async fn a_question_too_long_for_the_hud_is_refused() {
-        let big = format!("{{\"x\": \"{}\"}}", "a".repeat(3500));
-        let script = vec![
-            Reply::Tool("echo", Box::leak(big.into())),
-            Reply::Text("Gut."),
-        ];
-        let config = Config {
-            confirm: vec![Confirm {
-                tool: "echo".into(),
-                commands: Vec::new(),
-                argv0: Vec::new(),
-                method: None,
-                prompt: "Wirklich?".into(),
-            }],
-            ..Config::default()
-        };
-        let (mut chat, _server) = chat(script, config).await;
-        let (_, events) = turn(&mut chat, "Mach es.", false).await;
-        assert!(
-            !events.iter().any(|e| e.starts_with("confirm")),
-            "{events:?}"
-        );
-        let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
-        assert!(result["content"].as_str().unwrap().contains("shorter"));
     }
 
     /// Each change of the agent's own settings asks with its key and

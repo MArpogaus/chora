@@ -2,6 +2,7 @@
 //! line of the regions and the agents scene, and the notifications of
 //! `notify.push`.
 
+use chora_kit::chat::sanitize;
 use chora_scene::{
     Command, InputMode, NodeKind, PropsUpdate, Transform,
     ipc::{ClientError, RpcError},
@@ -689,8 +690,8 @@ impl Mc {
             }
             return Ok(());
         }
-        let lines = detail.lines().map(Into::into).collect();
-        self.set_text(CONFIRM, Some(prompt), |_| lines)?;
+        let lines = sanitize(&detail).lines().map(Into::into).collect();
+        self.set_text(CONFIRM, Some(sanitize(&prompt)), |_| lines)?;
         let had = self.confirming.replace(Confirming {
             id,
             buttons,

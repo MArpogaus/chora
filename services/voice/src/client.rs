@@ -292,7 +292,7 @@ fn confirm_answer(
         Ok(true) => Ok(json!({})),
         Ok(false) => Err(RpcError::new(
             RpcError::REJECTED,
-            format!("confirm.answer: no open question {id}"),
+            format!("confirm.answer: no open question {id}, or it showed too briefly"),
         )),
         Err(_) => Err(gone()),
     }

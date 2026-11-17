@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::{ask::show_key, conn::Conn};
+use chora_kit::{ask::show_key, chat::sanitize, conn::Conn};
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
 
@@ -185,7 +185,8 @@ impl Reporter {
         }
     }
 
-    /// Shows a question on the own HUD with `hud`, and emits it.
+    /// Shows a question on the own HUD with `hud`, and emits it; its
+    /// texts without the characters that hide or reorder text (sh-26).
     fn confirm(&mut self, report: Report) {
         let Report::Confirm {
             id,
@@ -198,6 +199,8 @@ impl Reporter {
         else {
             return;
         };
+        let (prompt, detail) = (sanitize(&prompt), sanitize(&detail));
+        let name = name.map(|n| sanitize(&n));
         if hud {
             let keys = (keys.as_ref())
                 .map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
@@ -345,20 +348,19 @@ impl Reporter {
 /// scene holds 4 KiB.
 const QUESTION_BYTES: usize = 4000;
 
+/// The line of a question whose detail does not fit on the own HUD.
+const TOO_LONG: &str = "(the command is too long to show here)";
+
 /// The question on the own HUD: the prompt, the detail and the line of
-/// the keys, at most [`QUESTION_BYTES`]. A longer detail is cut and ends
-/// in `…`; the prompt and the keys stay. voice.confirm carries it whole.
+/// the keys, at most [`QUESTION_BYTES`]. A longer detail is never cut,
+/// which would hide its tail: [`TOO_LONG`] takes its place, and the
+/// prompt and the keys stay. voice.confirm carries it whole.
 fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
     let text = format!("{prompt}\n{detail}{keys}");
     if text.len() <= QUESTION_BYTES {
         return text;
     }
-    let room = QUESTION_BYTES.saturating_sub(prompt.len() + keys.len() + "\n…".len());
-    let mut end = room.min(detail.len());
-    while !detail.is_char_boundary(end) {
-        end -= 1;
-    }
-    let text = format!("{prompt}\n{}…{keys}", &detail[..end]);
+    let text = format!("{prompt}\n{TOO_LONG}{keys}");
     let mut end = text.len().min(QUESTION_BYTES);
     while !text.is_char_boundary(end) {
         end -= 1;

@@ -875,6 +875,33 @@ fn is_physical(tool: &Value, options: &[Value]) -> bool {
     !once || !matches!(tool["kind"].as_str(), Some("read" | "search" | "think"))
 }
 
+/// What the user hears when a request is rejected because its detail
+/// does not show whole and as it is: too long, or with characters that
+/// hide or reorder text (sh-26); none when it shows.
+fn unshowable(detail: &str, name: &str, german: bool) -> Option<String> {
+    let who = title(name);
+    let told = if crate::chat::too_long(detail) {
+        if german {
+            format!("{who} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.")
+        } else {
+            format!("{who} asked for something too long to show. Rejected.")
+        }
+    } else if crate::chat::hides(detail) {
+        if german {
+            format!(
+                "{who} wollte etwas tun, das Zeichen enthält, die Text verbergen oder umstellen. Abgelehnt."
+            )
+        } else {
+            format!(
+                "{who} asked for something with characters that hide or reorder text. Rejected."
+            )
+        }
+    } else {
+        return None;
+    };
+    Some(told)
+}
+
 /// What a permission request asks, in full, for the screen.
 fn detail(tool: &Value) -> String {
     let title = tool["title"].as_str().unwrap_or_default().trim();
@@ -1200,19 +1227,8 @@ impl Actor {
         let prompt = question(&asks, name, &what, &options, german);
         let physical = is_physical(&params["toolCall"], &options);
         let detail = detail(&params["toolCall"]);
-        if crate::chat::too_long(&detail) {
+        if let Some(told) = unshowable(&detail, name, german) {
             rpc.respond(rpc_id, outcome(&options, false)).await?;
-            let told = if german {
-                format!(
-                    "{} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.",
-                    title(name)
-                )
-            } else {
-                format!(
-                    "{} asked for something too long to show. Rejected.",
-                    title(name)
-                )
-            };
             self.agents.update(name, id, |s| {
                 s.note(&format!("! {told}"));
                 s.entry("notice", &told);

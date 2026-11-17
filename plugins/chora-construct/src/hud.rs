@@ -17,6 +17,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::chat::sanitize;
 use chora_scene::{
     Border, Clip, Command, Easing, InputMode, NodeKind, PropsUpdate, Transform, Uniform,
 };
@@ -1070,8 +1071,8 @@ impl Voice {
                 }
                 self.ask = Some(Ask {
                     id: c.id,
-                    prompt: c.prompt,
-                    detail: c.detail,
+                    prompt: sanitize(&c.prompt),
+                    detail: sanitize(&c.detail),
                     keys: c.keys.filter(|_| c.physical),
                     buttons: c.buttons,
                     scroll: 0.0,
