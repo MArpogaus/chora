@@ -11,6 +11,7 @@
 
 mod config;
 mod dress;
+mod focus;
 mod keys;
 mod layout;
 mod theme;
@@ -40,6 +41,7 @@ use serde_json::{Value, json};
 use crate::{
     config::{Action, Config},
     dress::Dress,
+    focus::ShownFocus,
     layout::Layout,
     wm::{Effect, Mark, OutputTags, Placement, States, WINDOW_KEY, Wm},
 };
@@ -2220,62 +2222,6 @@ fn pass_on(surface: &str) -> Vec<Command> {
             to: None,
         },
     ]
-}
-
-/// The keyboard focus as tiling shows it to the core.
-#[derive(Debug, Default)]
-struct ShownFocus {
-    /// The focus of the last transaction that sent one.
-    surface: Option<String>,
-    /// Whether the core has `surface`.
-    sent: bool,
-    /// Another window manager took the focus since. Tiling sends none
-    /// until one of its windows takes the focus back, so that no relayout
-    /// takes it.
-    lost: bool,
-}
-
-impl ShownFocus {
-    /// The core moved the focus. An empty focus is no loss: it happens
-    /// when the focused window of tiling itself exits, and tiling must
-    /// then still focus its next window.
-    fn moved(&mut self, surface: Option<&str>) {
-        match surface {
-            None => {}
-            Some(s) if Some(s) == self.surface.as_deref() => self.lost = false,
-            Some(_) => self.lost = true,
-        }
-    }
-
-    /// Tiling hands the window with its focus to another window manager,
-    /// which focuses it. Tiling sends no focus until one of its windows
-    /// takes it back, whether the receiver set it before or after.
-    fn gave(&mut self, surface: &str) {
-        if self.surface.as_deref() == Some(surface) {
-            self.lost = true;
-        }
-    }
-
-    /// A window of tiling takes the focus back: by the pointer, a binding
-    /// or as a new window. The next transaction sends it, even when it is
-    /// the one sent before.
-    fn take(&mut self) {
-        if self.lost {
-            self.lost = false;
-            self.sent = false;
-        }
-    }
-
-    /// Whether a transaction sends a focus.
-    fn sends(&self, focus: Option<&str>) -> bool {
-        !self.lost && (!self.sent || self.surface.as_deref() != focus)
-    }
-
-    /// A transaction sent a focus.
-    fn sent(&mut self, focus: Option<String>) {
-        self.surface = focus;
-        self.sent = true;
-    }
 }
 
 #[cfg(test)]
