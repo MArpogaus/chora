@@ -2,8 +2,8 @@
 # The cells of the doors gate (tests/gate-doors.sh) for construct: the keys
 # are the bindings of construct.yaml and must work in the walk and flown
 # into a pane; the doors are the words of the corner strip at the top left
-# (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock),
-# which shows in the walk only and comes back after a step out of a pane,
+# (Programs, Helper, Keys, Lock, Power, Screenshot, the volume word and
+# the clock), which shows in the walk only and comes back after a step out of a pane,
 # and the island of the HUD host, clicked at its node: it says the state
 # word of the voice agent, and the chat that it opens with the one helper
 # names it with its state; the key list is
@@ -244,6 +244,17 @@ check_pane_corner() {
     return "$status"
 }
 
+check_helper_button() {
+    chat_open && return 1
+    until_ok 'center construct-door-helper >/dev/null' 20 || return 1
+    click_door construct-door-helper
+    until_ok chat_open 20 || return 1
+    until_ok 'chat_says coder Idle' 20
+    local status=$?
+    chat_close
+    return "$status"
+}
+
 check_helper_exit() {
     until_ok 'island_says Listening' 20 || return 1
     ctl call voice agent '{"tool": "agent_stop", "name": "coder"}' >/dev/null || return 1
@@ -270,6 +281,12 @@ check_cube_doors() {
 }
 
 status=0
+if check_helper_button; then
+    echo "check construct helper-button pass"
+else
+    echo "check construct helper-button fail"
+    status=1
+fi
 if check_helper_exit; then
     echo "check construct helper-exit pass"
 else
