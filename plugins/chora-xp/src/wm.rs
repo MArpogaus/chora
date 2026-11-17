@@ -560,13 +560,10 @@ impl Wm {
             volume_read: Instant::now(),
         };
         wm.clock = wm.now();
-        // The nodes that a restart kept: read, then built again.
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
         wm.create_scene(old_root)?;
         wm.grab()?;
-        // After the scene: the removal of the kept root detaches the
-        // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
@@ -601,7 +598,6 @@ impl Wm {
             .filter(|n| n.owner.is_none())
             .collect();
         nodes.sort_by_key(|n| self.kept.get(&n.id).map_or(usize::MAX, |k| k.z));
-        // The places on the taskbar before the restart, by window.
         let mut opened = Vec::new();
         for node in nodes {
             if let Some(k) = self.kept.get(&node.id) {
@@ -610,7 +606,6 @@ impl Wm {
             let info = node.surface.unwrap_or_default();
             self.adopt(&node.id, info.app_id, info.title.as_deref(), None)?;
         }
-        // The kept windows first, in their old order on the taskbar.
         opened.sort_by_key(|(place, _)| *place);
         let kept: Vec<String> = opened.into_iter().map(|(_, id)| id).collect();
         self.opened.retain(|s| !kept.contains(s));
@@ -786,7 +781,6 @@ impl Wm {
             Event::SurfaceDetached { surface } => {
                 let commands = self.forget(&surface);
                 self.apply(commands)?;
-                // Free again, so it is free to take, as at the start.
                 return self.adopt(&surface, None, None, None);
             }
             Event::SurfaceDestroyed { surface } => self.forget(&surface),
@@ -861,7 +855,6 @@ impl Wm {
         let commands = match call {
             Call::StartMenu { open } => {
                 let bar = self.bars.first().map(|bar| bar.output.clone());
-                // Not under the shade of Log Off or Turn Off (W10).
                 if open && self.dialog.is_some() {
                     return Err(RpcError::new(
                         RpcError::REJECTED,
@@ -939,7 +932,6 @@ impl Wm {
     pub fn tick(&mut self) -> Result<(), ClientError> {
         self.check_launches();
         let mut commands = self.refresh_icons();
-        // The hands of Date and Time move.
         for i in 0..self.panels.len() {
             if matches!(self.panels[i], Panel::Clock(_)) {
                 commands.extend(self.redraw_panel(i));
@@ -1060,8 +1052,6 @@ impl Wm {
             .to_string()
     }
 
-    // Windows
-
     fn index(&self, surface: &str) -> Option<usize> {
         self.windows.iter().position(|w| w.surface == surface)
     }
@@ -1085,7 +1075,6 @@ impl Wm {
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
         window.icon = window_icon(&mut self.icons, window.app_id.as_deref());
-        // A window keeps its desktop over a restart.
         window.desktop = self.kept.get(surface).map_or(self.desktop, |k| k.desktop);
         if !self.kept.contains_key(surface) {
             window.turn = self.places.turn();
@@ -1105,16 +1094,12 @@ impl Wm {
         }
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
-            // Another client took it first.
             eprintln!("chora-xp: {surface}: {err}");
             self.windows.retain(|w| w.surface != surface);
             self.opened.retain(|s| s != surface);
             self.focused = previous;
             return Ok(());
         }
-        // The transaction waited for the client to commit its size, or the
-        // size follows with surface.changed. The title of a surface that
-        // another client gave up comes with the query too.
         let Some(node) = self.rt.conn.query(&format!("id:{surface}"))?.pop() else {
             return Ok(());
         };
@@ -1144,8 +1129,6 @@ impl Wm {
         let active = self.is_active(surface);
         let mut commands = Vec::new();
         if let Some(k) = kept {
-            // A window keeps its place and its maximized state over a
-            // restart; the client hears of the state again.
             let w = &mut self.windows[i];
             w.pos = [k.frame[0], k.frame[1]];
             if let Some(restore) = k.restore {
@@ -1155,12 +1138,10 @@ impl Wm {
             }
             w.minimized = k.minimized;
         } else if first && !self.windows[i].maximized() {
-            // A window maximized before its first commit keeps its place.
             let (turn, outer) = (self.windows[i].turn, self.windows[i].outer());
             self.windows[i].pos = self.places.place(turn, outer, area);
         }
         self.windows[i].shown = true;
-        // A kept minimized window stays hidden.
         if self.windows[i].minimized {
             commands.push(self.windows[i].place());
         }
@@ -1175,8 +1156,6 @@ impl Wm {
     fn focus(&mut self, target: Option<&str>) -> Vec<Command> {
         let previous = std::mem::replace(&mut self.focused, target.map(String::from));
         self.grab_system_key(target.is_some());
-        // A context menu closes with the focus, as on XP: the core takes
-        // its keyboard away.
         let mut commands = self.close_context();
         commands.extend(
             self.desk
@@ -1474,8 +1453,6 @@ impl Wm {
         commands.extend(self.activate(surface));
         Ok(commands)
     }
-
-    // Taskbars
 
     /// The taskbar of the output that shows most of a rectangle: the one
     /// with its center, else the first.
@@ -1805,8 +1782,6 @@ impl Wm {
         commands
     }
 
-    // Input
-
     /// The events of the grabs of keys and buttons.
     fn input(&mut self, event: Event) -> Vec<Command> {
         match event {
@@ -1819,12 +1794,10 @@ impl Wm {
                 text: _,
                 injected: _, // injected: hears drops an injected key unless xp accepts them
             } => {
-                // Shift+F10 and the Menu key open a context menu, as on XP.
                 let shift = modifiers.iter().any(|m| m == "Shift");
                 let menu = key == "Menu" || (key == "F10" && shift);
                 self.node_key(if menu { MENU_KEY } else { &key })
             }
-            // A binding acts on its press, not on its release.
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -1915,7 +1888,6 @@ impl Wm {
 
     /// Alt+Tab: opens XP's switcher, or moves its choice.
     fn switch(&mut self, step: i32) -> Vec<Command> {
-        // Not under the shade of Log Off or Turn Off.
         if self.dialog.is_some() {
             return Vec::new();
         }
@@ -1926,8 +1898,6 @@ impl Wm {
         } else {
             commands.extend(self.close_menu());
             commands.extend(self.close_context());
-            // The windows of the desktop, the most recent first, the
-            // minimized ones last, as on XP.
             let mut windows: Vec<&Window> = self
                 .windows
                 .iter()
@@ -2229,7 +2199,6 @@ impl Wm {
             .dragging()
             .then(|| panel.window_ref().group());
         self.panels.push(panel);
-        // XP's settings dialogs move freely, so they wobble too.
         if let Some(group) = dragging {
             self.start_wobble(&group, position);
         }
@@ -2403,7 +2372,6 @@ impl Wm {
         };
         let mut commands = menu.remove();
         commands.extend(self.menu.hold(&mut self.theme, None));
-        // The keyboard goes back to the desktop, when it had it.
         commands.push(self.desktop_keys());
         commands
     }
@@ -2709,7 +2677,6 @@ impl Wm {
         let Some(drag) = &mut self.drag else {
             return Vec::new();
         };
-        // The same position again, exactly as the core sent it before.
         #[allow(clippy::float_cmp)]
         if drag.last == [px, py] {
             return Vec::new();
@@ -2730,10 +2697,8 @@ impl Wm {
             origin[0] + (px - start[0]).round() as i32,
             origin[1] + (py - start[1]).round() as i32,
         ];
-        // The title bar stays below the top edge of the outputs.
         let top = self.bars.iter().map(|b| b.usable()[1]).min().unwrap_or(0);
         self.windows[i].pos = [pos[0], pos[1].max(top)];
-        // The mesh moves with the group, so that the frame does not jump.
         let mut commands = vec![self.windows[i].place()];
         commands.extend(self.wobble_mesh(&surface));
         commands
@@ -2902,7 +2867,6 @@ impl Wm {
             Err(err) => err,
         };
         eprintln!("chora-xp: {surface} stays: {}", err.message);
-        // Back into a work area of chora-xp.
         let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
         match self.index(surface) {
             Some(i) => self.keep_inside(&[i], area),
@@ -2934,7 +2898,6 @@ impl Wm {
         if dragged {
             self.drag.take_if(|d| d.surface == surface);
         }
-        // No window of chora-xp takes the focus.
         if self.is_active(surface) {
             self.focused = None;
             self.grab_system_key(false);
@@ -3050,7 +3013,6 @@ impl Wm {
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
         if let Some(output) = output {
-            // The hidden menu gives the keyboard back.
             commands.push(self.desktop_keys());
             commands.extend(self.start_look(&output));
         }
@@ -3077,8 +3039,6 @@ impl Wm {
             }
         }
     }
-
-    // The settings dialogs
 
     /// Raises an open dialog of a kind; `None` if none is open.
     fn raise_panel(&mut self, kind: fn(&Panel) -> bool) -> Option<Vec<Command>> {
@@ -3490,7 +3450,6 @@ impl Wm {
             commands.extend(self.refit(before, self.bars[i].usable()));
         }
         if old.on_top != settings.on_top {
-            // Above the windows, or between the icons and the windows.
             let index = if settings.on_top { 3 } else { 2 };
             commands.push(Command::Move {
                 id: BARS.into(),
@@ -3572,8 +3531,6 @@ impl Wm {
         self.hide_at.is_some() || self.bars.iter().any(Bar::sliding)
     }
 
-    // The icons on the desktop
-
     /// Looks at the Desktop folder and the trash, and shows the icons on
     /// the work area of the first output.
     fn refresh_icons(&mut self) -> Vec<Command> {
@@ -3634,8 +3591,6 @@ impl Wm {
         Vec::new()
     }
 
-    // The Control Panel of the start menu
-
     /// The outputs of the plugin as the core has them, but with the work
     /// areas that the taskbars reserve: xp lays them out itself.
     fn outputs(&mut self) -> Vec<OutputInfo> {
@@ -3688,8 +3643,6 @@ impl Wm {
                     scale: Some(f64::from(*percent) / 100.0),
                     transform: None,
                 };
-                // The core answers with output.changed, which fits the
-                // taskbar and the wallpaper.
                 if let Err(err) = self.rt.conn.call::<_, Value>("output.configure", params) {
                     eprintln!("chora-xp: {err}");
                 }
@@ -3735,8 +3688,6 @@ impl Wm {
         }
     }
 
-    // The Log Off and Turn Off dialogs
-
     /// Shows a dialog in the middle of the output of the start menu, and
     /// lets the desktop behind it fade to gray.
     fn open_dialog(&mut self, mode: Mode, output: Option<&str>) -> Vec<Command> {
@@ -3768,10 +3719,10 @@ impl Wm {
 
     /// The gray of the desktop: the whole plugin becomes a layer with the
     /// shader of the fade. The dialog sits on the overlay root, outside it.
+    /// The gray starts at the origin of the scene; outputs left of or above
+    /// it stay in color.
     fn fade_step(&self, amount: f64) -> Option<Command> {
         let shader = self.fade_shader.clone()?;
-        // ponytail: from the origin of the scene; outputs left of or above
-        // it stay in color. Take the bounds of all outputs if that matters.
         let size = self.bars.iter().fold([1.0_f64, 1.0_f64], |[w, h], bar| {
             let [x, y, bw, bh] = bar.area();
             [w.max(f64::from(x + bw)), h.max(f64::from(y + bh))]
