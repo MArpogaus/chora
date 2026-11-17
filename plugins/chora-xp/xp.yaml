@@ -19,11 +19,12 @@ file_manager: thunar
 # The shell command of the plain text editor, Notepad of the start menu
 # and of All Programs > Accessories. Notepad tries, in order, this
 # command, lowriter, mousepad, gedit, gnome-text-editor, kwrite, kate,
-# xed, pluma, featherpad, leafpad, l3afpad and geany, then VISUAL, EDITOR,
-# nano, vim and vi in a terminal window; it skips what is not installed.
-# When one does not open, the next starts and a notice names the one that
-# serves and why the other did not; when none opens, a notice says so.
-# Without any editor installed, there is no Notepad.
+# xed, pluma, featherpad, leafpad, l3afpad and geany; it skips what is
+# not installed. A terminal editor (nano, vim) serves only when it is set
+# here, for example "foot -e nano". When one does not open, the next
+# starts and a notice names the one that serves and why the other did not;
+# when none opens, a notice says so. Without any editor installed, Notepad
+# says that no text editor is installed (for example mousepad).
 editor:
 # The programs of the start menu, at its top left below Terminal: the
 # title, the shell command and the name of the icon.

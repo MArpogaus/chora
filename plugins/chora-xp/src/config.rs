@@ -113,7 +113,8 @@ pub struct Config {
     pub file_manager: String,
     /// The shell command of the plain text editor, Notepad of the start
     /// menu. Without it, or when its program is not installed, the first
-    /// installed editor serves.
+    /// installed editor with a window serves; a terminal editor serves
+    /// only when it is set here.
     #[serde(default)]
     pub editor: Option<String>,
     /// The programs at the top left of the start menu, below the

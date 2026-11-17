@@ -50,6 +50,10 @@ const GROUP_ICON: &str = "applications-other";
 /// The title of the plain text editor, as on XP.
 pub const NOTEPAD: &str = "Notepad";
 
+/// The command of the Notepad entry when no editor is installed: a
+/// start of it says so instead of opening a window.
+pub const NO_EDITOR: &str = "chora-xp-no-text-editor";
+
 /// The group of the plain text editor, as on XP.
 const ACCESSORIES: &str = "Accessories";
 
@@ -70,10 +74,6 @@ const EDITORS: [&str; 12] = [
     "geany",
 ];
 
-/// The editors of the terminal that serve when `VISUAL` and `EDITOR`
-/// name none.
-const TERMINAL_EDITORS: [&str; 3] = ["nano", "vim", "vi"];
-
 /// The applications of the desktop files in the XDG data directories
 /// whose programs are installed, in groups, and Notepad, the plain text
 /// editor, among the accessories. `terminal` runs the programs that need
@@ -84,10 +84,8 @@ pub fn load(terminal: &str, editor: Option<&str>) -> Vec<Node> {
         .into_iter()
         .filter(|e| e.installed(on_path));
     let mut nodes = group(installed, terminal);
-    let env = |name: &str| std::env::var(name).ok();
-    if let Some(command) = self::editor(editor, terminal, env, on_path) {
-        add_notepad(&mut nodes, command);
-    }
+    let command = self::editor(editor, on_path).unwrap_or_else(|| NO_EDITOR.into());
+    add_notepad(&mut nodes, command);
     nodes
 }
 
@@ -105,22 +103,17 @@ pub struct Candidate {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Editors {
     /// The installed editors: the setting `editor`, the editors with a
-    /// window, then the editors of the terminal.
+    /// window.
     pub chain: Vec<Candidate>,
     /// The program of the setting `editor` when it is not installed.
     pub skipped: Option<String>,
 }
 
 /// The editors that Notepad tries in order: the setting `editor` when
-/// its program is installed, then each installed editor with a window,
-/// then `VISUAL`, `EDITOR`, nano, vim and vi in the terminal. Empty when
+/// its program is installed, then each installed editor with a window.
+/// A terminal editor serves only as the setting `editor`. Empty when
 /// none of them is installed.
-pub fn editors(
-    configured: Option<&str>,
-    terminal: &str,
-    env: impl Fn(&str) -> Option<String>,
-    on_path: impl Fn(&str) -> bool,
-) -> Editors {
+pub fn editors(configured: Option<&str>, on_path: impl Fn(&str) -> bool) -> Editors {
     let installed = |command: &str| desktop_entry::installed(command, &on_path);
     let mut out = Editors::default();
     let mut push = |name: String, command: String| {
@@ -138,18 +131,6 @@ pub fn editors(
     for program in EDITORS.iter().filter(|p| on_path(p)) {
         push((*program).to_owned(), (*program).to_owned());
     }
-    let named = ["VISUAL", "EDITOR"].into_iter().filter_map(env);
-    for command in named
-        .chain(TERMINAL_EDITORS.map(String::from))
-        .filter(|command| installed(command))
-    {
-        let program = crate::launch::program_name(&command);
-        let windowed = EDITORS.contains(&program.as_str());
-        push(
-            program,
-            desktop_entry::command(command, !windowed, terminal),
-        );
-    }
     if out.chain.is_empty() {
         out.skipped = None;
     }
@@ -158,13 +139,8 @@ pub fn editors(
 
 /// The shell command of the plain text editor that Notepad tries first.
 /// None when none of the editors is installed.
-pub fn editor(
-    configured: Option<&str>,
-    terminal: &str,
-    env: impl Fn(&str) -> Option<String>,
-    on_path: impl Fn(&str) -> bool,
-) -> Option<String> {
-    editors(configured, terminal, env, on_path)
+pub fn editor(configured: Option<&str>, on_path: impl Fn(&str) -> bool) -> Option<String> {
+    editors(configured, on_path)
         .chain
         .into_iter()
         .next()
@@ -172,13 +148,8 @@ pub fn editor(
 }
 
 /// The editors of this system for the setting `editor`.
-pub fn system_editors(terminal: &str, configured: Option<&str>) -> Editors {
-    editors(
-        configured,
-        terminal,
-        |name| std::env::var(name).ok(),
-        desktop_entry::on_path,
-    )
+pub fn system_editors(configured: Option<&str>) -> Editors {
+    editors(configured, desktop_entry::on_path)
 }
 
 /// Puts Notepad with its command among the accessories, in a new group
@@ -268,80 +239,55 @@ mod tests {
 
     #[test]
     fn notepad_is_the_configured_editor_or_the_first_that_is_installed() {
-        let none = |_: &str| None;
         let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
         assert_eq!(
-            editor(Some("pad --plain"), "foot", none, on(&["pad", "gedit"])),
+            editor(Some("pad --plain"), on(&["pad", "gedit"])),
             Some("pad --plain".into())
         );
         assert_eq!(
-            editor(
-                Some("pad --plain"),
-                "foot",
-                none,
-                on(&["kate", "gedit", "nano"])
-            ),
+            editor(Some("pad --plain"), on(&["kate", "gedit", "nano"])),
             Some("gedit".into())
         );
+        assert_eq!(editor(None, on(&["nano", "vi"])), None);
+        assert_eq!(editor(None, on(&["hx", "nano"])), None);
+        assert_eq!(editor(None, on(&["nano"])), None);
         assert_eq!(
-            editor(None, "foot", none, on(&["nano", "vi"])),
+            editor(Some("foot -e nano"), on(&["foot", "nano"])),
             Some("foot -e nano".into())
         );
-        let env = |name: &str| (name == "EDITOR").then(|| "hx -w".to_owned());
-        assert_eq!(
-            editor(None, "foot", env, on(&["hx", "nano"])),
-            Some("foot -e hx -w".into())
-        );
-        let env = |name: &str| (name == "VISUAL").then(|| "kate".to_owned());
-        assert_eq!(
-            editor(None, "foot", env, on(&["nano"])),
-            Some("foot -e nano".into())
-        );
-        assert_eq!(editor(None, "foot", none, on(&[])), None);
-        assert_eq!(editor(Some("pad"), "foot", none, on(&[])), None);
+        assert_eq!(editor(None, on(&[])), None);
+        assert_eq!(editor(Some("pad"), on(&[])), None);
     }
 
     #[test]
-    fn notepad_prefers_writer_then_mousepad_then_gedit_over_the_terminal() {
-        let none = |_: &str| None;
+    fn notepad_prefers_writer_then_mousepad_then_gedit_and_never_a_terminal_editor() {
         let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
         assert_eq!(
-            editor(
-                None,
-                "foot",
-                none,
-                on(&["nano", "gedit", "mousepad", "lowriter"])
-            ),
+            editor(None, on(&["nano", "gedit", "mousepad", "lowriter"])),
             Some("lowriter".into())
         );
         assert_eq!(
-            editor(None, "foot", none, on(&["nano", "gedit", "mousepad"])),
+            editor(None, on(&["nano", "gedit", "mousepad"])),
             Some("mousepad".into())
         );
+        assert_eq!(editor(None, on(&["nano", "gedit"])), Some("gedit".into()));
         assert_eq!(
-            editor(None, "foot", none, on(&["nano", "gedit"])),
-            Some("gedit".into())
-        );
-        let env = |name: &str| (name == "EDITOR").then(|| "nano".to_owned());
-        assert_eq!(
-            editor(None, "foot", env, on(&["nano", "gedit"])),
-            Some("gedit".into())
+            editors(None, on(&["nano", "vim", "vi"])),
+            Editors::default()
         );
     }
 
     #[test]
     fn notepad_lists_every_installed_editor_and_names_a_missing_setting() {
-        let none = |_: &str| None;
         let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
-        let found = editors(Some("pad"), "foot", none, on(&["gedit", "kate", "nano"]));
+        let found = editors(Some("pad"), on(&["gedit", "kate", "nano"]));
         let names: Vec<&str> = found.chain.iter().map(|c| c.name.as_str()).collect();
-        assert_eq!(names, ["gedit", "kate", "nano"]);
-        assert_eq!(found.chain[2].command, "foot -e nano");
+        assert_eq!(names, ["gedit", "kate"]);
         assert_eq!(found.skipped.as_deref(), Some("pad"));
-        let found = editors(Some("pad"), "foot", none, on(&["pad", "gedit"]));
+        let found = editors(Some("pad"), on(&["pad", "gedit"]));
         assert_eq!(found.chain[0].command, "pad");
         assert_eq!(found.skipped, None);
-        let found = editors(Some("pad"), "foot", none, on(&[]));
+        let found = editors(Some("pad"), on(&[]));
         assert_eq!(found, Editors::default());
     }
 

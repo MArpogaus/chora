@@ -1168,7 +1168,7 @@ Every look has the same keys: `Super+F1` shows the key list (`Super+/`
 is a silent alias), `Super+Space` starts the launcher, `Super+a` opens
 the chat with a helper (it runs `chora-chat`), `Super+Shift+Escape`
 locks the screen, `Super+Shift+e` opens the power menu (Lock, Log out,
-Restart, Shut down), `Super+Print` takes a screenshot and
+Restart, Shut down, Screenshot), `Super+Print` takes a screenshot and
 `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute`
 change the volume. The key list of every look shows these three keys as
 the caps `Vol+`, `Vol-` and `Mute` (the rule of `chora_kit::glass::cap`)
@@ -1676,9 +1676,10 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
   the panel open the menu of `power.sh`, the launcher in menu mode with the
-  prompt "Power" and four words: Lock, Log out, Restart and Shut down (swaylock in the palette, with a notice when it does not start,
+  prompt "Power" and five words: Lock, Log out, Restart, Shut down and Screenshot, the way to a screenshot for a person with a mouse (swaylock in the palette, with a notice when it does not start,
   `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
   that is not set, `systemctl reboot`, `systemctl poweroff`).
+  A session with no session bus gets a bus of its own for 7 s with mako and the notice.
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
   area that slurp lets you select: `screenshot.sh` writes it to
   `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else
@@ -2218,7 +2219,7 @@ that the file leaves out takes its default:
 | `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Notepad tries this command, then lowriter, mousepad, gedit, gnome-text-editor, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad and geany, then `VISUAL`, `EDITOR`, nano, vim and vi in a terminal window, and skips what is not installed. When an editor is not installed, or ends with an error before it shows a window, the next one starts, and once its window shows a notice names the editor that serves and why the one before did not. An editor that ends without an error may hand its work to a running instance, so it has 30 seconds to show a window. When none opens, a notice says Notepad cannot open. Without any editor the menu has no Notepad. All Programs lists only desktop files whose program is installed |
+| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Notepad tries this command, then lowriter, mousepad, gedit, gnome-text-editor, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad and geany, and skips what is not installed. A terminal editor (nano, vim, `VISUAL`, `EDITOR`) never serves unless you set it here, for example `foot -e nano`; Notepad opens only a window of an editor with a window. When an editor is not installed, or ends with an error before it shows a window, the next one starts, and once its window shows a notice names the editor that serves and why the one before did not. An editor that ends without an error may hand its work to a running instance, so it has 30 seconds to show a window. When none opens, a notice says Notepad cannot open. Without an editor with a window, Notepad stays in the menu and a click says "Cannot open Notepad: no text editor installed (for example mousepad)" and opens no window; the packages recommend mousepad. The left column of the start menu is filled with Notepad and programs that do not run in a terminal and have no raw suffix in parentheses in their title. All Programs lists only desktop files whose program is installed |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |

@@ -142,6 +142,9 @@ pub enum Input {
         yes: bool,
         open: Sender<bool>,
     },
+    /// The only screen of the question `id`, the own HUD, cannot show
+    /// it whole: a no (review secfix c r1, 2).
+    Unshowable(u64),
 }
 
 /// What the core asks the other actors to do.
@@ -257,6 +260,9 @@ const UNSPOKEN: Duration = Duration::from_secs(30);
 /// this long: an earlier press was meant for the question before, which
 /// a sub-agent can replace at any time.
 const KEY_DELAY: Duration = Duration::from_secs(1);
+/// How long a question shows before a button answers it: a click
+/// sooner was meant for what showed before (sh-26).
+const BUTTON_DELAY: Duration = Duration::from_millis(400);
 
 /// How long the HUD shows a heard text.
 const HEARD_LEN: Duration = Duration::from_secs(3);
@@ -564,6 +570,7 @@ impl Core {
             Input::PttDown => self.key(true),
             Input::ConfirmKey(yes) => self.confirm_key(yes),
             Input::ConfirmButton { id, yes, open } => self.confirm_button(id, yes, &open),
+            Input::Unshowable(id) => self.unshowable(id),
             Input::PttUp => self.key(false),
             Input::Call(call, reply) => {
                 let effects = self.call(call);
@@ -1132,8 +1139,7 @@ impl Core {
         if !self.needs_key() {
             return Vec::new();
         }
-        if self.shown_at.elapsed() < KEY_DELAY {
-            crate::log::info("confirm: a key too soon after the question counts as nothing");
+        if self.too_soon(KEY_DELAY, "a key") {
             return Vec::new();
         }
         crate::log::info("confirm: by the key");
@@ -1142,15 +1148,42 @@ impl Core {
 
     /// A button answers the question on the screen, also one that waits
     /// for a key: a click is a physical act as a key press is. Another
-    /// id, such as that of a question that ended, answers nothing.
+    /// id, such as that of a question that ended, answers nothing; nor
+    /// does a click within `BUTTON_DELAY` of the question, also of one
+    /// that replaced another.
     fn confirm_button(&mut self, id: u64, yes: bool, open: &Sender<bool>) -> Vec<Effect> {
-        let is_open = self.confirming() && self.shown == Some(id);
-        let _ = open.send(is_open);
-        if !is_open {
+        let taken =
+            self.confirming() && self.shown == Some(id) && !self.too_soon(BUTTON_DELAY, "a button");
+        let _ = open.send(taken);
+        if !taken {
             return Vec::new();
         }
         crate::log::info("confirm: by a button");
         self.answered(yes)
+    }
+
+    /// The question `id` cannot show whole: a no, with the error earcon;
+    /// another id, such as that of a question that ended, is nothing.
+    fn unshowable(&mut self, id: u64) -> Vec<Effect> {
+        if !self.confirming() || self.shown != Some(id) {
+            return Vec::new();
+        }
+        crate::log::info("confirm: the question is too long for the own HUD, a no");
+        let mut effects: Vec<Effect> = self.earcon(Earcon::Error).into_iter().collect();
+        effects.extend(self.answered(false));
+        effects
+    }
+
+    /// Whether the question on the screen showed for less than `delay`:
+    /// a press `by` a key or a button then counts as nothing.
+    fn too_soon(&self, delay: Duration, by: &str) -> bool {
+        let soon = self.shown_at.elapsed() < delay;
+        if soon {
+            crate::log::info(&format!(
+                "confirm: {by} too soon after the question counts as nothing"
+            ));
+        }
+        soon
     }
 
     fn answered(&mut self, yes: bool) -> Vec<Effect> {
@@ -1696,6 +1729,7 @@ mod tests {
 
         let mut rx = sub_question(&mut core, true);
         let shown = core.shown.expect("on the screen");
+        wait_for_key(&mut core);
         let (open, _) = std::sync::mpsc::channel();
         core.handle(Input::ConfirmButton {
             id: shown,
@@ -2341,6 +2375,7 @@ mod tests {
             Effect::Confirm { id, .. } => Some(*id),
             _ => None,
         });
+        wait_for_key(&mut core);
         let (open, _) = std::sync::mpsc::channel();
         let effects = core.handle(Input::ConfirmButton {
             id: id.unwrap(),
@@ -2376,6 +2411,7 @@ mod tests {
         let Some(&Effect::Confirm { id, .. }) = effects.first() else {
             panic!("{effects:?}");
         };
+        wait_for_key(&mut core);
         assert!(!button(&mut core, id + 1, true), "another id");
         assert!(rx.try_recv().is_err());
         assert!(button(&mut core, id, true));
@@ -2383,7 +2419,39 @@ mod tests {
         assert!(!button(&mut core, id, false), "the question ended");
         // A normal question takes a button too.
         let mut rx = confirm(&mut core, "Wirklich?");
+        wait_for_key(&mut core);
         assert!(button(&mut core, id + 1, false));
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
+    }
+
+    /// sh-26: a click that lands right after a question showed, also
+    /// after a sub-agent replaced the question, was meant for what was
+    /// there before, and counts as nothing; a later click answers.
+    #[test]
+    fn a_button_too_soon_after_the_question_counts_as_nothing() {
+        let button = |core: &mut Core, id: u64, yes: bool| {
+            let (open, rx) = std::sync::mpsc::channel();
+            core.handle(Input::ConfirmButton { id, yes, open });
+            rx.recv().unwrap()
+        };
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Wirklich?");
+        let id = core.shown.expect("on the screen");
+        assert!(!button(&mut core, id, true), "too soon");
+        assert!(rx.try_recv().is_err());
+        core.shown_at = Instant::now()
+            .checked_sub(Duration::from_millis(400))
+            .expect("uptime");
+        let replaced = core.show(("Und das?".into(), String::new()), false, None);
+        let Some(&Effect::Confirm { id, .. }) = replaced.last() else {
+            panic!("{replaced:?}");
+        };
+        assert!(!button(&mut core, id, true), "too soon after the replace");
+        assert!(rx.try_recv().is_err());
+        core.shown_at = Instant::now()
+            .checked_sub(Duration::from_millis(400))
+            .expect("uptime");
+        assert!(button(&mut core, id, false));
         assert_eq!(rx.try_recv(), Ok(Some(false)));
     }
 

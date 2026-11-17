@@ -30,6 +30,7 @@ while read -r prompt; do
     step
     case "$prompt" in
     *LONG*) title=$(head -c 70000 /dev/zero | tr '\0' x) kind=execute ;;
+    *HIDDEN*) title=$(printf 'echo safe\342\200\256fr- mr') kind=execute ;;
     *) title=/project/notes.txt kind=edit ;;
     esac
     told

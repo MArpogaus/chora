@@ -166,11 +166,11 @@ xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
 xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
 xp-question|BIN=$repo/target/debug tests/gate-xp-question.sh
-xp-notepad|BIN=$repo/target/debug tests/gate-xp-notepad.sh && BIN=$repo/target/debug tests/gate-xp-notepad-fallback.sh
+xp-notepad|BIN=$repo/target/debug tests/gate-xp-notepad.sh && BIN=$repo/target/debug tests/gate-xp-notepad-fallback.sh && BIN=$repo/target/debug tests/gate-xp-notepad-gui-only.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
 tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh
-tiling-look|BIN=$repo/target/debug tests/gate-tiling-wobbly.sh && BIN=$repo/target/debug tests/gate-tiling-bar-palette.sh && BIN=$repo/target/debug tests/gate-tiling-look-r2.sh && BIN=$repo/target/debug tests/gate-tiling-power.sh
+tiling-look|BIN=$repo/target/debug tests/gate-tiling-wobbly.sh && BIN=$repo/target/debug tests/gate-tiling-bar-palette.sh && BIN=$repo/target/debug tests/gate-tiling-look-r2.sh && BIN=$repo/target/debug tests/gate-tiling-power.sh && BIN=$repo/target/debug tests/gate-tiling-print-notice.sh
 chat-keys|BIN=$repo/target/debug tests/gate-chat-keys.sh
 doors|BIN=$repo/target/debug tests/gate-doors.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh

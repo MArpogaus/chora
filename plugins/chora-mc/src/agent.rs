@@ -2,6 +2,7 @@
 //! line of the regions and the agents scene, and the notifications of
 //! `notify.push`.
 
+use chora_kit::chat::sanitize;
 use chora_scene::{
     Command, InputMode, NodeKind, PropsUpdate, Transform,
     ipc::{ClientError, RpcError},
@@ -689,8 +690,8 @@ impl Mc {
             }
             return Ok(());
         }
-        let lines = detail.lines().map(Into::into).collect();
-        self.set_text(CONFIRM, Some(prompt), |_| lines)?;
+        let lines = sanitize(&detail).lines().map(Into::into).collect();
+        self.set_text(CONFIRM, Some(sanitize(&prompt)), |_| lines)?;
         let had = self.confirming.replace(Confirming {
             id,
             buttons,
@@ -1010,6 +1011,21 @@ mod tests {
         assert!(mc.solo.is_some(), "another id");
         mc.follow("voice.confirm", "voice", done("c1")).unwrap();
         assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
+    }
+
+    /// The confirmation shows no character that hides or reorders text,
+    /// whatever the event carries (sh-26).
+    #[test]
+    fn a_confirmation_shows_no_bidi_character() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("confirm-bidi", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ask = json!({"id": "c2", "prompt": "Run\u{202e} it?",
+            "detail": "echo safe\u{202e}fr- mr\u{200b}\nline two\u{1b}[2J"});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        let (title, lines) = mc.texts["confirm"].clone();
+        assert_eq!(title, "Run it?");
+        assert_eq!(lines, vec!["echo safefr- mr", "line two"]);
     }
 
     /// A click on Ja or Nein maps to `confirm.answer` with the id as

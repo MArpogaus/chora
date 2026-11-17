@@ -875,6 +875,33 @@ fn is_physical(tool: &Value, options: &[Value]) -> bool {
     !once || !matches!(tool["kind"].as_str(), Some("read" | "search" | "think"))
 }
 
+/// What the user hears when a request is rejected because its detail
+/// does not show whole and as it is: too long, or with characters that
+/// hide or reorder text (sh-26); none when it shows.
+fn unshowable(detail: &str, name: &str, german: bool) -> Option<String> {
+    let who = title(name);
+    let told = if crate::chat::too_long(detail) {
+        if german {
+            format!("{who} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.")
+        } else {
+            format!("{who} asked for something too long to show. Rejected.")
+        }
+    } else if chora_kit::chat::hides(detail) {
+        if german {
+            format!(
+                "{who} wollte etwas tun, das Zeichen enthält, die Text verbergen oder umstellen. Abgelehnt."
+            )
+        } else {
+            format!(
+                "{who} asked for something with characters that hide or reorder text. Rejected."
+            )
+        }
+    } else {
+        return None;
+    };
+    Some(told)
+}
+
 /// What a permission request asks, in full, for the screen.
 fn detail(tool: &Value) -> String {
     let title = tool["title"].as_str().unwrap_or_default().trim();
@@ -1200,19 +1227,8 @@ impl Actor {
         let prompt = question(&asks, name, &what, &options, german);
         let physical = is_physical(&params["toolCall"], &options);
         let detail = detail(&params["toolCall"]);
-        if crate::chat::too_long(&detail) {
+        if let Some(told) = unshowable(&detail, name, german) {
             rpc.respond(rpc_id, outcome(&options, false)).await?;
-            let told = if german {
-                format!(
-                    "{} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.",
-                    title(name)
-                )
-            } else {
-                format!(
-                    "{} asked for something too long to show. Rejected.",
-                    title(name)
-                )
-            };
             self.agents.update(name, id, |s| {
                 s.note(&format!("! {told}"));
                 s.entry("notice", &told);
@@ -1597,6 +1613,41 @@ mod tests {
         let told = events
             .iter()
             .any(|e| matches!(e, Event::Said { text, .. } if text.contains("too long")));
+        assert!(told, "{}", events.len());
+        agents.stop("demo");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A request whose detail holds a character that hides or reorders
+    /// text is rejected, and the user is told: the screen would show
+    /// another command than the one that runs (sh-26).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_detail_with_hidden_characters_is_refused() {
+        let data = std::env::temp_dir().join(format!("chora-voice-hidden-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", None, None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        agents.prompt("demo", "HIDDEN");
+        let (_rx, events) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.starts_with("Abgelehnt")),
+        )
+        .await;
+        assert!(!events.iter().any(|e| matches!(e, Event::Ask { .. })));
+        let told = events
+            .iter()
+            .any(|e| matches!(e, Event::Said { text, .. } if text.contains("hide or reorder")));
         assert!(told, "{}", events.len());
         agents.stop("demo");
         let _ = std::fs::remove_dir_all(&data);

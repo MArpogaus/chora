@@ -498,7 +498,7 @@ impl Wm {
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
-        let notepad = apps::system_editors(&config.terminal, config.editor.as_deref());
+        let notepad = apps::system_editors(config.editor.as_deref());
         let menu = Menu::new(
             config,
             apps::load(&config.terminal, config.editor.as_deref()),
@@ -2979,11 +2979,12 @@ impl Wm {
             &self.settings.value.terminal,
         );
         let themed = shared::launcher(&themed);
-        if self
-            .notepad
-            .chain
-            .first()
-            .is_some_and(|c| c.command == command)
+        if command == apps::NO_EDITOR
+            || self
+                .notepad
+                .chain
+                .first()
+                .is_some_and(|c| c.command == command)
         {
             let notepad = (self.notepad.chain.clone(), self.notepad.skipped.clone());
             let token = self.rt.conn.activation_token();
@@ -3351,7 +3352,7 @@ impl Wm {
         commands.extend(self.set_taskbar(config.taskbar));
         self.effects.set_toggles(config.effects);
         self.desk.terminal.clone_from(&config.terminal);
-        self.notepad = apps::system_editors(&config.terminal, config.editor.as_deref());
+        self.notepad = apps::system_editors(config.editor.as_deref());
         commands.extend(self.close_menu());
         commands.extend(self.menu.rebuild(
             &config,
