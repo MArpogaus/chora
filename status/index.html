@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 17 Nov, 13:44 UTC (20:44 Bangkok)</span>
+      <span>Updated Tue 17 Nov, 14:02 UTC (21:02 Bangkok)</span>
       <span>Day 9 of 22</span>
       <span>Release candidate: today, quick and dirty (your call 10:47 UTC); this week: clean foundation; then feature sprints</span>
     </div>
@@ -120,7 +120,7 @@ footer { font-size: 13px; color: var(--muted); }
         <h3>Running</h3>
         <ul class="plain run">
           <li>Merge run 40 green at 11:47 UTC (18:47 Bangkok): construct round 3 (drag back onto a face, pulled pane kept after restart). Nine green runs in a row.</li>
-          <li>Tour v8 starts now as the baseline before the cleanup; the videos are kept on their own branch this time.</li>
+          <li>Tour v8 recorded (4:04, Pictures tab): the baseline before the cleanup. Independent review follows after the tag.</li>
         </ul>
       </div>
       <div class="panel">
@@ -165,6 +165,7 @@ footer { font-size: 13px; color: var(--muted); }
       <button type="button" data-filter="looks" aria-pressed="false">Looks</button>
     </div>
     <div class="shots">
+      <figure data-kind="looks" style="grid-column:1/-1"><video src="video/tour-v8.mp4" controls preload="metadata" style="width:100%;height:auto;border-radius:8px" aria-label="Tour v8 of all four looks"></video><figcaption><b>Tour v8, 4:04 min, the baseline before the cleanup.</b> xp 0:00 (helper by paperclip 0:33 and tray 1:10, desktop cube by keys 1:14 and Super+drag 1:17), tiling 1:19, mc light 2:13, mc dark 2:37, construct 2:52 (drag back onto the face now works), one window through the looks 3:26. Build 733967aa, 17 Nov; not yet independently reviewed. Still open: Notepad notice not visible in the recording (0:13), Start menu stays open after Super+drag (1:17), mc dark launcher raw entries, tiling screen black in the handover, chat shows Working after the answer.</figcaption></figure>
       <figure data-kind="looks"><img src="img/v7-tiling-print.png" alt="Tiling: after Super+Print a notice says the screenshot was saved" loading="lazy"><figcaption><b>Fixed in v7: tiling screenshot.</b> Super+Print now shows "Screenshot saved" bottom right. Build 7e066694, 17 Nov, reviewed (reports/review-tour-v7.md).</figcaption></figure>
       <figure data-kind="looks"><img src="img/v7-xp-notepad.png" alt="xp: Notepad no longer opens the terminal editor nano" loading="lazy"><figcaption><b>Fixed in v7: xp Notepad.</b> No nano any more. The "no editor installed" notice still needs a clean capture (tour script fault). Build 7e066694, 17 Nov, reviewed.</figcaption></figure>
       <figure data-kind="looks"><img src="img/v7-mc-launcher.png" alt="mc dark: launcher with raw entries like Foot Server and ImageMagick" loading="lazy"><figcaption><b>Open, small: mc dark launcher.</b> Cream box and raw entries (Foot Server, ImageMagick). Small-fix round next. Build 7e066694, 17 Nov, reviewed.</figcaption></figure>
@@ -188,8 +189,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Tue 17 Nov</span><span>8 entries</span></summary>
+      <summary><span>Tue 17 Nov</span><span>9 entries</span></summary>
       <ul class="timeline">
+        <li><time>13:41</time><p><span class="tag ok">release</span>v0.9.0-rc.4 on dev and main (CI and packaging green). The tag waits for the owner (this session may not push tags). Tour v8 (4:04) added to Pictures.</p></li>
         <li><time>08:56</time><p><span class="tag ok">merge</span>Merge run 39 green: the xp fix (Notepad opens only a real editor, or says none is installed) and the tiling fix (Super+Print shows a notice; Screenshot in the power menu of the bar) are in. Tour v7 started to show them.</p></li>
         <li><time>08:01</time><p><span class="tag ok">merge</span>Security fix round 2 merged (train 38, all checks green): the helper now refuses a question the screen cannot show in full, and refuses settings that would hide text, while emoji and Persian text pass. The xp and tiling fixes passed review and are in merge run 39.</p></li>
         <li><time>06:28</time><p><span class="tag warn">review</span>Tour v6 recorded (3:28) and reviewed: 5 of the 7 big issues from v5 are fixed (power menu in the tiling bar, bar spacing, window shows in mc after a drop, Helper in the 3D HUD, pane visible after step back). Two remain: Super+Print shows nothing in tiling, and Notepad in xp is a terminal editor. Two sonnet fix rounds started.</p></li>
