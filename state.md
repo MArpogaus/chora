@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-17 18:13 UTC)
+## Now (2026-11-17 19:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 18:13: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
+budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 19:36: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: fc5269f2 (train 45 18:13: mv2-tiling split); 13 greens (30b, 33-41, 43-45); train 46 mv1-cut1 running.
+session branch: f097f90a (train 46 19:36: MV1 size ratchet, CUT1 cut-check); 14 greens (30b, 33-41, 43-46); train 47 mv2-xp running.
 burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3.5 days.
 
 ## RC (design/rc.md)
@@ -24,7 +24,6 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r2 3d2c00ce MERGE-OK 17:13 (re-review; splits pass the ratchet); train 46 (harness first) |
 | mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | 690a787a MERGE-OK 17:04 (pure moves); train 47 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 

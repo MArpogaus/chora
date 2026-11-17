@@ -376,3 +376,5 @@ Also: tests/merge-gate.sh step header conflicts at every train that adds a step 
 - 11-17 14:21 Tag v0.9.0-rc.4 not pushed: the environment refuses tag pushes (403) even with the owner's OK (14:18); dev and main went through. Owner 14:20: "never mind". Left untagged; next release: check tag-push access before the release day (environment item).
 - 11-17 14:21 Owner: the tour v8 screencast is horrible, many glitches remain after eight tours reviewed by eye. Cause: reviews by watching, tour scripts assert almost nothing after an act. Proposal: reports/proposal-glitch-gates.md (act contracts, invariants, video checker).
 - 11-17 15:07 mv1-cut1 r1 ended its turn to wait for its gate monitor (brief forbade it); it woke at the end and reported at 16:01, so no time lost. Fix: the r2 brief and all new briefs say "poll it in the same turn"; second time: a guard in start_lane.sh (brief must carry that line).
+
+- 11-17 19:36 train 46 run 1 killed at the 30 min default background limit (no timeout given). Fix: every merge-gate background run passes timeout 7200000.
