@@ -202,7 +202,7 @@ for how in super plain; do
     if [ "$how" = super ]; then
         mod_down='{"key": {"key": "Super_L", "state": "pressed"}},'
         mod_up=',
-    {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}'
+    {"key": {"key": "Super_L", "state": "released"}}'
     else
         mod_down=''
         mod_up=''
