@@ -226,6 +226,7 @@ impl Construct {
             size,
             taken: false,
             attached: false,
+            placed: false,
         };
         self.rt.conn.apply(self.pane_nodes(&pane))?;
         self.panes.push(pane);

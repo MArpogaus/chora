@@ -8,6 +8,8 @@
 # the face over the edge of the screen, onto a second output.
 #
 # PULL_SHOT: a PNG path that keeps a capture of the pane in the pull.
+# BEHIND_SHOT: a PNG path that keeps a capture of the pane after the step
+# back.
 #
 # 1. With the flag --test-injected-press-is-real of the core (headless
 #    only), where an injected press gives its drag: inside the face the window moves and
@@ -23,7 +25,10 @@
 # 2. A pane dropped over a face goes back to xp on the output of that
 #    face, at the drop point: a move from face to face stays in xp.
 #    Its task button is on the taskbar of that face only.
-# 2a. Stood back (K12): a drag on the floating plane of a window turns
+# 2a. After the pull the step back (Alt+Escape) keeps the pane in view,
+#    drawn, with no window lost, and a Super drag of the pane over a face
+#    gives the window back to xp.
+# 2b. Stood back (K12): a drag on the floating plane of a window turns
 #    the cube and pulls nothing out; an injected drag on a plane pulls nothing where the construct takes
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
 #    window half over the right edge of the face shows in full on its
@@ -73,6 +78,16 @@ pane_name() {
     call window.list '{}' | python3 -I -c '
 import json, sys
 print(next((w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]), ""))' "$1"
+}
+pane_middle() {
+    ctl query "id:construct-pane-$surface" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
+print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
+}
+window_count() {
+    call window.list '{}' | python3 -I -c 'import json, sys; print(len(json.load(sys.stdin)["windows"]))'
 }
 node() {
     ctl query "id:$1" | python3 -I -c '
@@ -183,6 +198,45 @@ until_ok 'grep -q "^key 45$" "$work/given-probe.log"' 20 ||
 ok "a key typed during the fly-in reaches the window"
 end_session
 
+CHORA_TEST_FLAGS=--test-injected-press-is-real pull behind
+until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
+inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
+    {\"button\": {\"state\": \"released\"}}]"
+sleep 1
+windows_before=$(window_count)
+inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
+sleep 3
+[ -z "${BEHIND_SHOT:-}" ] || ctl capture "$BEHIND_SHOT" >/dev/null
+pane_drawn() {
+    ctl query "id:construct-pane-$surface" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+print(bool(nodes and nodes[0].get("visible") and nodes[0]["rects"].get("HEADLESS-1")))'
+}
+[ "$(pane_drawn)" = True ] ||
+    fail "stepped back after the pull-out the pane is not drawn: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-900)"
+[ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the step back: $windows_before, then $(window_count)"
+[ "$(owner)" = construct ] || fail "the window is not the construct's after the step back: $(probe)"
+ok "stepped back after the pull-out the pane of the window exists and is drawn, and no window is lost"
+read -r px py <<<"$(pane_middle)"
+face=$(ctl query id:construct-cube-face-0 | python3 -I -c '
+import json, sys
+r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]
+print("%d %d" % (r[0] + r[2] * 0.4, r[1] + r[3] * 0.5))')
+inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
+    {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+    {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+    {\"pointer_move\": {\"position\": [$((px + 20)), $py]}},
+    {\"pointer_move\": {\"position\": [${face% *}, ${face#* }]}},
+    {\"button\": {\"state\": \"released\"}},
+    {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 ||
+    fail "the pane dragged back over a face stood back did not go to xp: $(probe), pane $(pane_of "$surface")"
+[ "$(pane_of "$surface")" = none ] || fail "the pane stays after the drag back over the face: $(pane_of "$surface")"
+[ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the drag back: $windows_before, then $(window_count)"
+ok "stood back, the pane dragged over a face is a window of xp again: $(probe)"
+end_session
+
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 inject '[{"pointer_move": {"position": [700, 400]}}, {"button": {"state": "released"}}]'
@@ -203,13 +257,6 @@ plane_middle() {
 import json, sys
 nodes = json.load(sys.stdin)
 r = nodes[0]["rects"].get("HEADLESS-1") if nodes and nodes[0].get("visible") else None
-print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
-}
-pane_middle() {
-    ctl query "id:construct-pane-$surface" | python3 -I -c '
-import json, sys
-nodes = json.load(sys.stdin)
-r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
 print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
 }
 stood() {

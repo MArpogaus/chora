@@ -228,6 +228,9 @@ struct Pane {
     taken: bool,
     /// A window that the flavor attached and hides under the space.
     attached: bool,
+    /// The person put the pane where it is, by a drag, a pull out of a
+    /// face or a move: it stays in view when a cube stands back.
+    placed: bool,
 }
 
 /// A window of the window list (F29): the label, the surface, its owner
@@ -341,6 +344,7 @@ impl Pane {
     fn put(&mut self, at: [f64; 2], eye: [f64; 2]) {
         self.at = at;
         self.yaw = space::facing(eye, at);
+        self.placed = true;
     }
 
     /// Where the pane is: centre, size and yaw, as `space::sight` wants.

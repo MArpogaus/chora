@@ -21,6 +21,7 @@ fn no_pane_ahead_that_is_out_of_sight() {
         size: [640.0, 400.0],
         taken: false,
         attached: false,
+        placed: false,
     };
     let lens = space::Lens::new(1920.0, 1080.0);
     let pose = Pose::default();
@@ -105,6 +106,7 @@ fn a_pane_saves_its_pose() {
         size: [1200.0, 768.0],
         taken: false,
         attached: false,
+        placed: false,
     };
     let started = pane(Content::Window {
         command: Some("foot".into()),
@@ -144,6 +146,7 @@ fn a_walk_keeps_the_yaw_and_a_move_refaces() {
         size: [640.0, 400.0],
         taken: false,
         attached: false,
+        placed: false,
     };
     pane.put([0.0, 2000.0], [0.0, 0.0]);
     assert!(pane.yaw.abs() < 1e-12);
@@ -157,6 +160,26 @@ fn a_walk_keeps_the_yaw_and_a_move_refaces() {
     let face = space::facing([pose.x, pose.z], [1000.0, 2000.0]);
     assert!((pane.yaw - face).abs() < 1e-12);
     assert!(face.abs() > 0.1, "the move turned it: {face}");
+}
+
+/// A pane that the person put, by a drag, a pull out of a face or a
+/// move, is marked, so that a cube that stands back does not hide it.
+#[test]
+fn a_move_marks_the_pane_as_placed() {
+    let mut pane = Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: Content::Window { command: None },
+        at: [0.0, 2000.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: false,
+        placed: false,
+    };
+    assert!(!pane.placed);
+    pane.put([300.0, 780.0], [0.0, 0.0]);
+    assert!(pane.placed);
 }
 
 /// The shadow uniform gives the lift and the yaw back as fog.frag

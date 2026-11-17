@@ -109,6 +109,7 @@ impl Construct {
             size,
             taken: hold == Hold::Taken,
             attached: hold == Hold::Own,
+            placed: false,
         };
         let mut commands = self.pane_nodes(&pane);
         self.add_placeholder(&mut commands, &pane)?;
