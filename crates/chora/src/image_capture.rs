@@ -71,7 +71,10 @@ enum Target {
 impl State {
     fn target(&self, source: &ImageCaptureSource) -> Option<TargetNow> {
         match source.user_data().get::<Target>()? {
-            Target::Output(weak) => weak.upgrade().map(TargetNow::Output),
+            Target::Output(weak) => weak
+                .upgrade()
+                .filter(|o| !self.is_virtual(o))
+                .map(TargetNow::Output),
             Target::Node(id) => self
                 .windows
                 .contains_key(id)

@@ -23,7 +23,7 @@ session_start 800x600
 grant screen.capture
 out=$(REPO=$repo mcp_py <<'PY' 2>&1
 import importlib.util, math, os, sys, time
-from gate_mcp import Mcp
+from gate_mcp import Mcp, free_apply
 
 FS = 40.0
 WORDS = ["Grüße", "你好", "🙂"]
@@ -35,10 +35,10 @@ spec.loader.exec_module(pngpixel)
 mcp = Mcp()
 
 def create(node_id, text, y):
-    mcp.tool("apply_commands", {"commands": [{"create": {
+    free_apply([{"create": {
         "id": node_id, "kind": "text", "parent": "screen:HEADLESS-1",
         "props": {"text": text, "font_size": FS,
-                  "transform": {"translate": [40, y]}}}}]})
+                  "transform": {"translate": [40, y]}}}}])
 
 def layout_width(node_id):
     nodes = []

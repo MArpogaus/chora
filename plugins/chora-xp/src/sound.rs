@@ -18,8 +18,6 @@ pub enum Sound {
     LogOff,
     /// Turn Off of the Turn Off dialog.
     ShutDown,
-    /// A balloon tip opens.
-    Balloon,
 }
 
 impl Sound {
@@ -29,7 +27,6 @@ impl Sound {
             Self::Logon => "login.wav",
             Self::LogOff => "logout.wav",
             Self::ShutDown => "shutdown.wav",
-            Self::Balloon => "notify.wav",
         }
     }
 }
@@ -69,7 +66,6 @@ mod tests {
     fn events_have_xp_sounds_and_a_player() {
         assert_eq!(Sound::Logon.file(), "login.wav");
         assert_eq!(Sound::LogOff.file(), "logout.wav");
-        assert_eq!(Sound::Balloon.file(), "notify.wav");
         assert_eq!(player(|p| p != "pw-play"), Some("paplay"));
         assert_eq!(
             player(|p| p == "canberra-gtk-play"),

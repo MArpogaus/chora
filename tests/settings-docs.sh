@@ -39,6 +39,9 @@ done
 # chora-xp has no --print-config: its default is the file in the source tree.
 check chora-xp plugins/chora-xp/xp.yaml docs/configuration.md '^## Flavors'
 
+check chora-notify plugins/chora-notify/notify.yaml docs/configuration.md '^## chora-notify'
+check chora-assistant plugins/chora-assistant/assistant.yaml docs/configuration.md '^## chora-assistant'
+
 "$bin/chora-voice" --print-config >"$tmp"
 check chora-voice "$tmp" docs/voice.md '^## 9[.] Settings'
 

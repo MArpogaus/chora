@@ -1,0 +1,8 @@
+font: sans-serif
+margin: [16, 56]
+card:
+  fill: [250, 250, 250]
+  border: [140, 140, 140]
+  text: [32, 32, 32]
+  radius: 8
+  tail: 0

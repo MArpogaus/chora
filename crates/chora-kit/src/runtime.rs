@@ -19,6 +19,51 @@ use serde_json::{Value, json};
 
 use crate::{conn::Conn, settings::Store};
 
+/// Whether an event counts as the person's: it did not come from
+/// `input.inject`, or the plugin takes injected input as the person's
+/// (the setting `test_accept_injected_keys`). A window manager lets the
+/// other events go on and ignores the rest.
+#[must_use]
+pub fn from_person(event: &Event, accepts_injected: bool) -> bool {
+    let injected = match event {
+        Event::InputKey { injected, .. }
+        | Event::NodeKey { injected, .. }
+        | Event::PointerPressed { injected, .. }
+        | Event::PointerMoved { injected, .. }
+        | Event::PointerReleased { injected, .. }
+        | Event::PointerEntered { injected, .. }
+        | Event::PointerScroll { injected, .. }
+        | Event::InputButton { injected, .. }
+        | Event::InputMoved { injected, .. } => *injected,
+        _ => false,
+    };
+    accepts_injected || !injected
+}
+
+/// Whether a plugin acts on a button grab, a drag move, a hover or a
+/// scroll of the pointer: those of the person, or of `input.inject` while
+/// the plugin takes it as the person's. Every other event is true here: a
+/// plugin judges a key or a press itself, with [`from_person`].
+#[must_use]
+pub fn hears_pointer(event: &Event, accepts_injected: bool) -> bool {
+    match event {
+        Event::InputButton { injected, .. }
+        | Event::InputMoved { injected, .. }
+        | Event::PointerEntered { injected, .. }
+        | Event::PointerScroll { injected, .. } => accepts_injected || !injected,
+        _ => true,
+    }
+}
+
+/// The time between two tries to grab give keys that another client held.
+const REGRAB: Duration = Duration::from_secs(2);
+
+/// Whether the environment says that this is a test session, which takes
+/// the keys of `input.inject`.
+fn test_session() -> bool {
+    std::env::var("CHORA_TEST_ACCEPT_INJECTED_KEYS").is_ok_and(|v| v == "1")
+}
+
 /// A plugin on the runtime: it handles the events and the calls of its
 /// exported methods.
 pub trait Plugin {
@@ -57,6 +102,13 @@ pub trait Plugin {
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         Ok(())
     }
+
+    /// The settings as a caller of `settings.get`, `settings.set` and
+    /// `settings.reload` sees them; all of them by default. A plugin
+    /// hides its secrets here.
+    fn shown_settings(&self, settings: Value) -> Value {
+        settings
+    }
 }
 
 /// The connection of a plugin, with its outputs and grabs.
@@ -68,6 +120,23 @@ pub struct Runtime<A> {
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, A)>,
+    /// The bindings of the set before [`Self::start_grabs`] that the
+    /// core still holds for the plugin.
+    old_grabs: Vec<String>,
+    /// The bindings whose refusal was logged, so that each logs once.
+    refused: std::collections::HashSet<String>,
+    /// Makes the action of a give key; none when the plugin has no give
+    /// keys.
+    give_keys: Option<fn(&'static str) -> A>,
+    /// The last try to grab give keys that another client held.
+    give_tried: Option<Instant>,
+    /// Whether a key of `input.inject` runs a binding (test sessions).
+    inject_ok: bool,
+    /// Whether the connection of the caller of the method that runs now is
+    /// confined, for a method that acts in the name of the plugin.
+    pub confined_call: bool,
+    /// The client name of the caller of the method that runs now.
+    pub caller: String,
 }
 
 impl<A> Runtime<A> {
@@ -107,7 +176,89 @@ impl<A> Runtime<A> {
             name: name.into(),
             outputs,
             grabs: Vec::new(),
+            old_grabs: Vec::new(),
+            refused: std::collections::HashSet::new(),
+            give_keys: None,
+            give_tried: None,
+            inject_ok: test_session(),
+            confined_call: false,
+            caller: String::new(),
         }
+    }
+
+    /// Sets whether a key of `input.inject` runs a binding of the plugin;
+    /// off by default, since only a person presses the keys of a
+    /// window manager. The environment variable
+    /// `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` of the test sessions turns it
+    /// on too.
+    pub fn accept_injected(&mut self, setting: bool) {
+        self.inject_ok = setting || test_session();
+    }
+
+    /// Pins whether the plugin takes input of `input.inject` as the
+    /// person's, whatever the environment says; for the unit tests of a
+    /// plugin, which must not change with `CHORA_TEST_ACCEPT_INJECTED_KEYS`.
+    pub fn pin_accepts_injected(&mut self, on: bool) {
+        self.inject_ok = on;
+    }
+
+    /// Whether the plugin takes input of `input.inject` as the person's:
+    /// the setting of [`Self::accept_injected`] or a test session.
+    #[must_use]
+    pub fn accepts_injected(&self) -> bool {
+        self.inject_ok
+    }
+
+    /// Sets the action of a give key of [`crate::give::KEYS`] by its
+    /// target, or none for no give keys.
+    pub fn give_keys(&mut self, make: Option<fn(&'static str) -> A>) {
+        self.give_keys = make;
+    }
+
+    /// Whether the plugin holds a binding, such as `Super+Alt+1`.
+    #[must_use]
+    pub fn holds(&self, binding: &str) -> bool {
+        binding
+            .parse::<Binding>()
+            .is_ok_and(|b| self.grabs.iter().any(|(held, _)| *held == b.to_string()))
+    }
+
+    /// Grabs the give keys that the plugin does not hold; a key that
+    /// another client holds stays free for the next try.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn grab_give_keys(&mut self) -> Result<(), ClientError> {
+        let Some(make) = self.give_keys else {
+            return Ok(());
+        };
+        for (key, to) in crate::give::KEYS {
+            let Ok(binding) = key.parse::<Binding>() else {
+                continue;
+            };
+            let text = binding.to_string();
+            if self.grabs.iter().any(|(b, _)| *b == text) {
+                continue;
+            }
+            self.grab(binding, make(to))?;
+        }
+        Ok(())
+    }
+
+    /// As [`Self::grab_give_keys`], at most every [`REGRAB`], so that a
+    /// plugin calls it per event: a client that held a key may have gone.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn regrab_give_keys(&mut self) -> Result<(), ClientError> {
+        let now = Instant::now();
+        if self.give_keys.is_none() || self.give_tried.is_some_and(|t| now < t + REGRAB) {
+            return Ok(());
+        }
+        self.give_tried = Some(now);
+        self.grab_give_keys()
     }
 
     /// Subscribes to `events` and exports `methods`. The events of the
@@ -122,14 +273,25 @@ impl<A> Runtime<A> {
         events: &[&str],
         methods: Vec<ExportMethod>,
     ) -> Result<(), ClientError> {
-        self.conn.call::<_, Value>(
-            "events.subscribe",
-            Subscribe {
-                events: events.iter().map(|&e| e.into()).collect(),
-            },
-        )?;
+        self.subscribe(events)?;
         self.conn
             .call::<_, Value>("methods.export", Export { names: methods })
+            .map(drop)
+    }
+
+    /// Subscribes to `events`; the subscription replaces the earlier one.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn subscribe<E: AsRef<str>>(&mut self, events: &[E]) -> Result<(), ClientError> {
+        self.conn
+            .call::<_, Value>(
+                "events.subscribe",
+                Subscribe {
+                    events: events.iter().map(|e| e.as_ref().into()).collect(),
+                },
+            )
             .map(drop)
     }
 
@@ -151,13 +313,23 @@ impl<A> Runtime<A> {
     ///
     /// The socket fails.
     pub fn outputs(&mut self) -> Result<Vec<OutputInfo>, ClientError> {
-        let mut outputs: Vec<OutputInfo> = self.conn.call("output.list", Value::Null)?;
+        let mut outputs = self.all_outputs()?;
         outputs.retain(|o| self.manages(&o.name));
         Ok(outputs)
     }
 
-    /// Grabs a binding for an action. False, with a log line, when another
-    /// client holds it.
+    /// All outputs of the core, whatever `--output` names.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn all_outputs(&mut self) -> Result<Vec<OutputInfo>, ClientError> {
+        self.conn.call("output.list", Value::Null)
+    }
+
+    /// Grabs a binding for an action. False when the core refuses it, for
+    /// example while another client holds it; the first refusal of a
+    /// binding logs a line.
     ///
     /// # Errors
     ///
@@ -165,6 +337,14 @@ impl<A> Runtime<A> {
     /// `settings.set` with it fails.
     pub fn grab(&mut self, binding: Binding, action: A) -> Result<bool, ClientError> {
         let text = binding.to_string();
+        if let Some(held) = self.grabs.iter_mut().find(|(b, _)| *b == text) {
+            held.1 = action;
+            return Ok(true);
+        }
+        if let Some(i) = self.old_grabs.iter().position(|b| *b == text) {
+            self.grabs.push((self.old_grabs.swap_remove(i), action));
+            return Ok(true);
+        }
         match self.conn.call::<_, String>("input.grab", Grab { binding }) {
             Ok(normal) => {
                 self.grabs.push((normal, action));
@@ -174,21 +354,58 @@ impl<A> Runtime<A> {
                 Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into())
             }
             Err(ClientError::Rpc(err)) => {
-                eprintln!("chora-{}: {text}: {err}", self.name);
+                if self.refused.insert(text.clone()) {
+                    eprintln!("chora-{}: {text}: {err}", self.name);
+                }
                 Ok(false)
             }
             Err(err) => Err(err),
         }
     }
 
-    /// Lets all grabbed bindings go.
+    /// Lets all grabbed bindings go, except the give keys while the
+    /// plugin has them (see [`Self::give_keys`]): no other client may take
+    /// them between two grabs of the plugin.
     ///
     /// # Errors
     ///
     /// The socket fails, the core refuses an ungrab, or the core named a
     /// grabbed binding that does not parse.
     pub fn ungrab_all(&mut self) -> Result<(), ClientError> {
-        for (normal, _) in std::mem::take(&mut self.grabs) {
+        self.start_grabs();
+        self.end_grabs()
+    }
+
+    /// Starts a new set of grabs, which [`Self::end_grabs`] completes. A
+    /// [`Self::grab`] of a binding of the old set keeps it with the core,
+    /// so that a binding of both sets is never free between them and no
+    /// key of it reaches a window. The give keys stay as in
+    /// [`Self::ungrab_all`].
+    pub fn start_grabs(&mut self) {
+        let keep = |normal: &str, serves: bool| {
+            serves
+                && crate::give::KEYS
+                    .iter()
+                    .filter_map(|(key, _)| key.parse::<Binding>().ok())
+                    .any(|b| b.to_string() == normal)
+        };
+        let serves = self.give_keys.is_some();
+        let (kept, old): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
+            .into_iter()
+            .partition(|(normal, _)| keep(normal, serves));
+        self.grabs = kept;
+        self.old_grabs
+            .extend(old.into_iter().map(|(normal, _)| normal));
+    }
+
+    /// Lets the bindings go that the plugin held at [`Self::start_grabs`]
+    /// and did not grab since.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::ungrab_all`].
+    pub fn end_grabs(&mut self) -> Result<(), ClientError> {
+        for normal in std::mem::take(&mut self.old_grabs) {
             let binding = normal.parse().map_err(|err| {
                 RpcError::new(RpcError::INVALID_PARAMS, format!("{normal}: {err}"))
             })?;
@@ -233,19 +450,25 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
     match event {
         Event::MethodCalled {
             call,
+            caller,
             method,
             params,
+            confined,
             ..
         } => {
+            rt.confined_call = confined;
+            rt.caller = caller;
+            rt.conn.serving_confined = confined;
             let result = match method.as_str() {
-                "settings.get" => {
-                    (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))
-                }
+                "settings.get" => (plugin.settings().map(|s| s.get()))
+                    .ok_or_else(|| no_settings("settings.get"))
+                    .map(|s| plugin.shown_settings(s)),
                 "settings.set" => set_settings(plugin, params),
                 "settings.reload" => reload_settings(plugin),
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
+            rt.conn.serving_confined = false;
             match rt.conn.answer(call, result.map_err(capped)) {
                 Err(ClientError::Rpc(err)) => {
                     eprintln!("chora-{}: {err}", rt.name);
@@ -256,7 +479,11 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         }
         Event::OutputChanged { output } if !rt.manages(&output.name) => Ok(()),
         Event::OutputRemoved { name } if !rt.manages(&name) => Ok(()),
-        event => plugin.event(event),
+        Event::InputKey { injected: true, .. } if !rt.inject_ok => Ok(()),
+        event => {
+            rt.regrab_give_keys()?;
+            plugin.event(event)
+        }
     }
 }
 
@@ -269,7 +496,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 ///
 /// The plugin has no settings, a change is wrong, the plugin cannot apply
 /// it, or the file cannot be written.
-fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
+pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
     let no_settings = || no_settings("settings.set");
     let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
     apply(plugin)?;
@@ -278,7 +505,7 @@ fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcE
         .ok_or_else(no_settings)?
         .save()
         .map_err(|e| RpcError::new(e.code, format!("applied, not saved: {}", e.message)))?;
-    Ok(answer)
+    Ok(plugin.shown_settings(answer))
 }
 
 /// The most bytes of the message of an error that a method answers.
@@ -318,7 +545,7 @@ pub fn reload_settings<P: Plugin>(plugin: &mut P) -> Result<Value, RpcError> {
         .ok_or_else(|| no_settings("settings.reload"))?
         .reload()?;
     apply(plugin)?;
-    Ok(answer)
+    Ok(plugin.shown_settings(answer))
 }
 
 /// Has the plugin apply its settings; takes them back when it fails, and
@@ -367,14 +594,23 @@ pub fn privileged(method: ExportMethod) -> ExportMethod {
     }
 }
 
-/// Parses the parameters of an exported method.
+/// Parses the parameters of an exported method. No parameters (`null`)
+/// read as an empty object, so the defaults of `T` apply.
 ///
 /// # Errors
 ///
 /// The parameters do not fit `T`.
 pub fn params<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
-    serde_json::from_value(params)
-        .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+    let read = |params| {
+        serde_json::from_value(params)
+            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+    };
+    if params.is_null()
+        && let Ok(none) = serde_json::from_value(Value::Null)
+    {
+        return Ok(none);
+    }
+    read(if params.is_null() { json!({}) } else { params })
 }
 
 /// Runs sessions of the plugin `name` until one ends without an error.
@@ -427,6 +663,20 @@ mod tests {
         tests::{DEFAULT, Demo, dir},
     };
 
+    #[derive(Debug, serde::Deserialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
+    struct Faces {
+        #[serde(default)]
+        faces: usize,
+    }
+
+    #[test]
+    fn no_params_read_as_the_defaults() {
+        assert_eq!(params::<Faces>(Value::Null).unwrap(), Faces { faces: 0 });
+        assert_eq!(params::<Option<u8>>(Value::Null).unwrap(), None);
+        assert!(params::<Faces>(json!({"sides": 3})).is_err());
+    }
+
     /// A plugin whose apply of settings fails on demand.
     struct Fake {
         settings: File<Demo>,
@@ -452,6 +702,12 @@ mod tests {
 
         fn settings(&mut self) -> Option<&mut dyn Store> {
             Some(&mut self.settings)
+        }
+
+        /// Shows no opacity, as a plugin hides its keys.
+        fn shown_settings(&self, mut settings: Value) -> Value {
+            settings["opacity"] = "(hidden)".into();
+            settings
         }
 
         /// Applies a part before it fails, as a plugin that ungrabs its
@@ -524,6 +780,32 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Review plugins r1, VO-B-01: the answers of `settings.set` and
+    /// `settings.reload` show the settings as the plugin shows them, as
+    /// `settings.get` does.
+    #[test]
+    fn the_settings_answers_show_what_the_plugin_shows() {
+        let dir = dir("runtime-shown");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        let mut plugin = Fake {
+            settings,
+            fail: None,
+            applied: 0,
+        };
+        let set = set_settings(&mut plugin, json!({"gap": 8})).unwrap();
+        assert_eq!(
+            (&set["gap"], &set["opacity"]),
+            (&json!(8), &json!("(hidden)"))
+        );
+        std::fs::write(&path, "gap: 6\n").unwrap();
+        let reloaded = reload_settings(&mut plugin).unwrap();
+        assert_eq!(reloaded["opacity"], "(hidden)", "{reloaded}");
+        assert_eq!(plugin.applied, 6);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     /// A broken file of 1 MiB made an error of 1 MiB, past the line limit
     /// of the core (W9).
     #[test]
@@ -554,5 +836,205 @@ mod tests {
             }
         }
         panic!("the plugin never gave up");
+    }
+
+    #[test]
+    fn the_give_keys_are_grabbed_again_when_another_client_lets_them_go() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let released = Arc::new(AtomicBool::new(false));
+        let seen = Arc::clone(&released);
+        let (path, _core) = fake_core::serve(move |method, params| match method {
+            "input.grab" if params["binding"] == "Alt+Super+2" && !seen.load(Ordering::SeqCst) => {
+                Answer::Error("Alt+Super+2 is grabbed already")
+            }
+            "input.grab" => Answer::Result(params["binding"].clone()),
+            _ => Answer::Result(Value::Null),
+        });
+        let conn = Conn::connect_at("mc", &path).unwrap();
+        let mut rt: Runtime<&'static str> = Runtime::with(conn, "mc", Vec::new());
+        rt.give_keys(Some(|to| to));
+        rt.grab_give_keys().unwrap();
+        for (key, to) in [("Alt+Super+1", "tiling"), ("Alt+Super+3", "mc")] {
+            assert_eq!(rt.action(key), Some(&to));
+        }
+        assert_eq!(rt.action("Alt+Super+4"), Some(&"construct"));
+        assert_eq!(rt.action("Alt+Super+2"), None);
+        released.store(true, Ordering::SeqCst);
+        rt.grab_give_keys().unwrap();
+        assert_eq!(rt.action("Alt+Super+2"), Some(&"xp"));
+    }
+
+    #[test]
+    fn a_binding_of_the_old_and_the_new_set_of_grabs_is_never_free() {
+        use std::sync::{Arc, Mutex};
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&calls);
+        let (path, _core) = fake_core::serve(move |method, params| {
+            if method.starts_with("input.") {
+                let binding = params["binding"].as_str().unwrap_or_default();
+                seen.lock().unwrap().push(format!("{method} {binding}"));
+            }
+            match method {
+                "input.grab" => Answer::Result(params["binding"].clone()),
+                _ => Answer::Result(Value::Null),
+            }
+        });
+        let conn = Conn::connect_at("construct", &path).unwrap();
+        let mut rt: Runtime<u8> = Runtime::with(conn, "construct", Vec::new());
+        let binding = |key: &str| key.parse::<Binding>().unwrap();
+        rt.grab(binding("Alt+Escape"), 1).unwrap();
+        rt.grab(binding("Super+t"), 1).unwrap();
+        rt.start_grabs();
+        rt.grab(binding("Alt+Escape"), 2).unwrap();
+        rt.grab(binding("Super+x"), 2).unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            *calls.lock().unwrap(),
+            [
+                "input.grab Alt+Escape",
+                "input.grab Super+t",
+                "input.grab Super+x",
+                "input.ungrab Super+t",
+            ]
+        );
+        assert_eq!(rt.action("Alt+Escape"), Some(&2));
+        assert_eq!(rt.action("Super+x"), Some(&2));
+        assert_eq!(rt.action("Super+t"), None);
+    }
+
+    struct Recorder {
+        rt: Runtime<()>,
+        seen: Vec<Event>,
+    }
+
+    impl Plugin for Recorder {
+        type Action = ();
+
+        fn runtime(&mut self) -> &mut Runtime<()> {
+            &mut self.rt
+        }
+
+        fn event(&mut self, event: Event) -> Result<(), ClientError> {
+            self.seen.push(event);
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+    }
+
+    fn key(injected: bool) -> Event {
+        Event::InputKey {
+            binding: "Alt+Super+2".into(),
+            state: chora_scene::ipc::PressState::Pressed,
+            injected,
+        }
+    }
+
+    fn recorder() -> Recorder {
+        use crate::conn::fake_core::{self, Answer};
+
+        let (path, _core) = fake_core::serve(|_, _| Answer::Result(Value::Null));
+        let conn = Conn::connect_at("tiling", &path).unwrap();
+        let mut rt = Runtime::with(conn, "tiling", Vec::new());
+        rt.pin_accepts_injected(false);
+        Recorder {
+            rt,
+            seen: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn an_injected_key_runs_no_binding_unless_the_setting_is_on() {
+        let mut plugin = recorder();
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen, []);
+        dispatch(&mut plugin, key(false)).unwrap();
+        assert_eq!(plugin.seen.len(), 1);
+        plugin.rt.pin_accepts_injected(true);
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen.len(), 2);
+        plugin.rt.pin_accepts_injected(false);
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen.len(), 2);
+    }
+
+    #[test]
+    fn from_person_knows_every_event_with_an_injected_flag() {
+        let events = include_str!("../../chora-scene/src/event.rs");
+        let source = include_str!("runtime.rs");
+        let body = &source[source.find("pub fn from_person").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let mut names = 0;
+        let mut variant = "";
+        for line in events.lines() {
+            if let Some(name) = line.strip_prefix("    ").and_then(|l| l.strip_suffix(" {")) {
+                variant = name;
+            }
+            if line.trim() == "injected: bool," {
+                assert!(body.contains(&format!("Event::{variant} {{")), "{variant}");
+                names += 1;
+            }
+        }
+        assert_eq!(names, 9);
+    }
+
+    #[test]
+    fn hears_pointer_knows_the_events_that_a_plugin_does_not_judge_itself() {
+        let events = include_str!("../../chora-scene/src/event.rs");
+        let source = include_str!("runtime.rs");
+        let body = &source[source.find("pub fn hears_pointer").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let judged_by_the_plugin = [
+            "InputKey",
+            "NodeKey",
+            "PointerPressed",
+            "PointerReleased",
+            "PointerMoved",
+        ];
+        let mut variant = "";
+        let mut flagged = 0;
+        for line in events.lines() {
+            if let Some(name) = line.strip_prefix("    ").and_then(|l| l.strip_suffix(" {")) {
+                variant = name;
+            }
+            if line.trim() == "injected: bool," {
+                let listed = body.contains(&format!("Event::{variant} {{"));
+                assert_eq!(
+                    listed,
+                    !judged_by_the_plugin.contains(&variant),
+                    "{variant}"
+                );
+                flagged += 1;
+            }
+        }
+        assert_eq!(flagged, 9);
+    }
+
+    #[test]
+    fn an_injected_pointer_event_is_not_heard_unless_the_plugin_accepts_them() {
+        let events = [
+            json!({"event": "pointer.entered", "node": "a", "injected": true}),
+            json!({"event": "pointer.scroll", "node": "a", "position": [0, 0], "dx": 0, "dy": 1,
+                   "discrete": [0, 0], "source": "wheel", "injected": true}),
+        ];
+        for event in events {
+            let event: Event = serde_json::from_value(event.clone()).expect("the event");
+            assert!(!hears_pointer(&event, false), "{event:?}");
+            assert!(hears_pointer(&event, true), "{event:?}");
+        }
+        let person: Event =
+            serde_json::from_value(json!({"event": "pointer.entered", "node": "a"})).unwrap();
+        assert!(hears_pointer(&person, false));
     }
 }

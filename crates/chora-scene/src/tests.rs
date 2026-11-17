@@ -1196,6 +1196,111 @@ fn the_watchdog_takes_the_shader_of_a_shader_node() {
     assert!(scene.node("s").unwrap().props.shader.is_none());
 }
 
+/// A child of `parent` from JSON props.
+fn create_in(id: &str, kind: &str, parent: &str, props: &serde_json::Value) -> Command {
+    serde_json::from_value(serde_json::json!({
+        "create": {"id": id, "kind": kind, "parent": parent, "props": props}
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_watchdog_counts_planes_and_keeps_the_perspective() {
+    let mut scene = Scene::default();
+    let space = serde_json::json!({"size": [100, 100], "perspective": 500});
+    let turned = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
+        "transform": {"rotate": 30}});
+    let deep = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
+        "transform": {"translate": [0, 0, 100]}});
+    scene
+        .apply(
+            "wm",
+            &[
+                create("space", "group", &space),
+                create_in("deep", "rect", "space", &deep),
+                create(
+                    "spin",
+                    "group",
+                    &serde_json::json!({"transform": {"rotate": 30}}),
+                ),
+                create_in("t", "text", "spin", &serde_json::json!({"text": "a"})),
+                create("r", "rect", &turned),
+            ],
+        )
+        .unwrap();
+    let load = scene.load_by_owner();
+    assert_eq!(load.get("wm"), Some(&(1 + 26 + 1 + 26 + 26)));
+    assert!(
+        !scene.drop_effects("wm"),
+        "a perspective alone is nothing to drop"
+    );
+    assert_eq!(scene.node("space").unwrap().props.perspective, Some(500.0));
+    assert_eq!(scene.load_by_owner().get("wm"), load.get("wm"));
+}
+
+#[test]
+fn a_perspective_belongs_to_a_group_and_has_a_range() {
+    let mut scene = Scene::default();
+    for (kind, perspective) in [("rect", 100.0), ("group", 0.5), ("group", 2e6)] {
+        let props = serde_json::json!({"size": [10, 10], "perspective": perspective});
+        assert!(
+            scene.apply("wm", &[create("n", kind, &props)]).is_err(),
+            "{kind} {perspective}"
+        );
+    }
+    let props = serde_json::json!({"size": [10, 10], "perspective": 1});
+    scene.apply("wm", &[create("n", "group", &props)]).unwrap();
+    let remove: Command = serde_json::from_value(serde_json::json!({
+        "update": {"id": "n", "props": {"perspective": null}}
+    }))
+    .unwrap();
+    scene.apply("wm", &[remove]).unwrap();
+    assert_eq!(scene.node("n").unwrap().props.perspective, None);
+}
+
+#[test]
+fn a_context_projects_its_descendants_in_the_draw_list() {
+    let mut scene = Scene::default();
+    let space = serde_json::json!({"size": [200, 100], "perspective": 400,
+        "transform": {"translate": [10, 20]}});
+    let deep = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
+        "transform": {"translate": [0, 0, 400]}});
+    scene
+        .apply(
+            "wm",
+            &[
+                create("space", "group", &space),
+                create_in("eye", "group", "space", &serde_json::json!({})),
+                create_in("deep", "rect", "eye", &deep),
+            ],
+        )
+        .unwrap();
+    let list = scene.draw_list();
+    let deep = list.iter().find(|p| p.node.id == "deep").unwrap();
+    let m = deep.transform.matrix();
+    let shown = |u: f64, v: f64| {
+        let w = m[3] * u + m[7] * v + m[15];
+        (
+            (m[0] * u + m[4] * v + m[12]) / w,
+            (m[1] * u + m[5] * v + m[13]) / w,
+        )
+    };
+    for ((u, v), want) in [((0.0, 0.0), (60.0, 45.0)), ((10.0, 10.0), (65.0, 50.0))] {
+        let got = shown(u, v);
+        assert!(
+            (got.0 - want.0).abs() < 1e-9 && (got.1 - want.1).abs() < 1e-9,
+            "{got:?} != {want:?}"
+        );
+    }
+    let hits = scene.hit_list(ROOT);
+    assert_eq!(
+        hits.iter().map(|p| p.node.id.as_str()).collect::<Vec<_>>(),
+        ["space"],
+        "the hit list stops at a context"
+    );
+    assert_eq!(scene.layer_list(ROOT).len(), 1);
+}
+
 #[test]
 fn a_client_that_cleared_the_focus_gives_it_back() {
     let mut scene = scene_with_surface();
@@ -1503,4 +1608,251 @@ fn a_free_surface_placed_by_the_core_shows_and_stays_free_to_take() {
     (scene.apply("wm", &[group("a", ROOT), attach("s1", "a")])).unwrap();
     scene.place_free("s1", [0.0, 0.0]);
     assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("a"));
+}
+
+fn plane_scene() -> Scene {
+    let mut scene = Scene::default();
+    let turn = serde_json::json!({"transform": {"rotate": 30}});
+    let sized = serde_json::json!({"size": [100, 50], "transform": {"translate": [5, 5]}});
+    let child = |id: &str, parent: &str, props: &serde_json::Value| -> Command {
+        serde_json::from_value(serde_json::json!({
+            "create": {"id": id, "kind": "rect", "parent": parent, "props": props}
+        }))
+        .unwrap()
+    };
+    let group = |id: &str, parent: &str, props: &serde_json::Value| -> Command {
+        serde_json::from_value(serde_json::json!({
+            "create": {"id": id, "kind": "group", "parent": parent, "props": props}
+        }))
+        .unwrap()
+    };
+    let leaf = serde_json::json!({"size": [10, 10]});
+    scene
+        .apply(
+            "wm",
+            &[
+                group("turned", ROOT, &turn),
+                group("plane", "turned", &sized),
+                child("inside", "plane", &leaf),
+                child("flat", ROOT, &leaf),
+            ],
+        )
+        .unwrap();
+    scene
+}
+
+#[test]
+fn a_sized_node_under_a_rotated_group_is_a_plane_that_stops_the_lists() {
+    let scene = plane_scene();
+    let ids = |list: Vec<crate::Placed<'_>>| -> Vec<String> {
+        list.iter().map(|p| p.node.id.clone()).collect()
+    };
+    assert_eq!(
+        ids(scene.draw_list()),
+        ["turned", "plane", "inside", "flat"]
+    );
+    assert_eq!(ids(scene.hit_list(ROOT)), ["turned", "plane", "flat"]);
+    assert_eq!(ids(scene.layer_list(ROOT)), ["turned", "plane", "flat"]);
+    let inner = scene.hit_list("plane");
+    assert_eq!(ids(inner.clone()), ["plane", "inside"]);
+    assert_eq!(inner[1].transform, Transform::IDENTITY);
+    assert_eq!(ids(scene.layer_list("plane")), ["plane", "inside"]);
+}
+
+#[test]
+fn without_planes_the_hit_list_is_the_draw_list() {
+    let mut scene = scene_with_surface();
+    let layer = serde_json::json!({"size": [50, 50], "radius": 4, "color": [1, 1, 1, 1],
+        "transform": {"translate": [3, 4], "scale": 2}});
+    let clipped = serde_json::json!({"size": [30, 30], "clip": {"radius": 2},
+        "transform": {"translate": [1, 1], "scale": 0.5}});
+    let inner = serde_json::json!({"size": [5, 5], "transform": {"scale": 0.5}});
+    let nested: Command = serde_json::from_value(serde_json::json!({
+        "create": {"id": "inner", "kind": "rect", "parent": "clipped", "props": inner}
+    }))
+    .unwrap();
+    scene
+        .apply(
+            "wm",
+            &[
+                create("layer", "rect", &layer),
+                create("clipped", "group", &clipped),
+                nested,
+                attach("s1", ROOT),
+            ],
+        )
+        .unwrap();
+    assert!(scene.node("clipped").unwrap().is_layer());
+    assert_eq!(scene.hit_list(ROOT), scene.draw_list());
+    assert_ne!(scene.layer_list(ROOT), scene.draw_list());
+}
+
+/// The drag goes only with the window: a `give_grab` needs a `remove` of
+/// the same surface to the same client before it in its transaction.
+#[test]
+fn a_drag_goes_only_with_a_window_given_in_the_same_transaction() {
+    let mut scene = Scene::default();
+    scene.add_surface("s1", SurfaceInfo::default());
+    let claim = |id: &str| Command::Create {
+        id: id.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 10.0, 10.0])),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("a", &[claim("a"), attach("s1", "a")]).unwrap();
+    scene.apply("b", &[claim("b")]).unwrap();
+    let grab = |to: &str| Command::GiveGrab {
+        surface: "s1".into(),
+        to: to.into(),
+        point: [1.0, 2.0],
+        velocity: [0.0; 2],
+        wobble: None,
+    };
+    let remove = Command::Remove {
+        id: "s1".into(),
+        to: Some("b".into()),
+    };
+    assert!(scene.check("a", &[grab("b")]).is_err(), "no remove");
+    assert!(scene.check("b", &[grab("b")]).is_err(), "not the giver");
+    let other = [remove.clone(), grab("a")];
+    assert!(scene.check("a", &other).is_err(), "another receiver");
+    let effects = scene.apply("a", &[remove, grab("b")]).unwrap();
+    let given = matches!(effects.last(),
+        Some(Effect::GrabGiven { to, from, .. }) if to == "b" && from == "a");
+    assert!(given, "{effects:?}");
+}
+
+/// The backdrop of a node as JSON; `null` without one.
+fn backdrop_of(scene: &Scene, id: &str) -> serde_json::Value {
+    serde_json::to_value(scene.node(id).unwrap()).unwrap()["backdrop"].clone()
+}
+
+#[test]
+fn a_backdrop_belongs_to_rects_and_blurs_at_least_two_pixels() {
+    let mut scene = Scene::default();
+    let glass = serde_json::json!({"size": [100, 40], "color": [1, 1, 1, 0.3],
+        "backdrop": {"blur": 24, "saturation": 1.6}});
+    scene
+        .apply("wm", &[create("glass", "rect", &glass)])
+        .unwrap();
+    assert_eq!(
+        backdrop_of(&scene, "glass"),
+        serde_json::json!({"blur": 24.0, "saturation": 1.6})
+    );
+    assert!(
+        !scene.node("glass").unwrap().is_layer(),
+        "a plain rect stays flat"
+    );
+    let plain = serde_json::json!({"size": [10, 10], "backdrop": {"blur": 8}});
+    scene
+        .apply("wm", &[create("plain", "rect", &plain)])
+        .unwrap();
+    assert_eq!(
+        backdrop_of(&scene, "plain")["saturation"],
+        1.0,
+        "1 by default"
+    );
+    for (kind, props) in [
+        (
+            "group",
+            serde_json::json!({"size": [10, 10], "backdrop": {"blur": 8}}),
+        ),
+        ("rect", serde_json::json!({"backdrop": {"blur": 1}})),
+        ("rect", serde_json::json!({"backdrop": {"blur": 200}})),
+        (
+            "rect",
+            serde_json::json!({"backdrop": {"blur": 8, "saturation": -1}}),
+        ),
+        (
+            "rect",
+            serde_json::json!({"backdrop": {"blur": 8, "saturation": 9}}),
+        ),
+    ] {
+        let command: Command = serde_json::from_value(serde_json::json!({
+            "create": {"id": "n", "kind": kind, "parent": ROOT, "props": props}
+        }))
+        .unwrap();
+        assert!(scene.apply("wm", &[command]).is_err(), "{kind} {props}");
+    }
+    let remove: Command = serde_json::from_value(serde_json::json!({
+        "update": {"id": "glass", "props": {"backdrop": null}}
+    }))
+    .unwrap();
+    scene.apply("wm", &[remove]).unwrap();
+    assert!(backdrop_of(&scene, "glass").is_null());
+}
+
+#[test]
+fn the_watchdog_turns_a_backdrop_into_its_plain_tint() {
+    let mut scene = Scene::default();
+    let glass = serde_json::json!({"size": [100, 40], "color": [1, 1, 1, 0.6],
+        "backdrop": {"blur": 24}});
+    scene
+        .apply("wm", &[create("glass", "rect", &glass)])
+        .unwrap();
+    let load = scene.load_by_owner()["wm"];
+    assert_eq!(load, 26, "a backdrop costs as much as an effect");
+    assert!(scene.drop_effects("wm"));
+    let node = scene.node("glass").unwrap();
+    assert!(backdrop_of(&scene, "glass").is_null());
+    assert_eq!(
+        node.props.color,
+        Some([1.0, 1.0, 1.0, 0.6]),
+        "the tint stays"
+    );
+    assert!(!scene.drop_effects("wm"));
+}
+
+#[test]
+fn a_backdrop_takes_its_bounds_and_nothing_beyond() {
+    let mut scene = Scene::default();
+    for (blur, saturation, valid) in [
+        (2.0, 0.0, true),
+        (128.0, 4.0, true),
+        (1.99, 1.0, false),
+        (128.01, 1.0, false),
+        (8.0, -0.01, false),
+        (8.0, 4.01, false),
+    ] {
+        let props = serde_json::json!({"size": [10, 10],
+            "backdrop": {"blur": blur, "saturation": saturation}});
+        let created = scene.apply("wm", &[create("edge", "rect", &props)]);
+        assert_eq!(
+            created.is_ok(),
+            valid,
+            "blur {blur}, saturation {saturation}"
+        );
+        if valid {
+            assert_eq!(
+                backdrop_of(&scene, "edge"),
+                serde_json::json!({"blur": blur, "saturation": saturation})
+            );
+            let remove: Command =
+                serde_json::from_value(serde_json::json!({"remove": {"id": "edge"}})).unwrap();
+            scene.apply("wm", &[remove]).unwrap();
+        }
+    }
+}
+
+#[test]
+fn the_watchdog_charges_a_backdrop_by_its_area() {
+    let mut scene = Scene::default();
+    let small = serde_json::json!({"size": [100, 40], "backdrop": {"blur": 24}});
+    let large = serde_json::json!({"size": [1280, 800], "backdrop": {"blur": 24}});
+    scene
+        .apply("wm", &[create("small", "rect", &small)])
+        .unwrap();
+    scene
+        .apply("panel", &[create("large", "rect", &large)])
+        .unwrap();
+    let load = scene.load_by_owner();
+    assert_eq!(
+        load["wm"],
+        1 + 25,
+        "up to 256x256 costs as much as an effect"
+    );
+    assert_eq!(load["panel"], 1 + 25 * 16, "each started 256x256 costs 25");
 }

@@ -25,6 +25,16 @@ pub struct Core {
     pub focuses: Vec<Option<String>>,
     /// The methods that the plugin called through `methods.call`.
     pub calls: Vec<String>,
+    /// How often the plugin asked `scene.query`.
+    pub queries: usize,
+    /// The parameters of each `methods.call`: client, method and params.
+    pub called: Vec<Value>,
+    /// The events that the plugin emitted through `events.emit`.
+    pub emits: Vec<Value>,
+    /// `methods.call` fails, as when the client of the method is gone.
+    pub refuse_calls: bool,
+    /// The bindings that the plugin let go with `input.ungrab`.
+    pub ungrabs: Vec<Value>,
 }
 
 /// The model of each connection, in the order of the connections.
@@ -82,16 +92,32 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
                 )),
             }
         }
+        "input.grab" => Ok(params["binding"].clone()),
+        "input.ungrab" => {
+            let mut core = model.lock().unwrap();
+            core.ungrabs.push(params["binding"].clone());
+            Ok(Value::Null)
+        }
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
-            model.lock().unwrap().calls.push(method);
+            let mut core = model.lock().unwrap();
+            core.calls.push(method);
+            core.called.push(params.clone());
+            if core.refuse_calls {
+                return Err((RpcError::REJECTED, "no such client".to_owned()));
+            }
+            Ok(Value::Null)
+        }
+        "events.emit" => {
+            model.lock().unwrap().emits.push(params.clone());
             Ok(Value::Null)
         }
         "scene.query" => {
             let id = params["selector"]
                 .as_str()
                 .and_then(|s| s.strip_prefix("id:"));
-            let core = model.lock().unwrap();
+            let mut core = model.lock().unwrap();
+            core.queries += 1;
             let found = id
                 .and_then(|id| core.scene.node(id))
                 .map(|n| json!({"id": n.id}));
@@ -103,12 +129,17 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
 
 /// A plugin on the fake core with the default settings, no scene files,
 /// one output of `size` and its nodes built; and the model.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "the test connects to its fake core"
+)]
 pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
     // One connection at a time, so that the last model is this one.
     static CONNECT: Mutex<()> = Mutex::new(());
     let one = CONNECT.lock().unwrap();
     let conn = Conn::connect_at(NAME, socket()).unwrap();
-    let rt = Runtime::with(conn, NAME, Vec::new());
+    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    rt.pin_accepts_injected(false);
     let model = MODELS.lock().unwrap().last().unwrap().clone();
     drop(one);
     let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
@@ -119,7 +150,7 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         rt,
         settings,
         dir.join("scenes"),
-        [PathBuf::new(), PathBuf::new()],
+        [dir.join("write.frag"), dir.join("blur.frag")],
     );
     mc.output = Some(OutputInfo {
         name: "test".into(),
@@ -129,6 +160,8 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         camera: Transform::IDENTITY,
         work_area: [0, 0, size[0], size[1]],
         default_work_area: [0; 4],
+        is_virtual: None,
+        owner: None,
     });
     mc.build().unwrap();
     (mc, model)

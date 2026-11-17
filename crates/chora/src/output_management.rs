@@ -126,6 +126,12 @@ impl OutputManagement {
         }
     }
 
+    /// The names of the outputs that have a head.
+    #[cfg(test)]
+    pub fn head_names(&self) -> Vec<String> {
+        self.heads.iter().map(|h| h.output.name()).collect()
+    }
+
     /// Adds the head of a new output. [`Self::update`] sends `done`.
     pub fn add_head(&mut self, output: &Output, enabled: bool) {
         if self.heads.iter().any(|h| h.output == *output) {

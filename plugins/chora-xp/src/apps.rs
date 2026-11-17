@@ -47,10 +47,144 @@ const GROUPS: [(&str, &str); 13] = [
 /// The icon of all program groups, as on XP.
 const GROUP_ICON: &str = "applications-other";
 
-/// The applications of the desktop files in the XDG data directories, in
-/// groups. `terminal` runs the programs that need one.
-pub fn load(terminal: &str) -> Vec<Node> {
-    group(desktop_entry::applications().into_iter(), terminal)
+/// The title of the plain text editor, as on XP.
+pub const NOTEPAD: &str = "Notepad";
+
+/// The command of the Notepad entry when no editor is installed: a
+/// start of it says so instead of opening a window.
+pub const NO_EDITOR: &str = "chora-xp-no-text-editor";
+
+/// The group of the plain text editor, as on XP.
+const ACCESSORIES: &str = "Accessories";
+
+/// The plain text editors with a window of their own, the first that is
+/// installed serves.
+const EDITORS: [&str; 12] = [
+    "lowriter",
+    "mousepad",
+    "gedit",
+    "gnome-text-editor",
+    "kwrite",
+    "kate",
+    "xed",
+    "pluma",
+    "featherpad",
+    "leafpad",
+    "l3afpad",
+    "geany",
+];
+
+/// The applications of the desktop files in the XDG data directories
+/// whose programs are installed, in groups, and Notepad, the plain text
+/// editor, among the accessories. `terminal` runs the programs that need
+/// one, `editor` is the setting of that name.
+pub fn load(terminal: &str, editor: Option<&str>) -> Vec<Node> {
+    let on_path = desktop_entry::on_path;
+    let installed = desktop_entry::applications()
+        .into_iter()
+        .filter(|e| e.installed(on_path));
+    let mut nodes = group(installed, terminal);
+    let command = self::editor(editor, on_path).unwrap_or_else(|| NO_EDITOR.into());
+    add_notepad(&mut nodes, command);
+    nodes
+}
+
+/// One way to start Notepad: the name that messages use and its shell
+/// command.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Candidate {
+    /// The program, as a message names it.
+    pub name: String,
+    /// The shell command.
+    pub command: String,
+}
+
+/// The editors that Notepad tries, in order.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Editors {
+    /// The installed editors: the setting `editor`, the editors with a
+    /// window.
+    pub chain: Vec<Candidate>,
+    /// The program of the setting `editor` when it is not installed.
+    pub skipped: Option<String>,
+}
+
+/// The editors that Notepad tries in order: the setting `editor` when
+/// its program is installed, then each installed editor with a window.
+/// A terminal editor serves only as the setting `editor`. Empty when
+/// none of them is installed.
+pub fn editors(configured: Option<&str>, on_path: impl Fn(&str) -> bool) -> Editors {
+    let installed = |command: &str| desktop_entry::installed(command, &on_path);
+    let mut out = Editors::default();
+    let mut push = |name: String, command: String| {
+        if !out.chain.iter().any(|c| c.command == command) {
+            out.chain.push(Candidate { name, command });
+        }
+    };
+    match configured {
+        Some(command) if installed(command) => {
+            push(crate::launch::program_name(command), command.to_owned());
+        }
+        Some(command) => out.skipped = Some(crate::launch::program_name(command)),
+        None => {}
+    }
+    for program in EDITORS.iter().filter(|p| on_path(p)) {
+        push((*program).to_owned(), (*program).to_owned());
+    }
+    if out.chain.is_empty() {
+        out.skipped = None;
+    }
+    out
+}
+
+/// The shell command of the plain text editor that Notepad tries first.
+/// None when none of the editors is installed.
+pub fn editor(configured: Option<&str>, on_path: impl Fn(&str) -> bool) -> Option<String> {
+    editors(configured, on_path)
+        .chain
+        .into_iter()
+        .next()
+        .map(|c| c.command)
+}
+
+/// The editors of this system for the setting `editor`.
+pub fn system_editors(configured: Option<&str>) -> Editors {
+    editors(configured, desktop_entry::on_path)
+}
+
+/// Puts Notepad with its command among the accessories, in a new group
+/// when no program is one, unless a program has that title already.
+fn add_notepad(nodes: &mut Vec<Node>, command: String) {
+    let notepad = Node {
+        title: NOTEPAD.into(),
+        icon: "accessories-text-editor".into(),
+        kind: Kind::Run(command),
+    };
+    let group = nodes.iter_mut().find_map(|n| match &mut n.kind {
+        Kind::Group(inner) if n.title == ACCESSORIES => Some(inner),
+        _ => None,
+    });
+    match group {
+        Some(inner) if inner.iter().any(|n| n.title == NOTEPAD) => {}
+        Some(inner) => {
+            inner.push(notepad);
+            sort(inner);
+        }
+        None => {
+            let groups = nodes
+                .iter()
+                .take_while(|n| matches!(n.kind, Kind::Group(_)) && n.title.as_str() < ACCESSORIES)
+                .count();
+            nodes.insert(
+                groups,
+                Node {
+                    title: ACCESSORIES.into(),
+                    icon: GROUP_ICON.into(),
+                    kind: Kind::Group(vec![notepad]),
+                },
+            );
+        }
+    }
 }
 
 /// The groups of the applications by their first main category, sorted
@@ -102,6 +236,96 @@ mod tests {
     use chora_kit::desktop_entry::Entry;
 
     use super::*;
+
+    #[test]
+    fn notepad_is_the_configured_editor_or_the_first_that_is_installed() {
+        let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
+        assert_eq!(
+            editor(Some("pad --plain"), on(&["pad", "gedit"])),
+            Some("pad --plain".into())
+        );
+        assert_eq!(
+            editor(Some("pad --plain"), on(&["kate", "gedit", "nano"])),
+            Some("gedit".into())
+        );
+        assert_eq!(editor(None, on(&["nano", "vi"])), None);
+        assert_eq!(editor(None, on(&["hx", "nano"])), None);
+        assert_eq!(editor(None, on(&["nano"])), None);
+        assert_eq!(
+            editor(Some("foot -e nano"), on(&["foot", "nano"])),
+            Some("foot -e nano".into())
+        );
+        assert_eq!(editor(None, on(&[])), None);
+        assert_eq!(editor(Some("pad"), on(&[])), None);
+    }
+
+    #[test]
+    fn notepad_prefers_writer_then_mousepad_then_gedit_and_never_a_terminal_editor() {
+        let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
+        assert_eq!(
+            editor(None, on(&["nano", "gedit", "mousepad", "lowriter"])),
+            Some("lowriter".into())
+        );
+        assert_eq!(
+            editor(None, on(&["nano", "gedit", "mousepad"])),
+            Some("mousepad".into())
+        );
+        assert_eq!(editor(None, on(&["nano", "gedit"])), Some("gedit".into()));
+        assert_eq!(
+            editors(None, on(&["nano", "vim", "vi"])),
+            Editors::default()
+        );
+    }
+
+    #[test]
+    fn notepad_lists_every_installed_editor_and_names_a_missing_setting() {
+        let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
+        let found = editors(Some("pad"), on(&["gedit", "kate", "nano"]));
+        let names: Vec<&str> = found.chain.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["gedit", "kate"]);
+        assert_eq!(found.skipped.as_deref(), Some("pad"));
+        let found = editors(Some("pad"), on(&["pad", "gedit"]));
+        assert_eq!(found.chain[0].command, "pad");
+        assert_eq!(found.skipped, None);
+        let found = editors(Some("pad"), on(&[]));
+        assert_eq!(found, Editors::default());
+    }
+
+    #[test]
+    fn notepad_stands_among_the_accessories() {
+        let run = |title: &str| Node {
+            title: title.into(),
+            icon: String::new(),
+            kind: Kind::Run(title.to_lowercase()),
+        };
+        let group = |title: &str, inner: Vec<Node>| Node {
+            title: title.into(),
+            icon: GROUP_ICON.into(),
+            kind: Kind::Group(inner),
+        };
+        let titles = |nodes: &[Node]| nodes.iter().map(|n| n.title.clone()).collect::<Vec<_>>();
+        let mut nodes = vec![
+            group("Accessories", vec![run("Calc"), run("Zip")]),
+            run("Loose"),
+        ];
+        add_notepad(&mut nodes, "gedit".into());
+        let Kind::Group(inner) = &nodes[0].kind else {
+            panic!("a group")
+        };
+        assert_eq!(titles(inner), ["Calc", "Notepad", "Zip"]);
+        assert_eq!(inner[1].kind, Kind::Run("gedit".into()));
+        add_notepad(&mut nodes, "kate".into());
+        let Kind::Group(inner) = &nodes[0].kind else {
+            panic!("a group")
+        };
+        assert_eq!(inner.len(), 3);
+        let mut nodes = vec![group("Games", vec![run("Mines")]), run("Loose")];
+        add_notepad(&mut nodes, "gedit".into());
+        assert_eq!(titles(&nodes), ["Accessories", "Games", "Loose"]);
+        let mut nodes = Vec::new();
+        add_notepad(&mut nodes, "gedit".into());
+        assert_eq!(titles(&nodes), ["Accessories"]);
+    }
 
     #[test]
     fn programs_group_like_xp() {

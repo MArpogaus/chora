@@ -1,7 +1,9 @@
 #!/bin/bash
-# Gate check 10 of 0.8: an MCP client puts a text node under
-# screen:NAME, and a capture shows it. The capture must hold
-# non-background pixels, so a black rectangle does not pass.
+# Gate check 10 of 0.8: a user client puts a text node under
+# screen:NAME, and a capture through an MCP client shows it. The capture
+# must hold non-background pixels, so a black rectangle does not pass.
+# The confined MCP client has no screen:* parents: its own create under
+# screen:NAME is refused.
 #
 # Usage: tests/gate-0.8-10.sh   BIN: directory with the binaries
 set -u
@@ -23,7 +25,7 @@ session_start 800x600
 grant screen.capture
 out=$(REPO=$repo mcp_py <<'PY' 2>&1
 import importlib.util, os, sys, time
-from gate_mcp import Mcp
+from gate_mcp import Mcp, free_apply
 
 spec = importlib.util.spec_from_file_location(
     "pngpixel", os.path.join(os.environ["REPO"], "tests", "png-pixel.py"))
@@ -33,9 +35,10 @@ spec.loader.exec_module(pngpixel)
 mcp = Mcp()
 create = {"id": "label", "kind": "text", "parent": "screen:HEADLESS-1",
           "props": {"text": "Grüße 你好 🙂", "font_size": 32}}
-answer = mcp.call("apply_commands", {"commands": [{"create": create}]})
-if answer.get("isError"):
-    sys.exit(f"the core refuses kind text: {answer['content']}")
+denied = mcp.call("apply_commands", {"commands": [{"create": {**create, "id": "denied"}}]})
+if not denied.get("isError") or "no screen:* parents" not in denied["content"][0]["text"]:
+    sys.exit(f"a create under screen:* of the confined client: {denied}")
+free_apply([{"create": create}])
 nodes = []
 for _ in range(50):
     nodes = mcp.json("query_scene", {"selector": "id:label"})

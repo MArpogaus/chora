@@ -14,7 +14,7 @@ session_start 1280x800
 grant screen.capture input.inject
 out=$(mcp_py <<'PY' 2>&1
 import sys, time
-from gate_mcp import Mcp
+from gate_mcp import Mcp, free_apply
 
 mcp = Mcp()
 mcp.tool("subscribe_events", {"events": ["pointer.pressed"]})
@@ -23,9 +23,9 @@ mcp.tool("apply_commands", {"commands": [{"create": {
     "props": {"size": [120, 80], "color": [1, 1, 0, 1], "input": "accept",
               "transform": {"translate": [200, 200]}}}}]})
 # Pan and zoom the camera of the one output.
-mcp.tool("apply_commands", {"commands": [{"camera": {
+free_apply([{"camera": {
     "output": "HEADLESS-1",
-    "transform": {"translate": [-140, -60], "scale": 1.5}}}]})
+    "transform": {"translate": [-140, -60], "scale": 1.5}}}])
 hits = 0
 for _ in range(20):
     mcp.tool("inject_input", {"events": [

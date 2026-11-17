@@ -34,6 +34,28 @@ The hooks run:
   Fix a finding, or add `# shellcheck disable=SCxxxx` with a reason
 - `actionlint` on the workflows
 - `commitizen` on every commit message
+- no inline comments: a comment on an added line of Rust, shell or Python
+  fails, except doc comments, `// SAFETY:`, tool directives and the usage
+  header of a script
+- session files: logs, reports and media paths of the autonomous sessions
+  fail
+- commit message length: the subject at 68 characters, body lines at 72
+- red first: a `fix` or `feat` commit needs a test change in it or in a
+  commit before it on the branch, or a body line `No test: <reason>`;
+  `tests/red-first.sh` holds the rule that the red-first step of the merge
+  gate also runs, and `tests/merge-gate-selftest.sh` proves both; the
+  hook refuses only when the base ref resolves, else (a shallow or
+  single-branch clone, a first commit, a commit on the base branch
+  itself) it prints a note and the merge gate checks the range
+- no process by its name alone: a test script that uses `pkill`,
+  `killall`, `pidof` or `pgrep` without a parent (`-P`), a session
+  (`-s`), a process group (`-g`) or a pid file (`-F`) fails, because
+  other sessions run cores on the same machine; text in comments,
+  quotes, `echo`, `for` lists and here-documents is not a command, but a
+  command substitution is, quoted or not; a `pgrep` filtered by
+  `/proc/PID/environ` (`session_pids`) passes, and a first argument in a
+  variable (`pgrep $scope -x foot`) only warns
+- the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:
 
@@ -63,6 +85,15 @@ runs with `pedantic` and these further lints:
 - `unwrap_used` and `expect_used`. Tests can use both (`clippy.toml`).
 - `print_stdout` and `print_stderr`. The core logs with `tracing`.
 - `dbg_macro`, `todo` and `unimplemented`.
+
+The plugins have their own `plugins/clippy.toml`, because clippy reads
+only the nearest one: it repeats every setting of `clippy.toml` (the
+`clippy-config-sync` hook checks that) and adds `disallowed-methods` and
+`disallowed-types`, so that a plugin that opens its own connection to the
+core (`Conn::connect`, `Client::connect`, `Client::from_env`,
+`Client::from_stream` or the type `Client`) fails clippy at once. The
+runtime of chora-kit owns the connection; `tests/gate-0.8-plugin-runtime.sh`
+stays as the grep backstop.
 
 `rustdoc::broken_intra_doc_links` is `deny`. Clippy does not run it, so
 CI also runs `cargo doc --workspace --no-deps`.
@@ -107,7 +138,13 @@ The unit tests of the core run a core without a backend in the test
 process. `crates/chora/src/testing.rs` gives them IPC clients on socket
 pairs, a Wayland client, outputs, and a time that the test moves forward.
 Pixel tests render with the software driver of Mesa, from
-`mesa-dri-drivers` on Fedora.
+`mesa-dri-drivers` on Fedora. Text tests measure the system fonts Inter
+and DejaVu Sans, Serif and Sans Mono: `rsms-inter-fonts`,
+`dejavu-sans-fonts`, `dejavu-serif-fonts` and `dejavu-sans-mono-fonts` on
+Fedora, `fonts-inter` and `fonts-dejavu` on Debian. chora-mc finds the
+face files with the tools of `fontconfig` (`fc-list`, `fc-scan`,
+`fc-match`), which the font packages of Fedora do not pull in. Without
+them, these tests fail.
 
 All testing runs headless: `chora --headless OUTPUTS -- STARTUP` runs a
 whole session on virtual outputs, without a host display, GPU or seat.
@@ -193,8 +230,38 @@ the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 mako, swaybg, swayidle and kanshi.
 
+`tests/merge-gate.sh` decides whether a merge into the session branch may
+be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
+handover matrix, the HUD gate, the doors gate (`tests/gate-doors.sh`: the
+shared keys and one visible door per action in every look),
+`tests/last-words.sh` and the cube gate
+of the construct, one log per step
+in a run directory. `tests/gate-watchdog-starved.sh` is not a step: it
+loads every CPU for half a minute, so run it alone. A
+step fails on a non-zero exit code, on a line that starts with `FAIL:` or
+`MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
+and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
+and only from a clean work tree. `--jobs N` runs up to N steps after
+2d-guard at once. The gate scripts mostly wait, so `--jobs 3` on four
+CPUs keeps their times and cuts the gate from about 27 to about 10
+minutes. A gate script judges its programs by pid (`session_pids` of
+`tests/gate-lib.sh`), never by name, since the steps beside it start the
+same programs. `tests/merge-gate-selftest.sh` proves this with fake steps
+and needs no build. One gate runs at a time on a
+machine: the merge gate and every script with `tests/gate-lib.sh` take the
+lock of `tests/gate-lock.sh`, `${XDG_RUNTIME_DIR:-/tmp}/chora-gate.lock`,
+and a second gate prints `waits for` and waits. The scripts that the
+gate runs share its lock.
+
+```bash
+tests/merge-gate.sh --push claude/session
+```
+
 The other gate scripts `tests/gate-*.sh` take the binaries from
-`target/debug`, or from the directory in `BIN`. The list of the scripts
+`target/debug`, or from the directory in `BIN`. Their EXIT trap ends
+every program that they started, also one that a gate stopped with
+`SIGSTOP`; `tests/gate-lib-selftest.sh`, the first step of the merge
+gate, proves it. The list of the scripts
 that CI runs is `.github/workflows/ci.yaml`, and its `dnf install` line
 names the packages that they need. A script without its tools answers
 `SKIP`. `tests/gate-0.9-daily.sh` and `tests/gate-0.9-hardware.sh` run by
@@ -210,6 +277,25 @@ the gate checks 6, 8 and 10. Two jobs on an Ubuntu runner run the gate checks th
 need root or podman. `vkms` starts chora on the tty backend, and
 `podman` runs a client in a container. A gate check that needs a user
 manager runs by hand on the reference machine.
+
+## Demo media
+
+`demo/record.sh OUT_DIR` makes the demo media of `chora-construct`,
+each clip as a GIF and an MP4: a walk through a construct, a pane that
+wobbles in 3D, the cube turned once around with its windows floating
+off the faces, a window pulled off a face of the cube into the space,
+and a still of the cube in a turn. `demo/scene-construct.sh` starts the
+scene of the first two: a headless session with five panes.
+`demo/scene-cube.sh` starts the scene of the others: the cube with two
+windows on each of its four faces. `demo/content.py` generates the
+content, so no clip holds an asset of a third party. `choractl record`
+steps the scene clock by 1/30 s per frame, so the clips show the same
+motion on any renderer. In the clips the cube turns in 1.5 s a quarter,
+through `cube.turn`, slower than the 0.5 s of its keys and chips, and
+the pull-out runs with `--test-injected-press-is-real`, as the core gives
+no injected drag away otherwise. `tests/gate-demo.sh` checks the scenes
+and the clips. A caption of a clip names the renderer, for example
+software GL in a container.
 
 ## Releases
 
@@ -256,8 +342,10 @@ requests only (D47).
 ## Commits
 
 Use [conventional commits](https://www.conventionalcommits.org/):
-`<type>: <description>`, with the description at 68 characters or fewer.
-Make one logical change per commit.
+`<type>(<scope>): <description>`, with the scope optional. The subject
+line has 68 characters or fewer, counting the whole line including
+`type(scope): `. Body lines have 72 characters or fewer. Make one logical
+change per commit.
 
 ## Documentation
 

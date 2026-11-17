@@ -1,0 +1,293 @@
+#!/bin/bash
+# Gate of one xp on four virtual outputs (D69): one headless session with
+# one screen. tests/pane-host.py owns four virtual outputs and shows each
+# in a forwarding pane on the screen; one chora-xp manages all four with
+# `--output`. The cells:
+#
+#   faces-have-bars      every virtual output has its taskbar and its
+#                        wallpaper
+#   opens-under-pointer  a new window opens on the virtual output whose
+#                        pane is under the pointer, here the second one
+#   moves-to-face        `window.move` of xp moves the window to the third
+#                        virtual output, where it shows with the focus
+#   tasks-of-own-face    the task button of the window is on the taskbar
+#                        of the virtual output that shows it, and on no
+#                        other taskbar
+#   face-removed         the window is on the fourth virtual output and
+#                        that one goes: xp moves the window to another of
+#                        its outputs and keeps three taskbars
+#   no-cube-on-faces     xp has no desktop cube of its own on virtual
+#                        outputs: the taskbars show no desktop buttons,
+#                        Super with the left button turns nothing, xp
+#                        holds no turn key, so another client grabs it,
+#                        and `turn_to` answers and leaves the window
+#                        where it shows
+#   still-faces-draw-nothing  `render.stats` read twice, 2 s apart, with
+#                        nothing moving: no virtual output and no pane
+#                        on the screen drew a pass or had damage. The
+#                        clock of a taskbar can change in that time, so
+#                        the cell looks again once
+#   float-is-guarded     `windows.float` is refused for the screen and
+#                        for the confined client `stranger`, which has
+#                        `methods.call` without `methods.privileged`;
+#                        a refused call hides no window
+#   float-survives-restart  the windows of a virtual output float, so
+#                        their groups have opacity 0; after `restart` of
+#                        xp the window shows again, with opacity 1
+#   drag-keeps-rect      an injected drag of the title bar from the first
+#                        virtual output to the second, which jumps far in
+#                        one move: the window shows on an output at every
+#                        look in the 2 s after the release; then it shows on
+#                        the second output, and its task button is on
+#                        the taskbar there only
+#
+# A cell measures pass or gap; a line `missing` in the table EXPECTED is a
+# cell that xp cannot pass yet and that does not run. The gate fails on
+# every cell that differs from the table, in both directions, so a fix
+# must flip its line. It fails too when the window is lost.
+#
+# The panes show their outputs at 1:1, two by two; the pointer goes to the
+# middle of a pane.
+#
+# Usage: tests/gate-xp-faces.sh   BIN: directory with the binaries
+#   SHOTS: directory for the logs and the capture (default: a temp dir)
+set -uo pipefail
+
+EXPECTED='
+faces-have-bars pass
+opens-under-pointer pass
+moves-to-face pass
+tasks-of-own-face pass
+face-removed pass
+no-cube-on-faces pass
+drag-keeps-rect pass
+still-faces-draw-nothing pass
+float-is-guarded pass
+float-survives-restart pass
+'
+
+. "$(dirname "$0")/gate-lib.sh"
+need jq
+need foot
+need python3
+need_bins chora choractl chora-xp
+temp_config
+shots=${SHOTS:-$XDG_CONFIG_HOME}
+mkdir -p "$shots"
+export PATH=$bin:$PATH
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
+theme=$repo/flavors/xp/theme
+
+session_start 1280x800
+grant input.inject screen.capture methods.call methods.privileged
+screen=$(ctl outputs | jq -r '.[0].name')
+
+python3 -I "$repo/tests/pane-host.py" "$screen" \
+    600x380+20+10 600x380+660+10 600x380+20+410 600x380+660+410 >"$shots/pane-host.log" 2>&1 &
+host=$!
+pids+=("$host")
+for _ in $(seq 50); do
+    grep -qx ready "$shots/pane-host.log" && break
+    sleep 0.2
+done
+grep -qx ready "$shots/pane-host.log" || fail "no pane host: $(tail -n 3 "$shots/pane-host.log")"
+mapfile -t faces < <(awk 'NF == 5 {print $1}' "$shots/pane-host.log")
+[ "${#faces[@]}" = 4 ] || fail "four virtual outputs: ${faces[*]}"
+
+managed=()
+for face in "${faces[@]}"; do managed+=(--output "$face"); done
+"$bin/chora-xp" --theme "$theme" "${managed[@]}" >"$shots/xp.log" 2>&1 &
+pids+=($!)
+ctl wait "id:xp-bar-${faces[3]}" --timeout 20 >/dev/null || fail "xp does not start: $(tail -n 3 "$shots/xp.log")"
+
+inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
+w=
+
+on_face() {
+    local shown
+    shown=".[0] | .owner == \"xp\" and .parent != null and .focused == true
+        and ((.rects[\$face] // [0, 0, 0, 0]) | .[2] > 0 and .[3] > 0)"
+    for _ in $(seq "$(awk -v s="$2" 'BEGIN {print s * 5}')"); do
+        ctl query "id:$w" 2>/dev/null | jq -e --arg face "$1" "$shown" >/dev/null && return 0
+        sleep 0.2
+    done
+    return 1
+}
+
+move_to() { ctl call xp window.move "{\"surface\": \"$w\", \"output\": \"$1\"}" >/dev/null 2>&1; }
+
+cell_faces_have_bars() {
+    local face
+    for face in "${faces[@]}"; do
+        ctl query "id:xp-bar-$face" | jq -e 'length == 1' >/dev/null || return 1
+        ctl query "id:xp-wall-$face" | jq -e --arg face "$face" '.[0].rects[$face][2] > 0' >/dev/null || return 1
+    done
+}
+
+cell_opens_under_pointer() {
+    inject '[{"pointer_move": {"position": [960, 200]}}]'
+    foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
+    run_pid $!
+    w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
+    on_face "${faces[1]}" 10
+}
+
+cell_moves_to_face() {
+    move_to "${faces[2]}"
+    on_face "${faces[2]}" 10
+}
+
+cell_tasks_of_own_face() {
+    local face n
+    on_face "${faces[2]}" 4 || return 1
+    for face in "${faces[@]}"; do
+        n=$(ctl query "id:xp-task-$w-$face" | jq length)
+        if [ "$face" = "${faces[2]}" ]; then [ "$n" = 1 ] || return 1; else [ "$n" = 0 ] || return 1; fi
+    done
+}
+
+cell_face_removed() {
+    local left
+    move_to "${faces[3]}"
+    on_face "${faces[3]}" 10 || return 1
+    kill -USR1 "$host"
+    ctl wait "id:xp-bar-${faces[3]}" --gone --timeout 10 >/dev/null || return 1
+    for left in "${faces[@]:0:3}"; do
+        ctl query "id:xp-bar-$left" | jq -e 'length == 1' >/dev/null || return 1
+    done
+    on_face "${faces[0]}" 4
+}
+
+cell_no_cube_on_faces() {
+    local face=${faces[0]} hidden
+    hidden=$(ctl query "id:xp-pager-0-$face" | jq -r '.[0].visible')
+    [ "$hidden" = false ] || return 1
+    inject '[{"pointer_move": {"position": [300, 200]}},
+      {"key": {"key": "Super_L", "state": "pressed"}},
+      {"button": {"state": "pressed", "hold": true}},
+      {"pointer_move": {"position": [400, 220]}}]'
+    sleep 0.5
+    hidden=$(ctl query id:xp-cube-bg | jq length)
+    inject '[{"button": {"state": "released"}},
+      {"key": {"key": "Super_L", "state": "released"}}]'
+    [ "$hidden" = 0 ] || return 1
+    python3 -I "$repo/tests/pane-host.py" --grab Ctrl+Alt+Right >/dev/null 2>&1 || return 1
+    ctl call xp turn_to '{"desktop": 1}' >/dev/null 2>&1 || return 1
+    sleep 1
+    ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null
+}
+
+cell_drag_keeps_rect() {
+    local at face=${faces[0]}
+    on_face "$face" 4 || return 1
+    at=$(ctl query "id:xp-title-$w" | jq -c --arg face "$face" '.[0].rects[$face] | [20 + .[0] + 60, 10 + .[1] + 10]')
+    inject "[{\"pointer_move\": {\"position\": $at}},
+      {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+      {\"pointer_move\": {\"position\": [200, 150]}},
+      {\"pointer_move\": {\"position\": [960, 200]}},
+      {\"button\": {\"state\": \"released\"}}]"
+    for _ in $(seq 10); do
+        ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null || return 1
+        sleep 0.2
+    done
+    on_face "${faces[1]}" 2 || return 1
+    [ "$(ctl query "id:xp-task-$w-${faces[1]}" | jq length)" = 1 ] || return 1
+    [ "$(ctl query "id:xp-task-$w-$face" | jq length)" = 0 ]
+}
+
+drawn() { ctl render-stats | jq -c '.outputs | map_values([.damaged_frames, .passes])'; }
+
+cell_still_faces_draw_nothing() {
+    local before
+    sleep 3
+    for _ in 1 2; do
+        before=$(drawn)
+        sleep 2
+        [ "$before" != "$(drawn)" ] || return 0
+    done
+    echo "render.stats moved: $before then $(drawn)" >>"$shots/stats.log"
+    return 1
+}
+
+opacity() { ctl query "id:xp-win-$w" | jq -r '(.[0].opacity // 1) * 100 | round'; }
+float() { ctl call xp windows.float "{\"output\": \"$1\", \"on\": $2}" >/dev/null 2>&1; }
+
+confined_float() {
+    timeout 10 python3 -I - "$CHORA_SOCKET" "$1" <<'PY'
+import json, socket, sys
+sock = socket.socket(socket.AF_UNIX)
+sock.connect(sys.argv[1])
+lines = sock.makefile("r")
+def call(number, method, params):
+    request = {"jsonrpc": "2.0", "id": number, "method": method, "params": params}
+    sock.sendall((json.dumps(request) + "\n").encode())
+    while True:
+        answer = json.loads(lines.readline())
+        if answer.get("id") == number:
+            return answer
+call(1, "hello", {"name": "stranger", "confined": True})
+asked = {"client": "xp", "method": "windows.float", "params": {"output": sys.argv[2], "on": True}}
+sys.exit(1 if "error" in call(2, "methods.call", asked) else 0)
+PY
+}
+
+cell_float_is_guarded() {
+    local face=${faces[1]}
+    on_face "$face" 4 || { echo "guard: the window is not on $face" >>"$shots/float.log"; return 1; }
+    if float "$screen" true; then
+        echo "guard: the screen was not refused" >>"$shots/float.log"
+        return 1
+    fi
+    "$bin/choractl" grant stranger methods.call >/dev/null || return 1
+    if confined_float "$face"; then
+        float "$face" false
+        echo "guard: a caller without methods.privileged was not refused" >>"$shots/float.log"
+        return 1
+    fi
+    [ "$(opacity)" = 100 ] || { echo "guard: opacity $(opacity)" >>"$shots/float.log"; return 1; }
+}
+
+cell_float_survives_restart() {
+    local face=${faces[1]}
+    on_face "$face" 4 || return 1
+    float "$face" true || return 1
+    [ "$(opacity)" = 0 ] || return 1
+    ctl call xp restart >/dev/null 2>&1 || return 1
+    sleep 2
+    ctl wait "id:xp-bar-$face" --timeout 20 >/dev/null || return 1
+    for _ in $(seq 25); do
+        [ "$(opacity)" = 100 ] && ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null && return 0
+        sleep 0.2
+    done
+    return 1
+}
+
+declare -A got
+mismatches=()
+cell() {
+    local id=$1 want result
+    want=$(echo "$EXPECTED" | awk -v k="$id" '$1 == k {print $2}')
+    [ -n "$want" ] || fail "no EXPECTED line for $id"
+    if [ "$want" = missing ]; then
+        got[$id]=missing
+        return 0
+    fi
+    if "cell_${id//-/_}"; then result=pass; else result=gap; fi
+    got[$id]=$result
+    [ "$result" = "$want" ] || mismatches+=("$id: measured $result, expected $want")
+    [ -z "$w" ] || [ "$(ctl query "id:$w" | jq -r '.[0].owner // "none"')" = xp ] ||
+        fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
+}
+
+cells=(faces-have-bars opens-under-pointer moves-to-face tasks-of-own-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing float-is-guarded float-survives-restart)
+for id in "${cells[@]}"; do cell "$id"; done
+ctl capture "$shots/faces.png" >/dev/null 2>&1
+
+printf '\n%-22s %s\n' cell measured
+for id in "${cells[@]}"; do printf '%-22s %s\n' "$id" "${got[$id]}"; done
+echo "run time: ${SECONDS}s"
+if [ "${#mismatches[@]}" != 0 ]; then
+    printf 'MISMATCH %s\n' "${mismatches[@]}" >&2
+    fail "${#mismatches[@]} cells differ from EXPECTED"
+fi
+ok "gate-xp-faces: every cell as in EXPECTED in ${SECONDS}s"

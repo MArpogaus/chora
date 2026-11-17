@@ -7,28 +7,21 @@
 //! so that frame callbacks, presentation feedback, transactions and the
 //! watchdog work as on a screen. Input comes only through `input.inject`.
 
-use std::time::Duration;
+use std::{sync::Mutex, time::Duration};
 
 use serde::Deserialize;
 use serde_json::Value;
 use smithay::{
     backend::{
-        allocator::{Fourcc, dmabuf::Dmabuf},
+        allocator::dmabuf::Dmabuf,
         egl::{EGLContext, EGLDevice, EGLDisplay},
-        renderer::{
-            Bind, ImportDma, Offscreen,
-            damage::OutputDamageTracker,
-            gles::{GlesRenderer, GlesTexture},
-        },
+        renderer::{ImportDma, gles::GlesRenderer},
     },
     output::{Mode, Output, PhysicalProperties, Scale, Subpixel},
     reexports::{
         calloop::timer::{TimeoutAction, Timer},
-        wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
         wayland_server::backend::GlobalId,
     },
-    utils::{Buffer, Size},
-    wayland::presentation::Refresh,
 };
 
 use chora_scene::ipc::RpcError;
@@ -36,7 +29,7 @@ use chora_scene::ipc::RpcError;
 use super::Backend;
 use crate::{
     ipc::{params_of, rejected},
-    output::frame_duration,
+    offscreen::{OutputTexture, render_and_present},
     render,
     state::State,
 };
@@ -57,12 +50,10 @@ pub struct Headless {
     last: u32,
 }
 
-/// A virtual output: the texture that its frames go to.
+/// A virtual output: its global and the texture that its frames go to.
 struct Virtual {
-    output: Output,
     global: GlobalId,
-    damage_tracker: OutputDamageTracker,
-    texture: Option<GlesTexture>,
+    texture: OutputTexture,
 }
 
 /// A virtual output of the command line or of `output.add`.
@@ -109,6 +100,28 @@ fn parse_spec(text: &str) -> Result<Spec, String> {
     })
 }
 
+/// The display of the software device, made once for the process and kept
+/// open. Smithay keeps the displays of a process in a global list behind a
+/// lock, and panics inside that lock when a thread finds a display whose
+/// last user just went; that would poison the lock for every renderer
+/// after it. With one display that never closes, no thread finds it gone.
+/// A poisoned lock of this function (`DISPLAY`, not the one of smithay) is
+/// recovered, and logged as a warning.
+fn shared_display(device: EGLDevice) -> Result<EGLDisplay, String> {
+    static DISPLAY: Mutex<Option<EGLDisplay>> = Mutex::new(None);
+    let mut shared = DISPLAY.lock().unwrap_or_else(|poisoned| {
+        tracing::warn!("the lock of the shared EGL display was poisoned");
+        poisoned.into_inner()
+    });
+    if let Some(display) = shared.as_ref() {
+        return Ok(display.clone());
+    }
+    // SAFETY: the display stays open for the rest of the process.
+    #[allow(unsafe_code)]
+    let display = unsafe { EGLDisplay::new(device) }.map_err(|e| e.to_string())?;
+    Ok(shared.insert(display).clone())
+}
+
 impl Headless {
     /// A renderer on the software device of Mesa, so that the pixels do
     /// not depend on a GPU.
@@ -117,11 +130,11 @@ impl Headless {
             .map_err(|e| format!("no EGL devices: {e}"))?
             .find(EGLDevice::is_software)
             .ok_or("no software EGL device; the headless backend needs the Mesa drivers")?;
+        let display = shared_display(device)?;
         // SAFETY: the display and its context live as long as the renderer,
         // and only the thread of the event loop uses them.
         #[allow(unsafe_code)]
         let renderer = unsafe {
-            let display = EGLDisplay::new(device).map_err(|e| e.to_string())?;
             let context = EGLContext::new(&display).map_err(|e| e.to_string())?;
             GlesRenderer::new(context).map_err(|e| e.to_string())?
         };
@@ -183,10 +196,8 @@ fn add(state: &mut State, spec: &Spec) -> Result<Output, String> {
     output.change_current_state(Some(mode), None, Some(Scale::Fractional(spec.scale)), None);
     output.set_preferred(mode);
     headless.outputs.push(Virtual {
-        damage_tracker: OutputDamageTracker::from_output(&output),
-        output: output.clone(),
         global,
-        texture: None,
+        texture: OutputTexture::new(output.clone()),
     });
     state.add_output(output.clone());
     if let Some(position) = spec.position {
@@ -221,6 +232,12 @@ impl State {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        if self.ipc.confined(conn) {
+            return Err(RpcError::new(
+                RpcError::CLIENT_SOCKET_RULE,
+                "a client socket or a confined connection adds and removes no output",
+            ));
+        }
         if !matches!(self.backend, Some(Backend::Headless(_))) {
             return Err(rejected(ONLY_HEADLESS));
         }
@@ -248,14 +265,14 @@ impl State {
         let index = headless
             .outputs
             .iter()
-            .position(|v| v.output.name() == name)
+            .position(|v| v.texture.output().name() == name)
             .ok_or_else(|| rejected(format!("no virtual output {name:?}")))?;
         if headless.outputs.len() == 1 {
             return Err(rejected("the last output stays"));
         }
         let gone = headless.outputs.remove(index);
         super::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
-        self.remove_output(&gone.output);
+        self.remove_output(gone.texture.output());
         self.outputs_configured();
         Ok(Value::Null)
     }
@@ -263,47 +280,27 @@ impl State {
 
 /// One tick of the frame clock: renders the damage of every output that
 /// is on, and sends the frame callbacks.
-fn render_all(state: &mut State) {
-    let Some(Backend::Headless(headless)) = &state.backend else {
-        return;
-    };
-    let outputs: Vec<Output> = headless
-        .outputs
-        .iter()
-        .map(|v| v.output.clone())
-        .filter(|o| state.outputs.contains(o))
-        .collect();
-    for output in outputs {
-        render_output(state, &output);
-    }
-}
-
-/// Renders one output, and tells the clients, the lock and the watchdog.
-fn render_output(state: &mut State, output: &Output) {
-    let start = std::time::Instant::now();
-    match render_frame(state, output) {
-        Ok(damaged) => {
-            if damaged {
-                let mut feedback = render::take_feedback(state, output);
-                feedback.presented(
-                    state.clock.now(),
-                    Refresh::fixed(frame_duration(output)),
-                    0,
-                    wp_presentation_feedback::Kind::Vsync,
-                );
-            }
-            let generation = state.lock_generation();
-            state.frame_shown(output, generation);
+pub(crate) fn render_all(state: &mut State) {
+    let mut index = 0;
+    while let Some(output) = output_at(state, index) {
+        if state.outputs.contains(&output) {
+            render_and_present(state, &output, |state| render_frame(state, &output, index));
         }
-        Err(err) => tracing::warn!(output = output.name(), "{err}"),
+        index += 1;
     }
-    state.frame_rendered(&output.name(), frame_duration(output), start.elapsed());
-    render::send_frames(state, output);
 }
 
-/// Renders the damaged parts of an output into its texture. Returns
-/// whether the frame had damage.
-fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
+/// The output at an index of the list of the headless backend.
+fn output_at(state: &State, index: usize) -> Option<Output> {
+    let Some(Backend::Headless(headless)) = &state.backend else {
+        return None;
+    };
+    Some(headless.outputs.get(index)?.texture.output().clone())
+}
+
+/// Renders the damaged parts of the output at an index into its texture.
+/// Returns whether the frame had damage.
+fn render_frame(state: &mut State, output: &Output, index: usize) -> Result<bool, String> {
     let view = render::View::of(state, output);
     let State {
         backend,
@@ -316,25 +313,9 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     let Some(Backend::Headless(headless)) = backend else {
         return Ok(false);
     };
-    let Some(target) = headless.outputs.iter_mut().find(|v| v.output == *output) else {
+    let Some(target) = headless.outputs.get_mut(index) else {
         return Ok(false);
     };
-    let gles = &mut headless.renderer;
-    let mode = output.current_mode().ok_or("the output has no mode")?.size;
-    let size: Size<i32, Buffer> = (mode.w, mode.h).into();
-    // A new texture after a mode change; its age 0 means a full redraw.
-    let mut age = 1;
-    if target
-        .texture
-        .as_ref()
-        .is_none_or(|t| smithay::backend::renderer::Texture::size(t) != size)
-    {
-        target.texture = Some(
-            gles.create_buffer(Fourcc::Abgr8888, size)
-                .map_err(|e| e.to_string())?,
-        );
-        age = 0;
-    }
     let mut parts = render::Parts {
         scene,
         windows,
@@ -342,17 +323,37 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         lock: lock.as_ref(),
         depth: 0,
     };
-    let elements = render::output_elements(&mut parts, gles, output, &view);
-    let texture = target.texture.as_mut().ok_or("no texture")?;
-    let mut framebuffer = gles.bind(texture).map_err(|e| e.to_string())?;
-    let result = target
-        .damage_tracker
-        .render_output(gles, &mut framebuffer, age, &elements, [0.0, 0.0, 0.0, 1.0])
-        .map_err(|e| format!("rendering failed: {e:?}"))?;
-    // The watchdog measures the work of the renderer, as on a screen.
-    let _ = result.sync.wait();
-    Ok(result.damage.is_some())
+    target
+        .texture
+        .render(&mut headless.renderer, &mut parts, &view)
 }
+
+/// The pixels of a row of the screen texture of the output at an index,
+/// as the last frame left them, from `x` on.
+#[cfg(test)]
+pub(crate) fn screen_row(
+    state: &mut State,
+    index: usize,
+    y: i32,
+    (x, width): (i32, i32),
+) -> Vec<[u8; 4]> {
+    use smithay::{backend::renderer::ExportMem, utils::Rectangle};
+    let Some(Backend::Headless(headless)) = &mut state.backend else {
+        panic!("a headless backend");
+    };
+    let output = &headless.outputs[index];
+    let texture = output.texture.texture().expect("a frame").clone();
+    let at = Rectangle::new((x, y).into(), (width, 1).into());
+    let gles = &mut headless.renderer;
+    let mapping = gles
+        .copy_texture(&texture, at, smithay::backend::allocator::Fourcc::Abgr8888)
+        .expect("a copy");
+    let rgba = gles.map_texture(&mapping).expect("a mapping");
+    rgba.as_chunks::<4>().0.to_vec()
+}
+
+#[cfg(test)]
+mod guard;
 
 #[cfg(test)]
 mod tests {
@@ -430,5 +431,21 @@ mod tests {
         let (_, error) = wm.fails(&mut core, "output.remove", json!({"output": "HEADLESS-1"}));
         assert!(error.contains("last output"), "{error}");
         render_all(&mut core.state);
+    }
+
+    /// The display of smithay panics while it holds its global lock, and
+    /// poisons it for every later renderer, when a thread finds a display
+    /// whose last user just went. The display stays for the process.
+    #[test]
+    fn the_display_outlives_the_renderers_that_use_it() {
+        let mut renderer = Headless::new().expect("a software renderer");
+        let display = std::sync::Arc::downgrade(
+            &renderer.gles().egl_context().display().get_display_handle(),
+        );
+        drop(renderer);
+        assert!(
+            display.upgrade().is_some(),
+            "the last renderer closed the display"
+        );
     }
 }

@@ -1,0 +1,26 @@
+# The clippy.toml of the plugins: clippy reads only the nearest file, so
+# this one repeats every setting of the root clippy.toml (the hook
+# clippy-config-sync checks that) and adds that the runtime of chora-kit
+# owns the connection to the core.
+# unwrap and expect are fine in tests. Elsewhere, handle the error, or
+# allow the lint with a reason where the call cannot fail.
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+# Complexity guards. Split a function instead of raising a limit.
+# A nesting limit of 5 allows the impl > fn > loop > match > arm shape
+# of an event handler.
+cognitive-complexity-threshold = 10
+disallowed-methods = [
+  { path = "chora_kit::conn::Conn::connect", reason = "use chora_kit::runtime::Runtime::connect" },
+  { path = "chora_kit::conn::Conn::connect_at", reason = "use chora_kit::runtime::Runtime::connect; a test on a fake core allows it" },
+  { path = "chora_kit::runtime::Runtime::with", reason = "use chora_kit::runtime::Runtime::connect; a test on a fake core allows it" },
+  { path = "chora_scene::ipc::Client::connect", reason = "use chora_kit::runtime::Runtime::connect" },
+  { path = "chora_scene::ipc::Client::from_env", reason = "use chora_kit::runtime::Runtime::connect" },
+  { path = "chora_scene::ipc::Client::from_stream", reason = "use chora_kit::runtime::Runtime::connect" }
+]
+disallowed-types = [
+  { path = "chora_scene::ipc::Client", reason = "the runtime of chora-kit holds the connection" }
+]
+excessive-nesting-threshold = 5
+too-many-arguments-threshold = 5
+too-many-lines-threshold = 60

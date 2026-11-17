@@ -2,6 +2,11 @@
 # The license list keeps GPL-3.0-only crates out of the GPL-3.0-or-later core.
 
 [advisories]
+# ttf-parser is unmaintained with no drop-in fix; cosmic-text -> fontdb pulls it in and
+# chora-mc uses it to read font metrics. Revisit when fontdb moves to skrifa.
+# chrono is unmaintained (RUSTSEC-2026-0543, 11-17), no safe upgrade; chora-xp uses it for the
+# clock and its strftime config, rmcp and schemars pull it in too. Move xp to jiff (backlog DB13).
+ignore = ["RUSTSEC-2026-0192", "RUSTSEC-2026-0543"]
 unmaintained = "workspace"
 yanked = "deny"
 

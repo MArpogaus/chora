@@ -8,13 +8,18 @@ use std::{
 };
 
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop,
+    Connection, Dispatch, EventQueue, Proxy, QueueHandle, WEnum, delegate_noop,
     protocol::{
         wl_buffer::WlBuffer,
         wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
+        wl_data_device::{self, WlDataDevice},
+        wl_data_device_manager::{DndAction, WlDataDeviceManager},
+        wl_data_offer::WlDataOffer,
+        wl_data_source::{self, WlDataSource},
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
+        wl_pointer::{self, WlPointer},
         wl_region::WlRegion,
         wl_registry::{self, WlRegistry},
         wl_seat::{self, WlSeat},
@@ -23,10 +28,26 @@ use wayland_client::{
         wl_surface::WlSurface,
     },
 };
+use wayland_protocols::ext::idle_notify::v1::client::{
+    ext_idle_notification_v1::{self, ExtIdleNotificationV1},
+    ext_idle_notifier_v1::ExtIdleNotifierV1,
+};
+use wayland_protocols::ext::image_capture_source::v1::client::{
+    ext_image_capture_source_v1::ExtImageCaptureSourceV1,
+    ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
+};
+use wayland_protocols::ext::image_copy_capture::v1::client::{
+    ext_image_copy_capture_manager_v1::{ExtImageCopyCaptureManagerV1, Options},
+    ext_image_copy_capture_session_v1::{self, ExtImageCopyCaptureSessionV1},
+};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1,
     ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
-    ext_session_lock_v1::ExtSessionLockV1,
+    ext_session_lock_v1::{self, ExtSessionLockV1},
+};
+use wayland_protocols::wp::presentation_time::client::{
+    wp_presentation::WpPresentation,
+    wp_presentation_feedback::{self, WpPresentationFeedback},
 };
 use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
@@ -35,7 +56,7 @@ use wayland_protocols::wp::text_input::zv3::client::{
 use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1;
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
-    xdg_positioner::XdgPositioner,
+    xdg_positioner::{self, XdgPositioner},
     xdg_surface::{self, XdgSurface},
     xdg_toplevel::{self, XdgToplevel},
     xdg_wm_base::{self, XdgWmBase},
@@ -43,6 +64,11 @@ use wayland_protocols::xdg::shell::client::{
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, KeyboardInteractivity, ZwlrLayerSurfaceV1},
+};
+
+use wayland_protocols_wlr::screencopy::v1::client::{
+    zwlr_screencopy_frame_v1::{self, ZwlrScreencopyFrameV1},
+    zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
 };
 
 use super::Core;
@@ -63,14 +89,35 @@ struct App {
     activation: Option<XdgActivationV1>,
     layer_shell: Option<ZwlrLayerShellV1>,
     lock_manager: Option<ExtSessionLockManagerV1>,
+    idle_notifier: Option<ExtIdleNotifierV1>,
+    /// The events of the idle notifications in order: true for idled,
+    /// false for resumed.
+    idle_events: Vec<bool>,
+    presentation: Option<WpPresentation>,
+    /// How many presentation feedbacks the core sent as presented.
+    presented: usize,
+    /// Whether the core confirmed a lock of the session.
+    locked: bool,
     text_manager: Option<ZwpTextInputManagerV3>,
+    screencopy: Option<ZwlrScreencopyManagerV1>,
+    capture_sources: Option<ExtOutputImageCaptureSourceManagerV1>,
+    capture: Option<ExtImageCopyCaptureManagerV1>,
+    /// Whether the newest copy of the output got a buffer offer; `None`
+    /// until the core answers.
+    copy_offered: Option<bool>,
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
     shm: Option<WlShm>,
+    data_manager: Option<WlDataDeviceManager>,
+    data_device: Option<WlDataDevice>,
+    /// The drag and drop events that no test took yet.
+    dnd_events: Vec<DndEvent>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
     /// The newest `repeat_info`: rate and delay.
     repeat_info: Option<(i32, i32)>,
+    /// The pointer events that the core sent and that no test took yet.
+    pointer_events: Vec<PointerEvent>,
     /// The commit strings that the core sent to the text input.
     commits: Vec<String>,
     /// The interfaces of all globals that the core offered.
@@ -78,6 +125,42 @@ struct App {
     synced: bool,
     /// The configures of each surface, by its index.
     surfaces: Vec<Configures>,
+}
+
+/// An event of the pointer of the client, in the units of the client.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PointerEvent {
+    /// The pointer entered a surface at a point of it.
+    Enter {
+        surface: wayland_client::backend::ObjectId,
+        at: (f64, f64),
+    },
+    /// The pointer moved on the surface that it entered.
+    Motion { at: (f64, f64) },
+    /// A button changed, with the serial of the event.
+    Button { serial: u32, pressed: bool },
+    /// The pointer left its surface.
+    Leave,
+}
+
+/// An event of a drag and drop of the client, in the units of the client.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DndEvent {
+    /// The drag entered a surface at a point of it.
+    Enter {
+        surface: wayland_client::backend::ObjectId,
+        at: (f64, f64),
+    },
+    /// The drag moved on the surface that it entered.
+    Motion { at: (f64, f64) },
+    /// The drag left its surface.
+    Leave,
+    /// The drag dropped on the surface that it entered.
+    Drop,
+    /// The core cancelled the drag of the source.
+    Cancelled,
+    /// The core told the source that the drop happened.
+    Performed,
 }
 
 /// The configures of a surface.
@@ -93,6 +176,9 @@ pub struct Configures {
     pub count: usize,
     /// Whether the core closed the popup.
     pub done: bool,
+    /// The newest popup configure: x, y, width and height relative to the
+    /// parent geometry.
+    pub popup: Option<[i32; 4]>,
     /// How many frame callbacks the core sent.
     pub frames: usize,
 }
@@ -105,9 +191,19 @@ pub struct Toplevel {
     index: usize,
 }
 
+impl Toplevel {
+    /// Sets the window geometry for the next commit, as a window with a
+    /// drop shadow does: `(x, y, w, h)` in its buffer.
+    pub fn set_geometry(&self, (x, y, w, h): (i32, i32, i32, i32)) {
+        self.xdg.set_window_geometry(x, y, w, h);
+    }
+}
+
 /// A popup of the client.
 pub struct Popup {
     index: usize,
+    pub surface: WlSurface,
+    xdg: XdgSurface,
 }
 
 /// A lock surface of the client.
@@ -268,6 +364,14 @@ impl Wayland {
         }
     }
 
+    /// Activates a layer surface with a token, as a field does after its
+    /// first configure.
+    pub fn activate_layer(&mut self, core: &mut Core, layer: &LayerSurface, token: &str) {
+        let activation = self.app.activation.as_ref().expect("xdg_activation");
+        activation.activate(token.into(), &layer.surface);
+        self.roundtrip(core);
+    }
+
     /// A child toplevel of `parent` after its first commit, for dialogs.
     pub fn child(&mut self, core: &mut Core, parent: &Toplevel) -> Toplevel {
         let qh = self.queue.handle();
@@ -292,6 +396,39 @@ impl Wayland {
     /// A popup of a toplevel that grabs the input with a serial, after its
     /// first commit.
     pub fn popup(&mut self, core: &mut Core, parent: &Toplevel, serial: u32) -> Popup {
+        self.open_popup(core, parent, serial, ((50, 50), None))
+    }
+
+    /// A menu: a popup of `size` whose corner is at `at` in the geometry of
+    /// the parent, which slides into it, with a buffer after its first
+    /// commit.
+    pub fn menu(
+        &mut self,
+        core: &mut Core,
+        parent: &Toplevel,
+        serial: u32,
+        (at, size): ((i32, i32), (i32, i32)),
+    ) -> Popup {
+        let popup = self.open_popup(core, parent, serial, (size, Some(at)));
+        if let Some(serial) = self.app.surfaces[popup.index].pending.take() {
+            popup.xdg.ack_configure(serial);
+        }
+        self.show(
+            core,
+            &popup.surface,
+            size,
+            (wl_shm::Format::Argb8888, 0xff00_ff00),
+        );
+        popup
+    }
+
+    fn open_popup(
+        &mut self,
+        core: &mut Core,
+        parent: &Toplevel,
+        serial: u32,
+        (size, at): ((i32, i32), Option<(i32, i32)>),
+    ) -> Popup {
         let qh = self.queue.handle();
         let index = self.app.surfaces.len();
         self.app.surfaces.push(Configures::default());
@@ -299,19 +436,84 @@ impl Wayland {
         let surface = compositor.create_surface(&qh, ());
         let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
         let positioner = wm_base.create_positioner(&qh, ());
-        positioner.set_size(50, 50);
-        positioner.set_anchor_rect(0, 0, 1, 1);
+        positioner.set_size(size.0, size.1);
+        match at {
+            Some((x, y)) => {
+                positioner.set_anchor_rect(x, y, 1, 1);
+                positioner.set_anchor(xdg_positioner::Anchor::TopLeft);
+                positioner.set_gravity(xdg_positioner::Gravity::BottomRight);
+                positioner.set_constraint_adjustment(
+                    xdg_positioner::ConstraintAdjustment::SlideX
+                        | xdg_positioner::ConstraintAdjustment::SlideY,
+                );
+            }
+            None => positioner.set_anchor_rect(0, 0, 1, 1),
+        }
         let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
         let popup = xdg.get_popup(Some(&parent.xdg), &positioner, &qh, index);
         popup.grab(self.app.seat.as_ref().expect("wl_seat"), serial);
         surface.commit();
         self.roundtrip(core);
-        Popup { index }
+        Popup {
+            index,
+            surface,
+            xdg,
+        }
+    }
+
+    /// Binds the data device of the client, so that drags can enter its
+    /// surfaces.
+    pub fn listen_for_drags(&mut self, core: &mut Core) {
+        let qh = self.queue.handle();
+        let manager = self
+            .app
+            .data_manager
+            .as_ref()
+            .expect("wl_data_device_manager");
+        let seat = self.app.seat.as_ref().expect("wl_seat");
+        self.app
+            .data_device
+            .get_or_insert_with(|| manager.get_data_device(seat, &qh, ()));
+        self.roundtrip(core);
+    }
+
+    /// Starts a drag of the client from a surface with the serial of a
+    /// press, which offers one type of text.
+    pub fn start_drag(&mut self, core: &mut Core, origin: &Toplevel, serial: u32) {
+        self.listen_for_drags(core);
+        let qh = self.queue.handle();
+        let manager = self
+            .app
+            .data_manager
+            .as_ref()
+            .expect("wl_data_device_manager");
+        let device = self.app.data_device.as_ref().expect("a data device");
+        let source = manager.create_data_source(&qh, ());
+        source.offer("text/plain".into());
+        source.set_actions(DndAction::Copy);
+        device.start_drag(Some(&source), &origin.surface, None, serial);
+        self.roundtrip(core);
+    }
+
+    /// Takes the drag and drop events that the client got, in order.
+    pub fn take_dnd_events(&mut self) -> Vec<DndEvent> {
+        std::mem::take(&mut self.app.dnd_events)
     }
 
     /// Whether the core closed a popup.
     pub fn popup_done(&self, popup: &Popup) -> bool {
         self.app.surfaces[popup.index].done
+    }
+
+    /// The geometry of a popup that the core configured: x, y, width and
+    /// height relative to the parent geometry.
+    pub fn popup_geometry(&self, popup: &Popup) -> Option<[i32; 4]> {
+        self.app.surfaces[popup.index].popup
+    }
+
+    /// Takes the pointer events that the client got, in order.
+    pub fn take_pointer_events(&mut self) -> Vec<PointerEvent> {
+        std::mem::take(&mut self.app.pointer_events)
     }
 
     /// The newest key repeat that the core sent: rate and delay.
@@ -398,12 +600,70 @@ impl Wayland {
         &mut self,
         core: &mut Core,
         toplevel: &Toplevel,
-        (w, h): (i32, i32),
+        size: (i32, i32),
         (format, pixel): (wl_shm::Format, u32),
     ) {
         if let Some(serial) = self.app.surfaces[toplevel.index].pending.take() {
             toplevel.xdg.ack_configure(serial);
         }
+        self.show(core, &toplevel.surface, size, (format, pixel));
+    }
+
+    /// A buffer of a size whose pixels all hold one ARGB value, attached
+    /// to nothing yet.
+    pub fn buffer(&mut self, size: (i32, i32), pixel: u32) -> WlBuffer {
+        self.buffer_file(size, (wl_shm::Format::Argb8888, pixel)).0
+    }
+
+    /// A buffer of a size in a 32 bit format whose pixels all hold one
+    /// value, and the file of its memory, which [`fill`] writes anew.
+    pub fn buffer_file(
+        &mut self,
+        (w, h): (i32, i32),
+        (format, pixel): (wl_shm::Format, u32),
+    ) -> (WlBuffer, std::fs::File) {
+        let file = tempfile();
+        fill(&file, (w, h), pixel);
+        let qh = self.queue.handle();
+        let shm = self.app.shm.as_ref().expect("wl_shm");
+        let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
+        let buffer = pool.create_buffer(0, w, h, w * 4, format, &qh, ());
+        pool.destroy();
+        (buffer, file)
+    }
+
+    /// Acks the newest configure of a toplevel, if any, and commits a
+    /// buffer with the damage of a rectangle of it, or with none.
+    pub fn attach_buffer(
+        &mut self,
+        core: &mut Core,
+        toplevel: &Toplevel,
+        buffer: &WlBuffer,
+        damage: Option<(i32, i32, i32, i32)>,
+    ) {
+        if let Some(serial) = self.app.surfaces[toplevel.index].pending.take() {
+            toplevel.xdg.ack_configure(serial);
+        }
+        toplevel.surface.attach(Some(buffer), 0, 0);
+        if let Some((x, y, w, h)) = damage {
+            toplevel.surface.damage_buffer(x, y, w, h);
+        }
+        toplevel.surface.commit();
+        self.roundtrip(core);
+    }
+
+    /// Commits a transparent buffer of a size to a layer surface.
+    pub fn attach_layer(&mut self, core: &mut Core, layer: &LayerSurface, size: (i32, i32)) {
+        self.show(core, &layer.surface, size, (wl_shm::Format::Argb8888, 0));
+    }
+
+    fn show(
+        &mut self,
+        core: &mut Core,
+        surface: &WlSurface,
+        (w, h): (i32, i32),
+        (format, pixel): (wl_shm::Format, u32),
+    ) {
         let mut file = tempfile();
         let pixels = usize::try_from(w * h).expect("a size");
         std::io::Write::write_all(&mut file, &pixel.to_le_bytes().repeat(pixels))
@@ -413,9 +673,9 @@ impl Wayland {
         let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
         let buffer = pool.create_buffer(0, w, h, w * 4, format, &qh, ());
         pool.destroy();
-        toplevel.surface.attach(Some(&buffer), 0, 0);
-        toplevel.surface.damage(0, 0, w, h);
-        toplevel.surface.commit();
+        surface.attach(Some(&buffer), 0, 0);
+        surface.damage(0, 0, w, h);
+        surface.commit();
         self.roundtrip(core);
     }
 
@@ -435,10 +695,54 @@ impl Wayland {
         self.commit(core, toplevel);
     }
 
+    /// Asks for presentation feedback of a toplevel and commits.
+    pub fn feedback(&mut self, core: &mut Core, toplevel: &Toplevel) {
+        let presentation = self.app.presentation.as_ref().expect("wp_presentation");
+        presentation.feedback(&toplevel.surface, &self.queue.handle(), ());
+        self.commit(core, toplevel);
+    }
+
+    /// How many presentation feedbacks the core sent as presented.
+    pub fn presented(&self) -> usize {
+        self.app.presented
+    }
+
+    /// Whether the core confirmed a lock of the session.
+    pub fn locked(&self) -> bool {
+        self.app.locked
+    }
+
+    /// Asks for an idle notification after `timeout_ms` without input,
+    /// as a screen locker does.
+    pub fn idle_notification(&mut self, core: &mut Core, timeout_ms: u32) -> ExtIdleNotificationV1 {
+        let notifier = self.app.idle_notifier.as_ref().expect("an idle notifier");
+        let seat = self.app.seat.as_ref().expect("a seat");
+        let notification =
+            notifier.get_idle_notification(timeout_ms, seat, &self.queue.handle(), ());
+        self.roundtrip(core);
+        notification
+    }
+
+    /// The idle events that no test took yet: true for idled, false for
+    /// resumed.
+    pub fn take_idle_events(&mut self) -> Vec<bool> {
+        std::mem::take(&mut self.app.idle_events)
+    }
+
     /// Asks for an interactive move of a toplevel, as a title bar does.
     pub fn request_move(&mut self, core: &mut Core, toplevel: &Toplevel, serial: u32) {
         let seat = self.app.seat.as_ref().expect("wl_seat");
         toplevel.role._move(seat, serial);
+        self.roundtrip(core);
+    }
+
+    /// Asks for an interactive resize of a toplevel at its bottom right
+    /// corner.
+    pub fn request_resize(&mut self, core: &mut Core, toplevel: &Toplevel, serial: u32) {
+        let seat = self.app.seat.as_ref().expect("wl_seat");
+        toplevel
+            .role
+            .resize(seat, serial, xdg_toplevel::ResizeEdge::BottomRight);
         self.roundtrip(core);
     }
 
@@ -468,6 +772,31 @@ impl Wayland {
         let lock = manager.lock(&self.queue.handle(), ());
         self.roundtrip(core);
         lock
+    }
+
+    /// Whether a screencopy of the output of the client gets a buffer
+    /// offer, and not a failure.
+    pub fn screencopy_offers(&mut self, core: &mut Core) -> bool {
+        let manager = self.app.screencopy.as_ref().expect("a screencopy manager");
+        let output = self.app.output.as_ref().expect("wl_output");
+        self.app.copy_offered = None;
+        manager.capture_output(0, output, &self.queue.handle(), ());
+        self.roundtrip(core);
+        self.app.copy_offered.expect("an answer to the copy")
+    }
+
+    /// Whether a capture session of the output of the client gets a buffer
+    /// size, and is not stopped.
+    pub fn capture_session_offers(&mut self, core: &mut Core) -> bool {
+        let qh = self.queue.handle();
+        let sources = self.app.capture_sources.as_ref().expect("a source manager");
+        let output = self.app.output.as_ref().expect("wl_output");
+        let source = sources.create_source(output, &qh, ());
+        let manager = self.app.capture.as_ref().expect("a capture manager");
+        self.app.copy_offered = None;
+        manager.create_session(&source, Options::empty(), &qh, ());
+        self.roundtrip(core);
+        self.app.copy_offered.expect("an answer to the session")
     }
 
     /// Destroys the role of a layer surface and keeps its `wl_surface`.
@@ -540,8 +869,24 @@ impl Dispatch<WlRegistry, ()> for App {
             "ext_session_lock_manager_v1" => {
                 app.lock_manager = Some(registry.bind(name, version, qh, ()));
             }
+            "ext_idle_notifier_v1" => {
+                app.idle_notifier = Some(registry.bind(name, 1, qh, ()));
+            }
+            "wp_presentation" => app.presentation = Some(registry.bind(name, version, qh, ())),
             "zwp_text_input_manager_v3" => {
                 app.text_manager = Some(registry.bind(name, version, qh, ()));
+            }
+            "wl_data_device_manager" => {
+                app.data_manager = Some(registry.bind(name, version.min(3), qh, ()));
+            }
+            "zwlr_screencopy_manager_v1" => {
+                app.screencopy = Some(registry.bind(name, 1, qh, ()));
+            }
+            "ext_output_image_capture_source_manager_v1" => {
+                app.capture_sources = Some(registry.bind(name, 1, qh, ()));
+            }
+            "ext_image_copy_capture_manager_v1" => {
+                app.capture = Some(registry.bind(name, 1, qh, ()));
             }
             "wl_shm" => app.shm = Some(registry.bind(name, 1, qh, ())),
             "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
@@ -692,6 +1037,65 @@ impl Dispatch<ExtSessionLockSurfaceV1, usize> for App {
     }
 }
 
+impl Dispatch<ZwlrScreencopyFrameV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ZwlrScreencopyFrameV1,
+        event: zwlr_screencopy_frame_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            zwlr_screencopy_frame_v1::Event::Buffer { .. } => app.copy_offered = Some(true),
+            zwlr_screencopy_frame_v1::Event::Failed => app.copy_offered = Some(false),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ExtImageCopyCaptureSessionV1,
+        event: ext_image_copy_capture_session_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            ext_image_copy_capture_session_v1::Event::BufferSize { .. } => {
+                app.copy_offered = Some(true);
+            }
+            ext_image_copy_capture_session_v1::Event::Stopped => app.copy_offered = Some(false),
+            _ => {}
+        }
+    }
+}
+
+delegate_noop!(App: ZwlrScreencopyManagerV1);
+delegate_noop!(App: ExtIdleNotifierV1);
+
+impl Dispatch<ExtIdleNotificationV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ExtIdleNotificationV1,
+        event: ext_idle_notification_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            ext_idle_notification_v1::Event::Idled => app.idle_events.push(true),
+            ext_idle_notification_v1::Event::Resumed => app.idle_events.push(false),
+            _ => {}
+        }
+    }
+}
+delegate_noop!(App: ExtOutputImageCaptureSourceManagerV1);
+delegate_noop!(App: ExtImageCopyCaptureManagerV1);
+delegate_noop!(App: ExtImageCaptureSourceV1);
+
 impl Dispatch<WlOutput, ()> for App {
     fn event(
         _: &mut Self,
@@ -716,9 +1120,51 @@ impl Dispatch<WlSeat, ()> for App {
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(c),
         } = event
-            && c.contains(wl_seat::Capability::Keyboard)
         {
-            seat.get_keyboard(qh, ());
+            if c.contains(wl_seat::Capability::Keyboard) {
+                seat.get_keyboard(qh, ());
+            }
+            if c.contains(wl_seat::Capability::Pointer) {
+                seat.get_pointer(qh, ());
+            }
+        }
+    }
+}
+
+impl Dispatch<WlPointer, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlPointer,
+        event: wl_pointer::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_pointer::Event::Enter {
+                surface,
+                surface_x,
+                surface_y,
+                ..
+            } => app.pointer_events.push(PointerEvent::Enter {
+                surface: surface.id(),
+                at: (surface_x, surface_y),
+            }),
+            wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } => app.pointer_events.push(PointerEvent::Motion {
+                at: (surface_x, surface_y),
+            }),
+            wl_pointer::Event::Button { serial, state, .. } => {
+                app.pointer_events.push(PointerEvent::Button {
+                    serial,
+                    pressed: state == WEnum::Value(wl_pointer::ButtonState::Pressed),
+                });
+            }
+            wl_pointer::Event::Leave { .. } => app.pointer_events.push(PointerEvent::Leave),
+            _ => {}
         }
     }
 }
@@ -764,8 +1210,96 @@ impl Dispatch<XdgPopup, usize> for App {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let xdg_popup::Event::PopupDone = event {
-            app.surfaces[*index].done = true;
+        match event {
+            xdg_popup::Event::PopupDone => app.surfaces[*index].done = true,
+            xdg_popup::Event::Configure {
+                x,
+                y,
+                width,
+                height,
+            } => app.surfaces[*index].popup = Some([x, y, width, height]),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<WlDataDeviceManager, ()> for App {
+    fn event(
+        _: &mut Self,
+        _: &WlDataDeviceManager,
+        _: <WlDataDeviceManager as Proxy>::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlDataDevice, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlDataDevice,
+        event: wl_data_device::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_data_device::Event::Enter {
+                serial,
+                surface,
+                x,
+                y,
+                id,
+            } => {
+                if let Some(offer) = id {
+                    offer.accept(serial, Some("text/plain".into()));
+                    offer.set_actions(DndAction::Copy, DndAction::Copy);
+                }
+                app.dnd_events.push(DndEvent::Enter {
+                    surface: surface.id(),
+                    at: (x, y),
+                });
+            }
+            wl_data_device::Event::Motion { x, y, .. } => {
+                app.dnd_events.push(DndEvent::Motion { at: (x, y) });
+            }
+            wl_data_device::Event::Leave => app.dnd_events.push(DndEvent::Leave),
+            wl_data_device::Event::Drop => app.dnd_events.push(DndEvent::Drop),
+            _ => {}
+        }
+    }
+
+    wayland_client::event_created_child!(App, WlDataDevice, [
+        wl_data_device::EVT_DATA_OFFER_OPCODE => (WlDataOffer, ()),
+    ]);
+}
+
+impl Dispatch<WlDataOffer, ()> for App {
+    fn event(
+        _: &mut Self,
+        _: &WlDataOffer,
+        _: <WlDataOffer as Proxy>::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlDataSource, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlDataSource,
+        event: wl_data_source::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_data_source::Event::Cancelled => app.dnd_events.push(DndEvent::Cancelled),
+            wl_data_source::Event::DndDropPerformed => app.dnd_events.push(DndEvent::Performed),
+            _ => {}
         }
     }
 }
@@ -777,6 +1311,14 @@ delegate_noop!(App: WlShmPool);
 delegate_noop!(App: ignore WlBuffer);
 
 /// A new file that is gone from the file system, for a shm pool.
+/// Writes one 32 bit value into every pixel of the memory of a buffer of
+/// a size, behind the back of the compositor.
+pub fn fill(file: &std::fs::File, (w, h): (i32, i32), pixel: u32) {
+    let pixels = usize::try_from(w * h).expect("a size");
+    std::os::unix::fs::FileExt::write_all_at(file, &pixel.to_le_bytes().repeat(pixels), 0)
+        .expect("the file takes the pixels");
+}
+
 fn tempfile() -> std::fs::File {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -795,4 +1337,34 @@ delegate_noop!(App: WlRegion);
 delegate_noop!(App: ZwpTextInputManagerV3);
 delegate_noop!(App: ZwlrLayerShellV1);
 delegate_noop!(App: ExtSessionLockManagerV1);
-delegate_noop!(App: ignore ExtSessionLockV1);
+delegate_noop!(App: ignore WpPresentation);
+
+impl Dispatch<ExtSessionLockV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ExtSessionLockV1,
+        event: ext_session_lock_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let ext_session_lock_v1::Event::Locked = event {
+            app.locked = true;
+        }
+    }
+}
+
+impl Dispatch<WpPresentationFeedback, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WpPresentationFeedback,
+        event: wp_presentation_feedback::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wp_presentation_feedback::Event::Presented { .. } = event {
+            app.presented += 1;
+        }
+    }
+}

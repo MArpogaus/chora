@@ -21,12 +21,12 @@ fi
 test -e "$file" && fail "a wrong value wrote $file"
 ctl call tiling settings.set '{"style": {"opacity": 0.5, "effects": []}}' >/dev/null ||
     fail "settings.set of the style"
-ctl call tiling settings.get | grep -q '"opacity": *0.5' ||
-    fail "settings.get: $(ctl call tiling settings.get)"
+got=$(ctl call tiling settings.get) || fail "ctl call failed"
+grep -q '"opacity": *0.5' <<<"$got" || fail "settings.get: $got"
 grep -q 'opacity: 0.5' "$file" || fail "the file has no opacity 0.5: $(cat "$file")"
 
-pid=$(ctl run "$bin/chora-probe" window 255 0 0 |
-    sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+started=$(ctl run "$bin/chora-probe" window 255 0 0) || fail "the run of the window"
+pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
 [ -n "$pid" ] || fail "the run of the window"
 run_pid "$pid"
 for _ in $(seq 50); do

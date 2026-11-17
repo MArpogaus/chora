@@ -15,6 +15,8 @@ use std::{
 };
 
 use chora_scene::Uniform;
+
+pub mod backdrop;
 use smithay::{
     backend::renderer::{
         Color32F, Frame,
@@ -22,6 +24,37 @@ use smithay::{
     },
     utils::{Physical, Rectangle},
 };
+
+/// The largest side of a texture that the GL of a renderer takes.
+pub fn max_texture_size(gles: &mut GlesRenderer) -> Option<i32> {
+    let side = gles.with_context(|gl| {
+        let mut side = 0;
+        // SAFETY: MAX_TEXTURE_SIZE writes one integer into `side`.
+        unsafe { gl.GetIntegerv(ffi::MAX_TEXTURE_SIZE, &raw mut side) };
+        side
+    });
+    side.ok().filter(|side| *side > 0)
+}
+
+/// Whether the GL of a renderer runs in software, as llvmpipe, softpipe,
+/// swrast or `SwiftShader` do, by its renderer string.
+pub fn is_software(gles: &mut GlesRenderer) -> bool {
+    let name = gles.with_context(|gl| {
+        // SAFETY: RENDERER gives a static string of the context or null.
+        let text = unsafe { gl.GetString(ffi::RENDERER) };
+        if text.is_null() {
+            return String::new();
+        }
+        // SAFETY: a non-null RENDERER string ends with a nul.
+        let name = unsafe { std::ffi::CStr::from_ptr(text.cast()) };
+        name.to_string_lossy().to_lowercase()
+    });
+    name.is_ok_and(|n| {
+        ["llvmpipe", "softpipe", "swrast", "swiftshader"]
+            .iter()
+            .any(|soft| n.contains(soft))
+    })
+}
 
 /// The largest shader file.
 const MAX_SOURCE: u64 = 64 << 10;
@@ -36,6 +69,19 @@ pub struct Program {
     alpha: ffi::types::GLint,
     size: ffi::types::GLint,
     time: ffi::types::GLint,
+}
+
+impl Program {
+    /// The GL name of the program.
+    pub fn id(&self) -> ffi::types::GLuint {
+        self.id
+    }
+
+    /// Whether the shader reads the clock, so that its picture changes
+    /// without any input changing.
+    pub fn reads_time(&self) -> bool {
+        self.time >= 0
+    }
 }
 
 const VERTEX: &str = "
@@ -109,6 +155,9 @@ pub struct Draw<'a> {
     /// More textures by the names of their samplers, for the node
     /// textures of a shader node.
     pub textures: &'a [(String, ffi::types::GLuint)],
+    /// The `time` of the shader: of a recording that steps it, or the
+    /// time since the start for `None`.
+    pub seconds: Option<f32>,
 }
 
 /// Draws triangles with a program into the target of a frame.
@@ -120,7 +169,8 @@ pub fn draw(
     // Smithay's instanced draws leave divisors on attribute indices.
     let instancing = frame.capabilities().contains(&Capability::Instancing);
     let count = i32::try_from(call.indices.len()).unwrap_or(0);
-    let seconds = START.get_or_init(Instant::now).elapsed().as_secs_f32();
+    let seconds =
+        (call.seconds).unwrap_or_else(|| START.get_or_init(Instant::now).elapsed().as_secs_f32());
     frame.with_context(|gl| unsafe {
         // SAFETY: the arrays outlive the draw call; see the module notes.
         gl.UseProgram(program.id);
@@ -171,6 +221,29 @@ pub fn draw(
         gl.ActiveTexture(ffi::TEXTURE0);
         gl.BindTexture(ffi::TEXTURE_2D, 0);
     })
+}
+
+/// Draws as [`draw`], once into each window of the target, so that the
+/// pixels outside of them stay as they were, and gives the scissor of the
+/// frame back. The damage tracker of Smithay clears its damage and nothing
+/// else; a translucent draw past it blends over the frame before.
+pub fn draw_within(
+    frame: &mut GlesFrame<'_, '_>,
+    program: &Program,
+    call: &Draw<'_>,
+    windows: &[backdrop::Window],
+) -> Result<(), GlesError> {
+    let viewport = backdrop::viewport(frame)?;
+    let mut result = Ok(());
+    for [x, y, w, h] in windows {
+        // SAFETY: a plain state change on the current context.
+        frame.with_context(|gl| unsafe { gl.Scissor(*x, *y, *w, *h) })?;
+        result = result.and(draw(frame, program, call));
+    }
+    let [x, y, w, h] = viewport;
+    // SAFETY: as above.
+    frame.with_context(|gl| unsafe { gl.Scissor(x, y, w, h) })?;
+    result
 }
 
 /// Sets alpha 1 in rectangles of the target of a frame and keeps their

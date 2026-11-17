@@ -172,6 +172,44 @@ output cannot turn off. Headless outputs accept every change; tests add and
 remove them with `output.add` and `output.remove`, as monitors that plug in
 and out. No backend has adaptive sync.
 
+### Virtual outputs
+
+A client of the main socket adds a **virtual output** with
+`output.add(spec, virtual: true)` on every backend (D69). The gates run it on
+the headless backend, and `tests/gate-virtual-winit.sh` on winit in a
+nested session; the tty backend has no gate. To a window
+manager it is an output: it is in `output.list` with `virtual: true` and
+its `owner`, and it has a `wl_output`, a mode, a scale, a camera, a work
+area, an overlay root and layer surfaces, so a window manager runs on it
+with `--output VIRTUAL-1`. To the core it is an output that no screen
+shows and no pointer enters. It lives in a list of its own: the pointer
+layout, `wlr-output-management`, the lock and the screen copy protocols
+never see it. Its scene area lies left of and above all screens.
+
+Its frames go into a texture. A shader node of the owner reads that
+texture with the uniform `{"output": NAME}`. Before a screen renders, the
+core renders each virtual output that a visible node of its owner reads,
+with its damage, once per frame of the fastest screen. An output that
+nobody reads renders nothing, and its windows get a frame callback per
+second, as hidden windows do. With `forward: true` the node passes the
+pointer into the output (D70, see [input flow](#input-flow)): the pointer
+is where the node shows it. A press holds the pointer behind its node
+until the last button goes up.
+
+A virtual output goes when its owner removes it or ends, after the grace
+time of a `resume`, and the emergency reset removes all of them first. Its
+layer surfaces close and `output.removed` goes out. A window whose centre
+lies in the scene area of that output, as its default camera showed it,
+gets 5 s, unless it is hidden or a screen or a new virtual output shows
+it.
+Then the core takes it from a window manager that left it there: it tells
+that one with `surface.detached` and hands the window to the client that
+gave it to that window manager, else to another window manager, else it
+shows the window on the first screen. The camera of the output does not
+decide which windows these are, so no client takes the windows of
+another one with it. The core remembers the giver of a window only while
+the window manager that got it has it.
+
 ### Renderer
 
 The core uses Smithay's GLES renderer through Smithay's own renderer traits.
@@ -183,22 +221,94 @@ transaction names it, rejects the transaction on an error, and compiles it
 again when the file changes.
 
 Transforms are 4x4 matrices, so 3D effects need no API change. A node with
-a size and a mesh, or with a transform that is not a plain 2D translation
-and scale, is a **layer**: the core renders it with its descendants into a
+a size and a mesh, or with a transform that is not a 2D translation with a
+positive scale, is a **layer**: the core renders it with its descendants into a
 texture of its size, and then draws the texture through the mesh, or a
 quad, with the full transform of the node and the camera. The vertices go
 to the GPU in homogeneous coordinates, so textures map correctly under
-perspective. Wobbly windows move the points of a mesh, a magic lamp
-animates them, and a desktop cube turns layers in 3D. A layer has no depth
+perspective. Wobbly windows move the points of a mesh, in 3D
+with a `depth` for each point (`Wobble::new_3d`, a smaller z is nearer), a
+magic lamp animates them, and a desktop cube turns layers in 3D. A layer has no depth
 test: the order of the siblings decides what is in front, and a plugin
-hides the faces that turn away. Pointer input reaches the nodes of a layer
-only where its transform is a plain 2D one.
+hides the faces that turn away. A node with a size, or with a content size
+such as a window, an image or a text, whose transform relative to its nearest
+layer is not a 2D translation with a positive scale is a **plane**: it draws
+through a texture of its size, and pointer input reaches it through the
+inverse of its transform, so a rotated window gets the pointer at the point
+that it shows.
+
+A group with a size and a `perspective` is a **3D context**. The walk of
+the scene composes its projection into the transforms of its descendants,
+and the layer and hit lists stop at it. When the core draws a context, it
+clips the planes of the context at w = 1/64, splits planes that cross and
+sorts the pieces from back to front with the crate `plane-split`, the BSP of
+WebRender. A whole plane draws as it would outside a context; a piece draws
+the texture of its plane through its part of the quad, and all pieces of a
+plane share one texture. The hit test walks the same pieces from the front,
+so hit order equals draw order. There is no depth buffer.
 
 The core asks each output for a frame once per refresh. It renders only
-when the damage tracker of Smithay reports damage. A layer counts as
-changed in every frame, so a scene with a layer renders in every frame.
-There is no direct scanout. Milestone 0.10 replaces this with a renderer
-of chora that renders only on damage (D17, D24).
+when the damage tracker of Smithay reports damage. A layer keeps its
+texture and a damage tracker between frames, and draws only what changed
+since: a window that commits, a node of its subtree that changes, a new
+size or scale. The passes of its shader and effects run again only when
+the texture, a node texture, a uniform or the shader file changed, or when
+the shader reads `time`. The element of a layer counts as changed only
+then or when its shape moves, so a static scene, also one with layers and
+a 3D context, renders nothing and reports no damage. A node texture
+keeps its own tracker, is keyed by its source and draws only when the
+source changes, for all the shader nodes that read it, so a pane and its
+mirror share the texture of their window.
+
+A rect with a `backdrop` adds an element right behind its own element
+(`backdrop.rs`). The element is a framebuffer effect of Smithay's damage
+tracker: when the frame behind it changes, the tracker draws all of its
+box behind it, also under opaque elements in front, and calls the
+capture of the element before its draw. The capture copies the part of
+the target under the box into a texture, halves that with the downsample
+of a dual Kawase blur and doubles it back to half the size of the box;
+the draw shows the result through the shape of the rect, saturated,
+before the rect draws its tint.
+The same element works on an output, in a layer texture and for the
+planes and pieces of a 3D context, since each draws back to front into
+one target. A node texture leaves it out. Before a frame,
+`Backdrops::settle` compares the elements behind the box of each
+backdrop with those of its last frame, by id, commit, box and alpha, and
+by the damage of a changed commit inside the box. Only a change gives
+the backdrop a new commit: the damage tracker then redraws its whole box
+behind it, and the draw blurs again. A new opacity or uniform of the
+glass alone, as in a fade, draws again with the kept blur. Otherwise
+nothing draws, so a still screen renders nothing. A view shows at most 8
+backdrops; each takes twice its box from the pixel budget of the frame,
+and one that does not fit draws its plain tint. On the tty backend a
+frame with a backdrop scans out only the cursor, so that every element
+behind the backdrop lies in the frame that it copies. The blurs of a view
+go when its last frame did not show them, and with the output.
+
+The frames import the buffer of a window lazily, with the damage of all
+commits since the last import. A commit imports at once in two cases
+(`backend/import.rs`). When a new buffer replaces one whose damage no
+renderer has imported yet, the old buffer goes into the texture before
+the commit replaces it, so the new buffer brings only its own damage. A
+**damage-less attach** keeps the texture as it is and uploads no pixel of
+the new buffer. The protocol makes the new buffer the content of the
+surface, so this is a deliberate leniency, as in wlroots; foot relies on
+it, because it commits its second buffer, which still holds an older
+frame, without damage when the picture did not change. A node texture
+built later reads the kept texture. The commits of a paused tty session
+go into the textures with the first frame after the resume, with the
+merged damage of the pause, and a damage-less attach of the pause shows
+the attached buffer in full.
+
+A plane renders its texture at the output scale times a power of two,
+at most 1, that follows the size of the plane on screen: a far plane
+renders fewer pixels, and a camera walk allocates nothing until a plane
+crosses a step; a plane keeps its step until its size falls one step
+further. The order of a 3D context is computed once for as long as its
+planes keep their sizes, transforms and order, and the draw and the hit
+test share it. `RenderStats` counts renders, passes, texture allocations
+and orders for the tests. There is no direct scanout. Milestone 0.10
+replaces this with a renderer of chora (D17, D24).
 
 A text node lays out and draws inside the core. cosmic-text shapes the
 text with the system fonts and the fonts of every directory in
@@ -235,6 +345,9 @@ Limits keep a buggy client from exhausting the core:
 | line length | 1 MiB | the core answers with an error and closes the connection |
 | output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
+| grabs of a connection | 256 | the core rejects the `input.grab` |
+| exported methods of a connection | 64, each with at most 64 KiB of description and schema | the core rejects the `methods.export` |
+| waiting calls of a connection | 64 | the core rejects the `methods.call`, also when the output buffer of the exporter has no room for it |
 | nodes other than surfaces | 16,384 | the core rejects the `create` |
 | levels of nodes below the root | 64 | the core rejects the `create`, `attach` or `move` |
 | cameras | 64 | the core rejects the `camera` |
@@ -321,6 +434,29 @@ The layer surface keeps it until one of these occurs:
 - Its role goes, or it no longer accepts the keyboard.
 - Its output goes.
 
+A layer surface that takes the keyboard on demand also gets it from an
+activation token that carries an act of the person. An act is a press that
+the core or a client took as a command: a grabbed key or button (Super+a),
+a key to a node with the focus, or a press on a node that is no window. A
+key or button that goes to a window is no act, nor is a press while the
+session is locked, nor an injected press; an injected press also ends the
+act before it. The act belongs to the connections that received it: the
+connection of the grab, or those of the owner of the node at the press.
+`activation.token` stamps one token with the act: the first one that such
+a connection mints, unconfined and outside a method call of a confined
+caller, while the act is under 2 s old; the kit gives a plugin no token at
+all during such a call. `chora_kit::run` and `chora_kit::launch` mint on the
+connection of the plugin and hand the token to `choractl run` in
+`CHORA_RUN_TOKEN`. The
+layer surface of an unnamed client gets the keyboard on
+`xdg-activation` only when its token is stamped, no real press came after
+the act, the token is at most 10 s old and the session is not locked; the
+first such layer uses the act up. Other tokens still start programs and
+place windows, so a token without an act gives no keyboard (issue #102).
+An injected press sets no `focus_node` chance of a client socket and gives
+a client socket client no token. A layer surface never waits for
+`surface.created`.
+
 A popup grabs the input only with the serial of the last press, or of the
 last key or button event that its client got. A release counts, so a menu
 opens on F10 when the key goes up.
@@ -334,6 +470,8 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).
+  While the session is locked, only the VT switch works: nobody at the
+  lock screen ends or resets the session. SIGUSR1 still resets.
 - **Revoke binding.** Ctrl+Alt+i takes every capability away from every
   client and drops the unused activation tokens of no client. It also
   ends the grabs that need no modifier and disconnects the Wayland
@@ -342,11 +480,22 @@ The safety layer is the only built-in behavior (see
 - **Injection mark.** While a client injects input, the core shows a
   small yellow rect of its own next to the pointer. It goes 500 ms after
   the last injected event. No client owns the mark or can remove it.
+  The core draws it in front of the cursor, the layer surfaces and the
+  overlay, so no cursor, node or window of a client covers it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Last words.** A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)
-  writes the fault address and a backtrace to stderr before the default
-  action ends chora. `tests/last-words.sh` checks it.
+- **Last words.** No end of the core is silent. A faulting signal
+  (SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGFPE, SIGSYS) writes the fault
+  address and a backtrace to stderr before the default action ends
+  chora. A signal that ends chora without a fault (SIGTERM, SIGINT,
+  SIGHUP, SIGQUIT, SIGUSR2, SIGALRM, SIGXCPU, SIGXFSZ) writes its name
+  and the pid of its sender. A panic writes its thread, its message and
+  a backtrace; a panic outside the main thread ends only that thread.
+  An end through the quit binding, `session.quit`, the window of the
+  nested backend or a failed startup command logs `chora ends` with the
+  reason. Only SIGKILL leaves nothing, for example from the OOM killer;
+  the exit status 137 of the core then names it.
+  `tests/last-words.sh` checks the signals and `session.quit`.
 - **Emergency reset.** The core disconnects all plugins and ends their
   grace times. It revokes all grants, removes all effects and restores the
   default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
@@ -362,9 +511,9 @@ The safety layer is the only built-in behavior (see
   session stays locked, and only then can a new lock client take over.
 - **Watchdog.** When frames take longer to render than a refresh of their
   output for two seconds, the core blames the client whose visible nodes
-  cost the most: a node counts 1, a layer and each effect 25 more. It
-  removes the effects, the meshes and the shaders of shader nodes of that
-  client and sends `effects.dropped` with its name. When frames stay slow
+  cost the most: a node counts 1, a layer and each effect 25 more, and a
+  backdrop 25 for each started 256x256 logical pixels of its size. It removes the effects, the meshes, the backdrops and the shaders
+  of shader nodes of that client and sends `effects.dropped` with its name. When frames stay slow
   for two more seconds, the core disconnects that client, at most once a
   minute. It does so only when that client's own load reaches the owner
   budget (D57). `CHORA_OWNER_LOAD_BUDGET` sets that budget, 4000 by
@@ -372,11 +521,21 @@ The safety layer is the only built-in behavior (see
   also those of a client with `keep_nodes` or `resume`, without a grace
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
-  the emergency reset; only the binding and SIGUSR1 do.
+  the emergency reset; only the binding and SIGUSR1 do. The time that
+  the main thread waited for a CPU during a frame (the run queue wait of
+  `/proc/thread-self/schedstat`) does not count: on a busy host the
+  frames are late without a costly scene, so the core logs at most once
+  a minute that the host is busy and acts on no client. Only the main
+  thread counts: the wait of the threads of a software renderer still
+  looks like a costly frame.
+  `tests/gate-watchdog-starved.sh` checks it beside busy loops.
 - **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
   stall of the main loop and aborts chora when the loop hangs, for
-  example in a shader that never returns.
-  `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
+  example in a shader that never returns. The time that the watchdog
+  thread itself did not run, after SIGSTOP or on a starved host, counts
+  for no stall, up to a ceiling: four times the abort time of wall time
+  without a beat aborts too. `tests/gate-0.9-shader-hang.sh` checks it on
+  llvmpipe.
 
 ## Permissions
 

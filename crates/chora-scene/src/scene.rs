@@ -81,6 +81,28 @@ pub struct Placed<'a> {
     pub clips: Vec<(Transform, [f64; 2])>,
 }
 
+/// Where a walk stops to descend.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stop {
+    /// Nowhere: all visible nodes.
+    Never,
+    /// At layers and planes, which render into a texture of their own.
+    Layers,
+    /// At planes, which a hit test enters through their homography.
+    Planes,
+}
+
+impl Stop {
+    fn at(self, node: &Node, transform: &Transform) -> bool {
+        let plane = node.props.size.is_some() && !transform.is_plain();
+        match self {
+            Self::Never => false,
+            Self::Layers => node.is_layer() || plane || node.is_context(),
+            Self::Planes => plane || node.is_context(),
+        }
+    }
+}
+
 /// A node of a walk with the transform, the opacity, the input mode and the
 /// clips of its parent.
 type Step<'a> = (
@@ -109,6 +131,13 @@ const LINE_HEIGHTS: std::ops::RangeInclusive<f64> = 0.5..=10.0;
 const WEIGHTS: std::ops::RangeInclusive<u16> = 1..=1000;
 /// The range of `letter_spacing`, in em.
 const LETTER_SPACINGS: std::ops::RangeInclusive<f64> = -1.0..=1.0;
+/// The range of `perspective`, in logical pixels.
+const PERSPECTIVES: std::ops::RangeInclusive<f64> = 1.0..=1e6;
+/// The radius of a backdrop blur in logical pixels: at least 2, so that
+/// the pixels behind a glass rect show only blurred.
+const BLURS: std::ops::RangeInclusive<f64> = 2.0..=128.0;
+/// The saturation of a backdrop.
+const SATURATIONS: std::ops::RangeInclusive<f64> = 0.0..=4.0;
 /// The most OpenType features of a text node.
 const MAX_FEATURES: usize = 32;
 
@@ -160,6 +189,9 @@ pub struct Scene {
     /// The default camera of each output, which the core sets; the start
     /// and the end of moves from and to the default camera.
     default_cameras: OrdMap<String, Transform>,
+    /// The owners of the virtual outputs by output name, which the core
+    /// sets: only the owner reads its output as a texture.
+    output_owners: OrdMap<String, String>,
     /// The surface with the keyboard focus, which the core sets.
     focused: Option<String>,
     /// The surface that had the focus when a client cleared it, by client.
@@ -188,11 +220,27 @@ impl Default for Scene {
             animations: OrdMap::new(),
             camera_moves: OrdMap::new(),
             default_cameras: OrdMap::new(),
+            output_owners: OrdMap::new(),
             focused: None,
             focus_returns: OrdMap::new(),
             focused_node: None,
         }
     }
+}
+
+/// What decides the window manager of a new toplevel
+/// ([`Scene::manager_of_new`]).
+#[derive(Debug, Clone, Copy)]
+pub struct NewToplevel<'a> {
+    /// The surface node of its parent toplevel, for a dialog.
+    pub parent: Option<&'a str>,
+    /// The surface node with the keyboard focus.
+    pub focused: Option<&'a str>,
+    /// The window manager that a click of the user on its empty claim
+    /// chose.
+    pub chosen: Option<&'a str>,
+    /// The pointer in scene coordinates.
+    pub point: [f64; 2],
 }
 
 /// The owner of the smallest claim that contains `[px, py]`, among the
@@ -235,6 +283,48 @@ impl Scene {
     /// default camera end and start.
     pub fn set_default_camera(&mut self, output: &str, camera: Transform) {
         self.default_cameras.insert(output.into(), camera);
+    }
+
+    /// Sets or clears the owner of a virtual output.
+    pub fn set_output_owner(&mut self, output: &str, owner: Option<&str>) {
+        match owner {
+            Some(owner) => self.output_owners.insert(output.into(), owner.into()),
+            None => self.output_owners.remove(output),
+        };
+    }
+
+    /// Fails unless every output that the uniforms read is a virtual
+    /// output of the client.
+    fn check_output_reads(&self, client: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+        for uniform in props.uniforms.iter().flat_map(BTreeMap::values) {
+            let Uniform::Output(read) = uniform else {
+                continue;
+            };
+            let name = &read.output;
+            match self.output_owners.get(name) {
+                Some(owner) if owner == client => {}
+                Some(owner) => {
+                    return Err(SceneError::Invalid(format!(
+                        "only its owner {owner:?} reads the output {name:?}"
+                    )));
+                }
+                None => {
+                    return Err(SceneError::Invalid(format!("no virtual output {name:?}")));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Fails unless the client owns every output that the uniforms read
+    /// and the node, after the update, forwards into exactly one.
+    fn check_reader(&self, client: &str, id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+        self.check_output_reads(client, props)?;
+        let now = self.nodes.get(id).map(|n| &n.props);
+        let forward = props.forward.unwrap_or(now.is_some_and(|p| p.forward));
+        let none = BTreeMap::new();
+        let kept = now.map_or(&none, |p| &p.uniforms);
+        check_forward(id, forward, props.uniforms.as_ref().unwrap_or(kept))
     }
 
     /// A node by id.
@@ -338,27 +428,29 @@ impl Scene {
     }
 
     /// The window manager of a new toplevel (D55): the owner of its
-    /// parent toplevel; else the owner of the focused node, else of the
-    /// focused surface, if it holds a claim; else the owner of the smallest
-    /// claim that contains the pointer. Only owners that `live` accepts
-    /// count, so a claim of a client that is gone reserves nothing.
+    /// parent toplevel; else the manager that a click of the user chose,
+    /// if it holds a claim; else the owner of the focused node, else of
+    /// the focused surface, if it holds a claim; else the owner of the
+    /// smallest claim that contains the pointer. Only owners that `live`
+    /// accepts count, so a claim of a client that is gone reserves
+    /// nothing.
     #[must_use]
-    pub fn manager_of_new(
-        &self,
-        parent: Option<&str>,
-        focused: Option<&str>,
-        point: [f64; 2],
+    pub fn manager_of_new<'a>(
+        &'a self,
+        new: &NewToplevel<'a>,
         live: impl Fn(&str) -> bool,
-    ) -> Option<&str> {
+    ) -> Option<&'a str> {
         let owner = |id: Option<&str>| self.nodes.get(id?)?.owner.as_deref();
+        let claims = |o: &&str| live(o) && self.holds_claim(o);
         let focus = || {
             self.focused_node_owner()
-                .or_else(|| owner(focused))
-                .filter(|o| live(o) && self.holds_claim(o))
+                .or_else(|| owner(new.focused))
+                .filter(claims)
         };
-        let pointer = || claimant_at(self.nodes.values(), point, &live);
-        owner(parent)
+        let pointer = || claimant_at(self.nodes.values(), new.point, &live);
+        owner(new.parent)
             .filter(|o| live(o))
+            .or_else(|| new.chosen.filter(claims))
             .or_else(focus)
             .or_else(pointer)
     }
@@ -410,6 +502,7 @@ impl Scene {
                 props,
             } => {
                 check_props(id, *kind, props)?;
+                self.check_reader(owner, id, props)?;
                 check_meta(id, &BTreeMap::new(), props)?;
                 if *kind == NodeKind::Shader && props.shader.is_none() {
                     return Err(SceneError::Invalid(format!(
@@ -454,8 +547,48 @@ impl Scene {
             Command::Focus { surface } => self.focus_command(owner, surface.as_deref(), effects),
             Command::FocusNode { node } => self.focus_node_command(owner, node.as_deref()),
             Command::Close { .. } => self.close_command(owner, command, effects),
+            Command::GiveGrab { .. } => Self::give_grab_command(owner, command, effects),
             camera @ Command::Camera { .. } => self.camera_command(owner, camera, effects),
         }
+    }
+
+    /// `give_grab`: the drag goes with a surface that the owner reserved
+    /// for `to` earlier in this transaction, and with no other.
+    fn give_grab_command(
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::GiveGrab {
+            surface,
+            to,
+            point,
+            velocity,
+            wobble,
+        } = command
+        else {
+            unreachable!("only give_grab");
+        };
+        let reserved = effects.iter().any(|e| {
+            matches!(e, Effect::Reserved { surface: s, to: t, from }
+                if s == surface && t == to && from == owner)
+        });
+        if !reserved {
+            return Err(SceneError::Invalid(format!(
+                "the drag of {surface:?} goes only with a remove to {to:?} in the same transaction"
+            )));
+        }
+        effects.push(Effect::GrabGiven {
+            surface: surface.clone(),
+            to: to.clone(),
+            from: owner.into(),
+            grab: crate::GivenGrab {
+                point: *point,
+                velocity: *velocity,
+                wobble: wobble.clone(),
+            },
+        });
+        Ok(())
     }
 
     /// `move`: a node of another client answers with a request (D31).
@@ -819,20 +952,31 @@ impl Scene {
     /// call stack.
     #[must_use]
     pub fn draw_list(&self) -> Vec<Placed<'_>> {
-        self.walk(ROOT, false)
+        self.walk(ROOT, Stop::Never)
+    }
+
+    /// The visible nodes of a hit test, bottom first: the nodes below
+    /// the root, the overlay root of an output, or a plane, in the
+    /// coordinates of that start. A plane is a node with a size whose
+    /// transform is not a 2D translation with a positive scale; the list
+    /// holds it, and the hit test maps the point into it and walks its own
+    /// list. Without planes it equals [`Self::draw_list`].
+    #[must_use]
+    pub fn hit_list(&self, id: &str) -> Vec<Placed<'_>> {
+        self.walk(id, Stop::Planes)
     }
 
     /// The visible nodes under the overlay root of an output, bottom first,
     /// in the logical coordinates of the output (D43).
     #[must_use]
     pub fn overlay_draw_list(&self, output: &str) -> Vec<Placed<'_>> {
-        self.walk(&overlay_id(output), false)
+        self.walk(&overlay_id(output), Stop::Never)
     }
 
     /// The nodes that the overlay root of an output shows as a layer list.
     #[must_use]
     pub fn overlay_layer_list(&self, output: &str) -> Vec<Placed<'_>> {
-        self.walk(&overlay_id(output), true)
+        self.walk(&overlay_id(output), Stop::Layers)
     }
 
     /// Adds the overlay root of an output: a group without owner, outside
@@ -901,16 +1045,16 @@ impl Scene {
     /// not.
     #[must_use]
     pub fn layer_list(&self, id: &str) -> Vec<Placed<'_>> {
-        self.walk(id, true)
+        self.walk(id, Stop::Layers)
     }
 
-    fn walk(&self, start: &str, layers: bool) -> Vec<Placed<'_>> {
+    fn walk(&self, start: &str, stop: Stop) -> Vec<Placed<'_>> {
         let Some(first) = self.nodes.get(start) else {
             return Vec::new();
         };
         let mut out = Vec::new();
         let mut stack = Vec::new();
-        if start == ROOT || is_overlay(start) || !layers {
+        if start == ROOT || is_overlay(start) || stop == Stop::Never {
             stack.push((
                 first,
                 Transform::IDENTITY,
@@ -931,6 +1075,27 @@ impl Scene {
             self.push_children(&mut stack, &placed);
             out.push(placed);
         }
+        self.descend(stack, stop, out)
+    }
+
+    /// The descendants of a placed 3D context, bottom first, with the
+    /// transforms, opacities, input modes and clips of the list that holds
+    /// it and the projection of the context. The list stops at layers,
+    /// planes and nested contexts, as [`Self::layer_list`] does.
+    #[must_use]
+    pub fn context_list<'a>(&'a self, context: &Placed<'a>) -> Vec<Placed<'a>> {
+        let mut stack = Vec::new();
+        self.push_children(&mut stack, context);
+        self.descend(stack, Stop::Layers, Vec::new())
+    }
+
+    /// Walks the nodes of a stack and their descendants into `out`.
+    fn descend<'a>(
+        &'a self,
+        mut stack: Vec<Step<'a>>,
+        stop: Stop,
+        mut out: Vec<Placed<'a>>,
+    ) -> Vec<Placed<'a>> {
         while let Some((node, parent, opacity, input, mut clips)) = stack.pop() {
             if !node.props.visible {
                 continue;
@@ -950,7 +1115,7 @@ impl Scene {
                 },
                 clips,
             };
-            if !(layers && node.is_layer()) {
+            if !stop.at(node, &transform) {
                 self.push_children(&mut stack, &placed);
             }
             if node.id != ROOT {
@@ -963,6 +1128,10 @@ impl Scene {
     /// Puts the children of a placed node on the stack of a walk, the
     /// bottom one last.
     fn push_children<'a>(&'a self, stack: &mut Vec<Step<'a>>, placed: &Placed<'a>) {
+        let parent = placed
+            .node
+            .projection()
+            .map_or(placed.transform, |p| placed.transform.then(&p));
         for id in placed.node.children.iter().rev() {
             // A missing child is a bug of the tree links; a frame without
             // it is better than a crash of the session.
@@ -970,7 +1139,7 @@ impl Scene {
             if let Some(child) = self.nodes.get(id) {
                 stack.push((
                     child,
-                    placed.transform,
+                    parent,
                     placed.opacity,
                     placed.input,
                     placed.clips.clone(),
@@ -1019,12 +1188,14 @@ impl Scene {
             }
             let node = &self.nodes[id];
             check_props(id, node.kind, props)?;
+            self.check_reader(owner, id, props)?;
             check_meta(id, &node.props.meta, props)?;
             #[allow(clippy::expect_used, reason = "props have string keys only")]
             let args = serde_json::to_value(props).expect("props serialize");
             effects.push(request(owner, id, other, "update", args));
             return Ok(());
         }
+        self.check_reader(owner, id, props)?;
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;
         check_meta(id, &node.props.meta, props)?;
@@ -1069,8 +1240,8 @@ impl Scene {
     }
 
     /// Removes the effects of the nodes of an owner, for the watchdog: the
-    /// meshes and the shaders, also at the start and the end of
-    /// animations. Returns whether there were some.
+    /// meshes, the shaders and the backdrops, also at the start and the
+    /// end of animations. Returns whether there were some.
     pub fn drop_effects(&mut self, owner: &str) -> bool {
         let of_owner =
             |node: Option<&Node>| node.is_some_and(|n| n.owner.as_deref() == Some(owner));
@@ -1088,15 +1259,21 @@ impl Scene {
             }
             if let Some(animation) = self.animations.get_mut(&id) {
                 found |= strip(&mut animation.from);
-                found |= animation.to.mesh.take().is_some() | animation.to.effects.take().is_some();
+                found |= animation.to.mesh.take().is_some()
+                    | animation.to.effects.take().is_some()
+                    | animation.to.perspective.take().is_some()
+                    | animation.to.backdrop.take().is_some();
             }
         }
         found
     }
 
     /// The load that the visible nodes of each owner put on a frame, for
-    /// the watchdog: a node counts 1, a layer 25 more, and each effect 25
-    /// more.
+    /// the watchdog: a node counts 1, a layer or a plane 25 more, each
+    /// effect 25 more, and a backdrop 25 for each started 256x256 logical
+    /// pixels of its size. A plane is a node that draws something under a
+    /// transform that is not a 2D translation with a positive scale, also
+    /// the projection of a 3D context.
     #[must_use]
     pub fn load_by_owner(&self) -> BTreeMap<String, u64> {
         // ponytail: fixed weights from the thresholds of #59, where 200
@@ -1106,13 +1283,15 @@ impl Scene {
         let mut load = BTreeMap::new();
         let overlays = self.nodes.keys().filter(|id| is_overlay(id));
         for start in std::iter::once(ROOT).chain(overlays.map(String::as_str)) {
-            for placed in self.walk(start, false) {
+            for placed in self.walk(start, Stop::Never) {
                 let node = placed.node;
                 let Some(owner) = &node.owner else {
                     continue;
                 };
-                let effects = node.props.effects.len() as u64;
-                let cost = 1 + LAYER * (u64::from(node.is_layer()) + effects);
+                let effects = node.props.effects.len() as u64 + backdrop_units(node);
+                let draws = node.kind != NodeKind::Group || node.props.size.is_some();
+                let plane = draws && !placed.transform.is_plain();
+                let cost = 1 + LAYER * (u64::from(node.is_layer() || plane) + effects);
                 *load.entry(owner.clone()).or_default() += cost;
             }
         }
@@ -1393,7 +1572,7 @@ pub const OVERLAY: &str = "screen:";
 pub const INJECTION: &str = "chora:inject";
 
 /// The side of the injection mark, in logical pixels.
-const MARK_SIDE: f64 = 12.0;
+pub const MARK_SIDE: f64 = 12.0;
 
 /// The id of the overlay root of an output.
 #[must_use]
@@ -1507,14 +1686,20 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if kind != NodeKind::Rect && kind != NodeKind::Text && props.color.is_some() {
         return wrong("rect or text");
     }
-    if kind != NodeKind::Rect && (props.radius.is_some() || props.border.is_some()) {
+    if kind != NodeKind::Rect
+        && (props.radius.is_some() || props.border.is_some() || props.backdrop.is_some())
+    {
         return wrong("rect");
     }
     if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
         return wrong("image");
     }
-    if kind != NodeKind::Shader && (props.shader.is_some() || props.uniforms.is_some()) {
+    let shader_only = props.shader.is_some() || props.uniforms.is_some() || props.forward.is_some();
+    if kind != NodeKind::Shader && shader_only {
         return wrong("shader");
+    }
+    if kind != NodeKind::Group && props.perspective.is_some() {
+        return wrong("group");
     }
     if kind != NodeKind::Text
         && (props.text.is_some()
@@ -1536,8 +1721,18 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     Ok(())
 }
 
-/// The radius, the border, the clip and the uniforms of a shader node.
+/// The radius, the border, the clip, the perspective and the uniforms of a
+/// shader node.
 fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+    if props
+        .perspective
+        .flatten()
+        .is_some_and(|d| !PERSPECTIVES.contains(&d))
+    {
+        return Err(SceneError::Invalid(format!(
+            "the perspective of {id:?} is not from 1 to 1000000"
+        )));
+    }
     let lengths = props
         .radius
         .iter()
@@ -1548,25 +1743,45 @@ fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
             "a radius or a border width of {id:?} is not from 0 to {MAX_LENGTH}"
         )));
     }
+    if let Some(backdrop) = props.backdrop.flatten()
+        && (!BLURS.contains(&backdrop.blur) || !SATURATIONS.contains(&backdrop.saturation))
+    {
+        return Err(SceneError::Invalid(format!(
+            "the backdrop of {id:?} needs a blur from 2 to 128 and a saturation from 0 to 4"
+        )));
+    }
     if let Some(uniforms) = &props.uniforms {
         check_uniforms(id, uniforms, true)?;
-        let textures = uniforms
-            .values()
-            .filter_map(|u| match u {
-                Uniform::Texture(t) => Some(t),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        if textures.len() > MAX_NODE_TEXTURES {
+        let samplers = uniforms.values().filter(|u| u.values().is_empty());
+        if samplers.count() > MAX_NODE_TEXTURES {
             return Err(SceneError::Invalid(format!(
-                "{id:?}: at most {MAX_NODE_TEXTURES} node textures"
+                "{id:?}: at most {MAX_NODE_TEXTURES} node and output textures"
             )));
         }
-        if textures.iter().any(|t| t.node == id) {
+        let reads_itself = |u: &Uniform| matches!(u, Uniform::Texture(t) if t.node == id);
+        if uniforms.values().any(reads_itself) {
             return Err(SceneError::Invalid(format!(
                 "{id:?} cannot read itself as a texture"
             )));
         }
+    }
+    Ok(())
+}
+
+/// A node with `forward` reads exactly one virtual output, which the
+/// pointer then enters.
+fn check_forward(
+    id: &str,
+    forward: bool,
+    uniforms: &BTreeMap<String, Uniform>,
+) -> Result<(), SceneError> {
+    let outputs = uniforms
+        .values()
+        .filter(|u| matches!(u, Uniform::Output(_)));
+    if forward && outputs.count() != 1 {
+        return Err(SceneError::Invalid(format!(
+            "{id:?}: forward needs exactly one uniform {{\"output\": NAME}}"
+        )));
     }
     Ok(())
 }
@@ -1665,10 +1880,27 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
 }
 
 /// Removes the mesh, the effects and the shader of properties. Returns
-/// whether there were some.
+/// whether there were some. A perspective stays: it costs no pass, and
+/// without it a context would show and hit its planes flat.
+/// The cost of the backdrop of a node in effects: one for each started
+/// 256x256 logical pixels of its size, so that a large glass weighs more.
+fn backdrop_units(node: &Node) -> u64 {
+    const UNIT: f64 = 256.0 * 256.0;
+    let Some([w, h]) = node.props.size.filter(|_| node.props.backdrop.is_some()) else {
+        return 0;
+    };
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let units = (w * h / UNIT).ceil().max(1.0) as u64;
+    units
+}
+
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
+    let found = props.mesh.is_some()
+        || !props.effects.is_empty()
+        || props.shader.is_some()
+        || props.backdrop.is_some();
     props.mesh = None;
+    props.backdrop = None;
     props.effects.clear();
     props.shader = None;
     found
@@ -1707,12 +1939,17 @@ fn check_uniforms(
             && name.len() <= 64;
         let fits = match value {
             Uniform::Texture(t) => textures && !t.node.is_empty(),
+            Uniform::Output(o) => textures && !o.output.is_empty(),
             _ => (1..=4).contains(&value.values().len()),
         };
         if !identifier || !fits {
             return invalid(&format!(
                 "the uniform {name:?} needs a name and 1 to 4 numbers{}",
-                if textures { ", or a node" } else { "" }
+                if textures {
+                    ", a node or an output"
+                } else {
+                    ""
+                }
             ));
         }
     }

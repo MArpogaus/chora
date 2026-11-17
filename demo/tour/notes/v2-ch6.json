@@ -1,0 +1,22 @@
+{
+ "06-01-use-mode": "Use mode: the front face fills the screen with xp (sunset, chora, taskbar, tray 40%); the hint pill Step back Alt+Esc sits over the lower right, over the chora window edge and the Recycle Bin label.",
+ "06-02-stepped-back": "Alt+Escape steps back: the face shows whole with the windows floating (the chora window hangs over the face edge); a pager pill xp - face 1 of 4 and a key bar Ctrl Alt left Turn left, Return Step in, Turn right Ctrl Alt right show under it (the old chips are replaced).",
+ "06-03-floating": "Still stepped back; windows on their own planes.",
+ "06-04-turn-key-mid": "Ctrl+Alt+Right: within 0.5 s the turn is over: face 2 of 4 (wobbly.rs, load); the pager follows.",
+ "06-05-turned-key": "Face 2 of 4 after the key turn.",
+ "06-06-drag-on-window-mid": "A drag that starts on the floating load window moves that window across the face; the cube does not turn. During the drag the key bar loses its pill and only the words Turn left, Step in, Turn right remain, and the pager vanishes.",
+ "06-07-after-drag-on-window": "After the drag the load window sits lower left, overhanging the bottom edge of the face; the pager and key bar are back.",
+ "06-06b-drag-turn-mid": "A drag from the empty desktop at the top right to the left: at 60 percent of the drag the face has not turned yet.",
+ "06-07b-turned-drag": "After the release the cube is on face 3 of 4 (cube.rs, chart); it turns after the release, not while dragging.",
+ "06-08-hover-off": "Pointer off the face (over the floor): no lit edge.",
+ "06-09-hover-edge": "Pointer on the face: the edge lighting is hard to see.",
+ "06-10-turn-chip": "A click on the arrow of Ctrl Alt left Turn left turns one face back: face 2 of 4.",
+ "06-11-turn-back": "Ctrl+Alt+Left: back on face 1 of 4 (sunset, chora).",
+ "06-12-step-in": "Return or a click on the face steps in: xp at 1:1 with the hint Step back Alt+Esc.",
+ "06-13-step-back-again": "Alt+Escape steps back again.",
+ "06-14-stood-off": "Camera glide (a method call): the face seen at an angle with its windows.",
+ "06-15-pulling": "A drag of the sunset title bar: the window leaves the face as a flat pane in front; the key bar lost its pills again (only words) and the pager is gone.",
+ "06-16-pane": "Released: sunset is a pane beside the face with the label sunset; the face taskbar no longer lists it; pager and key bar are back.",
+ "06-17-drag-back-mid": "A Super+drag of the pane over the face: the pane floats in front of the face.",
+ "06-18-dropped": "Dropped: sunset is an xp window again on the face with a title bar, partly over the chora window."
+}

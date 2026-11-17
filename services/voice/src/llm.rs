@@ -118,10 +118,10 @@ impl Llm {
             .timeout(Duration::from_secs(5))
             .send()
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.without_url().to_string())?
             .bytes()
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.without_url().to_string())
             .and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string()))?;
         let data = models["data"].as_array().ok_or("no model list")?;
         let model = data
@@ -176,9 +176,10 @@ impl Llm {
             .map_err(|_| Error::Timeout(format!("no answer within {:?}", self.first)))?
             .map_err(|e| {
                 if e.is_connect() {
-                    Error::Connect(format!("{}: {e}", self.url))
+                    let url = crate::health::shown(&self.url);
+                    Error::Connect(format!("{url}: {}", e.without_url()))
                 } else {
-                    Error::Other(e.to_string())
+                    Error::Other(e.without_url().to_string())
                 }
             })?;
         let status = response.status();
@@ -201,7 +202,8 @@ impl Llm {
             else {
                 return Ok(round);
             };
-            buffer.extend_from_slice(&chunk.map_err(|e| Error::Other(e.to_string()))?);
+            buffer
+                .extend_from_slice(&chunk.map_err(|e| Error::Other(e.without_url().to_string()))?);
             while let Some(end) = buffer.iter().position(|&b| b == b'\n') {
                 let line: Vec<u8> = buffer.drain(..=end).collect();
                 let line = String::from_utf8_lossy(&line);
@@ -249,7 +251,7 @@ impl Llm {
             .timeout(self.total)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.without_url().to_string())?;
         let status = response.status();
         if !status.is_success() {
             let text = response.text().await.unwrap_or_default();
@@ -410,6 +412,50 @@ mod tests {
         let seen = server.seen.lock().unwrap();
         assert_eq!(seen[0]["reasoning_effort"], "none");
         assert!(seen[0].get("tools").is_none(), "no tools, no key");
+    }
+
+    /// A server that reads each request and then sends `answer` and
+    /// closes; its URL carries a key in the userinfo and in the query.
+    async fn cutting(answer: &'static str) -> String {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                let mut seen = Vec::new();
+                let mut buffer = [0; 4096];
+                while !seen.windows(4).any(|w| w == b"\r\n\r\n") {
+                    match socket.read(&mut buffer).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => seen.extend_from_slice(&buffer[..n]),
+                    }
+                }
+                let _ = socket.write_all(answer.as_bytes()).await;
+            }
+        });
+        format!("http://user:sk-userinfo@127.0.0.1:{port}/v1?key=sk-query")
+    }
+
+    /// No error of a request names the URL with its userinfo or its
+    /// query: the texts reach the log and `voice.health`.
+    #[tokio::test]
+    async fn errors_name_no_key_of_the_url() {
+        let cut = "HTTP/1.1 200 OK\r\ncontent-length: 1000\r\n\r\ndata: {";
+        let llm = llm(&cutting(cut).await);
+        let body = llm.body(&[], &[]);
+        let errors = [
+            match llm.chat(&body, |_| ()).await {
+                Err(Error::Other(e)) => e,
+                other => panic!("a cut stream: {other:?}"),
+            },
+            llm.info().await.unwrap_err(),
+            self::llm(&cutting("").await)
+                .warm("system", &[])
+                .await
+                .unwrap_err(),
+        ];
+        let leaks: Vec<&String> = errors.iter().filter(|e| e.contains("sk-")).collect();
+        assert!(leaks.is_empty(), "{leaks:?}");
     }
 
     #[tokio::test]

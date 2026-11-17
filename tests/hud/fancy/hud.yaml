@@ -1,0 +1,18 @@
+hud: 1
+font: sans-serif
+panels:
+- id: linked
+  source: voice
+  anchor: bottom_right
+  picture: link.svg#{state}
+- id: outside
+  source: say
+  anchor: top_right
+  picture: href.svg#{state}
+- id: huge
+  source: agents
+  anchor: top_left
+  picture: huge.svg#{state}
+chat:
+  style: plain
+  size: 10

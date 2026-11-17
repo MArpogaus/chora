@@ -1,0 +1,21 @@
+[dependencies]
+chora-draw.workspace = true
+chora-kit.workspace = true
+chora-scene.workspace = true
+clap = { workspace = true, features = ["env"] }
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[package]
+description = "The assistant of the voice agent for chora, a block of the XP split"
+edition.workspace = true
+license.workspace = true
+name = "chora-assistant"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

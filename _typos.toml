@@ -20,6 +20,7 @@ habe = "habe"
 ist = "ist"
 # Pixel box names in the icon code (iy), and PNGs split at the s (pn).
 iy = "iy"
+klick = "klick"
 # Level of detail of the construct panes.
 lod = "lod"
 oder = "oder"
@@ -27,6 +28,8 @@ offen = "offen"
 oktober = "oktober"
 pn = "pn"
 programm = "programm"
+sie = "sie"
+startet = "startet"
 stopp = "stopp"
 termine = "termine"
 ue = "ue"  # the transliteration of the umlaut u

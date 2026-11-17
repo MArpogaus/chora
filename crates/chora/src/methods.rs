@@ -31,6 +31,9 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_EXPORTS: usize = 64;
 /// How many calls of one connection can wait for their answers.
 const MAX_PENDING: usize = 64;
+/// The most bytes of the description and the schema of one exported
+/// method.
+const MAX_EXPORT_BYTES: usize = 64 << 10;
 
 /// The exported methods and the calls that wait for their answers.
 #[derive(Default)]
@@ -46,9 +49,18 @@ struct Pending {
     id: Value,
     callee: u64,
     deadline: Instant,
+    /// Whether the caller is confined.
+    confined: bool,
 }
 
 impl Methods {
+    /// Whether the connection handles a call of a confined caller now.
+    pub fn serves_confined(&self, conn: u64) -> bool {
+        self.pending
+            .values()
+            .any(|p| p.callee == conn && p.confined)
+    }
+
     /// Whether a call of the connection waits for its answer.
     pub fn waits_for(&self, conn: u64) -> bool {
         self.pending.values().any(|p| p.caller == conn)
@@ -107,6 +119,18 @@ impl State {
                 "invalid method name {:?}: use a-z, 0-9, _, - and .",
                 bad.name()
             )));
+        }
+        let huge = |m: &&ExportMethod| {
+            serde_json::to_vec(m).map_or(true, |text| text.len() > MAX_EXPORT_BYTES)
+        };
+        if let Some(big) = export.names.iter().find(huge) {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!(
+                    "the description and the schema of {} take over {MAX_EXPORT_BYTES} bytes",
+                    big.name()
+                ),
+            ));
         }
         let name = self.ipc.name(conn).unwrap_or_default().to_owned();
         let taken = export.names.iter().find(|m| {
@@ -177,6 +201,7 @@ impl State {
         let deadline = self.time.now() + TIMEOUT;
         self.expire_at(deadline).map_err(rejected)?;
         let from = self.ipc.name(conn).unwrap_or_default().to_owned();
+        let confined = self.ipc.confined(conn);
         self.methods.pending.insert(
             number,
             Pending {
@@ -184,6 +209,7 @@ impl State {
                 id,
                 callee,
                 deadline,
+                confined,
             },
         );
         let event = Event::MethodCalled {
@@ -191,9 +217,17 @@ impl State {
             caller: from,
             method: call.method,
             params: call.params,
+            confined,
+            connection: conn,
         };
-        self.ipc.send_to(callee, &event);
-        Ok(())
+        if self.ipc.send_if_room(callee, &event) {
+            return Ok(());
+        }
+        self.methods.pending.remove(&number);
+        Err(RpcError::new(
+            RpcError::LIMIT_REACHED,
+            "the client of the method reads too slowly, call again later",
+        ))
     }
 
     fn return_method(&mut self, conn: u64, answer: MethodReturn) -> Result<Value, RpcError> {
@@ -247,8 +281,9 @@ impl State {
     }
 
     /// `methods.list`: every exported method with its description and
-    /// input schema, by connection and sorted by name. Plain exports
-    /// answer with `null` for both.
+    /// input schema and whether it is privileged, by connection and sorted
+    /// by name. Plain exports answer with `null` for description and
+    /// schema.
     pub fn list_methods(&self) -> Value {
         let mut list: Vec<Value> = Vec::new();
         for conn in self.ipc.conn_ids() {
@@ -264,6 +299,7 @@ impl State {
                     "name": method.name(),
                     "description": method.description(),
                     "input_schema": method.input_schema(),
+                    "privileged": method.privileged(),
                 }));
             }
         }
@@ -315,6 +351,46 @@ mod tests {
         caller.send("methods.call", call)
     }
 
+    /// A caller that floods a method fills the output of the exporter:
+    /// the caller gets the error, the exporter keeps its connection.
+    #[test]
+    fn a_flood_of_calls_fails_for_the_caller_and_keeps_the_exporter() {
+        let (mut core, mut wm, first) = exported();
+        let mut callers = vec![first, core.named("second"), core.named("third")];
+        let big = "x".repeat(60 << 10);
+        let mut refused = Vec::new();
+        for caller in &mut callers {
+            for _ in 0..MAX_PENDING {
+                let call = json!({"client": "wm", "method": "set_layout", "params": big});
+                let id = caller.send("methods.call", call);
+                refused.extend(caller.answer(&mut core, id).and_then(Result::err));
+            }
+        }
+        let codes: Vec<&Value> = refused.iter().map(|e| &e["code"]).collect();
+        assert!(!codes.is_empty(), "no call was refused");
+        assert!(
+            codes.iter().all(|c| **c == RpcError::LIMIT_REACHED),
+            "{codes:?}"
+        );
+        assert!(!wm.closed(&mut core), "the core closed the exporter");
+    }
+
+    #[test]
+    fn an_export_with_a_huge_description_is_refused() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let method = json!({"name": "set_layout", "description": "x".repeat(MAX_EXPORT_BYTES)});
+        let id = wm.send("methods.export", json!({"names": [method]}));
+        let answer = std::iter::repeat_with(|| wm.answer(&mut core, id))
+            .take(8)
+            .flatten()
+            .next();
+        let error = answer
+            .expect("an answer")
+            .expect_err("the export is refused");
+        assert_eq!(error["code"], RpcError::LIMIT_REACHED, "{error}");
+    }
+
     #[test]
     fn method_names_are_plain() {
         assert!(valid_name("set_layout"));
@@ -341,6 +417,38 @@ mod tests {
         let answer = json!({"call": params["call"], "result": "done"});
         wm.ok(&mut core, "methods.return", answer);
         assert_eq!(caller.answer(&mut core, id), Some(Ok(json!("done"))));
+    }
+
+    #[test]
+    fn method_called_names_a_confined_caller() {
+        let (mut core, mut wm, mut free) = exported();
+        call(&mut free, "set_layout");
+        let event = wm.events_now(&mut core);
+        assert_eq!(event[0]["params"].get("confined"), None);
+        let mut admin = core.admin();
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        call(&mut confined, "set_layout");
+        let event = wm.events_now(&mut core);
+        assert_eq!(event[0]["params"]["caller"], "voice-mcp");
+        assert_eq!(event[0]["params"]["confined"], true);
+    }
+
+    /// Review A1, high 1: `method.called` names the connection of the
+    /// caller, so a plugin tells two connections of one name apart.
+    #[test]
+    fn method_called_names_the_connection_of_the_caller() {
+        let (mut core, mut wm, mut first) = exported();
+        let mut second = core.named("agent");
+        call(&mut first, "set_layout");
+        call(&mut second, "set_layout");
+        let events = wm.events_now(&mut core);
+        let connection = |i: usize| events[i]["params"]["connection"].as_u64();
+        assert!(connection(0).is_some() && connection(1).is_some());
+        assert_ne!(connection(0), connection(1));
     }
 
     /// The sequence numbers count every event of a connection, also the
@@ -455,7 +563,9 @@ mod tests {
         let schema = json!({"type": "object", "properties": {"gap": {"type": "integer"}}});
         let export = json!({"names": [
             "restart",
+            "settings.set",
             {"name": "set_layout", "description": "Sets the layout.", "input_schema": schema},
+            {"name": "run", "privileged": true},
         ]});
         wm.ok(&mut core, "methods.export", export);
         let mut other = core.named("agent");
@@ -463,13 +573,19 @@ mod tests {
         assert_eq!(
             listed,
             json!([
-                {"client": "wm", "name": "restart", "description": null, "input_schema": null},
+                {"client": "wm", "name": "restart", "description": null,
+                 "input_schema": null, "privileged": false},
+                {"client": "wm", "name": "run", "description": null,
+                 "input_schema": null, "privileged": true},
                 {
                     "client": "wm",
                     "name": "set_layout",
                     "description": "Sets the layout.",
                     "input_schema": schema,
+                    "privileged": false,
                 },
+                {"client": "wm", "name": "settings.set", "description": null,
+                 "input_schema": null, "privileged": true},
             ])
         );
         let id = other.send("methods.call", json!({"client": "wm", "method": "restart"}));

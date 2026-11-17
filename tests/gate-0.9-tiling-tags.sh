@@ -12,12 +12,14 @@ need_bins chora choractl chora-tiling chora-probe
 temp_config
 session_start 640x480,640x480+640+0 -- "$bin/chora-tiling"
 tags() {
-    ctl call tiling get_tags | WAYBAR_OUTPUT_NAME=$1 \
-        jq -c -f "$repo/flavors/tiling/waybar/tags.jq"
+    local answer
+    answer=$(ctl call tiling get_tags) || return 1
+    WAYBAR_OUTPUT_NAME=$1 \
+        jq -c --argjson n "${2:-1}" -f "$repo/flavors/tiling/waybar/tags.jq" <<<"$answer"
 }
 
-pid=$(ctl run "$bin/chora-probe" window 255 0 0 |
-    sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+started=$(ctl run "$bin/chora-probe" window 255 0 0) || fail "the run of the window"
+pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
 [ -n "$pid" ] || fail "the run of the window"
 run_pid "$pid"
 for _ in $(seq 50); do
@@ -33,10 +35,11 @@ first=$(echo "$answer" | jq -r '.outputs[] | select(.focused) | .name')
 echo "$answer" | jq -e --arg o "$first" '.outputs[] | select(.name == $o) | .tags[0]
     | .shown and .focused and .occupied and (.urgent | not)' >/dev/null ||
     fail "tag 1 of $first: $answer"
-[ "$(tags "$first")" = '{"text":"<b><u>1</u></b>"}' ] || fail "the module: $(tags "$first")"
+[ "$(tags "$first" 1)" = '{"text":"1","class":["current"]}' ] || fail "the module: $(tags "$first" 1)"
 ok "a window makes tag 1 of $first focused and occupied"
 
 ctl call tiling move_to_tag "{\"surface\": \"$surface\", \"tag\": 3}" >/dev/null ||
     fail "move_to_tag"
-[ "$(tags "$first")" = '{"text":"<b><u>1</u></b> 3"}' ] || fail "the module: $(tags "$first")"
+[ "$(tags "$first" 3)" = '{"text":"3","class":["occupied"]}' ] || fail "the module: $(tags "$first" 3)"
+[ "$(tags "$first" 2)" = '{"text":"2","class":["empty"]}' ] || fail "tag 2: $(tags "$first" 2)"
 ok "the window on tag 3 makes it occupied"

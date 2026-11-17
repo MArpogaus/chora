@@ -15,6 +15,7 @@ for what in chora choractl; do
 done
 need python3
 session_start 800x600
+grant methods.privileged
 out=$(mcp_py <<'PY' 2>&1
 import json, select, subprocess, sys, time
 from gate_mcp import Mcp

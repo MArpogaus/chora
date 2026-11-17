@@ -12,12 +12,14 @@
 
 use std::fmt::Write as _;
 
+use chora_draw::theme::Layer;
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
     decoration::{self, BORDER, Button, SHADOW, TITLE},
+    sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The face of dialogs.
@@ -81,11 +83,12 @@ impl Control {
 
     /// A push button of XP's size at a place.
     pub fn push(name: &str, label: &str, [x, y]: [i32; 2]) -> Self {
+        let chars = i32::try_from(label.chars().count()).unwrap_or(0);
         Self::new(
             name,
             Kind::Push { default: false },
             label,
-            [x, y, BUTTON[0], BUTTON[1]],
+            [x, y, BUTTON[0].max(chars * 7 + 16), BUTTON[1]],
         )
     }
 
@@ -617,6 +620,7 @@ impl Content {
                 parent: self.prefix.clone(),
                 props: PropsUpdate {
                     image: Some(theme.render(body)),
+                    meta: Some(spoken(body)),
                     // A click on the face stays in the window.
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
@@ -667,7 +671,14 @@ impl Content {
         if old.body != self.page.body
             && let Some(body) = &self.page.body
         {
-            commands.push(update(self.id("body"), theme.render(body)));
+            commands.push(Command::Update {
+                id: self.id("body"),
+                props: PropsUpdate {
+                    image: Some(theme.render(body)),
+                    meta: Some(spoken(body)),
+                    ..PropsUpdate::default()
+                },
+            });
         }
         commands.extend(self.control_changes(theme, &old.controls));
         commands
@@ -850,7 +861,7 @@ impl Dialog {
     /// page.
     pub fn create(&mut self, theme: &mut Theme, parent: &str, page: Page) -> Vec<Command> {
         let [ow, oh] = outer(self.size);
-        let frame = theme.frame(Sheet::Decoration, "decoration");
+        let frame = theme.frame(sheets::DECORATION, "decoration");
         let image = |id: String, props: PropsUpdate| Command::Create {
             id,
             kind: NodeKind::Image,
@@ -860,11 +871,11 @@ impl Dialog {
         let title = Picture::new(ow - 2 * EDGE - 30, TITLE).text(
             Text::new(
                 &self.title,
-                Font::Title,
+                Font::BodyBold,
                 [255, 255, 255, 255],
-                [2, 1, ow, TITLE],
+                [2, 0, ow, TITLE],
             )
-            .shadow([10, 24, 131, 255]),
+            .shadow(decoration::TITLE_SHADOW),
         );
         let mut commands = vec![
             Command::Create {
@@ -910,7 +921,7 @@ impl Dialog {
             _ => "active",
         };
         let [x, y, w, h] = decoration::button_rect(outer(self.size)[0], Button::Close);
-        let picture = Picture::new(w, h).frame(Sheet::Close, state, [0, 0, w, h]);
+        let picture = Picture::new(w, h).frame(sheets::CLOSE, state, [0, 0, w, h]);
         Command::Update {
             id: self.id("close"),
             props: PropsUpdate {
@@ -1009,6 +1020,20 @@ pub fn outer([w, h]: [i32; 2]) -> [i32; 2] {
     decoration::outer([w, h], false)
 }
 
+/// The `text` of the body node: the lines of the picture, so that a
+/// query of the scene reads what the page says.
+fn spoken(body: &Picture) -> std::collections::BTreeMap<String, String> {
+    let lines: Vec<&str> = body
+        .layers
+        .iter()
+        .filter_map(|layer| match layer {
+            Layer::Text(text) => Some(text.line.as_str()),
+            _ => None,
+        })
+        .collect();
+    [("text".to_owned(), lines.join("\n"))].into()
+}
+
 fn update(id: String, image: String) -> Command {
     Command::Update {
         id,
@@ -1040,9 +1065,7 @@ pub mod tests {
 
     /// The theme of the source tree, with a cache of its own for a test.
     pub fn theme(test: &str) -> (Theme, PathBuf) {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
-        let cache = std::env::temp_dir().join(format!("chora-xp-{test}-{}", std::process::id()));
-        (Theme::load(&dir, &cache).expect("the theme loads"), cache)
+        crate::sheets::tests::theme(test)
     }
 
     /// The whole dialog as one picture, as the scene shows it, for a look
@@ -1057,21 +1080,21 @@ pub mod tests {
                 r##"<rect width="{ow}" height="{oh}" fill="#3A6EA5"/>"##
             ))
             .frame(
-                Sheet::Decoration,
+                sheets::DECORATION,
                 "decoration",
                 [-SHADOW, -SHADOW, ow + 2 * SHADOW, oh + 2 * SHADOW],
             );
         picture = picture.text(
             Text::new(
                 &dialog.title,
-                Font::Title,
+                Font::BodyBold,
                 [255, 255, 255, 255],
-                [EDGE + 2, 1, ow, TITLE],
+                [EDGE + 2, 0, ow, TITLE],
             )
-            .shadow([10, 24, 131, 255]),
+            .shadow(decoration::TITLE_SHADOW),
         );
         let close = decoration::button_rect(ow, Button::Close);
-        picture = picture.frame(Sheet::Close, "active", close);
+        picture = picture.frame(sheets::CLOSE, "active", close);
         let mut layers = Vec::new();
         let page = dialog.content.page();
         if let Some(body) = &page.body {

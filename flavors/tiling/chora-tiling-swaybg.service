@@ -5,8 +5,9 @@ After=graphical-session.target
 ConditionPathExists=/usr/bin/swaybg
 
 [Service]
-# For a picture, `systemctl --user edit chora-tiling-swaybg.service` with
-# an empty ExecStart= and ExecStart=/usr/bin/swaybg --image FILE --mode fill
-ExecStart=/usr/bin/swaybg --color #2e3440
+# chora-tiling --launch swaybg shows wallpaper.png in Ink, wallpaper-paper.png
+# in Paper, or the wallpaper.png of the user in the chora/tiling folder of the
+# config directory.
+ExecStart=/usr/bin/chora-tiling --launch swaybg
 Restart=on-failure
 RestartSec=1

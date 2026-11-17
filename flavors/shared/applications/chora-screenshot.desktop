@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Screenshot
+Name[de]=Bildschirmfoto
+Comment=Take a picture of the whole screen
+Comment[de]=Das ganze Bild aufnehmen
+Exec=chora-tiling --launch screenshot
+Icon=applets-screenshooter
+Terminal=false
+Categories=Utility;
+Keywords=screenshot;screen;capture;print;

@@ -3,9 +3,16 @@
 # 18): it answers by the order of the requests, not by their ids. Each
 # prompt gets a plan, a tool call, a question and a long answer; the
 # answer says whether the question got a yes. FAKE_ACP_DELAY (seconds)
-# slows each step down, for screenshots.
+# slows each step down, for screenshots. FAKE_ACP_ASK_AFTER (a path)
+# holds each question back until that file exists, so that a test
+# chooses the moment of the question.
 delay=${FAKE_ACP_DELAY:-0}
 step() { sleep "$delay"; }
+told() {
+    while [ -n "${FAKE_ACP_ASK_AFTER:-}" ] && [ ! -e "$FAKE_ACP_ASK_AFTER" ]; do
+        sleep 0.1
+    done
+}
 say() {
     printf '{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":%s}}\n' "$1"
 }
@@ -21,7 +28,13 @@ while read -r prompt; do
     say '{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Ich lese den Code."}}'
     say '{"sessionUpdate":"tool_call","toolCallId":"t1","title":"Read src/main.rs","kind":"read","status":"pending"}'
     step
-    echo '{"jsonrpc":"2.0","id":"p1","method":"session/request_permission","params":{"sessionId":"s1","toolCall":{"toolCallId":"t2","title":"/project/notes.txt","kind":"edit"},"options":[{"optionId":"yes","name":"Allow","kind":"allow_once"},{"optionId":"no","name":"Reject","kind":"reject_once"}]}}'
+    case "$prompt" in
+    *LONG*) title=$(head -c 70000 /dev/zero | tr '\0' x) kind=execute ;;
+    *HIDDEN*) title=$(printf 'echo safe\342\200\256fr- mr') kind=execute ;;
+    *) title=/project/notes.txt kind=edit ;;
+    esac
+    told
+    echo '{"jsonrpc":"2.0","id":"p1","method":"session/request_permission","params":{"sessionId":"s1","toolCall":{"toolCallId":"t2","title":"'"$title"'","kind":"'"$kind"'"},"options":[{"optionId":"yes","name":"Allow","kind":"allow_once"},{"optionId":"no","name":"Reject","kind":"reject_once"}]}}'
     read -r answer || exit 0
     case "$answer" in
     *'"yes"'*) word="Erlaubt" ;;

@@ -12,6 +12,8 @@ check of each choice. [Decisions](decisions.md) records the result.
 | calloop | event loop | Smithay uses it; the IPC socket runs in the same loop |
 | [imbl](https://github.com/jneem/imbl) | the node map of the scene | a persistent map, so each transaction copies the scene in O(1) |
 | [cosmic-text](https://github.com/pop-os/cosmic-text) | the text node: font fallback, layout and raster through swash | 0.19; reads the font dirs from `CHORA_FONT_DIRS`; MIT OR Apache-2.0 |
+| [plane-split](https://github.com/servo/plane-split) | the order of the planes of a 3D context: clip, split and sort | 0.18, the BSP of WebRender; MPL-2.0 |
+| euclid | the points and vectors of plane-split | 0.22; MIT OR Apache-2.0 |
 | serde, serde_json, thiserror | API types, JSON-RPC, error types | |
 | tracing, tracing-subscriber | logs | Smithay logs through tracing too |
 

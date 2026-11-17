@@ -5,3 +5,4 @@ chapter:
 panels:
 - id: today
   cell: [0, 0, 2, 3]
+  empty: "Nothing planned today.\nSay “Atlas” or press Super+a."

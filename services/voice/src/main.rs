@@ -32,7 +32,6 @@ mod vad;
 mod words;
 
 use std::{
-    io::IsTerminal,
     path::{Path, PathBuf},
     process::ExitCode,
     sync::{
@@ -139,16 +138,8 @@ fn unbroken(settings: settings::File<Config>) -> Result<settings::File<Config>, 
     reason = "the subcommands print their results; the defaults serialize"
 )]
 fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            // tract logs its kernels at info.
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,tract_linalg=warn,rmcp=warn".into()),
-        )
-        .with_writer(std::io::stderr)
-        .with_ansi(std::io::stderr().is_terminal())
-        .init();
     let args = Args::parse();
+    log::init(args.command.is_none() && !args.print_config);
     if args.print_config {
         print!(
             "{}",
@@ -221,14 +212,13 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let mcp = mcp_name(&name);
     let mut tools = Tools::chora(&config, &mcp);
     tools.own.clone_from(&name);
-    let coder = coder::Coder::new(
-        config.spawn(&config.coder_cmd),
-        coder::data_dir(),
-        tx.clone(),
-    );
+    let harness = config.spawn(&config.coder_cmd);
+    let coder = coder::Coder::new(harness, coder::data_dir(), tx.clone());
+    coder.set_keys(config.key_envs());
     tools.coder = Some(coder.clone());
     let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
     tools.agents = Some(agents.clone());
+    let physical = tools.physical.clone();
     let mut chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
@@ -237,6 +227,7 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     ))?;
     chat.settings_file = Some(settings.file().to_path_buf());
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
+    agent.physical = physical;
     agent.coder = Some(coder);
     agent.agents = Some(agents.clone());
     agent.warm();
@@ -286,6 +277,9 @@ struct Agent {
     tx: mpsc::Sender<Input>,
     /// An interim transcription runs; the next interval waits for it.
     interim_busy: Arc<AtomicBool>,
+    /// A question waits for a key: the LLM may not inject input, so no
+    /// injected click hits a HUD button (`Tools::physical`).
+    physical: Arc<AtomicBool>,
     chat: Arc<tokio::sync::Mutex<Chat>>,
     /// The reply in progress: the control of its speech, and its stop
     /// with the words that played.
@@ -326,6 +320,7 @@ impl Agent {
             net,
             tx,
             interim_busy: Arc::default(),
+            physical: Arc::default(),
             chat: Arc::new(tokio::sync::Mutex::new(chat)),
             reply: None,
             mc: None,
@@ -530,14 +525,29 @@ impl Agent {
                 prompt,
                 detail,
                 physical,
-            } => mc::Report::Confirm {
-                id,
-                prompt,
-                detail,
-                hud: !self.claimed,
-                keys: physical.then(|| self.core.config().confirm_keys.clone()),
-            },
-            Effect::ConfirmDone(id) => mc::Report::ConfirmDone(id),
+                name,
+            } => {
+                let keys = physical.then(|| self.core.config().confirm_keys.clone());
+                if !self.claimed && !mc::fits(&prompt, &detail, keys.as_ref()) {
+                    let _ = self.tx.send(Input::Unshowable(id));
+                    return;
+                }
+                if physical {
+                    self.physical.store(true, Ordering::Relaxed);
+                }
+                mc::Report::Confirm {
+                    id,
+                    prompt,
+                    detail,
+                    hud: !self.claimed,
+                    keys,
+                    name,
+                }
+            }
+            Effect::ConfirmDone(id) => {
+                self.physical.store(false, Ordering::Relaxed);
+                mc::Report::ConfirmDone(id)
+            }
             _ => return,
         };
         if let Some(mc) = &self.mc {
@@ -859,6 +869,44 @@ mod tests {
             states: vec![State::Listening],
         };
         (run, llm)
+    }
+
+    /// Review secfix c r1, 2: without a plugin that claimed the
+    /// indicator only the own HUD shows the question, and a detail too
+    /// long for it is a no at once, never a blind yes by the key; a
+    /// short one waits for its answer.
+    #[test]
+    fn a_question_too_long_for_the_hud_is_refused() {
+        let (mut run, _llm) = agent();
+        let ask = |detail: String| {
+            let (answer, rx) = tokio::sync::oneshot::channel();
+            let input = Input::Agent(crate::agents::Event::Ask {
+                name: "settings".into(),
+                voice: String::new(),
+                prompt: "Security setting! Shall I set agent cmd?".into(),
+                detail,
+                physical: true,
+                answer,
+            });
+            (input, rx)
+        };
+        let answer = |run: &mut Run, detail: String| {
+            let (input, mut rx) = ask(detail);
+            run.step(input);
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while Instant::now() < deadline {
+                if let Ok(yes) = rx.try_recv() {
+                    return Some(yes);
+                }
+                if let Ok(input) = run.rx.recv_timeout(Duration::from_millis(50)) {
+                    run.step(input);
+                }
+            }
+            rx.try_recv().ok()
+        };
+        let long = format!("agent_cmd: [{}]", "x".repeat(5000));
+        assert_eq!(answer(&mut run, long), Some(false), "a no at once");
+        assert_eq!(answer(&mut run, "agent_cmd: [sh]".into()), None, "it waits");
     }
 
     /// docs/voice.md section 13: recorded speech through the whole agent

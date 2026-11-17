@@ -77,7 +77,7 @@ impl GlobalDispatch2<ZwlrScreencopyManagerV1, State> for ScreencopyGlobal {
 impl Dispatch2<ZwlrScreencopyManagerV1, State> for ManagerData {
     fn request(
         &self,
-        _state: &mut State,
+        state: &mut State,
         _client: &Client,
         _resource: &ZwlrScreencopyManagerV1,
         request: manager::Request,
@@ -86,7 +86,7 @@ impl Dispatch2<ZwlrScreencopyManagerV1, State> for ManagerData {
     ) {
         match request {
             manager::Request::CaptureOutput { frame, output, .. } => {
-                start(data_init, frame, &output, None);
+                start(state, data_init, frame, &output, None);
             }
             manager::Request::CaptureOutputRegion {
                 frame,
@@ -96,7 +96,13 @@ impl Dispatch2<ZwlrScreencopyManagerV1, State> for ManagerData {
                 width,
                 height,
                 ..
-            } => start(data_init, frame, &output, Some([x, y, width, height])),
+            } => start(
+                state,
+                data_init,
+                frame,
+                &output,
+                Some([x, y, width, height]),
+            ),
             _ => {}
         }
     }
@@ -104,12 +110,14 @@ impl Dispatch2<ZwlrScreencopyManagerV1, State> for ManagerData {
 
 /// Offers the buffer of a new frame, or fails it.
 fn start(
+    state: &State,
     data_init: &mut DataInit<'_, State>,
     frame: New<ZwlrScreencopyFrameV1>,
     output: &WlOutput,
     region: Option<[i32; 4]>,
 ) {
     let target = Output::from_resource(output)
+        .filter(|output| !state.is_virtual(output))
         .and_then(|output| Some((part(&output, region)?, output)))
         .map(|(part, output)| (output, part));
     let size = target.as_ref().map(|(_, [_, _, w, h])| (*w, *h));

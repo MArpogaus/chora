@@ -23,7 +23,7 @@ ready() { ctl call xp settings.get >/dev/null 2>&1; }
 for _ in $(seq 50); do ready && break; sleep 0.2; done
 ready || fail "chora-xp does not answer: $(ctl call xp settings.get 2>&1)"
 
-red=$repo/plugins/chora-xp/testdata/red.jpg
+red=$repo/crates/chora-draw/testdata/red.jpg
 # The red picture over the whole screen.
 wallpaper() {
     printf '{"wallpaper": {"picture": {"file": "%s"}, "position": "stretch", "color": [0, 78, 152]}}' "$1"

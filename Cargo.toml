@@ -59,16 +59,18 @@ opt-level = 3
 lto = "thin"
 
 [workspace]
-members = ["crates/*", "plugins/*", "services/voice", "tests/probe"]
+members = ["crates/*", "plugins/*", "services/voice", "services/voice/chat", "tests/probe"]
 resolver = "3"
 
 [workspace.dependencies]
 base64 = "0.23"
 calloop = { version = "0.14", features = ["signals"] }
+chora-draw = { path = "crates/chora-draw" }
 chora-kit = { path = "crates/chora-kit" }
 chora-scene = { path = "crates/chora-scene" }
 clap = { version = "4", features = ["derive"] }
 cosmic-text = "0.19"
+glam = "0.33"
 imbl = "7"
 rmcp = { version = "3.7", default-features = false, features = ["server", "transport-io"] }
 schemars = "1.2"
@@ -79,7 +81,9 @@ thiserror = "2"
 tokio = { version = "1", features = ["io-std", "macros", "rt-multi-thread", "sync", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 xcursor = "0.3"
+zbus = "5.19"
 
 [workspace.dependencies.smithay]
 default-features = false
