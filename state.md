@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-17 08:00 UTC)
+## Now (2026-11-17 08:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 55 % at 06:21 Tue (owner); tokens.py 06:21: 2.7 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
+budget: 55 % at 06:21 Tue (owner); tokens.py 08:59: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 7375daa1 (train 38 08:00: secfix c); CI green on 7375daa1 08:20. Next: tour v7 after 39.
-burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, j1-5, N1 MERGE-OK; secfix c MERGE-OK. Tag Fri 11-20 if v7 clean.
+session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7375daa1. Tour v7 running.
+burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 retest. Tag Fri 11-20 if v7 clean.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -20,21 +20,20 @@ burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, j1-5, N1 MERGE-OK; secfix c ME
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; decision records D78-D95 train 37; changelog by cz at the tag |
 | 9 | Logging audit, flakes closed | logging audit merged (train 14); flakes r5 merged (train 17) |
-| 11 | Tour, UX loop | v6 review 06:26 FIX, 2 MAJOR (reports/review-tour-v6.md); tour v7 after tiling r4, xp r7; last round Thu 12:00 |
+| 11 | Tour, UX loop | v6 review 06:26 FIX, 2 MAJOR (reports/review-tour-v6.md); tour v7 running; last round Thu 12:00 |
 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r3.md (rc 1) | sonnet med, claude/construct | drag-back, DB1, B4; session ...LyoZzQD5qMZD32vkP 07:02 |
-| media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 done 06:20 (5 of 7 v5 MAJOR fixed; j1-5, N1 open); review running; archived |
-| secfix-c-r2.md (rc 1, 6) | opus med, claude/secfix-c | merged train 38 08:00 |
-| tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | r4 MERGE-OK (3 MINOR) 07:35; train 39 08:00; archived |
-| xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | r7 MERGE-OK (4 MINOR) 07:32; train 39 08:00; archived |
+| media-r5.md (rc 11, 1) | sonnet med, claude/media | tour v7 on 7e066694; starting 08:5x |
+| tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | merged train 39 08:56 |
+| xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | merged train 39 08:56 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: train 39 xp r7 + tiling r4 (rc 1); construct r3 (rc 1).
-2. UX loop (rc 1, 11): tour v7 after tiling r4, xp r7; persona r4 Wed; last round Thu 12:00.
+1. Now: tour v7 (rc 11, 1); construct r3 (rc 1), then train 40.
+2. UX loop (rc 1, 11): v7 review; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F22 (CI 06:00), F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
 
