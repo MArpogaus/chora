@@ -4,7 +4,7 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
 
 ## By time
 - Budget (owner 11-15 09:27, "your main job"): the week resets Saturday 10:59 Bangkok (03:59 UTC). At each reading and lane start check the pace line in state.md; over the day's share: nothing new on opus that day. Set model and effort in create_session.
-- Every 2 h: watchdog (tools/triggers.md); heartbeat checks the PM from outside.
+- Every 2 h: watchdog (tools/triggers.md), which also prunes idle child sessions (owner 11-17 01:48); heartbeat checks the PM from outside.
 - Daily 12:50 UTC (19:50 Bangkok), workday close (owner 11-15 09:35): self-check and main-duty
   questions, one independent opus critic, every open friction resolved, one workflow change;
   reflections/selfcheck-<date>.md (text in tools/triggers.md).

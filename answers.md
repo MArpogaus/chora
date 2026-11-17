@@ -364,3 +364,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 - 2026-11-16 16:57 UTC (question, answered in chat): "Ever on the flakes of Opus?"
 - 2026-11-17 01:46 UTC "F 7, all 52" -> reading: Fable 7 %, all models 52 %. 46->52 in 9 h = 0.67 %/h; 48 % for 98 h to Sat 03:59 = 0.49 %/h: over pace. Keep the four rc-1 lanes; no opus; testwatch idle until a train; sonnet reviews; one tour v6 after all four merges; persona r4 on haiku.
+- 2026-11-17 01:48 UTC "Automatically prune old subsessions" -> order: 9 idle children of the old and current PM archived now (docs r1, review plugins r1, review core r1, xtc r1, mc r1, doors r1, ci r1, persona harness, screencast); the PM watchdog (every 2 h) now archives idle or completed child sessions whose work is merged or reported; kept: running lanes, testwatch, heartbeat host, sessions without a parent (the owner's).
