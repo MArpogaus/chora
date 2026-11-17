@@ -26,3 +26,6 @@ Branch claude/decisions, head 80a5931 after r2 (r1 3cc1450 plus one commit, docs
 - docs/decisions.md lines ~48-94: rows in "Core" and "Tools" tables are not in number order and rows run 1000+ chars; split long rows into the "Designs" prose form (S).
 - plugins/chora-xp/src/launch.rs and apps.rs: editor lookup and launch limits are separate mechanisms for "program found" (D87 question) (M).
 - injected-input handling repeats a `hears` guard in each plugin (tiling, xp, construct `hears_pointer`, mc, notify, assistant); move to a chora-kit helper (M).
+
+## r3
+- D87-D94 now read "proposed (owner, 2026-11-17)" with the sentence that a later review may revise or revert them; head 5ed35a5, pre-commit and mkdocs --strict pass.
