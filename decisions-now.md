@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T04:20:00Z
+screened-through: 2026-11-17T04:22:00Z
 
+- 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
 - 11-17 04:20Z "53%" -> reading: 53 % (1 % since 01:46, 0.4 %/h, under pace)
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
@@ -12,7 +13,6 @@ screened-through: 2026-11-17T04:20:00Z
 - 11-16 12:10Z "45" -> budget reading 45 %
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
-- 11-16 10:58Z "What can we learn from Ron? ...TuxTalk/blob/main/CLAUDE.md..." -> idea: C11 ratchet, sprint 1; reviews run tests
 - 11-16 10:05Z "Agree, keep column visible... 43 %..." -> column stays; Super+n in media r3; 43 %
 
 - 11-16 09:20Z "Agree, apply all six improvements. Adjust project goal and plan as you go." -> six at train 24
@@ -27,7 +27,6 @@ screened-through: 2026-11-17T04:20:00Z
 - 11-15 02:10Z "...We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-11 10:10Z "After ui ux clean. Finalize foundational work and review code ... before feat sprints." -> order: UX/UI, code review, rc, reflection, sprints
 - 11-11 10:31Z "You may released when all clean." -> PM opens CI PR, tags, publishes when rc.md holds
-- 11-11 10:53Z "After the release candidate, we need an extensive user testing round..." -> persona round 5
 - 11-09 04:24Z "This shall never touch the main branches or dev branches." -> session files only on claude/session-log
 - 11-09 08:20Z "You shall use my github email and name as in all previous commits." -> his identity; no AI lines
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
