@@ -15,6 +15,7 @@ mod dress;
 mod focus;
 mod keys;
 mod layout;
+mod methods;
 mod theme;
 mod wm;
 
@@ -32,7 +33,7 @@ use chora_kit::{
 };
 use chora_scene::{
     Command, Event, GivenGrab, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
-    ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
+    ipc::{ClientError, PressState, Query, RpcError},
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -47,6 +48,7 @@ use crate::{
     dress::Dress,
     focus::ShownFocus,
     layout::Layout,
+    methods::exported_methods,
     wm::{Effect, OutputTags, Placement, WINDOW_KEY, Wm},
 };
 
@@ -1763,103 +1765,6 @@ impl Tiling {
             Err(err) => Err(err),
         }
     }
-}
-
-/// The layout values that `set_layout` accepts.
-fn layout_schema() -> Value {
-    json!({
-        "enum": [
-            "tile", "tile_left", "tile_bottom", "tile_top", "fair",
-            "fair_horizontal", "spiral", "dwindle", "max", "fullscreen",
-            "magnifier", "floating",
-        ],
-        "description": "The layout of the current tag.",
-    })
-}
-
-/// The methods that other clients call, with description and schema of
-/// their parameters, as `methods.list` answers them.
-fn exported_methods() -> Vec<ExportMethod> {
-    let mut methods = layout_methods();
-    methods.extend(window_methods());
-    methods
-}
-
-/// The methods about layouts, tags and the key list.
-fn layout_methods() -> Vec<ExportMethod> {
-    let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
-    vec![
-        runtime::method(
-            "set_layout",
-            "Sets the layout and the gap of the current tag.",
-            json!({
-                "layout": layout_schema(),
-                "gap": field("integer", "The gap in logical pixels."),
-            }),
-            &[],
-        ),
-        runtime::method(
-            "show_keys",
-            "Shows the list of all keys, or hides it, as the binding does.",
-            json!({}),
-            &[],
-        ),
-        runtime::method(
-            "next_layout",
-            "Goes to the next layout of the current tag, as the binding does.",
-            json!({}),
-            &[],
-        ),
-        runtime::method(
-            "get_layout",
-            "Answers the layout of the current tag.",
-            json!({}),
-            &[],
-        ),
-        runtime::method(
-            "get_tags",
-            "Answers the tags of each output: shown, focused, occupied and urgent.",
-            json!({}),
-            &[],
-        ),
-        give::method(),
-    ]
-}
-
-/// The methods about tags and windows.
-fn window_methods() -> Vec<ExportMethod> {
-    let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
-    let window = || field("string", "The surface id of the window.");
-    let tag = || field("integer", "The tag number, from 1.");
-    let on_surface = json!({"surface": window()});
-    vec![
-        runtime::method(
-            "view_tag",
-            "Shows a tag on the current output.",
-            json!({"tag": tag()}),
-            &["tag"],
-        ),
-        runtime::method(
-            "move_to_tag",
-            "Moves a window to a tag.",
-            json!({"surface": window(), "tag": tag()}),
-            &["surface", "tag"],
-        ),
-        runtime::method(
-            "focus",
-            "Focuses a window.",
-            on_surface.clone(),
-            &["surface"],
-        ),
-        runtime::method("focus_next", "Focuses the next window.", json!({}), &[]),
-        runtime::method("focus_prev", "Focuses the previous window.", json!({}), &[]),
-        runtime::method(
-            "swap_master",
-            "Swaps a window into the master slot.",
-            on_surface,
-            &["surface"],
-        ),
-    ]
 }
 
 /// Whether a rect `[x, y, w, h]` holds a point.
