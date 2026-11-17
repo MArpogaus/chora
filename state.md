@@ -26,7 +26,7 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r3.md (rc 1) | sonnet med, claude/construct | merged train 40 11:47 |
-| media-r5.md (rc 11, 1) | sonnet med, claude/media | v7 MERGE-OK 10:19 (0 MAJOR); archived |
+| media-r6.md (rc 11, 8) | sonnet med, claude/media | tour v8 baseline, started 11:5x |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | merged train 39 08:56 |
 | xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | merged train 39 08:56 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
