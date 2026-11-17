@@ -13,8 +13,8 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
 - Weekly (Friday): `review_due.py` (split reviews at 5,000 lines, again at +50 %), extraction
   check (code for chora-kit, cross-plugin duplication); results in state.md or backlog.
 - Refactor proposals (owner 11-17): file and rank them in backlog.md at each handover; each
-  release takes the top cleanups; reports/debt-<tag>.md counts must not grow. Before each sprint an architect
-  persona (opus high, read-only) plans refactors; Fable only for one L item, asked first.
+  release takes the top cleanups; reports/debt-<tag>.md counts must not grow. Practice (11-17): before a sprint an
+  architect (opus high, read-only) plans dedup into reusable plugins; Fable only if asked.
 
 ## By event
 - Review or train (friction 53): `df -h /`; under 20 G one build at a time, clear sccache.
