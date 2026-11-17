@@ -4,6 +4,7 @@
 
 pub mod headless;
 mod host_keymap;
+pub mod import;
 pub mod tty;
 pub mod winit;
 
@@ -54,6 +55,16 @@ impl Backend {
             Self::Winit(winit) => Ok(f(winit.gles())),
             Self::Tty(tty) => tty.with_gles(f),
             Self::Headless(headless) => Ok(f(headless.gles())),
+        }
+    }
+
+    /// Runs a function with each renderer that imports the buffers of
+    /// clients, as [`import`] says. A paused tty session has none.
+    pub fn importers(&mut self, f: &mut dyn FnMut(&mut dyn import::Importer)) {
+        match self {
+            Self::Winit(winit) => f(winit.gles()),
+            Self::Headless(headless) => f(headless.gles()),
+            Self::Tty(tty) => tty.importers(f),
         }
     }
 

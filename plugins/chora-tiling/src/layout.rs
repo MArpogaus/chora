@@ -182,11 +182,24 @@ pub fn split(n: usize, [left, top, width, height]: Rect, columns: bool) -> Vec<R
         .collect()
 }
 
-/// Shrinks a cell by a gap on all sides, but never below 1 pixel and never
-/// out of the cell.
-pub fn inset([x, y, w, h]: Rect, gap: i32) -> Rect {
-    let (gx, gy) = (gap.min((w - 1) / 2).max(0), gap.min((h - 1) / 2).max(0));
-    [x + gx, y + gy, (w - 2 * gx).max(1), (h - 2 * gy).max(1)]
+/// Shrinks a cell by `[start, end]` pixels at its start (left, top) and at
+/// its end (right, bottom), but never below 1 pixel and never out of the
+/// cell.
+pub fn inset_by([x, y, w, h]: Rect, [start, end]: [i32; 2]) -> Rect {
+    let fit = |len: i32| {
+        let room = (len - 1).max(0);
+        let first = start.min(room / 2).max(0);
+        (first, end.min(room - first).max(0))
+    };
+    let ((fx, ex), (fy, ey)) = (fit(w), fit(h));
+    [x + fx, y + fy, (w - fx - ex).max(1), (h - fy - ey).max(1)]
+}
+
+/// Shrinks a rect by `[start, end]` at its start and its end, or grows it
+/// when a side is negative, but never below 1 pixel.
+pub fn shrink([x, y, w, h]: Rect, [start, end]: [i32; 2]) -> Rect {
+    let (w, h) = (w - start - end, h - start - end);
+    [x + start, y + start, w.max(1), h.max(1)]
 }
 
 fn transpose([x, y, w, h]: Rect) -> Rect {
@@ -304,7 +317,7 @@ mod tests {
 
     #[test]
     fn a_huge_gap_stays_inside_the_cell() {
-        let [x, y, w, h] = inset(AREA, 700);
+        let [x, y, w, h] = inset_by(AREA, [700, 700]);
         assert!(x + w <= 100 && y + h <= 60 && w >= 1 && h >= 1);
     }
 }

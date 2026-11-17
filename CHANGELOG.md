@@ -1,3 +1,750 @@
+## v0.9.0-rc.4 (2026-11-17)
+
+### BREAKING CHANGE
+
+- output.configure and output.reserve need the
+capability methods.privileged on a confined connection (a client socket
+or a choractl mcp). The MCP tools configure_output and reserve_space
+fail with code 4 until the client name has the grant, for example
+`choractl grant voice-mcp methods.privileged`.
+- chora-xp.yaml with the key assistant is rejected; move
+assistant.enabled to chora-assistant.yaml as enabled and remove the key.
+
+### Feat
+
+- **tiling**: restyle the bar in the look of the windows
+- **tiling**: wobbly windows on by default
+- **hud**: a sentence takes a size, and mc reads it at 19 px
+- **gate**: run the steps after clippy in parallel with --jobs
+- **gate**: run the red-first rule as a commit-msg hook
+- **test**: run the scripts of the e2e job in a merge gate step
+- **dist**: add chora-report, an anonymised bundle for a report
+- **voice**: write the log to voice.log as well
+- **chora**: write the log to chora.log as well
+- **scene**: add rotating log files under the state home
+- **assistant**: say why a list in a margin is empty
+- **assistant**: say No helper where no helper exists
+- **construct**: a corner strip with the clock and the doors
+- **construct**: the keys of every look in the walk and in a pane
+- **mc**: the helper door always shows a state word
+- **mc**: add the doors row at the foot of the column
+- **mc**: bind the shared keys and list them
+- **xp**: the shared keys and doors of every look
+- **tiling**: show the word of the helper door in the bar
+- **tiling**: show the key list on Super+F1, name the volume keys
+- **kit**: the state word of a helper door without a helper
+- **xp**: add Notepad, the plain text editor, to the start menu
+- **xp**: default chrome is XP Normal at 96 DPI
+- **xp**: CHORA_XP_ASSETS folder; scale 2 in the sway e2e
+- **tiling**: focus glow in the accent, captures on the wallpaper
+- **tiling**: helper surfaces wear Ink and Paper
+- **construct**: faces of one manager carry a number on the label
+- **construct**: the help names the managers as people read them
+- **construct**: the walk keys go in pane steps
+- **construct**: Super slash shows the help, F1 stays in Walk
+- **construct**: command surfaces tint 0.92 over a stronger scrim
+- **construct**: labels hang at the bottom edge, capsules are short
+- **construct**: the frame of a pane is the buffer of its window
+- **construct**: a face under the pointer lights its edge
+- **construct**: the cube rests 14 degrees off square
+- **construct**: the cube follows the hand while it is dragged
+- **construct**: a face that starts or fails says so on its face
+- **construct**: a terminal from the walk opens beside the panes
+- **construct**: a notice is at most 520 wide
+- **construct**: no grey slab, no app id, a refused give says why
+- **construct**: walk hints show what applies, Super T included
+- **construct**: a second program opens flown in beside the first
+- **construct**: a start card on the empty floor
+- **tiling**: the key list has a short mouse line under its header
+- **tiling**: Light look and Dark look in Apps switch the theme
+- **mc**: a click on the head of a page opens the page list
+- **mc**: the footer names the previous page and a click goes back
+- **xp**: helper tray icon; Help window in taskbar and Alt+Tab
+- **xp**: balloon with close box, Send, white field, two-line header
+- **xp**: the question card in XP form, group box and push buttons
+- **xp**: start menu 420 wide, filled left column, 14 px rows
+- **xp**: the taskbar is 36 px, task buttons 180 by 28
+- **xp**: all chrome text is 14 px, menus and dialogs sized to it
+- **hud**: the speech balloon fades in 160 ms
+- **hud**: idle_stop grey keeps Stop in place; xp uses it
+- **xp**: the whole Control Panel row opens after 400 ms
+- **xp**: 80 by 88 icon grid, paperclip 8 pixels in, black balloons
+- **xp**: tooltips, icon-only speaker, 24 pixel desktop buttons
+- **xp**: caption buttons 24 by 24 and a 14 pixel bold title
+- **xp**: Super opens Start, Super+d shows the desktop
+- **xp**: start menu has chat and help rows and plain subtitles
+- **xp**: Super+F1 and F1 open Help and Support with the live keys
+- **tests**: ci-local replays the CI jobs on this machine
+- **tests**: hud-audit in the tiling, mc and xp gates
+- **tests**: merge-gate worker mode, red-first, pre-commit range
+- **assistant**: hover mark on card buttons, Stop and list rows
+- **assistant**: set the card in a page as the mc card
+- **mc**: the chat in the margin column, notifications fold
+- **mc**: state and helpers at the top of the margin column
+- **mc**: Super+a chat, Super+Home agenda, Super+Return terminal
+- **mc**: muted and amber of the light theme at 4.5:1 on the paper
+- **mc**: say Nothing new. when there are no notifications
+- **mc**: margin column of 26 % in whole lines with a hairline
+- **mc**: scale 19 on a 28 px grid and a 14 px label style
+- **mc**: clickable key rows, helpers and rows with a focus mark
+- **mc**: key list in the margin column, Super+F1 for all keys
+- **tiling**: the theme follows the system, with Paper and a gate
+- **tiling**: screenshot keys and a power menu
+- **tiling**: shadows and motion, with animations false
+- **tiling**: key list on Super+/, layout chip, Super+space apps
+- **tiling**: gaps, rounded corners and the focus border
+- **tiling**: swallow every unbound Super chord
+- **tiling**: bar doors, apps, tags, layout word, keys, power
+- **tiling**: bar as three floating islands in Ink
+- **demo**: capture the marble floor of the construct
+- **construct**: render the marble floor finer on a GPU
+- **construct**: lay a floor of polished marble under the panes
+- **gate**: run one gate at a time with a lock
+- **assistant**: move the ring of the island in busy states
+- **assistant**: dim the island while the camera is in a pane
+- **construct**: name the face of the cube stood back
+- **construct**: open the cube with Super+C instead of a chip
+- **construct**: blur the space behind the glass of the HUD
+- blur the frame behind a rect with a backdrop
+- **chat**: let the field tell its height to the view
+- **xp**: make the chat the one balloon of the paperclip
+- **construct**: show a notice as one line under the island
+- **construct**: draw the HUD of the construct as glass
+- **assistant**: draw the chat of a glass folder as the glass column
+- **chat**: stop the helper with Ctrl+. in the field
+- **assistant**: size the glass chat to the output, 400 to 480
+- **assistant**: draw the voice island and the glass card
+- **kit**: share the glass tokens of the construct HUD
+- **mc,construct**: name the theme to the HUD host
+- **hud**: colour a folder by the theme of its window manager
+- **assistant**: show the state word beside the figure
+- **assistant**: name the voice state in the Chat row
+- **construct**: lift a window clear of the neighbour face
+- **construct**: pull a window from the stood-back cube
+- **mc,construct**: leave the voice HUD to the host by default
+- **flavors**: start chora-assistant in tiling and construct
+- **construct**: window managers in panes
+- **construct**: add the chip OPEN CUBE as a visible way in
+- **xp**: list the shared keys in the Control Panel
+- **xp**: add a tray speaker, Sound and the volume keys
+- **tiling**: change the volume by the media keys and label it
+- **kit**: add the volume of the default output through wpctl
+- **assistant**: looks where nothing covers anything
+- **assistant**: helper rows, the chat slot and the look folders
+- **construct**: read true and false of voice_hud as own and host
+- **kit**: slot, margin, panel colours and figure in hud.yaml
+- **construct**: hand the voice HUD to the host, a glass chat folder
+- **mc**: hand the voice HUD to the host and open the chat drawer
+- **xp**: make the assistant assets a HUD folder
+- **mc**: a drag gives a window to another window manager
+- **core**: a click on an empty claim chooses its manager
+- **construct**: hover edge, drag to turn, voice words, plain Escape
+- **xp**: a taskbar of a virtual output lists its own windows
+- **construct**: windows float off the faces of the cube
+- **kit**: a swung sail bows far
+- **core**: a recorded frame shows an arrow, not the mark
+- **core**: record frames with a stepped scene clock
+- **demo**: record the walk and the swing as GIF and MP4
+- **demo**: a construct scene with generated, colourful content
+- **construct**: a swung pane bows and its frame follows
+- **core**: record frames with a stepped scene clock
+- **construct**: step back from a cube face and step in
+- **kit**: the modes of a view on a cube
+- **core**: render.stats counts frames, damage and passes by output
+- **dist**: ship a minimal sandbox for the coding agents
+- **core**: a flag turns on the test mode of drag gives
+- **xp**: place a moved window at a point, send the drag speed
+- **construct**: give a pane dropped over a face back to the cube
+- **core**: a test mode where an injected press gives its drag
+- **construct**: take a window that comes with its drag
+- **xp**: give a window that a drag pulls out of its face
+- **xp**: no cube of its own on virtual outputs
+- **xp**: windows on several virtual outputs
+- **construct**: host a cube of virtual outputs with one xp
+- **kit**: the cube geometry
+- **core**: no window strands on a removed virtual output
+- **core**: a press through a pane stays in its output
+- **core**: a pane forwards the pointer into its output
+- **construct**: wobble a dragged pane in 3D
+- **construct**: direct input on the 3D base (K5)
+- **kit**: give the drag with window.give
+- **core**: give the drag of a window with the window
+- **core**: a shader node reads its virtual output
+- **core**: virtual outputs with an owner on every backend
+- **kit**: wobbly windows in 3D with a depth for the mesh
+- **core**: name the focused window that a dropped layer holds
+- **chat**: add the launcher entry Chat with a helper
+- **tiling**: open the chat with Super+a
+- **assistant**: host the chat session and draw its view
+- window managers ignore injected keys unless a test says so
+- one give key action for tiling, xp, mc and construct
+- **kit**: drive wobbly and lamp from chora_kit::effects
+- **assistant**: start the chat field on a pipe without a socket
+- **chat**: add chora-chat, the opener and the chat field
+- **test**: add 3d-bench.sh and the live mode of the probe
+- **core**: step plane textures and cut units at the near plane
+- **core**: keep layer textures and split orders between frames
+- **assistant**: pick the HUD folder by context
+- **assistant**: host one HUD folder with the question card
+- **core**: let popups and client drags see every surface in a plane
+- **voice**: add the epoch of an agent start to agent.read
+- **kit**: add the chat model with sanitizer, wrap and held input
+- **core**: carry the review of step 2 into contexts
+- **core**: sort, split and hit the planes of 3D contexts
+- **scene**: add the perspective of 3D contexts
+- **draw**: load a HUD folder with confined pictures and fonts
+- **core**: draw and hit planes outside a 3D context
+- **scene**: stop walks at planes and add the hit list
+- **kit**: add the HUD folder, word table and question card models
+- **voice**: add the chat methods and a transcript per agent
+- **kit**: add a notification client and a process check
+- **core**: mark a pointer press of input.inject as injected
+- **core**: name a confined caller in method.called
+- **xp**: start chora-notify and chora-assistant in the XP flavor
+- **assistant**: move the assistant from chora-xp to chora-assistant
+- **notify**: move notifications from chora-xp to chora-notify
+- **draw**: add the bubble outline and the corners of an output
+- **draw**: move theme, text and icons of chora-xp to chora-draw
+- **hooks**: run the guard test when a guard changes
+- **scene**: add inverse, plane_inverse and decompose to Transform
+- **persona**: keep the captures and the log with PERSONA_KEEP
+- **persona**: start the companions of the flavor in the session
+- **render**: count offscreen renders, elements and damaged frames
+- **plugins**: add skeletons of chora-notify and chora-assistant
+- **hooks**: add commit-message-length guard with its test
+- **hooks**: add no-session-files guard with its test
+- **hooks**: add no-inline-comments guard with its test
+- **mc**: mark agent.set and notify.push privileged
+- **choractl**: pass the privileged flag in the MCP tool meta
+- **core**: send the privileged flag in methods.list
+
+### Fix
+
+- **construct**: a placed pane is saved and survives a restart
+- show the screenshot notice with no bus, add Screenshot to power
+- open Notepad only in an editor with a window
+- refuse unshowable security changes and own HUD questions
+- sanitize and guard the voice confirm question
+- say a Notepad fallback opened only when its window shows
+- Notepad falls back to another editor and says why
+- **construct**: the strip has a Helper word that opens the chat
+- **construct**: a placed pane stays in view when the cube steps back
+- **mc**: a window dragged over the mc output shows above the page
+- compare every shipped plugin data dir in packaging check
+- wait for killed clients in gate-0.8-4 and gate-0.7-4
+- wait for killed clients before removing the runtime dir
+- install the tiling HUD in the Arch package
+- **words**: the stuck line names the state of the handler
+- **assistant**: a view that closes hides the field every time
+- **assistant**: a question does not hold the Enter of the list
+- **tiling**: the bar word is the one door of the chat in tiling
+- **tiling**: no tooltip on the doors of the bar
+- **tiling**: show the result of a screenshot without a notifier
+- **xp**: expect the Question head while the card waits
+- **xp**: draw the card with its hint in one frame
+- **xp**: set the key words of the question card under its buttons
+- **core**: a key counted as real keeps the pointer gate
+- **construct**: a stood-back cube turns, shows keys and closes
+- **core**: a key grab held back by the pointer is swallowed
+- **mc**: merge mc r1 and r2, panel keys, column, empty head
+- **mc**: a critical notice is a card, and a full column sheds notes
+- **mc**: a column that came back shows no empty head
+- **mc**: Mute stands beside the state word, not under the host's
+- **mc**: the page widens when Super+n hides the column
+- **mc**: the page keeps the keyboard when a helper fills a panel
+- **security**: merge secfix-a r2, icon dir and FIFO checks
+- read sender icons once, render a private copy
+- decode only small PNG files for a path a sender names
+- **core**: merge multilook r1, pane keys and cube drag
+- **construct**: a drag beside an open cube does not look around
+- **core**: only managers of virtual outputs give way for keys
+- **core**: a key grab goes to the manager under the pointer
+- **xp**: merge xp-polish r1, paperclip back, fields on grid
+- **xp**: the tray speaker shows the volume level as a bar
+- **xp**: open Writer, mousepad or gedit before a terminal editor
+- **assistant**: keep the idle figure to the xp form
+- **xp**: put the edit boxes on the grid of 4 px
+- **assistant**: show the figure while no voice agent runs
+- **voice**: merge secfix-b r1, API keys out of agent env
+- **voice**: require a confirm rule for run_program
+- **voice**: keep API keys from the coder and the agents
+- **render**: draw a mesh element only inside its damage
+- **tiling**: trap the bar signals by name before the fork
+- **tiling**: start waybar with the push signals ignored
+- **safety**: excuse the longest wait of one thread, not the sum
+- **safety**: count the wait of all threads as host load, not as cost
+- refuse an injected press on every button of the chat
+- carry the injected flag on every input event of a person
+- a notification card takes no injected press
+- tiling ignores an injected press or key
+- xp ignores an injected press, release, move or key
+- an injected pointer does not drive the construct look
+- an injected key does not turn the mc page
+- an injected key does not drive the construct walk
+- **assistant**: lay out only the header lines that show
+- **assistant**: keep two header lines of room in the plain chat
+- **voice**: keep the keys line of a long HUD question
+- **voice**: make earcon_volume a security key
+- **kit**: answer settings.set and reload as the plugin shows them
+- **voice**: keep spoken notes out of the answers of the LLM
+- **voice**: redact the JSON-RPC lines of the agent log
+- **voice**: localize a reloaded file in the running language
+- **xp**: give each test theme a cache folder of its own
+- let a click of input.inject do nothing in mc
+- make notify.clear privileged
+- refuse panel.set on the agents and the overview scene
+- ignore an injected key in the window list of the construct
+- **guards**: pass kill tools in any order after need or command -v
+- **gate**: close an allow in the runtime grep before a comment
+- **gate**: read command substitutions in the no-foreign-kill hook
+- **gate**: open an allow in the runtime grep only on an attribute
+- **hook**: pass a fix on the base branch itself with a note
+- **gate**: let an allow cover only its item in the runtime grep
+- **gate**: take a live chora-xp beside its zombie in xp.sh
+- **gate**: read commands, not text, in the no-foreign-kill hook
+- **gate**: refuse in the red-first hook only what it can prove
+- **gate**: run 2d-guard alone before the parallel steps
+- **lint**: compare the two clippy configs both ways
+- **gate**: judge the programs of a gate by pid, not by name
+- **gate**: never block a valid commit in the red-first hook
+- cap the chat header at two lines in every look
+- wrap the no-helper header of the chat instead of cutting it
+- **draw**: check a foreign file as a file of a HUD folder
+- **assistant**: bound the lines and the events of the field
+- **construct**: take only a left press of the person on the list
+- **construct**: cap the ends that the fit of a text tries
+- **mc**: ignore injected presses on hits and agent columns
+- **mc**: make hud.set and hud.say privileged
+- **mc**: refuse content.set on the contents that mc writes
+- cap rmcp at warn in the filter of the voice log
+- open the log files without following symlinks, fix old modes
+- chora-report hides block YAML secrets and follows symlinks
+- only the holder of NAME.lock writes and moves a log
+- **test**: drop the font skips from the e2e allowlist
+- **test**: draw the text of gates 0.8-9, 0.8-10 as a free client
+- **test**: scope injected keys, check the camera refusal in agent.sh
+- **test**: count the skips of the e2e sequence as failures
+- **test**: fail gate 0.7-6 in CI when xkb lacks the fkeys option
+- **test**: skip gate 0.7-6 without the fkeys option of xkb
+- **test**: move the camera of gate 0.8-2 as a free client
+- **test**: bring tests/agent.sh to the rules of the core
+- **mc**: let only the side of the key list give way to all keys
+- pick after a text of the list only by a click or a number
+- end the text of the list with the list
+- **construct**: show the doors stood back from a cube
+- name the give keys in the key lists of tiling and mc
+- **assistant**: open the only helper and send a text after a pick
+- **assistant**: show the notice of the xp balloon in two lines
+- **mc**: end the header of an app where the column begins
+- **chora**: keep key presses of smithay out of the trace log
+- **chora**: log each refused request with its client and code
+- **voice**: keep spoken and typed text out of every log level
+- **mc**: keep a binding over new settings
+- **tiling**: keep a binding over a change of the grabs
+- **xp**: keep the other keys over a change of the cube keys
+- **words**: a fault handler that waits for the disk goes on
+- route plugin output list and subscribe through chora-kit
+- **tiling**: restate the focus opacity when a border is restyled
+- require fuzzel and fontconfig, recommend DejaVu in packages
+- **assistant**: say No helper whenever no helper runs
+- **kit**: list the shared entries in the launcher of xp and tiling
+- **mc**: say once that the chat does not open
+- **kit**: wrap the launcher with the shared entries in one place
+- **keys**: one cap and one wording for the volume keys
+- **construct**: hide the doors strip in a pane
+- **mc**: leave the words of no helper to the HUD host
+- **construct**: hide the doors capsule while a cube is open
+- **construct**: free F1 and open the key list on Super+F1
+- **mc**: keep the long keys of the full list off their words
+- **test**: wait for the depth frame in e2e step 21
+- **test**: accept the filtered green of a plane in e2e step 21
+- **test**: read the rects of the surfaces in the e2e overlap check
+- **notify**: cap the body before the layout of the card
+- **mc**: require the label style in the settings
+- **xp**: clear a pending row hover when its cascade closes
+- **tiling**: drop selection-radius from the fuzzel config
+- **construct**: keep a binding over a change of the grabs
+- **mc**: hand the keyboard back unless another client took it
+- **mc**: hand the keyboard back only to whom it belonged
+- **mc**: hand the keyboard back when the chat closes
+- **mc**: a page turn leaves the keyboard with an open chat
+- **mc**: a page beside other window managers takes no keyboard
+- **mc**: the state line holds the word Mute
+- **mc**: a critical notification says Urgent and leaves on a click
+- **mc**: plain arrows turn the page and Escape goes back
+- **core**: draw the injection mark in front of the cursor
+- **voice**: log words over a reply and tool arguments at debug
+- **core**: draw the injection mark in front of every client node
+- gate output.configure and output.reserve on methods.privileged
+- **voice**: keep the API key variables for agents and the harness
+- **voice**: drop the URL from every request error of the LLM
+- **core**: count no injected input as activity for idle-notify
+- **voice**: log utterances, replies and coding tasks at debug
+- **voice**: create the history file and the agent log with 0600
+- **voice**: create a recording with the modes 0700 and 0600
+- **voice**: name a server in errors without userinfo and query
+- **voice**: drop the echo of a question before the yes/no match
+- **voice**: keep the key rule with the question it belongs to
+- **voice**: ignore a confirm key in the first second of a question
+- **voice**: hide typed text and cut the arguments in the journal
+- **voice**: start the children without the API key variables
+- **choractl**: refuse a view save that loses the saved file
+- **choractl**: count only absolute config directories
+- **kit**: keep the values of a broken settings file out of its error
+- **core**: log the length of a text without glyphs, not the text
+- **core**: keep the injection mark on its output
+- **core**: keep quit, reset and revoke off the lock screen
+- **core**: bound what an export and a call cost the exporter
+- **core**: cap the grabs of a connection at 256
+- **core**: refuse headless outputs for a confined connection
+- **core**: keep attach of a client socket off screen:*
+- **core**: give injected keys a keyboard source of their own
+- **core**: lay out no text with a line under 0.01 pixels
+- **core**: refuse a key name with a NUL before xkbcommon
+- **xp**: say Nothing found in the Run box
+- **tiling**: sort the Apps list and say when nothing is found
+- **render**: index the input choice in hit_guard for the msrv build
+- **xp**: cascade new windows in the order in which they came
+- **construct**: time an event without a time by the clock
+- **core**: send the time of an input as a 32-bit count
+- **core**: refresh the pointer with the time of its last input
+- **construct**: take the speed of a flick from the input times
+- **construct**: a click during a step of the cube counts
+- **construct**: a deaf window manager blocks one wait in a round
+- keep one display open and give each test its own directory
+- **words**: the alarm of a fault ends only a stuck handler
+- **persona**: start assistant, voice, notify and lock stubs
+- **xp**: menu header gap, generic icon, tight chat, neutral copy
+- **xp**: or between chords, one header row, Turn Off and Run shots
+- **xp**: 16 px title and task icons, whole art, readable speaker
+- **assistant**: refit the balloon in the step that shows a question
+- **xp**: audit icon sizes and clipped text; task, cascade, Cancel
+- **xp**: one-line field, grey path strip, tail at the box
+- **xp**: the notify balloon stands left of the paperclip
+- **xp**: the paperclip picture starts at its head
+- **xp**: inactive caption buttons are 24 px and the close stays red
+- **xp**: the tray icons are 16 pixel glyphs on an even grid
+- **xp**: the start menu user tile is one square with an equal ring
+- **tiling**: crisp icons, Inter card, chat clear of card and toast
+- **tiling**: chips beside the chat, tinted scrim, more captures
+- **tiling**: status chips and orbs in the tokens, audit cells
+- **tiling**: one surface, icons, key list grid, toast placement
+- **chat**: Close at the right edge, a round input field
+- **tiling**: clear the card from the tile border
+- **tiling**: keep the neutral dot and sentence as they were
+- **tiling**: hairline of the helper surfaces is line
+- **construct**: whole panes, a mirror with a body, one capsule rim
+- **construct**: a deaf window manager blocks one face, not all
+- **construct**: neighbour labels show, soft mirror edges, gate
+- **construct**: step in dims to 0.6, failed face copy per the look
+- **construct**: neighbour labels, 22 degree rest, a mirror that ends
+- **construct**: only a pane in front of the cube gives way (M1)
+- **construct**: neighbour panes keep their colours in the walk (M6)
+- **construct**: panes give way to the cube stood back (M1)
+- **construct**: dark glass for hints over a program, rim inside (M5)
+- **construct**: pad the text of the first terminal 12 by 12 (M7)
+- **construct**: no corner chip in use mode, a Step back hint (M2)
+- **construct**: hide the pane label while a cube is open (M3)
+- **construct**: regrab after leaving a flight, stop a stuck walk key
+- **construct**: one 10 s manager limit, plain card foot, docs match
+- **construct**: the next face stands at the right of the cube
+- **construct**: Super slash also hides the help
+- **construct**: say that a window manager does not run
+- **mc**: dark Listening at 7:1, the empty agenda names the key
+- **mc**: all text colors at 7:1, a voice hint on the empty agenda
+- **mc**: no widow in the card, a drawn close mark, muted text at 7:1
+- **mc**: helper rows on the label column, state line on the grid
+- **chat**: the field, Stop and the card stand on the column grid
+- **mc**: one baseline grid, one column top, one label width
+- **mc**: helpers get a head, tracking leaves the edge, chat on 28
+- **mc**: rows share baselines, notifications breathe
+- **mc**: the terminal page keeps the column and its hairline
+- **mc**: all-keys list clears the column, foot reads its colors
+- **mc**: bars span the capitals of their text, gaps even
+- **tiling**: look notice, Mouse line counts for the panel width
+- **tiling**: shorten the mouse line so it stays inside the key list
+- **assistant**: the paperclip hops in whole pixels, never eased
+- **xp**: Run opens fuzzel in the look of xp
+- **xp**: Help window fits its key table, every row reachable
+- **xp**: own start mark and user picture, no Windows flag
+- **xp**: no false launch balloons for launchers and live programs
+- **hud**: the speaking figure hops without scaling, no resampling
+- **draw**: 14 px chrome fonts only where chora-xp asks for them
+- **xp**: a minimized task button never takes the pressed look
+- **xp**: a press with Super held is not a tap of Super
+- **dist**: install the whole tiling flavor in the RPM
+- **dist**: install the whole tiling flavor in the Arch package
+- **tooling**: review fixes of merge-gate and ci-local
+- **mc**: place every panel at 1280 and send the slot after a success
+- **assistant**: answer a click on a card that only followed its view
+- **assistant**: leave the plain field at scale 1, it cannot paint 2
+- **mc**: keep the arrows of the key pair together
+- **assistant**: show Stop only while the helper runs, muted
+- **assistant**: scroll the transcript by whole messages
+- **assistant**: draw the plain field at the scale, its hint muted
+- **mc**: put the hover mark beside Esc Close and Show
+- **assistant**: drop the question hint when the card is answered
+- **assistant**: reopen the chat of the only helper after Esc
+- **mc**: draw the state dot in the colours of the theme
+- **assistant**: keep the card above the hint when the field grows
+- **mc**: give each empty panel of the morning its own row
+- **assistant**: draw into the slot of a look, with its page, fonts
+- **mc**: show a helper whose state carries the fields of the host
+- **mc**: 14 px head, serif fallback, calm notes, empty pages
+- **mc**: order the full key list by task, keep arrows off the plus
+- **tiling**: traps before pids, session-safe logout, pictures dir
+- **tiling**: ask the system off the loop, exact gaps, Super swallow
+- **tiling**: align tooltips, spell keys alike, mark today
+- **tiling**: a theme reload restarts bar and wallpaper, no units
+- **tiling**: push tag and layout changes to the bar with a signal
+- **tiling**: visible launcher selection and a prompt on both menus
+- **tiling**: balanced key list margins, keycap text inside its cap
+- **tiling**: even bar spacing, left-aligned layout word, plain Keys
+- **tiling**: find power and screenshot scripts, add Screenshot entry
+- **tiling**: keep the key list clear of the bar
+- **tiling**: Ink wallpaper, drawn icons and a bar that reads
+- **tiling**: key list, chip, terminal and launcher in the palette
+- **tiling**: count the gaps from the outside of the border
+- **gate**: signal the programs of gate-lib-selftest once they run
+- **gate**: continue stopped programs when a gate ends
+- **gate**: wait for the walk to take the keys in construct key cells
+- **construct**: count one window as 1 window
+- **kit**: quote words as each language does, and no jargon in German
+- **construct**: name the side of a window in the list right
+- charge the watchdog for a backdrop by its area
+- capture the frame behind a backdrop as a framebuffer effect
+- blur a backdrop again only when the frame behind it changed
+- **chat**: keep the card of the balloon above its hint
+- **chat**: set the placeholder of the field after the caret
+- **chat**: size the balloon of the figure to its content
+- **chat**: name the helpers of the list as voice writes them
+- **hud**: give the sentence the look of a balloon chat
+- **assistant**: show a sentence in the open chat in every look
+- **assistant**: size the pictures of the card at every scale
+- **draw**: draw a figure where it stands in its sheet
+- **gate**: wait for the keyboard of the xp window before typing
+- **construct**: check the folder chat against the glass tokens
+- **assistant**: give the card its logical size at every scale
+- **assistant**: name the words of the island for readers
+- **assistant**: draw the card of a question that names its helper
+- **construct**: name the voice state beside the ring of the HUD
+- **hud**: name the theme when the host listens
+- **xp**: place the paperclip from the work area above the taskbar
+- **xp**: reserve the taskbar in the work area of the core
+- **hud**: give the mc and construct folders their dark colours
+- **assistant**: read the place again until a screen is claimed
+- **assistant**: draw no rows while the chat is open
+- **xp**: say Sound unavailable instead of wpctl not found
+- **tiling**: show only words of a person on the panel
+- **assistant**: draw no row for the helper of the open chat
+- **construct**: put the HUD rows at the top left
+- **xp**: open the chat from the paperclip and drop the Chat pill
+- **assistant**: show each look in its own HUD folder by default
+- **chat**: draw no transcript while the list shows
+- **chat**: open the list with an empty field
+- **construct**: take a press beside the cube for the pane under it
+- **construct**: put a pulled pane back with the same plain drag
+- **construct**: give the pane ahead and fly into a new pane
+- **construct**: list every window by name in the window list
+- **construct**: hide OPEN CUBE in a pane and keep it on screen
+- **construct**: list the cube keys in the help only with a cube
+- **construct**: draw notices in one line under every voice_hud
+- **construct**: the review of the pull from the cube
+- **construct**: float no window off a face at a grazing angle
+- **construct**: keep the cube chips clear of the desktop icons
+- **construct**: hide the cube chips while the camera is in a pane
+- **construct**: give the keyboard to a window as the fly-in starts
+- **construct**: end the xp of the cube with the construct
+- **construct**: draw the focus glow without time
+- **construct**: put a pulled window in front of the cube face
+- **core**: click answers in the test mode without the injected mark
+- **chat**: keep the field and its keyboard when a helper is picked
+- **core**: count injected key presses as acts in the test mode
+- **assistant**: name the search path when --use-hud would miss it
+- **voice**: say that a key question needs a key press or a click
+- **voice**: say helper and Sie, spell keys once, title the question
+- **assistant**: show Close in the helper list as in a chat
+- **chat**: ask to pick a helper first, and name helpers in the list
+- **assistant**: let the voice tools show and close the chat
+- **xp**: leave the keyboard alone only without an opened window
+- **construct**: end the window manager of a pane with the construct
+- **construct**: reject an empty command of a window manager
+- **construct**: drop a manager pane whose manager is unknown
+- **core**: pass a toplevel under a pane only for a focused node
+- **core**: keep the texture for a damage-less attach, import lazily
+- **core**: put the damage of each commit into the texture at once
+- **demo**: the cube scene takes the renamed test flag
+- **construct**: a step of the cube takes the animation clock
+- **xp**: move the desktop buttons when the speaker grows
+- **construct**: say the walk notice in the person's language, rarely
+- **construct**: warn when a start or close key has no modifier
+- **tiling**: make the panel honest and let it follow the outputs
+- **volume**: run wpctl off the main loop and name every state
+- **xp**: list only the keys that xp holds in Keyboard Shortcuts
+- **kit**: log each refused grab once and tell which keys are held
+- **core**: allow listed media keys only for window managers
+- **core**: let a key choose its manager only where the person is
+- **core**: pass unbound Super keys to programs again
+- **construct**: start nothing from text typed into the space
+- **assistant**: keep the HUD on its screen while the focus moves
+- **tiling**: show the panel only on the outputs of tiling
+- **core**: open the window of a key where that key's manager is
+- **core**: keep unbound Super keys out of programs
+- **core**: let a window manager grab media keys without a modifier
+- **kit**: read a method call without params as its defaults
+- **assistant**: clip the slot box and refuse folders that read badly
+- **assistant**: hide the helper rows with the panel that holds them
+- **core**: a still virtual output leaves the winit window still
+- **construct**: cube backlog after the review
+- **construct**: a floating window never shows nowhere
+- act on the review of the demo branch
+- **construct**: cube modes after the review
+- **kit**: received springs sit at the window that takes them
+- the review of xp on virtual outputs
+- **xp**: give a dragged window only past a margin of its face
+- **construct**: end a pulled drag inside a window too
+- **core**: unpin a press only for the owner of its pane
+- **core**: let a given drag leave the pane that it started in
+- **core**: the review of the windows of a removed output
+- **construct**: act on the review of the cube
+- **core**: the review of the input through a pane
+- **construct**: act on the review of K5
+- **core**: keep the perspective and empty boxes behind the eye
+- **core**: give a plane behind the eye an empty box
+- **core**: tie a give during a drag to its press and its window
+- **core**: the review of the virtual outputs
+- **kit**: keep the 3D wobble finite and take a view of x and y
+- bound the HUD host state ask and retry only a missing call
+- the HUD host asks voice for its state after voice connects
+- **voice**: key claims by connection, ask a key for security
+- **core**: drop the indicator.claim grant
+- **core**: keep a live name for its program
+- only named HUDs claim the indicator and answer
+- **core**: fit layer textures to the GL texture limit
+- hand choractl run the token of a plugin in its environment
+- **core**: keep layer ids, pass results and steps per output
+- **core**: block input only on what the budget left dark
+- **core**: stamp no token for a confined call, bind acts to conns
+- **core**: bind the act of a token to the client that received it
+- **core**: block input on left-out layers in one place, per output
+- **core**: draw a plane wider than 4096 pixels whole
+- **core**: never repeat a layer texture version after an eviction
+- log a poisoned display lock and clean a scratch dir first
+- keep one display open and give each test its own directory
+- **mc**: align a scene with one query for its texts
+- **core**: lay out only the nodes that a query matched
+- **mc**: clear the effects on a drop and restore the blur
+- **hang**: abort after a ceiling of wall time without a beat
+- **core**: keep the last words of a stack overflow and a bad heap
+- **core**: call the host busy only for frames that mostly waited
+- **mc**: remove the write effects of one show in one transaction
+- **mc**: end the write effect and stay plain after a drop
+- **core**: count no wait for a CPU as the cost of a frame
+- **core**: leave last words at every end of the core
+- **hang**: count no stall while the watchdog thread did not run
+- **core**: restore the focus and keep the pin after a popup ends
+- **core**: make the plane press a pointer grab of Smithay
+- **assistant**: act on the findings of the review of H7
+- **assistant**: keep the Chat row of a flavor off the title bars
+- keep the give keys while a plugin grabs its other bindings
+- one key table, regrab on release, a bounded forward of a key
+- **effects**: end wobbles and lamps in the driver, as reviewed
+- **core**: keep image steps inside slice cells and count their cost
+- **core**: sample image nodes from halvings and snap to pixels
+- **chat**: run the field on a pipe and keep held text
+- **chat**: tell when the field is shown and wait for it in the test
+- **core**: bound the layer caches and step only on screen
+- **core**: keep both placements of a layer context order
+- **assistant**: reload a folder only when a rule names another
+- **assistant**: read the context at the start and calm the switch
+- **assistant**: keep the card and the balloon in the work area
+- **assistant**: refuse a question whose detail does not fit
+- **kit**: clean the card text and accept both kinds of question id
+- **mc**: keep the clock duration within the core limit
+- **core**: limit drag and drop to the real press of its client
+- **kit**: harden the chat model against hidden text and gaps
+- **core**: bound the split and hit nested contexts sorted
+- **core**: block input on left-out layers of a context
+- **kit**: open a HUD file without a link and check its inode
+- **draw**: bound and confine the fonts directory of a HUD folder
+- **draw**: bound the cost of an SVG of a HUD folder
+- **core**: take only a command as the act of a person
+- **core**: stamp activation tokens with the act of a person
+- **tiling**: leave the focus of a handed window to its receiver
+- **core**: block left-out planes and map planes at the near plane
+- **hud**: bound values, harden the loader, check panels
+- **words**: helper states, singular notice, no jargon
+- **ask**: fix the place of the card on top, drop text_of
+- **voice**: harden the chat transcript and cancel
+- **voice**: reject an ACP request too long to show whole
+- **voice**: show the whole ACP request and name the keys
+- **voice**: ask ACP permissions that run or write by key
+- **construct**: take over handed-over windows without focus loss
+- **kit**: give the notification calls a timeout of 2 seconds
+- **xp**: refuse only a plain command of a missing program
+- **xp**: drop the message for a program that ended without a window
+- **xp**: say when a program starts, fails or opens no window
+- **voice**: refuse confirm, talk and mute from a confined caller
+- **hud**: ignore an injected press on an answer button
+- **voice**: refuse indicator.claim and confirm.answer when confined
+- **test**: end the descendants of xp.sh in its cleanup
+- **notify**: end without an error when the bus name is taken
+- **assistant**: hang the bubble below the figure at a top corner
+- **hooks**: skip the length of amend! subjects
+- **hooks**: say session files belong outside the repository
+- **hooks**: split the staged file on newlines only
+- **hooks**: allow only real Rust comment forms
+- **hooks**: count // after a colon outside a string as a comment
+- **hooks**: start a heredoc only when its delimiter follows
+- **hooks**: pair renames in no-inline-comments
+- **hooks**: let commit-message-length handle git's own text
+- **hooks**: make no-inline-comments scan strings and scripts
+- **ipc**: compare effective confinement of a name's connections
+- **scene**: end a camera move exactly on its target
+- **scene**: refuse the inverse of a nearly singular matrix
+- **scene**: animate a rotation as a turn, not a matrix blend
+- **persona**: check the tools of the companions before the start
+- **persona**: stop the companions by unit when choractl run has one
+- **persona**: delete a stale last_look.json at session start
+- **persona**: refuse a PERSONA_KEEP that is not empty
+- **persona**: let act.py type take the rest of the line as text
+- **persona**: remove only a session directory that the script made
+- **persona**: click in the pixels of the last capture
+- **construct**: a launcher under a forking shell keeps its window
+- **voice**: ask before load_view
+- **choractl**: confine the event connection of mcp
+- **core**: apply the client socket scene rules when confined
+- **core**: mark injected keys in input.key events
+- **voice**: ask before every tool that is privileged
+- **voice**: say the whole call in spoken confirm questions
+
+### Refactor
+
+- **voice**: build the HUD question in question_text
+- **kit**: show settings.get through Plugin::shown_settings
+- **xp**: drop the stale expect allow of Wm::grab
+- tell a handler of node.key whether the key was injected
+- **draw**: mark a file layer whose path a sender named
+- **construct**: name the row that a press on the list chooses
+- build the log subscriber in one function for init, tests
+- **kit**: find the shared entries with one helper
+- **shared**: move the power and screenshot scripts
+- **core**: compose the cursor and the output in render.rs
+- **mc**: move the head hit and its alignment out of long functions
+- **mc**: dispatch client events and presses on their own
+- **core**: name the test flag after what it does
+- **core**: keep the dispatch functions within their length
+- **construct**: split main.rs into files by function
+- drop a stale allow and a second output lookup
+- name the module offscreen, not virtual
+- render outputs into textures in virtual.rs
+- **kit**: check a when on its own and name its keys
+- **xp**: remove the unused position of a taskbar
+- **xp**: drop the zbus dependency of the moved server
+- **hooks**: replace the session files script by a fail hook
+- **scene**: make Transform::compose crate private
+- **render**: tie element counters to Variant at compile time
+
 ## v0.9.0-rc.3 (2026-11-01)
 
 ### BREAKING CHANGE

@@ -23,6 +23,17 @@ pub struct Core {
     pub state: State,
 }
 
+/// A new, empty directory in the temporary directory for one test: no
+/// other test uses it, and what an earlier run left there is gone.
+pub fn scratch_dir(name: &str) -> std::path::PathBuf {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("{name}-{}-{n}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("a scratch directory");
+    dir
+}
+
 impl Core {
     pub fn new() -> Self {
         let event_loop = EventLoop::try_new().expect("an event loop");
@@ -99,6 +110,16 @@ impl Core {
         output.set_preferred(mode);
         self.state.add_output(output.clone());
         output
+    }
+
+    /// Whether nothing holds the pointer: no grab of Smithay, no press on
+    /// a node, no button grab and no drag of a client.
+    pub fn pointer_free(&self) -> bool {
+        let state = &self.state;
+        !state.pointer().is_grabbed()
+            && state.node_grab.is_none()
+            && state.button_grab.is_none()
+            && !state.client_drag
     }
 
     /// Moves the time of the deadlines and runs what expired.
@@ -294,8 +315,12 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use wayland_client::Proxy;
 
-    use super::Core;
+    use super::{
+        Core,
+        wayland::{PointerEvent, Wayland},
+    };
 
     #[test]
     fn an_answer_stays_while_the_client_waits_for_another() {
@@ -306,5 +331,55 @@ mod tests {
         let second = client.send("scene.query", query);
         assert!(client.answer(&mut core, second).is_some());
         assert!(client.answer(&mut core, first).is_some());
+    }
+
+    #[test]
+    fn the_client_records_pointer_and_popup_events() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "window");
+        wayland.attach(&mut core, &window, (200, 200));
+        let mut wm = core.named("wm");
+        let place = json!({"commands": [
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"update": {"id": "s1", "props": {"transform": {"translate": [100, 50]}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", place);
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let click = json!({"events": [
+            {"pointer_move": {"position": [150.0, 80.0]}},
+            {"pointer_move": {"position": [160.0, 90.0]}},
+            {"button": {"state": "pressed"}},
+            {"button": {"state": "released"}},
+        ]});
+        agent.ok(&mut core, "input.inject", click);
+        wayland.roundtrip(&mut core);
+        let events = wayland.take_pointer_events();
+        let [first, second, press, release] = &events[..] else {
+            panic!("an enter, a motion, a press and a release: {events:?}");
+        };
+        assert_eq!(
+            *first,
+            PointerEvent::Enter {
+                surface: window.surface.id(),
+                at: (50.0, 30.0)
+            }
+        );
+        assert_eq!(*second, PointerEvent::Motion { at: (60.0, 40.0) });
+        let (
+            PointerEvent::Button {
+                serial,
+                pressed: true,
+            },
+            PointerEvent::Button { pressed: false, .. },
+        ) = (press, release)
+        else {
+            panic!("a press and a release: {press:?} {release:?}");
+        };
+        let popup = wayland.popup(&mut core, &window, *serial);
+        assert_eq!(wayland.popup_geometry(&popup), Some([-25, -25, 50, 50]));
     }
 }

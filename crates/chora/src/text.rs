@@ -289,6 +289,10 @@ impl Fonts {
     }
 }
 
+/// The line height in pixels below which a text draws nothing:
+/// cosmic-text panics on a line height of 0.
+const MIN_LINE: f32 = 0.01;
+
 /// Whether a raster of `w` by `h` RGBA pixels stays within the limit.
 fn within_limit(w: usize, h: usize) -> bool {
     w.checked_mul(h)
@@ -296,7 +300,7 @@ fn within_limit(w: usize, h: usize) -> bool {
 }
 
 /// Lays out one key at a physical scale and measures it; `None` for
-/// empty text or a raster beyond [`MAX_RASTER_BYTES`]. Returns the
+/// empty text, a line under [`MIN_LINE`] or a raster beyond [`MAX_RASTER_BYTES`]. Returns the
 /// buffer, the layout size in logical pixels and the raster size.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2], [f32; 2])> {
@@ -306,6 +310,9 @@ fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2],
     }
     let size = key.font_size as f32 * scale;
     let metrics = Metrics::relative(size, key.line_height as f32);
+    if metrics.line_height.partial_cmp(&MIN_LINE) != Some(std::cmp::Ordering::Greater) {
+        return None;
+    }
     let mut buffer = Buffer::new(&mut fonts.system, metrics);
     buffer.set_size(key.max_width.map(|w| w as f32 * scale), None);
     buffer.set_text(&key.text, &attrs(key), Shaping::Advanced, None);
@@ -371,7 +378,8 @@ fn paint(fonts: &mut Fonts, key: &Key, scale: f64) -> Option<([f64; 2], [f32; 2]
         color,
     );
     if blank > 0 {
-        tracing::warn!(text = %key.text, blank, "glyphs laid out but drawn by no font");
+        let chars = key.text.chars().count();
+        tracing::warn!(chars, blank, "glyphs laid out but drawn by no font");
     }
     Some((size, [width, height], rgba))
 }
@@ -743,6 +751,19 @@ mod tests {
         let [w2, h2] = layout_of(&narrow);
         assert!(w2 <= w1 / 2.0 + 1.0, "wrapped to {w2} of {}", w1 / 2.0);
         assert!(h2 > h1 * 1.5, "{h1} to {h2}");
+    }
+
+    /// A node capture of a huge node shrinks the scale to nothing.
+    #[test]
+    fn a_scale_of_zero_lays_out_nothing() {
+        let node = text_node(Props {
+            text: Some("Hi".into()),
+            ..Props::default()
+        });
+        let key = super::props_key(&node).expect("the props of a text node");
+        let mut fonts = super::Fonts::new();
+        assert!(super::layout(&mut fonts, &key, 0.0).is_none());
+        assert!(super::layout(&mut fonts, &key, 1e-40).is_none());
     }
 
     fn layout_of(node: &chora_scene::Node) -> [f64; 2] {

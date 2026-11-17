@@ -1,7 +1,8 @@
 #!/bin/bash
 # Runs a chora session on the headless backend, for tests and agents: no
-# host display, GPU or seat. The core gets a private XDG_RUNTIME_DIR in a
-# temp dir and never sees WAYLAND_DISPLAY or DISPLAY of the host.
+# host display, GPU or seat. The core gets a private XDG_RUNTIME_DIR and
+# XDG_STATE_HOME (its log files) in a temp dir and never sees
+# WAYLAND_DISPLAY or DISPLAY of the host.
 #
 # Usage: tests/headless-session.sh [OUTPUTS] [-- STARTUP [ARGS...]]
 #   OUTPUTS  virtual outputs, WxH[@SCALE][+X+Y] comma separated
@@ -18,6 +19,11 @@
 # Environment:
 #   CHORA_BIN  the directory with chora (default: target/debug of the repo)
 #   CHORA_LOG  the log of the core (default: chora.log in the temp dir)
+#   CHORA_TEST_ACCEPT_INJECTED_KEYS  1 by default here: the window managers
+#              of the session take the keys of `input.inject`
+#   CHORA_TEST_FLAGS  flags of chora after `--headless OUTPUTS`, for tests,
+#              for example --test-injected-press-is-real; the core and its
+#              programs do not get the variable
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -62,8 +68,13 @@ trap 'exit 143' TERM HUP
 # llvmpipe starts a thread per core; 4 render a headless frame at half the
 # CPU cost of 32.
 export LP_NUM_THREADS=${LP_NUM_THREADS:-4}
-env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$runtime" \
-    setsid "$bin/chora" --headless "$outputs" -- "$@" >"$log" 2>&1 &
+export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
+read -ra test_flags <<<"${CHORA_TEST_FLAGS:-}"
+no_bus=(-u DBUS_SESSION_BUS_ADDRESS)
+[[ -z ${CHORA_TEST_KEEP_BUS:-} ]] || no_bus=()
+env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET "${no_bus[@]}" -u CHORA_TEST_FLAGS \
+    XDG_RUNTIME_DIR="$runtime" XDG_STATE_HOME="$runtime/state" \
+    setsid "$bin/chora" --headless "$outputs" "${test_flags[@]}" -- "$@" >"$log" 2>&1 &
 pid=$!
 
 for _ in $(seq 100); do

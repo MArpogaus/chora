@@ -8,12 +8,13 @@
 # Usage: tests/gate-0.7-4.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
+. "$(dirname "$0")/proc-lib.sh"
 for what in chora choractl; do
     test -x "$bin/$what" || fail "no $bin/$what; build it first"
 done
 need podman
 out=$(mktemp -d /tmp/gate4.XXXXXX)
-trap 'kill "${pids[@]}" 2>/dev/null; rm -rf "$out"' EXIT
+trap 'kill "${pids[@]}" 2>/dev/null; remove_after_exit "$out" "${pids[@]}"' EXIT
 session_start 1280x800
 # The client socket fixes the name agent and its capabilities (T3).
 # The capture later proves that the node came into being.

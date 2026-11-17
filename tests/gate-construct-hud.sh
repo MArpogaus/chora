@@ -3,7 +3,9 @@
 # label and the restyled window list (docs/construct-style.md). A fake
 # voice agent (tests/fake-voice.py) emits the events of the real one.
 #
-# For each theme and for 1920x1080 and 1280x720:
+# For each theme and for 1920x1080 and 1280x720, with the flag
+# --test-injected-press-is-real of the core, so that the injected click
+# on Ja counts as a click of the person:
 # 1. The construct claims the indicator of voice once.
 # 2. Each state shows its label in construct-hud-state.
 # 3. voice.say of 800 ms shows its sentence; 3.1 s later it is gone.
@@ -20,7 +22,7 @@
 # HUD panel and its label stay, and the glow comes back with no shader.
 # Last, with a pane that fills the view, a new window waits in the window
 # list with a notice in the HUD, and window.show makes its pane.
-# Then F1 shows the help panel with the bindings; settings.set of the
+# Then Super+F1 shows the help panel with the bindings; settings.set of the
 # modifier changes it at once, and help.toggle hides it.
 #
 # Usage: tests/gate-construct-hud.sh   BIN: directory with the binaries
@@ -93,7 +95,7 @@ label() { node id:construct-hud-state 'n[0]["text"]'; }
 # The left edge and the width of the HUD panel on the output.
 hud_x() { node id:construct-hud-glass 'round(list(n[0]["rects"].values())[0][0])'; }
 foot_pane() {
-    foot -a "$1" -f "$font" -o "colors-dark.background=$2" -o "colors-dark.foreground=$3" \
+    foot -a "$1" -T "$4" -f "$font" -o "colors-dark.background=$2" -o "colors-dark.foreground=$3" \
         sh -c "printf '%s\n' '$4'; sleep 600" &
     pids+=($!)
     until_ok "ctl call construct construct.list | grep -q '\"name\": \"$1\"'" ||
@@ -109,8 +111,9 @@ round() {
     # shellcheck disable=SC2034 # until_ok reads it
     w=${size%x*}
     local tag=$theme-$size
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
-    CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
+    CHORA_TEST_FLAGS=--test-injected-press-is-real \
+        CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
     local session=${pids[-1]}
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
@@ -191,6 +194,7 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list"
     shot "$shots/construct-hud-$tag-list.png"
     key Escape
+    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 0.0' || fail "$tag: Escape did not close the list"
     ok "$tag: the window list shows over a pane"
 
     # Two small panes side by side: the label of the pane ahead, then of
@@ -199,8 +203,8 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     call pane.resize '{"name": "black", "scale": 0.5}'
     call pane.resize '{"name": "white", "scale": 0.5}'
     call pane.move '{"name": "white", "right": -2150}'
-    sleep 0.8
-    [ "$(node id:construct-label-text 'n[0]["text"]')" = BLACK ] || fail "$tag: the pane ahead has no label"
+    until_ok 'test "$(node id:construct-label-body-text "n[0][\"text\"]")" = "a black pane"' ||
+        fail "$tag: the pane ahead has no label: $(node id:construct-label-body-text 'n[0]["text"]')"
     shot "$shots/construct-hud-$tag-label-ahead.png"
     # The core tells the pointer only from a press on: a short drag that
     # turns there and back ends over the white pane.
@@ -209,8 +213,8 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     echo "[{\"pointer_move\": {\"position\": [$px, $py]}}, {\"button\": {\"state\": \"pressed\"}},
       {\"pointer_move\": {\"position\": [$((px + 20)), $py]}}, {\"pointer_move\": {\"position\": [$px, $py]}},
       {\"button\": {\"state\": \"released\"}}]" | ctl inject || fail "inject drag"
-    until_ok 'test "$(node id:construct-label-text "n[0][\"text\"]")" = WHITE' ||
-        fail "$tag: the pane under the pointer has no label"
+    until_ok 'test "$(node id:construct-label-body-text "n[0][\"text\"]")" = "a white pane"' ||
+        fail "$tag: the pane under the pointer has no label: $(node id:construct-label-body-text 'n[0]["text"]')"
     sleep 0.3
     shot "$shots/construct-hud-$tag-label-pointer.png"
     ok "$tag: the label names the pane ahead, then the pane under the pointer"
@@ -247,18 +251,18 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     pids+=($!)
     until_ok "ctl call construct window.list | grep -q Donaudampf" || fail "$tag: no long window"
     sleep 0.5
-    if [ "$(node id:construct-label-glass 'n[0]["visible"]')" = True ]; then
-        fits construct-label-text construct-label-glass || fail "$tag: the label runs out of its pill"
-    fi
+    fits construct-label-body-text construct-label-body-glass || fail "$tag: the label runs out of its pill"
     shot "$shots/construct-hud-overflow-$tag-label.png"
     # Behind the camera, its pane is a row of the list.
     long_pane=$(ctl call construct construct.list | python3 -I -c 'import json, sys; print(next(p["name"] for p in json.load(sys.stdin)["panes"] if p["name"].startswith("Donau")))')
     call pane.move "{\"name\": \"$long_pane\", \"ahead\": -4000}"
+    sleep 2
+    echo '[{"pointer_move": {"position": [4, 300]}}]' | ctl inject || fail "inject pointer"
     sleep 0.5
     key Tab
-    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list"
+    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list: $(ctl call construct construct.list | tr -d "\n " | cut -c1-900) $(ctl call construct window.list "{}" | tr -d "\n " | cut -c1-500)"
     for row in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-list-row-") and n["id"].endswith(("-name", "-note"))])'); do
-        fits "$row" construct-list-glass || fail "$tag: $row runs out of the list"
+        fits "$row" construct-list-body-glass || fail "$tag: $row runs out of the list"
     done
     shot "$shots/construct-hud-overflow-$tag-list.png"
     key Escape
@@ -282,7 +286,7 @@ done
 
 # The watchdog takes the shaders of a client that makes the frames slow.
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=1 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
@@ -306,7 +310,7 @@ done
 # The focused pane (rule 16 of the guide): the pane ahead shows clear,
 # with an accent hairline and a soft glow under it; two others beside.
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
@@ -337,7 +341,7 @@ done
 # No room in view (C7): a pane fills the view, so a new window becomes no
 # pane; it waits in the window list, the HUD says so, and window.show
 # makes its pane. No window gets lost.
-printf 'theme: light\n' >"$work/chora/chora-construct.yaml"
+printf 'theme: light\nvoice_hud: own\n' >"$work/chora/chora-construct.yaml"
 CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
 session=${pids[-1]}
 grant screen.capture input.inject
@@ -349,7 +353,7 @@ foot -a third -f "$font" sh -c 'sleep 600' &
 pids+=($!)
 listed() { ctl call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "third"), "missing"))'; }
 until_ok 'test "$(listed)" = none' || fail "the third window is not in the list: $(listed)"
-until_ok 'test "$(label)" = NOTICE' || fail "the HUD gives no notice: $(label)"
+until_ok 'node id:construct-hud-say '"'"'n[0]["text"]'"'"' | grep -q "No room in view"' || fail "the HUD gives no notice: $(node id:construct-hud-say 'n[0]["text"]')"
 sleep 0.3
 shot "$shots/construct-hud-light-1280x720-noroom.png"
 call window.show '{"name": "third"}'
@@ -358,32 +362,37 @@ ok "with the view full, a new window waited in the list, and window.show made it
 kill "$session"
 wait "$session" 2>/dev/null || true
 
-# The help panel: F1 shows the bindings of the settings, a change of the
-# modifier shows at once, and help.toggle hides it.
-helped() { node "id:construct-help-row-$1-keys" 'n[0]["text"]'; }
+helped() {
+    ctl query owner:construct | python3 -I -c '
+import json, sys
+nodes = {n["id"]: n for n in json.load(sys.stdin)}
+body = "construct-help-body-row-"
+row = next((i[len(body):-len("-what")] for i, n in nodes.items() if i.startswith(body) and i.endswith("-what") and n.get("text") == sys.argv[1]), None)
+caps = sorted((i for i in nodes if row is not None and i.startswith(f"{body}{row}-keys-") and i.endswith("-text")), key=lambda i: int(i.split("-")[-2]))
+print("+".join(nodes[i]["text"] for i in caps))' "$1"
+}
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
     foot_pane white ffffff 14181e 'a white pane'
-    key F1
-    until_ok 'test "$(node id:construct-help "n[0][\"opacity\"]")" = 1.0' || fail "$theme: F1 shows no help"
-    rows=$(ctl query owner:construct | python3 -I -c 'import json, sys; print(sum(n["id"].endswith("-keys") and n["id"].startswith("construct-help-row-") for n in json.load(sys.stdin)))')
-    [ "$rows" = 18 ] || fail "$theme: the help has $rows rows, not 18"
-    [ "$(helped 17)" = Super+wheel ] || fail "$theme: the last row is $(helped 17)"
-    for t in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-help-row-")])'); do
-        fits "$t" construct-help-glass || fail "$theme: $t runs out of the help"
+    key Super+F1
+    until_ok 'test "$(node id:construct-help "n[0][\"opacity\"]")" = 1.0' || fail "$theme: Super+F1 shows no help"
+    [ "$(helped 'Move or resize a pane')" = Super ] || fail "$theme: the row of the modifier is $(helped 'Move or resize a pane')"
+    [ "$(helped 'Show these keys')" = Super+F1 ] || fail "$theme: the key of the help is $(helped 'Show these keys')"
+    for t in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-help-body-row-") and n["id"].endswith("-what")])'); do
+        fits "$t" construct-help-body-glass || fail "$theme: $t runs out of the help"
     done
     shot "$shots/construct-help-$theme.png"
     ctl call construct settings.set '{"modifier": "Alt"}' >/dev/null || fail "settings.set modifier"
-    until_ok 'test "$(helped 17)" = Alt+wheel' || fail "$theme: the help keeps $(helped 17)"
+    until_ok 'test "$(helped "Move or resize a pane")" = Alt' || fail "$theme: the help keeps $(helped "Move or resize a pane")"
     shot "$shots/construct-help-$theme-alt.png"
     [ "$(ctl call construct help.toggle | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["shown"])')" = False ] ||
         fail "$theme: help.toggle did not hide the help"
     until_ok 'test "$(node id:construct-help "n[0][\"visible\"]")" = False' || fail "$theme: the help stays"
-    ok "$theme: F1 shows the bindings, a new modifier shows at once, and help.toggle hides them"
+    ok "$theme: Super+F1 shows the bindings, a new modifier shows at once, and help.toggle hides them"
     kill "$session"
     wait "$session" 2>/dev/null || true
 done

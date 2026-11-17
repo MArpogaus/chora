@@ -1,0 +1,22 @@
+{
+ "02-01-empty": "Empty dark desktop; waybar with date, Volume 40% and Connected; the Chat ... pill sits over the bar at the top right. No tag or layout indicator in the bar.",
+ "02-02-terminal": "Super+Return opens a shell that fills the whole area under the bar.",
+ "02-03-cat": "cat friday.md prints the Friday list in the terminal.",
+ "02-04-window-2": "Second window (Notes content) opens as master on the left; the shell moves to the right.",
+ "02-05-window-3": "Third window (wobbly.rs): master left, Notes and the shell stacked at the right.",
+ "02-06-window-4": "Fourth window: master left, three windows stacked at the right.",
+ "02-07-layout-tile_left": "Super+space: tile_left, master on the right, stack at the left.",
+ "02-08-layout-tile_bottom": "Next layout: tile_bottom, master on top, the others in a row below.",
+ "02-09-layout-fair": "After two more presses the layout is fair: a 2x2 grid.",
+ "02-10-focus-pointer": "The pointer over the lower right window gives it the focus (follow mouse); no focus mark is visible, so the change cannot be seen in the picture.",
+ "02-11-master-wider": "Super+l widens the master area.",
+ "02-12-closed": "Super+Shift+c closes the focused window (the shell); the three others fill the grid.",
+ "02-13-to-tag-2": "Super+Shift+2 sends the focused window to tag 2; it vanishes from tag 1 and the bar shows no sign of tag 2.",
+ "02-14-tag-2": "Super+2: tag 2 shows the moved wobbly.rs window alone; the bar looks the same as on tag 1.",
+ "02-15-tag-1": "Super+1: the other windows are back.",
+ "02-16-bar-hover": "The pointer over Connected shows a tooltip eth0 192.0.2.2/24.",
+ "02-17-chat-panel": "Super+a opens a white chat panel at the right (about 200 px wide) with Chat with a helper, Close and 1 Atlas working; the field has the keyboard at once; the bar tooltip stays on top of it.",
+ "02-18-picked": "1 and Return pick Atlas: header Atlas working Tidy notes (1/2), Stop, Close, the transcript.",
+ "02-19-sent": "The message is sent (field empty); the transcript shows no line for it (the fake agent does not echo it).",
+ "02-20-chat-closed": "Escape closes the panel."
+}

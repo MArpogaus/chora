@@ -132,7 +132,7 @@ pub struct ShaderEffect {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(
     untagged,
-    expecting = "a uniform of a number, a list of 2 to 4 numbers, or {\"node\": ID}"
+    expecting = "a uniform of a number, a list of 2 to 4 numbers, {\"node\": ID} or {\"output\": NAME}"
 )]
 pub enum Uniform {
     /// A `float`.
@@ -142,6 +142,9 @@ pub enum Uniform {
     /// A `sampler2D` with another node, as it shows on its own; shader
     /// nodes only.
     Texture(NodeTexture),
+    /// A `sampler2D` with the last frame of a virtual output of the
+    /// client; shader nodes only.
+    Output(OutputTexture),
 }
 
 /// A node that a shader reads as a texture.
@@ -153,6 +156,15 @@ pub struct NodeTexture {
     pub node: String,
 }
 
+/// A virtual output that a shader reads as a texture.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct OutputTexture {
+    /// The name of the output.
+    pub output: String,
+}
+
 impl Uniform {
     /// The numbers of the value; none for a texture.
     #[must_use]
@@ -160,7 +172,7 @@ impl Uniform {
         match self {
             Self::Float(v) => std::slice::from_ref(v),
             Self::Vector(v) => v,
-            Self::Texture(_) => &[],
+            Self::Texture(_) | Self::Output(_) => &[],
         }
     }
 }
@@ -177,6 +189,24 @@ pub struct Border {
     pub width: f64,
     /// RGBA, each from 0 to 1.
     pub color: [f64; 4],
+}
+
+/// The frame behind a rect, blurred, under its own fill: the glass of
+/// a panel. The color of the rect is its tint.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct Backdrop {
+    /// The radius of the blur in logical pixels, from 2 to 128.
+    pub blur: f64,
+    /// The saturation of the blurred frame: 0 is grey, 1 keeps the
+    /// colors, up to 4.
+    #[serde(default = "one")]
+    pub saturation: f64,
+}
+
+fn one() -> f64 {
+    1.0
 }
 
 /// The area outside of which a node and its descendants do not show.
@@ -244,8 +274,9 @@ pub struct Node {
 
 impl Node {
     /// Whether the node renders into a texture of its size first: a node
-    /// with a size and a mesh, or with a transform that is not a plain 2D
-    /// translation and scale, for example a rotation or a perspective.
+    /// with a size and a mesh, or with a transform that is not a 2D
+    /// translation with a positive scale, for example a rotation, a mirror
+    /// or a perspective.
     #[must_use]
     pub fn is_layer(&self) -> bool {
         let props = &self.props;
@@ -254,10 +285,29 @@ impl Node {
             && props.size.is_some()
             && (props.mesh.is_some()
                 || !props.effects.is_empty()
-                || props.transform.scale_2d().is_none()
+                || !props.transform.is_plain()
                 || props.clip.is_some()
                 || shape
                 || self.kind == NodeKind::Shader)
+    }
+
+    /// Whether the node is a 3D context: a group with a size and a
+    /// `perspective`, whose descendants project with w = 1 + z / d around
+    /// its centre.
+    #[must_use]
+    pub fn is_context(&self) -> bool {
+        self.kind == NodeKind::Group
+            && self.props.size.is_some()
+            && self.props.perspective.is_some()
+    }
+
+    /// The projection of a 3D context from the coordinates of its
+    /// descendants to its own; `None` for another node.
+    #[must_use]
+    pub fn projection(&self) -> Option<Transform> {
+        let [w, h] = self.props.size?;
+        let d = self.props.perspective.filter(|_| self.is_context())?;
+        Some(Transform::perspective([w / 2.0, h / 2.0], d))
     }
 }
 
@@ -300,12 +350,23 @@ pub struct Props {
     /// Shows the node and its descendants only inside its size.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clip: Option<Clip>,
+    /// The blurred frame behind a rect, under its fill.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backdrop: Option<Backdrop>,
     /// The absolute path of the fragment shader of a shader node.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
+    /// The distance of the eye in front of the centre of a group with a
+    /// size, which makes the group a 3D context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub perspective: Option<f64>,
     /// The uniforms of the shader of a shader node.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub uniforms: BTreeMap<String, Uniform>,
+    /// Whether a shader node passes the pointer into the virtual output
+    /// that it reads.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub forward: bool,
     /// The scene area of the owner as a window manager: x, y, width and
     /// height in scene coordinates (D55).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -384,8 +445,11 @@ impl Default for Props {
             radius: 0.0,
             border: None,
             clip: None,
+            backdrop: None,
             shader: None,
+            perspective: None,
             uniforms: BTreeMap::new(),
+            forward: false,
             claim: None,
             text: None,
             family: None,
@@ -465,12 +529,36 @@ pub struct PropsUpdate {
         skip_serializing_if = "Option::is_none"
     )]
     pub clip: Option<Option<Clip>>,
+    /// The blurred frame behind a rect, under its fill. `null` removes
+    /// it, so the field has three states: keep, remove and set.
+    #[allow(clippy::option_option)]
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub backdrop: Option<Option<Backdrop>>,
     /// The absolute path of the fragment shader of a shader node.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
+    /// The distance of the eye in front of the centre of a group with a
+    /// size, from 1 to 10^6 logical pixels: the group becomes a 3D context.
+    /// A missing field keeps it, `null` removes it.
+    #[allow(clippy::option_option)]
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub perspective: Option<Option<f64>>,
     /// The uniforms of the shader of a shader node. Replaces all uniforms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uniforms: Option<BTreeMap<String, Uniform>>,
+    /// Whether a shader node passes the pointer into the virtual output
+    /// that it reads with `{"output": NAME}`: the pointer is then at the
+    /// point of the output that the node shows under it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forward: Option<bool>,
     /// The scene area of the owner as a window manager: x, y, width and
     /// height in scene coordinates. A new toplevel can go to the owner
     /// (D55). `null` removes the claim.
@@ -600,7 +688,8 @@ impl Props {
         self.apply_shapes(update);
     }
 
-    /// Applies the corners, the border, the clip and the shader.
+    /// Applies the corners, the border, the clip, the backdrop and the
+    /// shader.
     fn apply_shapes(&mut self, update: &PropsUpdate) {
         if let Some(radius) = update.radius {
             self.radius = radius;
@@ -611,11 +700,20 @@ impl Props {
         if let Some(clip) = update.clip {
             self.clip = clip;
         }
+        if let Some(backdrop) = update.backdrop {
+            self.backdrop = backdrop;
+        }
         if update.shader.is_some() {
             self.shader.clone_from(&update.shader);
         }
+        if let Some(perspective) = update.perspective {
+            self.perspective = perspective;
+        }
         if let Some(uniforms) = &update.uniforms {
             self.uniforms.clone_from(uniforms);
+        }
+        if let Some(forward) = update.forward {
+            self.forward = forward;
         }
     }
 }

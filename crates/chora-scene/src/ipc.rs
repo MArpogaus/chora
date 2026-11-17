@@ -1004,6 +1004,8 @@ pub struct Client {
     partial: Vec<u8>,
     /// The version of the core from its answer to `hello`.
     core_version: Option<String>,
+    /// Whether the core renders in software, from its answer to `hello`.
+    software: bool,
 }
 
 impl Client {
@@ -1041,9 +1043,11 @@ impl Client {
             events: VecDeque::new(),
             partial: Vec::new(),
             core_version: None,
+            software: false,
         };
         let answer: Value = client.call("hello", hello_request(hello))?;
         client.core_version = answer["version"].as_str().map(str::to_owned);
+        client.software = answer["software"].as_bool().unwrap_or(false);
         if let Some(warning) = answer["protocol"].as_u64().and_then(protocol_warning) {
             static WARNED_PROTOCOL: std::sync::Once = std::sync::Once::new();
             WARNED_PROTOCOL.call_once(|| eprintln!("{warning}"));
@@ -1062,6 +1066,13 @@ impl Client {
             });
         }
         Ok(client)
+    }
+
+    /// Whether the core renders in software, as on llvmpipe, from its
+    /// answer to `hello`; `false` for a core that does not tell it.
+    #[must_use]
+    pub fn software(&self) -> bool {
+        self.software
     }
 
     /// The version of the core, from its answer to `hello`; `None` for a
@@ -1111,6 +1122,32 @@ impl Client {
         method: &str,
         params: P,
     ) -> Result<R, ClientError> {
+        self.call_until(method, params, None)
+    }
+
+    /// Sends a request as [`Client::call`] does, and gives up after
+    /// `timeout` without the response; the response that comes later is
+    /// dropped.
+    ///
+    /// # Errors
+    ///
+    /// As [`Client::call`], and the timeout, as an `Io` error of the kind
+    /// `TimedOut` or `WouldBlock`.
+    pub fn call_within<P: Serialize, R: DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+        timeout: Duration,
+    ) -> Result<R, ClientError> {
+        self.call_until(method, params, Some(Instant::now() + timeout))
+    }
+
+    fn call_until<P: Serialize, R: DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+        deadline: Option<Instant>,
+    ) -> Result<R, ClientError> {
         let id = self.next_id;
         self.next_id += 1;
         let request = Request {
@@ -1131,7 +1168,19 @@ impl Client {
             });
         }
         loop {
-            let message = self.read()?;
+            let message = match deadline {
+                None => self.read()?,
+                Some(deadline) => {
+                    let left = deadline.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        return Err(io::Error::from(io::ErrorKind::TimedOut).into());
+                    }
+                    self.reader.get_ref().set_read_timeout(Some(left))?;
+                    let message = self.read();
+                    self.reader.get_ref().set_read_timeout(None)?;
+                    message?
+                }
+            };
             // An error without id answers a request that the core could not
             // parse, so it belongs to this call.
             let mine = match &message.id {

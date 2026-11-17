@@ -10,6 +10,19 @@
 //! binding and SIGUSR1 only. `CHORA_FRAME_BUDGET_US` sets a fixed
 //! budget in microseconds, for tests, `CHORA_OWNER_LOAD_BUDGET` the
 //! owner budget.
+//!
+//! The time that the process waited for a CPU during a frame is no cost
+//! of the scene: on a busy host the watchdog takes it off the time of
+//! the frame, says at most once a minute that the host is busy, and acts
+//! on no client ([`FrameClock`]). All threads count: a software renderer
+//! draws in threads of its own, and while those wait for a CPU the main
+//! thread sleeps, which still looks like a costly frame. Beside 8 busy
+//! loops on 4 CPUs at 2560x1600 the main thread waited 4.3 s in 20 s and
+//! the four llvmpipe threads 11.8 s each. Of a frame the clock excuses the
+//! longest wait of one thread, never the sum: waits side by side would add
+//! up to more than the frame and excuse a costly scene. A thread that ends
+//! between the two readings of a frame takes its wait with it, which only
+//! makes the watchdog stricter.
 
 use calloop::{
     LoopHandle,
@@ -17,6 +30,7 @@ use calloop::{
 };
 use std::{
     collections::{BTreeMap, HashMap},
+    path::Path,
     time::{Duration, Instant},
 };
 
@@ -51,6 +65,88 @@ const DISCONNECT_PAUSE: Duration = Duration::from_secs(60);
 /// `CHORA_OWNER_LOAD_BUDGET` tunes it.
 const OWNER_BUDGET: u64 = 4000;
 
+/// The shortest time between two notes that the host is busy.
+const BUSY_NOTE_PAUSE: Duration = Duration::from_secs(60);
+
+/// The folder of the threads of this process in `/proc`.
+const PROC_TASKS: &str = "/proc/self/task";
+
+/// The folder that the frame clock reads. The tests of the core run in
+/// parallel in one process, and the wait of the other tests would count
+/// as host load, so there the clock reads no folder.
+const TASKS: &str = if cfg!(test) {
+    "/nonexistent"
+} else {
+    PROC_TASKS
+};
+
+/// The time that each thread of the process waited on a run queue for a
+/// CPU since its start, by thread id: the second field of its
+/// `schedstat`, in nanoseconds. `None` where the kernel does not count
+/// it. A thread that cannot be read is left out, which only makes the
+/// watchdog stricter.
+fn waits_in(tasks: &Path) -> Option<HashMap<std::ffi::OsString, Duration>> {
+    let threads = std::fs::read_dir(tasks).ok()?.filter_map(|task| {
+        let path = task.ok()?.path();
+        let schedstat = std::fs::read_to_string(path.join("schedstat")).ok()?;
+        Some((path.file_name()?.to_owned(), wait_of(&schedstat)?))
+    });
+    Some(threads.collect())
+}
+
+/// The run queue wait of a `schedstat` line: run time, wait, time slices.
+fn wait_of(schedstat: &str) -> Option<Duration> {
+    let wait = schedstat.split_ascii_whitespace().nth(1)?;
+    wait.parse().ok().map(Duration::from_nanos)
+}
+
+/// Measures a frame for the watchdog, on the thread that renders: the
+/// time it took, and how much of it the process waited for a CPU. That
+/// is the longest wait of one thread: the threads wait side by side, so
+/// their sum can exceed the time of the frame, and the longest wait of
+/// one never does.
+#[derive(Debug, Clone)]
+pub struct FrameClock {
+    start: Instant,
+    waits: Option<HashMap<std::ffi::OsString, Duration>>,
+}
+
+impl FrameClock {
+    /// Starts the clock of a frame.
+    pub fn start() -> Self {
+        Self::start_in(Path::new(TASKS))
+    }
+
+    fn start_in(tasks: &Path) -> Self {
+        Self {
+            start: Instant::now(),
+            waits: waits_in(tasks),
+        }
+    }
+
+    /// How long the frame took, and how long of that the process waited
+    /// for a CPU.
+    fn stop(self) -> (Duration, Duration) {
+        self.stop_in(Path::new(TASKS))
+    }
+
+    fn stop_in(self, tasks: &Path) -> (Duration, Duration) {
+        let took = self.start.elapsed();
+        let waited = self
+            .waits
+            .zip(waits_in(tasks))
+            .and_then(|(before, now)| {
+                now.into_iter()
+                    .map(|(thread, wait)| {
+                        wait.saturating_sub(before.get(&thread).copied().unwrap_or_default())
+                    })
+                    .max()
+            })
+            .unwrap_or_default();
+        (took, waited.min(took))
+    }
+}
+
 /// The watchdog of the render times.
 pub struct Watchdog {
     /// The slow frames of each output.
@@ -63,6 +159,8 @@ pub struct Watchdog {
     budget: Option<Duration>,
     /// What one owner may cost before it may be disconnected.
     owner_budget: u64,
+    /// When the watchdog last said that the host is busy.
+    busy_noted: Option<Instant>,
 }
 
 impl Default for Watchdog {
@@ -73,6 +171,7 @@ impl Default for Watchdog {
             last_disconnect: HashMap::new(),
             budget: None,
             owner_budget: OWNER_BUDGET,
+            busy_noted: None,
         }
     }
 }
@@ -105,16 +204,25 @@ impl Watchdog {
     }
 
     /// Counts a frame of an output that took a time, against a budget.
+    /// The part of the time that the thread `waited` for a CPU does not
+    /// count: a frame that is over the budget only with it is not slow,
+    /// and one that waited for half its time is not calm either.
     fn note(
         &mut self,
         output: &str,
         budget: Duration,
-        took: Duration,
+        (took, waited): (Duration, Duration),
         now: Instant,
     ) -> Option<Action> {
+        let budget = self.budget.unwrap_or(budget);
         let run = self.outputs.entry(output.into()).or_default();
-        if took <= self.budget.unwrap_or(budget) {
+        if took.saturating_sub(waited) <= budget {
             run.since = None;
+            if took > budget && waited >= took / 2 {
+                let pause = self.busy_noted.is_some_and(|t| now - t < BUSY_NOTE_PAUSE);
+                self.busy_noted = self.busy_noted.filter(|_| pause).or(Some(now));
+                return (!pause).then_some(Action::Busy { took, waited });
+            }
             if run.last.is_some_and(|t| now - t >= CALM_FOR) {
                 self.suspect = None;
             }
@@ -145,23 +253,54 @@ impl Watchdog {
     }
 }
 
+#[cfg(test)]
+impl Watchdog {
+    /// Whether the newest frame of an output was over its budget.
+    pub fn slow(&self, output: &str) -> bool {
+        self.outputs
+            .get(output)
+            .is_some_and(|run| run.since.is_some())
+    }
+}
+
 /// What the watchdog asks for after a frame.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Action {
     /// Remove the effects of the client whose nodes cost the most.
     Blame,
     Disconnect(String),
+    /// Say that a frame was over the budget because it waited for a CPU.
+    Busy {
+        took: Duration,
+        waited: Duration,
+    },
 }
 
 impl State {
     /// Notes how long a frame of an output took against a budget, and acts
     /// on slow frames: the nested backend measures the render, the tty
     /// backend the time from the render to the vblank.
-    pub fn frame_rendered(&mut self, output: &str, budget: Duration, took: Duration) {
+    pub fn frame_rendered(&mut self, output: &str, budget: Duration, frame: FrameClock) {
+        self.frame_took(output, budget, frame.stop());
+    }
+
+    /// Notes a frame of an output by the time it took and the part of it
+    /// that the main thread waited for a CPU.
+    pub(crate) fn frame_took(
+        &mut self,
+        output: &str,
+        budget: Duration,
+        times: (Duration, Duration),
+    ) {
         self.note_left_out(output);
-        match self.watchdog.note(output, budget, took, self.time.now()) {
+        match self.watchdog.note(output, budget, times, self.time.now()) {
             Some(Action::Blame) => self.blame(),
             Some(Action::Disconnect(client)) => self.disconnect_client(&client),
+            Some(Action::Busy { took, waited }) => tracing::warn!(
+                took_ms = took.as_millis(),
+                waited_ms = waited.as_millis(),
+                "frames are slow; the host is busy and the core waited for a CPU; no client is to blame"
+            ),
             None => {}
         }
     }
@@ -190,9 +329,15 @@ impl State {
                 .left_out
                 .insert(output.to_owned(), nodes.clone());
         }
+        let dark = self.assets.frame_dark.get(output);
+        let keyboard = self.focused_surface().filter(|surface| {
+            dark.is_some_and(|ids| ids.iter().any(|id| self.scene.is_within(surface, id)))
+        });
+        let keyboard = keyboard.map(str::to_owned);
         self.emit(&Event::LayersDropped {
             output: output.to_owned(),
             nodes,
+            keyboard,
         });
     }
 
@@ -288,12 +433,22 @@ impl State {
             self.ipc_close(conn);
         }
         self.end_graces();
+        self.drop_all_virtuals();
         self.remove_client_sockets();
         self.grants.revoke_all();
         self.forget_unused_tokens(std::time::Duration::ZERO);
         self.inject_mark = None;
         self.node_grab = None;
+        self.press_via = None;
+        self.given_by.clear();
         self.button_grab = None;
+        self.last_real_button = None;
+        let pointer = self.pointer();
+        pointer.unset_grab(
+            self,
+            smithay::utils::SERIAL_COUNTER.next_serial(),
+            smithay::backend::input::InputTime::now(),
+        );
         self.held.grabs.clear();
         let effects = self.scene.reset(self.reset_area());
         self.send_configures(&effects);
@@ -409,7 +564,7 @@ mod tests {
         let mut actions = Vec::new();
         for i in 0..ms / 16 {
             let now = start + Duration::from_millis(i * 16);
-            if let Some(action) = watchdog.note("out", REFRESH, SLOW, now) {
+            if let Some(action) = watchdog.note("out", REFRESH, (SLOW, Duration::ZERO), now) {
                 if action == Action::Blame {
                     watchdog.suspect = suspect.map(Into::into);
                 }
@@ -452,7 +607,7 @@ mod tests {
             watchdog.note(
                 "out",
                 REFRESH,
-                Duration::from_millis(1),
+                (Duration::from_millis(1), Duration::ZERO),
                 calm + Duration::from_millis(i),
             );
         }
@@ -481,17 +636,171 @@ mod tests {
         assert_eq!(slow_for(&mut watchdog, start, 1900, Some("a")), []);
         let later = start + Duration::from_millis(1950);
         assert_eq!(
-            watchdog.note("out", REFRESH, Duration::from_millis(5), later),
+            watchdog.note(
+                "out",
+                REFRESH,
+                (Duration::from_millis(5), Duration::ZERO),
+                later
+            ),
             None
         );
         assert_eq!(slow_for(&mut watchdog, later, 1900, Some("a")), []);
+    }
+
+    /// Notes frames at 60 Hz for a time that each took 60 ms, of which
+    /// the thread waited some for a CPU; returns the actions.
+    fn waiting_frames(watchdog: &mut Watchdog, ms: u32, waited: u64) -> Vec<Action> {
+        let start = Instant::now();
+        let times = (Duration::from_millis(60), Duration::from_millis(waited));
+        (0..ms / 16)
+            .filter_map(|i| watchdog.note("out", REFRESH, times, start + REFRESH * i))
+            .collect()
+    }
+
+    #[test]
+    fn a_frame_that_waited_for_a_cpu_blames_nobody() {
+        let mut watchdog = Watchdog::default();
+        let actions = waiting_frames(&mut watchdog, 70_000, 50);
+        let busy = Action::Busy {
+            took: Duration::from_millis(60),
+            waited: Duration::from_millis(50),
+        };
+        assert_eq!(actions, [busy.clone(), busy], "one note a minute");
+    }
+
+    #[test]
+    fn a_short_wait_is_no_busy_host() {
+        let mut watchdog = Watchdog::default();
+        let times = (Duration::from_millis(17), Duration::from_millis(2));
+        assert_eq!(watchdog.note("out", REFRESH, times, Instant::now()), None);
+    }
+
+    #[test]
+    fn a_costly_frame_on_a_busy_host_still_blames() {
+        let mut watchdog = Watchdog::default();
+        let actions = waiting_frames(&mut watchdog, 2100, 30);
+        assert_eq!(actions, [Action::Blame]);
+    }
+
+    #[test]
+    fn a_busy_host_is_no_calm_time_for_a_suspect() {
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        assert_eq!(
+            slow_for(&mut watchdog, start, 2100, Some("a")),
+            [Action::Blame]
+        );
+        let busy = (Duration::from_millis(60), Duration::from_millis(50));
+        for i in 0..1000 {
+            watchdog.note("out", REFRESH, busy, start + REFRESH * (140 + i));
+        }
+        assert_eq!(watchdog.suspect.as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn the_wait_is_the_second_field_of_schedstat() {
+        assert_eq!(
+            wait_of("3759000000 7000000 1234\n"),
+            Some(Duration::from_millis(7))
+        );
+        assert_eq!(wait_of(""), None);
+        let Some(before) = waits_in(Path::new(PROC_TASKS)) else {
+            return;
+        };
+        assert!(before.contains_key(std::ffi::OsStr::new(&std::process::id().to_string())));
+    }
+
+    /// A `/proc/self/task` of the main thread and four renderer threads,
+    /// each with a wait in milliseconds.
+    struct Tasks(std::path::PathBuf);
+
+    impl Tasks {
+        fn new(name: &str) -> Self {
+            let dir = std::env::temp_dir().join(format!("chora-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            Self(dir)
+        }
+
+        fn wait(&self, main_ms: u64, renderer_ms: u64) {
+            let main = std::process::id().to_string();
+            let threads = [(main.as_str(), main_ms)]
+                .into_iter()
+                .chain(["r0", "r1", "r2", "r3"].map(|id| (id, renderer_ms)));
+            for (id, ms) in threads {
+                let dir = self.0.join(id);
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::write(dir.join("schedstat"), format!("1 {} 1\n", ms * 1_000_000)).unwrap();
+            }
+        }
+
+        /// A frame of 40 ms in which the main thread waited `main_ms`
+        /// and each renderer thread `renderer_ms`.
+        fn frame(&self, main_ms: u64, renderer_ms: u64) -> (Duration, Duration) {
+            self.wait(0, 0);
+            let clock = FrameClock::start_in(&self.0);
+            std::thread::sleep(Duration::from_millis(40));
+            self.wait(main_ms, renderer_ms);
+            clock.stop_in(&self.0)
+        }
+    }
+
+    impl Drop for Tasks {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn a_frame_the_renderer_threads_waited_for_blames_nobody() {
+        let tasks = Tasks::new("starved");
+        let times = tasks.frame(1, 400);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        let actions: Vec<Action> = (0..2100 / 16)
+            .filter_map(|i| watchdog.note("out", REFRESH, times, start + REFRESH * i))
+            .collect();
+        assert!(
+            !actions.contains(&Action::Blame),
+            "{actions:?} for {times:?}"
+        );
+    }
+
+    #[test]
+    fn a_costly_scene_beside_idle_threads_still_blames() {
+        let tasks = Tasks::new("costly");
+        let times = tasks.frame(0, 0);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        let actions: Vec<Action> = (0..2100 / 16)
+            .filter_map(|i| watchdog.note("out", REFRESH, times, start + REFRESH * i))
+            .collect();
+        assert_eq!(actions, [Action::Blame], "{times:?}");
+    }
+
+    #[test]
+    fn a_costly_scene_beside_threads_that_waited_in_parallel_still_blames() {
+        let tasks = Tasks::new("parallel");
+        let times = tasks.frame(0, 10);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        let actions: Vec<Action> = (0..2100 / 16)
+            .filter_map(|i| watchdog.note("out", REFRESH, times, start + REFRESH * i))
+            .collect();
+        assert_eq!(actions, [Action::Blame], "{times:?}");
+    }
+
+    #[test]
+    fn a_frame_clock_never_waits_longer_than_it_took() {
+        let (took, waited) = FrameClock::start().stop();
+        assert!(waited <= took);
     }
 
     /// Renders slow frames for a time on the clock of the core.
     fn slow_frames(core: &mut Core, ms: u64) {
         for _ in 0..ms / 16 {
             core.state.time.advance(REFRESH);
-            core.state.frame_rendered("out", REFRESH, SLOW);
+            core.state
+                .frame_took("out", REFRESH, (SLOW, Duration::ZERO));
         }
         core.dispatch();
     }

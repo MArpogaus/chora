@@ -79,6 +79,10 @@ struct Pending {
     barrier: Barrier,
     /// The surfaces whose commits the barrier holds.
     held: Vec<WlSurface>,
+    /// The press of the drag that a `give_grab` of the transaction gives,
+    /// as the core saw it when the transaction came: it must still be the
+    /// press when the transaction applies.
+    drag: Option<crate::input::Press>,
 }
 
 impl Transactions {
@@ -180,7 +184,7 @@ impl State {
         conn: u64,
         id: Value,
         owner: String,
-        commands: Vec<Command>,
+        (commands, drag): (Vec<Command>, Option<crate::input::Press>),
     ) {
         let waiting = self.transactions.all().filter(|p| p.conn == conn).count();
         if waiting >= MAX_PENDING {
@@ -206,6 +210,7 @@ impl State {
             deadline: None,
             barrier: Barrier::new(false),
             held: Vec::new(),
+            drag,
         };
         if decoding > 0 || self.transactions.staged.iter().any(|p| p.conn == conn) {
             self.transactions.staged.push(pending);
@@ -425,6 +430,7 @@ impl State {
         let applied = self
             .check_targets(&head.commands)
             .map_err(rejected)
+            .and_then(|()| self.check_grab_still_gives(&head.owner, &head.commands, head.drag))
             .and_then(|()| {
                 self.scene
                     .apply(&head.owner, &head.commands)
@@ -579,6 +585,7 @@ mod tests {
             deadline: Some(deadline),
             barrier: Barrier::new(false),
             held: Vec::new(),
+            drag: None,
         }
     }
 

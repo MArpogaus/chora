@@ -1,7 +1,8 @@
 # The XP flavor: chora-xp, a stacking window manager in the style of
-# Windows XP, and X11 programs.
+# Windows XP, the notifications and the assistant with the XP assets, and
+# X11 programs.
 [Unit]
 Description=The XP flavor of chora
 BindsTo=graphical-session.target
 After=graphical-session.target
-Wants=chora-xp.service chora-xp-xwayland.service
+Wants=chora-xp.service chora-xp-notify.service chora-xp-assistant.service chora-xp-xwayland.service

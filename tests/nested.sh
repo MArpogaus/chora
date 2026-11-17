@@ -18,6 +18,7 @@
 # waybar with dbus-run-session, fuzzel, wlrctl, swaylock and wlr-randr.
 set -euo pipefail
 
+. "$(dirname "$0")/proc-lib.sh"
 bin=$(realpath "$1")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
@@ -27,7 +28,7 @@ export XDG_RUNTIME_DIR
 pids=()
 cleanup() {
     kill "${pids[@]}" 2>/dev/null || true
-    rm -rf "$XDG_RUNTIME_DIR"
+    remove_after_exit "$XDG_RUNTIME_DIR" "${pids[@]}"
 }
 trap cleanup EXIT
 fail() {
@@ -61,7 +62,7 @@ wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
 CHORA_SOCKET=$(compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock")
 export CHORA_SOCKET
 inner=$(basename "$CHORA_SOCKET" .sock)
-wait_for pgrep -x chora-tiling
+wait_for pgrep -P "$chora_pid" -x chora-tiling
 
 surfaces() { "$bin/choractl" query kind:surface; }
 # Prints the color of a pixel of a new screenshot as "r g b".
@@ -89,13 +90,13 @@ wait_for count_is 3 '.owner == "tiling"'
 sleep 0.5
 surfaces >"$out/tiled.json"
 jq -e '
-  [.[] | {x: .transform.matrix[12], y: .transform.matrix[13],
-          w: .surface.size[0], h: .surface.size[1]}] as $r
+  (length == 3 and all(.[]; (.rects | length) > 0)) and
+  ([.[] | .rects | to_entries[0].value | {x: .[0], y: .[1], w: .[2], h: .[3]}] as $r
   | [range(0; $r | length) as $i | range($i + 1; $r | length) as $j
      | ($r[$i]) as $a | ($r[$j]) as $b
      | ($a.x < $b.x + $b.w and $b.x < $a.x + $a.w and
         $a.y < $b.y + $b.h and $b.y < $a.y + $a.h)]
-  | any | not' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
+  | any | not)' "$out/tiled.json" >/dev/null || fail "windows overlap: $out/tiled.json"
 test "$(colors "$out/tiled.png")" -gt 3 || fail "the screenshot is empty"
 
 step "3. a crash of chora-tiling leaves chora running and shows the free surfaces"
@@ -449,6 +450,16 @@ with open(sys.argv[1], "wb") as f:
     f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 2, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 EOF
+shear_frame_is_replaced() {
+    local got
+    read -ra got <<<"$(pixel 1100 760)"
+    test "${got[2]}" -ge 200
+}
+filtered_green_blend_shows() {
+    local got
+    read -ra got <<<"$(pixel "$1" "$2")"
+    test "${got[1]}" -ge 100 -a "${got[1]}" -gt "${got[0]}" -a "${got[2]}" -le 8
+}
 mesh() { echo "{\"cols\": 1, \"rows\": 1, \"points\": $1}"; }
 rpc "[{\"create\": {\"id\": \"layer\", \"kind\": \"group\", \"parent\": \"root\",
        \"props\": {\"size\": [300, 200], \"transform\": {\"translate\": [700, 450]},
@@ -464,15 +475,14 @@ rpc "[{\"update\": {\"id\": \"layer\",
     >"$out/shear.json"
 wait_for pixel_is 810 455 "255 0 0"
 pixel_is 720 455 "0 0 0" || fail "the sheared mesh: $(pixel 720 455)"
-# A perspective puts the right column of a mesh with depth behind the
-# eye: its cell goes, and the left cell still shows.
 rpc '[{"update": {"id": "layer", "props": {
        "mesh": {"cols": 2, "rows": 1, "points": [[0, 0], [150, 0], [300, 0], [0, 200], [150, 200], [300, 200]],
                 "depth": [0, 0, 200, 0, 0, 200]},
        "transform": {"matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.01, 700, 450, 0, 1]}}}}]' \
     >"$out/depth.json"
 all_results "$out/depth.json" || fail "answers: $out/depth.json"
-wait_for pixel_is 925 500 "0 0 0"
+wait_for shear_frame_is_replaced
+wait_for filtered_green_blend_shows 925 500
 pixel_is 775 500 "255 0 0" || fail "the near cell: $(pixel 775 500)"
 # A quarter turn without a mesh: x goes down, y goes left.
 rpc '[{"update": {"id": "layer", "props": {"mesh": {"cols": 1, "rows": 1, "points": []},

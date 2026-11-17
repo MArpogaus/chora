@@ -12,7 +12,10 @@ of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt.
 With the layout `panel`, it runs the panel test instead: see panel(). With
 `hud`, it runs the HUD test: see hud().
 
+With `give`, it gives a window instead: see give().
+
 Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
+       tests/mcp-client.py CHORACTL OUT_DIR give OWNER SURFACE TO
 """
 
 import base64
@@ -21,6 +24,9 @@ import os
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gate_mcp import free_apply  # noqa: E402
 
 
 class Mcp:
@@ -97,10 +103,10 @@ def events(mcp):
             raise
     content = mcp.tool(
         "subscribe_events",
-        {"events": ["pointer.pressed", "input.key"], "keys": ["Super+F9"]},
+        {"events": ["pointer.pressed", "input.key"], "keys": ["Ctrl+Shift+F9"]},
     )
     subscribed = json.loads(content[0]["text"])
-    if subscribed["keys"] != ["Super+F9"]:
+    if subscribed["keys"] != ["Ctrl+Shift+F9"]:
         sys.exit(f"subscribe_events: {subscribed}")
     mcp.tool(
         "apply_commands",
@@ -131,10 +137,11 @@ def events(mcp):
     )
     if any(e["event"] not in ("pointer.pressed", "input.key") for e in seen):
         sys.exit(f"unsubscribed events: {seen}")
-    mcp.tool("inject_input", {"events": [{"shortcut": {"keys": "Super+F9"}}]})
+    mcp.tool("inject_input", {"events": [{"shortcut": {"keys": "Ctrl+Shift+F9"}}]})
     key = lambda state: lambda e: e == {
         "event": "input.key",
-        "binding": "Super+F9",
+        "binding": "Ctrl+Shift+F9",
+        "injected": True,
         "state": state,
     }
     seen = wait_for(mcp, key("pressed"))
@@ -188,15 +195,15 @@ void main() { gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0) * alpha; }
 def node(id, kind, props):
     return {"create": {"id": id, "kind": kind, "parent": "root", "props": props}}
 
-
 def panel(mcp, out):
-    """The panel test: a panel of the agent moves the camera.
+    """The panel test: a panel of the agent beside a camera of the user.
 
     The client puts a shader, reserves the top of the output, draws the
     panel as a rounded shader node with two buttons, and waits for a click.
     tests/agent.sh clicks the right button once OUT_DIR/panel-ready.txt
-    exists. The client then moves the camera with an animation and waits
-    for its end.
+    exists. A camera command of the confined client is refused. A free
+    client named user then moves the camera with an animation, and the
+    client waits for its end.
     """
     content = mcp.tool("put_asset", {"name": "panel.frag", "text": CYAN})
     shader = json.loads(content[0]["text"])["path"]
@@ -245,7 +252,12 @@ def panel(mcp, out):
         "duration": 300,
         "easing": "ease_in_out",
     }
-    mcp.tool("apply_commands", {"commands": [{"camera": camera}]})
+    denied = mcp.request(
+        "tools/call", {"name": "apply_commands", "arguments": {"commands": [{"camera": camera}]}}
+    )
+    if not denied.get("isError") or "no camera commands" not in denied["content"][0]["text"]:
+        sys.exit(f"a camera command of the confined client: {denied}")
+    free_apply([{"camera": camera}])
     wait_for(
         mcp,
         lambda e: e["event"] == "animation.done" and e.get("output") == output["name"],
@@ -256,10 +268,8 @@ def panel(mcp, out):
     if not moved or moved[0]["work_area"] != [200, 60, 1280, 740]:
         sys.exit(f"the camera: {after['outputs']}")
     removals = [{"remove": {"id": i}} for i in ["panel", "panel-left", "panel-right"]]
-    mcp.tool(
-        "apply_commands",
-        {"commands": [{"camera": {"output": output["name"]}}, *removals]},
-    )
+    free_apply([{"camera": {"output": output["name"]}}])
+    mcp.tool("apply_commands", {"commands": removals})
 
 
 # The probe runs through `choractl run` (D42), which returns while the
@@ -290,7 +300,7 @@ def run_probe(choractl, out):
     probe.
     """
     probe = subprocess.run(
-        [choractl, "--name", "agent", "run", "sh", "-c", PROBE.format(out=out)],
+        [choractl, "--name", "user", "run", "sh", "-c", PROBE.format(out=out)],
         check=True,
         capture_output=True,
         text=True,
@@ -314,8 +324,9 @@ def hud(choractl, mcp, out):
     """The HUD test: a probe, the scale, and a HUD on the screen.
 
     The client runs a probe with `choractl run` and reads the files it
-    wrote, sets the scale of the output and back, and draws a HUD under the
-    overlay root of the output, next to a mark in the scene. It captures
+    wrote, sets the scale of the output and back, and draws a mark in the
+    scene. A free client named user draws a HUD under the overlay root of
+    the output and moves the camera, as a confined client may do neither. The client captures
     the output during an animated camera move, as OUT_DIR/hud-moving.png,
     and after it, as OUT_DIR/hud-moved.png, for the checks of
     tests/agent.sh.
@@ -335,22 +346,26 @@ def hud(choractl, mcp, out):
     if back["size"] != [1280, 800]:
         sys.exit(f"configure_output: {back}")
     overlay = f"screen:{name}"
+    free_apply(
+        [
+            {
+                "create": {
+                    "id": "hud",
+                    "kind": "rect",
+                    "parent": overlay,
+                    "props": {
+                        "size": [160, 40],
+                        "color": [1, 0, 1, 1],
+                        "transform": {"translate": [1100, 20]},
+                    },
+                }
+            }
+        ]
+    )
     mcp.tool(
         "apply_commands",
         {
             "commands": [
-                {
-                    "create": {
-                        "id": "hud",
-                        "kind": "rect",
-                        "parent": overlay,
-                        "props": {
-                            "size": [160, 40],
-                            "color": [1, 0, 1, 1],
-                            "transform": {"translate": [1100, 20]},
-                        },
-                    }
-                },
                 node(
                     "mark",
                     "rect",
@@ -366,7 +381,7 @@ def hud(choractl, mcp, out):
         "duration": 2000,
         "easing": "linear",
     }
-    mcp.tool("apply_commands", {"commands": [{"camera": camera}]})
+    free_apply([{"camera": camera}])
     time.sleep(0.8)
     save_capture(mcp, out, "hud-moving", name)
     wait_for(mcp, lambda e: e["event"] == "animation.done" and e.get("output") == name)
@@ -374,13 +389,28 @@ def hud(choractl, mcp, out):
     mcp.tool(
         "apply_commands",
         {
-            "commands": [
-                {"camera": {"output": name}},
-                {"remove": {"id": "hud"}},
-                {"remove": {"id": "mark"}},
-            ]
+            "commands": [{"remove": {"id": "mark"}}]
         },
     )
+    free_apply([{"camera": {"output": name}}, {"remove": {"id": "hud"}}])
+
+
+def give(mcp, owner, surface, to):
+    """Gives a window to another window manager.
+
+    Prints `tool: NAME` and then the answer.
+
+    The tool `give_window` does it when the server has one. Without it,
+    the tool is the `window.give` of the owner, `OWNER.window.give`.
+    """
+    names = [t["name"] for t in mcp.request("tools/list")["tools"]]
+    if "give_window" in names:
+        tool, arguments = "give_window", {"to": to, "surface": surface}
+    else:
+        tool, arguments = f"{owner}.window.give", {"surface": surface, "to": to}
+    print(f"tool: {tool}")
+    content = mcp.tool(tool, arguments)
+    print(content[0]["text"])
 
 
 def start(choractl):
@@ -407,6 +437,10 @@ def start(choractl):
 def main():
     choractl, out, layout = sys.argv[1:4]
     mcp = start(choractl)
+    if layout == "give":
+        give(mcp, *sys.argv[4:7])
+        mcp.close()
+        return
     if layout == "panel":
         panel(mcp, out)
         mcp.close()

@@ -1,0 +1,44 @@
+hud: 1
+font: Inter
+panels:
+- id: figure
+  source: voice
+  anchor: bottom_right
+  margin: [24, 24]
+  picture: dot.svg#{state}
+  text: '{state}'
+  action: chat
+- id: line
+  source: say
+  near: figure
+  style: bubble
+  text: '{text}'
+  fill: [255, 255, 255]
+  colours:
+    text: [27, 30, 39]
+chat:
+  style: plain
+  font: Inter
+  size: 14
+  anchor: right
+  width: 400
+  margin: 12
+  radius: 10
+  card: chat
+  fill: [255, 255, 255]
+  text: [27, 30, 39]
+  name: [91, 98, 116]
+  border: [213, 216, 225]
+  well: [242, 243, 247]
+dark:
+  chat:
+    fill: [26, 29, 39]
+    text: [230, 232, 239]
+    name: [154, 161, 180]
+    border: [46, 51, 68]
+    well: [36, 40, 54]
+  panels:
+    line:
+      fill: [26, 29, 39]
+      colours:
+        text: [230, 232, 239]

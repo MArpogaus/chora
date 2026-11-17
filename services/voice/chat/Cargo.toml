@@ -1,0 +1,30 @@
+[[bin]]
+name = "chora-chat"
+path = "src/main.rs"
+
+[dependencies]
+chora-draw.workspace = true
+chora-kit.workspace = true
+chora-scene.workspace = true
+clap.workspace = true
+resvg = { version = "0.48", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
+rustix = { version = "1", features = ["event", "fs", "pipe", "process"] }
+serde.workspace = true
+serde_json.workspace = true
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+xkbcommon = "0.9"
+
+[lints]
+workspace = true
+
+[package]
+description = "The chat of chora: the opener of the chat and the text field of its view"
+edition.workspace = true
+license.workspace = true
+name = "chora-chat"
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true

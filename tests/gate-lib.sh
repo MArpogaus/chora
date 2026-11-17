@@ -1,7 +1,11 @@
 #!/bin/bash
 # Shared helpers for the gate scripts (tests/gate-*.sh).
-# A gate script answers "ok: ..." or "SKIP: <why>" with exit 0, or
+# A gate script answers "ok: ..." or "SKIP: <why>" with exit 0 (non-zero
+# when CI is set), or
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
+# session_pids PGREP_ARGS... prints the pids that pgrep finds whose
+# environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
+# it never counts, and exits 1 when it finds none.
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
 # software EGL for the headless renderer (CONTRIBUTING.md)
@@ -12,6 +16,10 @@ if [ -d "$HOME/.local/opt/mesa-egl" ]; then
 fi
 skip() {
     echo "SKIP: $*"
+    if [ -n "${CI:-}" ]; then
+        echo "FAIL: a skip does not pass in CI: $*" >&2
+        exit 1
+    fi
     exit 0
 }
 ok() { echo "ok: $*"; }
@@ -27,6 +35,9 @@ need_bins() {
         test -x "$bin/$b" || fail "no $bin/$b; build it first"
     done
 }
+export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
+. "$repo/tests/gate-lock.sh"
+gate_lock "$(basename "$0")" || fail "cannot take the gate lock"
 pids=()
 tmp_dirs=()
 # gate_cleanup [STATUS]: the EXIT trap. It ends the session and the
@@ -35,6 +46,7 @@ tmp_dirs=()
 gate_cleanup() {
     local status=${1:-$?}
     kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    kill -CONT "${pids[@]}" "${run_pids[@]}" 2>/dev/null
     wait 2>/dev/null
     [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
 }
@@ -68,10 +80,30 @@ session_start() {
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
+layout_audit() {
+    local tag=$1 dir out
+    shift
+    dir=$(mktemp -d /tmp/gate-audit.XXXXXX)
+    tmp_dirs+=("$dir")
+    ctl outputs >"$dir/outputs.json" || fail "$tag: no outputs"
+    ctl query '*' >"$dir/nodes.json" || fail "$tag: no nodes"
+    out=$(python3 -I "$repo/tests/hud-audit.py" "$dir/outputs.json" "$dir/nodes.json" "$@") ||
+        fail "$tag: layout audit: $out"
+    ok "$tag: $out"
+}
 # run_pid <pid> remembers a program of `choractl run` (D42): it lives in
 # a unit or outside the group of the core, so gate_cleanup must end it.
 run_pids=()
 run_pid() { run_pids+=("$1"); }
+session_pids() {
+    local pid found=1
+    for pid in $(pgrep "$@"); do
+        grep -qzx "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" "/proc/$pid/environ" 2>/dev/null || continue
+        echo "$pid"
+        found=0
+    done
+    return "$found"
+}
 pixel() { python3 -I "$repo/tests/png-pixel.py" "$@"; }
 # crash_lines SINCE: the journal lines of the chora units since a time
 # that show a crash, a hang or a failed start. secureblue disables core

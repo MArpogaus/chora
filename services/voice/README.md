@@ -45,9 +45,13 @@ The packages of chora install `chora-voice` in `/usr/bin`, its unit
 With the package, link the quadlets from there and skip the build below:
 `ln -s /usr/share/chora/voice/quadlets/* ~/.config/containers/systemd/`.
 At the end, start the agent with `systemctl --user enable --now
-chora-voice`. The packages leave out `gufo.sh` and `agent-sandbox.sh`.
-`agent-sandbox.sh`, the default `sandbox_cmd`, is not part of chora. Put
-your own sandbox on the `PATH` of the unit, or set `sandbox_cmd`.
+chora-voice`. The packages leave out `gufo.sh`.
+`agent-sandbox.sh`, the default `sandbox_cmd`, is
+`dist/sandbox/agent-sandbox.sh` of the repository, a minimal sandbox
+with bubblewrap (`bwrap`). The packages install it in `/usr/bin` and
+recommend bubblewrap. From a checkout, put it on the `PATH` of the
+unit. For your own sandbox, set `sandbox_cmd`, or put a script of that
+name earlier on the `PATH`.
 
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
 an LLM from the [model table of
@@ -329,7 +333,7 @@ revoke voice-mcp`, the revoke binding or the emergency reset:
 | grant | what the LLM can do with it |
 |---|---|
 | `methods.call` | call the methods of the plugins: `call_method` and the tools `client.method`, for example the focus of chora-tiling |
-| `methods.privileged` | with `methods.call`, call privileged methods: `settings.set`, `settings.reload` and methods that run commands, such as `app.open` of chora-mc |
+| `methods.privileged` | with `methods.call`, call privileged methods: `settings.set`, `settings.reload` and methods that run commands, such as `app.open` of chora-mc; change the outputs with `configure_output` and `reserve_space` |
 | `activation.token` | start any program with `run_program` |
 | `input.inject` | type and click with `inject_input` |
 | `screen.capture` | see the screenshot in `describe_screen` |
@@ -342,11 +346,17 @@ choractl grant voice-mcp methods.call
 `methods.privileged`, `activation.token` and `input.inject` lets the
 LLM run commands as you: a setting such as the terminal of chora-xp or
 a binding with `run:` holds a command, and typing reaches a terminal.
-The agent asks for a spoken yes before each `run_program` and each
-`inject_input` (the `confirm` rules), not before a privileged method.
-Without grants, the LLM still closes windows and changes the outputs
-and the scene, and overwrites the saved views. It also starts the
-plugins of installed views. Any voice that the mic hears can start a
+The agent asks for a spoken yes before each `run_program`, each
+`inject_input` and each `load_view` (the `confirm` rules), and before
+every tool that its export marks privileged, with the whole command
+line, the typed text or the changed values in the question. Without
+grants, the connection of the LLM follows the rules of a client socket.
+It acts on the windows of other clients only through their window
+managers (`node.requested`, D31 and D58, and the methods of the
+managers), and it loads no view that names image or shader files. It
+overwrites the saved views. It starts no plugin of a view and changes no
+input settings: for that, the user grants the name `view-NAME` of the
+view. Any voice that the mic hears can start a
 turn, also from a video, and also while the screen is locked. Text on
 the screen that a tool reads can also steer the LLM. So can the plugins,
 which write the descriptions and results of their tools. The journal
@@ -363,8 +373,10 @@ An empty `coder_cmd` (the default) turns the coding tools off. With a
 harness in `coder_cmd`, the LLM gets the tools `code_task`,
 `code_status`, `code_cancel` and `list_projects`. The harness is any
 command that takes the task as its last argument. The agent starts it
-in `sandbox_cmd` (default `[agent-sandbox.sh]`: a podman container,
-read-only, without capabilities), in the directory of the task:
+in `sandbox_cmd` (default `[agent-sandbox.sh]`: with the script of
+`dist/sandbox` a bubblewrap sandbox, read-only but for the directory
+of the task, with its own home and without the sockets of the session
+and the network), in the directory of the task:
 
 ```yaml
 coder_cmd: [claude, -p, --output-format, stream-json, --verbose]
@@ -406,14 +418,17 @@ agent_voices: [ryan, vivian, serena, eric]
 ```
 
 So the command line of an agent is `agent-sandbox.sh opencode acp`,
-started in `~/Projekte/chora`. `agent-sandbox.sh` mounts the current
-directory into its container, keeps ACP on stdin and stdout without a
-tty, and has its own home in `~/.config/sandbox-agent-home`. Configure
-the agent there, for example the model of opencode. Note: the version
-of `agent-sandbox.sh` of 2026-10-31 drops the arguments after the
-command (its option loop never fills `ARGS`), so `acp` and the task of
-`coder_cmd` do not reach the container. Its `case` needs a last branch
-`*) ARGS+=("$1") ;;`. `{dir}` and
+started in `~/Projekte/chora`. `agent-sandbox.sh` of `dist/sandbox`
+keeps the current directory writable and the rest of the file system
+read-only, keeps ACP on stdin and stdout without a tty, and has its own
+home in `~/.config/sandbox-agent-home` (`AGENT_SANDBOX_HOME`). Configure
+the agent there, for example the model of opencode; an agent that is
+installed in your home directory is not there. `/tmp`, `/run` and the
+runtime directory are empty, so the agent reaches no socket of chora,
+Wayland or D-Bus. It has no network: an agent that calls its model over
+the network needs `sandbox_cmd: [agent-sandbox.sh, --net]`. It refuses
+the home directory as a project. `tests/agent-sandbox.sh` checks all
+that. `{dir}` and
 `{project}` in `agent_cmd` are replaced by the project. The projects
 are those of `agent_projects` and the directories of
 `~/.local/share/chora/inventory`.

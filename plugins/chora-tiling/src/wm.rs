@@ -105,6 +105,40 @@ pub struct Placement {
     /// The client decides when `None`.
     pub size: Option<[i32; 2]>,
     pub states: States,
+    /// The radius of the corners; 0 for square ones.
+    pub radius: u16,
+    /// The size of the frame of the window: its size, or the size that its
+    /// client chose.
+    pub frame: [i32; 2],
+    /// The width of the border around the window; 0 for none.
+    pub border: u16,
+    /// Which colour the border has.
+    pub mark: Mark,
+}
+
+/// The colour of the border of a window.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Mark {
+    /// The line colour: a window without the focus.
+    #[default]
+    Line,
+    /// The accent: the window with the focus.
+    Focus,
+    /// A window that asked for attention.
+    Urgent,
+}
+
+/// How the tiles of a layout look: how far the work area shrinks at its
+/// start (left, top) and its end (right, bottom) to reach the outer gap,
+/// the same for the inset of a cell, which is half the inner gap plus the
+/// border (the odd pixel of an odd gap goes to the end), the radius and
+/// the border.
+#[derive(Default)]
+struct TileLook {
+    edge: [i32; 2],
+    half: [i32; 2],
+    radius: u16,
+    border: u16,
 }
 
 /// The toplevel states of a window.
@@ -124,6 +158,7 @@ pub enum Effect {
     Run(String),
     Close(String),
     Reload,
+    Volume(chora_kit::volume::Change),
 }
 
 /// The meta key of a window node with its state, see [`Wm::window_meta`].
@@ -152,11 +187,15 @@ pub struct Wm {
     /// the window that it focuses; the focus that follows the pointer does
     /// not.
     raised: Vec<String>,
+    /// The gap that `set_layout` set; a new configuration keeps it, as it
+    /// keeps the layouts of the tags.
+    gap: Option<u16>,
 }
 
 impl Wm {
     pub fn new(config: Config) -> Self {
         Self {
+            gap: None,
             config,
             windows: Vec::new(),
             outputs: Vec::new(),
@@ -384,8 +423,9 @@ impl Wm {
             Action::Run(command) => return Some(Effect::Run(command.clone())),
             Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
             Action::Reload => return Some(Effect::Reload),
+            Action::Volume(change) => return Some(Effect::Volume(*change)),
             // The plugin handles the button events of a drag itself.
-            Action::Drag => return None,
+            Action::Drag | Action::Give(_) | Action::Swallow | Action::ShowKeys => return None,
             Action::FocusNext => self.focus_next(),
             Action::FocusPrevious => self.focus_prev(),
             Action::FocusBack => self.focus_back(),
@@ -484,12 +524,36 @@ impl Wm {
         self.current_tag().map(|t| (t.layout, t.params))
     }
 
+    /// The first shown tag of the current output, from 0.
+    pub fn current_tag_index(&self) -> usize {
+        self.outputs
+            .get(self.current)
+            .map_or(0, |o| first_tag(o.selected))
+    }
+
+    /// The name and the size of the current output.
+    pub fn current_output(&self) -> Option<(String, [f64; 2])> {
+        let output = self.outputs.get(self.current)?;
+        Some((
+            output.name.clone(),
+            [f64::from(output.full[2]), f64::from(output.full[3])],
+        ))
+    }
+
     /// The windows that show on the current output, in their order.
     pub fn shown_windows(&self) -> Vec<String> {
         self.shown_on(self.current)
             .into_iter()
             .map(|i| self.windows[i].id.clone())
             .collect()
+    }
+
+    /// Whether the current output shows a fullscreen window: one that asked
+    /// for it, or any window in the fullscreen layout.
+    pub fn fullscreen_shown(&self) -> bool {
+        let shown = self.shown_on(self.current);
+        let layout = self.current().is_some_and(|(l, _)| l == Layout::Fullscreen);
+        (layout && !shown.is_empty()) || shown.iter().any(|&i| self.windows[i].fullscreen)
     }
 
     /// The tags of each output, for a panel.
@@ -522,6 +586,9 @@ impl Wm {
         let count = config.tags;
         let mask = u16::MAX >> (16 - count);
         self.config = config;
+        if let Some(gap) = self.gap {
+            self.set_gap(gap);
+        }
         let tag = self.new_tag();
         for output in &mut self.outputs {
             output.tags.resize(count, tag);
@@ -531,6 +598,15 @@ impl Wm {
         for window in &mut self.windows {
             window.tags = nonzero(window.tags & mask);
         }
+    }
+
+    /// Sets the gap of the old look; the outer and the inner gap of the
+    /// look follow it, and a new configuration keeps it.
+    pub fn set_gap(&mut self, gap: u16) {
+        self.gap = Some(gap);
+        self.config.gap = gap;
+        self.config.look.gap_outer = None;
+        self.config.look.gap_inner = None;
     }
 
     /// Where each window shows, from the bottom to the top.
@@ -549,6 +625,10 @@ impl Wm {
                 at: None,
                 size: None,
                 states: States::default(),
+                radius: 0,
+                frame: [1, 1],
+                border: 0,
+                mark: Mark::Line,
             })
             .collect();
         hidden
@@ -575,42 +655,61 @@ impl Wm {
             tag.layout,
             Layout::Max | Layout::Fullscreen | Layout::Magnifier
         );
+        let TileLook {
+            edge,
+            half,
+            radius,
+            border,
+        } = self.look_of(tag.layout);
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
-            (output.area, output.full),
+            (layout::shrink(output.area, edge), output.full),
             Some(top_at),
             tag.params,
         );
-        let gap = if tag.layout == Layout::Fullscreen {
-            0
-        } else {
-            i32::from(self.config.gap)
-        };
         let mut placed = Vec::new();
         for (i, (window, cell)) in tiled.iter().zip(cells).enumerate() {
-            let [x, y, w, h] = layout::inset(cell, gap);
+            let [x, y, w, h] = layout::inset_by(cell, half);
             let states = States {
                 tiled: true,
                 activated: Some(&*window.id) == focused,
                 ..States::default()
             };
-            let rank = if window.on_top {
-                ON_TOP
-            } else if Some(&*window.id) == top {
-                TOP
-            } else if stacks && i == top_at {
-                TILED_TOP
-            } else {
-                TILED
-            };
-            placed.push((rank, placement(window, [x, y], Some([w, h]), states)));
+            let rank = tiled_rank(window, Some(&*window.id) == top, stacks && i == top_at);
+            let mut placed_window = placement(window, [x, y], Some([w, h]), states);
+            placed_window.radius = radius;
+            placed_window.border = border;
+            placed.push((rank, placed_window));
         }
         for window in windows.iter().filter(|w| !self.tiles(w)) {
             let id = Some(&*window.id);
-            placed.push(float(window, output, id == top, id == focused));
+            placed.push(float(
+                window,
+                output,
+                id == top,
+                id == focused,
+                (self.config.look.radius, self.config.look.border),
+            ));
         }
         placed
+    }
+
+    /// The gaps, the radius and the border of the tiles of a layout: the
+    /// max and fullscreen layouts have none.
+    fn look_of(&self, layout: Layout) -> TileLook {
+        if matches!(layout, Layout::Max | Layout::Fullscreen) {
+            return TileLook::default();
+        }
+        let (outer, inner) = self.config.gaps();
+        let border = i32::from(self.config.look.border);
+        let (first, last) = (inner / 2, inner - inner / 2);
+        TileLook {
+            edge: [outer - first, outer - last],
+            half: [first + border, last + border],
+            radius: self.config.look.radius,
+            border: self.config.look.border,
+        }
     }
 
     fn tiles(&self, window: &Window) -> bool {
@@ -960,7 +1059,27 @@ fn json(value: &impl Serialize) -> String {
 }
 
 /// The placement and the rank of a window that does not tile.
-fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, Placement) {
+/// The stacking rank of a tiled window: `top` is the last raised window,
+/// `shown` the one that a stacking layout shows.
+fn tiled_rank(window: &Window, top: bool, shown: bool) -> u8 {
+    if window.on_top {
+        ON_TOP
+    } else if top {
+        TOP
+    } else if shown {
+        TILED_TOP
+    } else {
+        TILED
+    }
+}
+
+fn float(
+    window: &Window,
+    output: &Output,
+    top: bool,
+    activated: bool,
+    (radius, border): (u16, u16),
+) -> (u8, Placement) {
     let rank = match (window.on_top, top) {
         (true, _) => ON_TOP,
         (false, true) => TOP,
@@ -980,6 +1099,11 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
         };
         return (rank, placement(window, [x, y], Some([w, h]), states));
     }
+    let radius = if window.maximized == (true, true) {
+        0
+    } else {
+        radius
+    };
     let [ax, ay, aw, ah] = output.area;
     let [sw, sh] = window.size.unwrap_or([aw / 2, ah / 2]);
     let (mx, my) = window.maximized;
@@ -997,10 +1121,10 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
         activated,
         ..States::default()
     };
-    (
-        rank,
-        placement(window, at, (mx || my).then_some([w, h]), states),
-    )
+    let mut placed = placement(window, at, (mx || my).then_some([w, h]), states);
+    placed.radius = radius;
+    placed.border = border;
+    (rank, placed)
 }
 
 /// Adds or removes a tag of a window, but keeps its last tag.
@@ -1037,6 +1161,16 @@ fn placement(window: &Window, at: [i32; 2], size: Option<[i32; 2]>, states: Stat
         at: Some(at),
         size,
         states,
+        radius: 0,
+        frame: size.or(window.size).unwrap_or([1, 1]),
+        border: 0,
+        mark: if window.urgent {
+            Mark::Urgent
+        } else if states.activated {
+            Mark::Focus
+        } else {
+            Mark::Line
+        },
     }
 }
 
@@ -1083,7 +1217,13 @@ mod tests {
 
     fn wm(windows: &[&str]) -> Wm {
         let mut wm = Wm::new(chora_kit::settings::parse::<Config>(DEFAULT).unwrap());
-        wm.config.gap = 0;
+        wm.config.look = crate::config::Look {
+            gap_outer: Some(0),
+            gap_inner: Some(0),
+            radius: 0,
+            border: 0,
+            ..crate::config::Look::default()
+        };
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
         for id in windows {
             wm.add_window(id);
@@ -1093,6 +1233,71 @@ mod tests {
 
     fn shown(wm: &Wm) -> Vec<(String, Option<[i32; 2]>)> {
         wm.arrange().into_iter().map(|p| (p.id, p.at)).collect()
+    }
+
+    /// The gaps of the design are measured between the outer edges of the
+    /// borders: 12 px to the edge of the work area, 10 px between two tiles.
+    #[test]
+    fn the_gaps_count_from_the_outside_of_the_border() {
+        let mut wm = wm(&["a", "b"]);
+        wm.config.look = crate::config::Look::default();
+        wm.set_output("A", [0, 40, 1280, 760], [0, 0, 1280, 800]);
+        let placed = wm.arrange();
+        let frame = |id: &str| {
+            let found = placed.iter().find(|p| p.id == id).unwrap();
+            let [left, top] = found.at.unwrap();
+            let [width, height] = found.size.unwrap();
+            let ring = i32::from(found.border);
+            [
+                left - ring,
+                top - ring,
+                left + width + ring,
+                top + height + ring,
+            ]
+        };
+        let (left, right) = (frame("b"), frame("a"));
+        assert_eq!(
+            (left[0], left[1], left[3]),
+            (12, 52, 788),
+            "left, top, bottom"
+        );
+        assert_eq!(right[2], 1268, "right edge");
+        assert_eq!(right[0] - left[2], 10, "between the tiles");
+    }
+
+    #[test]
+    fn a_gap_that_set_layout_set_outlives_a_new_configuration() {
+        let mut wm = wm(&["a"]);
+        wm.set_gap(7);
+        assert_eq!(wm.config.gaps(), (7, 14));
+        wm.reconfigure(chora_kit::settings::parse::<Config>(DEFAULT).unwrap());
+        assert_eq!(wm.config.gaps(), (7, 14));
+    }
+
+    #[test]
+    fn an_odd_inner_gap_is_exact_too() {
+        for inner in [0u16, 1, 5, 11] {
+            let mut wm = wm(&["a", "b"]);
+            wm.config.look = crate::config::Look {
+                gap_outer: Some(12),
+                gap_inner: Some(inner),
+                radius: 0,
+                border: 2,
+                ..crate::config::Look::default()
+            };
+            wm.set_output("A", [0, 0, 1280, 800], [0, 0, 1280, 800]);
+            let placed = wm.arrange();
+            let frame = |id: &str| {
+                let found = placed.iter().find(|p| p.id == id).unwrap();
+                let [left, top] = found.at.unwrap();
+                let [width, height] = found.size.unwrap();
+                [left - 2, top - 2, left + width + 2, top + height + 2]
+            };
+            let (left, right) = (frame("b"), frame("a"));
+            assert_eq!([left[0], left[1], left[3]], [12, 12, 788], "{inner}");
+            assert_eq!(right[2], 1268, "{inner}");
+            assert_eq!(right[0] - left[2], i32::from(inner), "{inner}");
+        }
     }
 
     #[test]
@@ -1252,6 +1457,16 @@ mod tests {
         assert_eq!(wm.focused(), Some("a"));
         wm.act(&Action::RestoreMinimized);
         assert_eq!(wm.focused(), Some("b"));
+    }
+
+    #[test]
+    fn a_fullscreen_window_asks_the_panel_to_hide() {
+        let mut wm = wm(&["a", "b"]);
+        assert!(!wm.fullscreen_shown());
+        wm.act(&Action::ToggleFullscreen);
+        assert!(wm.fullscreen_shown());
+        wm.act(&Action::ToggleFullscreen);
+        assert!(!wm.fullscreen_shown());
     }
 
     #[test]

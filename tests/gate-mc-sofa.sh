@@ -1,0 +1,247 @@
+#!/bin/bash
+# Gate of the sofa and kitchen scenarios of chora-mc (journey 1 of the rc 11
+# review, mc-32 to mc-37): chora-mc --manage-windows with the HUD host on
+# a headless output of 1280x720, as the tour starts it, in one theme.
+#
+#   remote      after a helper changed the content of the pages and with no
+#               click, Right and Left of the remote turn the page and Escape
+#               goes back one step (mc-32)
+#
+#   wide        Super+n hides the column and the page takes its room; Super+n
+#               gives it back (mc-37)
+#
+#   door        a press of the mouse on the chat door in the column opens the
+#               chat, also while a helper works and its row has moved the
+#               door down (mc-33)
+#
+#   status      the word Mute of mc stands beside its state word and never
+#               under the state word of the host (mc-36)
+#
+#   empty-head  the column that came back after Super+n twice draws no head
+#               over a text without lines (mc-35)
+#
+#   answer      the answer that the host draws beside the state word is
+#               at least 14 px high in its text, not the 11 px of the
+#               host (mc-34)
+#
+#   notices     a helper row and two long critical notices leave the column
+#               whole: the Chat door stays above the rule of KEYS, and the
+#               newest notice is a card in the column, in full (mc-35)
+#
+# Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
+#   THEME  light or dark (default dark)
+#   CELLS  a regular expression of the cells that run (default all)
+#   SHOTS  a directory that keeps one capture of each cell as
+#          mc-sofa-CELL-THEME.png
+# shellcheck disable=SC2016 # until_ok evaluates its first argument
+. "$(dirname "$0")/gate-lib.sh"
+need_bins chora choractl chora-mc chora-assistant chora-chat
+need jq
+export PATH=$bin:$PATH
+export CHORA_BIN=$bin
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+unset DBUS_SESSION_BUS_ADDRESS
+theme=${THEME:-dark}
+temp_config
+work=$XDG_CONFIG_HOME
+mkdir -p "$work/chora"
+
+until_ok() {
+    for _ in $(seq "${2:-40}"); do
+        eval "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+move_to() { echo "[{\"pointer_move\": {\"position\": [$1, $2]}}]" | ctl inject >/dev/null || fail "inject move"; }
+emit() { echo "$1 $2" >&3; }
+key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject $1"; }
+shown='select(.visible and (.rects | length) > 0)'
+texts() { ctl query "owner:mc kind:text" | jq -r ".[] | $shown | .text"; }
+has_text() { texts | grep -qxF "$1"; }
+current() { ctl call mc scene.list '{}' | jq -r '.current'; }
+shot() {
+    [ -n "${SHOTS:-}" ] || return 0
+    mkdir -p "$SHOTS"
+    sleep 1.2
+    ctl capture "$SHOTS/mc-sofa-$1-$theme.png" >/dev/null || fail "capture $1"
+}
+
+printf 'theme: %s\ntest_accept_injected_keys: true\n' "$theme" >"$work/chora/chora-mc.yaml"
+cat >"$work/entries.json" <<'JSON'
+[{"seq": 1, "role": "user", "text": "Please tidy the notes for Friday."},
+ {"seq": 2, "role": "agent", "text": "I will go through your notes and group them by day."}]
+JSON
+CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x720 -- "$bin/chora-mc" --manage-windows
+grant screen.capture input.inject methods.call
+mkfifo "$work/voice.in"
+FAKE_VOICE_KEYS=1 FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$work/claims" \
+    <"$work/voice.in" >"$work/voice.log" 2>&1 &
+pids+=($!)
+exec 3>"$work/voice.in"
+ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
+"$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
+pids+=($!)
+ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant.log")"
+until_ok 'has_text "AGENDA"' || fail "no first page"
+sleep 5
+panel() { ctl call mc panel.set "{\"scene\": \"$1\", \"panel\": \"$2\", \"lines\": $3}" >/dev/null || fail "panel.set $1 $2"; }
+panel agenda today '["18:30\tDinner with the family", "19:30\tNews on the television", "20:00\tCall Anna"]'
+panel morning lead '["Good evening", "Anna will call at eight."]'
+panel morning weather '["Tomorrow", "Zurich, 11 degrees, dry."]'
+panel morning mail '["Post", "One card from Anna."]'
+sleep 2
+
+cell_remote() {
+    move_to 640 360
+    sleep 1
+    key Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "Right does not turn to page 2: $(current)"
+    key Right
+    until_ok '[ "$(current)" = agents ]' 20 || fail "a second Right does not turn to page 3: $(current)"
+    key Left
+    until_ok '[ "$(current)" = morning ]' 20 || fail "Left does not turn back to page 2: $(current)"
+    key Escape
+    until_ok '[ "$(current)" = agents ]' 20 || fail "Escape does not go back one step: $(current)"
+    shot remote
+}
+
+lead_width() {
+    ctl query "owner:mc kind:text" | jq -r --arg t "$1" \
+        '[.[] | select(.visible and (.rects | length) > 0 and (.text | startswith($t)))][0].rects | to_entries[0].value[2]'
+}
+cell_wide() {
+    local before after
+    key Super+Home
+    key Super+Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "no page 2: $(current)"
+    panel morning lead '["Boil the water", "Fill the large pot with two litres of water, add a spoon of salt and bring it to a rolling boil, then add the spaghetti and cook it for nine minutes."]'
+    sleep 1
+    before=$(lead_width "Boil the water")
+    shot wide-column
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    sleep 1.5
+    after=$(lead_width "Boil the water")
+    shot wide-page
+    [ "$(jq -n "$after > $before + 100")" = true ] || fail "the page does not widen when the column hides: $before then $after"
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    sleep 1.5
+    [ "$(lead_width "Boil the water")" = "$before" ] || fail "the page does not narrow when the column is back: $(lead_width "Boil the water") not $before"
+}
+
+click_rect() {
+    local x y
+    x=$(jq -n --argjson r "$1" '$r[0] + ([$r[2] / 2, 40] | min) | floor')
+    y=$(jq -n --argjson r "$1" '$r[1] + $r[3] / 2 | floor')
+    move_to "$x" "$y"
+    sleep 0.4
+    echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
+        ctl inject >/dev/null || fail "inject click"
+}
+text_rect() {
+    ctl query "owner:mc kind:text" | jq -c --arg t "$1" \
+        '[.[] | select(.visible and (.rects | length) > 0 and .text == $t)][0].rects | to_entries[0].value'
+}
+cell_door() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Reminder", "step": 1, "steps": 1, "seq": 4}'
+    until_ok 'has_text "HELPERS"' 20 || fail "no helper row: $(texts | tr '\n' '|')"
+    sleep 1
+    click_rect "$(text_rect "Chat with a helper ...")"
+    until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "a press on the chat door opens no chat: $(texts | tr '\n' '|')"
+    shot door
+    key Escape
+    until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
+}
+
+node_rect() { ctl query "id:$1" | jq -c '.[0].rects | to_entries[0].value'; }
+rect_of() {
+    ctl query "owner:mc kind:rect" | jq -c --arg s "$1" \
+        '[.[] | select((.id | endswith($s)) and (.rects | length) > 0)][0].rects | to_entries[0].value'
+}
+cell_status() {
+    local word mute
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    ctl call mc hud.set '{"state": "speaking", "text": ""}' >/dev/null || fail "hud.set"
+    until_ok 'has_text "Mute" && has_text "speaking"' 20 || fail "no state word or no Mute: $(texts | tr '\n' '|')"
+    until_ok 'ctl query id:hud-word | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no state word"
+    sleep 1
+    word=$(node_rect hud-word)
+    mute=$(text_rect Mute)
+    shot status
+    jq -ne --argjson w "$word" --argjson m "$mute" '$m[0] + $m[2] <= $w[0]' >/dev/null ||
+        fail "Mute $mute stands under the state word of the host $word"
+}
+
+cell_empty_head() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    sleep 1
+    has_text "NOTES" && fail "an empty head NOTES stands in the column: $(texts | tr '\n' '|')"
+    shot empty-head
+}
+
+cell_answer() {
+    local rect
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    emit voice.say '{"text": "It is eight in the evening.", "duration_ms": 60000}'
+    until_ok 'ctl query id:hud-line | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no answer"
+    sleep 1
+    rect=$(node_rect hud-line)
+    shot answer
+    jq -ne --argjson r "$rect" '$r[3] >= 30' >/dev/null ||
+        fail "the answer of the host is $rect, a line of the small 11 px text"
+}
+
+cell_notices() {
+    local door rule card foot
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Reminder", "step": 1, "steps": 1, "seq": 5}'
+    until_ok 'has_text "HELPERS"' 20 || fail "no helper row: $(texts | tr '\n' '|')"
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push '{"title": "Backup failed", "body": "The disk of the notes is almost full, so the copy of last night stopped half way.", "urgency": "critical"}' >/dev/null || fail "notify.push"
+    ctl call mc notify.push '{"title": "Update broke", "body": "The update of the voice agent did not finish and the old one runs again, please look at it.", "urgency": "critical"}' >/dev/null || fail "notify.push"
+    until_ok 'texts | grep -qF "Update broke"' 20 || fail "no notice: $(texts | tr '\n' '|')"
+    sleep 1.5
+    shot notices
+    door=$(text_rect "Chat with a helper ...")
+    rule=$(rect_of right-keys-title-rule)
+    jq -ne --argjson d "$door" --argjson r "$rule" '$d[1] + $d[3] <= $r[1]' >/dev/null ||
+        fail "the Chat door $door stands on the rule of KEYS $rule"
+    card=$(texts | grep -F "Urgent: Update broke" | sort -u | head -n 1)
+    [[ $card == *"please look at it."* ]] || fail "the card of the notice is cut: $card"
+    [ "$(texts | grep -cF "Urgent: Update broke")" -ge 1 ] || fail "no card of the notice"
+    foot=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select(.visible and (.rects | length) > 0 and (.text | startswith("Urgent:")) and (.rects | to_entries[0].value[1]) > 650)] | length')
+    [ "$foot" = 0 ] || fail "a line of the notice stands in the footer"
+    jq -ne --argjson d "$door" '$d[0] >= 860 and $d[0] + $d[2] <= 1230' >/dev/null || fail "the Chat door $door leaves the column"
+    ctl call mc notify.clear '{}' >/dev/null
+}
+
+failed=()
+run_cell() {
+    local name=$1
+    [[ $name =~ ${CELLS:-.} ]] || return 0
+    if ("cell_${name//-/_}"); then
+        ok "$name ($theme)"
+    else
+        failed+=("$name")
+    fi
+}
+cells=(remote wide door status empty-head answer notices)
+for name in "${cells[@]}"; do
+    run_cell "$name"
+done
+[ ${#failed[@]} = 0 ] || fail "cells failed: ${failed[*]}"
+ok "every cell of the mc sofa gate ($theme)"

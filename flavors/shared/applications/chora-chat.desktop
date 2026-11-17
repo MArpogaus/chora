@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Chat with a helper
+Name[de]=Mit einem Helfer chatten
+Comment=Write to a helper of the voice agent
+Comment[de]=Einem Helfer des Sprachagenten schreiben
+Exec=chora-chat
+Categories=Utility;
+Terminal=false
+StartupNotify=false

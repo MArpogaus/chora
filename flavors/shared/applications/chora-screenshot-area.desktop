@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Screenshot of an area
+Name[de]=Bildschirmfoto eines Bereichs
+Comment=Select a part of the screen and take a picture of it
+Comment[de]=Einen Bereich wählen und aufnehmen
+Exec=chora-tiling --launch screenshot area
+Icon=applets-screenshooter
+Terminal=false
+Categories=Utility;
+Keywords=screenshot;area;region;select;capture;

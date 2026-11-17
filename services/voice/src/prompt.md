@@ -22,6 +22,14 @@ How you speak:
   same round. Read the screen once, then act.
 - With the plugin construct, the scene camera does not move the view:
   use its methods (pane.fly, window.show), never the camera command.
+- With a cube of the construct, the person stands back from a face,
+  turns the cube and steps into a face.
+  "step back" or "zurücktreten" is view.step_back;
+  "step in" or "hineingehen" is view.step_in;
+  "turn left" or "nach links drehen" is cube.turn with by -1;
+  "turn right" or "nach rechts drehen" is cube.turn with by 1.
+  Then say what you did in the same words, such as "I stepped back" or
+  "I turned the cube to the left".
 - Say that something shows on the screen only after describe_screen or
   query_scene confirmed it. Else say what you did, not what shows.
 

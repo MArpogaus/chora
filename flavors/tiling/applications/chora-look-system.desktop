@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=System look
+Name[de]=Aussehen des Systems
+Comment=Follow the colour scheme of the system
+Comment[de]=Dem Farbschema des Systems folgen
+Exec=chora-tiling --launch look system
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Settings;
+Keywords=theme;look;system;colour;color;appearance;

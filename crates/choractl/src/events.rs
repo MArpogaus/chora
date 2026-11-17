@@ -70,6 +70,7 @@ impl Subscription {
         let hello = Hello {
             name: name.into(),
             keep_nodes: true,
+            confined: true,
             ..Hello::default()
         };
         let mut client = Client::from_stream(socket.try_clone()?, &hello)?;

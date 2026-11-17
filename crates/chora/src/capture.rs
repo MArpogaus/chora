@@ -88,9 +88,24 @@ impl State {
         if self.lock.is_some() {
             return Err(rejected("the session is locked"));
         }
-        let capture: Capture = params_of(params)?;
-        let shot = self.plan(&capture)?;
-        let pixels = self.render_shot(&shot).map_err(rejected)?;
+        self.picture(&params_of(params)?)
+    }
+
+    /// The picture of a capture, as the result of `screen.capture`.
+    pub fn picture(&mut self, capture: &Capture) -> Result<Value, RpcError> {
+        self.picture_with(capture, |_, _| {})
+    }
+
+    /// The picture of a capture after `draw` changed its pixels; `draw`
+    /// also gets the pixels per logical pixel.
+    pub fn picture_with(
+        &mut self,
+        capture: &Capture,
+        draw: impl FnOnce(&mut Pixels, f64),
+    ) -> Result<Value, RpcError> {
+        let shot = self.plan(capture)?;
+        let mut pixels = self.render_shot(&shot).map_err(rejected)?;
+        draw(&mut pixels, shot.view.scale);
         let png = encode(&pixels).map_err(rejected)?;
         if png.len() > MAX_PNG {
             return Err(RpcError::new(
@@ -197,6 +212,8 @@ impl State {
                 camera: Transform::translate(-x, -y, 0.0),
                 scale,
                 size: pixel_size(w * scale, h * scale),
+                near: crate::mesh::NEAR,
+                stepped: false,
             };
             return Ok(Shot {
                 view,
@@ -204,8 +221,9 @@ impl State {
                 origin: [x, y],
             });
         }
+        let all = self.all_outputs();
         let output = match &capture.output {
-            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
+            Some(name) => all.iter().find(|o| o.name() == *name),
             None => self.outputs.first(),
         }
         .ok_or_else(|| rejected("no such output"))?
@@ -213,6 +231,7 @@ impl State {
         let mut view = View::of(self, &output);
         let factor = shrink(f64::from(view.size.w), f64::from(view.size.h));
         view.scale *= factor;
+        view.stepped = false;
         view.size = pixel_size(
             f64::from(view.size.w) * factor,
             f64::from(view.size.h) * factor,
@@ -282,8 +301,10 @@ impl State {
         // A capture renders no frame of the screen, so the layers that the
         // screen left out stay as they were.
         let screen = parts.assets.frame_left_out.clone();
+        let dark = parts.assets.frame_dark.clone();
         let pixels = backend.with_gles(|gles| render_pixels(gles, &mut parts, shot));
         self.assets.frame_left_out = screen;
+        self.assets.frame_dark = dark;
         pixels?
     }
 }
@@ -534,8 +555,7 @@ mod tests {
     /// the right and down, as the scene does, not up as in OpenGL.
     #[test]
     fn the_uv_of_a_shader_node_starts_at_the_top_left() {
-        let dir = std::env::temp_dir().join(format!("chora-uv-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-uv");
         let shader = dir.join("uv.frag");
         std::fs::write(
             &shader,
@@ -579,8 +599,7 @@ mod tests {
         use smithay::reexports::wayland_server::protocol::wl_shm::Format as Server;
         use wayland_client::protocol::wl_shm::Format;
 
-        let dir = std::env::temp_dir().join(format!("chora-win-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-win");
         let shader = dir.join("win.frag");
         std::fs::write(
             &shader,
@@ -629,6 +648,163 @@ mod tests {
                 [255, 0, 0, 255],
                 "{format:?}: {red:#x} in the pane"
             );
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A window of 32x32 pixels on an output of 64x48, shown on the
+    /// output by a window manager that may capture it.
+    fn shown_window() -> (
+        Core,
+        crate::testing::wayland::Wayland,
+        crate::testing::wayland::Toplevel,
+        crate::testing::Client,
+    ) {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "window");
+        let blue = wayland.buffer((32, 32), 0xFF00_00FF);
+        wayland.attach_buffer(&mut core, &window, &blue, Some((0, 0, 32, 32)));
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let attach = json!({"commands": [{"attach": {"surface": "s1", "parent": "root"}}]});
+        wm.ok(&mut core, "scene.apply", attach);
+        (core, wayland, window, wm)
+    }
+
+    /// The RGB values of some pixels of a capture of the output.
+    fn shown_at(
+        core: &mut Core,
+        wm: &mut crate::testing::Client,
+        points: &[(usize, usize)],
+    ) -> Vec<Vec<u8>> {
+        let picture = wm.ok(core, "screen.capture", json!({"output": "test-1"}));
+        let (width, rgba) = decode(&picture);
+        let pixel = |&(x, y): &(usize, usize)| rgba[(y * width + x) * 4..][..3].to_vec();
+        points.iter().map(pixel).collect()
+    }
+
+    /// A client with two buffers, as foot, draws a frame in full into
+    /// one and then commits the other with the damage of a small part,
+    /// where only that part is new: outside of it the surface keeps what
+    /// the first commit showed, also when no frame was drawn between the
+    /// two commits. So each commit puts its own damage into the texture,
+    /// and a buffer without damage puts nothing into it, not even one
+    /// pixel.
+    #[test]
+    fn the_damage_of_a_commit_comes_from_its_own_buffer() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "window");
+        let (blue, red) = (0xFF00_00FF, 0xFFFF_0000);
+        let first = wayland.buffer((32, 32), blue);
+        let second = wayland.buffer((32, 32), red);
+        let all = Some((0, 0, 32, 32));
+        wayland.attach_buffer(&mut core, &window, &first, all);
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let attach = json!({"commands": [{"attach": {"surface": "s1", "parent": "root"}}]});
+        wm.ok(&mut core, "scene.apply", attach);
+        let points = [(0, 0), (2, 2), (20, 20)];
+        let (blue, red) = (vec![0, 0, 255], vec![255, 0, 0]);
+        let shown = shown_at(&mut core, &mut wm, &points);
+        assert_eq!(shown, [blue.clone(), blue.clone(), blue.clone()]);
+        wayland.attach_buffer(&mut core, &window, &second, all);
+        wayland.attach_buffer(&mut core, &window, &first, Some((0, 0, 4, 4)));
+        let shown = shown_at(&mut core, &mut wm, &points);
+        assert_eq!(shown, [blue.clone(), blue, red.clone()]);
+        wayland.attach_buffer(&mut core, &window, &second, all);
+        wayland.attach_buffer(&mut core, &window, &first, None);
+        let shown = shown_at(&mut core, &mut wm, &points);
+        assert_eq!(shown, [red.clone(), red.clone(), red], "no damage");
+    }
+
+    /// Damage that lies outside of the buffer is no damage: the texture
+    /// stays as the commits before made it.
+    #[test]
+    fn damage_outside_of_the_buffer_is_none() {
+        let (mut core, mut wayland, window, mut wm) = shown_window();
+        let first = wayland.buffer((32, 32), 0xFF00_00FF);
+        let second = wayland.buffer((32, 32), 0xFFFF_0000);
+        wayland.attach_buffer(&mut core, &window, &second, Some((0, 0, 32, 32)));
+        wayland.attach_buffer(&mut core, &window, &first, Some((40, 40, 4, 4)));
+        let red = vec![255, 0, 0];
+        let shown = shown_at(&mut core, &mut wm, &[(0, 0), (20, 20)]);
+        assert_eq!(shown, [red.clone(), red]);
+    }
+
+    /// A buffer without damage keeps the texture only after a buffer of
+    /// the same format: after another format it shows itself in full.
+    #[test]
+    fn a_buffer_without_damage_after_another_format_shows_in_full() {
+        use wayland_client::protocol::wl_shm::Format;
+        let (mut core, mut wayland, window, mut wm) = shown_window();
+        let (xrgb, _) = wayland.buffer_file((32, 32), (Format::Xrgb8888, 0x00FF_0000));
+        let argb = wayland.buffer((32, 32), 0xFF00_FF00);
+        wayland.attach_buffer(&mut core, &window, &xrgb, Some((0, 0, 32, 32)));
+        wayland.attach_buffer(&mut core, &window, &argb, None);
+        let green = vec![0, 255, 0];
+        let shown = shown_at(&mut core, &mut wm, &[(0, 0), (20, 20)]);
+        assert_eq!(shown, [green.clone(), green]);
+    }
+
+    /// A second commit of the same buffer stays lazy: no import happens
+    /// at the commit, so the next frame takes the damage of both commits
+    /// from the memory of the buffer as it is then.
+    #[test]
+    fn a_second_commit_of_the_same_buffer_imports_lazily() {
+        let (mut core, mut wayland, window, mut wm) = shown_window();
+        let size = (32, 32);
+        let format = wayland_client::protocol::wl_shm::Format::Argb8888;
+        let (buffer, file) = wayland.buffer_file(size, (format, 0xFF00_00FF));
+        wayland.attach_buffer(&mut core, &window, &buffer, Some((0, 0, 32, 32)));
+        let points = [(2, 2), (10, 10), (20, 20)];
+        let blue = vec![0, 0, 255];
+        assert_eq!(shown_at(&mut core, &mut wm, &points), vec![blue.clone(); 3]);
+        crate::testing::wayland::fill(&file, size, 0xFFFF_0000);
+        wayland.attach_buffer(&mut core, &window, &buffer, Some((0, 0, 4, 4)));
+        crate::testing::wayland::fill(&file, size, 0xFF00_FF00);
+        wayland.attach_buffer(&mut core, &window, &buffer, Some((8, 8, 4, 4)));
+        let green = vec![0, 255, 0];
+        let shown = shown_at(&mut core, &mut wm, &points);
+        assert_eq!(shown, [green.clone(), green, blue]);
+    }
+
+    /// After a buffer without damage, a node texture that a shader node
+    /// builds anew from the window, as after a float and a landing on a
+    /// face of the cube, shows the picture of the commits before.
+    #[test]
+    fn a_node_texture_built_after_a_buffer_without_damage_shows_the_picture() {
+        let dir = crate::testing::scratch_dir("chora-keep");
+        let shader = dir.join("win.frag");
+        std::fs::write(
+            &shader,
+            "precision mediump float;\nuniform sampler2D win;\nvarying vec2 v_uv;\n\
+             void main() { gl_FragColor = texture2D(win, v_uv); }\n",
+        )
+        .unwrap();
+        let (mut core, mut wayland, window, mut wm) = shown_window();
+        let first = wayland.buffer((32, 32), 0xFF00_00FF);
+        let second = wayland.buffer((32, 32), 0xFFFF_0000);
+        wayland.attach_buffer(&mut core, &window, &second, Some((0, 0, 32, 32)));
+        wayland.attach_buffer(&mut core, &window, &first, None);
+        let corners = [(32, 8), (63, 8), (32, 39), (63, 39)];
+        let red = vec![255, 0, 0];
+        for round in ["built", "built anew"] {
+            let pane = json!({"size": [32, 32], "shader": shader,
+                "uniforms": {"win": {"node": "s1"}}, "transform": {"translate": [32, 8]}});
+            let create = json!({"commands": [
+                {"create": {"id": "pane", "kind": "shader", "parent": "root", "props": pane}},
+            ]});
+            wm.ok(&mut core, "scene.apply", create);
+            let shown = shown_at(&mut core, &mut wm, &corners);
+            assert_eq!(shown, vec![red.clone(); 4], "the node texture {round}");
+            let remove = json!({"commands": [{"remove": {"id": "pane"}}]});
+            wm.ok(&mut core, "scene.apply", remove);
         }
         std::fs::remove_dir_all(&dir).unwrap();
     }

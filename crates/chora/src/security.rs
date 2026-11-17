@@ -45,6 +45,12 @@ pub fn trusted(client: &Client) -> bool {
         .is_none_or(|c| c.security_context.is_none())
 }
 
+/// Whether a client connected neither through a client socket nor from a
+/// sandbox.
+pub fn unconfined(data: &ClientState) -> bool {
+    data.name.is_none() && data.security_context.is_none()
+}
+
 /// Whether a client sees a privileged protocol that a capability covers,
 /// or that none covers with `None`. A client of a client socket sees it
 /// only with the grant of its name at its connection (D33).

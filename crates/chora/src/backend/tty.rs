@@ -149,7 +149,7 @@ struct Surface {
     /// The generation of the lock of the frame on the screen.
     shown_lock: Option<u64>,
     /// The start of the render of the queued frame, for the watchdog.
-    rendered_at: Option<std::time::Instant>,
+    rendered_at: Option<crate::safety::FrameClock>,
     /// The timer of the next render after a frame without damage.
     timer: Option<RegistrationToken>,
 }
@@ -227,6 +227,25 @@ impl Tty {
             .single_renderer(&self.primary_gpu)
             .map_err(|e| format!("{e:?}"))?;
         Ok(f(renderer.as_mut()))
+    }
+
+    /// Runs a function with the renderer of the frames and with its GLES
+    /// renderer, which draws the layers and the captures, while the
+    /// session is active. The textures of both stay through a pause. The
+    /// commits of a paused session go into the textures with the first
+    /// frame after the resume: smithay then holds only the newest buffer
+    /// of a surface and the damage of all commits of the pause, so an
+    /// import at the resume would read the same, and a damage-less attach
+    /// of the pause shows the attached buffer in full.
+    pub fn importers(&mut self, f: &mut dyn FnMut(&mut dyn super::import::Importer)) {
+        if !self.session.is_active() {
+            return;
+        }
+        let Ok(mut renderer) = self.gpus.single_renderer(&self.primary_gpu) else {
+            return;
+        };
+        f(&mut renderer);
+        f(renderer.as_mut());
     }
 
     /// Whether the primary GPU can use a buffer of a client.
@@ -696,7 +715,7 @@ fn disconnect(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
 const GLOBAL_GRACE: Duration = Duration::from_secs(10);
 
 /// Hides the global of an output from new clients, and removes it later.
-pub(super) fn retire_global(
+pub(crate) fn retire_global(
     display: &DisplayHandle,
     loop_handle: &LoopHandle<'static, State>,
     global: GlobalId,
@@ -726,7 +745,7 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
     };
     let view = View::of(state, &output);
     let pointer = pointer_on(state, &output);
-    let start = std::time::Instant::now();
+    let frame = crate::safety::FrameClock::start();
     let queued = draw(state, node, crtc, &view, pointer)
         .and_then(|damaged| Ok(damaged && queue(state, node, crtc, &output)?))
         .unwrap_or_else(|err| {
@@ -734,7 +753,7 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
             false
         });
     if queued && let Some(surface) = surface(state, node, crtc) {
-        surface.rendered_at = Some(start);
+        surface.rendered_at = Some(frame);
     }
     if !queued {
         // Without damage, the screen keeps the frame of an earlier lock,
@@ -792,7 +811,7 @@ fn draw(
         (Some(lock), CursorImageStatus::Surface(s)) if !lock.owns(s) => &fallback,
         (_, status) => status,
     };
-    let mut elements = pointer.map_or_else(Vec::new, |p| {
+    let cursor = pointer.map_or_else(Vec::new, |p| {
         cursor::elements(
             &mut renderer,
             cursor_status,
@@ -808,25 +827,32 @@ fn draw(
         lock: lock.as_ref(),
         depth: 0,
     };
-    elements.extend(render::output_elements(
-        &mut parts,
-        &mut renderer,
-        &output,
-        view,
-    ));
-    present(&mut device.manager, surface, &mut renderer, &elements)
+    let elements = render::screen_elements(&mut parts, &mut renderer, &output, view, cursor);
+    let damaged = present(&mut device.manager, surface, &mut renderer, &elements)?;
+    parts.assets.stats.frame(&output.name(), damaged);
+    Ok(damaged)
 }
 
-/// Renders the elements. Returns whether the frame has damage.
+/// Renders the elements. Returns whether the frame has damage. A frame
+/// with a backdrop scans out only the cursor, so that the frame behind
+/// the backdrop holds every element that it blurs.
 fn present<'a>(
     manager: &mut Manager,
     surface: &mut Surface,
     renderer: &mut TtyRenderer<'a>,
     elements: &[SceneElement<TtyRenderer<'a>>],
 ) -> Result<bool, String> {
+    let backdrop = elements
+        .iter()
+        .any(|e| e.variant() == render::Variant::Backdrop);
+    let flags = if backdrop {
+        FrameFlags::ALLOW_CURSOR_PLANE_SCANOUT
+    } else {
+        FrameFlags::DEFAULT
+    };
     let frame = surface
         .compositor
-        .render_frame(renderer, elements, BLACK, FrameFlags::DEFAULT);
+        .render_frame(renderer, elements, BLACK, flags);
     let frame = match frame {
         Ok(frame) => frame,
         Err(err) => {
@@ -887,9 +913,9 @@ fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle, meta: Option<&Dr
     let output = entry.output.clone();
     // The GPU work and the wait for the vblank count; one refresh of wait
     // is normal.
-    if let Some(start) = entry.rendered_at.take() {
+    if let Some(frame) = entry.rendered_at.take() {
         let budget = frame_duration(&output) * 2;
-        state.frame_rendered(&output.name(), budget, start.elapsed());
+        state.frame_rendered(&output.name(), budget, frame);
     }
     let Some(surface) = surface(state, node, crtc) else {
         return;
@@ -945,6 +971,9 @@ fn schedule(state: &mut State, node: DrmNode, crtc: crtc::Handle, delay: Duratio
 
 /// Another session took the devices, or gave them back.
 fn session_event(state: &mut State, event: SessionEvent) {
+    if matches!(event, SessionEvent::PauseSession) {
+        state.press_via = None;
+    }
     let Some(tty) = tty(state) else { return };
     match event {
         SessionEvent::PauseSession => {

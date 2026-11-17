@@ -1,0 +1,23 @@
+{
+ "01-01-desktop": "Bliss desktop, taskbar, four desktop buttons, tray 40% and clock as expected. The My Documents label touches the left edge.",
+ "01-02-start-menu": "Start menu opens: Terminal, Notes, wobbly.rs, Chart, Page, All Programs, Log Off, Turn Off. Each program row shows its command (chora-notes) as grey subtitle.",
+ "01-03-terminal-open": "A terminal window opens at the top left (about 25,25) over the desktop icons with a shell prompt in /home/user/notes and a task button foot.",
+ "01-04-shell": "ls lists friday.md, release.md, todo.txt and cat friday.md prints the Friday list; typing at 9 characters a second.",
+ "01-05-notes-open": "Notes opens over the terminal, offset down and right, second task button.",
+ "01-06-wobbly-drag": "A drag of the Notes title bar to the lower right: the window follows; the bend of the jelly effect is barely visible in the still.",
+ "01-07-taskbar-terminal": "A click on the foot task button brings the terminal to the front; its title bar is blue.",
+ "01-08-muted": "A click on the speaker: the tray reads Muted.",
+ "01-09-unmuted": "A second click: the tray reads 40% again.",
+ "01-10-paperclip-balloon": "The paperclip appears at the bottom right with the balloon: Good morning! Your notes for Friday are ready. The word ready. wraps alone.",
+ "01-11-chat-open": "A click on the paperclip opens the chat balloon: Chat with a helper, Close, 1 Atlas working, the sentence, a field.",
+ "01-12-chat-collapsed": "Close: only the paperclip and its balloon with the last sentence remain; the sentence shows again.",
+ "01-13-chat-reopened": "The chat opens again with the same content.",
+ "01-14-helper-picked": "Atlas picked by a click: header Atlas working Tidy notes (1/2), Stop, Close, transcript; long lines cut with an ellipsis.",
+ "01-15-field-click": "A click into the field shows the caret.",
+ "01-16-typed": "Please also add Monday. shows in the field.",
+ "01-17-sent": "After Return the field is empty and the transcript shows no line for the sent message.",
+ "01-18-question": "Question card: Atlas wants to write the file notes.txt, detail line, Alt+Y or Alt+N, Yes and No; the field says A question is waiting.",
+ "01-19-answered": "After the click on Yes the card is unchanged until the agent closes it; the click gives no feedback of its own.",
+ "01-19b-card-closed": "The fake agent sent done: the card is gone and the chat is back (2/2).",
+ "01-20-f1": "F1 shows nothing in xp: no key overlay, no change in the picture (the terminal shows no ^[OP this time, since the chat holds the keyboard)."
+}

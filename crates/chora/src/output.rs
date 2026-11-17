@@ -6,11 +6,15 @@
 //! output. The default camera shows the scene area at the layout position
 //! of the output, so the layout and the scene coordinates agree.
 
-use std::{collections::HashSet, ops::RangeInclusive, time::Duration};
+use std::{
+    collections::{BTreeSet, HashSet},
+    ops::RangeInclusive,
+    time::Duration,
+};
 
 use chora_scene::{
     Event, OutputInfo, Transform,
-    ipc::{Edges, OutputConfigure, OutputTransform, Reserve, RpcError},
+    ipc::{Capability, Edges, OutputConfigure, OutputTransform, Reserve, RpcError},
 };
 use serde_json::Value;
 use smithay::{
@@ -120,7 +124,7 @@ impl State {
 
     /// Takes an output out of the layout and announces it. A client can
     /// turn it on again through output configuration.
-    fn leave_layout(&mut self, output: &Output) {
+    pub(crate) fn leave_layout(&mut self, output: &Output) {
         self.outputs.retain(|o| o != output);
         // Layer surfaces of the output close; a client can open them again
         // on another output.
@@ -137,6 +141,9 @@ impl State {
             .set_shown(output, &HashSet::new());
         self.assets.left_out.remove(&output.name());
         self.assets.frame_left_out.remove(&output.name());
+        self.assets.frame_dark.remove(&output.name());
+        self.assets.stats.by_output.remove(&output.name());
+        self.assets.backdrops.forget(&output.name());
         self.emit(&Event::OutputRemoved {
             name: output.name(),
         });
@@ -145,10 +152,11 @@ impl State {
     /// Announces new modes, scales or positions of the outputs, to plugins
     /// and to the clients of output configuration.
     pub fn output_changed(&mut self) {
+        self.sync_virtual_refresh();
         self.sync_default_cameras();
         // Every output has an overlay root; it stays when the output goes,
         // with the nodes of the clients, for its return (D43).
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             self.scene.add_overlay(&output.name());
         }
         for output in self.output_info() {
@@ -229,14 +237,18 @@ impl State {
 
     /// The outputs as the API describes them.
     pub fn output_info(&self) -> Vec<OutputInfo> {
-        self.outputs
+        let virtuals = &self.assets.virtuals;
+        self.all_outputs()
             .iter()
             .map(|output| {
                 let area = output_area(output);
                 let camera = self.camera(output);
                 let zone = layer_map_for_output(output).non_exclusive_zone();
                 let zone = shrink(zone, self.ipc.reserved(&output.name()));
+                let owner = virtuals.iter().find(|v| v.output() == output);
                 OutputInfo {
+                    is_virtual: owner.map(|_| true),
+                    owner: owner.map(|v| v.owner().to_owned()),
                     name: output.name(),
                     position: [area.loc.x, area.loc.y],
                     size: [area.size.w, area.size.h],
@@ -250,8 +262,9 @@ impl State {
     }
 
     /// `output.configure`: scale and transform of an output, through the
-    /// same configuration as `wlr-output-management` (D44). Answers with
-    /// the output.
+    /// same configuration as `wlr-output-management` (D44). It changes
+    /// the whole session, so a client socket needs `methods.privileged`.
+    /// Answers with the output.
     pub fn ipc_output_configure(
         &mut self,
         conn: u64,
@@ -260,6 +273,7 @@ impl State {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        self.check_socket_grant(conn, Capability::MethodsPrivileged)?;
         let output = match &configure.output {
             Some(name) => self.outputs.iter().find(|o| o.name() == *name),
             None => self.outputs.first(),
@@ -282,14 +296,18 @@ impl State {
     }
 
     /// `output.reserve`: the work area of an output leaves space at its
-    /// edges until the connection closes. Answers with the output.
+    /// edges until the connection closes. It moves the windows of all
+    /// clients, so a client socket needs `methods.privileged`. Answers
+    /// with the output.
     pub fn ipc_reserve(&mut self, conn: u64, reserve: &Reserve) -> Result<Value, RpcError> {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        self.check_socket_grant(conn, Capability::MethodsPrivileged)?;
+        let all = self.all_outputs();
         let output = match &reserve.output {
-            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
-            None => self.outputs.first(),
+            Some(name) => all.iter().find(|o| o.name() == *name),
+            None => all.first(),
         }
         .map(Output::name)
         .ok_or_else(|| rejected(format!("no output {:?}", reserve.output)))?;
@@ -309,15 +327,75 @@ impl State {
     /// Tells the scene the default cameras, where camera moves from and to
     /// the default camera start and end.
     pub fn sync_default_cameras(&mut self) {
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             self.scene
                 .set_default_camera(&output.name(), default_camera(output));
         }
     }
 
-    /// The output at a point of the layout, and the point in output and in
-    /// scene coordinates.
+    /// Where the pointer is for the input: the spot on the screen, or the
+    /// spot on a virtual output that a forwarding pane shows there. A
+    /// press through a pane has no spot while the pane is gone or shows
+    /// the point behind the eye: the screen spot lies far from the
+    /// virtual output.
     pub fn spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
+        let screen = self.screen_spot(layout)?;
+        let through = match &self.press_via {
+            Some(Press {
+                pane: Some(pane), ..
+            }) => return self.behind_pane(pane, &screen),
+            Some(_) => None,
+            None => self.through_pane(&screen),
+        };
+        Some(through.unwrap_or(screen))
+    }
+
+    /// Notes a button of a real device that went down; the first one
+    /// chooses the pane under the pointer, or the screen.
+    pub fn hold_press(&mut self, button: u32) {
+        if let Some(press) = &mut self.press_via {
+            press.held.insert(button);
+            return;
+        }
+        let pane = self.spot(self.pointer_layout).and_then(|spot| spot.via);
+        let held = BTreeSet::from([button]);
+        self.press_via = Some(Press { pane, held });
+    }
+
+    /// Lets the press go on at the screen for the client `to`, when the
+    /// pane that the press came through is a node of `to`: a drag that
+    /// the owner of a pane takes out of it (`give_grab`) goes on at the
+    /// point under the pointer. A drag that goes to any other client
+    /// stays behind the pane.
+    pub fn unpin_press(&mut self, to: &str) {
+        let owned = |pane: &String| {
+            let owner = self.scene.node(pane).and_then(|node| node.owner.as_deref());
+            owner == Some(to)
+        };
+        let Some(press) = &mut self.press_via else {
+            return;
+        };
+        if press.pane.as_ref().is_some_and(owned) {
+            press.pane = None;
+        }
+    }
+
+    /// Notes a held button that went up. The last one ends the press,
+    /// before its release is told, so that the release carries the point
+    /// under the pointer. Returns whether a press through a pane ended.
+    pub fn release_press(&mut self, button: u32) -> bool {
+        let Some(press) = &mut self.press_via else {
+            return false;
+        };
+        if !press.held.remove(&button) || !press.held.is_empty() {
+            return false;
+        }
+        self.press_via.take().is_some_and(|p| p.pane.is_some())
+    }
+
+    /// The screen at a point of the layout, and the point in output and in
+    /// scene coordinates.
+    pub fn screen_spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
         let output = self
             .outputs
             .iter()
@@ -327,6 +405,7 @@ impl State {
             output: output.clone(),
             local,
             scene: to_scene(&self.camera(output), local),
+            via: None,
         })
     }
 
@@ -353,7 +432,7 @@ impl State {
     /// first output.
     pub fn scene_area_at(&self, point: Point<f64, Logical>) -> Rectangle<i32, Logical> {
         let areas: Vec<_> = self
-            .outputs
+            .all_outputs()
             .iter()
             .map(|o| scene_area(&self.camera(o), Rectangle::from_size(output_area(o).size)))
             .map(|[x, y, w, h]| Rectangle::new((x, y).into(), (w, h).into()))
@@ -374,6 +453,17 @@ pub struct Spot {
     pub local: Point<f64, Logical>,
     /// The point in scene coordinates.
     pub scene: Point<f64, Logical>,
+    /// The pane that forwarded the pointer into a virtual output.
+    pub via: Option<String>,
+}
+
+/// The buttons of real devices that are down, and the pane that the
+/// first of them came through. Until the last one goes up the pointer
+/// stays where that press began: behind that pane, also outside of it,
+/// or on the screen. Injected buttons neither hold nor end a press.
+pub struct Press {
+    pub pane: Option<String>,
+    pub held: BTreeSet<u32>,
 }
 
 /// The time between two frames of the current mode.
@@ -633,7 +723,7 @@ fn smithay_transform(transform: OutputTransform) -> utils::Transform {
 }
 
 /// The camera that shows an output at its place in the layout.
-fn default_camera(output: &Output) -> Transform {
+pub(crate) fn default_camera(output: &Output) -> Transform {
     let loc = output_area(output).loc;
     Transform::translate(-f64::from(loc.x), -f64::from(loc.y), 0.0)
 }

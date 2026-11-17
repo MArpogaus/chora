@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::conn::Conn;
+use chora_kit::{ask::show_key, chat::sanitize, conn::Conn};
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
 
@@ -65,6 +65,8 @@ pub enum Report {
         hud: bool,
         /// Only these keys answer: `physical: true` and `keys` go out.
         keys: Option<ConfirmKeys>,
+        /// The helper that asks: `name` goes out.
+        name: Option<String>,
     },
     /// The question `id` is over: `voice.confirm {id, done: true}`.
     ConfirmDone(u64),
@@ -183,7 +185,8 @@ impl Reporter {
         }
     }
 
-    /// Shows a question on the own HUD with `hud`, and emits it.
+    /// Shows a question on the own HUD with `hud`, and emits it; its
+    /// texts without the characters that hide or reorder text (sh-26).
     fn confirm(&mut self, report: Report) {
         let Report::Confirm {
             id,
@@ -191,21 +194,25 @@ impl Reporter {
             detail,
             hud,
             keys,
+            name,
         } = report
         else {
             return;
         };
+        let (prompt, detail) = (sanitize(&prompt), sanitize(&detail));
+        let name = name.map(|n| sanitize(&n));
         if hud {
-            let keys = (keys.as_ref())
-                .map(|k| format!("\n{} = yes, {} = no", k.yes, k.no))
-                .unwrap_or_default();
-            self.question(Some(&format!("{prompt}\n{detail}{keys}")));
+            let line = keys_line(keys.as_ref());
+            self.question(Some(&question_text(&prompt, &detail, &line)));
         }
         // chora-mc reads the id as a text.
         let mut data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
         // A claimer may answer by `confirm.answer`.
         if !hud {
             data["buttons"] = true.into();
+        }
+        if let Some(name) = name {
+            data["name"] = name.into();
         }
         if let Some(keys) = keys {
             data["physical"] = true.into();
@@ -290,7 +297,7 @@ impl Reporter {
         }
     }
 
-    /// Shows a question and its full command on the first output, or
+    /// Shows a question of [`question_text`] on the first output, or
     /// removes it.
     fn question(&mut self, text: Option<&str>) {
         let remove = json!({"remove": {"id": QUESTION}});
@@ -298,12 +305,6 @@ impl Reporter {
             None if !self.question => return,
             None => json!([remove]),
             Some(text) => {
-                // ponytail: a text node holds 4 KiB; a longer command
-                // shows its start, and voice.confirm carries it whole.
-                let mut end = text.len().min(4000);
-                while !text.is_char_boundary(end) {
-                    end -= 1;
-                }
                 let Some(outputs) = self.rpc("output.list", Value::Null) else {
                     return;
                 };
@@ -314,7 +315,7 @@ impl Reporter {
                 };
                 let create = json!({"create": {"id": QUESTION, "kind": "text",
                     "parent": format!("screen:{name}"),
-                    "props": {"text": &text[..end], "font_size": 18, "max_width": w - 48,
+                    "props": {"text": text, "font_size": 18, "max_width": w - 48,
                         "color": [1.0, 0.85, 0.4, 1.0], "input": "pass",
                         "transform": {"translate": [24, 24]}}}});
                 if self.question {
@@ -341,6 +342,44 @@ impl Reporter {
     }
 }
 
+/// The most bytes of a question on the own HUD: a text node of the
+/// scene holds 4 KiB.
+const QUESTION_BYTES: usize = 4000;
+
+/// The line of the keys of a question on the own HUD; none without keys.
+fn keys_line(keys: Option<&ConfirmKeys>) -> String {
+    keys.map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
+        .unwrap_or_default()
+}
+
+/// Whether the own HUD shows the question whole, with the line of its
+/// keys; else the agent answers no before it shows (review secfix c r1,
+/// 2), so that no key confirms a command that the person cannot read.
+pub fn fits(prompt: &str, detail: &str, keys: Option<&ConfirmKeys>) -> bool {
+    let (prompt, detail) = (sanitize(prompt), sanitize(detail));
+    prompt.len() + "\n".len() + detail.len() + keys_line(keys).len() <= QUESTION_BYTES
+}
+
+/// The line of a question whose detail does not fit on the own HUD.
+const TOO_LONG: &str = "(the command is too long to show here)";
+
+/// The question on the own HUD: the prompt, the detail and the line of
+/// the keys, at most [`QUESTION_BYTES`]. A longer detail is never cut,
+/// which would hide its tail: [`TOO_LONG`] takes its place, and the
+/// prompt and the keys stay. voice.confirm carries it whole.
+fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
+    let text = format!("{prompt}\n{detail}{keys}");
+    if text.len() <= QUESTION_BYTES {
+        return text;
+    }
+    let text = format!("{prompt}\n{TOO_LONG}{keys}");
+    let mut end = text.len().min(QUESTION_BYTES);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text[..end].to_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -350,7 +389,46 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Corner, Report, at, start};
+    use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
+
+    /// Review plugins r1, VO-B-06 and sh-26: a detail too long for the
+    /// HUD is not cut, which would hide its tail: the HUD shows that it
+    /// is too long to show, and the prompt and the line of the keys stay.
+    #[test]
+    fn a_long_question_keeps_its_keys() {
+        let keys = "\nAlt+y = yes, Alt+n = no";
+        let detail = format!("allow_programs: {}", "ö".repeat(3000));
+        let text = question_text("Shall I set allow programs?", &detail, keys);
+        assert!(text.len() <= QUESTION_BYTES, "{}", text.len());
+        assert!(!text.contains("allow_programs"), "{text}");
+        assert!(text.starts_with("Shall I set allow programs?\n"), "{text}");
+        assert!(text.contains("too long to show"), "{text}");
+        assert!(text.ends_with(keys), "{text}");
+        let short = question_text("Shall I?", "x: 1", keys);
+        assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
+
+    /// The question goes out without a character that hides or reorders
+    /// text, on the own HUD and in `voice.confirm` (sh-26).
+    #[test]
+    fn a_question_emits_no_bidi_or_hidden_character() {
+        let (emits, emitted) = mpsc::channel();
+        let reports = start("voice", emits);
+        let confirm = Report::Confirm {
+            id: 6,
+            prompt: "Run\u{202e} this?".into(),
+            detail: "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J".into(),
+            hud: false,
+            keys: None,
+            name: Some("At\u{2066}las".into()),
+        };
+        reports.send(confirm).unwrap();
+        let (event, shown) = emitted.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, "confirm");
+        assert_eq!(shown["prompt"], "Run this?");
+        assert_eq!(shown["detail"], "echo safefr- mr");
+        assert_eq!(shown["name"], "Atlas");
+    }
 
     #[test]
     fn the_dot_sits_in_its_corner() {
@@ -388,6 +466,7 @@ mod tests {
             detail: detail.clone(),
             hud: false,
             keys: None,
+            name: None,
         };
         reports.send(confirm).unwrap();
         // Review rc3 round 2, 1.1: the id is a text, as chora-mc reads it.
@@ -403,10 +482,30 @@ mod tests {
             detail: "allow_programs: [sh]".into(),
             hud: false,
             keys: Some(crate::config::ConfirmKeys::default()),
+            name: None,
         };
         reports.send(confirm).unwrap();
         let shown = json!({"id": "4", "prompt": "Sicher?", "detail": "allow_programs: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
+    }
+
+    /// The question of a helper names it, for the title of the card.
+    #[test]
+    fn a_question_of_a_helper_names_it() {
+        let (emits, emitted) = mpsc::channel();
+        let reports = start("voice", emits);
+        let confirm = Report::Confirm {
+            id: 5,
+            prompt: "Atlas möchte notes.txt schreiben. Erlauben?".into(),
+            detail: String::new(),
+            hud: false,
+            keys: None,
+            name: Some("Atlas".into()),
+        };
+        reports.send(confirm).unwrap();
+        let (event, shown) = emitted.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, "confirm");
+        assert_eq!(shown["name"], "Atlas");
     }
 }

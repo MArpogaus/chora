@@ -7,6 +7,14 @@
 //! session can start again; 0 means never. A hung shader blocks the main
 //! loop, and with it the frame watchdog and SIGUSR1, but not this thread.
 //!
+//! The watchdog counts only the time that it watched: a look that comes
+//! later than [`LATE`] after the one before means that the thread itself
+//! did not run, after SIGSTOP or on a starved host, and that time is no
+//! stall of the main loop. This has a ceiling in wall time, so that a
+//! host on which every look comes late cannot keep a hung core alive:
+//! [`CEILING`] times the abort time without a beat aborts too, once the
+//! watchdog watched for longer than an idle loop sleeps.
+//!
 //! The stall and the abort lines go to fd 2 with a raw `write(2)`, not
 //! through tracing or `std::io::stderr`: a main loop that hangs inside a
 //! log write holds their lock, and the watchdog must not wait for it. The
@@ -24,6 +32,8 @@ use std::{
 
 use calloop::EventLoop;
 
+use crate::words::say;
+
 /// The longest sleep of an idle main loop between two beats.
 pub const BEAT_EVERY: Duration = Duration::from_secs(1);
 /// How long the heartbeat may stop before the watchdog logs a stall (D64).
@@ -32,6 +42,16 @@ const STALL_AFTER: Duration = Duration::from_secs(3);
 const ABORT_AFTER: Duration = Duration::from_secs(30);
 /// How often the watchdog looks at the heartbeat.
 const TICK: Duration = Duration::from_millis(250);
+/// A look this long after the one before means that the watchdog thread
+/// did not run in between.
+const LATE: Duration = Duration::from_secs(1);
+
+/// How many abort times of wall time without a beat end a hang of which
+/// the watchdog watched only a part.
+const CEILING: u32 = 4;
+/// The watched time without a beat that the ceiling needs: more than the
+/// sleep of an idle loop, so that a core that was stopped beats first.
+const WATCHED: Duration = Duration::from_millis(1250);
 
 /// What the watchdog sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +68,9 @@ enum Hang {
 struct Watch {
     beat: u64,
     since: Instant,
+    /// The last beat in wall time, also over the time not watched.
+    beat_at: Instant,
+    looked: Instant,
     stalled: bool,
     abort: Option<Duration>,
 }
@@ -57,21 +80,34 @@ impl Watch {
         Self {
             beat: 0,
             since: now,
+            beat_at: now,
+            looked: now,
             stalled: false,
             abort,
         }
     }
 
-    /// Looks at the heartbeat at a time.
+    /// Looks at the heartbeat at a time. The time that the watchdog
+    /// itself did not run counts for no stall.
     fn check(&mut self, beat: u64, now: Instant) -> Option<Hang> {
+        let step = now - self.looked;
+        self.looked = now;
+        if step >= LATE {
+            self.since += step.saturating_sub(TICK);
+        }
         let gap = now - self.since;
         if beat != self.beat {
             self.beat = beat;
             self.since = now;
+            self.beat_at = now;
             return std::mem::take(&mut self.stalled).then_some(Hang::Runs(gap));
         }
         if self.abort.is_some_and(|abort| gap >= abort) {
             return Some(Hang::Abort(gap));
+        }
+        let wall = now - self.beat_at;
+        if gap >= WATCHED && self.abort.is_some_and(|abort| wall >= abort * CEILING) {
+            return Some(Hang::Abort(wall));
         }
         if !self.stalled && gap >= STALL_AFTER {
             self.stalled = true;
@@ -101,6 +137,7 @@ fn spawn(
     thread::Builder::new()
         .name("chora-watchdog".into())
         .spawn(move || {
+            crate::words::roomy_signal_stack();
             let mut watch = Watch::new(abort, Instant::now());
             while Arc::strong_count(&beats) > 1 {
                 thread::sleep(TICK);
@@ -136,22 +173,6 @@ fn log(hang: Hang) {
         Hang::Runs(gap) => {
             tracing::warn!(stalled_s = gap.as_secs(), "the main loop runs again");
         }
-    }
-}
-
-/// Writes `chora: <line>` to fd 2 with one raw `write(2)`, from a buffer on
-/// the stack: no lock of tracing, of `std::io::stderr` or of malloc.
-#[allow(unsafe_code)] // one libc write to a fixed fd
-fn say(line: std::fmt::Arguments<'_>) {
-    use std::io::Write as _;
-    let mut buf = std::io::Cursor::new([0_u8; 256]);
-    // A line longer than the buffer ends short.
-    let _ = writeln!(buf, "chora: {line}");
-    let len = usize::try_from(buf.position()).unwrap_or(0);
-    let buf = buf.into_inner();
-    // SAFETY: the pointer and the length come from a live buffer.
-    unsafe {
-        libc::write(2, buf.as_ptr().cast(), len);
     }
 }
 
@@ -199,29 +220,74 @@ mod tests {
 
     const S: Duration = Duration::from_secs(1);
 
+    /// Looks at a beat every [`TICK`] after a time, until another time.
+    fn looks(watch: &mut Watch, beat: u64, after: Instant, until: Instant) -> Vec<Hang> {
+        let ticks = (until - after).as_millis() / TICK.as_millis();
+        (1..=u32::try_from(ticks).unwrap())
+            .filter_map(|tick| watch.check(beat, after + tick * TICK))
+            .collect()
+    }
+
     #[test]
     fn a_stall_logs_once_then_aborts_or_runs_again() {
         let start = Instant::now();
+        let at = |s: u32| start + s * S;
         let mut watch = Watch::new(Some(10 * S), start);
-        assert_eq!(watch.check(0, start + 2 * S), None);
         assert_eq!(
-            watch.check(0, start + 3 * S),
-            Some(Hang::Stall(3 * S, Some(10 * S)))
+            looks(&mut watch, 0, start, at(4)),
+            [Hang::Stall(3 * S, Some(10 * S))]
         );
-        assert_eq!(watch.check(0, start + 4 * S), None);
-        assert_eq!(watch.check(1, start + 5 * S), Some(Hang::Runs(5 * S)));
-        assert_eq!(watch.check(2, start + 6 * S), None);
         assert_eq!(
-            watch.check(2, start + 9 * S),
-            Some(Hang::Stall(3 * S, Some(10 * S)))
+            looks(&mut watch, 1, at(4), at(5)),
+            [Hang::Runs(4 * S + TICK)]
         );
-        assert_eq!(watch.check(2, start + 16 * S), Some(Hang::Abort(10 * S)));
+        assert_eq!(looks(&mut watch, 2, at(5), at(6)), []);
+        assert_eq!(
+            looks(&mut watch, 2, at(6), at(15) + TICK),
+            [Hang::Stall(3 * S, Some(10 * S)), Hang::Abort(10 * S)]
+        );
         let mut never = Watch::new(None, start);
         assert_eq!(
-            never.check(0, start + 3 * S),
-            Some(Hang::Stall(3 * S, None))
+            looks(&mut never, 0, start, at(3600)),
+            [Hang::Stall(3 * S, None)]
         );
-        assert_eq!(never.check(0, start + 3600 * S), None);
+    }
+
+    /// A stopped or starved process stops the watchdog thread too: the
+    /// time that the watchdog did not watch is no stall of the main loop.
+    #[test]
+    fn a_watchdog_that_did_not_run_counts_no_stall() {
+        let start = Instant::now();
+        let mut watch = Watch::new(Some(10 * S), start);
+        assert_eq!(watch.check(1, start + TICK), None);
+        assert_eq!(watch.check(1, start + 40 * S), None, "after SIGCONT");
+        assert_eq!(watch.check(2, start + 40 * S + TICK), None);
+        let later = start + 40 * S + TICK;
+        let seen: Vec<Hang> = (1..=40)
+            .filter_map(|tick| watch.check(2, later + tick * TICK))
+            .collect();
+        assert_eq!(
+            seen,
+            [Hang::Stall(3 * S, Some(10 * S)), Hang::Abort(10 * S)],
+            "the stall counts from the last beat"
+        );
+    }
+
+    /// On a starved host every look of the watchdog can come late, and
+    /// then almost no time counts as a stall. A main loop that did not
+    /// beat for four times the abort time in wall time hangs all the
+    /// same: the watchdog aborts.
+    #[test]
+    fn a_hang_aborts_after_a_ceiling_of_wall_time_when_every_look_is_late() {
+        let start = Instant::now();
+        let mut watch = Watch::new(Some(10 * S), start);
+        let seen: Vec<Hang> = (1..=6)
+            .filter_map(|look| watch.check(0, start + look * 10 * S))
+            .collect();
+        assert!(
+            matches!(seen.last(), Some(Hang::Abort(wall)) if *wall >= 40 * S),
+            "{seen:?}"
+        );
     }
 
     /// The stall line does not wait for the stdout lock of tracing, which

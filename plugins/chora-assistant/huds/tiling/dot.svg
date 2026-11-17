@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g id="idle"><circle cx="12" cy="12" r="10.5" fill="#9aa1b4" stroke="#11131a" stroke-width="1.5"/></g>
+  <g id="listening"><circle cx="12" cy="12" r="10.5" fill="#a78bfa" stroke="#11131a" stroke-width="1.5"/></g>
+  <g id="thinking"><circle cx="12" cy="12" r="10.5" fill="#5eead4" stroke="#11131a" stroke-width="1.5"/></g>
+  <g id="working"><circle cx="12" cy="12" r="10.5" fill="#5eead4" stroke="#11131a" stroke-width="1.5"/></g>
+  <g id="speaking"><circle cx="12" cy="12" r="10.5" fill="#a78bfa" stroke="#11131a" stroke-width="1.5"/></g>
+  <g id="question"><circle cx="12" cy="12" r="10.5" fill="#f87171" stroke="#11131a" stroke-width="1.5"/></g>
+  <g id="asleep"><circle cx="12" cy="12" r="10.5" fill="#242836" stroke="#9aa1b4" stroke-width="1.5"/></g>
+</svg>

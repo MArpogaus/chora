@@ -9,8 +9,9 @@ use std::fmt::Write as _;
 
 use crate::{
     dialog::{self, Control, Dialog, Hit, Page},
+    sheets,
     taskbar::{self, Settings},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The client area: XP's dialog is 404 by 455 pixels with its frame.
@@ -126,7 +127,7 @@ impl TaskbarDialog {
                 true,
             )
             .enabled(false),
-            Control::push("customize", "Customize...", [292, 312]).enabled(false),
+            Control::push("customize", "Customize...", [284, 312]).enabled(false),
         ]);
         *body = picture;
     }
@@ -191,7 +192,7 @@ fn start_menu_tab(theme: &mut Theme, body: &mut Picture, controls: &mut Vec<Cont
     picture = gray(picture, "earlier versions of Windows.", 313);
     controls.extend([
         Control::radio("xp", "Start menu", [25, 226, 200, CHECK], true),
-        Control::push("customize", "Customize...", [303, 226]).enabled(false),
+        Control::push("customize", "Customize...", [292, 226]).enabled(false),
         Control::radio(
             "classic",
             "Classic Start menu",
@@ -199,7 +200,7 @@ fn start_menu_tab(theme: &mut Theme, body: &mut Picture, controls: &mut Vec<Cont
             false,
         )
         .enabled(false),
-        Control::push("customize-classic", "Customize...", [303, 280]).enabled(false),
+        Control::push("customize-classic", "Customize...", [292, 280]).enabled(false),
     ]);
     *body = picture;
 }
@@ -211,9 +212,9 @@ fn start_menu_preview(theme: &Theme) -> Picture {
     let bar = taskbar::preview(theme, [w, h], &[], [false, true], None);
     let [mx, mw] = [8, 170];
     let mut picture = bar
-        .element(Sheet::Winxp, "startmenu-header", [mx, 6, mw, 22])
-        .element(Sheet::Winxp, "startmenu-body", [mx, 28, mw, 98])
-        .element(Sheet::Winxp, "startmenu-footer", [mx, 126, mw, 16]);
+        .element(sheets::WINXP, "startmenu-header", [mx, 6, mw, 22])
+        .element(sheets::WINXP, "startmenu-body", [mx, 28, mw, 98])
+        .element(sheets::WINXP, "startmenu-footer", [mx, 126, mw, 16]);
     // Lines for the entries of the two columns.
     let mut svg = String::new();
     for i in 0..6 {
