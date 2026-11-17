@@ -24,8 +24,8 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r2 3d2c00ce hand-back 17:13; re-review 17:13; archived |
-| mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | 690a787a MERGE-OK 17:04 (pure moves); train 46 |
+| mv1-cut1-r2.md (F4, F6) | sonnet med, claude/mv1-cut1 | r2 3d2c00ce MERGE-OK 17:13 (re-review; splits pass the ratchet); train 46 (harness first) |
+| mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | 690a787a MERGE-OK 17:04 (pure moves); train 47 |
 | mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | bcf430ed MERGE-OK 16:14 (pure moves; doc hoists MINOR); train 45 17:13 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
