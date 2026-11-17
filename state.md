@@ -29,7 +29,7 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 merged (
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | merged train 36 05:03 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
 | media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 on aa8aa8c0; starting 05:56 |
-| secfix-c-r1.md (rc 1, 6) | opus med, claude/secfix-c | sh-26 MAJOR confirm text (opus review 04:53); starting |
+| secfix-c-r1.md (rc 1, 6) | opus med, claude/secfix-c | cd7a8946 gate green; opus review running 05:58 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
