@@ -1,11 +1,12 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T12:56:00Z
+screened-through: 2026-11-17T12:58:00Z
+- 11-17 12:58Z "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> order: tag now; PM re-plans as data comes, pulls feats in when ahead
 - 11-17 12:56Z "Not aiming towards 1.0 yet. We remain unstable until daily driving proves stability. Session keeps running in slower pace after 30.11. Try to land as much of our goals until then. Agree?" -> goal: no 1.0 date; 1.0 only after daily driving proves stability; land as much as possible by 11-30, then the session goes on at a slower pace
 - 11-17 11:54Z "Yes. Sharpen this plan further in reflection round. Have unnecessary detailed and expensive desktop effects land before 1.0 so we can have som cachy sisuals to get attention." -> goal: foundation, UX polish, collected feats (no demo sprints), one-take demo (design/demo-playbook.md); S3 effects pack before 1.0 (plugin, frame-budget gate); plan sharpened at 12:50 close
 - 11-17 10:59Z "Be perfectionist and very critical about the met targets. We want to push towards perfection." -> F1-F8 met only with evidence and an independent check; no partial credit
 - 11-17 10:56Z "New goal for the week: super clean well tested good designed codebase as foundation for future feature sprints." -> goal: after the rc tag, design/foundation.md F1-F8; rules.md 1 at train 40
-- 11-17 10:54Z "Agree, learn from previous fix rounds and collect we're we did work multiple times that would have benefited from design/arch optimization." -> Fable: 2 opus reviewers; rework audit (reports/rework-audit.md) is Fable input
-- 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> goal change: rc now (rc.md: 3, 4, 5, 7, 8 only); construct r4, MINOR rounds cancelled; tour v8 kept as baseline; then one Fable plan lane on architecture-rc.md, refactor sprint
+- 11-17 10:54Z "Agree, learn from previous fix rounds..." -> Fable: 2 opus reviewers; reports/rework-audit.md is Fable input
+- 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> rc now (rc.md 3, 4, 5, 7, 8); tour v8 baseline; then one Fable plan lane, refactor sprint
 - 11-17 10:35Z "Rerecord the demo and save it ... cube seams broken ... Turn cube in xp ... Cube always lives in construct ... click in tray ... no welcome" -> tour v8 done; co-21 to known issues, seam cell DB14; one cube DB12
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
@@ -19,5 +20,4 @@ screened-through: 2026-11-17T12:56:00Z
 - 11-09 04:24Z "This shall never touch the main branches or dev branches." -> session files only on claude/session-log
 - 11-09 08:20Z "You shall use my github email and name as in all previous commits." -> his identity; no AI lines
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
-- 11-09 05:11Z "All user agents shall report issues ... address them by iprtance." -> by severity
 - 11-11 17:48Z "Make tiling more exiting and "hyperland like"..." -> own aesthetic per look
