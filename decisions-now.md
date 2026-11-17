@@ -1,7 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T04:43:00Z
+screened-through: 2026-11-17T04:46:00Z
 
-- 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> idea after tag: PK4; pushback: one repo until 1.0, dependency gate now
+- 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
 - 11-17 04:38Z interview D1-D8: all recommended -> proposals (04:41)
 - 11-17 04:33Z "Have a arictect persona run as subagent to draft an plan refactorings with high effort. For the big ones you may use fable. ..." -> opus architect now (plan for sprint 1); interview D1-D8
