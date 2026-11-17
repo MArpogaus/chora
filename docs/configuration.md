@@ -1168,7 +1168,7 @@ Every look has the same keys: `Super+F1` shows the key list (`Super+/`
 is a silent alias), `Super+Space` starts the launcher, `Super+a` opens
 the chat with a helper (it runs `chora-chat`), `Super+Shift+Escape`
 locks the screen, `Super+Shift+e` opens the power menu (Lock, Log out,
-Restart, Shut down), `Super+Print` takes a screenshot and
+Restart, Shut down, Screenshot), `Super+Print` takes a screenshot and
 `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute`
 change the volume. The key list of every look shows these three keys as
 the caps `Vol+`, `Vol-` and `Mute` (the rule of `chora_kit::glass::cap`)
@@ -1676,9 +1676,10 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
   the panel open the menu of `power.sh`, the launcher in menu mode with the
-  prompt "Power" and four words: Lock, Log out, Restart and Shut down (swaylock in the palette, with a notice when it does not start,
+  prompt "Power" and five words: Lock, Log out, Restart, Shut down and Screenshot, the way to a screenshot for a person with a mouse (swaylock in the palette, with a notice when it does not start,
   `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
   that is not set, `systemctl reboot`, `systemctl poweroff`).
+  A session with no session bus gets a bus of its own for 7 s with mako and the notice.
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
   area that slurp lets you select: `screenshot.sh` writes it to
   `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else

@@ -250,7 +250,8 @@ fn launch(argv: &[String]) -> ExitCode {
     if program == "power" {
         command
             .env("CHORA_MENU", "chora-tiling --launch fuzzel")
-            .env("CHORA_LOCKER", "chora-tiling --launch swaylock -f");
+            .env("CHORA_LOCKER", "chora-tiling --launch swaylock -f")
+            .env("CHORA_SCREENSHOT", "chora-tiling --launch screenshot");
     }
     if program == "screenshot" {
         command.env("CHORA_NOTIFIER", "chora-tiling --launch mako");
