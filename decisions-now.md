@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T12:58:00Z
-- 11-17 12:58Z "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> order: tag now; PM re-plans as data comes, pulls feats in when ahead
+screened-through: 2026-11-17T14:18:00Z
+- 11-17 14:18Z "You may push the tag" -> tag push refused (403), owner tags
+- 11-17 12:58Z "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> PM re-plans, pulls feats in when ahead
 - 11-17 12:56Z "Not aiming towards 1.0 yet. We remain unstable until daily driving proves stability. Session keeps running in slower pace after 30.11. Try to land as much of our goals until then. Agree?" -> goal: no 1.0 date; 1.0 only after daily driving proves stability; land as much as possible by 11-30, then the session goes on at a slower pace
 - 11-17 11:54Z "Yes. Sharpen this plan further in reflection round. Have unnecessary detailed and expensive desktop effects land before 1.0 so we can have som cachy sisuals to get attention." -> goal: foundation, UX polish, collected feats (no demo sprints), one-take demo (design/demo-playbook.md); S3 effects pack before 1.0 (plugin, frame-budget gate); plan sharpened at 12:50 close
 - 11-17 10:59Z "Be perfectionist and very critical about the met targets. We want to push towards perfection." -> F1-F8 met only with evidence and an independent check; no partial credit
