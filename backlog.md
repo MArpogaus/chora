@@ -19,6 +19,9 @@ F1 | 11-10 | rc | the focus race fixed in tiling (1275e15: a stale `focus` after
 T2 | 11-11 | rc | gate-construct-hud.sh pins a stale help row count ("21 rows, not 18"): fix the count or count from config.
 T3 | 11-11 | rc | gate-construct-windows fails ("d1 is not shown with tiling" on 536aaee; exit 143 at the 11-09 baseline): find the cause.
 
+- H-move (harness, 11-17 16:11): tests/no-inline-comments.py counts moved lines as added, so a pure move must hoist body `//` into `///` (mv2-mc review: misleading docs, build.rs:68, show.rs:10, layout.rs:440). Fix: skip lines git --color-moved marks as moved. Then KIT2 mc rewords those docs.
+- mv1-cut1 review MINORs out of r2: CI size-ratchet without --base; rename of a listed file; cut-check name boundaries and services.
+
 ## CI, packaging, dependencies (rc 4, 5, 7)
 CI2 | 11-12 | rc | cargo deny fails on an advisory (xattr "unsound", via tar via tract-onnx): a fixed tar/xattr version or a reasoned ignore in deny.toml before the CI draft PR.
 A7 | 11-09 | rc | Dependabot: #105, #104, #103, #95, #88, #86, #94, #93, #92, #2, #1; majors #96 (zbus 6), #87 (serde-saphyr 2) may wait.
