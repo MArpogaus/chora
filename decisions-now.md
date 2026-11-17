@@ -1,6 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:52:00Z
-- 11-17 10:52Z "Allow fable to use opus reviewers for its proposal and plan?" -> yes, bounded: 2 opus reviewers (high), one round, one revision, in the 1.5 h Fable lane
+screened-through: 2026-11-17T10:54:00Z
+- 11-17 10:54Z "Agree, learn from previous fix rounds and collect we're we did work multiple times that would have benefited from design/arch optimization." -> Fable: 2 opus reviewers; rework audit (reports/rework-audit.md) is Fable input
 - 11-17 10:52Z "Before launching fable: look at ideas/feature/issue list and prioritize. Target arch shall make our live easier not just deliver cleaner code for a moment" -> order: ranked list (reports/priorities-sprint1.md) is Fable's input; target arch judged by the work it unblocks
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> goal change: rc now (rc.md: 3, 4, 5, 7, 8 only); construct r4, MINOR rounds cancelled; tour v8 kept as baseline; then one Fable plan lane on architecture-rc.md, refactor sprint
 - 11-17 10:40Z "Why did you miss this?" -> tour reviews start with a fresh-eyes pass per look; PM watches tour-all before reporting
