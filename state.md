@@ -35,7 +35,7 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 1. Now: train 41 (deny-chrono: CI deny red on 733967aa, RUSTSEC-2026-0543; rc-docs: known issues; rc 7, 8) 12:0x; media r6 tour v8 baseline; known issues, CI PR, tag (rc 4, 5, 8). construct r4, xp r8, mc r7 cancelled.
 2. After the tag (foundation F1-F8): Fable plan with priorities-sprint1, rework-audit (F1) -> slices sonnet/opus, haiku tests (F2-F6) -> tour v9 vs v8 (F7), docs (F8).
 3. Flakes F17 (F5), cut gate (F6).
-4. Sat 03:59: foundation review; next week feature sprint 1.
+4. 12:50 close: sharpen reports/plan-after-foundation.md (foundation, UX polish, collected feats, S3 effects before 1.0, one-take demo playbook). Sat 03:59: foundation review.
 
 ## Needs owner
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).
