@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T04:41:00Z
+screened-through: 2026-11-17T04:43:00Z
 
+- 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> idea after tag: PK4; pushback: one repo until 1.0, dependency gate now
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
 - 11-17 04:38Z interview D1-D8: all recommended -> proposals (04:41)
 - 11-17 04:33Z "Have a arictect persona run as subagent to draft an plan refactorings with high effort. For the big ones you may use fable. ..." -> opus architect now (plan for sprint 1); interview D1-D8
@@ -15,7 +16,6 @@ screened-through: 2026-11-17T04:41:00Z
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 
-- 11-16 08:52Z "Use IP whole budget during the week. ... cheap workers test continuously ..." -> ~100 % by reset; lanes over areas; haiku testwatch
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)

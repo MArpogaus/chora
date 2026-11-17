@@ -19,3 +19,9 @@ Branch claude/decisions, head 80a5931 (docs/decisions.md only, +24 lines, D78-D9
 ## Refactor proposals
 - Keep the log of which plugins honor `test_accept_injected_keys` in one place (kit `Runtime`), so docs need not list them by hand (S).
 - decisions.md rows of 1000+ chars (D62, D65, D78, D81): move the detail to the Designs prose (S).
+
+## Re-review bbf1264
+- Diff 80a5931..bbf1264 touches docs/decisions.md only (10 lines changed: D78, section intro, D87-D94).
+- D78 fixed and true to code: node.key added; all nine flagged events listed; the setting is named for construct, mc, tiling and xp (the four `.accept_injected(...)` callers); notify and the assistant follow only the env var (kit `Runtime::with` reads it for every plugin); `tests/gate-injected-presses.sh` runs with the switch off. The COSMETIC findings are fixed (repeated "decided by the owner" removed, D3 qualified).
+- D87-D94: only the "proposed" wording changed (intro says proposals; each row ends "May be revised or reverted when a later review finds a better design"; "decided ... by the owner" removed). The decision text is unchanged. Nothing else changed.
+- Open findings: none. Verdict: MERGE-OK.

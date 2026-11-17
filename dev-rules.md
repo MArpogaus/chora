@@ -71,3 +71,5 @@ the session overrides). Read it and the skills it names once per container.
   a module too large, a weak mechanism, dead code, a missing abstraction in chora-kit), each with
   file:line, the gain and a size S/M/L. Do not build them in your round unless the brief says so;
   the PM ranks them in backlog.md. Code gets leaner and tidier with every release.
+  Check the cut (owner 11-17): a plugin uses only chora-kit, chora-scene, chora-draw and the API,
+  ships only its own assets and could be packaged and moved to another repo alone; name each breach.
