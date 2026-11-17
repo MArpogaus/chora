@@ -391,3 +391,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-17 11:05 UTC "OK soilds good. Shall include expand button for owefull trays" -> idea: added to X10 (XP chevron that shows hidden icons when the tray is overfull).
 - 2026-11-17 11:07 UTC "Also plan to add Quick start louncers and resize /rearrange as in original." -> idea: backlog X11 (Quick Launch, lock/unlock, grips to resize and reorder, saved layout), sprint 1 after N1.
 - 2026-11-17 11:23 UTC "Also start menu pinned and recent programs like original" -> idea: backlog X12 (pinned and most-used lists in the Start menu), sprint 1 after N1.
+- 2026-11-17 11:40 UTC "how expensive would be a xp control panel with working settings like original? Skinnable and reusable in other plugins?" -> question and idea: backlog N2 (settings service in chora-kit, applets skinned per look); estimate 12-16 % of a week over 2 sprints; absorbs B2-B4.
