@@ -31,11 +31,11 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
-1. Now (1 %): rc.4 prepared 13:42 (claude/release-rc4: dev d060dc03^2 7e2a287b bump, main d060dc03); push to dev, main blocked by the environment (403), owner pushes; train 43 media harness (b29fbf0a fix; rc 11).
+1. Now (1 %): rc.4 on dev 7e2a287b, main d060dc03 (13:41); tag push 403, owner tags; train 43 media harness (b29fbf0a; rc 11).
 2. After the tag (F1, 6 %): Fable plan (marks the week's F2 subset, the F3 effect hook)+2 opus reviewers; v8 fresh-eyes review (1 %).
 3. Slices F2-F4 sonnet, haiku tests F5 (22 %); flakes F17, cut gate F6 (3 %); tour v9 F7 (3 %), docs F8 (1 %).
 4. Sat 03:59: foundation review; then reports/plan-after-foundation.md P2-P5 (to 11-30).
 
 ## Needs owner
-- Release v0.9.0-rc.4 (environment, now): this session may not push dev, main or tags (403). Commands on the status page (Needs you). Default: none.
+- Tag v0.9.0-rc.4 (environment, now): dev 7e2a287b and main d060dc03 pushed 13:41 (PR #106 merged); the tag push is denied (403). Command on the status page.
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).
