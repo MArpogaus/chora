@@ -33,9 +33,8 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
 1. Now (1 %): rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 media harness (b29fbf0a; rc 11).
 2. After the tag (F1, 6 %): Fable plan (marks the week's F2 subset, the F3 effect hook)+2 opus reviewers.
-3. Slices F2-F4 sonnet, haiku tests F5 (22 %); flakes F17, cut gate F6 (3 %); F7 glitch gates (6 %, proposal), docs F8 (1 %).
-4. Sat 03:59: foundation review; then reports/plan-after-foundation.md P2-P5 (to 11-30).
+3. Slices F2-F4 sonnet, haiku tests F5 (22 %); flakes F17, cut gate F6 (3 %); F7 contracts and invariants (5 %), docs F8 (1 %).
+4. Sat 03:59: foundation review; then simulated user test, new tour with checks (plan re-plan 14:24).
 
 ## Needs owner
-- Glitch gates (reports/proposal-glitch-gates.md): F7 becomes act contracts, invariants, video checker (6 %, net +2 %). Default: yes at train 43.
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).

@@ -33,3 +33,12 @@ Beats 1, 7, 8 (mail and calendar sources, A14 cylinder and slides), X11, X12, N1
 ## Critic notes kept (reports: opus critic 11-17 12:5x)
 - Waste today: polish and tour rounds on code that is now waived and will be refactored; three briefs written and cancelled within 8 minutes; about 25 one-line log commits for owner input; the quick rc not tagged two hours after the order.
 - Risks: deny fix growing into the jiff migration (kept as an ignore, DB13); unreviewed v8 baseline; no budget slack in the foundation week.
+
+## Re-plan 11-17 14:24 (owner: refactor, then simulated user test, then the new tour)
+- No more work on tour v8 or the current demo. P1 refactor as planned; act contracts and invariants
+  (reports/proposal-glitch-gates.md 1-2) are built inside P1 as the refactor's safety net (F7 redefined).
+- P2 becomes the intensive simulated user test (haiku personas on every look, through the contracts and
+  invariants; findings ranked by triage.py), fixes BLOCK and MAJOR (~25 %).
+- Then the new tour: human-paced, one take, video checker (3) and visual checks against design/looks
+  (spacing, alignment, contrast, text fit from scene layout boxes; opus vision only on flagged frames).
+  P3-P5 shift after it; feats are pulled in only when ahead.
