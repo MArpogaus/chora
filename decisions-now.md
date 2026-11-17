@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:31:00Z
+screened-through: 2026-11-17T10:35:00Z
 - 11-17 10:29Z "Can I see the tour?" -> question: tour v6 video and v7 stills on the status page; v7 mp4s lost with the archived media worker; the final tour Thu (media r6) commits its mp4s to session-log
+- 11-17 10:35Z "Rerecord the demo and save it ... cube seams broken ... Turn cube in xp ... Cube always lives in construct ... click in tray ... no welcome" -> order: tour v8 now, mp4s kept (media r6); bug co-21 MAJOR (construct r4); xp cube works (Ctrl+Alt+arrows, Super+drag), one cube in construct: DB12 sprint 1; xp-29, xp-30 MINOR to xp r8
 - 11-17 10:31Z "57 %" -> reading: 57 %, 0.48 %/h since 06:21, on pace; opus from 12:00 (critic only)
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
@@ -13,7 +14,6 @@ screened-through: 2026-11-17T10:31:00Z
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
 
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
-- 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected

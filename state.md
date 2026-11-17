@@ -1,16 +1,16 @@
 # State
 
-## Now (2026-11-17 10:31 UTC)
+## Now (2026-11-17 10:39 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 57 % at 10:31 Tue (owner); tokens.py 10:31: 3.4 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
+budget: 57 % at 10:31 Tue (owner); tokens.py 10:39: 3.4 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7e066694 09:18. Tour v7 running.
-burn-down 10:19: tour v7 review MERGE-OK: 0 BLOCK, 0 MAJOR (F-1, N-1 harness faults); MINOR rounds open. Tag Fri 11-20 on track.
+burn-down 10:39: co-21 cube seams MAJOR open (owner); construct r4, media r6 (tour v8) next. Tag Fri 11-20 holds if r4 merges Wed.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | v7 0 BLOCK, 0 MAJOR (reports/review-tour-v7.md 10:19); N1 notice capture to re-record |
+| 1 | UX: no BLOCK or MAJOR open | co-21 MAJOR open (cube seams, owner 10:35); v7 else 0 MAJOR |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | 30b, 33-39 green (8); F26 held, F28 holds; F17 open |
@@ -32,7 +32,7 @@ burn-down 10:19: tour v7 review MERGE-OK: 0 BLOCK, 0 MAJOR (F-1, N-1 harness fau
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: train 40 construct r3 (rc 1); then MINOR rounds: xp r8 (F-2, N-2/N-6), mc r7 (Super+a, launcher, clock, N-3), sonnet (rc 1).
+1. Now: train 40 (rc 1); construct r4 co-21 sonnet high, media r6 tour v8 (rc 1, 11); then xp r8 (F-2, N-2/N-6, xp-29, xp-30), mc r7 (rc 1).
 2. UX loop (rc 2, 11): persona r4 Wed; media r6 harness fixes (PATH, drag aim, plain-drag cell) + final tour Thu.
 3. Wed-Thu: flakes F17, F22 (CI 06:00), F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.

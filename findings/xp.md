@@ -27,3 +27,5 @@ xp-25 | MAJOR | journey-1 (tour v4, opus review) X1 01-03-letter.png | open | Ed
 xp-26 | MAJOR | journey-1 (tour v4, opus review) X2 01-10-volume-75.png | open | Sound 75% from Control Panel: tray shows no level, menu no tick on the current level
 xp-27 | MAJOR | journey-1 (tour v4, opus review) X3 01-12-question.png | open | Question card: other font, white box, covers the transcript; keyboard words (Alt+Y/N) for a mouse user; 'Typing does not answer' twice
 xp-28 | MINOR | journey-1 (tour v4, opus review) X4, X6 | open | Chat header stays 'Working, step 1 of 1' and Stop active after the answer; editor opens over desktop icons, labels clipped
+xp-29 | MINOR | owner 11-17 10:35 "Xp: why click in tray to open clippy chat?" | open | The helper chat opens from the tray icon; POLS for XP users: a click on the paperclip itself opens its balloon and chat.
+xp-30 | MINOR | owner 11-17 10:35 "Why no wrlcom mgs from clippy?" | open | No welcome balloon: at the first session start the paperclip greets once ("Hi, I am your helper ...", names how to ask and how to close; honest "no helper" state when none is set up), then stays quiet.
