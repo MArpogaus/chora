@@ -144,6 +144,53 @@ struct Next {
     /// Whether a start that ended without a window fails at once and not
     /// after [`GIVE_UP`].
     early: bool,
+    /// The program before this one that did not open, and why; said
+    /// only once this one shows its window.
+    fell: Option<(String, Why)>,
+    /// Where the shell of a start that ends early writes its failed
+    /// status.
+    status: Option<std::sync::Arc<StatusFile>>,
+}
+
+/// A file in which the shell around a start of an early program writes
+/// its exit status when that is not zero. It is removed with the last
+/// holder.
+#[derive(Debug)]
+struct StatusFile(std::path::PathBuf);
+
+impl StatusFile {
+    fn create() -> Option<Self> {
+        static COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let dir = std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+        let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = dir.join(format!("chora-xp-exit-{}-{n}", std::process::id()));
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .ok()?;
+        Some(Self(path))
+    }
+
+    /// The command that runs `command` and writes its status here when
+    /// it fails. A program that replaces the shell leaves no status.
+    fn wrap(&self, command: &str) -> String {
+        let file = quoted(&self.0.to_string_lossy());
+        format!(
+            "{{ {command}\n}}; status=$?; [ $status -eq 0 ] || ! [ -e {file} ] || echo $status >{file}; exit $status"
+        )
+    }
+
+    /// Whether the start ended with a status that is not zero.
+    fn failed(&self) -> bool {
+        std::fs::read_to_string(&self.0).is_ok_and(|text| !text.trim().is_empty())
+    }
+}
+
+impl Drop for StatusFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
 }
 
 /// The answer of `choractl run` for a command.
@@ -205,7 +252,11 @@ impl Launches {
             name: name.clone(),
             command: command.to_owned(),
         };
-        let mut changes = self.begin(&name, vec![candidate], (token, false), now);
+        let template = Next {
+            activation: token,
+            ..Next::default()
+        };
+        let mut changes = self.begin(&name, vec![candidate], template, now);
         changes.pop()
     }
 
@@ -220,36 +271,36 @@ impl Launches {
         token: Option<String>,
         now: Instant,
     ) -> Vec<Change> {
-        let mut changes = Vec::new();
-        if let (Some(from), Some(first)) = (skipped, chain.first()) {
-            changes.push(Change::Fallback {
-                name: name.to_owned(),
-                from,
-                to: first.name.clone(),
-                note: None,
-                why: Why::Missing,
-            });
-        }
-        changes.extend(self.begin(name, chain, (token, true), now));
-        changes
+        let template = Next {
+            activation: token,
+            early: true,
+            fell: skipped.map(|from| (from, Why::Missing)),
+            ..Next::default()
+        };
+        self.begin(name, chain, template, now)
     }
 
     fn begin(
         &mut self,
         name: &str,
         mut chain: Vec<Candidate>,
-        (activation, early): (Option<String>, bool),
+        template: Next,
         now: Instant,
     ) -> Vec<Change> {
         if chain.is_empty() {
             return Vec::new();
         }
         let first = chain.remove(0);
+        let status = template
+            .early
+            .then(StatusFile::create)
+            .flatten()
+            .map(std::sync::Arc::new);
         let next = Next {
             from: first.name,
-            activation,
             rest: chain,
-            early,
+            status,
+            ..template
         };
         if missing(&first.command, crate::session::on_path) {
             eprintln!(
@@ -258,11 +309,15 @@ impl Launches {
             );
             return self.fail((name.to_owned(), None), Why::Missing, next, now);
         }
+        let command = next
+            .status
+            .as_ref()
+            .map_or_else(|| first.command.clone(), |file| file.wrap(&first.command));
         let sender = self.sender.clone();
         let windows_before = self.windows;
         let name = name.to_owned();
         std::thread::spawn(move || {
-            let answer = chora_kit::launch(&first.command, next.activation.as_deref());
+            let answer = chora_kit::launch(&command, next.activation.as_deref());
             let _ = sender.send(Started {
                 name,
                 pid: answer.as_ref().and_then(|(_, pid)| *pid),
@@ -276,8 +331,8 @@ impl Launches {
     }
 
     /// What a program that did not open calls for: the next of its
-    /// fallbacks starts and a change says so, or, when none is left, the
-    /// change says the app cannot open.
+    /// fallbacks starts, or, when none is left, a change says the app
+    /// cannot open. Which one served is said only when its window shows.
     fn fail(
         &mut self,
         (name, note): (String, Option<u32>),
@@ -285,18 +340,30 @@ impl Launches {
         next: Next,
         now: Instant,
     ) -> Vec<Change> {
-        let Some(to) = next.rest.first().map(|c| c.name.clone()) else {
+        if next.rest.is_empty() {
             return vec![Change::Failed { name, note, why }];
+        }
+        let template = Next {
+            activation: next.activation,
+            early: next.early,
+            fell: Some((next.from, why)),
+            ..Next::default()
         };
-        let mut changes = vec![Change::Fallback {
-            name: name.clone(),
-            from: next.from,
-            to,
-            note,
-            why,
-        }];
-        changes.extend(self.begin(&name, next.rest, (next.activation, next.early), now));
+        let mut changes = vec![Change::Done { note }];
+        changes.extend(self.begin(&name, next.rest, template, now));
         changes
+    }
+
+    fn served(&mut self, name: String, next: Next) {
+        if let Some((from, why)) = next.fell {
+            self.failed.push(Change::Fallback {
+                name,
+                from,
+                to: next.from,
+                note: None,
+                why,
+            });
+        }
     }
 
     /// Takes the answers of the starts that finished: the changes of
@@ -322,7 +389,11 @@ impl Launches {
         let Some(token) = started.token else {
             return;
         };
-        if self.opened.contains(&token) || DETACHED.contains(&started.name.as_str()) {
+        if self.opened.contains(&token) {
+            self.served(started.name, started.next);
+            return;
+        }
+        if DETACHED.contains(&started.name.as_str()) {
             return;
         }
         self.entries.push(Entry {
@@ -348,7 +419,9 @@ impl Launches {
         }
         self.opened.push(token.to_owned());
         let i = self.entries.iter().position(|e| e.token == token)?;
-        self.entries.remove(i).note
+        let entry = self.entries.remove(i);
+        self.served(entry.name, entry.next);
+        entry.note
     }
 
     /// Keeps the id of the message that says a program starts.
@@ -365,6 +438,7 @@ impl Launches {
     pub fn check(&mut self, now: Instant) -> Vec<Change> {
         let mut changes = Vec::new();
         let mut failed = Vec::new();
+        let mut served = Vec::new();
         let windows = self.windows;
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
@@ -374,12 +448,15 @@ impl Launches {
             if age >= GIVE_UP {
                 if alive {
                     changes.push(Change::Done { note: entry.note });
+                    let (name, _, next) = entry.take();
+                    served.push((name, next));
                 } else if silent {
                     failed.push((entry.take(), Why::Slow));
                 }
                 return false;
             }
-            if early && silent && age >= SHOW_AFTER && entry.pid.is_some() && !alive {
+            let crashed = entry.next.status.as_ref().is_some_and(|file| file.failed());
+            if early && silent && crashed {
                 failed.push((entry.take(), Why::Exited));
                 return false;
             }
@@ -392,6 +469,9 @@ impl Launches {
             }
             true
         });
+        for (name, next) in served {
+            self.served(name, next);
+        }
         for ((name, note, next), why) in failed {
             changes.extend(self.fail((name, note), why, next, now));
         }
@@ -708,7 +788,7 @@ mod tests {
     }
 
     #[test]
-    fn a_chain_that_starts_with_a_missing_program_falls_back_at_once() {
+    fn a_chain_of_missing_programs_says_only_that_the_app_cannot_open() {
         let mut launches = Launches::new();
         let changes = launches.run_chain(
             "Notepad",
@@ -716,65 +796,125 @@ mod tests {
             None,
             Instant::now(),
         );
-        let fell = |from: &str, to: &str, why| Change::Fallback {
-            name: "Notepad".into(),
-            from: from.into(),
-            to: to.into(),
-            note: None,
-            why,
+        let closes = |changes: &[Change]| {
+            changes
+                .iter()
+                .all(|c| matches!(c, Change::Done { note: None }))
         };
+        let (last, before) = changes.split_last().expect("a change");
+        assert!(closes(before), "{changes:?}");
         assert_eq!(
-            changes,
-            [
-                fell("pad", "writer", Why::Missing),
-                fell("writer", "gedit", Why::Missing),
-                fell("gedit", "nano", Why::Missing),
-                Change::Failed {
-                    name: "Notepad".into(),
-                    note: None,
-                    why: Why::Missing
-                }
-            ]
+            last,
+            &Change::Failed {
+                name: "Notepad".into(),
+                note: None,
+                why: Why::Missing
+            }
         );
-        let (title, body) = changes[0].text();
-        assert_eq!(title, "Notepad opened with writer");
-        assert_eq!(body, "pad is not installed.");
+        assert_eq!(launches.collect(), none());
     }
 
-    #[test]
-    fn an_editor_that_ended_without_a_window_gives_way_to_the_next() {
-        let now = Instant::now();
+    fn early_editor(now: Instant, status: Option<&str>, rest: Vec<Candidate>) -> Launches {
+        let file = StatusFile::create().expect("a status file");
+        if let Some(text) = status {
+            std::fs::write(&file.0, text).unwrap();
+        }
         let mut launches = Launches::new();
-        let mut rest = chain();
-        let from = rest.remove(0).name;
         launches.add(Started {
             name: "Notepad".into(),
             pid: Some(u32::MAX),
             next: Next {
-                from,
-                activation: None,
+                from: "writer".into(),
                 rest,
                 early: true,
+                status: Some(std::sync::Arc::new(file)),
+                ..Next::default()
             },
             ..started(now)
         });
-        assert_eq!(launches.check(seconds(now, 1)), none());
-        let changes = launches.check(seconds(now, 2));
+        launches
+    }
+
+    #[test]
+    fn an_editor_that_failed_gives_way_to_the_next_and_says_so_when_it_shows() {
+        let now = Instant::now();
+        let mut launches = early_editor(now, Some("1\n"), chain()[1..].to_vec());
+        let changes = launches.check(seconds(now, 0));
+        assert!(
+            changes
+                .iter()
+                .all(|c| !matches!(c, Change::Fallback { .. })),
+            "{changes:?}"
+        );
+        let fell = Some(("writer".to_owned(), Why::Exited));
+        let next = Next {
+            from: "gedit".into(),
+            fell,
+            ..Next::default()
+        };
+        launches.add(Started {
+            name: "Notepad".into(),
+            token: Some("t2".into()),
+            next,
+            ..started(now)
+        });
+        let waiting = launches.check(seconds(now, 5));
+        assert!(
+            waiting.iter().all(|c| matches!(c, Change::Starting { .. })),
+            "{waiting:?}"
+        );
+        launches.window(Some("t2"));
+        let told = launches.collect();
+        assert_eq!(
+            told.first().map(Change::text),
+            Some((
+                "Notepad opened with gedit".into(),
+                "writer ended without a window.".into()
+            ))
+        );
+    }
+
+    #[test]
+    fn a_fallback_that_ends_without_a_window_leaves_no_notice_of_success() {
+        let now = Instant::now();
+        let mut launches = early_editor(now, Some("1\n"), Vec::new());
+        let fell = Some(("writer".to_owned(), Why::Exited));
+        launches.entries[0].next.fell = fell;
+        let changes = launches.check(seconds(now, 0));
         assert!(
             matches!(
-                changes.first(),
-                Some(Change::Fallback { from, to, why: Why::Exited, .. })
-                    if from == "writer" && to == "gedit"
+                changes.as_slice(),
+                [Change::Failed { name, why: Why::Exited, .. }] if name == "Notepad"
             ),
             "{changes:?}"
         );
-        assert_eq!(
-            changes[0].text(),
-            (
-                "Notepad opened with gedit".into(),
-                "writer ended without a window.".into()
-            )
-        );
+        assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn an_editor_that_handed_over_with_status_zero_is_waited_for() {
+        let now = Instant::now();
+        let mut launches = early_editor(now, None, chain()[1..].to_vec());
+        for s in [2, 5, 10, GIVE_UP.as_secs() - 1] {
+            let changes = launches.check(seconds(now, s));
+            assert!(
+                changes.iter().all(|c| matches!(c, Change::Starting { .. })),
+                "{s}: {changes:?}"
+            );
+        }
+        launches.window(Some("t1"));
+        assert_eq!(launches.check(seconds(now, 40)), none());
+        assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn the_status_file_goes_with_the_start() {
+        let file = StatusFile::create().expect("a status file");
+        let path = file.0.clone();
+        assert!(path.exists() && !file.failed());
+        assert!(file.wrap("lowriter -n").contains("lowriter -n"));
+        drop(file);
+        assert!(!path.exists());
     }
 
     #[test]
