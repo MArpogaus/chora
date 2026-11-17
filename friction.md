@@ -368,3 +368,6 @@ Train 26 merged claude/xp-polish at 64432a5b; review r1 covered 1df6d8ad. xp-25 
 Resolved 2026-11-16: guarded (manual until built): the train merges the head named in the review report, never origin/<lane>; to build: tools/train.sh reads the head from reports/review-<lane>.md.
 Also: tests/merge-gate.sh step header conflicts at every train that adds a step (trains 27, 31); to build: list derived from the step table (harness lane with F30).
 - 11-16 20:42 PM asked testwatch for single gate cells without a build step; it ran 17:52 binaries and reported 11/11 F28 fails (false alarm, 15 min haiku). Fix: every single-cell request names `cargo build --locked --workspace` first; merge-gate.sh builds itself.
+- 11-17 05:56 PM wrote a Now time ahead of the clock twice today (04:31, 05:57), guessed instead of read; check_log refused both. Fix: write times only as `$(date -u +%H:%M)` in the edit command, never typed.
+- 11-17 04:4x decisions lane wrote owner D1-D8 as open while the owner was answering the interview; fixed by a new round. Fix: brief a records lane only after the owner's answers are in answers.md.
+- 11-17 test_lanes test_more_than_four_lanes and test_start_lane test_green_prints_send_later fail on the session-log HEAD (pre-existing); to fix at the 12:50 close.
