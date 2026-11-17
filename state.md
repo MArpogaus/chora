@@ -28,7 +28,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | construct-r1.md (rc 1) | sonnet high, claude/construct | merged train 32 17:49 |
 | testwatch-r1.md (rc 3, 4) | haiku low, session branch | 4105f8d1: doors, chat-keys, xp 3/3 each (23:53); idle |
 | ci-fix-r1.md (rc 4, 5) | sonnet med, claude/ci-fix | merged train 33 23:27; worker archived |
-| media-r3.md (rc 11, 1) | sonnet med, claude/media | tour v5 on 4105f8d1 started 23:53 |
+| media-r3.md (rc 11, 1) | sonnet med, claude/media | tour v5 on 4105f8d1 started 23:53; start check ok 00:02 |
 | xp-polish-r4.md (rc 1, 3) | sonnet med, claude/xp-polish | merged train 32 17:49 |
 | tiling-look-r2.md (rc 1) | sonnet high, claude/tiling-look | merged train 30b 20:23 |
 | flakes-r6.md (rc 3) | Fable high, claude/flakes-r6 | merged train 30b 20:23 (review MERGE-OK, 2 MINOR); no r7 |
