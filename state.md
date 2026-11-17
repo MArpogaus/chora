@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-17 02:16 UTC)
+## Now (2026-11-17 02:19 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 01:46: 0.7 %. Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -26,7 +26,7 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 | Lane | Model, branch | State |
 |---|---|---|
 | tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | j1-4, j1-5, rv5-1 started 01:05; own gate run 3 since 01:53 (dropped stale spacing cell: reviewer checks) |
-| xp-polish-r5.md (rc 1) | sonnet med, claude/xp-polish | j1-2/N1 done f40b2ddc 02:15; e2e red only on fuzzel 1.9.2 there (also on base); review running 02:16 |
+| xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | r5 review FIX (2 MAJOR: early success notice, 2 s hand-off rule); r6 starting |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | N2, rv5-3 started 01:05; start check ok 01:14 |
 | mc-r6.md (rc 1) | sonnet high, claude/mc | rv5-2 started 01:05; start check ok 01:14 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
