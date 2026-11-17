@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 05:56 UTC)
+## Now (2026-11-17 06:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 53 % at 04:20 Tue (owner); tokens.py 05:03: 2.5 % (PM container). +1 % since 01:46 = 0.4 %/h; 47 % for 96 h = 0.49 %/h (opus ok, owner 01:49).
+budget: 55 % at 06:21 Tue (owner); tokens.py 06:21: 2.7 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00 but the secfix r2 diff review.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: aa8aa8c0 (train 37 05:55: decisions r5); CI green on f1a353a2 05:22. Next: tour v6.
 burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 merged (train 36), tiling 3 to confirm in tour v6. Tag Fri 11-20 if v6 clean.

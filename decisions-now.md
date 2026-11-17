@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T04:46:00Z
+screened-through: 2026-11-17T06:21:00Z
+- 11-17 06:21Z "55%" -> reading: 55 %, 1 %/h (twice pace, opus); no new opus until 12:00 but the secfix r2 diff review
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
@@ -7,7 +8,6 @@ screened-through: 2026-11-17T04:46:00Z
 - 11-17 04:33Z "Have a arictect persona run as subagent to draft an plan refactorings with high effort. For the big ones you may use fable. ..." -> opus architect now (plan for sprint 1); interview D1-D8
 - 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
-- 11-17 04:20Z "53%" -> reading: 53 % (1 % since 01:46, 0.4 %/h, under pace)
 - 11-17 01:49Z "Relax, usage is increase due to our fable lane from yesterday evening. Progress will decrease again. Opus ok" -> reading: rise was Fable; opus ok again (rule 9)
 - 11-17 01:48Z "Automatically prune old subsessions" -> order: 9 pruned; watchdog prunes
 - 11-16 16:56Z "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus..." -> Fable lane ends 18:21 (hand over 18:15); rest on opus; assume 5-10 %
