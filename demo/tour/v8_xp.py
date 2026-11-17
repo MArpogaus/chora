@@ -44,6 +44,9 @@ try:
     t.act("pointer", "Start, then Notepad", "The Start menu opens; the editor opens on an empty letter.txt in a window", still="01-02-start-menu", settle=0.5)
     t.reach(sx, sy); t.click(); t.wait(0.5)
     t.flush("menu")
+    if not S.query("id:xp-menu-frame"):
+        print("START did not open: second click", flush=True)
+        t.click(); t.wait(0.5); t.flush("menub")
     x, y = item("Notepad")
     t.reach(x, y); t.click(); t.wait(6.0); t.done()
     t.act("look", "No text editor is installed: Notepad says so", "A notice names the missing editor (mousepad); no terminal editor opens", still=None, settle=0.2, lead=0.1)
@@ -56,6 +59,9 @@ try:
     t.act("pointer", "Start, Notepad again, now with a stand-in GUI editor on PATH", "The editor opens in a window", still="01-02c-notepad-gui", settle=0.5)
     t.reach(sx, sy); t.click(); t.wait(0.5)
     t.flush("menu2")
+    if not S.query("id:xp-menu-frame"):
+        print("START did not open: second click", flush=True)
+        t.click(); t.wait(0.5); t.flush("menu2b")
     x, y = item("Notepad")
     t.reach(x, y); t.click(); t.cut(2.5); t.done()
     t.act("keys", "Types a short letter, one typo corrected, saves with Ctrl+D (stand-in)", "The three lines of the letter show in the editor window; the file is written", still="01-03-letter", settle=0.8)

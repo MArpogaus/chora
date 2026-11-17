@@ -32,7 +32,11 @@ try:
             r = q[0]["rects"]["HEADLESS-1"]
             inj(json.dumps([{"pointer_move": {"position": [r[0] + r[2] / 2, r[1] + r[3] / 2]}}, {"button": {"button": 272, "state": "pressed"}}, {"button": {"button": 272, "state": "released"}}]))
             break
-    time.sleep(float(sys.argv[1]) if len(sys.argv) > 1 else 12)
+    for k in (1, 3, 6):
+        time.sleep(k if k == 1 else 2 if k == 3 else 3)
+        S.ctl("capture", f"/tmp/claude-0/probe-{k}.png", "--output", "HEADLESS-1", check=False)
+    time.sleep(float(sys.argv[1]) if len(sys.argv) > 1 else 3)
+    print("NOTIFY", subprocess.run(["pgrep", "-a", "chora-notify"], capture_output=True, text=True).stdout)
     mon.terminate()
     print(open(f"{L.dir}/bus.out").read()[-3000:])
     print("SURFACES", [(n["id"], n.get("app_id")) for n in S.query("kind:surface")])
