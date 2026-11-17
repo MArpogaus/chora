@@ -25,7 +25,7 @@ burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, open j1-5 (tiling), N1 (xp); s
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| construct-r3.md (rc 1) | sonnet med, claude/construct | N-1 drag-back, DB1 placed, B4 hud; starting 07:02 |
+| construct-r3.md (rc 1) | sonnet med, claude/construct | drag-back, DB1, B4; session ...LyoZzQD5qMZD32vkP 07:02 |
 | media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 done 06:20 (5 of 7 v5 MAJOR fixed; j1-5, N1 open); review running; archived |
 | secfix-c-r2.md (rc 1, 6) | opus med, claude/secfix-c | r2 done 75bc62e6 gate green; opus review 07:01 |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | j1-5 Print sign + mouse path; starting 06:27 |
