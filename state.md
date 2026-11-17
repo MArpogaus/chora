@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-17 01:05 UTC)
+## Now (2026-11-17 01:14 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 46 % at 16:49 Mon (owner); tokens.py 23:50: estimate 0.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 started (pace has room).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -25,10 +25,10 @@ burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | j1-4, j1-5, rv5-1 started 01:05 |
-| xp-polish-r5.md (rc 1) | sonnet med, claude/xp-polish | j1-2/N1 started 01:05 |
-| construct-r2.md (rc 1) | sonnet high, claude/construct | N2, rv5-3 started 01:05 |
-| mc-r6.md (rc 1) | sonnet high, claude/mc | rv5-2 started 01:05 |
+| tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | j1-4, j1-5, rv5-1 started 01:05; start check ok 01:14 |
+| xp-polish-r5.md (rc 1) | sonnet med, claude/xp-polish | j1-2/N1 started 01:05; start check ok 01:14 |
+| construct-r2.md (rc 1) | sonnet high, claude/construct | N2, rv5-3 started 01:05; start check ok 01:14 |
+| mc-r6.md (rc 1) | sonnet high, claude/mc | rv5-2 started 01:05; start check ok 01:14 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
 | media r3, flakes r6, ci-fix etc. | | merged or done, archived |
 
