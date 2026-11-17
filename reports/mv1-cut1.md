@@ -12,3 +12,10 @@ Branch claude/mv1-cut1, commit 6d2ca7c2 (on c78eca98). Pushed; not merged.
 ## Refactor proposals
 - tests/gate-tiling-apps-click.sh:36,39: replace y 533 and `sleep 3` with a lookup of the row and `until_ok` (F27), S.
 - tools/size-ratchet and tests/packaging-files.py are Python without `.py`/shared helpers; fold into one tools/ dir convention, S.
+
+## r2 (fix round, head 3d2c00ce)
+- Red 87ac6b61 (selftest: stale list entry, sorted list, FAIL text), fix 3d2c00ce.
+- 1 MAJOR fixed: tools/size-ratchet --base bounds a listed file by min(list, base); the stale-entry case passes, growth above min fails.
+- 2: list sorted by path, --update rewrites only changed lines (selftest: one changed file, two diff lines).
+- 3: ci-check uses `git merge-base "$base" HEAD`. 4: every failing selftest case greps its FAIL line; cut-check run() rejects a Traceback. 5: CONTRIBUTING.md documents the rustfmt test cut and the dev-dependency block.
+- Gate (base origin/claude/autonomous-dev-session-3w-i33pg7): red-first to cube, pull, placed PASS; construct-hud FAILED once ("dark-1920x1080: no claim of the indicator"), PASS on rerun (flake, unrelated, not worked on); out to mc-handover PASS; e2e FAIL only gate-tiling-apps-click (F27 fuzzel 1.9.2). Logs /tmp/merge-gate.X7HkW0, /tmp/merge-gate.FuVMmx (container-local).
