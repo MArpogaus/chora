@@ -363,3 +363,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-16 16:56 UTC "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus. I cannot give you a reading in the meantime, but I assume it to use around 5 to 10% at that time." -> order: Fable flakes r6 hands over 18:15, stop check 18:21; remaining items to an opus lane; budget assumed 51-56 % at 18:21.
 
 - 2026-11-16 16:57 UTC (question, answered in chat): "Ever on the flakes of Opus?"
+- 2026-11-17 01:46 UTC "F 7, all 52" -> reading: Fable 7 %, all models 52 %. 46->52 in 9 h = 0.67 %/h; 48 % for 98 h to Sat 03:59 = 0.49 %/h: over pace. Keep the four rc-1 lanes; no opus; testwatch idle until a train; sonnet reviews; one tour v6 after all four merges; persona r4 on haiku.

@@ -1,11 +1,11 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-16T16:57:00Z
+screened-through: 2026-11-17T01:46:00Z
 
-- 11-16 16:57Z "Ever on the flakes of Opus?" -> question, chat: r5 opus (F16, F18, F19); F26, F28 first cause lane r6
+- 11-17 01:46Z "F 7, all 52" -> reading: Fable 7 %, all 52 %; 0.67 %/h over 0.49: no opus, testwatch idle, one tour after all 4
+- 11-16 16:57Z "Ever on the flakes of Opus?" -> question: r5 opus; F26, F28 in r6
 - 11-16 16:56Z "Limit the fail session to 1.5 hours. If it is not enough, we may continue on Opus..." -> Fable lane ends 18:21 (hand over 18:15); rest on opus; assume 5-10 %
 - 11-16 16:53Z "...expecting you to discuss this before starting Fable... Fable ... counts in the same token budget... only one Fable track" -> one Fable lane (flakes r6), then none; ask before a model change
 - 11-16 16:49Z "We're at 46%. Would a other Fable run help..." -> 46 %; Fable flakes lane now
-- 11-16 16:47Z "Summarize you progress..." -> question, chat
 
 - 11-16 12:10Z "45" -> budget reading 45 %
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)

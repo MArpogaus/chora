@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 01:14 UTC)
+## Now (2026-11-17 01:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 46 % at 16:49 Mon (owner); tokens.py 23:50: estimate 0.5 %. 45->46 in 4.6 h = 0.2 %/h; 54 % for 107 h to Sat 03:59 = 0.5 %/h: room. Fable flakes r6 only (owner 16:53: no more Fable); media r3 started (pace has room).
+budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 01:46: estimate 0.7 %. 46->52 in 9 h = 0.67 %/h; 48 % for 98 h to Sat 03:59 = 0.49 %/h: over. No opus; testwatch idle to a train; one tour v6 after all 4.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 4105f8d1 (train 33 23:27: ci-fix r1-r2); CI 10/10 green 23:50. Next: testwatch.
 burn-down 12:5x: 2 BLOCK + 19 MAJOR at 10:1x; merged since: xp r1, multilook; mc-32 BLOCK and 12 MAJOR in review or train queue; co-18 BLOCK open. Likely tag Tue 11-24 (Wed 12:00).
