@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T14:24:00Z
+screened-through: 2026-11-17T14:27:00Z
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor
 - 11-17 14:20Z "OK, never mind. ... Current screen cast is horrible. ... No more time wasting on it. New demo has to become smoother and more "natural". We need stronger review guidelines to catch all issues automatically." -> no tag; no tour work; glitch gates proposal
 - 11-17 12:58Z "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> PM re-plans, pulls feats in when ahead

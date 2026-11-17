@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-17 13:42 UTC)
+## Now (2026-11-17 14:42 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 58 % at 14:27 Tue (owner), 0 % since 12:09; tokens.py 13:42: 4.6 % (PM container). Even pace would be 49 %: 9 % over; 42 % for 85 h = 11.8 %/day, no reserve. Opus today: critic, Fable lane reviewers.
+budget: 58 % at 14:27 Tue (owner), 0 % since 12:09; tokens.py 14:42: 4.8 % (PM container). Even pace would be 49 %: 9 % over; 42 % for 85 h = 11.8 %/day, no reserve. Opus today: critic, Fable lane reviewers.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 29e2cd77 (train 41 13:13: deny-chrono, rc-docs); 10 greens (30b, 33-41); train 42 red (pull gate JSON, my half fix).
+session branch: c78eca98 (train 43 14:42: media harness, pull gate both drags); 11 greens (30b, 33-41, 43).
 burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design/foundation.md F1-F8 by Sat 03:59.
 
 ## RC (design/rc.md)
@@ -25,14 +25,14 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r3.md (rc 1) | sonnet med, claude/construct | merged train 40 11:47 |
-| media-r6.md (rc 11, 8) | sonnet med, claude/media | v8 12:47 (reports/media-r6.md); harness claude/media b29fbf0a: train 43; archived |
+| media-r6.md (rc 11, 8) | sonnet med, claude/media | merged train 43 14:42; tour work stopped (owner 14:20) |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | merged train 39 08:56 |
 | xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | merged train 39 08:56 |
 | arch-fable-r1.md (F1) | Fable high, read-only | session_016iS3kPBZYmFrbABav6TdgA 14:27; start check 14:34; 5 % |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
-1. Now (1 %): rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 media harness (b29fbf0a; rc 11).
+1. Done: rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 merged 14:42.
 2. Now (F1, 5 %): Fable plan (marks the week's F2 subset, the F3 effect hook)+2 opus reviewers.
 3. Slices F2-F4 sonnet, haiku tests F5 (22 %); flakes F17, cut gate F6 (3 %); F7 contracts and invariants (5 %), docs F8 (1 %).
 4. Sat 03:59: foundation review; then simulated user test, new tour with checks (plan re-plan 14:24).
