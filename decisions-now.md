@@ -1,10 +1,10 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
 screened-through: 2026-11-17T10:52:00Z
+- 11-17 10:52Z "Allow fable to use opus reviewers for its proposal and plan?" -> yes, bounded: 2 opus reviewers (high), one round, one revision, in the 1.5 h Fable lane
 - 11-17 10:52Z "Before launching fable: look at ideas/feature/issue list and prioritize. Target arch shall make our live easier not just deliver cleaner code for a moment" -> order: ranked list (reports/priorities-sprint1.md) is Fable's input; target arch judged by the work it unblocks
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> goal change: rc now (rc.md: 3, 4, 5, 7, 8 only); construct r4, MINOR rounds cancelled; tour v8 kept as baseline; then one Fable plan lane on architecture-rc.md, refactor sprint
 - 11-17 10:40Z "Why did you miss this?" -> tour reviews start with a fresh-eyes pass per look; PM watches tour-all before reporting
 - 11-17 10:35Z "Rerecord the demo and save it ... cube seams broken ... Turn cube in xp ... Cube always lives in construct ... click in tray ... no welcome" -> order: tour v8 now, mp4s kept (media r6); bug co-21 MAJOR (construct r4); xp cube works (Ctrl+Alt+arrows, Super+drag), one cube in construct: DB12 sprint 1; xp-29, xp-30 MINOR to xp r8
-- 11-17 10:31Z "57 %" -> reading: 57 %, 0.48 %/h since 06:21, on pace; opus from 12:00 (critic only)
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
