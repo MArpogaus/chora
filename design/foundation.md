@@ -6,6 +6,9 @@ foundation for future feature sprints." Applies after the rc tag (today) until t
 Inputs: reports/priorities-sprint1.md, reports/rework-audit.md, reports/architecture-rc.md,
 reports/debt-rc.md; the plan is the Fable lane's (reviewed by two opus reviewers).
 
+Met (owner 11-17 10:59: "Be perfectionist and very critical about the met targets"): a criterion is met only with the measured
+value, the command that measured it and an independent reviewer's check; "partly" counts as open; what is still not perfect goes to backlog.
+
 | # | Criterion | Measure | State |
 |---|---|---|---|
 | F1 | Plan | Fable plan reviewed, sequenced in merge-sized slices, each with its gate; ranked by the work it unblocks (priorities top 20) | not started |
