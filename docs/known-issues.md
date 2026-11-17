@@ -2,8 +2,8 @@
 
 This is a quick release candidate. The faults below are known. Most of them
 are in the look layers (xp, tiling, mc, construct) and the doors they share,
-and the cleanup release that follows this candidate addresses them. Nothing
-here is a promise of a date. Severity comes first in every section: BLOCK,
+and a cleanup release may address them. Nothing here is a promise of a
+date. Severity comes first in every section: BLOCK,
 then MAJOR, then MINOR, then COSMETIC.
 
 "likely fixed" means a later commit names the fault or a gate cell covers it,
@@ -40,12 +40,17 @@ COSMETIC
 
 ## tiling
 
+BLOCK
+- ti-1: with fuzzel older than 1.11 a mouse click in the Apps menu keeps the selection on the first row and starts no program. Install fuzzel 1.11 or later (the Arch package requires it); with 1.11 a gate cell passes. Open for other packages until they pin it.
+
 MAJOR
 - ti-21: the bar does not match the cyberpunk style of the rest of the look (borders, glow, chat, launcher). Open.
 - ti-22: Super+Print gave no notice. Likely fixed (29ee9ebc, ebf2bad1: notice shown with no bus, Screenshot in the power menu).
 - ti-23: a stale "Run a program" tooltip stayed about 14 s over the master title. Likely fixed (c1adc900, e1dda18f: no tooltip on the bar doors).
 - ti-24: no power or lock icon in the bar though the key list names it; a "Chat ..." pill floats over client content while the bar says "No helper". Open (the Screenshot entry in the power menu was added, 29ee9ebc).
-- ti-20 (verify): a click on Apps showed no launcher within 1.5 s in one headless run. If real this is MAJOR; a CI cell covers the click.
+
+VERIFY (severity not set)
+- ti-20: a click on Apps showed no launcher within 1.5 s in one headless run. MAJOR if real; a CI cell covers the click.
 
 MINOR
 - ti-5: a toast that starts while the chat is open is hidden under the chat panel.
@@ -115,7 +120,7 @@ MAJOR
 - sh-23 / sd-h1: xp and tiling in two panes: the tiling output stays black (no bar, no start door), and after a click into it Super+Return opens the xp Start menu in the other pane. Open.
 - sd-h2: the xp Start menu stays open through a drag and key gives and covers the window. Open.
 - sh-24: a grab gated by the pointer could fall through to the focused client as a raw key. Likely fixed (merge dbdfcce4 names it; 9c4f1301, 0a3224b8 carry the injected flag).
-- sh-26: a confirm question could show another command than the one that runs (bidi or hidden characters). The question text is now cleaned in mc, construct and the voice service, and the voice service waits 400 ms before it takes a button answer. The mc and construct question cards have no wait of their own yet. Partly fixed.
+- sh-26: a confirm question could show another command than the one that runs (bidi or hidden characters). Open in part: the text is cleaned in mc, construct and the voice service (agent.rs, hud.rs, voice mc.rs), and the voice service waits 400 ms before it takes a button answer; the mc and construct question cards have no wait of their own.
 
 MINOR
 - sh-12: the question card shows no time left; xp and mc add no transcript line after an answer.
