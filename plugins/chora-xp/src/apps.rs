@@ -91,32 +91,94 @@ pub fn load(terminal: &str, editor: Option<&str>) -> Vec<Node> {
     nodes
 }
 
-/// The shell command of the plain text editor: the setting `editor` when
-/// its program is installed, else the first installed editor with a
-/// window, else the editor of `VISUAL` or `EDITOR`, nano, vim or vi in the
-/// terminal. None when none of them is installed.
+/// One way to start Notepad: the name that messages use and its shell
+/// command.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Candidate {
+    /// The program, as a message names it.
+    pub name: String,
+    /// The shell command.
+    pub command: String,
+}
+
+/// The editors that Notepad tries, in order.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Editors {
+    /// The installed editors: the setting `editor`, the editors with a
+    /// window, then the editors of the terminal.
+    pub chain: Vec<Candidate>,
+    /// The program of the setting `editor` when it is not installed.
+    pub skipped: Option<String>,
+}
+
+/// The editors that Notepad tries in order: the setting `editor` when
+/// its program is installed, then each installed editor with a window,
+/// then `VISUAL`, `EDITOR`, nano, vim and vi in the terminal. Empty when
+/// none of them is installed.
+pub fn editors(
+    configured: Option<&str>,
+    terminal: &str,
+    env: impl Fn(&str) -> Option<String>,
+    on_path: impl Fn(&str) -> bool,
+) -> Editors {
+    let installed = |command: &str| desktop_entry::installed(command, &on_path);
+    let mut out = Editors::default();
+    let mut push = |name: String, command: String| {
+        if !out.chain.iter().any(|c| c.command == command) {
+            out.chain.push(Candidate { name, command });
+        }
+    };
+    match configured {
+        Some(command) if installed(command) => {
+            push(crate::launch::program_name(command), command.to_owned());
+        }
+        Some(command) => out.skipped = Some(crate::launch::program_name(command)),
+        None => {}
+    }
+    for program in EDITORS.iter().filter(|p| on_path(p)) {
+        push((*program).to_owned(), (*program).to_owned());
+    }
+    let named = ["VISUAL", "EDITOR"].into_iter().filter_map(env);
+    for command in named
+        .chain(TERMINAL_EDITORS.map(String::from))
+        .filter(|command| installed(command))
+    {
+        let program = crate::launch::program_name(&command);
+        let windowed = EDITORS.contains(&program.as_str());
+        push(
+            program,
+            desktop_entry::command(command, !windowed, terminal),
+        );
+    }
+    if out.chain.is_empty() {
+        out.skipped = None;
+    }
+    out
+}
+
+/// The shell command of the plain text editor that Notepad tries first.
+/// None when none of the editors is installed.
 pub fn editor(
     configured: Option<&str>,
     terminal: &str,
     env: impl Fn(&str) -> Option<String>,
     on_path: impl Fn(&str) -> bool,
 ) -> Option<String> {
-    let installed = |command: &str| desktop_entry::installed(command, &on_path);
-    if let Some(command) = configured.filter(|c| installed(c)) {
-        return Some(command.to_owned());
-    }
-    if let Some(program) = EDITORS.iter().find(|p| on_path(p)) {
-        return Some((*program).to_owned());
-    }
-    let named = ["VISUAL", "EDITOR"].into_iter().filter_map(env);
-    named
-        .chain(TERMINAL_EDITORS.map(String::from))
-        .find(|command| installed(command))
-        .map(|command| {
-            let program = crate::launch::program_name(&command);
-            let windowed = EDITORS.contains(&program.as_str());
-            desktop_entry::command(command, !windowed, terminal)
-        })
+    editors(configured, terminal, env, on_path)
+        .chain
+        .into_iter()
+        .next()
+        .map(|c| c.command)
+}
+
+/// The editors of this system for the setting `editor`.
+pub fn system_editors(terminal: &str, configured: Option<&str>) -> Editors {
+    editors(
+        configured,
+        terminal,
+        |name| std::env::var(name).ok(),
+        desktop_entry::on_path,
+    )
 }
 
 /// Puts Notepad with its command among the accessories, in a new group
@@ -265,6 +327,22 @@ mod tests {
             editor(None, "foot", env, on(&["nano", "gedit"])),
             Some("gedit".into())
         );
+    }
+
+    #[test]
+    fn notepad_lists_every_installed_editor_and_names_a_missing_setting() {
+        let none = |_: &str| None;
+        let on = |list: &'static [&'static str]| move |p: &str| list.contains(&p);
+        let found = editors(Some("pad"), "foot", none, on(&["gedit", "kate", "nano"]));
+        let names: Vec<&str> = found.chain.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["gedit", "kate", "nano"]);
+        assert_eq!(found.chain[2].command, "foot -e nano");
+        assert_eq!(found.skipped.as_deref(), Some("pad"));
+        let found = editors(Some("pad"), "foot", none, on(&["pad", "gedit"]));
+        assert_eq!(found.chain[0].command, "pad");
+        assert_eq!(found.skipped, None);
+        let found = editors(Some("pad"), "foot", none, on(&[]));
+        assert_eq!(found, Editors::default());
     }
 
     #[test]
