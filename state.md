@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-17 02:41 UTC)
+## Now (2026-11-17 03:19 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 52 % at 01:46 Tue (owner; Fable 7 %); tokens.py 01:46: 0.7 %. Rise was the Fable lane (owner 01:49: relax, opus ok); 48 % for 98 h = 0.49 %/h.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 4105f8d1 (train 33 23:27: ci-fix r1-r2); CI 10/10 green 23:50. Next: testwatch.
-burn-down 02:3x: 0 BLOCK, 7 MAJOR in 4 lanes (mc in train 34, xp r6 FIX round). Likely tag Tue 11-24.
+session branch: 39fe12d2 (train 34 03:19: mc r6); CI 10/10 on 4105f8d1. Next: testwatch after train 35.
+burn-down 03:19: 0 BLOCK, 7 MAJOR in 4 lanes (mc merged, construct and tiling in train 35, xp r6). Likely tag Tue 11-24.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -13,7 +13,7 @@ burn-down 02:3x: 0 BLOCK, 7 MAJOR in 4 lanes (mc in train 34, xp r6 FIX round). 
 | 1 | UX: no BLOCK or MAJOR open | 0 BLOCK in v5; 7 MAJOR (review-tour-v5) in 4 lanes |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
-| 3 | Three greens in a row | 30b 20:23, 33 23:27 green (2); F26 held (doors 2/2), F28 holds (3/3 after rebuild); F17 open |
+| 3 | Three greens in a row | 30b, 33, 34 green (3); F26 held, F28 holds; F17 open |
 | 4 | CI green | green on 4105f8d1 23:50 (10/10 jobs) |
 | 5 | Packaging smoke | arch, rpm, podman green on 4105f8d1 23:50 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
@@ -27,8 +27,8 @@ burn-down 02:3x: 0 BLOCK, 7 MAJOR in 4 lanes (mc in train 34, xp r6 FIX round). 
 |---|---|---|
 | tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | aa245abd MERGE-OK (gate line); j1-4, j1-5, rv5-1 tour harness: check in tour v6; train 35 |
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | r5 review FIX (2 MAJOR: early success notice, 2 s hand-off rule); r6 started 02:20 (session_016iS3kNXrui6sTvvTL9BRai); start check ok 02:29 |
-| construct-r2.md (rc 1) | sonnet high, claude/construct | 59a16702 MERGE-OK 02:41 (2 MINOR); train 35 after 34 |
-| mc-r6.md (rc 1) | sonnet high, claude/mc | e84e4d30 MERGE-OK (review-mc-r6, 3 MINOR); train 34 running since 02:28 |
+| construct-r2.md (rc 1) | sonnet high, claude/construct |  59a16702 MERGE-OK (2 MINOR); train 35 running since 03:19 |
+| mc-r6.md (rc 1) | sonnet high, claude/mc | merged train 34 03:19; worker archived |
 | testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
 | older rounds | | merged or archived |
 
