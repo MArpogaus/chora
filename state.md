@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-17 07:30 UTC)
+## Now (2026-11-17 07:32 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 55 % at 06:21 Tue (owner); tokens.py 06:21: 2.7 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: aa8aa8c0 (train 37 05:55: decisions r5); CI green on f1a353a2 05:22. Next: tour v6.
-burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, open j1-5 (tiling), N1 (xp); secfix c MERGE-OK. Tag Fri 11-20 if v7 clean.
+burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, open j1-5 (tiling); N1 MERGE-OK; secfix c MERGE-OK. Tag Fri 11-20 if v7 clean.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -29,7 +29,7 @@ burn-down 06:26: 0 BLOCK; v6: 5 of 7 MAJOR fixed, open j1-5 (tiling), N1 (xp); s
 | media-r4.md (rc 11, 1) | sonnet med, claude/media | tour v6 done 06:20 (5 of 7 v5 MAJOR fixed; j1-5, N1 open); review running; archived |
 | secfix-c-r2.md (rc 1, 6) | opus med, claude/secfix-c | r2 review MERGE-OK (4 MINOR); train 38 07:06; archived |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | j1-5 Print sign + mouse path; starting 06:27 |
-| xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | r7 done 2179966 gate green; review 07:30 |
+| xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | r7 MERGE-OK (4 MINOR) 07:32; train 39 after 38; archived |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
