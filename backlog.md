@@ -36,7 +36,7 @@ G1 | 11-10 | rc | open from grants2, for the security review: a HUD name whose H
 R4 | 11-12 | rc | release notes name the changed mc default keys (Super+a chat, Super+Return terminal scene).
 
 DB1 | 11-17 | rc | construct `placed` not persisted (frame.rs:170, main.rs:233) and gate-construct-hud red on base; five construct gates and nested not in merge-gate: construct r3 lane, sonnet med, with tour v6 findings (reports/debt-rc.md B1, B4).
-DB2 | 11-17 | rc | nine missing decision records in docs/decisions.md (debt-rc.md D1-D9 list); sonnet low, rc 8.
+DB2 | 11-17 | done 05:55 train 37 | nine missing decision records in docs/decisions.md (debt-rc.md D1-D9 list); sonnet low, rc 8.
 DB3 | 11-17 | rc | at the tag: CHANGELOG rc.4 section by cz, R4 mc default keys in release notes (debt-rc.md B3).
 PK4 | 11-17 | later | owner 04:43: split packages per plugin and service from one PKGBUILD and spec, flavor meta packages (look + default plugins + config), joint meta package; exact core version pin until 1.0; one repo until 1.0, plugin repo then, per view later; now: a dependency gate (plugins use only chora-kit, -scene, -draw; no plugin ships another's assets, e.g. assistant huds/tiling).
 DB6 | 11-17 | later | sprint 1 main goal (owner 04:41): deduplicate all plugins into atomic reusable plugins or kit modules used by every look; plan reports/architecture-rc.md.
