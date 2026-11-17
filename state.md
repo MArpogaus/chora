@@ -28,13 +28,12 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train
 | tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | merged train 35 04:11; j1-4, j1-5, rv5-1 checked in tour v6 |
 | xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | c7e4e59e MERGE-OK (3 MINOR); train 36 running since 04:11 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
-| mc-r6.md (rc 1) | sonnet high, claude/mc | merged train 34 02:42; worker archived |
 | decisions-r5.md (rc 8) | sonnet low, claude/decisions | bbf1264 MERGE-OK; r5 adds D95 (owner 04:46); train 37 after 36 |
+| secfix-c-r1.md (rc 1, 6) | opus med, claude/secfix-c | sh-26 MAJOR confirm text (opus review 04:53); starting |
 | testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
-| older rounds | | merged or archived |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: train 36 xp (rc 1); testwatch; tour v6 media r4 (rc 11); then construct r3 DB1 with v6 findings, decision records DB2 (rc 8).
+1. Now: train 36 xp (rc 1); secfix c sh-26 (rc 1, 6); testwatch; tour v6 media r4 (rc 11); then construct r3 DB1 with v6 findings, decision records DB2 (rc 8).
 2. UX loop (rc 1, 11): tour v6 (media r4) after the 4 lanes; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
