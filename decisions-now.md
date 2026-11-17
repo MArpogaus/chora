@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T10:54:00Z
+screened-through: 2026-11-17T10:56:00Z
+- 11-17 10:56Z "New goal for the week: super clean well tested good designed codebase as foundation for future feature sprints." -> goal: after the rc tag, design/foundation.md F1-F8; rules.md 1 at train 40
 - 11-17 10:54Z "Agree, learn from previous fix rounds and collect we're we did work multiple times that would have benefited from design/arch optimization." -> Fable: 2 opus reviewers; rework audit (reports/rework-audit.md) is Fable input
 - 11-17 10:52Z "Before launching fable: look at ideas/feature/issue list and prioritize. Target arch shall make our live easier not just deliver cleaner code for a moment" -> order: ranked list (reports/priorities-sprint1.md) is Fable's input; target arch judged by the work it unblocks
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one to get the refactoring and architecture plan. Then sunne and opus redactor and hiko tests ..." -> goal change: rc now (rc.md: 3, 4, 5, 7, 8 only); construct r4, MINOR rounds cancelled; tour v8 kept as baseline; then one Fable plan lane on architecture-rc.md, refactor sprint
@@ -8,7 +9,6 @@ screened-through: 2026-11-17T10:54:00Z
 
 - 11-17 04:43Z "...every plugin separately packaged ... meta packages ... joint flavor packages ... repo split ..." -> PK4; 04:46 "Agree, record it as a proposed decision": D95 proposed
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
-- 11-17 04:33Z "Have a arictect persona run as subagent to draft an plan refactorings with high effort. For the big ones you may use fable. ..." -> opus architect now (plan for sprint 1); interview D1-D8
 - 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
 

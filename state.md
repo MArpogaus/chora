@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-17 10:52 UTC)
+## Now (2026-11-17 10:56 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 57 % at 10:31 Tue (owner); tokens.py 10:52: 3.4 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
+budget: 57 % at 10:31 Tue (owner); tokens.py 10:56: 3.4 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7e066694 09:18. Tour v7 running.
-burn-down 10:52: owner 10:47: quick rc now (rc.md 3, 4, 5, 7, 8). Train 40 died 10:07 (container restart), rerun 10:52. Tag today after CI.
+burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design/foundation.md F1-F8 by Sat 03:59.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -33,9 +33,9 @@ burn-down 10:52: owner 10:47: quick rc now (rc.md 3, 4, 5, 7, 8). Train 40 died 
 
 ## Queue (by day; budget 12.5 % a UTC day)
 1. Now: train 40 rerun (rc 3); media r6 tour v8 baseline; known issues, CI PR, tag (rc 4, 5, 8). construct r4, xp r8, mc r7 cancelled.
-2. After the tag: priorities-sprint1.md (planner) -> one Fable plan lane (1.5 h) -> refactor lanes sonnet/opus, haiku tests.
-3. Wed-Thu: flakes F17, F22 (CI 06:00), F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
-4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
+2. After the tag (foundation F1-F8): Fable plan with priorities-sprint1, rework-audit (F1) -> slices sonnet/opus, haiku tests (F2-F6) -> tour v9 vs v8 (F7), docs (F8).
+3. Flakes F17 (F5), cut gate (F6).
+4. Sat 03:59: foundation review; next week feature sprint 1.
 
 ## Needs owner
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).
