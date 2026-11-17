@@ -325,7 +325,7 @@ Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. A question about a
 security key also has `physical: true` and `keys: {yes, no}`. A question
 of a helper has its `name`, for the title "Question from NAME" of the
-card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
+card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one). A command with a character that hides or reorders text (a control, bidi or zero-width character, or a terminal sequence) is refused in the same way, since a screen would show another command than the one that runs. The agent emits `prompt`, `detail` and `name` without such characters, and chora-mc and the construct strip them again before they draw: the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
@@ -338,8 +338,10 @@ see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
 `NAME-hud`, with the line of the yes and no keys. A text node holds
-4 KiB, so a longer `detail` shows only its start there, cut with `…`
-before the line of the keys; the event has all of it. Over the rate limit, the
+4 KiB. A `detail` that does not fit is never cut there, which would
+hide its tail: the node shows "(the command is too long to show here)"
+in its place, between the prompt and the line of the keys; the event
+has all of it. Over the rate limit, the
 last `voice.confirm` goes again after 1 s.
 
 While a claimer of the indicator (section 10) is connected, the event
@@ -397,8 +399,9 @@ the user agrees:
 - A key press in the first second after the question shows counts as
   nothing, and the question stays open. A sub-agent can replace its
   question at any time, so such a press was meant for the question
-  before. A button of a HUD carries the id of its question and needs no
-  such wait.
+  before. A click of a button in the first 400 ms after its question
+  shows, also one that replaced another, counts as nothing in the same
+  way; the HUD keeps the question and `confirm.answer` is refused.
 - No key press within `confirm_timeout_ms` is a no.
 - The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
@@ -1330,8 +1333,8 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   card shows them; the card shows the prompt without that sentence and
   names the keys in its own line. The screen shows the whole
   title of the request and its raw input, secrets hidden; a request
-  whose detail passes 400 lines or 64 KiB is rejected and the agent
-  says so, as the confirmation of the reply refuses a command too long
+  whose detail passes 400 lines or 64 KiB, or holds a character that
+  hides or reorders text, is rejected and the agent says so, as the confirmation of the reply refuses a command too long
   to show. The spoken
   title is a file name only for the kinds `edit`, `read`, `delete` and
   `move`. An always word answers no request: the agent never maps it
