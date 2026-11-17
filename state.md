@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-17 04:29 UTC)
+## Now (2026-11-17 05:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 53 % at 04:20 Tue (owner); tokens.py 03:22: 1.1 % (PM container). +1 % since 01:46 = 0.4 %/h; 47 % for 96 h = 0.49 %/h (opus ok, owner 01:49).
+budget: 53 % at 04:20 Tue (owner); tokens.py 05:03: 2.5 % (PM container). +1 % since 01:46 = 0.4 %/h; 47 % for 96 h = 0.49 %/h (opus ok, owner 01:49).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: fe8ba6d0 (train 35 04:11: construct r2, tiling r3); CI green on fe8ba6d0 04:27. Next: train 36 xp, testwatch.
-burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train 36, tiling 3 to confirm in tour v6. Tag Fri 11-20 if v6 clean.
+session branch: f1a353a2 (train 36 05:03: xp r6); CI green on fe8ba6d0. Next: train 37 decisions, testwatch.
+burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 merged (train 36), tiling 3 to confirm in tour v6. Tag Fri 11-20 if v6 clean.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -13,7 +13,7 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train
 | 1 | UX: no BLOCK or MAJOR open | 0 BLOCK in v5; 7 MAJOR (review-tour-v5) in 4 lanes |
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
-| 3 | Three greens in a row | 30b, 33, 34, 35 green (4); F26 held, F28 holds; F17 open |
+| 3 | Three greens in a row | 30b, 33-36 green (5); F26 held, F28 holds; F17 open |
 | 4 | CI green | green on fe8ba6d0 04:27 (train 35) |
 | 5 | Packaging smoke | arch, rpm, podman green on 4105f8d1 23:50 |
 | 6 | Code review per area | all reviewed 08:59, no HIGH; sec MEDIUM in secfix a, b; other MEDIUM to known issues |
@@ -26,14 +26,14 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train
 | Lane | Model, branch | State |
 |---|---|---|
 | tiling-look-r3.md (rc 1) | sonnet med, claude/tiling-look | merged train 35 04:11; j1-4, j1-5, rv5-1 checked in tour v6 |
-| xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | c7e4e59e MERGE-OK (3 MINOR); train 36 running since 04:11 |
+| xp-polish-r6.md (rc 1) | sonnet med, claude/xp-polish | merged train 36 05:03 |
 | construct-r2.md (rc 1) | sonnet high, claude/construct | merged train 35 04:11 |
-| decisions-r5.md (rc 8) | sonnet low, claude/decisions | bbf1264 MERGE-OK; r5 adds D95 (owner 04:46); train 37 after 36 |
+| decisions-r5.md (rc 8) | sonnet low, claude/decisions | bbf1264 MERGE-OK; r5 adds D95 (owner 04:46); train 37 running 05:03 |
 | secfix-c-r1.md (rc 1, 6) | opus med, claude/secfix-c | sh-26 MAJOR confirm text (opus review 04:53); starting |
-| testwatch-r1.md (rc 3) | haiku low, session branch | 4105f8d1 3/3 x3 (23:53); idle |
+| testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 asked 05:03 |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: train 36 xp (rc 1); secfix c sh-26 (rc 1, 6); testwatch; tour v6 media r4 (rc 11); then construct r3 DB1 with v6 findings, decision records DB2 (rc 8).
+1. Now: train 37 decisions (rc 8); secfix c sh-26 (rc 1, 6); testwatch; tour v6 media r4 (rc 11); then construct r3 DB1 with v6 findings, decision records DB2 (rc 8).
 2. UX loop (rc 1, 11): tour v6 (media r4) after the 4 lanes; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
