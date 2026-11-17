@@ -99,8 +99,27 @@ wait_notice "Notepad opened with gedit" "lowriter ended without a window"
 [ -z "${SHOTS:-}" ] || ctl capture --output HEADLESS-1 "$SHOTS/xp-notepad-fallback.png" >/dev/null || fail "the capture"
 ok "the editor ends without a window: gedit opens and the notice names both"
 
-rm "$work/fakes/gedit"
+echo second >"$case_file"
+cat >"$work/fakes/kate" <<FAKE
+#!/bin/sh
+(sleep 4; exec foot -a notepad-handoff sh -c 'sleep 600') >/dev/null 2>&1 &
+exit 0
+FAKE
+chmod +x "$work/fakes/kate"
+set_editor kate
+click_notepad
+ctl wait --timeout 15 'app_id:notepad-handoff kind:surface' >/dev/null || fail "a hand-off editor opened no window"
+sleep 4
+others=$(ctl query kind:surface | jq -c '[.[] | select((.app_id // "") | test("^notepad-(second|exits|missing)$"))] | length')
+[ "$others" = 2 ] || fail "a second editor opened over the slow hand-off editor: $(ctl query kind:surface | jq -c "[.[].app_id]")"
+! notice "Notepad opened with gedit" "kate" || fail "a notice names a fallback although kate opened"
+ok "an editor that hands over and shows its window after 4 s is the only editor"
+
+rm "$work/fakes/gedit" "$work/fakes/kate"
+printf '#!/bin/sh\nexit 3\n' >"$work/fakes/mousepad"
+chmod +x "$work/fakes/mousepad"
 set_editor lowriter
 click_notepad
 wait_notice "Cannot open Notepad" "ended without a window"
-ok "no editor opens: one notice says Notepad cannot open"
+! notice "Notepad opened with mousepad" "lowriter ended without a window" || fail "a notice says Notepad opened with mousepad, which ended without a window"
+ok "no editor opens: one notice says Notepad cannot open and none says it opened"
