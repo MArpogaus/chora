@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 11:53 UTC)
+## Now (2026-11-17 12:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 57 % at 10:31 Tue (owner); tokens.py 11:53: 4.0 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
+budget: 58 % at 12:09 Tue (owner); tokens.py 12:09: 4.3 % (PM container). +1 % since 10:31 = 0.6 %/h, a bit over; 42 % for 88 h = 0.48 %/h. No new opus until 12:50 critic.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 733967aa (train 40 11:47: construct r3); 9 greens (30b, 33-40); CI on PR at the tag.
 burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design/foundation.md F1-F8 by Sat 03:59.
