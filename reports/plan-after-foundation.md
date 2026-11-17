@@ -7,9 +7,9 @@ features (no new demo sprints); the demo is a real-world workflow in one take (d
 
 ## Facts that bound the plan
 - Budget: 58 % used at Tue 12:09; even pace would be 52 %. 42 % left to Sat 03:59 = 11.5 % a day, no reserve.
-- The session ends 11-30 (routines.md). After this week about 1.1 weekly limits remain in it.
+- Owner 11-17 12:56: no 1.0 target; chora stays unstable until daily driving proves stability. Land as much as possible by 11-30; after that the session goes on at a slower pace.
 - The full collected list (N1, N2, DB12, X10-X12, A14, voice, mail) costs about 60-70 % before S3 and the demo.
-So 1.0 does not fit in this session; the plan below fits, the rest is listed as after the session.
+The plan below fits 11-30 at full pace; the rest follows at the slower pace.
 
 ## Phases to 11-30 (each ends at a merge boundary; met = measured, command, independent check)
 | Phase | When (cost) | Done when |
@@ -27,8 +27,8 @@ So 1.0 does not fit in this session; the plan below fits, the rest is listed as 
 - One phase at a time; a phase opens only when the previous one is met (owner 11-17 10:59, no partial credit).
 - Every slice: red test first, merge gate, independent review; Queue lines carry their % cost (routines.md budget ledger).
 
-## After the session (or if the owner extends it)
-Beats 1, 7, 8 (mail and calendar sources, A14 cylinder and slides), X11, X12, N1 widget host, N2 skins for the other looks, voice tools, more S3 effects, 1.0 (rc.md in full, persona round 4).
+## After 11-30 (slower pace, same order)
+Beats 1, 7, 8 (mail and calendar sources, A14 cylinder and slides), X11, X12, N1 widget host, N2 skins for the other looks, voice tools, more S3 effects. Daily driving by the owner feeds findings; 1.0 only when daily driving proves stability (rc.md in full, persona round 4).
 
 ## Critic notes kept (reports: opus critic 11-17 12:5x)
 - Waste today: polish and tour rounds on code that is now waived and will be refactored; three briefs written and cancelled within 8 minutes; about 25 one-line log commits for owner input; the quick rc not tagged two hours after the order.
