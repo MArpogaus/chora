@@ -397,4 +397,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-17 12:09Z "58%" -> reading: budget 58 %
 - 2026-11-17 12:56 UTC "Not aiming towards 1.0 yet. We remain unstable until daily driving proves stability. Session keeps running in slower pace after 30.11. Try to land as much of our goals until then. Agree?" -> goal change, agreed: no 1.0 target; stability by daily driving gates 1.0; plan to 11-30 maximises landed goals; session continues slower after 11-30 (routines.md session end at the next merge boundary)
 - 2026-11-17 12:58 UTC "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> order: rc tag now; the PM realigns the plan at each merge and each close, pulls collected feats forward when ahead
-- 2026-11-17 13:58Z "Update status add tour" -> order: tour v8 video on the status page (v96, 14:02)
+- 2026-11-17 13:58Z "Update status add tour" -> order: tour v8 video on the status page (v97, 13:59)
