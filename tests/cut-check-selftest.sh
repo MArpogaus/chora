@@ -17,7 +17,12 @@ fail() {
     echo "FAIL: $*"
     failures=$((failures + 1))
 }
-run() { "$tool" --root "$work" >"$work/out" 2>&1; }
+run() {
+    "$tool" --root "$work" >"$work/out" 2>&1
+    local got=$?
+    ! grep -q Traceback "$work/out" || fail "cut-check crashed: $(cat "$work/out")"
+    return $got
+}
 want_line() { grep -q "$1" "$work/out" || fail "$2: no line matching '$1': $(cat "$work/out")"; }
 
 crate() {
