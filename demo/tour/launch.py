@@ -103,16 +103,29 @@ class Launcher:
         return env
 
     def path_without_writer(self, path):
-        """PATH with /usr/bin replaced by a link farm that lacks lowriter: this container has
+        """PATH without the writers: every PATH entry that resolves to /usr/bin (/bin is a link
+        to it) is replaced by one link farm that lacks lowriter and mousepad. This container has
         LibreOffice, which opens no window in the headless session, so Notepad would try it first
-        and say nothing (tour v7 finding). Without a GUI editor Notepad shows its honest notice."""
+        and say nothing (tour v7 F-1: /bin was left in PATH and leaked it). Without a GUI editor
+        Notepad shows its honest notice. Asserts the leak is gone."""
         farm = f"{self.dir}/usrbin"
         if not os.path.isdir(farm):
             os.makedirs(farm)
             for name in os.listdir("/usr/bin"):
-                if name not in ("lowriter", "mousepad"):
+                if name not in ("lowriter", "mousepad", "soffice", "libreoffice"):
                     os.symlink(f"/usr/bin/{name}", f"{farm}/{name}")
-        return ":".join(farm if p == "/usr/bin" else p for p in path.split(":"))
+        real = os.path.realpath("/usr/bin")
+        out = []
+        for p in path.split(":"):
+            if p and os.path.isdir(p) and os.path.realpath(p) == real:
+                if farm not in out:
+                    out.append(farm)
+            else:
+                out.append(p)
+        joined = ":".join(out)
+        if shutil.which("lowriter", path=joined):
+            raise RuntimeError("harness: lowriter still on PATH: " + joined)
+        return joined
 
     def spawn(self, argv, env, log, **kw):
         out = open(os.path.join(self.dir, log), "w")
