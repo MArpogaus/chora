@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Size ratchet on production lines (MV1).
+
+Usage: tools/size-ratchet [--root DIR] [--base REF] [--update]
+  --root DIR   the repository to check (default: the one holding this tool)
+  --base REF   the merge base; a listed file may not have more production
+               lines than at REF, and a file over the limit that is not at
+               REF fails (default: none, the base checks are skipped)
+  --update     rewrite tools/size-ratchet.list from the tree
+
+Production lines of a Rust file under crates/, plugins/ or services/ are the
+lines before its first `#[cfg(test)]` line that is followed by a `mod`. Files under a tests/ directory
+and files named tests.rs, testing.rs, test_*.rs or *_tests.rs are tests and
+count 0. A file over 1,500 production lines must be in the list with its
+count (`COUNT PATH` per line, `#` starts a comment). Fails when
+  - a file over the limit is not listed (a new file over the limit),
+  - a listed file has more lines than listed or than at the base,
+  - a list entry is higher than its file's count at the base.
+A listed count above the real count, or a listed file at or under the limit,
+only prints "lower the list": run --update. Exit status 0 ok, 1 breach, 2 usage.
+"""
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+LIMIT = 1500
+LIST = "tools/size-ratchet.list"
+TEST_NAME = re.compile(r"(?:tests|testing|test_.*|.*_tests)\.rs\Z")
+CFG_TEST = re.compile(r"#\[cfg\(test\)\]")
+TEST_MOD = re.compile(r"(?:pub(?:\([a-z]+\))? )?mod \w+ \{")
+
+
+def production_lines(path, text):
+    parts = path.split("/")
+    if "tests" in parts[:-1] or TEST_NAME.match(parts[-1]):
+        return 0
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if CFG_TEST.match(line) and TEST_MOD.match(lines[i + 1] if i + 1 < len(lines) else ""):
+            return i
+    return len(lines)
+
+
+def git(root, *args):
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
+
+
+def tree_counts(root):
+    out = {}
+    for top in ("crates", "plugins", "services"):
+        for f in sorted((root / top).rglob("*.rs")) if (root / top).is_dir() else []:
+            rel = f.relative_to(root).as_posix()
+            if "/target/" in rel:
+                continue
+            out[rel] = production_lines(rel, f.read_text(errors="replace"))
+    return out
+
+
+def read_list(text):
+    entries = {}
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            count, path = line.split(None, 1)
+            entries[path] = int(count)
+    return entries
+
+
+def write_list(root, counts):
+    big = sorted(((c, p) for p, c in counts.items() if c > LIMIT), reverse=True)
+    body = "".join(f"{c} {p}\n" for c, p in big)
+    head = "# Files over 1,500 production lines (tools/size-ratchet). A count only falls.\n"
+    (root / LIST).parent.mkdir(exist_ok=True)
+    (root / LIST).write_text(head + body)
+
+
+def base_count(root, base, path):
+    shown = git(root, "show", f"{base}:{path}")
+    if shown.returncode != 0:
+        return None
+    return production_lines(path, shown.stdout)
+
+
+def main(argv):
+    root = Path(__file__).resolve().parent.parent
+    base = None
+    update = False
+    args = iter(argv)
+    for a in args:
+        if a == "--root":
+            root = Path(next(args, "")).resolve()
+        elif a == "--base":
+            base = next(args, "")
+        elif a == "--update":
+            update = True
+        else:
+            print(__doc__)
+            return 2 if a not in ("-h", "--help") else 0
+    counts = tree_counts(root)
+    if update:
+        write_list(root, counts)
+        return 0
+    listed = read_list((root / LIST).read_text()) if (root / LIST).exists() else {}
+    base_ok = base is not None and git(root, "rev-parse", "--verify", "-q", f"{base}^{{commit}}").returncode == 0
+    if base is not None and not base_ok:
+        print(f"size-ratchet: base {base} not found, base checks skipped")
+    failures = []
+    for path, count in sorted(counts.items()):
+        if count <= LIMIT:
+            continue
+        if path not in listed:
+            failures.append(f"{path}: {count} production lines, over {LIMIT} and not listed")
+            continue
+        if count > listed[path]:
+            failures.append(f"{path}: grew to {count}, the list holds {listed[path]}")
+        if base_ok:
+            before = base_count(root, base, path)
+            if before is None:
+                failures.append(f"{path}: {count} production lines, a new file over {LIMIT}")
+            elif count > before:
+                failures.append(f"{path}: grew from {before} to {count}; a merge may only drop a listed file")
+            elif listed[path] > before:
+                failures.append(f"{path}: the list raised {path} above its {before} lines at the base")
+    for path, count in sorted(listed.items()):
+        real = counts.get(path)
+        if real is None:
+            print(f"lower the list: {path} is gone; run tools/size-ratchet --update")
+        elif real <= LIMIT:
+            print(f"lower the list: {path} is down to {real}; run tools/size-ratchet --update")
+        elif real < count:
+            print(f"lower the list: {path} is {real}, listed {count}; run tools/size-ratchet --update")
+    for f in failures:
+        print(f"FAIL: size-ratchet: {f}")
+    if failures:
+        return 1
+    print(f"ok: size-ratchet ({sum(1 for c in counts.values() if c > LIMIT)} files over {LIMIT})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

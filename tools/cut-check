@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Cut gate (CUT1): can a plugin be packaged and moved to another repo alone?
+
+Usage: tools/cut-check [--root DIR]
+  --root DIR  the repository to check (default: the one holding this tool)
+
+Checks, each over the crates under plugins/ and services/:
+  deps       BLOCKS. No workspace dependency from one of these crates on
+             another of them (cargo metadata).
+  packaging  reports. A workspace dependency other than chora-kit,
+             chora-scene and chora-draw.
+  assets     reports. An include_str!/include_bytes! path that leaves the
+             crate directory.
+  names      reports. The name of another plugin or service (chora-xp,
+             chora_xp) in a crate's sources.
+  copies     reports; BLOCKS a row at max 0 that still matches. Rows are
+             in tools/copies.toml: a count above max is reported as grown,
+             below max as "lower max".
+Exit status 0 nothing blocks, 1 a block, 2 usage. Lines starting with
+FAIL: block, lines starting with REPORT: do not.
+"""
+import json
+import re
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+SHARED = {"chora-kit", "chora-scene", "chora-draw"}
+CUT_DIRS = ("plugins/", "services/")
+INCLUDE = re.compile(r'include_(?:str|bytes)!\(\s*"([^"]+)"')
+
+
+def workspace(root):
+    out = subprocess.run(
+        ["cargo", "metadata", "--format-version", "1", "--no-deps", "--offline"],
+        cwd=root, capture_output=True, text=True,
+    )
+    if out.returncode != 0:
+        print(f"FAIL: cut-check: cargo metadata failed: {out.stderr.strip()[-300:]}")
+        sys.exit(1)
+    return json.loads(out.stdout)
+
+
+def rel(root, path):
+    return Path(path).resolve().relative_to(root).as_posix()
+
+
+def cut_crates(root, meta):
+    crates = {}
+    for pkg in meta["packages"]:
+        manifest = rel(root, pkg["manifest_path"])
+        if manifest.startswith(CUT_DIRS):
+            crates[pkg["name"]] = (Path(manifest).parent.as_posix(), pkg)
+    return crates
+
+
+def rust_files(directory, nested=()):
+    return sorted(
+        p for p in directory.rglob("*.rs")
+        if "/target/" not in p.as_posix() and not any(p.is_relative_to(n) for n in nested)
+    )
+
+
+def own_files(root, crates, name):
+    directory = (root / crates[name][0]).resolve()
+    nested = [(root / d).resolve() for n, (d, _) in crates.items() if n != name and (root / d).resolve().is_relative_to(directory)]
+    return rust_files(directory, nested), directory
+
+
+def check_deps(crates):
+    blocks, reports = [], []
+    for name, (_, pkg) in sorted(crates.items()):
+        for dep in pkg["dependencies"]:
+            if dep["name"] in crates and dep["name"] != name:
+                blocks.append(f"deps: {name} depends on {dep['name']}")
+            elif dep.get("path") and dep["name"] not in SHARED and dep["name"] not in crates:
+                reports.append(f"packaging: {name} depends on workspace crate {dep['name']}")
+    return blocks, reports
+
+
+def check_assets(root, crates):
+    reports = []
+    for name, (directory, _) in sorted(crates.items()):
+        files, own = own_files(root, crates, name)
+        for f in files:
+            for target in INCLUDE.findall(f.read_text(errors="replace")):
+                resolved = (f.parent / target).resolve()
+                if not resolved.is_relative_to(own):
+                    reports.append(f"assets: {name} {rel(root, f)} includes {target}")
+    return reports
+
+
+def check_names(root, crates):
+    reports = []
+    for name in sorted(crates):
+        files, own = own_files(root, crates, name)
+        for other in sorted(n for n in crates if n != name and not (root / crates[n][0]).resolve().is_relative_to(own)):
+            pattern = re.compile(re.escape(other) + r"\b|" + re.escape(other.replace("-", "_")) + r"\b")
+            hits = []
+            for f in files:
+                for number, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+                    if pattern.search(line):
+                        hits.append(f"{rel(root, f)}:{number}")
+            if hits:
+                reports.append(f"names: {name} names {other} on {len(hits)} lines, first {hits[0]}")
+    return reports
+
+
+def check_copies(root):
+    rows_file = root / "tools" / "copies.toml"
+    if not rows_file.exists():
+        return [], []
+    blocks, reports = [], []
+    for row in tomllib.loads(rows_file.read_text()).get("row", []):
+        pattern = re.compile(row["pattern"])
+        allow = tuple(row.get("allow", []))
+        count = 0
+        for top in row.get("paths", ["crates", "plugins", "services"]):
+            for f in rust_files(root / top) if (root / top).is_dir() else []:
+                path = rel(root, f)
+                if path.startswith(allow):
+                    continue
+                count += sum(1 for line in f.read_text(errors="replace").splitlines() if pattern.search(line))
+        limit = row["max"]
+        if limit == 0 and count > 0:
+            blocks.append(f"copies: {row['name']}: {count} left, the row allows 0")
+        elif count > limit:
+            reports.append(f"copies: {row['name']}: grew to {count}, max {limit}")
+        elif count < limit:
+            reports.append(f"copies: {row['name']}: {count}, lower max from {limit}")
+    return blocks, reports
+
+
+def main(argv):
+    root = Path(__file__).resolve().parent.parent
+    if argv[:1] == ["--root"] and len(argv) > 1:
+        root = Path(argv[1]).resolve()
+    elif argv:
+        print(__doc__)
+        return 0 if argv[0] in ("-h", "--help") else 2
+    crates = cut_crates(root, workspace(root))
+    blocks, reports = check_deps(crates)
+    reports += check_assets(root, crates)
+    reports += check_names(root, crates)
+    copy_blocks, copy_reports = check_copies(root)
+    blocks += copy_blocks
+    reports += copy_reports
+    for line in reports:
+        print(f"REPORT: cut-check: {line}")
+    for line in blocks:
+        print(f"FAIL: cut-check: {line}")
+    if blocks:
+        return 1
+    print(f"ok: cut-check ({len(crates)} crates, {len(reports)} reported)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
