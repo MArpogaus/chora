@@ -1,37 +1,35 @@
-# Plan after the foundation week (draft 2026-11-17 12:5x, PM; critic below)
+# Plan after the foundation week (2026-11-17 12:5x, PM, sharpened with the opus critic)
 
 Owner 11-17 11:54: "Sharpen this plan further in reflection round. Have unnecessary detailed and
 expensive desktop effects land before 1.0 so we can have som cachy sisuals to get attention."
 Earlier the same day: foundation first, then UX/UI polish towards perfection, then the collected
-features (no new demo sprints), to get "a usable and hackable desktop environment"; the demo is a
-real-world workflow in one take (design/demo-playbook.md).
+features (no new demo sprints); the demo is a real-world workflow in one take (design/demo-playbook.md).
 
-## Phases (each ends at a merge boundary with a tour against the last baseline)
-| Phase | Weeks (budget) | Done when (measured, independently checked) |
+## Facts that bound the plan
+- Budget: 58 % used at Tue 12:09; even pace would be 52 %. 42 % left to Sat 03:59 = 11.5 % a day, no reserve.
+- The session ends 11-30 (routines.md). After this week about 1.1 weekly limits remain in it.
+- The full collected list (N1, N2, DB12, X10-X12, A14, voice, mail) costs about 60-70 % before S3 and the demo.
+So 1.0 does not fit in this session; the plan below fits, the rest is listed as after the session.
+
+## Phases to 11-30 (each ends at a merge boundary; met = measured, command, independent check)
+| Phase | When (cost) | Done when |
 |---|---|---|
-| P0 rc tag | 11-17 | design/rc.md with the 10:47 waiver; tag pushed |
-| P1 foundation | to Sat 11-21 03:59 (~40 %) | design/foundation.md F1-F8 met; tour v9 = v8 |
-| P2 UX polish | week 2 (~35 %) | per look: no BLOCK, MAJOR or MINOR open in findings/; fresh-eyes tour v10 finds none; v7/v8 MINOR rows closed |
-| P3 collected features | weeks 3-4 | each item below merged with its gate cell and a tour beat |
-| P4 effects (S3) | week 4, before 1.0 | one plugin on a scene effect API; each effect inside its frame budget (gate) and off by default outside the demo |
-| P5 one-take demo | after P3, P4 | demo-playbook.md runs as one e2e test, 9 beats green 3 times in a row; recorded |
-| 1.0 | after P5 | rc.md in full (no waiver), persona round 4, CI and packaging green |
+| P0 rc tag | 11-17 (~2 %) | rc.md with the 10:47 waiver; CI deny green; packaging smoke re-run on the tagged commit |
+| P1 foundation | to 11-21 03:59 (~38 %) | F1-F8; F2 limited to the subset the Fable plan marks for this week (rest to backlog); F3 includes the scene effect hook S3 needs |
+| P2 slim polish | 11-21 to 11-23 (~25 %) | no BLOCK or MAJOR on any path the playbook uses; MINOR count halved per look; fresh-eyes tour finds no new MAJOR. xp taskbar, tray and Start menu excluded (X10-X12 replace them) |
+| P3 core features | 11-23 to 11-27 (~35 %) | N2 settings core, DB12 one cube, X10 XP tray (absorbs the xp tray MINOR rows); each with gate cell and playbook beat |
+| P4 effects | 11-27 to 11-28 (~8 %) | S3: one effect (burn) as a plugin on the F3 hook; inside its frame budget (gate); off by default outside the demo |
+| P5 one-take demo | 11-28 to 11-30 (~10 %) | playbook beats 2-6 and 9 green 3 times in a row as one e2e run; recorded; reviewed |
 
-## P3 order (ranked by what it unblocks; cost from backlog.md estimates)
-1. N1 widget host and N2 settings service in chora-kit: every later item sits on them (N2 12-16 %).
-2. DB12 one cube service: construct owns the cube; xp cube is a view of it.
-3. X10 XP tray with working popups and chevron, X11 taskbar (Quick Launch, lock, resize, reorder), X12 Start menu pinned and frequent: on N1/N2.
-4. A14 cylinder and slider geometries (demo beats 7, 8).
-5. Voice tools and the mail/calendar sources for mc (demo beat 1).
-Items not on this list stay in backlog until 1.0.
+## Practices
+- The playbook is written in P2 as pending gate cells (demo/playbook.yaml, ~2 %); each phase turns beats green. It replaces another copied tour script (rework audit C10).
+- Tour v8 is the F7 baseline; it gets an independent fresh-eyes review before the first refactor merge.
+- One phase at a time; a phase opens only when the previous one is met (owner 11-17 10:59, no partial credit).
+- Every slice: red test first, merge gate, independent review; Queue lines carry their % cost (routines.md budget ledger).
 
-## Rules that keep it honest
-- One phase at a time; a phase opens only when the previous one's criteria are met (no partial credit, owner 11-17 10:59).
-- Every slice: red test first, merge gate, independent review; budget at most 12.5 % a UTC day.
-- Effects never block P2: S3 lands only after P2 is met, and it ships off by default.
-- The demo is a test, not a sprint: beats only use features already merged.
+## After the session (or if the owner extends it)
+Beats 1, 7, 8 (mail and calendar sources, A14 cylinder and slides), X11, X12, N1 widget host, N2 skins for the other looks, voice tools, more S3 effects, 1.0 (rc.md in full, persona round 4).
 
-## Open questions for the critic
-- Is P2 before P3 right when X10-X12 rewrite the xp panel anyway (polish lost)?
-- Is "no MINOR open" a reachable P2 bar in one week?
-- Budget: P3 alone looks larger than two weeks at 12.5 % a day.
+## Critic notes kept (reports: opus critic 11-17 12:5x)
+- Waste today: polish and tour rounds on code that is now waived and will be refactored; three briefs written and cancelled within 8 minutes; about 25 one-line log commits for owner input; the quick rc not tagged two hours after the order.
+- Risks: deny fix growing into the jiff migration (kept as an ignore, DB13); unreviewed v8 baseline; no budget slack in the foundation week.

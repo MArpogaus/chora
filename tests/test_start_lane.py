@@ -20,8 +20,8 @@ class StartLane(unittest.TestCase):
         git(self.d, "init", "-q")
         (self.d / "briefs").mkdir()
         (self.d / "state.md").write_text(STATE)
-        (self.d / "briefs" / "tiling-r1.md").write_text("brief\n")
-        (self.d / "briefs" / "xp-r1.md").write_text("brief\n")
+        (self.d / "briefs" / "tiling-r1.md").write_text("brief\nModel: sonnet, effort medium\n")
+        (self.d / "briefs" / "xp-r1.md").write_text("brief\nModel: sonnet, effort medium\n")
         git(self.d, "add", "state.md", "briefs/tiling-r1.md")
         git(self.d, "commit", "-q", "-m", "x")
 

@@ -82,11 +82,11 @@ class Lanes(unittest.TestCase):
         three = four[:3] + [NOW - timedelta(minutes=61)]
         self.assertEqual(run(state("| train 4 | w | b | x |\n"), recent=three), [])
 
-    def test_more_than_four_lanes(self):
-        rows = "".join(f"| train 4 | w{i} | b | x |\n" for i in range(5))
+    def test_more_than_six_lanes(self):
+        rows = "".join(f"| train 4 | w{i} | b | x |\n" for i in range(7))
         out = run(state(rows))
-        self.assertEqual(out, ["rule 5: 5 lanes, limit 4"])
-        self.assertEqual(run(state(rows[: rows.rindex("| train 4 | w4")])), [])
+        self.assertEqual(out, ["rule 5: 7 lanes, limit 6"])
+        self.assertEqual(run(state(rows[: rows.rindex("| train 4 | w6")])), [])
 
     def test_report_time_finds_pixel_report(self):
         import os
