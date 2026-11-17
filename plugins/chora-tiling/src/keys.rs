@@ -715,7 +715,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
             "Super+F1 zeigt diese Liste wieder. Esc schließt sie.",
             "Maus",
             "Apps startet Programme · Tag anklicken zeigt ihn · Super+ziehen verschiebt · \
-             Ein/Aus-Symbol: Sitzung",
+             Ein/Aus-Symbol: Sitzung, Bildschirmfoto",
         )
     } else {
         (
@@ -723,7 +723,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
             "Super+F1 shows this list again. Esc closes it.",
             "Mouse",
             "Apps starts a program · click a tag to show it · Super+drag moves a window · \
-             power icon: lock, log out",
+             power icon: lock, log out, screenshot",
         )
     };
     let muted = channels(&colors.muted);

@@ -76,11 +76,7 @@ wait_gone || fail "the notice stays on"
 
 rm -rf "$XDG_PICTURES_DIR/Screenshots"
 click 1238 24
-for _ in $(seq 20); do
-    sleep 0.25
-    ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 || continue
-    [ "$(pixel "$shot" 640 380 | cut -d' ' -f1-3)" = "26 29 39" ] && break
-done
+sleep 2
 echo '[{"text": {"text": "Screenshot"}}]' | ctl inject - >/dev/null || fail "typing Screenshot"
 sleep 1
 keys Return
