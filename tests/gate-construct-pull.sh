@@ -234,7 +234,9 @@ until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 ||
     fail "the pane dragged back over a face stood back did not go to xp: $(probe), pane $(pane_of "$surface")"
 [ "$(pane_of "$surface")" = none ] || fail "the pane stays after the drag back over the face: $(pane_of "$surface")"
 [ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the drag back: $windows_before, then $(window_count)"
-ok "stood back, the pane dragged over a face is a window of xp again: $(probe)"
+until_ok 'test "$(task_on VIRTUAL-1)" = 1' 20 || fail "the window dragged back over a face has no task button on that face: $(task_on VIRTUAL-1)"
+[ "$(pane_drawn)" != True ] || fail "a pane is still drawn in front of the cube after the drag back: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
+ok "stood back, the pane dragged over a face is a window of xp again, on the taskbar of that face, with no pane drawn: $(probe)"
 end_session
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned

@@ -55,14 +55,30 @@ try:
     sx, sy = S.centre("id:construct-mode-step-in", "HEADLESS-1")
     t.act("pointer", "Click the face to step in", "The camera goes into the face: the xp desktop at 1:1 with the STEP BACK chip", settle=3.0, still="06-12-step-in")
     t.press(640, 330); t.done()
-    t.act("key", "Press Alt+Escape (step back again)", "The camera steps back from the face", settle=3.0, still="06-13-step-back-again")
+    t.flush("inuse")
+    edge = json.loads(S.ctl("add-output", "640x720+1280+0"))["name"]
+    t.act("pointer", "Drag the title bar of the dusk window over the edge of the face", "The window leaves the face over the edge of the screen and becomes a pane in the space", settle=0.5, still=None)
+    t.move(870, 225, 1.0)
+    t.inject([{"button": {"button": 272, "state": "pressed", "hold": True}}])
+    t.wait(0.3)
+    t.move(1270, 260, 1.2)
+    t.pointer_output = edge
+    t.inject([{"pointer_move": {"position": [260, 340]}}])
+    t.wait(0.5)
+    t.still("06-15-pulling")
+    t.inject([{"button": {"button": 272, "state": "released"}}])
+    t.pointer_output = None
+    t.done()
+    t.act("key", "Press Alt+Escape (step back again)", "The camera steps back from the face; the pulled window is a pane beside the cube", settle=3.0, still="06-16-pane")
     t.key("Alt+Escape"); t.done()
-    t.act("pointer", "Drag the title bar of the sunset window off the face", "The window leaves the face and becomes a pane in the space, with the label SUNSET", settle=0.5, still=None)
-    t.drag(330, 186, 870, 250, seconds=1.6, hold=0.3, mid_still="06-15-pulling"); t.done()
-    t.act("look", "Wait for the pane to settle", "The pane floats beside the face, the taskbar button of sunset is gone", settle=2.5, still="06-16-pane")
-    t.wait(1.5); t.done()
+    t.flush("pulled")
+    pane = next((n for n in S.query("*") if str(n.get("id", "")).startswith("construct-pane-") and (n.get("rects") or {}).get("HEADLESS-1")), None)
+    assert pane is not None, "the pulled window has no pane that is drawn"
+    px, py, pw, ph = pane["rects"]["HEADLESS-1"]
+    faces = [r for r in (S.rect(f"id:construct-cube-face-{n}", "HEADLESS-1") for n in range(4)) if r]
+    fx, fy, fw, fh = max(faces, key=lambda r: r[2] * r[3])
     t.act("pointer", "Super-drag the pane back onto the face", "While dragged the pane moves over the face", settle=0.3, still=None)
-    t.drag(850, 340, 400, 300, seconds=1.6, mods=("Super_L",), hold=0.3, mid_still="06-17-drag-back-mid"); t.done()
+    t.drag(px + pw / 2, py + ph / 2, fx + fw * 0.4, fy + fh * 0.5, seconds=1.6, mods=("Super_L",), hold=0.3, mid_still="06-17-drag-back-mid"); t.done()
     t.act("look", "Wait after the drop", "The pane is an xp window again on the face, its task button is back", settle=2.5, still="06-18-dropped")
     t.wait(1.5); t.done()
     t.wait(1)
