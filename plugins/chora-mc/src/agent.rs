@@ -1012,6 +1012,21 @@ mod tests {
         assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
     }
 
+    /// The confirmation shows no character that hides or reorders text,
+    /// whatever the event carries (sh-26).
+    #[test]
+    fn a_confirmation_shows_no_bidi_character() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("confirm-bidi", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ask = json!({"id": "c2", "prompt": "Run\u{202e} it?",
+            "detail": "echo safe\u{202e}fr- mr\u{200b}\nline two\u{1b}[2J"});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        let (title, lines) = mc.texts["confirm"].clone();
+        assert_eq!(title, "Run it?");
+        assert_eq!(lines, vec!["echo safefr- mr", "line two"]);
+    }
+
     /// A click on Ja or Nein maps to `confirm.answer` with the id as
     /// text, only while the confirmation has buttons.
     #[test]

@@ -1495,6 +1495,32 @@ mod tests {
         assert!(voice.ask.is_none());
     }
 
+    /// The question shows no character that hides or reorders text,
+    /// whatever the event carries (sh-26).
+    #[test]
+    fn a_question_shows_no_bidi_character() {
+        let config = config();
+        let mut voice = Voice::default();
+        let now = Instant::now();
+        let ask = json!({"id": 8, "prompt": "Run\u{202e} it?",
+            "detail": "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J"});
+        assert!(voice.follow("confirm", ask, now).unwrap().ask);
+        let metrics = Metrics::default();
+        let commands = voice.ask(&look(&config, &metrics), [1920.0, 1080.0], true);
+        let text = |prefix: &str| -> Vec<String> {
+            (commands.iter())
+                .filter_map(|c| match c {
+                    Command::Create { id, props, .. } if id.starts_with(prefix) => {
+                        props.text.clone()
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(text("construct-ask-prompt"), ["Run it?"]);
+        assert_eq!(text("construct-ask-detail-").join(""), "echo safefr- mr");
+    }
+
     /// Measures every miss as the core would with a monospace advance
     /// of 10 per character and wraps by character, then builds again.
     fn measured<T>(metrics: &Metrics, mut build: impl FnMut() -> T) -> T {

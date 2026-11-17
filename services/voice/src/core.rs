@@ -2387,6 +2387,37 @@ mod tests {
         assert_eq!(rx.try_recv(), Ok(Some(false)));
     }
 
+    /// sh-26: a click that lands right after a question showed, also
+    /// after a sub-agent replaced the question, was meant for what was
+    /// there before, and counts as nothing; a later click answers.
+    #[test]
+    fn a_button_too_soon_after_the_question_counts_as_nothing() {
+        let button = |core: &mut Core, id: u64, yes: bool| {
+            let (open, rx) = std::sync::mpsc::channel();
+            core.handle(Input::ConfirmButton { id, yes, open });
+            rx.recv().unwrap()
+        };
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Wirklich?");
+        let id = core.shown.expect("on the screen");
+        assert!(!button(&mut core, id, true), "too soon");
+        assert!(rx.try_recv().is_err());
+        core.shown_at = Instant::now()
+            .checked_sub(Duration::from_millis(400))
+            .expect("uptime");
+        let replaced = core.show(("Und das?".into(), String::new()), false, None);
+        let Some(&Effect::Confirm { id, .. }) = replaced.last() else {
+            panic!("{replaced:?}");
+        };
+        assert!(!button(&mut core, id, true), "too soon after the replace");
+        assert!(rx.try_recv().is_err());
+        core.shown_at = Instant::now()
+            .checked_sub(Duration::from_millis(400))
+            .expect("uptime");
+        assert!(button(&mut core, id, false));
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
+    }
+
     /// Review rc3 round 2, 1.5: a yes that starts before the deadline
     /// answers, although its text comes after it.
     #[test]

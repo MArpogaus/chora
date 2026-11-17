@@ -377,18 +377,43 @@ mod tests {
 
     use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
 
-    /// Review plugins r1, VO-B-06: a long detail is cut, with a mark, and
-    /// the prompt and the line of the keys stay.
+    /// Review plugins r1, VO-B-06 and sh-26: a detail too long for the
+    /// HUD is not cut, which would hide its tail: the HUD shows that it
+    /// is too long to show, and the prompt and the line of the keys stay.
     #[test]
     fn a_long_question_keeps_its_keys() {
         let keys = "\nAlt+y = yes, Alt+n = no";
         let detail = format!("allow_programs: {}", "ö".repeat(3000));
         let text = question_text("Shall I set allow programs?", &detail, keys);
         assert!(text.len() <= QUESTION_BYTES, "{}", text.len());
-        assert!(text.starts_with("Shall I set allow programs?\nallow_programs: ö"));
-        assert!(text.ends_with(&format!("…{keys}")), "{text}");
+        assert!(!text.contains("allow_programs"), "{text}");
+        assert!(text.starts_with("Shall I set allow programs?\n"), "{text}");
+        assert!(text.contains("too long to show"), "{text}");
+        assert!(text.ends_with(keys), "{text}");
         let short = question_text("Shall I?", "x: 1", keys);
         assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
+
+    /// The question goes out without a character that hides or reorders
+    /// text, on the own HUD and in `voice.confirm` (sh-26).
+    #[test]
+    fn a_question_emits_no_bidi_or_hidden_character() {
+        let (emits, emitted) = mpsc::channel();
+        let reports = start("voice", emits);
+        let confirm = Report::Confirm {
+            id: 6,
+            prompt: "Run\u{202e} this?".into(),
+            detail: "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J".into(),
+            hud: false,
+            keys: None,
+            name: Some("At\u{2066}las".into()),
+        };
+        reports.send(confirm).unwrap();
+        let (event, shown) = emitted.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, "confirm");
+        assert_eq!(shown["prompt"], "Run this?");
+        assert_eq!(shown["detail"], "echo safefr- mr");
+        assert_eq!(shown["name"], "Atlas");
     }
 
     #[test]

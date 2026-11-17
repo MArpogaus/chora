@@ -2512,6 +2512,66 @@ mod tests {
         assert!(result["content"].as_str().unwrap().contains("shorter"));
     }
 
+    /// A detail with a character that hides or reorders text is
+    /// refused without a question: the screen would show another
+    /// command than the one that runs (review security-confirm, sh-26).
+    #[tokio::test]
+    async fn a_detail_with_hidden_characters_is_refused() {
+        let script = vec![
+            Reply::Tool("echo", "{\"x\": \"safe\u{202e}fr- mr\"}"),
+            Reply::Text("Gut."),
+        ];
+        let config = Config {
+            confirm: vec![Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(script, config).await;
+        let (_, events) = turn(&mut chat, "Mach es.", false).await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        assert!(!events.contains(&"tool echo".to_owned()), "{events:?}");
+        let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
+        let content = result["content"].as_str().unwrap();
+        assert!(content.contains("hide or reorder"), "{content}");
+    }
+
+    /// A question too long for the text node of the own HUD is refused
+    /// without a question, so that no screen cuts its tail.
+    #[tokio::test]
+    async fn a_question_too_long_for_the_hud_is_refused() {
+        let big = format!("{{\"x\": \"{}\"}}", "a".repeat(3500));
+        let script = vec![
+            Reply::Tool("echo", Box::leak(big.into())),
+            Reply::Text("Gut."),
+        ];
+        let config = Config {
+            confirm: vec![Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(script, config).await;
+        let (_, events) = turn(&mut chat, "Mach es.", false).await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
+        assert!(result["content"].as_str().unwrap().contains("shorter"));
+    }
+
     /// Each change of the agent's own settings asks with its key and
     /// value (log 2026-10-31: "set the barge-in RMS to 15"); a security
     /// setting goes on: the client thread asks for its key (review A1,

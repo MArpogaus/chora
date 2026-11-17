@@ -1602,6 +1602,41 @@ mod tests {
         let _ = std::fs::remove_dir_all(&data);
     }
 
+    /// A request whose detail holds a character that hides or reorders
+    /// text is rejected, and the user is told: the screen would show
+    /// another command than the one that runs (sh-26).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_detail_with_hidden_characters_is_refused() {
+        let data = std::env::temp_dir().join(format!("chora-voice-hidden-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", None, None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        agents.prompt("demo", "HIDDEN");
+        let (_rx, events) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.starts_with("Abgelehnt")),
+        )
+        .await;
+        assert!(!events.iter().any(|e| matches!(e, Event::Ask { .. })));
+        let told = events
+            .iter()
+            .any(|e| matches!(e, Event::Said { text, .. } if text.contains("hide or reorder")));
+        assert!(told, "{}", events.len());
+        agents.stop("demo");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
     /// A yes allows always only when the question said so.
     #[test]
     fn only_a_question_for_always_allows_always() {
