@@ -28,7 +28,7 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 | media-r6.md (rc 11, 8) | sonnet med, claude/media | v8 12:47 (reports/media-r6.md); harness claude/media b29fbf0a: train 43; archived |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | merged train 39 08:56 |
 | xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | merged train 39 08:56 |
-| arch-fable-r1.md (F1) | Fable high, read-only | starting 14:3x; 2 opus reviewers inside; 5 % |
+| arch-fable-r1.md (F1) | Fable high, read-only | session_016iS3kPBZYmFrbABav6TdgA 14:27; start check 14:34; 5 % |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
