@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T04:33:00Z
+screened-through: 2026-11-17T04:38:00Z
 
+- 11-17 04:38Z interview D1-D8: all recommended (pidfd; derive+save placed; explicit layer; version check; triage scripts; kit word tables; kit config schema; budget by pixels) -> decisions r2
 - 11-17 04:33Z "Have a arictect persona run as subagent to draft an plan refactorings with high effort. For the big ones you may use fable. ..." -> order: opus architect now; Fable only one L item after tag; interview D1-D8
 - 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 - 11-17 04:22Z "Show me tour v6 when it's ready. ... hygiene, and architecture?" -> order: tour v6 to owner; debt audit
@@ -13,7 +14,6 @@ screened-through: 2026-11-17T04:33:00Z
 - 11-16 11:17Z "Agree, keep Helper for the RC. However We might have it renamed for the power user flawers" -> Helper in RC; C12: per-look term (tiling, construct: agent)
 - 11-16 11:05Z "...agree to your plan. ... localization ... reverting back to agents ... push back" -> C11 ok; C12 l10n sprint 1; agent: pushback, term in C12
 
-- 11-16 09:08Z "Intensify visually validate the screrncast yourself and have a ux/ui finalization loop. ..." -> PM views tour, UX loop; C10 sprint 1
 - 11-16 09:01Z "OK, improve setup. Xp: why is clippy gone? ..." -> setup applied; xp-23, xp-24, ti-21 MAJOR; tour v4; C10 after tag
 - 11-16 08:52Z "Use IP whole budget during the week. ... cheap workers test continuously ..." -> ~100 % by reset; lanes over areas; haiku testwatch
 - 11-16 01:19Z "opus lanes for complex task should be all right but predating sonnet is a good advice" -> opus for complex lanes, sonnet default; next lane start
