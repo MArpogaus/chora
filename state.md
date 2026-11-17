@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-17 19:36 UTC)
+## Now (2026-11-17 20:35 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 19:36: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
+budget: 61 % at 15:35 Tue (owner; Fable 10 %); tokens.py 20:35: 5.0 % (PM container). Even pace 50 %: 11 % over; 39 % for 84 h. A full reset is available (owner 15:35): use it when near 95 %, not now.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: f097f90a (train 46 19:36: MV1 size ratchet, CUT1 cut-check); 14 greens (30b, 33-41, 43-46); train 47 mv2-xp running.
+session branch: 87d8aae2 (train 47 20:35: mv2-xp split); 15 greens (30b, 33-41, 43-47); MV1, MV2 x3, CUT1 in.
 burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3.5 days.
 
 ## RC (design/rc.md)
@@ -24,12 +24,11 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | 690a787a MERGE-OK 17:04 (pure moves); train 47 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
 1. (process) Done: rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 merged 14:42.
-2. Now (F4, F6, 6.5 %): MV1+CUT1, MV2 x3 (arch-plan 4.2 Tue-Wed); trains one at a time.
+2. Done 20:35 (F4, F6): MV1+CUT1, MV2 x3 merged (trains 44-47); ratchet --update with the next lane.
 3. Wed-Thu (F2, F3, 9 %): NET1 FakeCore + state.get; NET2 acts, I1 I3 I4 I7 I8 I14, known-red (opus, 2 lanes).
 4. Thu-Fri (F4, F5, F8, 8.5 %): WM1 tiling, KIT1, KIT2 mc, KIT4; Fri NET3 if NET2 in, docs F8 (6 %).
 5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
