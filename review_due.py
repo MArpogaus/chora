@@ -84,7 +84,10 @@ def main():
     if len(sys.argv) > 2:
         last_reviewed = sys.argv[2]
     else:
-        last_reviewed = re.search(r"^last_reviewed: (\w+)", state, re.M).group(1)
+        m = re.search(r"^last_reviewed: (\w+)", state, re.M)
+        if m is None:
+            m = re.search(r"^last_reviewed: (\w+)", (Path(__file__).parent / "review-state.txt").read_text(encoding="utf-8"), re.M)
+        last_reviewed = m.group(1)
     weighted, critical_paths = 0.0, set()
     for line in git(repo, "diff", "--numstat", f"{last_reviewed}..HEAD").splitlines():
         added, deleted, path = line.split("\t", 2)

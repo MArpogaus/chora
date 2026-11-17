@@ -1,0 +1,2 @@
+# Base of the last per-area code review (rc 6, 2026-11-16 08:59 UTC); review_due.py reads it.
+last_reviewed: caf9c80d

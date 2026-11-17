@@ -5,8 +5,6 @@ One line per item: id | source date | `rc` or `later` | text. `rc` = needed for 
 reports (reports/swarm-6.md, ux-deep-*.md, ux-cross-look.md) until the findings ledgers exist.
 
 ## Flakes and gates (rc 3, 9)
-F2 | 11-10 | rc | 14 `chora` lib render tests failed once with an EGL display PoisonError; a panic in one test poisons a shared display lock: find the first panic, make the display per test or recover.
-F3 | 11-10 | rc | `a_confined_client_starts_no_drag` failed once in a parallel run: two tests share a temporary directory; give each its own, grep the test helpers for shared paths.
 F4 | 11-10 | rc | gate-hud waits 5 s for the HUD figure and timed out at load 8.8: serialise load tests with merge gates, make the waits name the load.
 F5 | 11-10 | rc | a 2D guard run failed once with "no core" and passed on the rerun: collect the core log of such a run.
 F6 | 11-10 | rc | gate-hud cell card-stays-on-focus-move flaked once in a full gate: find the race, do not raise the wait.
@@ -15,20 +13,14 @@ F10 | 11-11 | rc | words::a_stack_overflow_leaves_its_words gets SIGALRM under l
 F11 | 11-11 | rc | last-words gate "no last words after SIGSEGV": likely the timing of F10.
 F13 | 11-12 | rc | cube navigate-click passes 2 of 5 under load (construct-v2 gate).
 F14 | 11-12 | rc | cube cell "construct does not answer while the wm is deaf" failed once (construct r3 gate).
-C2 | 11-11 | rc | the cube's xp child has no parent-death signal: after a construct crash the next cube.open waits on "a client xp runs already" (flaked 11-12); set PR_SET_PDEATHSIG in the cube's pre_exec as K7 did for manager panes.
 A5 | 10-31 | rc | flaky `speech::tests::a_pause_stops_the_sound_and_the_resume_plays_the_cut_sentence_again`; a chora-voice test flaked once in a gate on 11-12 (which one is not recorded).
 A17 | 11-09 | rc | focus under load: the matrix gate sometimes ends a window in xp without keyboard focus (cgive and voice cells); claude/focus-flake is merged: confirm closed or reproduce.
 F1 | 11-10 | rc | the focus race fixed in tiling (1275e15: a stale `focus` after a hand) may exist in the hand code of xp, mc and construct: check each with the same kind of test.
-A9 | 11-09 | rc | `tests/gate-construct-keys.sh` fails ("the launcher became a pane: launcher term"); opt-in gates must pass once.
 T2 | 11-11 | rc | gate-construct-hud.sh pins a stale help row count ("21 rows, not 18"): fix the count or count from config.
 T3 | 11-11 | rc | gate-construct-windows fails ("d1 is not shown with tiling" on 536aaee; exit 143 at the 11-09 baseline): find the cause.
 
 ## CI, packaging, dependencies (rc 4, 5, 7)
 CI2 | 11-12 | rc | cargo deny fails on an advisory (xattr "unsound", via tar via tract-onnx): a fixed tar/xattr version or a reasoned ignore in deny.toml before the CI draft PR.
-CI3 | 11-10 | rc | CI has never run on GitHub for this branch (the agent sandbox for CI shipped in 2f6c3e0): open the draft PR.
-PK1 | 11-11 | rc | dist/arch/PKGBUILD installs only *.service, *.target and waybar/* of tiling: add foot.ini, fuzzel.ini, swaylock.conf, wallpapers, power.sh, screenshot.sh, waybar/icons and deps (inter-font, ttf-jetbrains-mono, grim, slurp, wl-clipboard, libnotify); same check for the Fedora spec.
-PK2 | 11-11 | rc | packages must depend on TeX Gyre Pagella (Arch tex-gyre-fonts, Fedora texlive-tex-gyre or the otf package) next to Inter and JetBrains Mono; without it the mc chat falls back to DejaVu Serif.
-PK3 | 11-11 | rc | tiling: no mako style ships (notice unthemed); libnotify and a minimum fuzzel version for mouse use as optional package deps.
 A7 | 11-09 | rc | Dependabot: #105, #104, #103, #95, #88, #86, #94, #93, #92, #2, #1; majors #96 (zbus 6), #87 (serde-saphyr 2) may wait.
 
 ## UX and looks (rc 1)
@@ -41,9 +33,12 @@ A13 | 11-09 | rc | after an mc drag onto the construct output, construct loses i
 ## Review, docs, logging (rc 6, 8, 9a)
 A2 | 11-09 | rc | security audit as part of the per-area review (rc.md 6 lists charter 11 (a)-(c)); details in archive/charter.md section 15 item 2; the attacker check of the voice paths ran on 11-09 (reports/week-1.md).
 G1 | 11-10 | rc | open from grants2, for the security review: a HUD name whose HUD is not running is free to any process; hello accepts the same executable (several choractl).
-L1 | 11-11 | rc | logging audit per component (structured tracing, a target per area, no secrets or typed text, rotating files under $XDG_STATE_HOME/chora/logs); `chora-report` shell script in dist/ (anonymised .tar.gz the person sends by hand, scrubbing tested on a fixture); docs: how to report a problem.
 R4 | 11-12 | rc | release notes name the changed mc default keys (Super+a chat, Super+Return terminal scene).
-A8 | 11-09 | rc | document the watchdog node limit (about 14,600 nodes) in `docs/api.md`.
+
+DB1 | 11-17 | rc | construct `placed` not persisted (frame.rs:170, main.rs:233) and gate-construct-hud red on base; five construct gates and nested not in merge-gate: construct r3 lane, sonnet med, with tour v6 findings (reports/debt-rc.md B1, B4).
+DB2 | 11-17 | rc | nine missing decision records in docs/decisions.md (debt-rc.md D1-D9 list); sonnet low, rc 8.
+DB3 | 11-17 | rc | at the tag: CHANGELOG rc.4 section by cz, R4 mc default keys in release notes (debt-rc.md B3).
+DB4 | 11-17 | later | split reviews due (review_due.py 04:2x: mc, tiling, xp, voice); refactors RF1-RF7 (language x3, on_path x4, confirm.answer x3, XDG_RUNTIME_DIR x8, wm.rs 4773 lines), 238 allows without reason, 161 eprintln, 31 unrun test scripts: sprint 1 cleanup (debt-rc.md).
 
 ## Later (sprints chosen by an idea round after the rc, owner 11-14 05:26; not before the tag; cut list of reflections/2026-11-14-w2-1-fable.md section 6)
 D4 | 11-12 | later | construct Host refactor: each cube face runs its own manager (XP, Tiling, Media center, XP 2); xp-only paths (windows.float, activate, pull) become per face.
@@ -101,7 +96,6 @@ MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R
 DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500 ms wake, wpctl every 5 s), dr2-9 state word case (reports/review-doors-r2.md).
 CI3 | 11-14 | rc-minor | ci r2 review MINORs: concurrency group for packages.yaml PR runs, --locked in tests/2d-guard.sh, release.yaml comment line (reports/review-ci-r2.md).
 NO-R1 | 11-14 | rc-minor | notify review MINORs NO-02..NO-04 (reports/review-plugins-high-r1.md).
-CI4 | 11-14 | rc | CI-only e2e steps (tests/nested.sh and what ci.yaml runs after it: xp.sh, agent.sh, gate-0.x) are not merge-gate steps, so CI failures stay hidden locally; add them to tests/merge-gate.sh or a gate profile that mirrors ci.yaml (ci e2e r1 report).
 PK1 | 11-14 | rc | packages: RPM Requires and Arch depends fuzzel >= 1.11 (ti-1, mouse selection) and fontconfig (chora-mc face lookup, ci r4), Recommends/optdepends dejavu-sans, -serif, -sans-mono (chora-assistant fallback faces, ci r3); docs/install.md names both; a CI e2e cell clicks the tiling Apps list in the Fedora image.
 GR1 | 11-14 | rc-minor | swap ungrab_all + grab to kit start_grabs/end_grabs in xp (wm.rs:1371, first), tiling, mc, construct scene.rs; flakes r3 review M1-M3 (reports/review-flakes-r3.md).
 DR4 | 11-14 | rc-minor | doors r4 review: gate-hud late-host/reconnect cells assert the resting word; known issue: a late host says "No helper" until the next helper event (reports/review-doors-r4.md).
@@ -119,7 +113,6 @@ R6 | 11-15 | harness | property test over placement sequences in chora-tiling: e
 R7 | 11-15 | harness | review ux r1 M1: draft text held in a loose `held` flag outlived the list; earliest gate is compile time (state inside the enum variant). Sweep the plugins for loose Option/bool fields beside a Mode enum (with R5).
 R8 | 11-15 | harness | review ci e2e r4: a CI-only path (ci.yaml runs scripts directly) differed from the local sequence; one entry point for both, and gate-lib selftest covers CI=1 behaviour.
 F20 | 11-15 | rc | review flakes r4 minors for flakes r5: time only `call cube.open` against the 300 ms of docs/cube-modes.md:166 (gate-construct-cube.sh:639); at_rest can still read mid-animation under heavy load (:380); xp red test does not cover sync_cube_keys itself; stale clippy allow wm.rs:688; doors/tiling.sh:36 message shows a later capture.
-CI6 | 11-15 | rc | tests/gate-0.8-plugin-runtime.sh (CI grep gate) red on the tree: chora-assistant host.rs:674 "events.subscribe", chora-construct cube.rs:1592 "output.list" (harness r1). Fix the plugins or the gate; likely one of the PR #106 reds.
 R9 | 11-15 | harness | review harness r1 B1: a hook's selftest set the env var in every case, so the default path (missing ref) was never run; selftests of hooks and checks run once with a bare environment (no env overrides, shallow clone).
 CI7 | 11-15 | later | vkms unbind loop: skip any card whose driver has no unbind file; record the runner sysfs tree once and dry-run the loop against it in a selftest (review ci-vkms3).
 MC-HEAD | 11-15 | rc | mc page head cut at 1024x768 ("7  CHORA-..."), old (ux r1, r2 open).

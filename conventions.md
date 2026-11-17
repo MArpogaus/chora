@@ -47,6 +47,5 @@ this file, the skills, CONTRIBUTING.md.
     pixel pass and each keeper gets reviewed captures.
 
 ## Known gaps against the skills (to fix, not overrides)
-- tests/merge-gate.sh runs cargo build, test and clippy without `--locked` (rust-dev hard rule).
 - The rc.4 CHANGELOG entry of claude/docs was written by hand (git-conventions: cz bump writes it).
 - README "Use of LLM coding tools" lacks the exact wording of git-conventions "Rules for agents".

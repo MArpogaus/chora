@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-17 04:27 UTC)
+## Now (2026-11-17 04:29 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 53 % at 04:20 Tue (owner); tokens.py 03:22: 1.1 % (PM container). +1 % since 01:46 = 0.4 %/h; 47 % for 96 h = 0.49 %/h (opus ok, owner 01:49).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -33,7 +33,7 @@ burn-down 04:11: 0 BLOCK; of 7 MAJOR 3 merged (mc 1, construct 2), xp 1 in train
 | older rounds | | merged or archived |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: lanes tiling r3, xp r5, construct r2, mc r6 (rc 1); then reviews, trains, tour v6 (rc 11).
+1. Now: train 36 xp (rc 1); testwatch; tour v6 media r4 (rc 11); then construct r3 DB1 with v6 findings, decision records DB2 (rc 8).
 2. UX loop (rc 1, 11): tour v6 (media r4) after the 4 lanes; persona r4 Wed; last round Thu 12:00.
 3. Wed-Thu: flakes F17, F24, F26, F27, F28, CI6; final review rounds. (rc 3, 4, 8)
 4. Fri 11-20: three greens, tag, CI PR. (rc 3) Then sprint 1: C10 config parity, dedup, cleanup.
