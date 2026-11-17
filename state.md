@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-17 14:55 UTC)
+## Now (2026-11-17 15:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 58 % at 14:27 Tue (owner), 0 % since 12:09; tokens.py 14:42: 4.8 % (PM container). Even pace would be 49 %: 9 % over; 42 % for 85 h = 11.8 %/day, no reserve. Opus today: critic, Fable lane reviewers.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -24,10 +24,10 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mv1-cut1-r1.md (F4, F6) | sonnet med, claude/mv1-cut1 | starting 14:55; 2 % |
-| mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | starting 14:55; 1.5 % |
-| mv2-mc-r1.md (F4) | sonnet med, claude/mv2-mc | starting 14:55; 1.5 % |
-| mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | starting 14:55; 1.5 % |
+| mv1-cut1-r1.md (F4, F6) | sonnet med, claude/mv1-cut1 | s_..FkPJVB 14:56, start check ok 15:04; 2 % |
+| mv2-xp-r1.md (F4) | sonnet med, claude/mv2-xp | s_..m8hdQJ 14:56, start check ok 15:04; 1.5 % |
+| mv2-mc-r1.md (F4) | sonnet med, claude/mv2-mc | s_..YZkfaC 14:56, start check ok 15:04; 1.5 % |
+| mv2-tiling-r1.md (F4) | sonnet med, claude/mv2-tiling | s_..it8vfo 14:56, start check ok 15:04; 1.5 % |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
