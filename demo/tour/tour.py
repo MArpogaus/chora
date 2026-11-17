@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+PAIR_FILTER = os.environ.get("TOUR_PAIR_FILTER", "[0][1]hstack=inputs=2,scale=1280:360,pad=1280:720:0:180:black")
+SLIDE_SIZE = os.environ.get("TOUR_SLIDE_SIZE", "")
 FPS = 30
 MOVE = float(os.environ.get('TOUR_MOVE', '1.0'))
 CPS = float(os.environ.get('TOUR_CPS', '6'))
@@ -297,7 +299,7 @@ class Tour:
             subprocess.run(
                 ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-framerate", str(FPS), "-i", os.path.join(dirs[0], "frame-%05d.png"),
                  "-framerate", str(FPS), "-i", os.path.join(dirs[1], "frame-%05d.png"),
-                 "-filter_complex", "[0][1]hstack=inputs=2,scale=1280:360,pad=1280:720:0:180:black",
+                 "-filter_complex", PAIR_FILTER,
                  "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", chunk],
                 check=True,
             )
@@ -350,7 +352,7 @@ class Tour:
             seconds = 2.5
             chunk = os.path.join(self.work, f"{self.slug}-slide.mkv")
             subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-framerate", str(FPS), "-t", str(seconds), "-i", slide,
-                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", chunk], check=True)
+                            *(["-vf", f"scale={SLIDE_SIZE}"] if SLIDE_SIZE else []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", chunk], check=True)
             self.chunks.insert(0, chunk)
             for row in self.rows:
                 if row["chapter"] == self.chapter and "abs" in row:

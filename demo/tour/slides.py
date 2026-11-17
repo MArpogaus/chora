@@ -16,5 +16,5 @@ def slide(path, number, title, lines, accent=(122, 162, 247)):
     for line in lines:
         d.text((120, y), line, font=ImageFont.truetype(PLAIN, 28), fill=(150, 160, 200))
         y += 42
-    d.text((120, 650), "chora tour, 2026-11-12", font=ImageFont.truetype(MONO, 20), fill=(86, 95, 137))
+    d.text((120, 650), "chora tour, " + __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d"), font=ImageFont.truetype(MONO, 20), fill=(86, 95, 137))
     image.save(path)
