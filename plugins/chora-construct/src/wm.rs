@@ -112,6 +112,7 @@ impl Construct {
             size,
             taken: false,
             attached: false,
+            placed: false,
         };
         if let Some(err) = self.rt.conn.try_apply(self.pane_nodes(&pane))? {
             cube::end(&mut child);

@@ -198,7 +198,10 @@ cube stands back, the windows of the panes take no pointer input.
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never
 covers it; a pane behind the resting front face in use mode is in the
-window list as `covered`.
+window list as `covered`. A pane that was pulled out or moved stays in
+view when the cube stands back, and a drag drops it on a face again; a
+pane that nobody placed gives way to a cube that stands back in front
+of it.
 
 While the cube stands back or turns, the windows on its faces float in
 front of them, the higher ones of the stack farther, as on the desktop

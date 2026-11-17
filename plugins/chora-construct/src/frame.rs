@@ -165,9 +165,12 @@ impl Construct {
     }
 
     /// Whether a cube stands back, and the pane is in front of it on the
-    /// screen: the pane gives way to the cube. A pane beside the cube, as
-    /// one that was pulled out of it, stays.
+    /// screen: the pane gives way to the cube. A pane that the person
+    /// placed, as one pulled out of a face, stays.
     pub(crate) fn covers_cube(&self, pane: &Pane) -> bool {
+        if pane.placed {
+            return false;
+        }
         let Some(host) = (self.cube.as_ref()).filter(|c| c.view().mode() == Mode::Navigate) else {
             return false;
         };
