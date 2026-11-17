@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 08:59 UTC)
+## Now (2026-11-17 09:07 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 55 % at 06:21 Tue (owner); tokens.py 08:59: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
+budget: 55 % at 06:21 Tue (owner); tokens.py 09:07: 3.2 % (PM container). +2 % since 04:20 = 1 %/h, twice the pace; 45 % for 94 h = 0.48 %/h. No new opus until 12:00.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 7e066694 (train 39 08:56: xp r7, tiling r4); CI green on 7375daa1. Tour v7 running.
 burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 retest. Tag Fri 11-20 if v7 clean.
@@ -26,7 +26,7 @@ burn-down 08:57: 0 BLOCK; v6 MAJOR j1-5, N1 merged (train 39), v7 to show; N-1 r
 | Lane | Model, branch | State |
 |---|---|---|
 | construct-r3.md (rc 1) | sonnet med, claude/construct | drag-back, DB1, B4; session ...LyoZzQD5qMZD32vkP 07:02 |
-| media-r5.md (rc 11, 1) | sonnet med, claude/media | tour v7 on 7e066694; starting 08:5x |
+| media-r5.md (rc 11, 1) | sonnet med, claude/media | tour v7 on 7e066694; session ...PccvgTkknUeRUwmSt, start check ok 09:07 |
 | tiling-look-r4.md (rc 1) | sonnet med, claude/tiling-look | merged train 39 08:56 |
 | xp-polish-r7.md (rc 1) | sonnet med, claude/xp-polish | merged train 39 08:56 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
