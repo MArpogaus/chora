@@ -22,7 +22,10 @@ def start_multi():
     names = [o["name"] for o in outs]
     assert len(names) == 4, names
     out_of = dict(zip(["construct", "xp", "tiling", "mc"], names))
-    xp_yaml = open(f"{REPO}/plugins/chora-xp/xp.yaml").read().replace("sounds: true", "sounds: false").replace("programs: []", programs_yaml(f"{L.dir}/stub")).replace("test_accept_injected_keys: false", "test_accept_injected_keys: true")
+    note_stub = f"{L.dir}/stub/mousepad"
+    open(note_stub, "w").write("#!/bin/sh\nexec foot --app-id=Notepad --title=Notepad -o pad=14x12 -o colors.background=ffffff -o colors.foreground=000000 -o 'font=DejaVu Sans Mono:size=11' -o cursor.blink=no -e sh -c \'cat >>/home/user/notes/letter.txt\'\n")
+    os.chmod(note_stub, 0o755)
+    xp_yaml = open(f"{REPO}/plugins/chora-xp/xp.yaml").read().replace("sounds: true", "sounds: false").replace("test_accept_injected_keys: false", "test_accept_injected_keys: true")
     open(f"{L.dir}/xp.yaml", "w").write(xp_yaml)
     L.spawn([f"{BIN}/chora-xp", "--theme", f"{REPO}/flavors/xp/theme", "--config", f"{L.dir}/xp.yaml", "--output", out_of["xp"]], env, "xp.log")
     S.ctl("wait", "owner:xp", "--timeout", "30")
