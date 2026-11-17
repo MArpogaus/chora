@@ -14,8 +14,9 @@ and files named tests.rs, testing.rs, test_*.rs or *_tests.rs are tests and
 count 0. A file over 1,500 production lines must be in the list with its
 count (`COUNT PATH` per line, `#` starts a comment). Fails when
   - a file over the limit is not listed (a new file over the limit),
-  - a listed file has more lines than listed or than at the base,
-  - a list entry is higher than its file's count at the base.
+  - a listed file has more lines than listed or than at the base (with
+    --base the bound is the lower of the two: a stale list entry above the
+    base count, left by a split, does not block).
 A listed count above the real count, or a listed file at or under the limit,
 only prints "lower the list": run --update. Exit status 0 ok, 1 breach, 2 usage.
 """
@@ -68,8 +69,8 @@ def read_list(text):
 
 
 def write_list(root, counts):
-    big = sorted(((c, p) for p, c in counts.items() if c > LIMIT), reverse=True)
-    body = "".join(f"{c} {p}\n" for c, p in big)
+    big = sorted((p, c) for p, c in counts.items() if c > LIMIT)
+    body = "".join(f"{c} {p}\n" for p, c in big)
     head = "# Files over 1,500 production lines (tools/size-ratchet). A count only falls.\n"
     (root / LIST).parent.mkdir(exist_ok=True)
     (root / LIST).write_text(head + body)
@@ -112,16 +113,13 @@ def main(argv):
         if path not in listed:
             failures.append(f"{path}: {count} production lines, over {LIMIT} and not listed")
             continue
-        if count > listed[path]:
+        before = base_count(root, base, path) if base_ok else None
+        if base_ok and before is None:
+            failures.append(f"{path}: {count} production lines, a new file over {LIMIT}")
+        elif before is not None and count > min(listed[path], before):
+            failures.append(f"{path}: grew from {min(listed[path], before)} to {count}; a merge may only drop a listed file")
+        elif count > listed[path]:
             failures.append(f"{path}: grew to {count}, the list holds {listed[path]}")
-        if base_ok:
-            before = base_count(root, base, path)
-            if before is None:
-                failures.append(f"{path}: {count} production lines, a new file over {LIMIT}")
-            elif count > before:
-                failures.append(f"{path}: grew from {before} to {count}; a merge may only drop a listed file")
-            elif listed[path] > before:
-                failures.append(f"{path}: the list raised {path} above its {before} lines at the base")
     for path, count in sorted(listed.items()):
         real = counts.get(path)
         if real is None:
