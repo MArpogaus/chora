@@ -96,7 +96,7 @@ B2 | 11-09 | later | everyday-task gaps beyond the shared RC bar (archive/baseli
 B3 | 11-09 | later | `chora-system`: one plugin over D-Bus (NetworkManager, BlueZ, UPower, logind, UDisks2; `wpctl`) for all looks, its methods as voice tools; tests with python3-dbusmock.
 B4 | 11-09 | later | core protocols: wlr gamma control, output power management, wlr data control; a keyboard layout key in `input.configure`.
 S2 | 11-10 | later | cut by the owner 11-10, after 1.0: windowed chora (winit) with an agent as a 2D/3D canvas, and the Nix flake.
-S3 | 11-10 | later | cut by the owner 11-10, after 1.0: effects pack, off by default (burning and exploding windows on a snapshot).
+S3 | 11-10 | before 1.0 | cut by the owner 11-10, after 1.0: effects pack, off by default (burning and exploding windows on a snapshot). Reopened owner 11-17 11:54: before 1.0, for attention; one plugin on a scene effect API, on in the demo, frame-budget gate per effect.
 
 ## Closed
 W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflections/2026-11-14-w2-1-fable.md.
@@ -176,3 +176,4 @@ R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow
 - harness (review xp r3, 11-16): gate cells need CHORA_BIN and XDG_DATA_DIRS when CARGO_TARGET_DIR is outside the repo; derive them from BIN (F30 harness lane).
 - ci-fix rv-3 MINOR: gate-package-lists.sh Cargo check ignores asset source; rv-5 MINOR: xp.sh waits only for pids known at kill time; rv-6 NIT gate-lib-selftest.sh:139.
 - DB12 (owner 11-17 10:35, sprint 1 dedup): one cube. xp has its own desktop cube (plugins/chora-xp/src/cube.rs, Ctrl+Alt+Left/Right, Super+drag) beside construct's. Owner: the cube always lives in construct but is navigable from every look (turn faces, switch desktops with the mouse) without a full step out. Plan: construct owns the cube; xp and the other looks drive it over IPC; delete xp cube.rs. Architect input.
+- DB13 (11-17, foundation): chrono unmaintained (RUSTSEC-2026-0543, ignored in deny.toml, train 41): move chora-xp clock and clock_format validation to jiff, keep the strftime config; drop the ignore when rmcp and schemars no longer pull chrono.

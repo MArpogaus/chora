@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-17 11:49 UTC)
+## Now (2026-11-17 12:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 57 % at 10:31 Tue (owner); tokens.py 11:49: 4.0 % (PM container). +2 % since 06:21 = 0.48 %/h, on pace; 43 % for 89 h = 0.48 %/h. Opus again from 12:00 (critic).
+budget: 58 % at 12:09 Tue (owner); tokens.py 12:09: 4.3 % (PM container). +1 % since 10:31 = 0.6 %/h, a bit over; 42 % for 88 h = 0.48 %/h. No new opus until 12:50 critic.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 733967aa (train 40 11:47: construct r3); 9 greens (30b, 33-40); CI on PR at the tag.
 burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design/foundation.md F1-F8 by Sat 03:59.
@@ -32,10 +32,10 @@ burn-down 10:56: rc today (rc.md 3, 4, 5, 7, 8); week goal after the tag: design
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (by day; budget 12.5 % a UTC day)
-1. Now: media r6 tour v8 baseline; known issues, CI PR, tag (rc 4, 5, 8). construct r4, xp r8, mc r7 cancelled.
+1. Now: train 41 (deny-chrono: CI deny red on 733967aa, RUSTSEC-2026-0543; rc-docs: known issues; rc 7, 8) 12:0x; media r6 tour v8 baseline; known issues, CI PR, tag (rc 4, 5, 8). construct r4, xp r8, mc r7 cancelled.
 2. After the tag (foundation F1-F8): Fable plan with priorities-sprint1, rework-audit (F1) -> slices sonnet/opus, haiku tests (F2-F6) -> tour v9 vs v8 (F7), docs (F8).
 3. Flakes F17 (F5), cut gate (F6).
-4. Sat 03:59: foundation review; next week feature sprint 1.
+4. 12:50 close: sharpen reports/plan-after-foundation.md (foundation, UX polish, collected feats, S3 effects before 1.0, one-take demo playbook). Sat 03:59: foundation review.
 
 ## Needs owner
 - F27 (environment, by Thu): lanes restore an 11-15 setup cache with fuzzel 1.9.2; e2e apps-click fails there. Fix: environment menu, Edit, re-save the setup script. Default: trains in the PM container (fuzzel 1.11).

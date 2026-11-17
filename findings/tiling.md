@@ -18,7 +18,7 @@ ti-16 | COSMETIC | pixel-tiling-r4:33,34 | open | Question card one size (title 
 ti-17 | COSMETIC | ux-deep-tiling:102,104,106 | open | Ink shadows invisible; unfocused border lighter and uneven; left island fixed 448 px with empty space
 ti-18 | COSMETIC | ux-deep-tiling:109,111,115 | verify | Listening chip on the window border; three font families in one frame; key list says Super+Print while the note says Print
 ti-19 | MINOR | media-r1 tour v3 ch2 (02:06 on; tiling-fair.png, key-list.png) | open | Tooltip "Every key (Super+F1)" stays at the top right after the click on Keys
-ti-20 | verify | media-r1 (earlier run, not in the cut) | open | A click on Apps in the bar showed no launcher within 1.5 s; maybe the headless setup. If real: MAJOR (no visible way to start a program); CI e2e has an Apps click cell (train 22)
+ti-20 | MAJOR? | media-r1 (earlier run, not in the cut) | verify | A click on Apps in the bar showed no launcher within 1.5 s; maybe the headless setup. If real: MAJOR (no visible way to start a program); CI e2e has an Apps click cell (train 22)
 ti-21 | MAJOR | owner 11-16 09:01 | open | Waybar does not match the cyberpunk style of the rest of tiling (borders, glow, chat, launcher); restyle from Hyprland rice references; wobbly on for floating drags
 ti-22 | MAJOR | journey-1 (tour v4, opus review) T1 02-25-screenshot.png | open | Super+Print gives no notice, neither saved nor failed (shared bar, honest states)
 ti-23 | MAJOR | journey-1 (tour v4, opus review) T2 02-1-tile_bottom.png | open | Stale tooltip 'Run a program (Super+Space)' stays ~14 s over the master title
