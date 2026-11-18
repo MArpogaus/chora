@@ -26,3 +26,7 @@ version.workspace = true
 [[test]]
 name = "fake_core"
 required-features = ["testing"]
+
+[[test]]
+name = "wm_book"
+required-features = ["testing"]

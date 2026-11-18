@@ -6,6 +6,9 @@ schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
+[dev-dependencies]
+chora-kit = { workspace = true, features = ["testing"] }
+
 [lints]
 workspace = true
 

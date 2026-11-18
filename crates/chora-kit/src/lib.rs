@@ -32,6 +32,7 @@ pub mod shared;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 pub mod volume;
+pub mod wm;
 pub mod wobbly;
 pub mod words;
 pub mod xdg;

@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use chora_kit::wm::kept;
 use chora_scene::{Command, NodeKind, PropsUpdate, ipc::ClientError};
 
 use crate::{
@@ -20,9 +21,12 @@ impl Tiling {
     /// manager: it floats at that size, centered, and a drag hits it.
     ///
     /// A new window of tiling takes the focus.
-    pub(super) fn adopt(&mut self, surface: &str) -> Result<(), ClientError> {
+    ///
+    /// The book proposed it; true when the core took the attach, so that
+    /// the window is tiling's.
+    pub(super) fn adopt(&mut self, surface: &str) -> Result<bool, ClientError> {
         if self.without_outputs() {
-            return self.pass_on_reserved(surface);
+            return self.pass_on_reserved(surface).map(|()| false);
         }
         let nodes = self.query(&format!("id:{surface}"))?;
         let ignored = nodes.iter().any(|node| {
@@ -34,7 +38,7 @@ impl Tiling {
             .first()
             .and_then(|n| serde_json::from_value(n["surface"]["size"].clone()).ok());
         if ignored {
-            return self.pass_on_reserved(surface);
+            return self.pass_on_reserved(surface).map(|()| false);
         }
         let mut commands = Vec::new();
         if !self.groups.contains(surface) {
@@ -56,11 +60,11 @@ impl Tiling {
                     self.wm.set_size(surface, size);
                 }
                 self.focus.take();
-                self.style(surface)
+                self.style(surface).map(|()| true)
             }
             Err(ClientError::Rpc(err)) => {
                 eprintln!("chora-tiling: {surface}: {err}");
-                Ok(())
+                Ok(false)
             }
             Err(err) => Err(err),
         }
@@ -163,12 +167,18 @@ impl Tiling {
             .collect()
     }
 
-    /// The meta of the group and of each window, by node.
+    /// The meta of the group and of each window, by node, under the
+    /// versioned key of `kit::wm::kept`; the keys of before go.
     pub(super) fn meta(&self) -> HashMap<String, BTreeMap<String, String>> {
-        let windows = self.wm.window_meta().into_iter();
+        let window_keys = [WINDOW_KEY.to_owned()];
+        let windows = self.wm.window_meta().into_iter().map(|(id, text)| {
+            let sub = BTreeMap::from([(WINDOW_KEY.to_owned(), text)]);
+            (id, kept::write(&sub, &window_keys))
+        });
+        let group = self.wm.group_meta();
+        let group_keys: Vec<String> = group.keys().cloned().collect();
         windows
-            .map(|(id, text)| (id, BTreeMap::from([(WINDOW_KEY.to_owned(), text)])))
-            .chain([(NAME.to_owned(), self.wm.group_meta())])
+            .chain([(NAME.to_owned(), kept::write(&group, &group_keys))])
             .collect()
     }
 
@@ -178,6 +188,7 @@ impl Tiling {
     /// The focus on it is no longer that of tiling: when the window
     /// comes back, tiling sends it again.
     pub(super) fn forget_window(&mut self, id: &str) {
+        self.book.forget(id);
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);

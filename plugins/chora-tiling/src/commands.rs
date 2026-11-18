@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::{
     NAME, config,
     dress::{self, Dress},
-    wm::{Mark, Placement, States, WINDOW_KEY, Wm},
+    wm::{Mark, Placement, States, Wm},
 };
 
 /// The window that a drag takes: the window of tiling that asked for a
@@ -140,7 +140,7 @@ pub(super) fn leaves_tiling(applied: bool, action: &str, args: &Value) -> bool {
 /// The answer to a request of another client for one of the windows
 /// (D31): the commands that do it. `focus` goes through the model and
 /// answers without commands. `None`: the action, for example `resize`,
-/// stays unanswered, as does an `update` with nothing left to change.
+/// stays unanswered; `kit::wm::book` answers `update` (D58).
 pub(super) fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Command>> {
     match action {
         "focus" => {
@@ -164,31 +164,8 @@ pub(super) fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Op
                 .and_then(Value::as_u64)
                 .and_then(|i| usize::try_from(i).ok()),
         }]),
-        "update" => looked(node, args).map(|update| vec![update]),
         _ => None,
     }
-}
-
-/// The update of the look of a window that another client asks for
-/// (D58): opacity, effects and meta, without the meta key of tiling. No
-/// relayout sends opacity or effects, so the look stays across layouts,
-/// tags and restarts with resume, and wins over the style.
-pub(super) fn looked(node: &str, args: &Value) -> Option<Command> {
-    let asked: PropsUpdate = serde_json::from_value(args.clone()).ok()?;
-    let mut meta = asked.meta;
-    if let Some(meta) = &mut meta {
-        meta.remove(WINDOW_KEY);
-    }
-    let props = PropsUpdate {
-        opacity: asked.opacity,
-        effects: asked.effects,
-        meta: meta.filter(|m| !m.is_empty()),
-        ..PropsUpdate::default()
-    };
-    (props != PropsUpdate::default()).then(|| Command::Update {
-        id: node.into(),
-        props,
-    })
 }
 
 /// The update that gives a new window a style.

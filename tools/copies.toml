@@ -5,9 +5,28 @@
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 3
+max = 2
 name = "surface-created filter"
 pattern = 'to != NAME'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 4
+name = "Event::SurfaceCreated outside kit"
+paths = ["plugins", "services"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+max = 0
+name = "tiling: surface-created filter (WM1)"
+paths = ["plugins/chora-tiling"]
+pattern = 'to != NAME'
+
+[[row]]
+max = 0
+name = "tiling: Event::SurfaceCreated (WM1)"
+paths = ["plugins/chora-tiling"]
+pattern = 'Event::SurfaceCreated\b'
 
 [[row]]
 allow = ["crates/chora-kit/"]
@@ -29,7 +48,7 @@ pattern = 'XDG_RUNTIME_DIR'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 7
+max = 6
 name = "UnixListener::bind in plugin tests"
 paths = ["plugins"]
 pattern = 'UnixListener::bind'
