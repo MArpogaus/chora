@@ -233,7 +233,10 @@ mako, swaybg, swayidle and kanshi.
 `tests/merge-gate.sh` decides whether a merge into the session branch may
 be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
 handover matrix, the HUD gate, the doors gate (`tests/gate-doors.sh`: the
-shared keys and one visible door per action in every look),
+shared keys and one visible door per action in every look), the act
+contracts (`tests/gate-acts.sh`: acts per look with the invariants of
+`tests/acts/invariants.py`, failures known today listed in
+`tests/acts/known-red.toml`),
 `tests/last-words.sh` and the cube gate
 of the construct, one log per step
 in a run directory. `tests/gate-watchdog-starved.sh` is not a step: it
