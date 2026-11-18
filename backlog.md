@@ -186,3 +186,5 @@ R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow
 - H-json (harness, 11-17): lint tests/*.sh inject literals as JSON before a gate run (train 42 red).
 
 - (net1 review 11-18 00:43, ranked refactors) 1. mc state.rs: focus holder "mc" even when focus is not mc's; open [] hardcoded (omit until NET2, else I3/I4 pass falsely) -> NET2 adapters. 2. state.get for confined clients once titles land (privileged or filtered) -> NET2. 3. kit state helper (busy, focus builders). 4. FakeCore invariant hook, typed refusals. 5. size-ratchet `#[cfg(test)] mod x;` quirk. 6. merge-gate/start_lane: unshallow or fail early on a shallow clone. 7. fake_core test needs --features testing; check the gate runs it. 8. state.get schema test against plan 3.1.
+
+- (net2-harness review 11-18 02:22, FIX) earliest gate: none; harness item: a cell template per invariant for an absent key, and a leak check (no process, no /tmp/chora-hl.*) after every acts run in the gate. Refactors ranked: 1. strict state schema once adapters land; 2. scene.boxes (NET3) for scene.query; 3. ruff over tests/.

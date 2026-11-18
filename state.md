@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-18 01:48 UTC)
+## Now (2026-11-18 02:22 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 62 % at 23:59 Tue (owner: pace good; Fable plan was most); tokens.py 23:59: 5.0 % (PM container). Even pace 55 %: 7 % over; 38 % for 76 h. Full reset available (owner 15:35): use near 95 %.
+budget: 62 % at 23:59 Tue (owner); tokens.py 02:22: PM 0.4 % since; lanes NET1, NET2 est 2 %. Even pace 57 %: about 7 % over; 36 % for 73 h. Full reset available (owner 15:35): use near 95 %.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: f31ff880 (train 48 01:40: net1 FakeCore + state.get); 16 greens (30b, 33-41, 43-48); MV1, MV2 x3, CUT1, NET1 in.
 burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2 done 01:40 (net1, review MERGE-OK); F3-F8 open, 4 lanes; 3.5 days.
@@ -24,7 +24,7 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2 done 01:40 (net1, r
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| net2-r1.md harness (F3) | opus high, claude/net2-harness | running, start check ok 01:48 |
+| net2-harness-r2.md (F3) | sonnet med, claude/net2-harness | r1 FIX 02:22 (2 MAJOR: setup leak, missing key passes); r2 start 02:22 |
 | net2-r1.md adapters (F3) | opus high, claude/net2-adapters | running, start check ok 01:48 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
