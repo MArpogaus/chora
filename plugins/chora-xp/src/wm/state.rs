@@ -118,7 +118,7 @@ mod tests {
         let (wm, _methods) = wm_on_fake_core("state-empty");
         let state = wm.state().expect("xp has a state");
         let expected = json!({"windows": [], "focus": {"holder": "xp"}, "open": [],
-            "busy": [], "desks": [{"output": "X", "shown": [1]}]});
+            "busy": [], "helper": "none", "desks": [{"output": "X", "shown": [1]}]});
         assert_eq!(state, expected);
     }
 
@@ -198,5 +198,33 @@ mod tests {
         );
         wm.method("start_menu", json!({"open": false})).unwrap();
         assert_eq!(wm.state().unwrap()["open"], json!([]));
+    }
+
+    /// `helper` is `none` until voice reports, follows its latest
+    /// `voice.state`, and is `none` again when voice goes.
+    #[test]
+    fn the_helper_follows_voice() {
+        let (mut x, _methods) = wm_on_fake_core("state-helper");
+        assert_eq!(x.state().unwrap()["helper"], "none");
+        let said = |event: &str, data| chora_scene::Event::Emitted {
+            event: event.into(),
+            client: "voice".into(),
+            data,
+        };
+        x.event(said("voice.state", json!({"state": "idle"})))
+            .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "idle");
+        x.event(said(
+            "voice.state",
+            json!({"name": "atlas", "state": "working"}),
+        ))
+        .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "working");
+        x.event(said("voice.remove", json!({"name": "atlas"})))
+            .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "idle");
+        let gone = json!({"event": "client.disconnected", "name": "voice"});
+        x.event(serde_json::from_value(gone).unwrap()).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "none");
     }
 }
