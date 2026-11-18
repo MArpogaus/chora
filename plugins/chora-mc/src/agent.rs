@@ -159,6 +159,11 @@ impl Confirming {
     }
 }
 
+/// The line of the agent column that shows its question.
+fn question_line(question: &str, _language: Language) -> String {
+    format!("? {question}  — ja / nein")
+}
+
 /// As in the freedesktop notifications: critical breaks through in red.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -561,7 +566,10 @@ impl Mc {
             label.unwrap_or_else(|| agent.state.clone())
         )];
         if !agent.question.is_empty() {
-            lines.extend([String::new(), format!("? {}  — ja / nein", agent.question)]);
+            lines.extend([
+                String::new(),
+                question_line(&agent.question, Language::of_session()),
+            ]);
         }
         if !agent.task.is_empty() {
             lines.extend([String::new(), agent.task.clone()]);
@@ -631,6 +639,11 @@ impl Mc {
     /// Shows a spoken confirmation alone in the drawer over any scene,
     /// with its whole detail, until the event `done` of its id.
     pub fn confirm(&mut self, data: &Value) -> Result<(), RpcError> {
+        self.confirm_at(data, Instant::now())
+    }
+
+    /// [`Self::confirm`] at `now`.
+    pub fn confirm_at(&mut self, data: &Value, now: Instant) -> Result<(), RpcError> {
         let rejected =
             |e: chora_scene::ipc::ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         if data["done"] == true {
@@ -656,13 +669,13 @@ impl Mc {
         let lines = question.detail.lines().map(Into::into).collect();
         self.set_text(CONFIRM, Some(question.prompt.clone()), |_| lines)?;
         let had = self.confirming.replace(Confirming {
-            card: Card::new(question, Instant::now()),
+            card: Card::new(question, now),
         });
         // ponytail: it takes the place of a solo of the user, which does
         // not come back after the answer.
         self.solo(CONFIRM, Region::Drawer, Some(true), false)
             .map_err(rejected)?;
-        self.show_answers(had.is_some()).map_err(rejected)
+        self.show_answers(had.is_some(), now).map_err(rejected)
     }
 
     /// The answers of the confirmation at the top right of the drawer, on
@@ -670,7 +683,7 @@ impl Mc {
     /// while the agent takes clicks, each with the key of a physical
     /// question before it.
     #[allow(clippy::too_many_lines, reason = "the nodes, then their places")]
-    fn show_answers(&mut self, had: bool) -> Result<(), ClientError> {
+    fn show_answers(&mut self, had: bool, _now: Instant) -> Result<(), ClientError> {
         let mut commands = Vec::new();
         if had {
             commands.push(Command::Remove {
@@ -1075,8 +1088,8 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("answers-guard", [1920, 1080]);
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ask = json!({"id": 5, "prompt": "Run it?", "detail": "rm x", "buttons": true});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
         let shown = Instant::now();
+        mc.confirm_at(&ask, shown).unwrap();
         let early = shown + Duration::from_millis(100);
         assert!(
             mc.press_answer(super::ANSWER_YES, false, early),
@@ -1094,6 +1107,36 @@ mod tests {
             1,
             "answers after it"
         );
+    }
+
+    /// sh-26: the guard counts from the draw of the answers and starts
+    /// again when the drawer is placed again; `now` is injected.
+    #[test]
+    fn a_press_after_the_drawer_is_placed_again_is_refused() {
+        use serde_json::json;
+        use std::time::{Duration, Instant};
+        let (mut mc, model) = crate::testing::mc("answers-replace", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ms = Duration::from_millis;
+        let t0 = Instant::now();
+        let ask = json!({"id": 5, "prompt": "Run it?", "buttons": true});
+        mc.confirm_at(&ask, t0).unwrap();
+        let again = t0 + ms(2000);
+        mc.show_answers(true, again).unwrap();
+        assert!(mc.press_answer(super::ANSWER_YES, false, again + ms(100)));
+        assert_eq!(calls(&model, chora_kit::ask::ANSWER_METHOD), 0);
+        assert!(mc.press_answer(super::ANSWER_YES, false, again + ms(400)));
+        assert_eq!(calls(&model, chora_kit::ask::ANSWER_METHOD), 1);
+    }
+
+    /// sh-27: the line of the agent column names the words of the kit.
+    #[test]
+    fn the_agent_question_line_follows_the_session_language() {
+        let line = super::question_line("Run it?", chora_kit::words::Language::De);
+        assert!(line.contains("Ja") && line.contains("Nein"), "{line}");
+        assert!(!line.contains("ja / nein"), "{line}");
+        let en = super::question_line("Run it?", chora_kit::words::Language::En);
+        assert!(en.contains("Yes") && en.contains("No"), "{en}");
     }
 
     /// sh-27: the buttons follow the language of the session.

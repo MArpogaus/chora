@@ -1350,6 +1350,11 @@ impl Voice {
             .map_or(Click::Ignored, |ask| ask.card.click(button, injected, now))
     }
 
+    /// The question was drawn at `now`: its buttons take no click for
+    /// 400 ms.
+    #[allow(clippy::unused_self, reason = "red stub of the r2 round")]
+    pub fn drawn(&mut self, _now: Instant) {}
+
     /// Scrolls the open question by `dy`; answers the move of its body.
     pub fn scroll(&mut self, dy: f64) -> Option<Command> {
         let ask = self.ask.as_mut().filter(|a| a.scroll_max > 0.0)?;
@@ -1719,6 +1724,58 @@ mod tests {
             voice.click(ASK_YES, false, shown + ms(400)),
             Click::Answer(json!({"id": "4", "yes": true}))
         );
+    }
+
+    /// sh-26: the guard counts from the draw, not from the event: a
+    /// question asked while the HUD was hidden and drawn later.
+    #[test]
+    fn a_press_inside_400_ms_of_the_draw_is_refused() {
+        let mut voice = Voice::default();
+        let asked = Instant::now();
+        let ms = Duration::from_millis;
+        let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
+        voice.follow("confirm", ask, asked).unwrap();
+        let draw = asked + ms(5000);
+        voice.drawn(draw);
+        assert_eq!(voice.click(ASK_YES, false, draw + ms(100)), Click::TooSoon);
+        assert_eq!(
+            voice.click(ASK_YES, false, draw + ms(400)),
+            Click::Answer(json!({"id": "4", "yes": true}))
+        );
+        voice.drawn(draw + ms(2000));
+        assert_eq!(voice.click(ASK_NO, false, draw + ms(2100)), Click::TooSoon);
+    }
+
+    /// sh-27: the hint lines come from the words of the kit.
+    #[test]
+    fn the_hint_follows_the_session_language() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let mut voice = Voice::default();
+        let plain = json!({"id": 4, "prompt": "Run it?"});
+        voice.follow("confirm", plain, Instant::now()).unwrap();
+        let hint = |voice: &mut Voice, language| {
+            let commands = measured(&metrics, || {
+                voice.ask(&look, [1280.0, 720.0], true, language)
+            });
+            text_of(&commands, "construct-ask-hint").map(str::to_uppercase)
+        };
+        let (yes, no) = (Word::Yes.text(Language::De), Word::No.text(Language::De));
+        let de = hint(&mut voice, Language::De).unwrap();
+        assert!(
+            de.contains(&yes.to_uppercase()) && de.contains(&no.to_uppercase()),
+            "{de}"
+        );
+        assert!(!de.contains("YES"), "{de}");
+        let physical = json!({"id": 5, "prompt": "Run it?", "physical": true});
+        voice.follow("confirm", physical, Instant::now()).unwrap();
+        let de = hint(&mut voice, Language::De).unwrap();
+        assert!(
+            de.contains(&Word::NoVoiceYes.text(Language::De).to_uppercase()),
+            "{de}"
+        );
+        assert!(!de.contains("SPOKEN"), "{de}");
     }
 
     /// sh-27: the buttons follow the language of the session.

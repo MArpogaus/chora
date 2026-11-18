@@ -126,6 +126,12 @@ impl Construct {
 
     /// The question of the voice agent, on top, made anew.
     pub(crate) fn draw_ask(&mut self) -> Result<(), ClientError> {
+        self.draw_ask_at(Instant::now())
+    }
+
+    /// [`Self::draw_ask`] at `now`; a card that is drawn takes no click
+    /// for 400 ms from then.
+    pub(crate) fn draw_ask_at(&mut self, now: Instant) -> Result<(), ClientError> {
         if !(self.settings.value.draws_voice() && self.shows_hud()) {
             return Ok(());
         }
@@ -149,7 +155,9 @@ impl Construct {
         if self.rt.conn.query(&format!("id:{}", hud::ASK))?.is_empty() {
             commands.remove(0);
         }
-        self.rt.conn.apply(commands)
+        self.rt.conn.apply(commands)?;
+        self.voice.drawn(now);
+        Ok(())
     }
 
     /// The pane label: the name of the pane under the pointer, else of the
