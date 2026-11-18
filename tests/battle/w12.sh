@@ -87,7 +87,7 @@ must_fail("box0 session.quit", b0("session.quit"))
 must_fail("box0 methods.call mc app.open", b0("methods.call", {"client": "mc", "method": "app.open", "params": {"command": f"touch {pwned}.box0"}}))
 # D58: updates of nodes of window managers
 show("box0 update opacity of a tiling window", b0("scene.apply", {"commands": [{"update": {"id": win, "props": {"opacity": 0.1}}}]}))
-show("box0 update meta window of a tiling window", b0("scene.apply", {"commands": [{"update": {"id": win, "props": {"meta": {"window": "[]"}}}}]}))
+show("box0 update meta kept.1.window of a tiling window", b0("scene.apply", {"commands": [{"update": {"id": win, "props": {"meta": {"kept.1.window": "[]"}}}}]}))
 for node in ["tiling", "mc", "mc-bg", "mc-hud", "root"]:
     show(f"box0 update opacity 0 of {node}", b0("scene.apply", {"commands": [{"update": {"id": node, "props": {"opacity": 0.0}}}]}))
 must_fail("box0 update size of a tiling window", b0("scene.apply", {"commands": [{"update": {"id": win, "props": {"size": [5, 5]}}}]}))

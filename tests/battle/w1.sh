@@ -45,7 +45,7 @@ tagcount() {
 import json,sys
 n=0
 for x in json.load(sys.stdin):
-    w=json.loads((x.get('meta') or {}).get('window','[]'))
+    w=json.loads((x.get('meta') or {}).get('kept.1.window','[]'))
     if w and w[0].get('tags')==1<<1: n+=1
 print(n)"
 }

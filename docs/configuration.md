@@ -372,14 +372,17 @@ later `settings.set` or `settings.reload` leaves it as it is.
 
 `chora-tiling` connects with `resume` (see [API](api.md#ipc-methods)). It
 keeps the tags and the layouts of each output, and the tags, the states
-and the stacking of each window, in the `meta` of its nodes. A restart
-within the grace time rebuilds them from there. In a flavor or a view,
+and the stacking of each window, in the `meta` of its nodes, under the
+keys `kept.1.*`. A restart within the grace time rebuilds them from
+there; it also reads the keys of earlier versions (`window`, `current`,
+`tags:<output>`) and then removes them. In a flavor or a view,
 `choractl restart tiling` does that after a rebuild.
 
 Another client changes the opacity, the effects or the meta of a tiling
 window with an `update` of the window (D58). The core asks
 `chora-tiling` with `node.requested`, and `chora-tiling` applies it,
-except the meta key `window`, which holds its own state. A layout or a
+except its own meta keys (`kept.1.*` and those of earlier versions). It
+does so on its root group `tiling` and the group of each window too. A layout or a
 tag never changes the opacity or the effects, so the requested look
 stays across relayouts, layout changes, tag moves and restarts with
 `resume`. The `style` applies only when `chora-tiling` takes a new
