@@ -18,6 +18,7 @@ mod keys;
 mod layout;
 mod methods;
 mod overlay;
+mod state;
 mod theme;
 mod windows;
 mod wm;
@@ -184,6 +185,8 @@ struct Tiling {
     still: bool,
     /// Whether the key list shows, and holds the keyboard.
     keys_open: bool,
+    /// The word of `state.get`; only reads.
+    voiced: chora_kit::helper::Helpers,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
     /// The colours of the look, and the scheme they come from.
@@ -335,6 +338,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bar_hidden: None,
         still: true,
         keys_open: false,
+        voiced: chora_kit::helper::Helpers::default(),
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
@@ -408,7 +412,10 @@ fn chat_open(event: &Event) -> Option<bool> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 15] = [
+const EVENTS: [&str; 18] = [
+    "voice.state",
+    "voice.remove",
+    "client.disconnected",
     "assistant.ready",
     "assistant.chat",
     "surface.created",
@@ -456,6 +463,10 @@ impl Plugin for Tiling {
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
         Some(&mut self.settings)
+    }
+
+    fn state(&self) -> Option<Value> {
+        Some(self.state_value())
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -634,6 +645,7 @@ impl Tiling {
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+        self.voiced.hear(&event);
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
             return self.name_theme();
@@ -1127,7 +1139,7 @@ mod tests {
 
     /// A tiling on a fake core that answers every request, `input.grab`
     /// with its binding, and keeps the names of the methods called.
-    fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+    pub(crate) fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
         on_fake_core_with(tag, &[])
     }
 
@@ -1194,6 +1206,7 @@ mod tests {
             bar_hidden: None,
             still: true,
             keys_open: false,
+            voiced: chora_kit::helper::Helpers::default(),
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,

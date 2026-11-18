@@ -6,7 +6,8 @@ black rect over the screen, the keyboard on a node of the harness, two
 nodes marked as helper surfaces, a client that leaves. I1, I4 and I8
 (working after the answer) need a look that misreports, so their breach
 is planted in the answer of `state.get` that the harness reads; quiet is
-planted the same way, with a `busy` that never ends.
+planted the same way, with a `busy` that never ends. mc's real state has
+no `open` yet, so the sound baseline gets it through the same filter.
 """
 
 import contextlib
@@ -116,6 +117,7 @@ def run(results):
         )
 
     with Session("mc") as s:
+        filtered(s, lambda st: st | {"open": []})
         s.act(
             "a window opens",
             [program("chora-probe", "window", "40", "120", "200")],

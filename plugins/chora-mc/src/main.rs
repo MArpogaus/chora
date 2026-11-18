@@ -357,6 +357,8 @@ struct Mc {
     /// The surface that has the keyboard focus of the core, from
     /// `focus.changed`.
     core_focus: Option<String>,
+    /// The word of `state.get`; only reads.
+    voiced_word: chora_kit::helper::Helpers,
     /// The window that a `drag` binding holds since its press.
     dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
@@ -549,6 +551,7 @@ impl Mc {
             rendered: None,
             focused: None,
             core_focus: None,
+            voiced_word: chora_kit::helper::Helpers::default(),
             dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,
@@ -640,6 +643,7 @@ impl Plugin for Mc {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
+        self.voiced_word.hear(&event);
         match event {
             Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
             Event::SurfaceCreated {

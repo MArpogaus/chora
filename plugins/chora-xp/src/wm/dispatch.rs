@@ -15,6 +15,7 @@ impl Wm {
     /// Handles one event of the core, with one arm per event.
     #[allow(clippy::too_many_lines)]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+        self.voiced.hear(&event);
         let commands = match event {
             Event::SurfaceCreated {
                 surface,
@@ -34,7 +35,10 @@ impl Wm {
                 self.apply(commands)?;
                 return self.adopt(&surface, None, None, None);
             }
-            Event::SurfaceDestroyed { surface } => self.forget(&surface),
+            Event::SurfaceDestroyed { surface } => {
+                self.core_focus.take_if(|s| *s == surface);
+                self.forget(&surface)
+            }
             Event::SurfaceChanged {
                 surface,
                 app_id,

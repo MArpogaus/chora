@@ -32,6 +32,7 @@ impl Wm {
         methods.push(give::method());
         methods.push(move_method());
         methods.push(chora_kit::float::method());
+        methods.push(chora_kit::runtime::state_method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
@@ -56,6 +57,7 @@ impl Wm {
             windows: Vec::new(),
             opened: Vec::new(),
             focused: None,
+            core_focus: None,
             bars: Vec::new(),
             menu,
             drag: None,
@@ -93,6 +95,7 @@ impl Wm {
             notifier: Notifier::new(),
             volume: None,
             helper: Helper::default(),
+            voiced: chora_kit::helper::Helpers::default(),
             mixer: Mixer::new(NAME),
             volume_read: Instant::now(),
         };

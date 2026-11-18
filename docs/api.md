@@ -1486,8 +1486,13 @@ $ choractl call tiling settings.reload
 
 A plugin that implements `Plugin::state` also exports `state.get`, which
 answers what it shows and holds: its windows, the focus, what is open
-and what still moves (`busy`). `choractl state mc` prints it. `chora-mc`
-fills the windows, the focus, `open` and `busy`; the other looks follow.
+and what still moves (`busy`). `choractl state mc` prints it. All four
+looks answer it. `focus.holder` names the look only while the focus is
+on one of its windows (or, for the construct, on its space), else it is
+null. A field that a look does not fill is left out, never empty: mc
+has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
+the construct adds `views`, the panes of windows, plugin nodes and
+virtual outputs that it shows but does not own.
 
 ```console
 $ choractl state mc

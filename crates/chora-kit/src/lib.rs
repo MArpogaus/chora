@@ -18,6 +18,7 @@ pub mod float;
 pub mod geometry;
 pub mod give;
 pub mod glass;
+pub mod helper;
 pub mod hud;
 pub mod icons;
 pub mod lamp;

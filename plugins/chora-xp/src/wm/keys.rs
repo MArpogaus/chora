@@ -221,6 +221,7 @@ impl Wm {
     /// A window of `chora-xp` that gets the focus while none of them has
     /// it looks active again and takes Alt+Space.
     pub(super) fn focus_moved(&mut self, surface: &str) -> Vec<Command> {
+        self.core_focus = Some(surface.into());
         if self.index(surface).is_some() {
             if self.focused.is_some() {
                 return Vec::new();
