@@ -48,6 +48,7 @@ impl Mc {
 #[cfg(test)]
 mod tests {
     use chora_kit::runtime::Plugin;
+    use serde_json::json;
 
     use crate::testing;
 
@@ -86,5 +87,33 @@ mod tests {
         );
         mc.core_focus = Some("s1".into());
         assert_eq!(mc.state().unwrap()["focus"]["holder"], "mc");
+    }
+
+    /// `helper` is `none` until voice reports, follows its latest
+    /// `voice.state`, and is `none` again when voice goes.
+    #[test]
+    fn the_helper_follows_voice() {
+        let (mut x, _model) = testing::mc("state-helper", [1280, 800]);
+        assert_eq!(x.state().unwrap()["helper"], "none");
+        let said = |event: &str, data| chora_scene::Event::Emitted {
+            event: event.into(),
+            client: "voice".into(),
+            data,
+        };
+        x.event(said("voice.state", json!({"state": "idle"})))
+            .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "idle");
+        x.event(said(
+            "voice.state",
+            json!({"name": "atlas", "state": "working"}),
+        ))
+        .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "working");
+        x.event(said("voice.remove", json!({"name": "atlas"})))
+            .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "idle");
+        let gone = json!({"event": "client.disconnected", "name": "voice"});
+        x.event(serde_json::from_value(gone).unwrap()).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "none");
     }
 }
