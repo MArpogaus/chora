@@ -19,7 +19,7 @@ use std::{
 
 use chora_kit::{
     ask::{self, Button, Card, Click, Keys, Question, show_key},
-    words::Language,
+    words::{Language, Word},
 };
 use chora_scene::{
     Border, Clip, Command, Easing, InputMode, NodeKind, PropsUpdate, Transform, Uniform,
@@ -1255,12 +1255,13 @@ impl Voice {
             }
             y += u;
         }
-        let hint = match (ask.keys(), ask.buttons()) {
-            (Some(_), _) => "NEEDS A KEY PRESS OR A CLICK, NOT A SPOKEN YES",
-            (None, true) => "ANSWER YES OR NO, OR CLICK",
-            (None, false) => "ANSWER YES OR NO",
+        let hint = if ask.keys().is_some() {
+            Word::NoVoiceYes.text(language).to_uppercase()
+        } else {
+            let [yes, no] = Card::buttons(language);
+            format!("{yes} / {no}").to_uppercase()
         };
-        let hint = look.one_line(Role::Label, hint, wrap);
+        let hint = look.one_line(Role::Label, &hint, wrap);
         body.push(text(
             "construct-ask-hint",
             Role::Label,
@@ -1352,8 +1353,11 @@ impl Voice {
 
     /// The question was drawn at `now`: its buttons take no click for
     /// 400 ms.
-    #[allow(clippy::unused_self, reason = "red stub of the r2 round")]
-    pub fn drawn(&mut self, _now: Instant) {}
+    pub fn drawn(&mut self, now: Instant) {
+        if let Some(ask) = &mut self.ask {
+            ask.card.moved(now);
+        }
+    }
 
     /// Scrolls the open question by `dy`; answers the move of its body.
     pub fn scroll(&mut self, dy: f64) -> Option<Command> {
@@ -1391,11 +1395,6 @@ impl Claim {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-
-    use chora_kit::{
-        ask::Click,
-        words::{Language, Word},
-    };
 
     use super::*;
     use crate::config::{Config, DEFAULT};

@@ -476,9 +476,10 @@ ACP agent of the voice agent; `voice.remove {name}` removes such a
 sub-agent.
 `voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
 `prompt` and its whole `detail` in mono alone in the drawer until the
-event with `done` and the same `id`. With `buttons`, the words Yes and No (Ja and
-Nein in a German session) stand flush right on its title line, each with
-a hairline under it; a click 400 ms or more after the question showed calls `voice.confirm.answer {id, yes}`. A question about a
+event with `done` and the same `id`. With `buttons`, the words Yes and No
+(Ja and Nein in a German session) stand flush right on its title line,
+each with a hairline under it; a click 400 ms or more after the question
+showed calls `voice.confirm.answer {id, yes}`. A question about a
 security key (`physical`) shows its `keys`, such as Alt+Y and Alt+N,
 before them. Only a pointer press on a word answers; no method of mc
 calls `confirm.answer`, but mc cannot tell an injected click

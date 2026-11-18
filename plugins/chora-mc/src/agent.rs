@@ -160,8 +160,9 @@ impl Confirming {
 }
 
 /// The line of the agent column that shows its question.
-fn question_line(question: &str, _language: Language) -> String {
-    format!("? {question}  — ja / nein")
+fn question_line(question: &str, language: Language) -> String {
+    let [yes, no] = Card::buttons(language);
+    format!("? {question}  — {yes} / {no}")
 }
 
 /// As in the freedesktop notifications: critical breaks through in red.
@@ -679,11 +680,11 @@ impl Mc {
     }
 
     /// The answers of the confirmation at the top right of the drawer, on
-    /// the line of its title, flush right as margin notes: Ja and Nein
-    /// while the agent takes clicks, each with the key of a physical
-    /// question before it.
+    /// the line of its title, flush right as margin notes: Yes and No
+    /// (Ja and Nein in a German session) while the agent takes clicks,
+    /// each with the key of a physical question before it.
     #[allow(clippy::too_many_lines, reason = "the nodes, then their places")]
-    fn show_answers(&mut self, had: bool, _now: Instant) -> Result<(), ClientError> {
+    fn show_answers(&mut self, had: bool, now: Instant) -> Result<(), ClientError> {
         let mut commands = Vec::new();
         if had {
             commands.push(Command::Remove {
@@ -805,7 +806,11 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         });
-        self.apply(moves)
+        self.apply(moves)?;
+        if let Some(c) = self.confirming.as_mut() {
+            c.card.moved(now);
+        }
+        Ok(())
     }
 
     /// Answers the confirmation by the click on `node`, with
@@ -1118,9 +1123,11 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("answers-replace", [1920, 1080]);
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ms = Duration::from_millis;
+        mc.show("agenda", false).unwrap();
         let t0 = Instant::now();
         let ask = json!({"id": 5, "prompt": "Run it?", "buttons": true});
         mc.confirm_at(&ask, t0).unwrap();
+        assert!(mc.drawer_box().is_some(), "the drawer shows");
         let again = t0 + ms(2000);
         mc.show_answers(true, again).unwrap();
         assert!(mc.press_answer(super::ANSWER_YES, false, again + ms(100)));
