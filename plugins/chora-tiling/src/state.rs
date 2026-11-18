@@ -119,12 +119,14 @@ mod tests {
         assert_eq!(tiling.state().unwrap()["focus"], json!({"holder": null}));
     }
 
-    /// The key list is open while it shows.
+    /// The key list is open while it shows, and holds the keyboard.
     #[test]
     fn the_key_list_is_open_while_it_shows() {
         let (mut tiling, _) = on_fake_core("state-keys");
         tiling.keys_open = true;
+        let state = tiling.state().unwrap();
         let open = json!([{"id": "tiling-keys", "kind": "sheet", "modal": true}]);
-        assert_eq!(tiling.state().unwrap()["open"], open);
+        assert_eq!(state["open"], open);
+        assert_eq!(state["focus"], json!({"holder": "tiling"}));
     }
 }

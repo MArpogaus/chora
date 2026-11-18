@@ -102,12 +102,13 @@ mod tests {
         w
     }
 
-    /// A fresh xp shows no window, holds no focus and is quiet.
+    /// A fresh xp shows no window, holds the focus with its desktop and
+    /// is quiet.
     #[test]
     fn a_fresh_xp_has_an_empty_state() {
         let (wm, _methods) = wm_on_fake_core("state-empty");
         let state = wm.state().expect("xp has a state");
-        let expected = json!({"windows": [], "focus": {"holder": null}, "open": [],
+        let expected = json!({"windows": [], "focus": {"holder": "xp"}, "open": [],
             "busy": [], "desks": [{"output": "X", "shown": [1]}]});
         assert_eq!(state, expected);
     }
@@ -141,16 +142,26 @@ mod tests {
         assert_eq!(read(&state, 0), json!(["s1", "X", 0, false, [1], true]));
     }
 
-    /// xp holds the focus only while it is on one of its windows.
+    /// xp holds the focus on one of its windows, or with its own nodes
+    /// (the icons, a menu, a dialog) until a window of another window
+    /// manager takes it.
     #[test]
-    fn xp_holds_the_focus_only_on_its_window() {
+    fn xp_holds_the_focus_until_another_window_takes_it() {
         let (mut wm, _methods) = wm_on_fake_core("state-focus");
+        assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
         wm.windows.push(window("s1", 0));
-        wm.focused = Some("s1".into());
-        let focus = json!({"holder": "xp", "surface": "s1"});
-        assert_eq!(wm.state().unwrap()["focus"], focus);
-        wm.focused = Some("other".into());
+        wm.event(focus("s1")).unwrap();
+        let focus_s1 = json!({"holder": "xp", "surface": "s1"});
+        assert_eq!(wm.state().unwrap()["focus"], focus_s1);
+        wm.event(focus("other")).unwrap();
         assert_eq!(wm.state().unwrap()["focus"], json!({"holder": null}));
+        wm.event(focus("s1")).unwrap();
+        assert_eq!(wm.state().unwrap()["focus"], focus_s1);
+    }
+
+    /// A `focus.changed` of the core.
+    fn focus(surface: &str) -> chora_scene::Event {
+        serde_json::from_value(json!({"event": "focus.changed", "surface": surface})).unwrap()
     }
 
     /// The start menu is open after `start_menu {open: true}` and shut
