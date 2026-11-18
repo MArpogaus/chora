@@ -43,6 +43,8 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 KNOWN_RED = REPO / "tests" / "acts" / "known-red.toml"
 EVENTS = ["effect.failed", "effects.dropped", "focus.changed", "surface.created", "voice.*"]
 SETTLE = 0.4
+QUIET_GAP = 0.2
+TERM_WAIT = 8
 CAPTURE_SIDE = 320
 
 
@@ -169,21 +171,28 @@ class NotQuiet(Exception):
 
 
 def busy_of(states):
-    """Every running `busy` entry, as LOOK:ENTRY."""
-    return [f"{look}:{b}" for look, s in sorted(states.items()) if s for b in s.get("busy") or []]
+    """Every running `busy` entry, as LOOK:ENTRY; NotQuiet for a look that
+    answers `state.get` without the key."""
+    for look, s in sorted(states.items()):
+        if s is not None and "busy" not in s:
+            raise NotQuiet(f"{look} missing key busy: its state does not say when it is quiet")
+    return [f"{look}:{b}" for look, s in sorted(states.items()) if s for b in s["busy"] or []]
 
 
 def wait_quiet(read, timeout, sleep=time.sleep, now=time.monotonic):
-    """Read the states until no look is busy; NotQuiet at the timeout."""
+    """Read the states until two reads in a row, QUIET_GAP s apart, show no
+    look busy; NotQuiet at the timeout."""
     start = now()
+    empty = 0
     while True:
         states = read()
         busy = busy_of(states)
-        if not busy:
+        empty = 0 if busy else empty + 1
+        if empty >= 2:
             return states
-        if now() - start >= timeout:
+        if busy and now() - start >= timeout:
             raise NotQuiet(f"still busy after {timeout} s: {', '.join(busy)}")
-        sleep(0.1)
+        sleep(QUIET_GAP if not busy else 0.1)
 
 
 @dataclasses.dataclass
@@ -204,7 +213,8 @@ def known_red(path=KNOWN_RED):
 def judge(results, rows, full=False):
     """Hold the results, {(look, id): [breach, ...]}, against the rows.
 
-    A row needs `look`, `id`, `finding` and `slice`. With `full`, a row
+    A row needs `look`, `id`, `finding` and `slice`; an optional `match`
+    must occur in every breach text of the cell. With `full`, a row
     that did not run blocks too: the list names only what runs.
     """
     listed = {}
@@ -216,6 +226,8 @@ def judge(results, rows, full=False):
     blocking, red, passed = [], [], []
     for key, breaches in sorted(results.items()):
         row = listed.get(key)
+        if row and breaches and row.get("match"):
+            row = row if all(row["match"] in b for b in breaches) else None
         if breaches and row:
             red.append(key)
         elif breaches:
@@ -336,6 +348,14 @@ class Session:
 
     def __enter__(self):
         self.work = pathlib.Path(tempfile.mkdtemp(prefix="acts-session-"))
+        try:
+            return self.setup()
+        except BaseException:
+            self.__exit__(None, None, None)
+            raise
+
+    def setup(self):
+        """Start the core and the looks; the caller ends them on a failure."""
         home = self.work / "home"
         for d in ("config", "home", "data", "state", "pictures"):
             (self.work / d).mkdir()
@@ -399,10 +419,15 @@ class Session:
         for proc in reversed(self.procs):
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(proc.pid, signal.SIGTERM)
+        end = time.monotonic() + TERM_WAIT
+        for proc in reversed(self.procs):
             with contextlib.suppress(subprocess.TimeoutExpired):
-                proc.wait(timeout=5)
+                proc.wait(timeout=max(0.1, end - time.monotonic()))
+        for proc in reversed(self.procs):
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(proc.pid, signal.SIGKILL)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                proc.wait(timeout=2)
         shutil.rmtree(self.work, ignore_errors=True)
 
     def wait_env(self, env_file):

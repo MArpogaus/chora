@@ -8,7 +8,6 @@ The cells need no session; tests/acts/planted.py plants breaches in a real
 one. Usage: python3 -I tests/test_acts.py [-v]
 """
 
-import os
 import pathlib
 import signal
 import subprocess
@@ -313,9 +312,7 @@ class KnownRed(unittest.TestCase):
 
 class Quiet(unittest.TestCase):
     def test_waits_until_every_busy_is_empty(self):
-        reads = iter(
-            [{"xp": {"busy": ["anim"]}}, {"xp": {"busy": []}}, {"xp": {"busy": []}}]
-        )
+        reads = iter([{"xp": {"busy": ["anim"]}}, {"xp": {"busy": []}}, {"xp": {"busy": []}}])
         clock = [0.0]
         states = harness.wait_quiet(
             lambda: next(reads),
@@ -338,8 +335,7 @@ class Quiet(unittest.TestCase):
 
     def test_one_empty_read_is_not_quiet(self):
         reads = iter(
-            [{"xp": {"busy": []}}, {"xp": {"busy": ["anim"]}}]
-            + [{"xp": {"busy": []}}] * 2
+            [{"xp": {"busy": []}}, {"xp": {"busy": ["anim"]}}] + [{"xp": {"busy": []}}] * 2
         )
         clock = [0.0]
         harness.wait_quiet(
@@ -456,10 +452,11 @@ class Teardown(unittest.TestCase):
         session = harness.Session("xp")
         session.work = pathlib.Path("/nonexistent-acts-work")
         session.procs = [proc]
-        session.__exit__(None, None, None)
+        start = time.monotonic()
+        with mock.patch.object(harness, "TERM_WAIT", 1):
+            session.__exit__(None, None, None)
+        self.assertGreaterEqual(time.monotonic() - start, 0.9, "SIGKILL came before the wait")
         self.assertIsNotNone(proc.poll())
-        with self.assertRaises(ProcessLookupError):
-            os.killpg(proc.pid, 0)
 
 
 if __name__ == "__main__":

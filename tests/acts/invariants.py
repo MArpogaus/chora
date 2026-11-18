@@ -35,10 +35,21 @@ def windows_of(state):
     return {w.get("surface"): w for w in state.get("windows") or [] if w.get("surface")}
 
 
+def missing_keys(snap, *keys):
+    """A breach for each look that answers `state.get` without a key."""
+    return [
+        f"{look} missing key {key}: its state.get does not answer it"
+        for look, state in sorted(looks_with_state(snap).items())
+        for key in keys
+        if key not in state
+    ]
+
+
 def i1(_before, after, _act):
     """Every toplevel is attached, owned by one look and in its windows."""
     out = [f"{look} answers no state.get" for look, s in after.states.items() if s is None]
     states = looks_with_state(after)
+    out += missing_keys(after, "windows")
     if out:
         return out
     owned = {look: windows_of(state) for look, state in states.items()}
@@ -64,6 +75,8 @@ def i1(_before, after, _act):
 def i3(_before, after, _act):
     """The core focus is a shown window of the one look that holds it."""
     states = looks_with_state(after)
+    if gaps := missing_keys(after, "focus"):
+        return gaps
     claims = sorted(
         look for look, s in states.items() if (s.get("focus") or {}).get("holder") == look
     )
@@ -103,6 +116,8 @@ def i4(before, after, act):
     """What is open after the act is what was open plus the declared."""
     was, now = open_ids(before), open_ids(after)
     opens, closes = set(act.opens), set(act.closes)
+    if gaps := missing_keys(after, "open"):
+        return gaps
     out = [f"{i} opened, the act did not declare it" for i in sorted(now - was - opens)]
     out += [f"{i} was declared open and is not" for i in sorted(opens - now)]
     out += [f"{i} closed, the act did not declare it" for i in sorted(was - now - closes)]
@@ -138,6 +153,12 @@ def i8(_before, after, _act):
     said = [
         (e.get("data") or {}).get("state") for e in after.events if e.get("event") == "voice.state"
     ]
+    states = looks_with_state(after)
+    if said and states and not any("helper" in s for s in states.values()):
+        out += [
+            f"{look} missing key helper: the helper answered and no look reports it"
+            for look in sorted(states)[:1]
+        ]
     if said and said[-1] != "working":
         out += [
             f"{look} says the helper works after its answer ({said[-1]})"
@@ -148,6 +169,8 @@ def i8(_before, after, _act):
     for node in after.nodes:
         if node.get("visible") is False or not helper_surfaces(node):
             continue
+        if "rects" not in node:
+            out.append(f"the helper surface {node.get('id')} missing key rects")
         for output in node.get("rects") or {}:
             per_output.setdefault(output, []).append(node["id"])
     out += [
