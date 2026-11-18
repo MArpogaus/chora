@@ -412,3 +412,5 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-17 14:27Z "Agree, go ahead.  58% now" -> order: go (re-plan 14:24); reading: budget 58 % at 14:27
 - 2026-11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available. Schall wie usw it or keep current pace, risking delay?" -> reading: Fable 10 %, all 61 % at 15:35; order: PM decisions 14:55 agreed; P1 runs into next week; opus lanes allowed for bigger chunks; question: use the full reset?
 - 2026-11-18 04:00Z "Status? Still ahead of plan?" -> question: status and schedule
+
+- 2026-11-18 10:38 UTC owner: "How is refactor going?" -> question (rules.md 2): answered with per-F state, numbers and the plan to Sat.
