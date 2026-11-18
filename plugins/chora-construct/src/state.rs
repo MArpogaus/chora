@@ -150,7 +150,7 @@ mod tests {
         let (mut flavor, _core) = construct("state-empty", false);
         let state = flavor.state().expect("the construct has a state");
         let expected = json!({"windows": [], "views": [], "focus": {"holder": null},
-            "open": [], "busy": []});
+            "open": [], "busy": [], "helper": "none"});
         assert_eq!(state, expected);
         flavor.active = true;
         assert_eq!(
@@ -226,5 +226,33 @@ mod tests {
         c.help = true;
         let open = json!([{"id": "construct-help", "kind": "sheet", "modal": true}]);
         assert_eq!(c.state().unwrap()["open"], open);
+    }
+
+    /// `helper` is `none` until voice reports, follows its latest
+    /// `voice.state`, and is `none` again when voice goes.
+    #[test]
+    fn the_helper_follows_voice() {
+        let (mut x, _core) = construct("state-helper", false);
+        assert_eq!(x.state().unwrap()["helper"], "none");
+        let said = |event: &str, data| chora_scene::Event::Emitted {
+            event: event.into(),
+            client: "voice".into(),
+            data,
+        };
+        x.event(said("voice.state", json!({"state": "idle"})))
+            .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "idle");
+        x.event(said(
+            "voice.state",
+            json!({"name": "atlas", "state": "working"}),
+        ))
+        .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "working");
+        x.event(said("voice.remove", json!({"name": "atlas"})))
+            .unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "idle");
+        let gone = json!({"event": "client.disconnected", "name": "voice"});
+        x.event(serde_json::from_value(gone).unwrap()).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "none");
     }
 }
