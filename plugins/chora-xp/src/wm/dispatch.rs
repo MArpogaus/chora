@@ -15,6 +15,7 @@ impl Wm {
     /// Handles one event of the core, with one arm per event.
     #[allow(clippy::too_many_lines)]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+        self.voiced.hear(&event);
         let commands = match event {
             Event::SurfaceCreated {
                 surface,

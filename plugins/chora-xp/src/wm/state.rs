@@ -42,7 +42,8 @@ impl Wm {
             None => json!({"holder": null}),
         };
         json!({"windows": windows, "desks": desks, "focus": focus,
-            "open": self.open_value(), "busy": self.busy_value()})
+            "open": self.open_value(), "busy": self.busy_value(),
+            "helper": self.voiced.word()})
     }
 
     /// A window of another window manager took the focus last.

@@ -95,6 +95,7 @@ impl Wm {
             notifier: Notifier::new(),
             volume: None,
             helper: Helper::default(),
+            voiced: chora_kit::helper::Helpers::default(),
             mixer: Mixer::new(NAME),
             volume_read: Instant::now(),
         };

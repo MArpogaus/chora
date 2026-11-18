@@ -424,6 +424,8 @@ pub struct Wm {
     /// the first.
     volume: Option<Reading>,
     helper: Helper,
+    /// The word of `state.get`; only reads.
+    voiced: chora_kit::helper::Helpers,
     /// Runs wpctl off the main loop.
     mixer: Mixer,
     /// When the volume was last read.
