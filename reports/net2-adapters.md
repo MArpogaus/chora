@@ -54,3 +54,9 @@ New known-red rows (finding ids for the PM to file in the ledgers):
 - The harness Session should wait for `state.get` itself (looks/common.py `ready` does it now).
 - tiling windows have no title or app_id (core facts); the join belongs to `choractl state`.
 - `maximized` of tiling is true only for both axes.
+
+## r2 (head 55c6ba80, gate once: all steps PASS, run /tmp/merge-gate.1DVQuh)
+- Merged the session branch (harness r2, train 49) clean; no new row forced.
+- Step 2: planted.py sound baseline injects `open` through `filtered`; red first (live acts: "selftest sound I4: mc missing key open"), then green. mc keeps no `open`.
+- Step 3: each adapter answers `helper` (kit::helper::Helpers: latest voice.state word, voice.remove, voice disconnect -> "none"). One red cell per look (test(state): ... answers a real helper key (red): xp, tiling, mc, construct), then the fix commit; tiling now subscribes voice.state, voice.remove, client.disconnected. I8 no "missing key helper".
+- Step 4: known-red rows carry `match` (mc I4 "missing key open", mc I3, mc door acts, xp Escape); header documents the key. acts: 47 pass, 5 known red, 0 blocking.
