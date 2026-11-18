@@ -44,6 +44,7 @@ impl Tiling {
             .filter(|s| self.focus.sent && !self.focus.lost && self.wm.has(s));
         let focus = match held {
             Some(surface) => json!({"holder": NAME, "surface": surface}),
+            None if self.keys_open => json!({"holder": NAME}),
             None => json!({"holder": null}),
         };
         let open: Vec<Value> = (self

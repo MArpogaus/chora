@@ -345,6 +345,8 @@ pub struct Wm {
     /// The surfaces in the order they opened, for the taskbar.
     opened: Vec<String>,
     focused: Option<String>,
+    /// The surface of the last `focus.changed`; read only by `state.get`.
+    core_focus: Option<String>,
     bars: Vec<Bar>,
     menu: Menu,
     drag: Option<Drag>,

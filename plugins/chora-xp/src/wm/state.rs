@@ -1,6 +1,9 @@
 //! `state.get` (design 3.1): what chora-xp shows and holds, read from its
 //! model until xp uses `kit::wm`; the port deletes this adapter. Only
-//! reads. Desktops count from 1, as the pager shows them. `views` and
+//! reads, besides `core_focus`. Without a focused window xp holds the
+//! focus with its own nodes (the icons, a menu, a dialog) until a window
+//! of another window manager takes it: a node that takes the keyboard
+//! sends no `focus.changed`. Desktops count from 1, as the pager shows them. `views` and
 //! `texts` stay out: xp shows no window of another look, and its drawn
 //! text runs come with NET3.
 
@@ -35,10 +38,16 @@ impl Wm {
             .collect();
         let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
             Some(surface) => json!({"holder": NAME, "surface": surface}),
+            None if !self.focus_away() => json!({"holder": NAME}),
             None => json!({"holder": null}),
         };
         json!({"windows": windows, "desks": desks, "focus": focus,
             "open": self.open_value(), "busy": self.busy_value()})
+    }
+
+    /// A window of another window manager took the focus last.
+    fn focus_away(&self) -> bool {
+        (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
     }
 
     /// The menus and dialogs that show, in the order Escape shuts them.

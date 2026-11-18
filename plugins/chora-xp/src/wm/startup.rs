@@ -57,6 +57,7 @@ impl Wm {
             windows: Vec::new(),
             opened: Vec::new(),
             focused: None,
+            core_focus: None,
             bars: Vec::new(),
             menu,
             drag: None,
