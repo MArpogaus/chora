@@ -18,6 +18,7 @@ mod keys;
 mod layout;
 mod methods;
 mod overlay;
+mod state;
 mod theme;
 mod windows;
 mod wm;
@@ -456,6 +457,10 @@ impl Plugin for Tiling {
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
         Some(&mut self.settings)
+    }
+
+    fn state(&self) -> Option<Value> {
+        Some(self.state_value())
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -1127,7 +1132,7 @@ mod tests {
 
     /// A tiling on a fake core that answers every request, `input.grab`
     /// with its binding, and keeps the names of the methods called.
-    fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+    pub(crate) fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
         on_fake_core_with(tag, &[])
     }
 

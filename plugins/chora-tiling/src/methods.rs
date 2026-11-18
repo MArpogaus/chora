@@ -62,6 +62,7 @@ pub(super) fn layout_methods() -> Vec<ExportMethod> {
             &[],
         ),
         give::method(),
+        runtime::state_method(),
     ]
 }
 
