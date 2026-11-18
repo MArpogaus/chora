@@ -13,6 +13,7 @@ Usage: tests/acts/run.py [--no-selftest] [LOOK...]   BIN: the binaries
 
 import importlib
 import pathlib
+import shutil
 import sys
 import tempfile
 import traceback
@@ -62,6 +63,10 @@ def main():
         if word == "red":
             print(f"  red: {results[key][0][:300]}")
     blocking += verdict.blocking
+    if blocking:
+        print(f"acts: evidence kept in {runs}")
+    else:
+        shutil.rmtree(runs, ignore_errors=True)
     print(
         f"acts: {len(verdict.passed)} pass, {len(verdict.red)} known red, {len(blocking)} blocking"
     )
