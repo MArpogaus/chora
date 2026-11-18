@@ -62,6 +62,21 @@ pub enum System {
     Cube(Turn),
 }
 
+impl System {
+    /// The shared script that runs the action and its arguments, for
+    /// [`crate::shared::command`]: the locker, the power menu and the
+    /// screenshot.
+    #[must_use]
+    pub fn script(&self) -> Option<(&'static str, &'static [&'static str])> {
+        match self {
+            Self::Lock => Some(("power", &["lock"])),
+            Self::Power => Some(("power", &[])),
+            Self::Screenshot => Some(("screenshot", &[])),
+            _ => None,
+        }
+    }
+}
+
 /// The action of a binding: one of the system, or one of the look.
 #[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(untagged)]
@@ -72,8 +87,49 @@ pub enum Action<L> {
     Look(L),
 }
 
-impl<'de, L> Deserialize<'de> for Action<L> {
-    fn deserialize<D: serde::Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
-        Err(serde::de::Error::custom("not yet"))
+/// The names of the system actions as a binding spells them.
+const SYSTEM: [&str; 14] = [
+    "run",
+    "terminal",
+    "launcher",
+    "keys",
+    "chat",
+    "lock",
+    "power",
+    "screenshot",
+    "volume",
+    "close",
+    "give",
+    "drag",
+    "desk",
+    "cube",
+];
+
+/// Whether a value names an action of the system: a string, or a map with
+/// one key, that is one of [`SYSTEM`].
+fn names_system(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::String(name) => SYSTEM.contains(&name.as_str()),
+        serde_json::Value::Object(map) => {
+            map.len() == 1 && map.keys().all(|k| SYSTEM.contains(&k.as_str()))
+        }
+        _ => false,
+    }
+}
+
+impl<'de, L: serde::de::DeserializeOwned> Deserialize<'de> for Action<L> {
+    /// A system action first, else an action of the look. A mistake is
+    /// reported by the side that the value names: `{volume: sideways}`
+    /// is a bad volume, not an unknown action of the look.
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        match System::deserialize(&value) {
+            Ok(system) => Ok(Self::System(system)),
+            Err(err) if names_system(&value) => Err(D::Error::custom(err)),
+            Err(_) => L::deserialize(value)
+                .map(Self::Look)
+                .map_err(D::Error::custom),
+        }
     }
 }

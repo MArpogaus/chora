@@ -90,3 +90,11 @@ fn the_common_settings_default_off() {
     let common: Common<Own> = serde_saphyr::from_str("bindings: {}\n").unwrap();
     assert!(!common.test_accept_injected_keys);
 }
+
+#[test]
+fn the_shared_scripts_run_lock_power_and_screenshot() {
+    assert_eq!(System::Lock.script(), Some(("power", &["lock"][..])));
+    assert_eq!(System::Power.script(), Some(("power", &[][..])));
+    assert_eq!(System::Screenshot.script(), Some(("screenshot", &[][..])));
+    assert_eq!(System::Chat.script(), None);
+}

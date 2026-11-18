@@ -3,7 +3,8 @@
 
 use std::collections::BTreeMap;
 
-use chora_kit::settings::Settings;
+use chora_kit::actions::System;
+use chora_kit::settings::{Common, Settings};
 use chora_scene::{Binding, FontStyle, PropsUpdate};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,22 +28,14 @@ const NEEDED: [&str; 8] = [
 /// The most styles that one style can build on, in a row.
 const MAX_DEPTH: usize = 8;
 
-/// What a binding does.
+/// What a binding of mc does besides the actions of every look.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub enum Action {
+pub enum Look {
     NextScene,
     PreviousScene,
     /// Shows a scene by its name.
     Scene(String),
-    /// Runs a shell command as an app; its window gets a scene of its own.
-    Run(String),
-    /// Gives the focused window to the window manager of this name (D55),
-    /// whoever owns it.
-    Give(String),
-    /// On a pointer button: a window of mc that is pressed and let go on
-    /// the claim of another window manager goes to that one (D55).
-    Drag,
     /// Shows or hides a region; a docked app takes the focus first.
     Toggle(Region),
     /// Shows a content alone in a region over any scene, or hides it.
@@ -50,18 +43,18 @@ pub enum Action {
         content: String,
         region: Region,
     },
-    /// Shows all keys in the key list, or only the six that show first.
-    Keys,
-    /// Asks the HUD host to open the chat with a helper.
-    Chat,
-    /// Locks the screen.
-    Lock,
-    /// Opens the power menu: Lock, Log out, Restart, Shut down.
-    Power,
-    /// Takes a screenshot of the output.
-    Screenshot,
-    /// Changes the volume of the default sound output.
-    Volume(chora_kit::volume::Change),
+}
+
+/// What a binding does: an action of every look, or one of mc.
+pub type Action = chora_kit::actions::Action<Look>;
+
+/// Whether mc does something for a system action: the others have no
+/// meaning in a look of pages, and a binding to one is refused.
+fn acts_in_mc(system: &System) -> bool {
+    !matches!(
+        system,
+        System::Terminal | System::Launcher | System::Close | System::Desk(_) | System::Cube(_)
+    )
 }
 
 /// How an agent of `agent.set` shows in a state.
@@ -341,11 +334,11 @@ pub struct Config {
     /// Who draws the voice HUD: `own` or `host`.
     #[serde(default)]
     pub voice_hud: VoiceHud,
-    /// For tests only: take the keys and the pointer presses of
-    /// `input.inject` as the user's. Off, the bindings ignore injected
-    /// keys, and the hits and the agent columns injected presses.
-    #[serde(default)]
-    pub test_accept_injected_keys: bool,
+    /// The bindings and the switch of the tests, as in every look. With
+    /// `test_accept_injected_keys` the hits and the agent columns take
+    /// injected presses too.
+    #[serde(flatten)]
+    pub common: Common<Look>,
     pub themes: Themes,
     pub scale: Scale,
     /// The named styles of text.
@@ -363,8 +356,6 @@ pub struct Config {
     pub order: Vec<String>,
     /// The states of the agents of `agent.set`, by name.
     pub states: BTreeMap<String, State>,
-    /// A binding and its action.
-    pub bindings: BTreeMap<String, Action>,
     /// The regions around the page.
     pub regions: Regions,
     /// What the regions can show, by name.
@@ -521,13 +512,18 @@ impl Settings for Config {
         let presets = (self.preset.as_str(), &self.presets);
         region::check(&self.regions, &self.contents, &self.rules, presets)?;
         let mut keys = BTreeMap::new();
-        for binding in self.bindings.keys() {
+        for binding in self.common.bindings.keys() {
             let parsed: Binding = binding.parse().map_err(|e| format!("{binding}: {e}"))?;
             // Two spellings of one key would lose one grab at runtime.
             if let Some(other) = keys.insert(parsed.to_string(), binding) {
                 return Err(format!("{binding}: the same key as {other}"));
             }
-            if let Action::Solo { content, region } = &self.bindings[binding] {
+            if let Action::System(unfit) = &self.common.bindings[binding]
+                && !acts_in_mc(unfit)
+            {
+                return Err(format!("{binding}: mc has no action for {unfit:?}"));
+            }
+            if let Action::Look(Look::Solo { content, region }) = &self.common.bindings[binding] {
                 let found = (self.contents.get(content))
                     .ok_or_else(|| format!("{binding}: no content {content}"))?;
                 region::put_check(found, *region).map_err(|e| format!("{binding}: {e}"))?;
@@ -604,7 +600,10 @@ mod tests {
     #[test]
     fn the_default_binds_the_drag_to_a_pointer_button() {
         let config = parse::<Config>(DEFAULT).unwrap();
-        assert_eq!(config.bindings["Super+BTN_LEFT"], Action::Drag);
+        assert_eq!(
+            config.common.bindings["Super+BTN_LEFT"],
+            Action::System(System::Drag)
+        );
     }
 
     /// The host draws the voice HUD by default: one voice indicator.
@@ -618,10 +617,13 @@ mod tests {
     #[test]
     fn the_default_keys_of_the_chat_and_the_terminal() {
         let config = parse::<Config>(DEFAULT).unwrap();
-        assert_eq!(config.bindings["Super+a"], Action::Chat);
         assert_eq!(
-            config.bindings["Super+Return"],
-            Action::Scene("terminal".into())
+            config.common.bindings["Super+a"],
+            Action::System(System::Chat)
+        );
+        assert_eq!(
+            config.common.bindings["Super+Return"],
+            Action::Look(Look::Scene("terminal".into()))
         );
     }
 
@@ -631,14 +633,23 @@ mod tests {
     fn the_default_has_the_shared_keys_of_every_look() {
         use chora_kit::volume::Change;
         let config = parse::<Config>(DEFAULT).unwrap();
-        let keys = &config.bindings;
-        assert_eq!(keys["Super+slash"], Action::Keys);
-        assert_eq!(keys["Super+Shift+Escape"], Action::Lock);
-        assert_eq!(keys["Super+Shift+e"], Action::Power);
-        assert_eq!(keys["Super+Print"], Action::Screenshot);
-        assert_eq!(keys["XF86AudioRaiseVolume"], Action::Volume(Change::Up));
-        assert_eq!(keys["XF86AudioLowerVolume"], Action::Volume(Change::Down));
-        assert_eq!(keys["XF86AudioMute"], Action::Volume(Change::Mute));
+        let keys = &config.common.bindings;
+        assert_eq!(keys["Super+slash"], Action::System(System::Keys));
+        assert_eq!(keys["Super+Shift+Escape"], Action::System(System::Lock));
+        assert_eq!(keys["Super+Shift+e"], Action::System(System::Power));
+        assert_eq!(keys["Super+Print"], Action::System(System::Screenshot));
+        assert_eq!(
+            keys["XF86AudioRaiseVolume"],
+            Action::System(System::Volume(Change::Up))
+        );
+        assert_eq!(
+            keys["XF86AudioLowerVolume"],
+            Action::System(System::Volume(Change::Down))
+        );
+        assert_eq!(
+            keys["XF86AudioMute"],
+            Action::System(System::Volume(Change::Mute))
+        );
         assert!(!keys.contains_key("F1"));
     }
 
@@ -654,7 +665,7 @@ mod tests {
             let text = std::fs::read_to_string(dir.join(format!("{name}.yaml"))).unwrap();
             let config = parse::<Config>(&text).unwrap();
             let mut table = String::new();
-            for (key, action) in &config.bindings {
+            for (key, action) in &config.common.bindings {
                 writeln!(table, "{key}\t{}", serde_json::to_string(action).unwrap()).unwrap();
             }
             let golden = dir.join(format!("{name}.table"));
@@ -665,17 +676,53 @@ mod tests {
         }
     }
 
+    /// A `settings.set` of a binding merges into the common settings that
+    /// kit holds, is written as a map of the file, and reads back as the
+    /// same action.
+    #[test]
+    fn a_binding_set_through_the_settings_is_saved_and_read_back() {
+        use chora_kit::settings::{File, Store};
+        let dir = std::env::temp_dir().join(format!("chora-mc-common-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("mc.yaml");
+        let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();
+        let change =
+            serde_json::json!({"bindings": {"Super+x": {"run": "foot"}, "Super+Up": null}});
+        file.set(change).unwrap();
+        file.save().unwrap();
+        let again = File::<Config>::load(path, DEFAULT).unwrap();
+        let bindings = &again.value.common.bindings;
+        assert_eq!(
+            bindings["Super+x"],
+            Action::System(System::Run("foot".into()))
+        );
+        assert!(!bindings.contains_key("Super+Up"));
+        assert_eq!(bindings["Super+a"], Action::System(System::Chat));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A key that mc has no action for is refused with the binding named.
+    #[test]
+    fn a_system_action_without_meaning_in_mc_is_refused() {
+        let text = DEFAULT.replace("Super+a: chat", "Super+a: terminal");
+        let err = parse::<Config>(&text).unwrap_err();
+        assert!(err.contains("Super+a") && err.contains("Terminal"), "{err}");
+    }
+
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
         assert_eq!(
-            config.bindings["Super+Home"],
-            Action::Scene("agenda".into())
+            config.common.bindings["Super+Home"],
+            Action::Look(Look::Scene("agenda".into()))
         );
         let give = DEFAULT.replace("Super+n:", "Super+g: {give: xp}\n  Super+n:");
         let given = parse::<Config>(&give).unwrap();
-        assert_eq!(given.bindings["Super+g"], Action::Give("xp".into()));
+        assert_eq!(
+            given.common.bindings["Super+g"],
+            Action::System(System::Give("xp".into()))
+        );
         assert_eq!(config.chapter.layout, Layout::Number);
         assert!(config.write.enabled);
         let slow = DEFAULT.replace("duration_ms: 900", "duration_ms: 99999");

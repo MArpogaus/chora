@@ -1,4 +1,7 @@
+use chora_kit::actions::System;
+
 use super::{Action, Mc, NAME, PressState, launch};
+use crate::config::Look;
 
 impl Mc {
     /// A drag (D55): the press takes the window of mc that asked for a
@@ -11,7 +14,7 @@ impl Mc {
         point: [f64; 2],
         on: Option<String>,
     ) {
-        if !matches!(self.rt.action(binding), Some(Action::Drag)) {
+        if !matches!(self.rt.action(binding), Some(Action::System(System::Drag))) {
             return;
         }
         if state == PressState::Pressed {
@@ -54,71 +57,72 @@ impl Mc {
         let _ = launch(&command, mint.as_deref());
     }
 
-    /// Runs the actions of the system: the locker, the power menu, the
-    /// screenshot and the volume.
-    pub(crate) fn system(&mut self, action: &Action) {
-        match action {
-            Action::Lock => self.run_shared("power", &["lock"]),
-            Action::Power => self.run_shared("power", &[]),
-            Action::Screenshot => self.run_shared("screenshot", &[]),
-            Action::Volume(change) => self.volume.change(*change, true),
-            _ => {}
+    /// Runs an action of every look that mc has: the locker, the power
+    /// menu, the screenshot, the volume, a command, a give, the chat and
+    /// the key list. The rest has no meaning in mc.
+    pub(crate) fn system(&mut self, system: &System) {
+        if let Some((script, args)) = system.script() {
+            self.run_shared(script, args);
+            return;
+        }
+        match system {
+            System::Volume(change) => self.volume.change(*change, true),
+            System::Run(command) => {
+                let mint = self.rt.conn.activation_token();
+                let _ = launch(&chora_kit::shared::launcher(command), mint.as_deref());
+            }
+            System::Give(to) => {
+                if let Err(err) = chora_kit::give::focused(self, to) {
+                    eprintln!("chora-mc: give to {to}: {}", err.message);
+                }
+            }
+            System::Chat => self.chat_with(None),
+            System::Keys => {
+                self.keys = self.keys.flip();
+                if let Err(err) = self.render() {
+                    eprintln!("chora-mc: keys: {err}");
+                }
+            }
+            System::Drag
+            | System::Terminal
+            | System::Launcher
+            | System::Close
+            | System::Desk(_)
+            | System::Cube(_)
+            | System::Lock
+            | System::Power
+            | System::Screenshot => {}
         }
     }
 
     pub fn perform(&mut self, action: Action) {
-        self.system(&action);
-        self.turn(action);
+        match action {
+            Action::System(system) => self.system(&system),
+            Action::Look(look) => self.turn(look),
+        }
     }
 
-    /// Does an action of a binding that is not one of the system.
-    pub(crate) fn turn(&mut self, action: Action) {
+    /// Does an action of mc: a scene, or a region.
+    pub(crate) fn turn(&mut self, look: Look) {
         let names = self.order();
         let at = self
             .current
             .as_ref()
             .and_then(|c| names.iter().position(|n| n == c))
             .unwrap_or(0);
-        let next = match action {
-            Action::NextScene => names[(at + 1) % names.len()].clone(),
-            Action::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
-            Action::Scene(name) => name,
-            Action::Run(command) => {
-                let mint = self.rt.conn.activation_token();
-                let _ = launch(&chora_kit::shared::launcher(&command), mint.as_deref());
-                return;
-            }
-            Action::Give(to) => {
-                if let Err(err) = chora_kit::give::focused(self, &to) {
-                    eprintln!("chora-mc: give to {to}: {}", err.message);
-                }
-                return;
-            }
-            Action::Drag
-            | Action::Lock
-            | Action::Power
-            | Action::Screenshot
-            | Action::Volume(_) => return,
-            Action::Toggle(region) => {
+        let next = match look {
+            Look::NextScene => names[(at + 1) % names.len()].clone(),
+            Look::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
+            Look::Scene(name) => name,
+            Look::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {
                     eprintln!("chora-mc: toggle {}: {err}", region.name());
                 }
                 return;
             }
-            Action::Solo { content, region } => {
+            Look::Solo { content, region } => {
                 if let Err(err) = self.solo(&content, region, None, true) {
                     eprintln!("chora-mc: solo {content}: {err}");
-                }
-                return;
-            }
-            Action::Chat => {
-                self.chat_with(None);
-                return;
-            }
-            Action::Keys => {
-                self.keys = self.keys.flip();
-                if let Err(err) = self.render() {
-                    eprintln!("chora-mc: keys: {err}");
                 }
                 return;
             }

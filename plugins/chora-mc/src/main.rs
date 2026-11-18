@@ -53,7 +53,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    config::{Action, Config, Layout, Style, Type},
+    config::{Action, Config, Layout, Look, Style, Type},
     exports::exported_methods,
     fonts::Ink,
     region::{FIT_MS, Kind, MAX_LINES, PARKED, REGIONS, Region, Rule},
@@ -1053,14 +1053,14 @@ impl Mc {
     /// A key without a modifier while a page has the keyboard: Right and
     /// Left turn the page, Escape goes back one step.
     fn page_key(&mut self, key: &str, modifiers: &[String], injected: bool) {
-        let action = match key {
+        let look = match key {
             _ if !modifiers.is_empty() || !self.by_person(injected) => return,
-            "Right" => Action::NextScene,
-            "Left" => Action::PreviousScene,
+            "Right" => Look::NextScene,
+            "Left" => Look::PreviousScene,
             "Escape" => return self.back(),
             _ => return,
         };
-        self.turn(action);
+        self.turn(look);
     }
 
     /// One step back: the full key list closes; else the page that showed
@@ -1312,7 +1312,10 @@ impl Mc {
 
 /// Whether an action is grabbed only with the claim of a window manager.
 fn needs_claim(action: &Action) -> bool {
-    matches!(action, Action::Drag | Action::Volume(_))
+    matches!(
+        action,
+        Action::System(chora_kit::actions::System::Drag | chora_kit::actions::System::Volume(_))
+    )
 }
 
 /// Keeps the regions over a scene group that was just created.

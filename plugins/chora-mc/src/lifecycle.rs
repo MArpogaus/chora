@@ -168,9 +168,11 @@ impl Mc {
         if self.built {
             self.grab_claimed()?;
         }
-        self.rt.give_keys(Some(|to| Action::Give(to.into())));
+        self.rt.give_keys(Some(|to| {
+            Action::System(chora_kit::actions::System::Give(to.into()))
+        }));
         self.rt
-            .accept_injected(self.settings.value.test_accept_injected_keys);
+            .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.grab_give_keys()
     }
 
@@ -180,7 +182,7 @@ impl Mc {
         &mut self,
         wanted: impl Fn(&Action) -> bool,
     ) -> Result<(), ClientError> {
-        let bindings = self.settings.value.bindings.clone();
+        let bindings = self.settings.value.common.bindings.clone();
         for (text, action) in bindings.into_iter().filter(|(_, a)| wanted(a)) {
             let binding = text.parse().expect("the settings check their bindings");
             self.rt.grab(binding, action)?;
