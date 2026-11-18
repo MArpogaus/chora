@@ -36,3 +36,12 @@ Door acts and NET2 acts PASS (acts, doors steps). Visible change: the buttons sa
 3. kit words for the remaining literals: construct hint, label, mc ja/nein line.
 4. `Answer::Always`: when the voice service takes `always` (grants.md 112-120), add a third `Button` and a grant-question flag on `Question`; the serialisation is already in place.
 5. Call `Card::moved` from the one place that re-places a card, once more than the assistant has a movable card.
+
+## Review r1 (opus, PM, 11-18 08:5x): FIX
+MAJOR: construct sh-26 guard starts when the question arrives (voice.rs:43), not when draw_ask draws;
+Card::moved never called; remade card on resize/restyle keeps the old time. MINOR: mc guard not reset
+on re-place; construct hint literals (hud.rs:1259-1261) and mc "ja / nein" (agent.rs:564) not words;
+mc 400 ms cell uses the wall clock; agent.question shown unsanitized in set_agent (pre-existing,
+ledger). COSMETIC: show_answers doc, configuration.md wrap. REFACTOR: keys()/buttons() twice (into
+kit::Question); side effect in a match guard (construct input.rs:315). Clean: no guard lost
+(sanitize in ask.rs:91-103), Always unreachable, ids matched, red first.
