@@ -7,6 +7,9 @@ serde-saphyr.workspace = true
 serde_json.workspace = true
 zbus.workspace = true
 
+[features]
+testing = []
+
 [lints]
 workspace = true
 
@@ -19,3 +22,7 @@ publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
+
+[[test]]
+name = "fake_core"
+required-features = ["testing"]

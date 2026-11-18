@@ -4,8 +4,5 @@
 1719 crates/chora/src/ipc.rs
 1857 crates/chora/src/render.rs
 1641 plugins/chora-construct/src/cube.rs
-3455 plugins/chora-mc/src/main.rs
 2271 plugins/chora-mc/src/region.rs
-2280 plugins/chora-tiling/src/main.rs
-4272 plugins/chora-xp/src/wm.rs
 1535 services/voice/src/chat.rs

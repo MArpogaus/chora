@@ -1484,6 +1484,15 @@ $ choractl call tiling settings.set '{"bindings": {"MOD+u": null}}'
 $ choractl call tiling settings.reload
 ```
 
+A plugin that implements `Plugin::state` also exports `state.get`, which
+answers what it shows and holds: its windows, the focus, what is open
+and what still moves (`busy`). `choractl state mc` prints it. `chora-mc`
+fills the windows, the focus, `open` and `busy`; the other looks follow.
+
+```console
+$ choractl state mc
+```
+
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
 `turn_to`, `window.move`, `windows.float` and `restart`, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and
