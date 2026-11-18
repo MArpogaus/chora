@@ -4,13 +4,18 @@ sound snapshot and fails on a planted breach, the known-red list blocks a
 listed pass and an unlisted failure, quiet waits for every `busy` to
 empty and fails at its timeout, and an `Expect` fails on a mismatch.
 
-The cells need no session; tests/acts/live.py plants breaches in a real
+The cells need no session; tests/acts/planted.py plants breaches in a real
 one. Usage: python3 -I tests/test_acts.py [-v]
 """
 
+import os
 import pathlib
+import signal
+import subprocess
 import sys
+import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "acts"))
 
@@ -294,6 +299,13 @@ class KnownRed(unittest.TestCase):
         with self.assertRaises(ValueError):
             harness.judge({}, [{"look": "xp", "id": "I1"}])
 
+    def test_match_limits_a_row_to_its_breach(self):
+        rows = [dict(self.rows[0], match="missing key open")]
+        listed = harness.judge({("xp", "I1"): ["missing key open"]}, rows)
+        self.assertEqual(listed.blocking, [])
+        other = harness.judge({("xp", "I1"): ["the toplevel s1 is detached"]}, rows)
+        self.assertTrue(other.blocking)
+
     def test_the_list_parses(self):
         rows = harness.known_red()
         self.assertIsInstance(rows, list)
@@ -301,7 +313,9 @@ class KnownRed(unittest.TestCase):
 
 class Quiet(unittest.TestCase):
     def test_waits_until_every_busy_is_empty(self):
-        reads = iter([{"xp": {"busy": ["anim"]}}, {"xp": {"busy": []}}])
+        reads = iter(
+            [{"xp": {"busy": ["anim"]}}, {"xp": {"busy": []}}, {"xp": {"busy": []}}]
+        )
         clock = [0.0]
         states = harness.wait_quiet(
             lambda: next(reads),
@@ -321,6 +335,25 @@ class Quiet(unittest.TestCase):
                 now=lambda: clock[0],
             )
         self.assertIn("anim", str(caught.exception))
+
+    def test_one_empty_read_is_not_quiet(self):
+        reads = iter(
+            [{"xp": {"busy": []}}, {"xp": {"busy": ["anim"]}}]
+            + [{"xp": {"busy": []}}] * 2
+        )
+        clock = [0.0]
+        harness.wait_quiet(
+            lambda: next(reads),
+            timeout=5,
+            sleep=lambda s: clock.__setitem__(0, clock[0] + s),
+            now=lambda: clock[0],
+        )
+        self.assertEqual(list(reads), [])
+
+    def test_a_state_without_busy_is_not_quiet(self):
+        with self.assertRaises(harness.NotQuiet) as caught:
+            harness.wait_quiet(lambda: {"xp": {"windows": []}}, timeout=1)
+        self.assertIn("missing key busy", str(caught.exception))
 
     def test_a_look_without_state_is_quiet(self):
         states = harness.wait_quiet(lambda: {"xp": None}, timeout=1)
@@ -355,6 +388,78 @@ class Expectations(unittest.TestCase):
     def test_gone(self):
         self.assertEqual(Expect(gone=1).check(self.after(), self.before()), [])
         self.assertTrue(Expect(gone=1).check(self.after(), self.after()))
+
+
+class MissingKeys(unittest.TestCase):
+    """A look that answers state.get without a key an invariant needs is a
+    breach, not a pass."""
+
+    def without(self, key, **kw):
+        state = {k: v for k, v in snap().states["xp"].items() if k != key}
+        return snap(states={"xp": state}, **kw)
+
+    def test_i1_without_windows(self):
+        found = breaches("I1", snap(), self.without("windows"))
+        self.assertTrue(any("missing key windows" in b for b in found), found)
+
+    def test_i3_without_focus(self):
+        found = breaches("I3", snap(), self.without("focus"))
+        self.assertTrue(any("missing key focus" in b for b in found), found)
+
+    def test_i4_without_open(self):
+        found = breaches("I4", snap(), self.without("open"))
+        self.assertTrue(any("missing key open" in b for b in found), found)
+
+    def test_i8_without_helper_after_a_voice_event(self):
+        events = [{"event": "voice.state", "data": {"state": "idle"}}]
+        found = breaches("I8", snap(), self.without("helper", events=events))
+        self.assertTrue(any("missing key helper" in b for b in found), found)
+
+    def test_i8_helper_surface_without_rects(self):
+        node = {"id": "hud-chat", "kind": "group", "owner": "xp", "parent": "root"}
+        found = breaches("I8", snap(), snap(nodes=snap().nodes + [node]))
+        self.assertTrue(any("missing key rects" in b for b in found), found)
+
+    def test_a_look_without_state_stays_no_state(self):
+        found = breaches("I1", snap(), snap(states={"xp": None}))
+        self.assertEqual(found, ["xp answers no state.get"])
+        self.assertEqual(breaches("I4", snap(), snap(states={"xp": None})), [])
+
+
+class Teardown(unittest.TestCase):
+    """Session setup that fails leaves no process and no temp dir."""
+
+    def test_failed_setup_cleans_up(self):
+        started = []
+        real = subprocess.Popen
+
+        def fake(argv, **kw):
+            proc = real(["sleep", "60"], start_new_session=True)
+            started.append(proc)
+            return proc
+
+        session = harness.Session("xp")
+        with (
+            mock.patch.object(harness.subprocess, "Popen", fake),
+            mock.patch.object(session, "wait_env", side_effect=RuntimeError("no core")),
+            self.assertRaises(RuntimeError),
+        ):
+            session.__enter__()
+        self.assertEqual(len(started), 1)
+        self.assertIsNotNone(started[0].poll(), "the core process group still runs")
+        self.assertFalse(session.work.exists(), "the temp dir is left")
+
+    def test_exit_waits_for_a_slow_term(self):
+        script = "trap '' TERM; sleep 60"
+        proc = subprocess.Popen(["sh", "-c", script], start_new_session=True)
+        time.sleep(0.2)
+        session = harness.Session("xp")
+        session.work = pathlib.Path("/nonexistent-acts-work")
+        session.procs = [proc]
+        session.__exit__(None, None, None)
+        self.assertIsNotNone(proc.poll())
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(proc.pid, 0)
 
 
 if __name__ == "__main__":
