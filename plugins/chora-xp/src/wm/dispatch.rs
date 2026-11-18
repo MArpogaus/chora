@@ -34,7 +34,10 @@ impl Wm {
                 self.apply(commands)?;
                 return self.adopt(&surface, None, None, None);
             }
-            Event::SurfaceDestroyed { surface } => self.forget(&surface),
+            Event::SurfaceDestroyed { surface } => {
+                self.core_focus.take_if(|s| *s == surface);
+                self.forget(&surface)
+            }
             Event::SurfaceChanged {
                 surface,
                 app_id,
