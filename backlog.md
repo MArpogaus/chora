@@ -190,3 +190,10 @@ R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow
 - (net2-harness review 11-18 02:22, FIX) earliest gate: none; harness item: a cell template per invariant for an absent key, and a leak check (no process, no /tmp/chora-hl.*) after every acts run in the gate. Refactors ranked: 1. strict state schema once adapters land; 2. scene.boxes (NET3) for scene.query; 3. ruff over tests/.
 
 - (net2-adapters review 11-18 02:34, MERGE-OK) ranked: 1. `helper` key with the real word in every adapter (needed if harness r2 makes it strict); 2. Session waits for state.get itself (drop common.py ready()); 3. `by` in open entries; 4. tiling title/app_id join in `choractl state`; 5. SECURITY (owner policy, opus check before the next tag): state.get returns xp titles and app_ids, and confined callers can reach plugin methods (runtime.rs confined_call); decide strip-for-confined vs allowed; 6. xp/tiling focus "by belief" -> core fact with kit::wm; 7. mc known-red net2-a3 rows are an adapter gap, not user-visible.
+
+## net2-adapters r2 review (05:2x 11-18, MERGE-OK, 0 BLOCK/MAJOR), ranked
+1. REFACTOR xp keeps two helper trackers (wm.rs Helper and kit::helper::Helpers `voiced`); let xp's Helper own a kit Helpers (one tracker per plugin).
+2. REFACTOR kit `Helpers::EVENTS` constant plus a test that each adapter subscribes to it (tiling subscriptions have no unit test).
+3. MINOR process: ec9b00da (selftest fix) had no red test commit before it; decadd0f carries its own tests. Earliest gate: commit-order check at round review.
+4. MINOR `hear` lacks a unit test that a voice.state from another client is ignored; doc comment of `word()`: "idle" while voice runs with no sub-agent.
+5. COSMETIC field name `voiced_word` (mc) vs `voiced` (others).
