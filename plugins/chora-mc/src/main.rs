@@ -1713,7 +1713,7 @@ mod tests {
     fn a_chat_that_does_not_open_shows_a_notice() {
         let (mut mc, model) = crate::testing::mc("chat-refused", [1280, 800]);
         mc.show("agenda", false).unwrap();
-        model.lock().unwrap().refuse_calls = true;
+        model.lock().unwrap().refusals.push("methods.call".into());
         mc.chat_with(None);
         let urgent = mc.texts["urgent"].1.join(" ");
         assert!(urgent.contains("The chat does not open"), "{urgent}");

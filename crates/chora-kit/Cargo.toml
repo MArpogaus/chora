@@ -22,3 +22,7 @@ publish.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
+
+[[test]]
+name = "fake_core"
+required-features = ["testing"]

@@ -39,8 +39,8 @@ pub struct Core {
     pub called: Vec<Value>,
     /// The events that the plugin emitted through `events.emit`.
     pub emits: Vec<Value>,
-    /// `methods.call` fails, as when the client of the method is gone.
-    pub refuse_calls: bool,
+    /// The methods whose next call fails, in the order that they were planted.
+    pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
 }
@@ -77,6 +77,13 @@ impl FakeCore {
             }
         });
         Self { path, model }
+    }
+
+    /// Plants a refusal: the next call of `method` fails with
+    /// `REJECTED`, as when the client of a method is gone. The call after
+    /// it passes again.
+    pub fn refuse_next(&self, method: &str) {
+        self.model.lock().unwrap().refusals.push(method.to_owned());
     }
 
     /// The scene model, shared with the fake core.
@@ -129,7 +136,15 @@ fn serve(stream: &UnixStream, model: &Model) {
 
 fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, String)> {
     let params = &request["params"];
-    match request["method"].as_str().unwrap_or_default() {
+    let method = request["method"].as_str().unwrap_or_default();
+    {
+        let mut core = model.lock().unwrap();
+        if let Some(at) = core.refusals.iter().position(|m| m == method) {
+            core.refusals.remove(at);
+            return Err((RpcError::REJECTED, format!("{method} is refused")));
+        }
+    }
+    match method {
         "hello" => Ok(json!({"version": chora_scene::ipc::VERSION})),
         "scene.apply" => {
             let commands: Vec<Command> =
@@ -158,9 +173,6 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
             let mut core = model.lock().unwrap();
             core.calls.push(method);
             core.called.push(params.clone());
-            if core.refuse_calls {
-                return Err((RpcError::REJECTED, "no such client".to_owned()));
-            }
             Ok(Value::Null)
         }
         "events.emit" => {
