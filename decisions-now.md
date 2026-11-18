@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-17T23:59:00Z
+screened-through: 2026-11-18T00:04:00Z
+- 11-18 00:04Z "All right, so we are progressing faster than expected." -> reading: ahead on schedule (MV Tue, not Wed); budget 7 % over pace, so pull-ins only from the 2.5 % reserve (WM1b if NET2 in Thu)
 - 11-17 23:59Z "62%. Pace looks good. Most usage die to your fable Planung session. How is it going?" -> reading 62 %; pace fine (Fable plan was the cost); question: status
 - 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor
@@ -7,7 +8,6 @@ screened-through: 2026-11-17T23:59:00Z
 - 11-17 12:58Z "Good, go ahead with the rc tag. Well pull in additional feats if we progress faster. Your job is to realign and adapt the plan as we progress." -> PM re-plans, pulls feats in when ahead
 - 11-17 12:56Z "Not aiming towards 1.0 yet. We remain unstable until daily driving proves stability. Session keeps running in slower pace after 30.11. Try to land as much of our goals until then. Agree?" -> goal: no 1.0 date; 1.0 only after daily driving proves stability; land as much as possible by 11-30, then the session goes on at a slower pace
 - 11-17 10:59Z "Be perfectionist and very critical about the met targets. We want to push towards perfection." -> F1-F8 met only with evidence and an independent check; no partial credit
-- 11-17 10:56Z "New goal for the week: super clean well tested good designed codebase as foundation for future feature sprints." -> goal: after the rc tag, design/foundation.md F1-F8; rules.md 1 at train 40
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one..." -> rc now; one Fable plan lane (2 opus reviewers, 10:54), refactor sprint
 
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins

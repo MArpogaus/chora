@@ -2,6 +2,10 @@
 
 Newest first. The PM reads this file at the start of each run.
 
+## 2026-11-18 00:04 UTC
+"All right, so we are progressing faster than expected."
+Reading. Reply: half a day ahead on schedule, budget 7 % over pace; pull-ins from reserve only.
+
 ## 2026-11-17 23:59 UTC
 "62%. Pace looks good. Most usage die to your fable Planung session. How is it going?"
 Reading: 62 % (owner). Question: status. Reply: trains 44-47 green; NET1 starts now.
