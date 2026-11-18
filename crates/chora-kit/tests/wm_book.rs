@@ -125,8 +125,17 @@ fn phases(model: &Model) -> Vec<(String, String)> {
 
 fn output(name: &str) -> OutputInfo {
     serde_json::from_value(json!({"name": name, "size": [800, 600], "position": [0, 0],
-        "scale": 1.0, "refresh": 60000}))
+        "scale": 1.0, "camera": chora_scene::Transform::default(),
+        "work_area": [0, 0, 800, 600], "default_work_area": [0, 0, 800, 600]}))
     .unwrap()
+}
+
+/// The core takes the parent and the owner of a surface, as when its
+/// window manager goes.
+fn detach(model: &Model, id: &str) {
+    let mut core = model.lock().unwrap();
+    core.scene.remove_surface(id);
+    core.scene.add_surface(id, SurfaceInfo::default());
 }
 
 #[test]
@@ -181,6 +190,7 @@ fn a_detached_window_is_forgotten_and_adopted_anew() {
     surface(&core.model(), "s1");
     look.hear(&created("s1", None));
     look.heard.clear();
+    detach(&core.model(), "s1");
     look.hear(&Event::SurfaceDetached {
         surface: "s1".into(),
     });
@@ -280,9 +290,19 @@ fn a_refused_give_out_keeps_the_window() {
     let mut look = Look::new(&core, false);
     surface(&core.model(), "s1");
     look.hear(&created("s1", None));
-    core.refuse_next("scene.apply");
-    assert!(!look.give("s1", "xp"));
+    assert!(!look.give("s1", "xp"), "xp holds no claim yet");
     assert!(look.book.has("s1"), "a refused give keeps the window");
+    let mut xp = core.connect("xp");
+    xp.apply(vec![Command::Create {
+        id: "xp".into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 800.0, 600.0])),
+            ..PropsUpdate::default()
+        },
+    }])
+    .unwrap();
     assert!(look.give("s1", "xp"));
     assert!(!look.book.has("s1"));
     assert!(
