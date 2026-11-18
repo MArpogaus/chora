@@ -197,3 +197,11 @@ R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow
 3. MINOR process: ec9b00da (selftest fix) had no red test commit before it; decadd0f carries its own tests. Earliest gate: commit-order check at round review.
 4. MINOR `hear` lacks a unit test that a voice.state from another client is ignored; doc comment of `word()`: "idle" while voice runs with no sub-agent.
 5. COSMETIC field name `voiced_word` (mc) vs `voiced` (others).
+
+### kit2 r1 hand-back (11-18 07:00), ranked
+1. KIT2b construct: serde aliases `volume_up`, `volume_down`, `mute`, `help` for one release (C10), in `Action<L>`'s System side.
+2. REFACTOR: `actions::perform` in kit once a second look performs `System` (today mc/acts.rs).
+3. REFACTOR: `names_system` lists variants by hand; test it against `System`'s schema.
+4. KIT3 keysheet takes words from `System`; mc keys.rs `words()`, `volume_order` go.
+5. KIT2d: xp gains `Common` with defaults equal to today's keys.
+6. LOW: `Action<L>` via `serde_json::Value` loses line numbers in file errors.
