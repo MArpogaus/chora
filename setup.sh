@@ -80,6 +80,12 @@ cargo machete --version >/dev/null 2>&1 ||
     bin_get cargo-machete https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.2/cargo-machete-v0.9.2-x86_64-unknown-linux-musl.tar.gz ||
     { log "cargo install cargo-machete"; cargo install -q --locked cargo-machete; }
 
+# Coverage (F5 measures; PM container): llvm-tools plus cargo-llvm-cov.
+rustup component add llvm-tools-preview >/dev/null 2>&1 || log "llvm-tools-preview not added"
+cargo llvm-cov --version >/dev/null 2>&1 ||
+    bin_get cargo-llvm-cov https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-musl.tar.gz ||
+    { log "cargo install cargo-llvm-cov"; cargo install -q --locked cargo-llvm-cov; }
+
 grep -q 'incremental' "$HOME/.cargo/config.toml" 2>/dev/null || {
     mkdir -p "$HOME/.cargo"
     printf '[build]\nincremental = false\nrustc-wrapper = "sccache"\n\n[profile.dev]\ndebug = "line-tables-only"\n' >>"$HOME/.cargo/config.toml"

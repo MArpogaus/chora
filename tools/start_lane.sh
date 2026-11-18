@@ -21,6 +21,12 @@ model="$(grep -m1 -E '^Model: (haiku|sonnet|opus|Fable)' "$root/$rel" || true)"
 case "$model" in
   *opus*|*Fable*) printf '%s' "$model" | grep -qE 'because .{12,}' || die "an opus lane needs 'because <reason>' in its Model line (rules.md 5: opus only reviews and hard root causes)" ;;
 esac
+# Waiting rule (friction 11-17 15:07, second time 11-18): a lane polls its gate in the same turn.
+grep -qE 'same turn|never end a turn to wait' "$root/$rel" || die "$rel lacks 'poll it in the same turn' or 'never end a turn to wait' (a worker that ends its turn to wait stalls)"
+# Opus gate (critic 11-18: opus started three times while over pace): the budget line decides.
+case "$model" in
+  *opus*|*Fable*) grep -m1 '^budget:' "$root/state.md" | grep -qiE 'no new opus' && die "state.md budget line says no new opus today (rules.md 9)" ;;
+esac
 echo "$model  -> pass model and effort to create_session"
 echo "budget: week resets Sat 03:59 UTC (10:59 Bangkok); check the pace line in state.md before starting"
 echo "send_later delay_minutes=6: Start check of $name: is the worker running, did it read $rel, any error in its first turns? If not, restart it with the same brief; no scope message."

@@ -210,3 +210,8 @@ kit2 r1 review (07:05, MERGE-OK) MINORs: mc test that an unknown top-level key i
 wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRequested the book ignores (lifecycle.rs:27-30; relayout only on changes); release on last output emits no Phase (decide before WM1b-d); drag.rs settle-before-forget leaves the model holding a window on non-RPC failure; state.rs value() unwrap_or_default; COSMETIC unused returns of Book::refused, set_output.
 - HARNESS (kit4 review 08:53, FIX): no gate checked that the press guard counts from the drawn card; earliest gate: an invariant in tests/acts "a card drawn later than asked refuses a press within 400 ms of the draw" (NET4). Ledger: mc set_agent shows agent.question unsanitized (pre-existing). REFACTOR: keys()/buttons() into kit::Question; construct input.rs:315 match guard with a side effect.
 - KIT4 r2 review MINORs: mc answers group not re-placed or hidden on scene switch or solo (agent.rs:687-813, pre-existing); a cell for Construct::draw_ask_at wiring (hidden skip, drawn after apply); hud.rs:1258 hint should name key or click. Harness: pull cell 197 px for 200 seen once in the kit4 lane (watch for a flake).
+
+- H-met (harness, critic 11-18): check_log.py refuses "done" or "met" on an F row of state.md without a command and a reviewer named.
+- H-train (harness, critic 11-18): tools/train.sh wraps merge-gate.sh with timeout 7200000, worktree setup and cleanup (friction 49, train 46).
+- H-time (harness, critic 11-18): check_log time check also on status/index.html "Updated" line.
+- F5 pull flake (gate-construct-pull 170-197 px off in lanes kit2, kit4): ledger row; F5 stays open with F17.
