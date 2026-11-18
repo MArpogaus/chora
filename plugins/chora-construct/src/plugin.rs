@@ -19,6 +19,7 @@ impl Plugin for Construct {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
+        self.voiced.hear(&event);
         let Some(event) = self.pulled(event)? else {
             return Ok(());
         };

@@ -47,7 +47,8 @@ impl Construct {
                 .map(|surface| json!({"surface": surface, "output": output, "shown": false})),
         );
         json!({"windows": windows, "views": views, "focus": self.focus_value(),
-            "open": self.open_value(), "busy": self.busy_value()})
+            "open": self.open_value(), "busy": self.busy_value(),
+            "helper": self.voiced.word()})
     }
 
     /// The construct holds the focus on a window it owns, or with its own

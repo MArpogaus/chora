@@ -595,6 +595,8 @@ struct Construct {
     /// The surface with the keyboard as `focus.changed` last told; read
     /// only by `state.get`.
     core_focus: Option<String>,
+    /// The word of `state.get`; only reads.
+    voiced: chora_kit::helper::Helpers,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -717,6 +719,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             core_focus: None,
+            voiced: chora_kit::helper::Helpers::default(),
         };
         construct.effects.set(&construct.settings.value.effects);
         Ok(construct)
