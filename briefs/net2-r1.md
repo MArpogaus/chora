@@ -10,7 +10,9 @@ One round each. Stop at 250 k. Cost about 7 % together.
 Read reports/arch-plan-fable.md (3.1-3.3, 4: NET2), design/foundation.md (F3), reports/net1.md.
 1. Selftest first: a cell per invariant that breaks it on purpose and must fail.
 2. The door acts run on the head; every failure goes to known-red.toml with its finding id and slice.
-3. No look logic changes; an adapter only reads.
+3. No look logic changes; an adapter only reads. The adapters lane also fixes mc state.rs (net1
+   review): focus `holder` only when mc owns the focused surface, else null; omit `open` until filled.
+4. A shallow clone fails 2d-guard: run `git fetch --unshallow` first.
 Done when: selftests red-then-green, acts step in tests/merge-gate.sh, merge gate once on the head
 (poll it in the same turn).
 Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines)
