@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-18 08:08 UTC)
+## Now (2026-11-18 08:51 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 62 % at 23:59 Tue (owner); tokens.py 08:08: PM 0.9 % since; lanes wm1 $12.6, kit2 $2.0 (est 5.5 %). About 68 %, even pace 60 %: about 8 % over; 32 % for 68 h; lanes show the weekly warning. No new opus today. Full reset (owner 15:35): near 95 %.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -25,7 +25,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc) in; F2-F5, F7, F8 open (F2: ever
 | Lane | Model, branch | State |
 |---|---|---|
 | wm1-r1.md (F3) | opus high, claude/wm1 | review MERGE-OK; kit::wm lines 98.3 % (PM llvm-cov 08:07); train 52 08:08 |
-| kit4-r1.md (F2) | sonnet high, claude/kit4 | start 08:08 |
+| kit4-r1.md (F2) | sonnet high, claude/kit4 | aeb13ece handed back 08:50 (gate ok but F27); opus security review 08:51 (PM: small, blocks KIT1); coverage PM |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
