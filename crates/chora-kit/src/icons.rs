@@ -5,7 +5,7 @@ use std::{
     collections::{HashMap, VecDeque},
     fs,
     io::{Read, Write},
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
 };
 
@@ -73,16 +73,11 @@ impl Icons {
 
     /// Writes bytes to a new file of mode 0600 in a private folder.
     fn private_copy(&mut self, bytes: &[u8]) -> Option<PathBuf> {
-        let base = std::env::var_os("XDG_RUNTIME_DIR")
-            .map(PathBuf::from)
+        let base = chora_scene::paths::runtime_home()
             .filter(|d| d.is_dir())
             .unwrap_or_else(std::env::temp_dir);
         let dir = base.join(format!("chora-icons-{}", std::process::id()));
-        match fs::DirBuilder::new().mode(0o700).create(&dir) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(_) => return None,
-        }
+        chora_scene::paths::private_dir(&dir).ok()?;
         let serial = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = dir.join(format!("{serial}.png"));
         let mut file = fs::OpenOptions::new()
@@ -265,7 +260,7 @@ mod tests {
     }
 
     fn file(name: &str, bytes: &[u8]) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-icons-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("chora-icons-src-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join(name);
         fs::write(&path, bytes).unwrap();
