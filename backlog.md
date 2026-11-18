@@ -205,3 +205,4 @@ R18 | 11-16 | harness | merge-gate.sh 2d-guard hardcodes base 8742dee; a shallow
 4. KIT3 keysheet takes words from `System`; mc keys.rs `words()`, `volume_order` go.
 5. KIT2d: xp gains `Common` with defaults equal to today's keys.
 6. LOW: `Action<L>` via `serde_json::Value` loses line numbers in file errors.
+kit2 r1 review (07:05, MERGE-OK) MINORs: mc test that an unknown top-level key is still refused (deny_unknown_fields + flatten); `mc-docs-bindings.yaml` is hand-written, not from the docs (rename, fix comment); CHORA_BLESS must never be set in CI; `the_common_settings_default_off` and two mc cells were not red first; import `System` in lifecycle.rs, main.rs.
