@@ -29,8 +29,6 @@ mod mic;
 mod region;
 mod scene;
 mod show;
-#[cfg(test)]
-mod testing;
 mod windows;
 
 use std::{
@@ -2497,5 +2495,51 @@ mod tests {
         assert_ne!(mark_opacity(&model, mark), Some(1.0), "a program hovered");
         mc.event(entered(false)).unwrap();
         assert_eq!(mark_opacity(&model, mark), Some(1.0), "a person hovered");
+    }
+}
+
+/// A plugin on the fake core of the kit, for the tests of this crate.
+#[cfg(test)]
+mod testing {
+    use chora_kit::{runtime::Runtime, settings, testing::FakeCore};
+    use chora_scene::{OutputInfo, Transform};
+
+    use crate::{Mc, NAME, config};
+
+    pub use chora_kit::testing::{Model, has, text};
+
+    /// A plugin on a fake core with the default settings, no scene files,
+    /// one output of `size` and its nodes built; and the model.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
+        let core = FakeCore::start();
+        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        rt.pin_accepts_injected(false);
+        let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = dir.join("chora-mc.yaml");
+        let settings = settings::File::load(file, config::DEFAULT).unwrap();
+        let mut mc = Mc::new(
+            rt,
+            settings,
+            dir.join("scenes"),
+            [dir.join("write.frag"), dir.join("blur.frag")],
+        );
+        mc.output = Some(OutputInfo {
+            name: "test".into(),
+            position: [0, 0],
+            size,
+            scale: 1.0,
+            camera: Transform::IDENTITY,
+            work_area: [0, 0, size[0], size[1]],
+            default_work_area: [0; 4],
+            is_virtual: None,
+            owner: None,
+        });
+        mc.build().unwrap();
+        (mc, core.model())
     }
 }

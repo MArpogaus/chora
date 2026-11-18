@@ -27,6 +27,8 @@ pub mod notify;
 pub mod runtime;
 pub mod settings;
 pub mod shared;
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
 pub mod volume;
 pub mod wobbly;
 pub mod words;
