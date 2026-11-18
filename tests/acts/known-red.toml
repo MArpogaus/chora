@@ -1,0 +1,40 @@
+# The invariants and acts that fail on today's code (design 3.2 of the
+# arch plan). A listed failure does not block the gate step `acts`; a
+# listed pass blocks it, so the row goes in the merge that turns it
+# green. Each row names the look, the id (an invariant such as `I1` or an
+# act `act:NAME`), its finding id and the slice that turns it green.
+[[red]]
+finding = "net1-backlog: no state.get of xp"
+id = "I1"
+look = "xp"
+slice = "NET2 adapters"
+
+[[red]]
+finding = "net1-backlog: no state.get of xp, so no look holds the focus"
+id = "I3"
+look = "xp"
+slice = "NET2 adapters"
+
+[[red]]
+finding = "net1-backlog: no state.get of tiling"
+id = "I1"
+look = "tiling"
+slice = "NET2 adapters"
+
+[[red]]
+finding = "net1-backlog: no state.get of tiling, so no look holds the focus"
+id = "I3"
+look = "tiling"
+slice = "NET2 adapters"
+
+[[red]]
+finding = "net1-backlog: no state.get of construct"
+id = "I1"
+look = "construct"
+slice = "NET2 adapters"
+
+[[red]]
+finding = "net1-backlog: no state.get of construct, so no look holds the focus"
+id = "I3"
+look = "construct"
+slice = "NET2 adapters"

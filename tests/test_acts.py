@@ -20,8 +20,14 @@ from harness import Act, Expect, Snapshot  # noqa: E402
 
 
 def surface(sid, owner, output="HEADLESS-1", focused=False, rect=(10, 10, 300, 200)):
-    node = {"id": sid, "kind": "surface", "owner": owner, "parent": "root",
-            "meta": {}, "rects": {output: list(rect)}}
+    node = {
+        "id": sid,
+        "kind": "surface",
+        "owner": owner,
+        "parent": "root",
+        "meta": {},
+        "rects": {output: list(rect)},
+    }
     if focused:
         node["focused"] = True
     return node
@@ -34,13 +40,24 @@ def window(sid, shown=True):
 def snap(states=None, nodes=None, **kw):
     """A sound snapshot of one look xp with one shown, focused window."""
     if states is None:
-        states = {"xp": {"windows": [window("s1")], "focus": {"holder": "xp", "surface": "s1"},
-                         "open": [], "busy": []}}
+        states = {
+            "xp": {
+                "windows": [window("s1")],
+                "focus": {"holder": "xp", "surface": "s1"},
+                "open": [],
+                "busy": [],
+            }
+        }
     if nodes is None:
         nodes = [surface("s1", "xp", focused=True)]
-    fields = {"states": states, "nodes": nodes, "toplevels": {"s1"},
-              "colours": {"HEADLESS-1": 812}, "wallpaper": {"HEADLESS-1"},
-              "clients": {"xp", "acts"}}
+    fields = {
+        "states": states,
+        "nodes": nodes,
+        "toplevels": {"s1"},
+        "colours": {"HEADLESS-1": 812},
+        "wallpaper": {"HEADLESS-1"},
+        "clients": {"xp", "acts"},
+    }
     fields.update(kw)
     return Snapshot(**fields)
 
@@ -57,8 +74,9 @@ class I1(unittest.TestCase):
         self.assertEqual(breaches("I1", snap(), snap()), [])
 
     def test_toplevel_of_no_look(self):
-        after = snap(nodes=[surface("s1", "xp", focused=True), surface("s2", "acts")],
-                     toplevels={"s1", "s2"})
+        after = snap(
+            nodes=[surface("s1", "xp", focused=True), surface("s2", "acts")], toplevels={"s1", "s2"}
+        )
         self.assertTrue(breaches("I1", snap(), after))
 
     def test_toplevel_missing_from_its_look(self):
@@ -66,8 +84,9 @@ class I1(unittest.TestCase):
         self.assertTrue(breaches("I1", snap(), snap(states={"xp": state})))
 
     def test_toplevel_in_two_looks(self):
-        states = snap().states | {"mc": {"windows": [window("s1")], "focus": {"holder": None},
-                                         "open": [], "busy": []}}
+        states = snap().states | {
+            "mc": {"windows": [window("s1")], "focus": {"holder": None}, "open": [], "busy": []}
+        }
         self.assertTrue(breaches("I1", snap(), snap(states=states, clients={"xp", "mc"})))
 
     def test_a_view_is_no_owner(self):
@@ -92,14 +111,16 @@ class I3(unittest.TestCase):
         self.assertEqual(breaches("I3", snap(), after), [])
 
     def test_focus_with_another_look(self):
-        states = snap().states | {"mc": {"windows": [], "focus": {"holder": "mc"},
-                                         "open": [], "busy": []}}
+        states = snap().states | {
+            "mc": {"windows": [], "focus": {"holder": "mc"}, "open": [], "busy": []}
+        }
         states["xp"] = states["xp"] | {"focus": {"holder": None}}
         self.assertTrue(breaches("I3", snap(), snap(states=states)))
 
     def test_two_holders(self):
-        states = snap().states | {"mc": {"windows": [], "focus": {"holder": "mc"},
-                                         "open": [], "busy": []}}
+        states = snap().states | {
+            "mc": {"windows": [], "focus": {"holder": "mc"}, "open": [], "busy": []}
+        }
         self.assertTrue(breaches("I3", snap(), snap(states=states)))
 
     def test_focus_on_a_hidden_window(self):
@@ -107,8 +128,17 @@ class I3(unittest.TestCase):
         self.assertTrue(breaches("I3", snap(), snap(states={"xp": state})))
 
     def test_focus_on_a_node_of_another_client(self):
-        nodes = [surface("s1", "xp"), {"id": "x", "kind": "rect", "owner": "acts",
-                                       "parent": "root", "focused": True, "rects": {}}]
+        nodes = [
+            surface("s1", "xp"),
+            {
+                "id": "x",
+                "kind": "rect",
+                "owner": "acts",
+                "parent": "root",
+                "focused": True,
+                "rects": {},
+            },
+        ]
         self.assertTrue(breaches("I3", snap(), snap(nodes=nodes)))
 
     def test_holder_names_another_surface(self):
@@ -117,8 +147,9 @@ class I3(unittest.TestCase):
 
 
 def with_open(*ids):
-    state = snap().states["xp"] | {"open": [{"id": i, "kind": "menu", "modal": False, "by": "key"}
-                                            for i in ids]}
+    state = snap().states["xp"] | {
+        "open": [{"id": i, "kind": "menu", "modal": False, "by": "key"} for i in ids]
+    }
     return snap(states={"xp": state})
 
 
@@ -160,8 +191,14 @@ class I7(unittest.TestCase):
 
 
 def helper_state(helper, shown=()):
-    return {"windows": [], "focus": {"holder": None}, "open": [], "busy": [],
-            "helper": helper, "shown": list(shown)}
+    return {
+        "windows": [],
+        "focus": {"holder": None},
+        "open": [],
+        "busy": [],
+        "helper": helper,
+        "shown": list(shown),
+    }
 
 
 class I8(unittest.TestCase):
@@ -169,28 +206,51 @@ class I8(unittest.TestCase):
         return snap().states | {"assistant": helper_state(helper)}
 
     def test_sound(self):
-        after = snap(states=self.states("idle"),
-                     events=[{"event": "voice.state", "state": "working"},
-                             {"event": "voice.state", "state": "idle"}])
+        after = snap(
+            states=self.states("idle"),
+            events=[
+                {"event": "voice.state", "data": {"state": "working"}},
+                {"event": "voice.state", "data": {"state": "idle"}},
+            ],
+        )
         self.assertEqual(breaches("I8", snap(), after), [])
 
     def test_working_after_the_answer(self):
-        after = snap(states=self.states("working"),
-                     events=[{"event": "voice.state", "state": "working"},
-                             {"event": "voice.state", "state": "idle"}])
+        after = snap(
+            states=self.states("working"),
+            events=[
+                {"event": "voice.state", "data": {"state": "working"}},
+                {"event": "voice.state", "data": {"state": "idle"}},
+            ],
+        )
         self.assertTrue(breaches("I8", snap(), after))
 
     def test_working_while_the_helper_works(self):
-        after = snap(states=self.states("working"),
-                     events=[{"event": "voice.state", "state": "working"}])
+        after = snap(
+            states=self.states("working"),
+            events=[{"event": "voice.state", "data": {"state": "working"}}],
+        )
         self.assertEqual(breaches("I8", snap(), after), [])
 
     def test_two_helper_surfaces_on_one_output(self):
         nodes = snap().nodes + [
-            {"id": "hud-chat", "kind": "group", "owner": "assistant", "parent": "root",
-             "visible": True, "rects": {"HEADLESS-1": [0, 0, 400, 300]}},
-            {"id": "xp-helper-chat", "kind": "group", "owner": "xp", "parent": "root",
-             "meta": {"helper": "surface"}, "rects": {"HEADLESS-1": [0, 0, 400, 300]}}]
+            {
+                "id": "hud-chat",
+                "kind": "group",
+                "owner": "assistant",
+                "parent": "root",
+                "visible": True,
+                "rects": {"HEADLESS-1": [0, 0, 400, 300]},
+            },
+            {
+                "id": "xp-helper-chat",
+                "kind": "group",
+                "owner": "xp",
+                "parent": "root",
+                "meta": {"helper": "surface"},
+                "rects": {"HEADLESS-1": [0, 0, 400, 300]},
+            },
+        ]
         self.assertTrue(breaches("I8", snap(), snap(nodes=nodes)))
 
 
@@ -243,17 +303,23 @@ class Quiet(unittest.TestCase):
     def test_waits_until_every_busy_is_empty(self):
         reads = iter([{"xp": {"busy": ["anim"]}}, {"xp": {"busy": []}}])
         clock = [0.0]
-        states = harness.wait_quiet(lambda: next(reads), timeout=2,
-                                    sleep=lambda s: clock.__setitem__(0, clock[0] + s),
-                                    now=lambda: clock[0])
+        states = harness.wait_quiet(
+            lambda: next(reads),
+            timeout=2,
+            sleep=lambda s: clock.__setitem__(0, clock[0] + s),
+            now=lambda: clock[0],
+        )
         self.assertEqual(states, {"xp": {"busy": []}})
 
     def test_fails_at_the_timeout(self):
         clock = [0.0]
         with self.assertRaises(harness.NotQuiet) as caught:
-            harness.wait_quiet(lambda: {"xp": {"busy": ["anim"]}}, timeout=2,
-                               sleep=lambda s: clock.__setitem__(0, clock[0] + s),
-                               now=lambda: clock[0])
+            harness.wait_quiet(
+                lambda: {"xp": {"busy": ["anim"]}},
+                timeout=2,
+                sleep=lambda s: clock.__setitem__(0, clock[0] + s),
+                now=lambda: clock[0],
+            )
         self.assertIn("anim", str(caught.exception))
 
     def test_a_look_without_state_is_quiet(self):
@@ -263,13 +329,15 @@ class Quiet(unittest.TestCase):
 
 class Expectations(unittest.TestCase):
     def before(self):
-        return snap(states={"xp": {"windows": [], "focus": {"holder": None}, "open": [],
-                                   "busy": []}}, nodes=[], toplevels=set())
+        return snap(
+            states={"xp": {"windows": [], "focus": {"holder": None}, "open": [], "busy": []}},
+            nodes=[],
+            toplevels=set(),
+        )
 
     def after(self, app_id="notepad"):
         node = surface("s1", "xp", focused=True)
-        node["meta"] = {}
-        node["app_id"] = app_id
+        node["surface"] = {"app_id": app_id, "title": None}
         return snap(nodes=[node])
 
     def test_new_window_matches(self):
