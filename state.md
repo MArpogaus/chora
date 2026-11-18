@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-18 07:04 UTC)
+## Now (2026-11-18 07:29 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 62 % at 23:59 Tue (owner); tokens.py 06:16: PM 0.7 % since; lanes est 4.5 %. About 67 %, even pace 59 %: about 8 % over; 33 % for 70 h; a lane showed the weekly warning 05:15. Full reset available (owner 15:35): use near 95 %.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -24,8 +24,8 @@ burn-down: F1 done 14:55; safety net NET1, NET2 merged (plan 3); F2-F5, F7, F8 o
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| wm1-r1.md (F3) | opus high, claude/wm1 | start 06:18 |
-| kit2-r1.md (F2) | sonnet high, claude/kit2 | eb12e379 handed back 07:00 (gate partial: F21 pull flake); review MERGE-OK 07:05 (no BLOCK, MAJOR; 6 MINOR to backlog); train 51 07:04 |
+| wm1-r1.md (F3) | opus high, claude/wm1 | 87221071 handed back 07:28 (gate ok but F27 apps-click); review 07:29; coverage: PM after train 51 |
+| kit2-r1.md (F2) | sonnet high, claude/kit2 | eb12e379 handed back 07:00 (gate partial: F21 pull flake); review MERGE-OK 07:05 (6 MINOR to backlog); train 51 07:04 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
