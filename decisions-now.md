@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-18T04:00:00Z
+screened-through: 2026-11-18T10:38:00Z
 - 11-18 10:38Z "How is refactor going?" -> question: refactor status
 - 11-18 00:04Z "All right, so we are progressing faster than expected." -> reading: ahead on schedule (MV Tue, not Wed); budget 7 % over pace, so pull-ins only from the 2.5 % reserve (WM1b if NET2 in Thu)
 - 11-17 23:59Z "62%. Pace looks good. Most usage die to your fable Planung session. How is it going?" -> reading 62 %; pace fine (Fable plan was the cost); question: status

@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-18 10:33 UTC)
+## Now (2026-11-18 11:54 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 62 % at 23:59 Tue (owner); tokens.py 10:32: PM 1.2 % since; lanes wm1 $12.6, kit4 $3.2, kit2 $2.0 (est 6 %). About 69 %, even pace 61 %: about 8 % over; 31 % for 65 h; lanes show the weekly warning. No new opus today (kit4 re-review was the last). Full reset (owner 15:35): near 95 %.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -24,14 +24,14 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4 (ask: mc, co
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| kit1-r1.md (F2) | sonnet high, claude/kit1 | start 10:33; security review Thu |
+| kit1-r1.md (F2) | sonnet high, claude/kit1 | edb94c25 handed back 11:52 ($2.7, worker archived); gate PASS but e2e apps-click (F27); PM llvm-cov running; opus security review Thu 00:05 (trig_01GtUuc) |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
 1. (process) Done: rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 merged 14:42.
 2. Done 20:35 (F4, F6): MV1+CUT1, MV2 x3 merged (trains 44-47); ratchet --update with the next lane.
 3. Done 06:16: NET2 acts, I1 I3 I4 I7 I8 I14, known-red (trains 49, 50).
-4. Now-Fri (F2, F3, 7 %): KIT2, WM1, KIT4 in (trains 51-53); now KIT1 (all looks on kit, 1.5 %); Fri NET3 (4.5 %), docs F8 (1.5 %).
+4. Now-Fri (F2, F3, 7 %): KIT2, WM1, KIT4 in (trains 51-53); KIT1 review Thu 00:05, train 54 (1.5 %); Fri NET3 (4.5 %), docs F8 (1.5 %). Hold new lanes today: 8 % over pace.
 5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
