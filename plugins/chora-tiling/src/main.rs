@@ -16,6 +16,7 @@ mod dress;
 mod focus;
 mod keys;
 mod layout;
+mod lifecycle;
 mod methods;
 mod overlay;
 mod state;
@@ -1118,6 +1119,7 @@ mod tests {
     use std::{
         io::{BufRead, BufReader, Write},
         os::unix::net::UnixListener,
+        path::Path,
         sync::{Arc, Mutex},
     };
 
@@ -1178,10 +1180,23 @@ mod tests {
             }
         });
         let conn = Conn::connect_at(NAME, &path).unwrap();
+        (tiling_on(conn, &dir, effects), methods)
+    }
+
+    /// A tiling on the connection `conn`, with its settings file in `dir`.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    pub(crate) fn tiling_on(
+        conn: Conn,
+        dir: &Path,
+        effects: &[chora_kit::effects::Kind],
+    ) -> Tiling {
         let file = dir.join("chora-tiling.yaml");
         let mut settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
         settings.value.effects = effects.to_vec();
-        let tiling = Tiling {
+        Tiling {
             rt: Runtime::with(conn, NAME, Vec::new()),
             wm: Wm::new(settings.value.clone()),
             settings,
@@ -1214,8 +1229,7 @@ mod tests {
             system: None,
             theme_query: None,
             ask_system: || None,
-        };
-        (tiling, methods)
+        }
     }
 
     /// Presses on a window, moves the pointer through the points and lets
