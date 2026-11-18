@@ -36,3 +36,11 @@ ead29e7c feat harness, 4052cd82 ci gate step. Merge gate `tests/merge-gate.sh --
 - `scene.boxes` (NET3) should replace the `scene.query` rects read here.
 - quiet still needs a 0.4 s settle after the cues before the first read (an animation starts
   after its key event); a `busy` set synchronously by the look would remove it.
+
+## r2 (fix round): head b5a8625b, gate GATE_EXIT=0 (log /tmp/claude-0/gate/net2h2.log, run dir /tmp/merge-gate.r5jD8n; acts 30 s)
+- Commits: 44da455c test (10 cells red), 36552b92 fix, b5a8625b drop a wrong known-red row.
+- 1 Session.__enter__ is exception-safe (setup in `setup()`, any failure runs `__exit__`); cell: forced failure leaves no process, no temp dir.
+- 2 Missing keys are breaches "missing key K": I1 windows, I3 focus, I4 open, I8 helper (after a voice event) and rects of helper surfaces, busy (NotQuiet). No state.get stays "no state". One cell each.
+- 3 known-red `match` (every breach of the cell must contain it); 4 SIGTERM all, wait 8 s, then SIGKILL; run.py removes /tmp/acts-run-* on a pass and prints the path on a failure; 5 quiet = two empty reads 0.2 s apart; 6 docstring.
+- Deviation: the brief's mc I4 row is not added; mc already answers `open`, the gate flagged the listed pass, row removed. 6 known red remain (xp, tiling, construct I1 and I3).
+- Note: ruff still reports D-rule errors in tests/*.py (the earlier backlog item).
