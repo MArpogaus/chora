@@ -10,6 +10,7 @@ mod event;
 pub mod ipc;
 pub mod logs;
 mod node;
+pub mod paths;
 mod scene;
 mod selector;
 mod transform;

@@ -41,10 +41,16 @@ name = "fn language"
 pattern = 'fn language\b'
 
 [[row]]
-allow = ["crates/chora-kit/"]
-max = 23
-name = "XDG_RUNTIME_DIR"
+allow = ["crates/chora-scene/", "crates/chora-kit/"]
+max = 0
+name = "XDG_RUNTIME_DIR (KIT1)"
 pattern = 'XDG_RUNTIME_DIR'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "LC_ALL (KIT1)"
+pattern = 'LC_ALL'
 
 [[row]]
 allow = ["crates/chora-kit/"]
