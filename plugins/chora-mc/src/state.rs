@@ -1,15 +1,17 @@
 //! `state.get`: what mc shows and holds, in the shape of `choractl state`
 //! (design 3.1). The fields that only the core knows (title, app id,
 //! rectangle, stacking) and those of looks that mc has no concept of
-//! (desks, views, texts) come with the adapters of NET2.
+//! (desks, views, texts) are left out, as is `open` until mc fills it:
+//! a field that is absent is not read as empty.
 
 use serde_json::{Value, json};
 
 use crate::{Mc, NAME};
 
 impl Mc {
-    /// The windows of the scenes and the docks, the focus, what is open
-    /// and what still moves.
+    /// The windows of the scenes and the docks, the focus and what still
+    /// moves. mc holds the focus only on one of its windows; `open` stays
+    /// out until mc fills it.
     pub(crate) fn state_value(&self) -> Value {
         let output = self.output.as_ref().map(|o| o.name.as_str());
         let shown = |scene: &str| self.current.as_deref() == Some(scene);
@@ -37,9 +39,9 @@ impl Mc {
             .filter(|s| windows.iter().any(|w| w["surface"] == s.as_str()))
         {
             Some(surface) => json!({"holder": NAME, "surface": surface}),
-            None => json!({"holder": NAME}),
+            None => json!({"holder": null}),
         };
-        json!({"windows": windows, "focus": focus, "open": [], "busy": busy})
+        json!({"windows": windows, "focus": focus, "busy": busy})
     }
 }
 
