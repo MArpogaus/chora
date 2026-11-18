@@ -41,7 +41,8 @@ impl Mc {
             Some(surface) => json!({"holder": NAME, "surface": surface}),
             None => json!({"holder": null}),
         };
-        json!({"windows": windows, "focus": focus, "busy": busy})
+        json!({"windows": windows, "focus": focus, "busy": busy,
+            "helper": self.voiced_word.word()})
     }
 }
 
