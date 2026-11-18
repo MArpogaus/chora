@@ -195,7 +195,7 @@ impl Mc {
     /// `input.inject` does neither, unless the plugin accepts injected
     /// input.
     pub fn click(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.press_answer(node, injected) {
+        if self.press_answer(node, injected, std::time::Instant::now()) {
             return Ok(());
         }
         if injected && !self.rt.accepts_injected() {

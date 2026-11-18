@@ -312,10 +312,7 @@ impl Construct {
                 button,
                 injected,
                 ..
-            } if button == BTN_LEFT && self.voice.answer(&node, injected).is_some() => {
-                self.answer(&node, injected);
-                return Ok(());
-            }
+            } if button == BTN_LEFT && self.answer(&node, injected) => return Ok(()),
             Event::PointerEntered { node, .. } => { // injected: Construct::event drops an injected pointer event first
                 let hovered = self.own_window(&node).then_some(node);
                 if hovered != self.hovered {

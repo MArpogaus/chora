@@ -13,6 +13,15 @@ use crate::{
     words::{Language, Word, say},
 };
 
+/// The method that answers a question, on the client `voice`.
+pub const ANSWER_METHOD: &str = "confirm.answer";
+
+/// The payload of `methods.call` for the answer `params` of a click.
+#[must_use]
+pub fn answer_call(params: &Value) -> Value {
+    serde_json::json!({"client": "voice", "method": ANSWER_METHOD, "params": params})
+}
+
 /// How long after it appeared or moved a button takes no click.
 pub const GUARD: Duration = Duration::from_millis(400);
 
@@ -52,9 +61,24 @@ pub struct Question {
     pub keys: Keys,
     /// The helper that asks, if the question is its.
     pub agent: Option<String>,
+    /// The look may show buttons that answer by `confirm.answer`.
+    pub buttons: bool,
 }
 
 impl Question {
+    /// The parameters of `confirm.answer` for `answer`.
+    #[must_use]
+    pub fn answer_params(&self, answer: Answer) -> Value {
+        let mut params = serde_json::json!({
+            "id": self.answer_id,
+            "yes": answer != Answer::No,
+        });
+        if answer == Answer::Always {
+            params["always"] = true.into();
+        }
+        params
+    }
+
     /// The question of a `voice.confirm` event, `None` when it is the
     /// end of a question (`done`) or has no id or prompt. The helper that
     /// asks is `agent`, else the `name` of the event.
@@ -77,6 +101,7 @@ impl Question {
             physical: data["physical"] == true,
             keys,
             agent: agent.map(str::to_owned).or_else(|| text(&data["name"])),
+            buttons: data["buttons"] == true,
         })
     }
 }
@@ -157,6 +182,38 @@ pub enum Press {
     Injected,
 }
 
+/// What the user answers. `Always` is reserved for the questions of a
+/// grant (design/grants.md); no card offers it yet, and the voice service
+/// does not take it yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Answer {
+    /// Allow this once.
+    Yes,
+    /// Refuse.
+    No,
+    /// Allow and remember; reserved.
+    Always,
+}
+
+impl Answer {
+    /// The answer of a Yes or No button; never `Always`.
+    #[must_use]
+    pub fn of(yes: bool) -> Self {
+        if yes { Self::Yes } else { Self::No }
+    }
+}
+
+/// What a click on a button of a card comes to.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Click {
+    /// The parameters of `confirm.answer`.
+    Answer(Value),
+    /// Too soon after the card appeared or moved; the click is spent.
+    TooSoon,
+    /// Not a click of the user's or no buttons: the click is not ours.
+    Ignored,
+}
+
 /// A card on the screen.
 #[derive(Clone, Debug)]
 pub struct Card {
@@ -198,6 +255,19 @@ impl Card {
             Press::TooSoon
         } else {
             Press::Answer(button == Button::Yes)
+        }
+    }
+
+    /// What a click on `button` comes to at `now`.
+    #[must_use]
+    pub fn click(&self, button: Button, injected: bool, now: Instant) -> Click {
+        if injected || !self.question.buttons {
+            return Click::Ignored;
+        }
+        match self.press(button, injected, now) {
+            Press::Answer(yes) => Click::Answer(self.question.answer_params(Answer::of(yes))),
+            Press::TooSoon => Click::TooSoon,
+            Press::Injected => Click::Ignored,
         }
     }
 
@@ -389,5 +459,93 @@ mod tests {
         let anon = Question::from_event(&json!({"id": 1, "prompt": "x"}), None).unwrap();
         let parts = Card::new(anon, Instant::now()).parts(Language::En);
         assert_eq!(parts[0].1, "Question for you");
+    }
+
+    fn buttoned() -> Question {
+        question(&json!({"id": 4, "prompt": "Run it?", "buttons": true}))
+    }
+
+    #[test]
+    fn a_click_answers_with_the_id_as_text() {
+        let start = Instant::now();
+        let card = Card::new(buttoned(), start);
+        let later = start + Duration::from_secs(1);
+        assert_eq!(
+            card.click(Button::Yes, false, later),
+            Click::Answer(json!({"id": "4", "yes": true}))
+        );
+        assert_eq!(
+            card.click(Button::No, false, later),
+            Click::Answer(json!({"id": "4", "yes": false}))
+        );
+    }
+
+    /// sh-26: a click inside 400 ms of the card showing is spent, not an answer.
+    #[test]
+    fn a_click_inside_400_ms_of_the_card_is_refused() {
+        let start = Instant::now();
+        let ms = Duration::from_millis;
+        let mut card = Card::new(buttoned(), start);
+        assert_eq!(
+            card.click(Button::Yes, false, start + ms(399)),
+            Click::TooSoon
+        );
+        assert!(matches!(
+            card.click(Button::Yes, false, start + ms(400)),
+            Click::Answer(_)
+        ));
+        card.moved(start + ms(1000));
+        assert_eq!(
+            card.click(Button::No, false, start + ms(1100)),
+            Click::TooSoon
+        );
+    }
+
+    #[test]
+    fn an_injected_click_or_a_card_without_buttons_is_not_ours() {
+        let start = Instant::now();
+        let later = start + Duration::from_secs(5);
+        let card = Card::new(buttoned(), start);
+        assert_eq!(card.click(Button::Yes, true, later), Click::Ignored);
+        let plain = Card::new(question(&json!({"id": 5, "prompt": "Sure?"})), start);
+        assert_eq!(plain.click(Button::Yes, false, later), Click::Ignored);
+    }
+
+    /// `always` is in the type for the grant questions and in no card.
+    #[test]
+    fn always_is_reserved_and_no_card_offers_it() {
+        let q = buttoned();
+        assert_eq!(
+            q.answer_params(Answer::Always),
+            json!({"id": "4", "yes": true, "always": true})
+        );
+        assert_eq!(
+            q.answer_params(Answer::Yes),
+            json!({"id": "4", "yes": true})
+        );
+        assert_eq!(
+            q.answer_params(Answer::No),
+            json!({"id": "4", "yes": false})
+        );
+        assert_eq!(Card::buttons(Language::En), ["Yes", "No"]);
+        let start = Instant::now();
+        let card = Card::new(q, start);
+        let later = start + Duration::from_secs(1);
+        for button in [Button::Yes, Button::No] {
+            let Click::Answer(params) = card.click(button, false, later) else {
+                panic!("answers");
+            };
+            assert!(params.get("always").is_none(), "{params}");
+        }
+    }
+
+    #[test]
+    fn a_hidden_character_in_a_key_never_reaches_the_card() {
+        let q = question(&json!({"id": 1, "prompt": "x", "physical": true,
+            "keys": {"yes": "Alt+\u{202e}y", "no": "Alt+n\u{200b}"}}));
+        assert_eq!(
+            (q.keys.yes.as_str(), q.keys.no.as_str()),
+            ("Alt+y", "Alt+n")
+        );
     }
 }

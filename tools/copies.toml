@@ -30,7 +30,7 @@ pattern = 'Event::SurfaceCreated\b'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 10
+max = 8
 name = "confirm.answer"
 pattern = '"confirm\.answer"'
 
@@ -58,3 +58,24 @@ allow = ["crates/chora-kit/src/wm"]
 max = 20
 name = "Command::Focus outside kit::wm"
 pattern = 'Command::Focus\b'
+
+# kit4: kit::ask is the only question model; mc and construct draw its card.
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own question event model (Confirm, Keys)"
+paths = ["plugins"]
+pattern = '^\s*(pub )?struct (Confirm|Keys)\b'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "question buttons as literal Ja/Nein"
+paths = ["plugins"]
+pattern = '"(Ja|Nein)"'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own key cap of a question (cap, show_key copy)"
+pattern = 'fn cap\(key: &str\)'
