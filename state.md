@@ -24,7 +24,7 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2-F8 open, 4 lanes; 3
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| net1-r1.md (F2) | sonnet med, claude/net1 | 4ac7186 handed back 00:40; review 00:42 |
+| net1-r1.md (F2) | sonnet med, claude/net1 | MERGE-OK 00:43 (0 BLOCK/MAJOR, 6 MINOR); train 48 00:43 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)
