@@ -45,3 +45,15 @@ mc 400 ms cell uses the wall clock; agent.question shown unsanitized in set_agen
 ledger). COSMETIC: show_answers doc, configuration.md wrap. REFACTOR: keys()/buttons() twice (into
 kit::Question); side effect in a match guard (construct input.rs:315). Clean: no guard lost
 (sanitize in ask.rs:91-103), Always unreachable, ids matched, red first.
+
+## r2 (sonnet, 11-18)
+Commits on claude/kit4: 1b671db4 (red: cells + stubs), 78c3ffbc (fix), 7b762ea0 (test: no Ja/Nein literal in the cell, copies row).
+1. MAJOR sh-26: `Voice::drawn(now)` calls `Card::moved`; `draw_ask_at(now)` calls it after the apply that really drew (draw_ask returns early while hidden: no move). Cell `a_press_inside_400_ms_of_the_draw_is_refused`: asked at t, drawn t+5 s: press +100 ms TooSoon, +400 ms counts; a second draw restarts it.
+2. mc: `show_answers(had, now)` calls `moved(now)` after the answers are placed; `confirm_at(data, now)` injects the clock. Cell `a_press_after_the_drawer_is_placed_again_is_refused`. (Red state of this cell lacked a scene, so it failed on the drawer assert too; fixed in the green commit.)
+3. sh-27 hints: construct hint from Word::NoVoiceYes / Word::Yes+No (uppercased), mc `question_line` from the same words. Cells `the_hint_follows_the_session_language` (construct), `the_agent_question_line_follows_the_session_language` (mc).
+4. `a_press_inside_400_ms_of_the_card_is_refused` now uses `confirm_at` with an injected `now`.
+5. show_answers doc says Yes and No (Ja and Nein in German); configuration.md wrapped.
+Red first: 2 construct + 2 mc cells failed on 1b671db4; all green on 78c3ffbc (mc 136, construct 190, kit 217).
+## Merge gate (once, on 7b762ea0, --jobs 3, /tmp/merge-gate.u48pZW)
+PASS red-first .. doors (incl. acts, last-words, xp-*, hud, layout, tiling); FAIL `pull` (8 s): "the pane of the pulled window is not in front of the face at 1:1 or nearer: 197 px wide for 200", a cube/pull timing cell (the F13/F14 flake family of flakes-r2), not touched by this diff. Steps after pull not run; e2e (F27) not reached. An earlier gate on 78c3ffbc stopped at cut-check (copies row: my new cell had a "Ja"/"Nein" literal), fixed in 7b762ea0.
+Not done: coverage (llvm-cov still not installed).
