@@ -642,6 +642,29 @@ mod tests {
         assert!(!keys.contains_key("F1"));
     }
 
+    /// The configs of head 29e2cd77 (the shipped default and the bindings
+    /// that the docs list) load to the same table of bindings as before
+    /// kit took the shared actions (KIT2): `tests/configs/29e2cd77`.
+    #[test]
+    fn the_configs_of_29e2cd77_load_to_the_same_table() {
+        use std::fmt::Write;
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs/29e2cd77");
+        for name in ["mc", "mc-docs-bindings"] {
+            let text = std::fs::read_to_string(dir.join(format!("{name}.yaml"))).unwrap();
+            let config = parse::<Config>(&text).unwrap();
+            let mut table = String::new();
+            for (key, action) in &config.bindings {
+                writeln!(table, "{key}\t{}", serde_json::to_string(action).unwrap()).unwrap();
+            }
+            let golden = dir.join(format!("{name}.table"));
+            if std::env::var_os("CHORA_BLESS").is_some() {
+                std::fs::write(&golden, &table).unwrap();
+            }
+            assert_eq!(table, std::fs::read_to_string(&golden).unwrap(), "{name}");
+        }
+    }
+
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();

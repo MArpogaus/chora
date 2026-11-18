@@ -33,6 +33,21 @@ use serde_json::{Map, Value, json};
 
 use crate::runtime;
 
+/// The settings that every look has (C10): the bindings, in the spelling
+/// of [`crate::actions`], and the switch of the tests. A look puts it in
+/// its own settings with `#[serde(flatten)]` and keeps its other keys.
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, bound(deserialize = "L: DeserializeOwned"))]
+pub struct Common<L> {
+    /// For tests only: take the keys and the pointer presses of
+    /// `input.inject` as the user's. Off, the bindings ignore injected
+    /// keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
+    /// A binding and its action.
+    pub bindings: std::collections::BTreeMap<String, crate::actions::Action<L>>,
+}
+
 /// The settings type of a plugin.
 pub trait Settings: Serialize + DeserializeOwned + schemars::JsonSchema {
     /// Checks what serde cannot, for example a range.
