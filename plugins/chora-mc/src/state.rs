@@ -56,7 +56,6 @@ mod tests {
         let (mut mc, _model) = testing::mc("state", [1280, 800]);
         let state = mc.state().expect("mc has a state");
         assert_eq!(state["windows"], serde_json::json!([]));
-        assert_eq!(state["open"], serde_json::json!([]));
         mc.windows.insert("agenda".into(), "s1".into());
         mc.core_focus = Some("s1".into());
         let state = mc.state().unwrap();
@@ -66,5 +65,24 @@ mod tests {
         assert_eq!(state["focus"]["surface"], "s1");
         mc.core_focus = Some("other".into());
         assert!(mc.state().unwrap()["focus"].get("surface").is_none());
+    }
+
+    /// mc holds the focus only while the core focus is on a window of
+    /// mc; else no look of mc's holds it (net1 review). `open` stays out
+    /// until mc fills it, so that I4 does not read an empty list as true.
+    #[test]
+    fn the_focus_holder_is_mc_only_on_a_window_of_mc() {
+        let (mut mc, _model) = testing::mc("holder", [1280, 800]);
+        let state = mc.state().unwrap();
+        assert_eq!(state["focus"]["holder"], serde_json::Value::Null);
+        assert!(state.get("open").is_none());
+        mc.windows.insert("agenda".into(), "s1".into());
+        mc.core_focus = Some("other".into());
+        assert_eq!(
+            mc.state().unwrap()["focus"]["holder"],
+            serde_json::Value::Null
+        );
+        mc.core_focus = Some("s1".into());
+        assert_eq!(mc.state().unwrap()["focus"]["holder"], "mc");
     }
 }
