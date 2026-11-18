@@ -48,6 +48,12 @@ pub enum Look {
 /// What a binding does: an action of every look, or one of mc.
 pub type Action = chora_kit::actions::Action<Look>;
 
+impl From<Look> for Action {
+    fn from(look: Look) -> Self {
+        Self::Look(look)
+    }
+}
+
 /// Whether mc does something for a system action: the others have no
 /// meaning in a look of pages, and a binding to one is refused.
 fn acts_in_mc(system: &System) -> bool {

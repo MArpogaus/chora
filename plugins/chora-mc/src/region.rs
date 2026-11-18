@@ -8,6 +8,7 @@
 
 use std::collections::BTreeMap;
 
+use chora_kit::{actions::System, volume::Change};
 use chora_scene::{
     Command, Easing, NodeKind, PropsUpdate, ToplevelState, Transform, ipc::ClientError,
 };
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Mc,
-    config::{Style, Type},
+    config::{Look, Style, Type},
     create,
     fonts::{self, Ink},
     move_to,
@@ -726,19 +727,11 @@ impl Mc {
         }
         if name == NEXT && region.is_line() {
             let line = self.next_page_line(scene).unwrap_or_default();
-            return (
-                line,
-                self.key_of(&crate::config::Action::Look(crate::config::Look::NextScene)),
-            );
+            return (line, self.key_of(&Look::NextScene.into()));
         }
         if name == PREV && region.is_line() {
             let line = self.previous_page_line(scene).unwrap_or_default();
-            return (
-                line,
-                self.key_of(&crate::config::Action::Look(
-                    crate::config::Look::PreviousScene,
-                )),
-            );
+            return (line, self.key_of(&Look::PreviousScene.into()));
         }
         (String::new(), None)
     }
@@ -1447,7 +1440,7 @@ impl Mc {
             ..Item::text(format!("{id}-door"), slot, door, false)
         });
         let key = (self.settings.value.common.bindings.iter())
-            .find(|(_, a)| **a == crate::config::Action::System(chora_kit::actions::System::Chat))
+            .find(|(_, a)| **a == System::Chat.into())
             .map(|(k, _)| crate::keys::human(k));
         items.extend(key.map(|key| end("key", &key, None)));
         items
@@ -1643,14 +1636,12 @@ impl Mc {
 
     /// What a click on a door does: the action of its key.
     fn door(&mut self, what: &str) {
-        use crate::config::Action;
-        use chora_kit::actions::System;
         let action = match what {
-            "programs" => Action::System(System::Run("fuzzel".into())),
-            "lock" => Action::System(System::Lock),
-            "power" => Action::System(System::Power),
-            "screenshot" => Action::System(System::Screenshot),
-            "volume" => Action::System(System::Volume(chora_kit::volume::Change::Mute)),
+            "programs" => System::Run("fuzzel".into()).into(),
+            "lock" => System::Lock.into(),
+            "power" => System::Power.into(),
+            "screenshot" => System::Screenshot.into(),
+            "volume" => System::Volume(Change::Mute).into(),
             _ => return,
         };
         self.perform(action);

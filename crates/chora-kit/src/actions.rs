@@ -117,6 +117,12 @@ fn names_system(value: &serde_json::Value) -> bool {
     }
 }
 
+impl<L> From<System> for Action<L> {
+    fn from(system: System) -> Self {
+        Self::System(system)
+    }
+}
+
 impl<'de, L: serde::de::DeserializeOwned> Deserialize<'de> for Action<L> {
     /// A system action first, else an action of the look. A mistake is
     /// reported by the side that the value names: `{volume: sideways}`
