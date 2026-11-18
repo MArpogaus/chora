@@ -103,6 +103,12 @@ pub trait Plugin {
         Ok(())
     }
 
+    /// The state behind `state.get`: what the plugin shows and holds, as
+    /// the shape of `choractl state`; none by default.
+    fn state(&self) -> Option<Value> {
+        None
+    }
+
     /// The settings as a caller of `settings.get`, `settings.set` and
     /// `settings.reload` sees them; all of them by default. A plugin
     /// hides its secrets here.
@@ -459,14 +465,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             rt.confined_call = confined;
             rt.caller = caller;
             rt.conn.serving_confined = confined;
-            let result = match method.as_str() {
-                "settings.get" => (plugin.settings().map(|s| s.get()))
-                    .ok_or_else(|| no_settings("settings.get"))
-                    .map(|s| plugin.shown_settings(s)),
-                "settings.set" => set_settings(plugin, params),
-                "settings.reload" => reload_settings(plugin),
-                _ => plugin.method(&method, params),
-            };
+            let result = answer_call(plugin, &method, params);
             let rt = plugin.runtime();
             rt.conn.serving_confined = false;
             match rt.conn.answer(call, result.map_err(capped)) {
@@ -485,6 +484,33 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             plugin.event(event)
         }
     }
+}
+
+/// The answer to a method call: the methods of the runtime, then those of
+/// the plugin.
+fn answer_call<P: Plugin>(plugin: &mut P, method: &str, params: Value) -> Result<Value, RpcError> {
+    match method {
+        "settings.get" => (plugin.settings().map(|s| s.get()))
+            .ok_or_else(|| no_settings("settings.get"))
+            .map(|s| plugin.shown_settings(s)),
+        "settings.set" => set_settings(plugin, params),
+        "settings.reload" => reload_settings(plugin),
+        "state.get" => plugin
+            .state()
+            .ok_or_else(|| RpcError::new(RpcError::METHOD_NOT_FOUND, "state.get")),
+        _ => plugin.method(method, params),
+    }
+}
+
+/// The export of `state.get`, for a plugin that answers [`Plugin::state`].
+#[must_use]
+pub fn state_method() -> ExportMethod {
+    method(
+        "state.get",
+        "Answers what the plugin shows and holds: windows, focus and what is open.",
+        json!({}),
+        &[],
+    )
 }
 
 /// `settings.set`: checks the change, has the plugin apply it, then saves
@@ -668,6 +694,41 @@ mod tests {
     struct Faces {
         #[serde(default)]
         faces: usize,
+    }
+
+    /// A plugin that answers `state.get`, and one that does not.
+    struct Stated(Option<Value>);
+
+    impl Plugin for Stated {
+        type Action = ();
+
+        fn runtime(&mut self) -> &mut Runtime<()> {
+            unreachable!("answer_call needs no connection")
+        }
+
+        fn event(&mut self, _: Event) -> Result<(), ClientError> {
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+
+        fn state(&self) -> Option<Value> {
+            self.0.clone()
+        }
+    }
+
+    /// `state.get` answers the state of the plugin; a plugin without one
+    /// answers no such method.
+    #[test]
+    fn state_get_answers_the_state_of_the_plugin() {
+        let shape = json!({"windows": [], "open": []});
+        let mut with = Stated(Some(shape.clone()));
+        assert_eq!(answer_call(&mut with, "state.get", Value::Null), Ok(shape));
+        let mut without = Stated(None);
+        let err = answer_call(&mut without, "state.get", Value::Null).unwrap_err();
+        assert_eq!(err.code, RpcError::METHOD_NOT_FOUND);
     }
 
     #[test]

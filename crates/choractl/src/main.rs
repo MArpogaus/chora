@@ -99,6 +99,12 @@ enum Cmd {
         /// The parameters as JSON; `null` if missing.
         params: Option<String>,
     },
+    /// Print what a plugin shows and holds (`state.get`): windows, focus,
+    /// what is open and what still moves, for example `choractl state mc`.
+    State {
+        /// The client name of the plugin.
+        plugin: String,
+    },
     /// Hand a window to another window manager (D55): calls `window.give`
     /// of the window manager that owns it, for example `choractl give xp`.
     Give {
@@ -397,6 +403,9 @@ fn run(args: Args) -> Result<(), String> {
             method,
             params,
         } => return call(&mut client, callee, method, params.as_deref()),
+        Cmd::State { plugin } => {
+            return call(&mut client, plugin, "state.get".to_owned(), None);
+        }
         Cmd::Give { to, surface } => return give(&mut client, &to, surface.as_deref()),
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } => {

@@ -185,5 +185,6 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             &[],
         )),
         chora_kit::give::method(),
+        runtime::state_method(),
     ]
 }

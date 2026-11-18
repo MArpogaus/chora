@@ -29,6 +29,7 @@ mod mic;
 mod region;
 mod scene;
 mod show;
+mod state;
 mod windows;
 
 use std::{
@@ -628,6 +629,10 @@ impl Plugin for Mc {
 
     fn runtime(&mut self) -> &mut Runtime<Action> {
         &mut self.rt
+    }
+
+    fn state(&self) -> Option<Value> {
+        Some(self.state_value())
     }
 
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
