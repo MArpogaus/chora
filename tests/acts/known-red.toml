@@ -4,37 +4,31 @@
 # green. Each row names the look, the id (an invariant such as `I1` or an
 # act `act:NAME`), its finding id and the slice that turns it green.
 [[red]]
-finding = "net1-backlog: no state.get of xp"
-id = "I1"
+finding = "net2-a1: Escape does not cancel the dialog Turn Off Computer of xp (one Esc order)"
+id = "act:Escape shuts Turn Off Computer"
 look = "xp"
-slice = "NET2 adapters"
+slice = "WM3"
 
 [[red]]
-finding = "net1-backlog: no state.get of xp, so no look holds the focus"
+finding = "net2-a2: mc gives the keyboard to its page node after its window goes, and holds no focus by the net1 review rule"
 id = "I3"
-look = "xp"
-slice = "NET2 adapters"
+look = "mc"
+slice = "WM2"
 
 [[red]]
-finding = "net1-backlog: no state.get of tiling"
-id = "I1"
-look = "tiling"
-slice = "NET2 adapters"
+finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
+id = "I4"
+look = "mc"
+slice = "WM3"
 
 [[red]]
-finding = "net1-backlog: no state.get of tiling, so no look holds the focus"
-id = "I3"
-look = "tiling"
-slice = "NET2 adapters"
+finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
+id = "act:the keys key opens the key list"
+look = "mc"
+slice = "WM3"
 
 [[red]]
-finding = "net1-backlog: no state.get of construct"
-id = "I1"
-look = "construct"
-slice = "NET2 adapters"
-
-[[red]]
-finding = "net1-backlog: no state.get of construct, so no look holds the focus"
-id = "I3"
-look = "construct"
-slice = "NET2 adapters"
+finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
+id = "act:the keys alias key opens the key list"
+look = "mc"
+slice = "WM3"
