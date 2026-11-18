@@ -7,10 +7,11 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, chat-keys, doors, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
-# look for the shared keys and one visible door per action. `matrix` ends with the click that
+# look for the shared keys and one visible door per action. `acts` runs the act contracts of
+# tests/acts with the invariants I1, I3, I4, I7, I8 and I14 against tests/acts/known-red.toml. `matrix` ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
@@ -175,6 +176,7 @@ tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh
 tiling-look|BIN=$repo/target/debug tests/gate-tiling-wobbly.sh && BIN=$repo/target/debug tests/gate-tiling-bar-palette.sh && BIN=$repo/target/debug tests/gate-tiling-look-r2.sh && BIN=$repo/target/debug tests/gate-tiling-power.sh && BIN=$repo/target/debug tests/gate-tiling-print-notice.sh
 chat-keys|BIN=$repo/target/debug tests/gate-chat-keys.sh
 doors|BIN=$repo/target/debug tests/gate-doors.sh
+acts|BIN=$repo/target/debug tests/gate-acts.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
