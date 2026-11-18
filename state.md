@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-18 02:34 UTC)
+## Now (2026-11-18 03:07 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 62 % at 23:59 Tue (owner); tokens.py 02:22: PM 0.4 % since; lanes NET1, NET2 est 2 %. Even pace 57 %: about 7 % over; 36 % for 73 h. Full reset available (owner 15:35): use near 95 %.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -24,7 +24,7 @@ burn-down: F1 done 14:55 (arch-plan-fable.md, 2 reviews); F2 done 01:40 (net1, r
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| net2-harness-r2.md (F3) | sonnet med, claude/net2-harness | r1 FIX 02:22 (2 MAJOR: setup leak, missing key passes); r2 start 02:22 |
+| net2-harness-r2.md (F3) | sonnet med, claude/net2-harness | r2 b5a8625b handed back 03:06 (gate PASS); re-review 03:07 |
 | net2-r1.md adapters (F3) | opus high, claude/net2-adapters | 5da2712c MERGE-OK 02:34 (0 BLOCK/MAJOR); merges by 14:40 after harness r2 (re-merge round: helper key, known-red) |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
