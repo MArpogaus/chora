@@ -13,6 +13,15 @@ use crate::{
     words::{Language, Word, say},
 };
 
+/// The method that answers a question, on the client `voice`.
+pub const ANSWER_METHOD: &str = "confirm.answer";
+
+/// The payload of `methods.call` for the answer `params` of a click.
+#[must_use]
+pub fn answer_call(params: &Value) -> Value {
+    serde_json::json!({"client": "voice", "method": ANSWER_METHOD, "params": params})
+}
+
 /// How long after it appeared or moved a button takes no click.
 pub const GUARD: Duration = Duration::from_millis(400);
 
@@ -60,8 +69,14 @@ impl Question {
     /// The parameters of `confirm.answer` for `answer`.
     #[must_use]
     pub fn answer_params(&self, answer: Answer) -> Value {
-        let _ = answer;
-        Value::Null
+        let mut params = serde_json::json!({
+            "id": self.answer_id,
+            "yes": answer != Answer::No,
+        });
+        if answer == Answer::Always {
+            params["always"] = true.into();
+        }
+        params
     }
 
     /// The question of a `voice.confirm` event, `None` when it is the
@@ -180,6 +195,14 @@ pub enum Answer {
     Always,
 }
 
+impl Answer {
+    /// The answer of a Yes or No button; never `Always`.
+    #[must_use]
+    pub fn of(yes: bool) -> Self {
+        if yes { Self::Yes } else { Self::No }
+    }
+}
+
 /// What a click on a button of a card comes to.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Click {
@@ -238,8 +261,14 @@ impl Card {
     /// What a click on `button` comes to at `now`.
     #[must_use]
     pub fn click(&self, button: Button, injected: bool, now: Instant) -> Click {
-        let _ = (button, injected, now);
-        Click::Ignored
+        if injected || !self.question.buttons {
+            return Click::Ignored;
+        }
+        match self.press(button, injected, now) {
+            Press::Answer(yes) => Click::Answer(self.question.answer_params(Answer::of(yes))),
+            Press::TooSoon => Click::TooSoon,
+            Press::Injected => Click::Ignored,
+        }
     }
 
     /// The texts top to bottom. A question that the voice may answer has

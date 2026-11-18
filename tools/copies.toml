@@ -11,7 +11,7 @@ pattern = 'to != NAME'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 10
+max = 8
 name = "confirm.answer"
 pattern = '"confirm\.answer"'
 
@@ -44,13 +44,15 @@ pattern = 'Command::Focus\b'
 [[row]]
 allow = ["crates/chora-kit/"]
 max = 0
-name = "own question model (Confirm, Confirming, Ask)"
-pattern = '^\s*(pub )?struct (Confirm|Confirming|Ask)\b'
+name = "own question event model (Confirm, Keys)"
+paths = ["plugins"]
+pattern = '^\s*(pub )?struct (Confirm|Keys)\b'
 
 [[row]]
 allow = ["crates/chora-kit/"]
 max = 0
 name = "question buttons as literal Ja/Nein"
+paths = ["plugins"]
 pattern = '"(Ja|Nein)"'
 
 [[row]]

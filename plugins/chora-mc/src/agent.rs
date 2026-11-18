@@ -2,7 +2,12 @@
 //! line of the regions and the agents scene, and the notifications of
 //! `notify.push`.
 
-use chora_kit::chat::sanitize;
+use std::time::Instant;
+
+use chora_kit::{
+    ask::{self, Button, Card, Click, Keys, Question, show_key},
+    words::Language,
+};
 use chora_scene::{
     Command, InputMode, NodeKind, PropsUpdate, Transform,
     ipc::{ClientError, RpcError},
@@ -93,44 +98,11 @@ pub struct Push {
     urgency: Urgency,
 }
 
-/// The event `voice.confirm`: the voice agent asks for a spoken
-/// confirmation, or with `done` the question ended.
-#[derive(Deserialize)]
-pub struct Confirm {
-    /// A string or a number: the agent sent numbers before.
-    #[serde(deserialize_with = "id_text")]
-    id: String,
-    #[serde(default)]
-    prompt: String,
-    /// The whole command or value, uncut.
-    #[serde(default)]
-    detail: String,
-    #[serde(default)]
-    done: bool,
-    /// A question about a security key: only `keys` or a button answer.
-    #[serde(default)]
-    physical: bool,
-    #[serde(default)]
-    keys: Option<Keys>,
-    /// mc may show buttons that answer by `confirm.answer`.
-    #[serde(default)]
-    buttons: bool,
-}
-
-/// The keys of a physical question, such as `Alt+y`.
-#[derive(Clone, Debug, Deserialize)]
-pub struct Keys {
-    yes: String,
-    no: String,
-}
-
-/// The confirmation that shows: its id, whether it has buttons, and the
-/// keys of a physical one.
+/// The confirmation that shows: the card of `kit::ask`, the only
+/// question model.
 #[derive(Clone, Debug)]
 pub struct Confirming {
-    id: String,
-    buttons: bool,
-    keys: Option<Keys>,
+    card: Card,
 }
 
 /// The group of the answers of a confirmation, over the regions.
@@ -140,55 +112,51 @@ pub const ANSWER_YES: &str = "mc-answer-yes";
 pub const ANSWER_NO: &str = "mc-answer-no";
 
 impl Confirming {
-    /// The parameters of `voice.confirm.answer` for a press on `node`:
-    /// an answer of a confirmation with buttons. Only a pointer press on
-    /// the node calls it; no method of mc does.
-    pub fn answer(&self, node: &str, injected: bool) -> Option<Value> {
-        if injected {
-            return None;
-        }
-        let yes = match node {
-            ANSWER_YES => true,
-            ANSWER_NO => false,
-            _ => return None,
+    /// The id as `voice.confirm` sent it.
+    fn id(&self) -> &str {
+        &self.card.question.answer_id
+    }
+
+    /// The question takes clicks.
+    fn buttons(&self) -> bool {
+        self.card.question.buttons
+    }
+
+    /// The keys of a physical question.
+    fn keys(&self) -> Option<&Keys> {
+        let question = &self.card.question;
+        question.physical.then_some(&question.keys)
+    }
+
+    /// What a press on `node` comes to: only a pointer press on an
+    /// answer, and only 400 ms after the card showed; no method of mc
+    /// answers.
+    pub fn click(&self, node: &str, injected: bool, now: Instant) -> Click {
+        let button = match node {
+            ANSWER_YES => Button::Yes,
+            ANSWER_NO => Button::No,
+            _ => return Click::Ignored,
         };
-        self.buttons.then(|| json!({"id": self.id, "yes": yes}))
+        self.card.click(button, injected, now)
     }
 
     /// The answers as margin notes, right to left from the right edge:
     /// per answer its key in the style `margin` and its word in `body`,
     /// the word with a hairline under it while it takes a click.
-    fn parts(&self, language: chora_kit::words::Language) -> Vec<(String, &'static str, String)> {
-        let _ = language;
-        let key = |k: &str| match k.rsplit_once('+') {
-            Some((m, c)) if c.chars().count() == 1 => format!("{m}+{}", c.to_uppercase()),
-            _ => k.to_owned(),
-        };
-        [(true, "Ja"), (false, "Nein")]
+    fn parts(&self, language: Language) -> Vec<(String, &'static str, String)> {
+        let [yes, no] = Card::buttons(language);
+        [(true, yes), (false, no)]
             .into_iter()
-            .map(|(yes, word)| {
-                let id = if yes { ANSWER_YES } else { ANSWER_NO };
-                let k = (self.keys.as_ref())
-                    .map(|k| key(if yes { &k.yes } else { &k.no }))
+            .map(|(is_yes, word)| {
+                let id = if is_yes { ANSWER_YES } else { ANSWER_NO };
+                let key = self
+                    .keys()
+                    .map(|k| show_key(if is_yes { &k.yes } else { &k.no }))
                     .unwrap_or_default();
-                (id.to_owned(), word, k)
+                (id.to_owned(), word, key)
             })
             .collect()
     }
-}
-
-/// An id as text, from a string or a number.
-fn id_text<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum Id {
-        Text(String),
-        Number(serde_json::Number),
-    }
-    Ok(match Id::deserialize(d)? {
-        Id::Text(text) => text,
-        Id::Number(n) => n.to_string(),
-    })
 }
 
 /// As in the freedesktop notifications: critical breaks through in red.
@@ -662,20 +630,12 @@ impl Mc {
 
     /// Shows a spoken confirmation alone in the drawer over any scene,
     /// with its whole detail, until the event `done` of its id.
-    pub fn confirm(&mut self, confirm: Confirm) -> Result<(), RpcError> {
-        let Confirm {
-            id,
-            prompt,
-            detail,
-            done,
-            physical,
-            keys,
-            buttons,
-        } = confirm;
+    pub fn confirm(&mut self, data: &Value) -> Result<(), RpcError> {
         let rejected =
             |e: chora_scene::ipc::ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
-        if done {
-            if self.confirming.as_ref().is_none_or(|c| c.id != id) {
+        if data["done"] == true {
+            let id = ask::event_id(data).ok_or_else(|| invalid("id: a text or a number".into()))?;
+            if self.confirming.as_ref().is_none_or(|c| c.id() != id) {
                 return Ok(());
             }
             self.confirming = None;
@@ -691,12 +651,12 @@ impl Mc {
             }
             return Ok(());
         }
-        let lines = sanitize(&detail).lines().map(Into::into).collect();
-        self.set_text(CONFIRM, Some(sanitize(&prompt)), |_| lines)?;
+        let question = Question::from_event(data, None)
+            .ok_or_else(|| invalid("id: a number, prompt: a text".into()))?;
+        let lines = question.detail.lines().map(Into::into).collect();
+        self.set_text(CONFIRM, Some(question.prompt.clone()), |_| lines)?;
         let had = self.confirming.replace(Confirming {
-            id,
-            buttons,
-            keys: keys.filter(|_| physical),
+            card: Card::new(question, Instant::now()),
         });
         // ponytail: it takes the place of a solo of the user, which does
         // not come back after the answer.
@@ -721,7 +681,7 @@ impl Mc {
         let Some(c) = self
             .confirming
             .clone()
-            .filter(|c| c.buttons || c.keys.is_some())
+            .filter(|c| c.buttons() || c.keys().is_some())
         else {
             return self.apply(commands);
         };
@@ -746,10 +706,10 @@ impl Mc {
             crate::region::REGIONS,
             hidden,
         ));
-        let parts = c.parts(chora_kit::words::Language::of_session());
+        let parts = c.parts(Language::of_session());
         for (id, w, k) in &parts {
             let mut props = word.props(w);
-            if c.buttons {
+            if c.buttons() {
                 props.input = Some(InputMode::Pass);
             } else {
                 props.color = Some(muted);
@@ -791,7 +751,7 @@ impl Mc {
             let ww = width(self, &format!("{id}-word"))?;
             right -= ww;
             moves.push(place(&format!("{id}-word"), right, top));
-            if c.buttons {
+            if c.buttons() {
                 // A click area over the word, and a hairline under it.
                 let area = PropsUpdate {
                     transform: Some(Transform::translate(right, top, 0.0)),
@@ -837,13 +797,15 @@ impl Mc {
 
     /// Answers the confirmation by the click on `node`, with
     /// `voice.confirm.answer`; a refusal, as for an old id, only logs.
-    /// True when `node` was an answer.
-    pub fn press_answer(&mut self, node: &str, injected: bool, now: std::time::Instant) -> bool {
-        let _ = now;
-        let Some(params) = (self.confirming.as_ref()).and_then(|c| c.answer(node, injected)) else {
-            return false;
+    /// True when the click was spent on an answer, also when it came
+    /// too soon to count.
+    pub fn press_answer(&mut self, node: &str, injected: bool, now: Instant) -> bool {
+        let params = match (self.confirming.as_ref()).map(|c| c.click(node, injected, now)) {
+            Some(Click::Answer(params)) => params,
+            Some(Click::TooSoon) => return true,
+            Some(Click::Ignored) | None => return false,
         };
-        let call = json!({"client": crate::VOICE, "method": "confirm.answer", "params": params});
+        let call = ask::answer_call(&params);
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
             eprintln!("chora-mc: confirm.answer: {err}");
         }
@@ -908,6 +870,10 @@ fn band(agent: &Agent) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
+    use chora_kit::ask::{Card, Click, Question};
+
     #[test]
     fn an_error_of_chat_show_without_a_name_names_the_reason() {
         assert_eq!(
@@ -1002,16 +968,16 @@ mod tests {
         let (mut mc, _) = crate::testing::mc("confirm", [1920, 1080]);
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let detail = format!("rm -r build\n{}", "x".repeat(400));
-        let ask = json!({"id": "c1", "prompt": "Run it?", "detail": detail});
+        let ask = json!({"id": "11", "prompt": "Run it?", "detail": detail});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         let (title, lines) = mc.texts["confirm"].clone();
         assert_eq!(title, "Run it?");
         assert_eq!(lines.join("\n"), detail, "never cut");
         assert!(mc.solo.as_ref().is_some_and(|s| s.content == "confirm"));
         let done = |id| json!({"id": id, "done": true});
-        mc.follow("voice.confirm", "voice", done("c0")).unwrap();
+        mc.follow("voice.confirm", "voice", done("10")).unwrap();
         assert!(mc.solo.is_some(), "another id");
-        mc.follow("voice.confirm", "voice", done("c1")).unwrap();
+        mc.follow("voice.confirm", "voice", done("11")).unwrap();
         assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
     }
 
@@ -1022,7 +988,7 @@ mod tests {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("confirm-bidi", [1920, 1080]);
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": "c2", "prompt": "Run\u{202e} it?",
+        let ask = json!({"id": "12", "prompt": "Run\u{202e} it?",
             "detail": "echo safe\u{202e}fr- mr\u{200b}\nline two\u{1b}[2J"});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         let (title, lines) = mc.texts["confirm"].clone();
@@ -1035,37 +1001,36 @@ mod tests {
     #[test]
     fn a_click_on_an_answer_maps_to_confirm_answer() {
         use serde_json::json;
-        let with = super::Confirming {
-            id: "4".into(),
-            buttons: true,
-            keys: None,
+        let confirming = |data: serde_json::Value| super::Confirming {
+            card: Card::new(Question::from_event(&data, None).unwrap(), Instant::now()),
         };
+        let late = Instant::now() + std::time::Duration::from_secs(1);
+        let with = confirming(json!({"id": 4, "prompt": "x", "buttons": true}));
         assert_eq!(
-            with.answer(super::ANSWER_YES, false),
-            Some(json!({"id": "4", "yes": true}))
+            with.click(super::ANSWER_YES, false, late),
+            Click::Answer(json!({"id": "4", "yes": true}))
         );
         assert_eq!(
-            with.answer(super::ANSWER_NO, false),
-            Some(json!({"id": "4", "yes": false}))
+            with.click(super::ANSWER_NO, false, late),
+            Click::Answer(json!({"id": "4", "yes": false}))
         );
-        assert_eq!(with.answer("mc-answer-yes-word", false), None);
-        let without = super::Confirming {
-            buttons: false,
-            ..with
-        };
-        assert_eq!(without.answer(super::ANSWER_YES, false), None);
         assert_eq!(
-            super::Confirming {
-                buttons: true,
-                ..without
-            }
-            .answer(super::ANSWER_YES, true),
-            None,
+            with.click("mc-answer-yes-word", false, late),
+            Click::Ignored
+        );
+        let without = confirming(json!({"id": 4, "prompt": "x"}));
+        assert_eq!(
+            without.click(super::ANSWER_YES, false, late),
+            Click::Ignored
+        );
+        assert_eq!(
+            with.click(super::ANSWER_YES, true, late),
+            Click::Ignored,
             "an injected press answers nothing"
         );
         let (mut mc, _) = crate::testing::mc("answers", [1920, 1080]);
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": "5", "prompt": "Set allow?", "detail": "allow: [sh]",
+        let ask = json!({"id": 5, "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         let parts = mc
@@ -1117,10 +1082,18 @@ mod tests {
             mc.press_answer(super::ANSWER_YES, false, early),
             "the click is spent"
         );
-        assert_eq!(calls(&model, "confirm.answer"), 0, "refused inside 400 ms");
+        assert_eq!(
+            calls(&model, chora_kit::ask::ANSWER_METHOD),
+            0,
+            "refused inside 400 ms"
+        );
         let late = shown + Duration::from_millis(900);
         assert!(mc.press_answer(super::ANSWER_YES, false, late));
-        assert_eq!(calls(&model, "confirm.answer"), 1, "answers after it");
+        assert_eq!(
+            calls(&model, chora_kit::ask::ANSWER_METHOD),
+            1,
+            "answers after it"
+        );
     }
 
     /// sh-27: the buttons follow the language of the session.

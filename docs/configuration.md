@@ -476,9 +476,9 @@ ACP agent of the voice agent; `voice.remove {name}` removes such a
 sub-agent.
 `voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
 `prompt` and its whole `detail` in mono alone in the drawer until the
-event with `done` and the same `id`. With `buttons`, the words Ja and
-Nein stand flush right on its title line, each with a hairline under
-it; a click calls `voice.confirm.answer {id, yes}`. A question about a
+event with `done` and the same `id`. With `buttons`, the words Yes and No (Ja and
+Nein in a German session) stand flush right on its title line, each with
+a hairline under it; a click 400 ms or more after the question showed calls `voice.confirm.answer {id, yes}`. A question about a
 security key (`physical`) shows its `keys`, such as Alt+Y and Alt+N,
 before them. Only a pointer press on a word answers; no method of mc
 calls `confirm.answer`, but mc cannot tell an injected click
@@ -1265,8 +1265,9 @@ fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
 ring and the label at the bottom right. `voice.confirm` opens a question
 at the top centre with the prompt and the whole detail; the wheel
 scrolls a long one, and its `done` closes it. The answer is by voice.
-With `buttons`, the question has the glass buttons Ja and Nein at its
-bottom; a click calls `voice.confirm.answer {id, yes}`. A question about
+With `buttons`, the question has the glass buttons Yes and No (Ja and
+Nein in a German session) at its bottom; a click 400 ms or more after the
+question showed calls `voice.confirm.answer {id, yes}`. A question about
 a security key (`physical`) shows the key caps of its `keys`, such as
 Alt+Y and Alt+N, beside them, after an accent mark, and says that it
 needs a key press or a click. Only a pointer press on a button answers;

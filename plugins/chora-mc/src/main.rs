@@ -929,7 +929,7 @@ impl Mc {
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
             Some("remove") => runtime::params(data).and_then(|r| self.remove_agent(&r)),
-            Some("confirm") => runtime::params(data).and_then(|c| self.confirm(c)),
+            Some("confirm") => self.confirm(&data),
             Some("say") => match runtime::params(data) {
                 Ok(say) => return self.say(say),
                 Err(e) => Err(e),
@@ -1890,7 +1890,7 @@ mod tests {
             json!({"text": "Hello there", "duration_ms": 0}),
         )
         .unwrap();
-        let ask = json!({"id": "1", "prompt": "Atlas wants to write notes.txt.",
+        let ask = json!({"id": 1, "prompt": "Atlas wants to write notes.txt.",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         mc.follow(
@@ -2394,7 +2394,7 @@ mod tests {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("own-contents", [1920, 1080]);
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": "c1", "prompt": "Run it?", "detail": "rm -r build"});
+        let ask = json!({"id": 21, "prompt": "Run it?", "detail": "rm -r build"});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         mc.method(
             "notify.push",

@@ -1,11 +1,14 @@
 //! Voice glue: following the voice agent, answers, the tick, and drawing
 //! the voice HUD.
 
-use chora_kit::modes::Mode;
+use chora_kit::{
+    ask::{self, Click},
+    modes::Mode,
+};
 
 use super::{
-    ClientError, Command, Construct, Duration, Instant, Look, PropsUpdate, Transform, VOICE, Value,
-    hud, json, space, update,
+    ClientError, Command, Construct, Duration, Instant, Look, PropsUpdate, Transform, Value, hud,
+    space, update,
 };
 
 /// Whether the pane label hides: it hides while any of `reasons` holds;
@@ -56,14 +59,19 @@ impl Construct {
 
     /// Answers the open question of the voice agent by the button `node`
     /// with `confirm.answer`; a refusal, as for an old id, only logs.
-    pub(crate) fn answer(&mut self, node: &str, injected: bool) {
-        let Some(params) = self.voice.answer(node, injected, Instant::now()) else {
-            return;
+    /// True when the click was spent on a button, also when it came too
+    /// soon to count.
+    pub(crate) fn answer(&mut self, node: &str, injected: bool) -> bool {
+        let params = match self.voice.click(node, injected, Instant::now()) {
+            Click::Answer(params) => params,
+            Click::TooSoon => return true,
+            Click::Ignored => return false,
         };
-        let call = json!({"client": VOICE, "method": "confirm.answer", "params": params});
+        let call = ask::answer_call(&params);
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
             eprintln!("chora-construct: confirm.answer: {err}");
         }
+        true
     }
 
     /// The deadlines of the sentence: the waveform stops at its end, the

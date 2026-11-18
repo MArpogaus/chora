@@ -17,7 +17,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::chat::sanitize;
+use chora_kit::{
+    ask::{self, Button, Card, Click, Keys, Question, show_key},
+    words::Language,
+};
 use chora_scene::{
     Border, Clip, Command, Easing, InputMode, NodeKind, PropsUpdate, Transform, Uniform,
 };
@@ -811,14 +814,15 @@ impl Look<'_> {
     }
 
     /// The row of answers at the bottom of a question, `top` from its
-    /// top: per answer a button with "Ja" or "Nein" while the agent takes
+    /// top: per answer a button with the words of the session language while the agent takes
     /// clicks, and the key cap of a physical question beside it, after an
     /// accent mark that says a key is needed.
-    fn answers(&self, ask: &Ask, top: f64, wrap: f64) -> Vec<Command> {
+    fn answers(&self, ask: &Ask, top: f64, wrap: f64, language: Language) -> Vec<Command> {
+        let [yes_label, no_label] = Card::buttons(language);
         let (u, pad) = (self.style.unit, self.pad());
         let h = 4.0 * u;
         let mut commands = Vec::new();
-        if ask.keys.is_some() {
+        if ask.keys().is_some() {
             // The accent marks the row, as it marks a selection; text
             // never takes it (rule 4).
             commands.push(create(
@@ -868,9 +872,9 @@ impl Look<'_> {
         };
         let half = (wrap - 2.0 * u) / 2.0;
         let mut x = pad;
-        for (yes, id, label) in [(true, ASK_YES, "Ja"), (false, ASK_NO, "Nein")] {
+        for (yes, id, label) in [(true, ASK_YES, yes_label), (false, ASK_NO, no_label)] {
             let start = x;
-            if ask.buttons {
+            if ask.buttons() {
                 let (c, w) = boxed(
                     id,
                     x,
@@ -882,8 +886,8 @@ impl Look<'_> {
                 commands.extend(c);
                 x += w + u;
             }
-            if let Some(keys) = &ask.keys {
-                let key = cap(if yes { &keys.yes } else { &keys.no });
+            if let Some(keys) = ask.keys() {
+                let key = show_key(if yes { &keys.yes } else { &keys.no });
                 let key = self.one_line(Role::Data, &key, half / 2.0);
                 let (c, w) = boxed(
                     &format!("{id}-key"),
@@ -895,7 +899,7 @@ impl Look<'_> {
                 );
                 commands.extend(c);
                 x += w + u;
-                if !ask.buttons {
+                if !ask.buttons() {
                     commands.push(create(
                         &format!("{id}-what"),
                         NodeKind::Text,
@@ -954,53 +958,26 @@ struct Status {
     task: String,
 }
 
-/// `voice.confirm`: a question, or with `done` its end. The agent sends
-/// a number as the id.
-#[derive(Deserialize)]
-struct Confirm {
-    id: Value,
-    #[serde(default)]
-    prompt: String,
-    #[serde(default)]
-    detail: String,
-    #[serde(default)]
-    done: bool,
-    /// A question about a security key: only `keys` or a button answer.
-    #[serde(default)]
-    physical: bool,
-    #[serde(default)]
-    keys: Option<Keys>,
-    /// The HUD may show buttons that answer by `confirm.answer`.
-    #[serde(default)]
-    buttons: bool,
-}
-
-/// The keys of a physical question, such as `Alt+y`.
-#[derive(Clone, Deserialize)]
-pub struct Keys {
-    pub yes: String,
-    pub no: String,
-}
-
-/// A key as a cap shows it: `Alt+y` as `Alt+Y`.
-fn cap(key: &str) -> String {
-    match key.rsplit_once('+') {
-        Some((mods, k)) if k.chars().count() == 1 => format!("{mods}+{}", k.to_uppercase()),
-        _ => key.to_owned(),
-    }
-}
-
-/// An open question.
+/// An open question: the card of `kit::ask`, the only question model,
+/// and how far the wheel scrolled it.
 pub struct Ask {
-    pub id: Value,
-    pub prompt: String,
-    pub detail: String,
-    /// The keys of a physical question.
-    pub keys: Option<Keys>,
-    pub buttons: bool,
+    pub card: Card,
     /// How far the wheel scrolled it, and how far it can.
     pub scroll: f64,
     pub scroll_max: f64,
+}
+
+impl Ask {
+    /// The keys of a physical question.
+    fn keys(&self) -> Option<&Keys> {
+        let question = &self.card.question;
+        question.physical.then_some(&question.keys)
+    }
+
+    /// The question takes clicks.
+    fn buttons(&self) -> bool {
+        self.card.question.buttons
+    }
 }
 
 /// What the voice agent shows: its state, its sentence and its question.
@@ -1058,9 +1035,12 @@ impl Voice {
                 })
             }
             "confirm" => {
-                let c: Confirm = serde_json::from_value(data).map_err(err)?;
-                if c.done {
-                    let open = self.ask.as_ref().is_some_and(|a| a.id == c.id);
+                if data["done"] == true {
+                    let open = ask::event_id(&data).is_some_and(|id| {
+                        self.ask
+                            .as_ref()
+                            .is_some_and(|a| a.card.question.answer_id == id)
+                    });
                     if open {
                         self.ask = None;
                     }
@@ -1069,12 +1049,10 @@ impl Voice {
                         ask: open,
                     });
                 }
+                let question = Question::from_event(&data, None)
+                    .ok_or("confirm: an id as a number and a prompt")?;
                 self.ask = Some(Ask {
-                    id: c.id,
-                    prompt: sanitize(&c.prompt),
-                    detail: sanitize(&c.detail),
-                    keys: c.keys.filter(|_| c.physical),
-                    buttons: c.buttons,
+                    card: Card::new(question, now),
                     scroll: 0.0,
                     scroll_max: 0.0,
                 });
@@ -1233,9 +1211,8 @@ impl Voice {
         look: &Look,
         out: [f64; 2],
         glow: bool,
-        language: chora_kit::words::Language,
+        language: Language,
     ) -> Vec<Command> {
-        let _ = language;
         let mut commands = vec![Command::Remove {
             id: ASK.into(),
             to: None,
@@ -1265,20 +1242,20 @@ impl Voice {
         body.push(text(
             "construct-ask-prompt",
             Role::Text,
-            &ask.prompt,
+            &ask.card.question.prompt,
             look.colors.text,
             y,
         ));
-        y += look.size(Role::Text, &ask.prompt, Some(wrap))[1] + u;
-        if !ask.detail.is_empty() {
-            for (k, piece) in chunks(&ask.detail).into_iter().enumerate() {
+        y += look.size(Role::Text, &ask.card.question.prompt, Some(wrap))[1] + u;
+        if !ask.card.question.detail.is_empty() {
+            for (k, piece) in chunks(&ask.card.question.detail).into_iter().enumerate() {
                 let id = format!("construct-ask-detail-{k}");
                 body.push(text(&id, Role::Data, piece, look.colors.text, y));
                 y += look.size(Role::Data, piece, Some(wrap))[1];
             }
             y += u;
         }
-        let hint = match (&ask.keys, ask.buttons) {
+        let hint = match (ask.keys(), ask.buttons()) {
             (Some(_), _) => "NEEDS A KEY PRESS OR A CLICK, NOT A SPOKEN YES",
             (None, true) => "ANSWER YES OR NO, OR CLICK",
             (None, false) => "ANSWER YES OR NO",
@@ -1293,7 +1270,7 @@ impl Voice {
         ));
         let full = (y + 16.0 + pad).ceil();
         // The answers stay at the bottom, also while the body scrolls.
-        let row = ask.keys.is_some() || ask.buttons;
+        let row = ask.keys().is_some() || ask.buttons();
         let footer = if row { 5.0 * u + pad } else { 0.0 };
         // At most the output minus 32 above and below, and minus the room
         // of the HUD with two lines, which stays in sight under it.
@@ -1328,7 +1305,7 @@ impl Voice {
             radius: look.style.radius,
         });
         if row {
-            commands.extend(look.answers(ask, body_h, wrap));
+            commands.extend(look.answers(ask, body_h, wrap, language));
         }
         commands.extend([
             create(
@@ -1358,26 +1335,19 @@ impl Voice {
         commands
     }
 
-    /// The parameters of `voice.confirm.answer` for a press on `node`: a
-    /// button of the open question that has buttons. Only a pointer press
-    /// on the node calls it, and an injected press never; no method of the construct does.
+    /// What a press on `node` comes to at `now`: a button of the open
+    /// question that has buttons, a pointer press only, 400 ms after the
+    /// question showed. No method of the construct answers.
     #[must_use]
-    pub fn answer(&self, node: &str, injected: bool, now: Instant) -> Option<Value> {
-        let _ = now;
-        if injected {
-            return None;
-        }
-        let ask = self.ask.as_ref().filter(|a| a.buttons)?;
-        let yes = match node {
-            ASK_YES => true,
-            ASK_NO => false,
-            _ => return None,
+    pub fn click(&self, node: &str, injected: bool, now: Instant) -> Click {
+        let button = match node {
+            ASK_YES => Button::Yes,
+            ASK_NO => Button::No,
+            _ => return Click::Ignored,
         };
-        let id = match &ask.id {
-            Value::String(id) => id.clone(),
-            other => other.to_string(),
-        };
-        Some(serde_json::json!({"id": id, "yes": yes}))
+        self.ask
+            .as_ref()
+            .map_or(Click::Ignored, |ask| ask.card.click(button, injected, now))
     }
 
     /// Scrolls the open question by `dy`; answers the move of its body.
@@ -1417,7 +1387,10 @@ impl Claim {
 mod tests {
     use serde_json::json;
 
-    use chora_kit::words::{Language, Word};
+    use chora_kit::{
+        ask::Click,
+        words::{Language, Word},
+    };
 
     use super::*;
     use crate::config::{Config, DEFAULT};
@@ -1656,13 +1629,13 @@ mod tests {
             })
         };
         voice
-            .follow("confirm", json!({"id": "a", "prompt": "Ja?"}), now)
+            .follow("confirm", json!({"id": 1, "prompt": "Ja?"}), now)
             .unwrap();
         let short = height(&mut voice).unwrap();
         let prompt = "Soll ich Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz \
             öffnen und foot -e sh -c 'make -j8 install' starten?";
         voice
-            .follow("confirm", json!({"id": "b", "prompt": prompt}), now)
+            .follow("confirm", json!({"id": 2, "prompt": prompt}), now)
             .unwrap();
         let tall = height(&mut voice).unwrap();
         assert!(tall >= short + 24.0, "{short} {tall}");
@@ -1677,19 +1650,20 @@ mod tests {
         let metrics = Metrics::default();
         let look = look(&config, &metrics);
         let mut voice = Voice::default();
-        let now = Instant::now();
-        let ask = json!({"id": "4", "prompt": "Set allow?", "detail": "allow: [sh]",
+        let shown = Instant::now();
+        let now = shown + Duration::from_secs(1);
+        let ask = json!({"id": 4, "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
-        voice.follow("confirm", ask, now).unwrap();
+        voice.follow("confirm", ask, shown).unwrap();
         assert_eq!(
-            voice.answer(ASK_YES, false, now),
-            Some(json!({"id": "4", "yes": true}))
+            voice.click(ASK_YES, false, now),
+            Click::Answer(json!({"id": "4", "yes": true}))
         );
         assert_eq!(
-            voice.answer(ASK_NO, false, now),
-            Some(json!({"id": "4", "yes": false}))
+            voice.click(ASK_NO, false, now),
+            Click::Answer(json!({"id": "4", "yes": false}))
         );
-        assert_eq!(voice.answer(ASK_GLASS, false, now), None);
+        assert_eq!(voice.click(ASK_GLASS, false, now), Click::Ignored);
         let commands = measured(&metrics, || {
             voice.ask(&look, [1280.0, 720.0], true, Language::En)
         });
@@ -1702,24 +1676,32 @@ mod tests {
             Some("Alt+N")
         );
         let numeric = json!({"id": 9, "prompt": "Run?", "buttons": true});
-        voice.follow("confirm", numeric, now).unwrap();
+        voice.follow("confirm", numeric, shown).unwrap();
         assert_eq!(
-            voice.answer(ASK_YES, false, now),
-            Some(json!({"id": "9", "yes": true}))
+            voice.click(ASK_YES, false, now),
+            Click::Answer(json!({"id": "9", "yes": true}))
         );
-        let plain = json!({"id": "5", "prompt": "Run?"});
-        voice.follow("confirm", plain, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES, false, now), None, "no buttons");
-        voice
-            .follow("confirm", json!({"id": "5", "done": true}), now)
-            .unwrap();
-        assert_eq!(voice.answer(ASK_NO, false, now), None, "closed");
-        let open = json!({"id": "6", "prompt": "Run?", "buttons": true});
-        voice.follow("confirm", open, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES, true, now), None, "an injected press");
+        let plain = json!({"id": 5, "prompt": "Run?"});
+        voice.follow("confirm", plain, shown).unwrap();
         assert_eq!(
-            voice.answer(ASK_YES, false, now),
-            Some(json!({"id": "6", "yes": true}))
+            voice.click(ASK_YES, false, now),
+            Click::Ignored,
+            "no buttons"
+        );
+        voice
+            .follow("confirm", json!({"id": 5, "done": true}), now)
+            .unwrap();
+        assert_eq!(voice.click(ASK_NO, false, now), Click::Ignored, "closed");
+        let open = json!({"id": 6, "prompt": "Run?", "buttons": true});
+        voice.follow("confirm", open, shown).unwrap();
+        assert_eq!(
+            voice.click(ASK_YES, true, now),
+            Click::Ignored,
+            "an injected press"
+        );
+        assert_eq!(
+            voice.click(ASK_YES, false, now),
+            Click::Answer(json!({"id": "6", "yes": true}))
         );
     }
 
@@ -1732,10 +1714,10 @@ mod tests {
         let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
         voice.follow("confirm", ask, shown).unwrap();
         let ms = Duration::from_millis;
-        assert_eq!(voice.answer(ASK_YES, false, shown + ms(399)), None);
+        assert_eq!(voice.click(ASK_YES, false, shown + ms(399)), Click::TooSoon);
         assert_eq!(
-            voice.answer(ASK_YES, false, shown + ms(400)),
-            Some(json!({"id": "4", "yes": true}))
+            voice.click(ASK_YES, false, shown + ms(400)),
+            Click::Answer(json!({"id": "4", "yes": true}))
         );
     }
 
