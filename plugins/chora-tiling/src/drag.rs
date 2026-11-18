@@ -7,7 +7,7 @@ use chora_kit::{
 };
 use chora_scene::{
     GivenGrab,
-    ipc::{PressState, RpcError},
+    ipc::{ClientError, PressState, RpcError},
 };
 use serde_json::Value;
 
@@ -64,14 +64,23 @@ impl Tiling {
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let dragged = grab.is_some();
-        let answer = self.rt.conn.give_dragged(surface, to, grab)?;
+        self.book.give(surface, to);
+        let answer = match self.rt.conn.give_dragged(surface, to, grab) {
+            Ok(answer) => answer,
+            Err(err) => {
+                self.book.refused(surface);
+                return Err(err);
+            }
+        };
         if dragged {
             self.dragged.take_if(|(id, _)| id == surface);
         }
         self.focus.gave(surface);
+        let given = self.book.confirm(surface);
+        let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        self.settle(given).map_err(rejected)?;
         self.forget_window(surface);
-        self.relayout()
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        self.relayout().map_err(rejected)?;
         Ok(answer)
     }
 

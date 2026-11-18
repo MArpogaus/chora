@@ -1,10 +1,11 @@
-//! `state.get` (design 3.1): what tiling shows and holds, read from its
-//! model and from what the last transaction placed, until tiling uses
-//! `kit::wm`; the port deletes this adapter. Only reads. Tags count from
-//! 1, as the panel shows them. Title and app id are core facts that
-//! tiling does not keep; `views` and `texts` stay out.
+//! `state.get` (design 3.1): what tiling shows and holds, in the shape of
+//! `kit::wm::state`, read from its model, its book and from what the last
+//! transaction placed. Only reads. Tags count from 1, as the panel shows
+//! them. Title and app id are core facts that tiling does not keep;
+//! `views` and `texts` stay out.
 
-use serde_json::{Value, json};
+use chora_kit::wm::state::{Desks, Focus, Open, State, Window};
+use serde_json::{Map, Value, json};
 
 use crate::{NAME, Tiling, keys};
 
@@ -13,54 +14,65 @@ impl Tiling {
     /// list while it is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
         let z = |id: &str| self.order.iter().position(|o| o == id);
-        let windows: Vec<Value> = (self.wm.windows.iter())
+        let windows = (self.wm.windows.iter())
             .map(|w| {
                 let placed = self.sent.get(&w.id);
                 let at = placed.and_then(|p| p.at);
                 let rect = at
                     .zip(placed)
-                    .map(|([x, y], p)| [x, y, p.frame[0], p.frame[1]]);
-                json!({
-                    "surface": w.id,
-                    "output": w.output,
-                    "desks": tags_of(w.tags),
-                    "rect": rect,
-                    "shown": at.is_some(),
-                    "minimized": w.minimized,
-                    "maximized": w.maximized == (true, true),
-                    "fullscreen": w.fullscreen,
-                    "floating": w.floating,
-                    "z": z(&w.id),
-                })
+                    .map(|([x, y], p)| [x, y, p.frame[0], p.frame[1]].map(f64::from));
+                Window {
+                    surface: w.id.clone(),
+                    origin: self.book.origin(&w.id).map(chora_kit::wm::Origin::word),
+                    output: w.output.clone(),
+                    desks: tags_of(w.tags),
+                    rect,
+                    shown: at.is_some(),
+                    minimized: w.minimized,
+                    maximized: w.maximized == (true, true),
+                    fullscreen: w.fullscreen,
+                    floating: w.floating,
+                    z: z(&w.id),
+                }
             })
             .collect();
-        let desks: Vec<Value> = (self.wm.tags().into_iter())
-            .map(|o| {
-                let shown: Vec<usize> = o.tags.iter().filter(|t| t.shown).map(|t| t.tag).collect();
-                json!({"output": o.name, "shown": shown})
+        let desks = (self.wm.tags().into_iter())
+            .map(|o| Desks {
+                shown: o.tags.iter().filter(|t| t.shown).map(|t| t.tag).collect(),
+                output: o.name,
             })
             .collect();
         let held = (self.focus.surface.as_deref())
             .filter(|s| self.focus.sent && !self.focus.lost && self.wm.has(s));
-        let focus = match held {
-            Some(surface) => json!({"holder": NAME, "surface": surface}),
-            None if self.keys_open => json!({"holder": NAME}),
-            None => json!({"holder": null}),
+        let focus = Focus {
+            holder: (held.is_some() || self.keys_open).then(|| NAME.to_owned()),
+            surface: held.map(str::to_owned),
         };
-        let open: Vec<Value> = (self
-            .keys_open
-            .then(|| json!({"id": keys::KEYS, "kind": "sheet", "modal": true})))
+        let open = (self.keys_open.then(|| Open {
+            id: keys::KEYS.into(),
+            kind: "sheet".into(),
+            modal: true,
+        }))
         .into_iter()
         .collect();
         let running = [
             (self.effects.animating(), "effects"),
             (self.chip_until.is_some(), "chip"),
         ];
-        let busy: Vec<&str> = (running.into_iter().filter(|(on, _)| *on))
-            .map(|(_, name)| name)
+        let busy = (running.into_iter().filter(|(on, _)| *on))
+            .map(|(_, name)| name.to_owned())
             .collect();
-        json!({"windows": windows, "desks": desks, "focus": focus, "open": open,
-            "busy": busy, "helper": self.voiced.word()})
+        let mut more = Map::new();
+        more.insert("helper".into(), json!(self.voiced.word()));
+        State {
+            windows,
+            desks,
+            focus,
+            open,
+            busy,
+            more,
+        }
+        .value()
     }
 }
 

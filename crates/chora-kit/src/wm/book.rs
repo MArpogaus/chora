@@ -61,7 +61,8 @@ pub enum Phase {
     Given,
 }
 
-/// What the look does after an event, in order.
+/// What the look does after an event, in order. A phase comes before
+/// the forget of its window, so the look still knows where it showed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Change {
     /// A proposal: the look attaches the surface, then answers
@@ -234,10 +235,13 @@ impl Book {
             Event::SurfaceDestroyed { surface } => {
                 let mut changes = self.leave(surface, Why::Destroyed);
                 if !changes.is_empty() {
-                    changes.push(Change::Phase {
-                        id: surface.clone(),
-                        phase: Phase::Closed,
-                    });
+                    changes.insert(
+                        0,
+                        Change::Phase {
+                            id: surface.clone(),
+                            phase: Phase::Closed,
+                        },
+                    );
                 }
                 changes
             }
@@ -248,6 +252,21 @@ impl Book {
             } if action == "update" && self.holds(node) => self.pass_through(node, args),
             _ => Vec::new(),
         }
+    }
+
+    /// Whether an event is one of the life of a window, which
+    /// [`Book::apply`] answers: a surface created, detached or destroyed,
+    /// an output changed or removed, a foreign `update` of a node (D58).
+    #[must_use]
+    pub fn hears(event: &Event) -> bool {
+        matches!(
+            event,
+            Event::SurfaceCreated { .. }
+                | Event::SurfaceDetached { .. }
+                | Event::SurfaceDestroyed { .. }
+                | Event::OutputChanged { .. }
+                | Event::OutputRemoved { .. }
+        ) || matches!(event, Event::NodeRequested { action, .. } if action == "update")
     }
 
     /// The core took the commands of a proposal.
@@ -263,13 +282,13 @@ impl Book {
             Some(Pending::Give(to)) => {
                 self.windows.remove(id);
                 vec![
-                    Change::Forget {
-                        id: id.into(),
-                        why: Why::Given(to),
-                    },
                     Change::Phase {
                         id: id.into(),
                         phase: Phase::Given,
+                    },
+                    Change::Forget {
+                        id: id.into(),
+                        why: Why::Given(to),
                     },
                 ]
             }

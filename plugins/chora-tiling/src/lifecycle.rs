@@ -1,4 +1,82 @@
-//! The life of a window of tiling through `kit::wm::book` (slice WM1).
+//! The life of a window of tiling through `kit::wm::book` (slice WM1):
+//! the book decides which windows are tiling's, tiling settles its
+//! proposals and keeps where and how the windows show.
+
+use chora_kit::wm::{Book, Change, Phase, Why};
+use chora_scene::{Event, ipc::ClientError};
+use serde_json::Value;
+
+use crate::{NAME, Tiling, commands::GROUP, wm};
+
+/// The book of tiling: its windows carry groups `tw-`, and its meta keys
+/// of before the versioned key stay its own.
+pub(crate) fn book(filters: bool) -> Book {
+    Book::new(NAME, filters)
+        .with_groups(GROUP)
+        .with_legacy(wm::legacy_key)
+}
+
+impl Tiling {
+    /// An event of the life of a window: the outputs go to the model of
+    /// tiling, then the book decides, and tiling settles and lays out.
+    pub(crate) fn lifecycle(&mut self, event: &Event) -> Result<(), ClientError> {
+        match event {
+            Event::OutputChanged { output } => {
+                let full = crate::full_area(output);
+                self.wm.set_output(&output.name, output.layout_area(), full);
+            }
+            Event::OutputRemoved { name } => self.wm.remove_output(name),
+            _ => {}
+        }
+        let changes = self.book.apply(event);
+        self.settle(changes)?;
+        self.relayout()
+    }
+
+    /// Does what the book says, in order. A detached window of tiling
+    /// leaves only the model: tiling adopts it anew in the same frame.
+    pub(crate) fn settle(&mut self, changes: Vec<Change>) -> Result<(), ClientError> {
+        for change in changes {
+            match change {
+                Change::Adopt { id, .. } => {
+                    let next = if self.adopt(&id)? {
+                        self.book.confirm(&id)
+                    } else {
+                        self.book.refused(&id)
+                    };
+                    self.settle(next)?;
+                }
+                Change::Forget {
+                    id,
+                    why: Why::Detached,
+                } => self.wm.remove_window(&id),
+                Change::Forget { id, .. } => self.forget_window(&id),
+                Change::Phase { id, phase } => self.tell_phase(&id, phase)?,
+                Change::Apply(commands) => self.apply(commands)?,
+                Change::Outputs => {}
+            }
+        }
+        Ok(())
+    }
+
+    /// Emits `tiling.window` for a phase, with the rect of the window
+    /// where tiling placed it. A refused emit only logs.
+    fn tell_phase(&mut self, id: &str, phase: Phase) -> Result<(), ClientError> {
+        let placed = self.sent.get(id);
+        let rect = placed.and_then(|p| {
+            let [x, y] = p.at?;
+            Some([x, y, p.frame[0], p.frame[1]].map(f64::from))
+        });
+        let emit = self.book.phase_event(id, phase, rect);
+        match self.rt.conn.call::<_, Value>("events.emit", emit) {
+            Err(ClientError::Rpc(err)) => {
+                eprintln!("chora-tiling: tiling.window: {err}");
+                Ok(())
+            }
+            done => done.map(drop),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -37,15 +115,9 @@ mod tests {
             ..SurfaceInfo::default()
         };
         core.model().lock().unwrap().scene.add_surface(id, info);
-        let created = Event::SurfaceCreated {
-            surface: id.into(),
-            app_id: Some("probe".into()),
-            title: None,
-            decoration: None,
-            to: None,
-            pid: None,
-            token: None,
-        };
+        let created = serde_json::from_value(json!({"event": "surface.created",
+            "surface": id, "app_id": "probe", "title": null}))
+        .unwrap();
         tiling.handle(created).unwrap();
     }
 

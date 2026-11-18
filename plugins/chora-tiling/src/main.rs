@@ -35,6 +35,7 @@ use chora_kit::{
     give::{self, MOVE},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
+    wm::{Book, give::pass_on, kept},
 };
 use chora_scene::{
     Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
@@ -135,6 +136,8 @@ struct LayoutInfo {
 struct Tiling {
     rt: Runtime<Action>,
     wm: Wm,
+    /// Which windows are tiling's (`kit::wm::book`).
+    book: chora_kit::wm::Book,
     /// The configuration, as the file has it.
     settings: settings::File<Config>,
     /// The app ids of windows to leave to other clients.
@@ -313,10 +316,12 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut methods = exported_methods();
     methods.extend(settings::File::<Config>::methods());
     let rt = Runtime::start(NAME, args.outputs.clone(), &EVENTS, methods)?;
+    let book = lifecycle::book(rt.filters());
     let settings_effects = settings.value.effects.clone();
     let mut tiling = Tiling {
         rt,
         wm: Wm::new(settings.value.clone()),
+        book,
         settings,
         ignore: args.ignore.clone(),
         sent: HashMap::new(),
@@ -500,32 +505,14 @@ impl Tiling {
     /// Whether `--output` names outputs and none of them is there: the
     /// plugin then leaves all windows to other window managers.
     fn without_outputs(&self) -> bool {
-        self.rt.filters() && self.wm.outputs.is_empty()
-    }
-
-    /// Gives all windows away with a remove without `to`, so that another
-    /// window manager adopts them, when the last output of `--output`
-    /// goes.
-    fn give_all_away(&mut self) -> Result<(), ClientError> {
-        let ids: Vec<String> = self.wm.windows.iter().map(|w| w.id.clone()).collect();
-        let commands = ids
-            .iter()
-            .map(|id| Command::Remove {
-                id: id.clone(),
-                to: None,
-            })
-            .collect();
-        self.apply(commands)?;
-        for id in &ids {
-            self.forget_window(id);
-        }
-        Ok(())
+        self.book.released()
     }
 
     fn start(&mut self) -> Result<(), ClientError> {
         for output in self.rt.outputs()? {
             self.wm
                 .set_output(&output.name, output.layout_area(), full_area(&output));
+            let _ = self.book.set_output(&output.name);
         }
         // The nodes that the core kept over a restart with resume.
         let kept = self.query(&format!("owner:{NAME}"))?;
@@ -543,9 +530,9 @@ impl Tiling {
         // Free surfaces, and those the core reserved for tiling, for example
         // during the grace time of a restart.
         for node in self.query("kind:surface")? {
-            let ours = node["to"].is_null() || node["to"] == NAME;
-            if let (Some(id), None, true) = (node["id"].as_str(), node["owner"].as_str(), ours) {
-                self.adopt(id)?;
+            if let (Some(id), None) = (node["id"].as_str(), node["owner"].as_str()) {
+                let changes = self.book.claim(id, node["to"].as_str(), None);
+                self.settle(changes)?;
             }
         }
         // The relayout grabs when it sets the claim: with a claim, a
@@ -557,32 +544,21 @@ impl Tiling {
         Ok(())
     }
 
-    /// Rebuilds the model from the meta of the kept nodes. A kept window
-    /// without meta comes back as a new one.
-    fn restore(&mut self, kept: &[Value]) {
-        let meta = |node: &Value| {
-            serde_json::from_value::<BTreeMap<String, String>>(node["meta"].clone())
-                .unwrap_or_default()
-        };
-        let group = kept
-            .iter()
-            .find(|n| n["id"] == NAME)
-            .map(meta)
-            .unwrap_or_default();
-        let windows: Vec<(String, String)> = kept
-            .iter()
-            .filter(|n| n["kind"] == "surface")
-            .filter_map(|n| {
-                let text = meta(n).remove(WINDOW_KEY).unwrap_or_default();
-                Some((n["id"].as_str()?.to_owned(), text))
-            })
+    /// Rebuilds the model from the meta of the kept nodes
+    /// (`kit::wm::kept`, which reads the keys of before too). A kept
+    /// window without meta comes back as a new one.
+    pub(crate) fn restore(&mut self, nodes: &[Value]) {
+        let kept = kept::read(nodes, NAME, wm::legacy_key);
+        let windows: Vec<(String, String)> = (kept.windows.into_iter())
+            .map(|(id, mut meta)| (id, meta.remove(WINDOW_KEY).unwrap_or_default()))
             .collect();
-        for node in kept {
+        for node in nodes {
             let surface = node["id"].as_str().and_then(|id| id.strip_prefix(GROUP));
             self.groups.extend(surface.map(str::to_owned));
         }
-        self.wm.restore(&group, &windows);
+        self.wm.restore(&kept.root, &windows);
         for (id, _) in &windows {
+            self.book.keep(id);
             if !self.wm.has(id) {
                 self.wm.add_window(id);
             }
@@ -669,18 +645,7 @@ impl Tiling {
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
-            // The start adopts surfaces that the events then announce.
-            Event::SurfaceCreated { surface, .. } if self.wm.has(&surface) => return Ok(()),
-            // The core reserved it for another window manager.
-            Event::SurfaceCreated { to: Some(to), .. } if to != NAME => return Ok(()),
-            // A detached surface has no owner any more, so it is free to take.
-            Event::SurfaceCreated { surface, .. } | Event::SurfaceDetached { surface } => {
-                self.wm.remove_window(&surface);
-                self.adopt(&surface)?;
-            }
-            Event::SurfaceDestroyed { surface } => {
-                self.forget_window(&surface);
-            }
+            event if Book::hears(&event) => return self.lifecycle(&event),
             Event::SurfaceChanged {
                 surface,
                 size: Some(size),
@@ -690,15 +655,10 @@ impl Tiling {
                     return Ok(());
                 }
             }
-            Event::OutputChanged { output } => {
-                self.wm
-                    .set_output(&output.name, output.layout_area(), full_area(&output));
-            }
             Event::FocusChanged { surface } => {
                 self.focus_changed(surface.as_deref());
                 return Ok(());
             }
-            Event::OutputRemoved { name } => self.output_removed(&name)?,
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -1005,15 +965,6 @@ impl Tiling {
         self.focus.moved(surface);
     }
 
-    /// An output goes; without one of `--output` the windows go too.
-    fn output_removed(&mut self, name: &str) -> Result<(), ClientError> {
-        self.wm.remove_output(name);
-        if self.without_outputs() {
-            self.give_all_away()?;
-        }
-        Ok(())
-    }
-
     /// Focuses a window under the pointer. While another window manager
     /// has the focus, the focused window of tiling takes it again.
     fn pointer_focus(&mut self, node: &str, clicked: bool, moved: bool) -> bool {
@@ -1079,7 +1030,7 @@ impl Tiling {
         if !reserved {
             return Ok(());
         }
-        self.apply(pass_on(surface))
+        self.apply(pass_on(surface, NAME))
     }
 }
 
@@ -1092,21 +1043,6 @@ fn inside([x, y, w, h]: [f64; 4], [px, py]: [f64; 2]) -> bool {
 fn only(ok: bool, err: impl FnOnce() -> String) -> Result<(), RpcError> {
     ok.then_some(())
         .ok_or_else(|| RpcError::new(RpcError::REJECTED, err()))
-}
-
-/// Takes a surface and lets it go at once, without `to`: the core then
-/// announces it as detached, free for any window manager.
-fn pass_on(surface: &str) -> Vec<Command> {
-    vec![
-        Command::Attach {
-            surface: surface.into(),
-            parent: NAME.into(),
-        },
-        Command::Remove {
-            id: surface.into(),
-            to: None,
-        },
-    ]
 }
 
 #[cfg(test)]
@@ -1199,6 +1135,7 @@ mod tests {
         Tiling {
             rt: Runtime::with(conn, NAME, Vec::new()),
             wm: Wm::new(settings.value.clone()),
+            book: crate::lifecycle::book(false),
             settings,
             ignore: Vec::new(),
             sent: HashMap::new(),
@@ -1267,6 +1204,7 @@ mod tests {
             .wm
             .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
         tiling.wm.add_window("s1");
+        tiling.book.keep("s1");
         tiling.wm.act(&Action::ToggleFloating);
         assert!(tiling.wm.set_size("s1", [40, 20]));
         tiling.relayout().unwrap();
@@ -1657,7 +1595,7 @@ mod tests {
     #[test]
     fn a_window_passed_on_is_free_for_any_window_manager() {
         assert!(matches!(
-            &pass_on("s1")[..],
+            &pass_on("s1", NAME)[..],
             [
                 Command::Attach { surface, parent },
                 Command::Remove { id, to: None },
@@ -1934,20 +1872,13 @@ mod tests {
         ));
     }
 
+    /// The book passes a requested look through (D58, cells in
+    /// lifecycle.rs); a relayout sends no look, so it keeps it.
     #[test]
-    fn a_requested_look_applies_without_the_meta_of_tiling() {
+    fn a_requested_look_stays_across_a_relayout() {
         let mut tiler = tiler(&["s1"]);
-        let args = serde_json::json!({"opacity": 0.5, "meta": {WINDOW_KEY: "x", "role": "a"}});
-        let commands = answers(&mut tiler, "s1", "update", &args).expect("update answers");
-        assert!(matches!(
-            &commands[..],
-            [Command::Update { id, props }] if id == "s1"
-                && props.opacity == Some(0.5)
-                && props.meta == Some(BTreeMap::from([("role".into(), "a".into())]))
-        ));
-        let own = serde_json::json!({"meta": {WINDOW_KEY: "x"}});
-        assert!(answers(&mut tiler, "s1", "update", &own).is_none());
-        // A relayout sends no look, so it keeps the requested one.
+        let args = serde_json::json!({"opacity": 0.5});
+        assert!(answers(&mut tiler, "s1", "update", &args).is_none());
         let placed = Placement {
             id: "s1".into(),
             at: Some([0, 0]),
