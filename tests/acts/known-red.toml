@@ -2,33 +2,40 @@
 # arch plan). A listed failure does not block the gate step `acts`; a
 # listed pass blocks it, so the row goes in the merge that turns it
 # green. Each row names the look, the id (an invariant such as `I1` or an
-# act `act:NAME`), its finding id and the slice that turns it green.
+# act `act:NAME`), its finding id and the slice that turns it green. An
+# optional `match` is a text that every breach of the cell must contain,
+# so a row stays red only for the breach it names.
 [[red]]
 finding = "net2-a1: Escape does not cancel the dialog Turn Off Computer of xp (one Esc order)"
 id = "act:Escape shuts Turn Off Computer"
 look = "xp"
+match = "expected open []"
 slice = "WM3"
 
 [[red]]
 finding = "net2-a2: mc gives the keyboard to its page node after its window goes, and holds no focus by the net1 review rule"
 id = "I3"
 look = "mc"
+match = "no look says it holds the focus"
 slice = "WM2"
 
 [[red]]
 finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
 id = "I4"
 look = "mc"
+match = "missing key open"
 slice = "WM3"
 
 [[red]]
 finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
 id = "act:the keys key opens the key list"
 look = "mc"
+match = "expected open ['mc-keys']"
 slice = "WM3"
 
 [[red]]
 finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
 id = "act:the keys alias key opens the key list"
 look = "mc"
+match = "expected open ['mc-keys']"
 slice = "WM3"
