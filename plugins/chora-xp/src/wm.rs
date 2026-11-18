@@ -17,6 +17,7 @@ mod press;
 mod resize;
 mod restart;
 mod startup;
+mod state;
 mod windows;
 
 use std::{
@@ -454,6 +455,10 @@ impl Plugin for Wm {
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
         Some(&mut self.settings)
+    }
+
+    fn state(&self) -> Option<Value> {
+        Some(self.state_value())
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -1010,7 +1015,7 @@ mod tests {
         clippy::disallowed_methods,
         reason = "the test connects to its fake core"
     )]
-    fn wm_on_fake_core(tag: &str) -> (Wm, Arc<Mutex<Vec<String>>>) {
+    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Arc<Mutex<Vec<String>>>) {
         let dir = std::env::temp_dir().join(format!("chora-xp-wm-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();

@@ -32,6 +32,7 @@ impl Wm {
         methods.push(give::method());
         methods.push(move_method());
         methods.push(chora_kit::float::method());
+        methods.push(chora_kit::runtime::state_method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);

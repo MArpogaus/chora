@@ -57,7 +57,7 @@ impl Floats {
         self.asked.remove(surface);
     }
 
-    fn floats(&self, surface: &str) -> bool {
+    pub(super) fn floats(&self, surface: &str) -> bool {
         let mut all = self.sent.values().flatten();
         all.any(|w| w.surface == surface)
     }
