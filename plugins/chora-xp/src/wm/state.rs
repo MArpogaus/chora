@@ -168,6 +168,18 @@ mod tests {
         assert_eq!(wm.state().unwrap()["focus"], focus_s1);
     }
 
+    /// The focused window of xp goes: its icons have the keyboard again,
+    /// so xp holds the focus, as after a give it does not.
+    #[test]
+    fn xp_holds_the_focus_after_its_focused_window_goes() {
+        let (mut wm, _methods) = wm_on_fake_core("state-gone");
+        wm.windows.push(window("s1", 0));
+        wm.event(focus("s1")).unwrap();
+        let gone = json!({"event": "surface.destroyed", "surface": "s1"});
+        wm.event(serde_json::from_value(gone).unwrap()).unwrap();
+        assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
+    }
+
     /// A `focus.changed` of the core.
     fn focus(surface: &str) -> chora_scene::Event {
         serde_json::from_value(json!({"event": "focus.changed", "surface": surface})).unwrap()
