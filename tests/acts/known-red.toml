@@ -38,10 +38,3 @@ finding = "net1-backlog: no state.get of construct, so no look holds the focus"
 id = "I3"
 look = "construct"
 slice = "NET2 adapters"
-
-[[red]]
-finding = "net2-harness r2: mc omits `open` from state.get until the adapters fill it"
-id = "I4"
-look = "mc"
-match = "missing key open"
-slice = "NET2 adapters"
