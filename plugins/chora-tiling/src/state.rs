@@ -60,7 +60,7 @@ impl Tiling {
             .map(|(_, name)| name)
             .collect();
         json!({"windows": windows, "desks": desks, "focus": focus, "open": open,
-            "busy": busy})
+            "busy": busy, "helper": self.voiced.word()})
     }
 }
 
