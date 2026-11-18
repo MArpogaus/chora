@@ -425,3 +425,35 @@ mod kept {
         assert!(!kept::reserved("role"));
     }
 }
+
+#[test]
+fn the_book_hears_the_life_of_a_window_only() {
+    let asked = |action: &str| Event::NodeRequested {
+        node: NAME.into(),
+        client: "effects".into(),
+        action: action.into(),
+        args: Value::Null,
+    };
+    assert!(Book::hears(&created("s1", None)));
+    assert!(Book::hears(&Event::OutputRemoved { name: "A".into() }));
+    assert!(Book::hears(&asked("update")));
+    assert!(!Book::hears(&asked("focus")));
+    assert!(!Book::hears(&Event::FocusChanged { surface: None }));
+}
+
+#[test]
+fn a_window_moved_away_is_forgotten_once() {
+    let mut book = Book::new(NAME, true);
+    assert!(book.released(), "no output of --output yet");
+    let _ = book.set_output("A");
+    assert!(!book.released());
+    book.keep("s1");
+    assert_eq!(book.windows().collect::<Vec<_>>(), ["s1"]);
+    assert_eq!(book.origin("s1"), Some(&Origin::Kept));
+    assert!(book.forget("s1"));
+    assert!(!book.forget("s1"));
+    assert_eq!(book.confirm("s1"), []);
+    assert!(!book.give("s1", "xp"), "not the look's");
+    book.keep("s2");
+    assert!(!book.give("s2", NAME), "a give to itself");
+}
