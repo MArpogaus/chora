@@ -57,3 +57,8 @@ Red first: 2 construct + 2 mc cells failed on 1b671db4; all green on 78c3ffbc (m
 ## Merge gate (once, on 7b762ea0, --jobs 3, /tmp/merge-gate.u48pZW)
 PASS red-first .. doors (incl. acts, last-words, xp-*, hud, layout, tiling); FAIL `pull` (8 s): "the pane of the pulled window is not in front of the face at 1:1 or nearer: 197 px wide for 200", a cube/pull timing cell (the F13/F14 flake family of flakes-r2), not touched by this diff. Steps after pull not run; e2e (F27) not reached. An earlier gate on 78c3ffbc stopped at cut-check (copies row: my new cell had a "Ja"/"Nein" literal), fixed in 7b762ea0.
 Not done: coverage (llvm-cov still not installed).
+
+## Re-review r2 (opus, PM, 11-18 09:31): MERGE-OK
+r1 items 1-5 fixed (guard restarts on every real draw: ask, build, restyle, layers, voice disconnect; red commit genuinely red). sh-27 and always unchanged. Coverage (PM llvm-cov --features testing, 7b762ea0): kit ask.rs lines 97.54 % (277/284), chora-kit 88.90 %.
+MINOR: mc show_answers only from confirm_at; a scene switch leaves Yes/No at the old drawer corner (pre-existing; no guard bypass). MINOR: no test of the draw_ask_at wiring (hidden skip, drawn after apply). COSMETIC: hud.rs:1258 hint drops "press a key or click".
+Merge gate in lane failed at pull (197 px for 200, cube timing; not in diff); train 53 decides. copies.toml conflict resolved: confirm.answer max 8 (kit4 ratchet) plus WM1 rows.
