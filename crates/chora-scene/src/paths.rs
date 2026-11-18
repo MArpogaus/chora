@@ -69,8 +69,11 @@ fn absolute(value: Option<OsString>) -> Option<PathBuf> {
 ///
 /// The directory cannot be made, or it is not private.
 pub fn private_dir(dir: &Path) -> io::Result<()> {
-    let _ = (dir, fs::DirBuilder::new().mode(PRIVATE_MODE));
-    Err(io::Error::other("paths::private_dir is not there yet"))
+    fs::DirBuilder::new()
+        .recursive(true)
+        .mode(PRIVATE_MODE)
+        .create(dir)?;
+    check_private(dir)
 }
 
 /// Checks that a directory belongs to the current user, has mode 0700
@@ -81,12 +84,31 @@ pub fn private_dir(dir: &Path) -> io::Result<()> {
 /// The directory is missing or one of the three does not hold.
 pub fn check_private(dir: &Path) -> io::Result<()> {
     let meta = fs::symlink_metadata(dir)?;
-    check_meta(dir, &meta, rustix::process::geteuid().as_raw())
+    let uid = rustix::process::geteuid().as_raw();
+    check_meta(dir, &meta, uid).inspect_err(|error| tracing::warn!("{error}"))
 }
 
 fn check_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
-    let _ = (dir, meta, uid, MetadataExt::uid(meta));
-    Err(io::Error::other("the check is not there yet"))
+    let refuse = |reason: &str| {
+        Err(io::Error::other(format!(
+            "{} is no private directory: {reason}",
+            dir.display()
+        )))
+    };
+    if meta.file_type().is_symlink() {
+        return refuse("it is a symlink");
+    }
+    if !meta.is_dir() {
+        return refuse("it is not a directory");
+    }
+    if meta.uid() != uid {
+        return refuse(&format!("its owner is user {}, not user {uid}", meta.uid()));
+    }
+    let mode = meta.mode() & 0o7777;
+    if mode != PRIVATE_MODE {
+        return refuse(&format!("its mode is {mode:04o}, not {PRIVATE_MODE:04o}"));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

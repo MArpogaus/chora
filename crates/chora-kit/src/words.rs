@@ -35,7 +35,9 @@ impl Language {
     /// `LC_MESSAGES`, then `LANG`; an empty value is unset.
     #[must_use]
     pub fn of_env(get: impl Fn(&str) -> Option<String>) -> Self {
-        let tag = ["LC_ALL", "LC_MESSAGES", "LANG"].into_iter().find_map(get);
+        let tag = ["LC_ALL", "LC_MESSAGES", "LANG"]
+            .into_iter()
+            .find_map(|name| get(name).filter(|value| !value.is_empty()));
         tag.map_or(Self::En, |tag| Self::from_tag(&tag))
     }
 }
