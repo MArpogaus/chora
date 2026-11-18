@@ -24,7 +24,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4 (ask: mc, co
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| kit1-r1.md (F2) | sonnet high, claude/kit1 | edb94c25 handed back 11:52 ($2.7, worker archived); gate PASS but e2e apps-click (F27); PM llvm-cov running; opus security review Thu 00:05 (trig_01GtUuc) |
+| kit1-r1.md (F2) | sonnet high, claude/kit1 | edb94c25 handed back 11:52 ($2.7, worker archived); gate PASS but e2e apps-click (F27); paths 93.1 %, words 98.5 % (PM llvm-cov); opus security review Thu 00:05 (trig_01GtUuc) |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 42 % - 5 % reserve)

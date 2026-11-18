@@ -33,3 +33,6 @@ Merge gate once on edb94c25 (/tmp/merge-gate.00cSEV): every step PASS (build, te
 4. Tiling main.rs tests (`bin`, `command`) and the gate scripts set the runtime variable by hand; a `chora_kit::testing` env helper would drop them. S.
 5. kit icons.rs private_copy keeps copies in a per-pid dir that a crash never removes; a per-run dir below `chora/` of the runtime home, cleaned at the core start. M.
 Cut check: no new breach; plugins use `chora_scene::paths` and `chora_kit::runtime_file` only (both allowed crates).
+
+## PM coverage (11-18 11:55, edb94c25, cargo llvm-cov -p chora-scene -p chora-kit --features chora-kit/testing)
+paths.rs lines 93.13 % (122/131), words.rs lines 98.52 % (333/338); scene+kit total 88.87 %. Target 80 % met. Security review (opus) Thu 00:05.
