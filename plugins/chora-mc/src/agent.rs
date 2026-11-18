@@ -158,7 +158,8 @@ impl Confirming {
     /// The answers as margin notes, right to left from the right edge:
     /// per answer its key in the style `margin` and its word in `body`,
     /// the word with a hairline under it while it takes a click.
-    fn parts(&self) -> Vec<(String, &'static str, String)> {
+    fn parts(&self, language: chora_kit::words::Language) -> Vec<(String, &'static str, String)> {
+        let _ = language;
         let key = |k: &str| match k.rsplit_once('+') {
             Some((m, c)) if c.chars().count() == 1 => format!("{m}+{}", c.to_uppercase()),
             _ => k.to_owned(),
@@ -745,7 +746,7 @@ impl Mc {
             crate::region::REGIONS,
             hidden,
         ));
-        let parts = c.parts();
+        let parts = c.parts(chora_kit::words::Language::of_session());
         for (id, w, k) in &parts {
             let mut props = word.props(w);
             if c.buttons {
@@ -837,7 +838,8 @@ impl Mc {
     /// Answers the confirmation by the click on `node`, with
     /// `voice.confirm.answer`; a refusal, as for an old id, only logs.
     /// True when `node` was an answer.
-    pub fn press_answer(&mut self, node: &str, injected: bool) -> bool {
+    pub fn press_answer(&mut self, node: &str, injected: bool, now: std::time::Instant) -> bool {
+        let _ = now;
         let Some(params) = (self.confirming.as_ref()).and_then(|c| c.answer(node, injected)) else {
             return false;
         };
@@ -1066,9 +1068,16 @@ mod tests {
         let ask = json!({"id": "5", "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         mc.follow("voice.confirm", "voice", ask).unwrap();
-        let parts = mc.confirming.as_ref().unwrap().parts();
+        let parts = mc
+            .confirming
+            .as_ref()
+            .unwrap()
+            .parts(chora_kit::words::Language::De);
         assert_eq!(parts[0].2, "Alt+Y");
-        assert_eq!(parts[1].1, "Nein");
+        assert_eq!(
+            parts[1].1,
+            chora_kit::words::Word::No.text(chora_kit::words::Language::De)
+        );
     }
 
     /// The agent sent the id as a number: the question showed on no
@@ -1085,6 +1094,54 @@ mod tests {
         mc.follow("voice.confirm", "voice", json!({"id": 7, "done": true}))
             .unwrap();
         assert!(mc.solo.is_none(), "the done of the number closes it");
+    }
+
+    fn calls(model: &crate::testing::Model, method: &str) -> usize {
+        let called = model.lock().unwrap().called.clone();
+        called.iter().filter(|c| c["method"] == method).count()
+    }
+
+    /// sh-26: a press inside 400 ms of the card showing is refused, the
+    /// same press after it answers.
+    #[test]
+    fn a_press_inside_400_ms_of_the_card_is_refused() {
+        use serde_json::json;
+        use std::time::{Duration, Instant};
+        let (mut mc, model) = crate::testing::mc("answers-guard", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ask = json!({"id": 5, "prompt": "Run it?", "detail": "rm x", "buttons": true});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        let shown = Instant::now();
+        let early = shown + Duration::from_millis(100);
+        assert!(
+            mc.press_answer(super::ANSWER_YES, false, early),
+            "the click is spent"
+        );
+        assert_eq!(calls(&model, "confirm.answer"), 0, "refused inside 400 ms");
+        let late = shown + Duration::from_millis(900);
+        assert!(mc.press_answer(super::ANSWER_YES, false, late));
+        assert_eq!(calls(&model, "confirm.answer"), 1, "answers after it");
+    }
+
+    /// sh-27: the buttons follow the language of the session.
+    #[test]
+    fn the_buttons_follow_the_session_language() {
+        use chora_kit::words::{Language, Word};
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("answers-language", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let ask = json!({"id": 6, "prompt": "Run it?", "buttons": true});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        let confirming = mc.confirming.as_ref().unwrap();
+        let words = |language| -> Vec<&'static str> {
+            confirming.parts(language).iter().map(|p| p.1).collect()
+        };
+        assert_eq!(words(Language::En), ["Yes", "No"]);
+        assert_eq!(
+            words(Language::De),
+            [Word::Yes.text(Language::De), Word::No.text(Language::De)]
+        );
+        assert_ne!(words(Language::De), words(Language::En));
     }
 
     #[test]

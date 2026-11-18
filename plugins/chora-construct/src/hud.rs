@@ -1228,7 +1228,14 @@ impl Voice {
     /// hint. When it is taller than the output minus 64, a clip shows a
     /// part, and the wheel scrolls it. Sets how far it can scroll.
     #[must_use]
-    pub fn ask(&mut self, look: &Look, out: [f64; 2], glow: bool) -> Vec<Command> {
+    pub fn ask(
+        &mut self,
+        look: &Look,
+        out: [f64; 2],
+        glow: bool,
+        language: chora_kit::words::Language,
+    ) -> Vec<Command> {
+        let _ = language;
         let mut commands = vec![Command::Remove {
             id: ASK.into(),
             to: None,
@@ -1355,7 +1362,8 @@ impl Voice {
     /// button of the open question that has buttons. Only a pointer press
     /// on the node calls it, and an injected press never; no method of the construct does.
     #[must_use]
-    pub fn answer(&self, node: &str, injected: bool) -> Option<Value> {
+    pub fn answer(&self, node: &str, injected: bool, now: Instant) -> Option<Value> {
+        let _ = now;
         if injected {
             return None;
         }
@@ -1408,6 +1416,8 @@ impl Claim {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+
+    use chora_kit::words::{Language, Word};
 
     use super::*;
     use crate::config::{Config, DEFAULT};
@@ -1473,7 +1483,12 @@ mod tests {
         let ask = json!({"id": 7, "prompt": "Run it?", "detail": detail});
         assert!(voice.follow("confirm", ask, now).unwrap().ask);
         let metrics = Metrics::default();
-        let commands = voice.ask(&look(&config, &metrics), [1920.0, 1080.0], true);
+        let commands = voice.ask(
+            &look(&config, &metrics),
+            [1920.0, 1080.0],
+            true,
+            Language::En,
+        );
         let pieces: Vec<&str> = (commands.iter())
             .filter_map(|c| match c {
                 Command::Create { id, props, .. } if id.starts_with("construct-ask-detail-") => {
@@ -1507,7 +1522,12 @@ mod tests {
             "detail": "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J"});
         assert!(voice.follow("confirm", ask, now).unwrap().ask);
         let metrics = Metrics::default();
-        let commands = voice.ask(&look(&config, &metrics), [1920.0, 1080.0], true);
+        let commands = voice.ask(
+            &look(&config, &metrics),
+            [1920.0, 1080.0],
+            true,
+            Language::En,
+        );
         let text = |prefix: &str| -> Vec<String> {
             (commands.iter())
                 .filter_map(|c| match c {
@@ -1627,7 +1647,9 @@ mod tests {
         let mut voice = Voice::default();
         let now = Instant::now();
         let height = |voice: &mut Voice| {
-            let commands = measured(&metrics, || voice.ask(&look, [1280.0, 720.0], true));
+            let commands = measured(&metrics, || {
+                voice.ask(&look, [1280.0, 720.0], true, Language::En)
+            });
             commands.iter().find_map(|c| match c {
                 Command::Update { id, props } if id == ASK_GLASS => props.size.map(|s| s[1]),
                 _ => None,
@@ -1660,16 +1682,21 @@ mod tests {
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         voice.follow("confirm", ask, now).unwrap();
         assert_eq!(
-            voice.answer(ASK_YES, false),
+            voice.answer(ASK_YES, false, now),
             Some(json!({"id": "4", "yes": true}))
         );
         assert_eq!(
-            voice.answer(ASK_NO, false),
+            voice.answer(ASK_NO, false, now),
             Some(json!({"id": "4", "yes": false}))
         );
-        assert_eq!(voice.answer(ASK_GLASS, false), None);
-        let commands = measured(&metrics, || voice.ask(&look, [1280.0, 720.0], true));
-        assert_eq!(text_of(&commands, "construct-ask-yes-text"), Some("Ja"));
+        assert_eq!(voice.answer(ASK_GLASS, false, now), None);
+        let commands = measured(&metrics, || {
+            voice.ask(&look, [1280.0, 720.0], true, Language::En)
+        });
+        assert_eq!(
+            text_of(&commands, "construct-ask-yes-text"),
+            Some(Word::Yes.text(Language::En))
+        );
         assert_eq!(
             text_of(&commands, "construct-ask-no-key-text"),
             Some("Alt+N")
@@ -1677,23 +1704,64 @@ mod tests {
         let numeric = json!({"id": 9, "prompt": "Run?", "buttons": true});
         voice.follow("confirm", numeric, now).unwrap();
         assert_eq!(
-            voice.answer(ASK_YES, false),
+            voice.answer(ASK_YES, false, now),
             Some(json!({"id": "9", "yes": true}))
         );
         let plain = json!({"id": "5", "prompt": "Run?"});
         voice.follow("confirm", plain, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES, false), None, "no buttons");
+        assert_eq!(voice.answer(ASK_YES, false, now), None, "no buttons");
         voice
             .follow("confirm", json!({"id": "5", "done": true}), now)
             .unwrap();
-        assert_eq!(voice.answer(ASK_NO, false), None, "closed");
+        assert_eq!(voice.answer(ASK_NO, false, now), None, "closed");
         let open = json!({"id": "6", "prompt": "Run?", "buttons": true});
         voice.follow("confirm", open, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES, true), None, "an injected press");
+        assert_eq!(voice.answer(ASK_YES, true, now), None, "an injected press");
         assert_eq!(
-            voice.answer(ASK_YES, false),
+            voice.answer(ASK_YES, false, now),
             Some(json!({"id": "6", "yes": true}))
         );
+    }
+
+    /// sh-26: a press inside 400 ms of the question showing answers
+    /// nothing; the same press after it does.
+    #[test]
+    fn a_press_inside_400_ms_of_the_question_is_refused() {
+        let mut voice = Voice::default();
+        let shown = Instant::now();
+        let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
+        voice.follow("confirm", ask, shown).unwrap();
+        let ms = Duration::from_millis;
+        assert_eq!(voice.answer(ASK_YES, false, shown + ms(399)), None);
+        assert_eq!(
+            voice.answer(ASK_YES, false, shown + ms(400)),
+            Some(json!({"id": "4", "yes": true}))
+        );
+    }
+
+    /// sh-27: the buttons follow the language of the session.
+    #[test]
+    fn the_buttons_follow_the_session_language() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let mut voice = Voice::default();
+        let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
+        voice.follow("confirm", ask, Instant::now()).unwrap();
+        for (language, yes, no) in [
+            (Language::En, "Yes", "No"),
+            (
+                Language::De,
+                Word::Yes.text(Language::De),
+                Word::No.text(Language::De),
+            ),
+        ] {
+            let commands = measured(&metrics, || {
+                voice.ask(&look, [1280.0, 720.0], true, language)
+            });
+            assert_eq!(text_of(&commands, "construct-ask-yes-text"), Some(yes));
+            assert_eq!(text_of(&commands, "construct-ask-no-text"), Some(no));
+        }
     }
 
     #[test]
@@ -1796,7 +1864,7 @@ mod tests {
             .unwrap();
         let mut commands = look.groups(crate::NAME);
         commands.extend(voice.hud(&look, out, false, 1.0, true));
-        commands.extend(voice.ask(&look, out, true));
+        commands.extend(voice.ask(&look, out, true, Language::En));
         commands.extend(look.label(&"w".repeat(32), true, false).0);
         // The last size of each node that is a layer: a shader, a rect
         // with a radius, a group with a size.

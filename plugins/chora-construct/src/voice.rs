@@ -57,7 +57,7 @@ impl Construct {
     /// Answers the open question of the voice agent by the button `node`
     /// with `confirm.answer`; a refusal, as for an old id, only logs.
     pub(crate) fn answer(&mut self, node: &str, injected: bool) {
-        let Some(params) = self.voice.answer(node, injected) else {
+        let Some(params) = self.voice.answer(node, injected, Instant::now()) else {
             return;
         };
         let call = json!({"client": VOICE, "method": "confirm.answer", "params": params});
@@ -135,7 +135,8 @@ impl Construct {
                 ),
                 metrics: &s.metrics,
             };
-            s.voice.ask(&look, out, glow)
+            s.voice
+                .ask(&look, out, glow, chora_kit::words::Language::of_session())
         })?;
         if self.rt.conn.query(&format!("id:{}", hud::ASK))?.is_empty() {
             commands.remove(0);

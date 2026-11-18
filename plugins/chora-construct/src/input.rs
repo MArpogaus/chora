@@ -312,7 +312,7 @@ impl Construct {
                 button,
                 injected,
                 ..
-            } if button == BTN_LEFT && self.voice.answer(&node, injected).is_some() => {
+            } if button == BTN_LEFT && self.voice.answer(&node, injected, Instant::now()).is_some() => {
                 self.answer(&node, injected);
                 return Ok(());
             }
