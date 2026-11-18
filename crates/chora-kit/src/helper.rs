@@ -3,6 +3,7 @@
 //! An adapter feeds it the `voice.state` and `voice.remove` events and
 //! `client.disconnected` of `voice`, and only reads it.
 
+use chora_scene::Event;
 use serde_json::Value;
 
 /// The word of `state.get` while no helper runs.
@@ -28,6 +29,24 @@ impl Helpers {
     pub fn forget(&mut self, data: &Value) {
         let name = data["name"].as_str().unwrap_or_default();
         self.seen.retain(|(n, _)| n != name);
+    }
+
+    /// Follows an event of the client `voice`: its `voice.state` and
+    /// `voice.remove`, and its disconnect.
+    pub fn hear(&mut self, event: &Event) {
+        match event {
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if client == "voice" => match event.as_str() {
+                "voice.state" => self.follow(data),
+                "voice.remove" => self.forget(data),
+                _ => {}
+            },
+            Event::ClientDisconnected { name } if name == "voice" => self.clear(),
+            _ => {}
+        }
     }
 
     /// Voice ended: no helper runs without it.
