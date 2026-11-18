@@ -2,9 +2,10 @@
 //! with the words for what they do. Six rows show at the foot of the
 //! column; the key Super+F1 shows all of them.
 
+use chora_kit::actions::System;
 use chora_kit::volume::Change;
 
-use crate::config::{Action, Config};
+use crate::config::{Action, Config, Look};
 
 /// The words of an empty list of notifications.
 pub fn nothing_new(language: chora_kit::words::Language) -> &'static str {
@@ -81,32 +82,33 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
     let mut rows = Vec::new();
     let find = |want: &dyn Fn(&Action) -> bool| {
         config
+            .common
             .bindings
             .iter()
             .find(|(_, a)| want(a))
             .map(|(k, _)| k.as_str())
     };
-    if let Some(key) = find(&|a| *a == Action::Keys) {
+    if let Some(key) = find(&|a| *a == Action::System(System::Keys)) {
         rows.push(Row::new(human(key), "All keys", Some(key)));
     }
     if let (Some(next), Some(previous)) = (
-        find(&|a| *a == Action::NextScene),
-        find(&|a| *a == Action::PreviousScene),
+        find(&|a| *a == Action::Look(Look::NextScene)),
+        find(&|a| *a == Action::Look(Look::PreviousScene)),
     ) {
         let keys = page_keys(previous, next, plain);
         rows.push(Row::new(keys, "Turn the page", Some(next)));
     }
-    if let Some(key) = find(&|a| matches!(a, Action::Run(_))) {
+    if let Some(key) = find(&|a| matches!(a, Action::System(System::Run(_)))) {
         rows.push(Row::new(
             human(key),
             "Start a program or run a command",
             Some(key),
         ));
     }
-    if let Some(key) = find(&|a| *a == Action::Chat) {
+    if let Some(key) = find(&|a| *a == Action::System(System::Chat)) {
         rows.push(Row::new(human(key), "Chat with a helper", Some(key)));
     }
-    if let Some(key) = find(&|a| *a == Action::Toggle(crate::region::Region::Right)) {
+    if let Some(key) = find(&|a| *a == Action::Look(Look::Toggle(crate::region::Region::Right))) {
         rows.push(Row::new(human(key), "Hide this column", Some(key)));
     }
     rows.push(Row::new("Esc".to_owned(), "Back one step", None));
@@ -122,31 +124,41 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
 pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
-    let first_keys = (config.bindings.iter())
-        .find(|(_, a)| **a == Action::Keys)
+    let first_keys = (config.common.bindings.iter())
+        .find(|(_, a)| **a == Action::System(System::Keys))
         .map(|(k, _)| k);
-    for (key, action) in &config.bindings {
-        if *action == Action::Keys && Some(key) != first_keys {
+    for (key, action) in &config.common.bindings {
+        if *action == Action::System(System::Keys) && Some(key) != first_keys {
             continue;
         }
         let (rank, at) = match action {
-            Action::Keys => (0, 0),
-            Action::NextScene => (1, 0),
-            Action::Scene(name) => (2, scene_at(name).unwrap_or(usize::MAX)),
-            Action::Run(_) => (3, 0),
-            Action::Chat => (4, 0),
-            Action::Toggle(crate::region::Region::Right) => (5, 0),
-            Action::Toggle(region) => (6, usize::from(*region != crate::region::Region::Header)),
-            Action::Solo { .. } => (7, 0),
-            Action::Give(_) => (8, 0),
-            Action::Lock => (9, 0),
-            Action::Power => (9, 1),
-            Action::Screenshot => (9, 2),
-            Action::Volume(change) => (9, 3 + volume_order(*change)),
-            Action::PreviousScene | Action::Drag => continue,
+            Action::System(System::Keys) => (0, 0),
+            Action::Look(Look::NextScene) => (1, 0),
+            Action::Look(Look::Scene(name)) => (2, scene_at(name).unwrap_or(usize::MAX)),
+            Action::System(System::Run(_)) => (3, 0),
+            Action::System(System::Chat) => (4, 0),
+            Action::Look(Look::Toggle(crate::region::Region::Right)) => (5, 0),
+            Action::Look(Look::Toggle(region)) => {
+                (6, usize::from(*region != crate::region::Region::Header))
+            }
+            Action::Look(Look::Solo { .. }) => (7, 0),
+            Action::System(System::Give(_)) => (8, 0),
+            Action::System(System::Lock) => (9, 0),
+            Action::System(System::Power) => (9, 1),
+            Action::System(System::Screenshot) => (9, 2),
+            Action::System(System::Volume(change)) => (9, 3 + volume_order(*change)),
+            Action::Look(Look::PreviousScene)
+            | Action::System(
+                System::Drag
+                | System::Terminal
+                | System::Launcher
+                | System::Close
+                | System::Desk(_)
+                | System::Cube(_),
+            ) => continue,
         };
         let row = match action {
-            Action::NextScene => short_page(config, key, plain),
+            Action::Look(Look::NextScene) => short_page(config, key, plain),
             _ => words(action).map(|words| Row::new(human(key), &words, Some(key))),
         };
         found.extend(row.map(|row| (rank, at, row)));
@@ -164,8 +176,8 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
 const GIVE_KEYS: &str = "Give window to a look";
 
 fn short_page(config: &Config, next: &str, plain: bool) -> Option<Row> {
-    let previous = (config.bindings.iter())
-        .find(|(_, a)| **a == Action::PreviousScene)
+    let previous = (config.common.bindings.iter())
+        .find(|(_, a)| **a == Action::Look(Look::PreviousScene))
         .map(|(k, _)| k.as_str())?;
     let keys = page_keys(previous, next, plain);
     Some(Row::new(keys, "Turn the page", Some(next)))
@@ -175,27 +187,38 @@ fn short_page(config: &Config, next: &str, plain: bool) -> Option<Row> {
 /// for a drag, which the pointer does.
 fn words(action: &Action) -> Option<String> {
     Some(match action {
-        Action::NextScene => "Next page".to_owned(),
-        Action::PreviousScene => "Previous page".to_owned(),
-        Action::Scene(name) => format!("Show {}", crate::title_of(name).to_lowercase()),
-        Action::Run(command) if command.starts_with("fuzzel") => {
+        Action::Look(Look::NextScene) => "Next page".to_owned(),
+        Action::Look(Look::PreviousScene) => "Previous page".to_owned(),
+        Action::Look(Look::Scene(name)) => format!("Show {}", crate::title_of(name).to_lowercase()),
+        Action::System(System::Run(command)) if command.starts_with("fuzzel") => {
             "Start a program or run a command".to_owned()
         }
-        Action::Run(command) => format!("Run {}", command.split_whitespace().next()?),
-        Action::Give(to) => format!("Give the window to {to}"),
-        Action::Drag => return None,
-        Action::Toggle(crate::region::Region::Right) => "Hide this column".to_owned(),
-        Action::Toggle(region) => format!("Show or hide the {}", region.name()),
-        Action::Solo { content, .. } => format!("Show the {content}"),
-        Action::Keys => "All keys".to_owned(),
-        Action::Chat => "Chat with a helper".to_owned(),
-        Action::Lock => "Lock the screen".to_owned(),
-        Action::Power => "Power menu".to_owned(),
-        Action::Screenshot => "Take a screenshot".to_owned(),
-        Action::Volume(Change::Up) => "Volume up".to_owned(),
-        Action::Volume(Change::Down) => "Volume down".to_owned(),
-        Action::Volume(Change::Mute) => "Mute".to_owned(),
-        Action::Volume(Change::Set(percent)) => format!("Set the volume to {percent}%"),
+        Action::System(System::Run(command)) => {
+            format!("Run {}", command.split_whitespace().next()?)
+        }
+        Action::System(System::Give(to)) => format!("Give the window to {to}"),
+        Action::System(
+            System::Drag
+            | System::Terminal
+            | System::Launcher
+            | System::Close
+            | System::Desk(_)
+            | System::Cube(_),
+        ) => return None,
+        Action::Look(Look::Toggle(crate::region::Region::Right)) => "Hide this column".to_owned(),
+        Action::Look(Look::Toggle(region)) => format!("Show or hide the {}", region.name()),
+        Action::Look(Look::Solo { content, .. }) => format!("Show the {content}"),
+        Action::System(System::Keys) => "All keys".to_owned(),
+        Action::System(System::Chat) => "Chat with a helper".to_owned(),
+        Action::System(System::Lock) => "Lock the screen".to_owned(),
+        Action::System(System::Power) => "Power menu".to_owned(),
+        Action::System(System::Screenshot) => "Take a screenshot".to_owned(),
+        Action::System(System::Volume(Change::Up)) => "Volume up".to_owned(),
+        Action::System(System::Volume(Change::Down)) => "Volume down".to_owned(),
+        Action::System(System::Volume(Change::Mute)) => "Mute".to_owned(),
+        Action::System(System::Volume(Change::Set(percent))) => {
+            format!("Set the volume to {percent}%")
+        }
     })
 }
 
@@ -276,7 +299,7 @@ mod tests {
      {
         let config = config();
         let rows = all(&config, false);
-        assert_eq!(rows.len(), config.bindings.len() - 1, "{rows:?}");
+        assert_eq!(rows.len(), config.common.bindings.len() - 1, "{rows:?}");
     }
 
     #[test]

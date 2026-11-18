@@ -8,6 +8,7 @@
     clippy::print_stderr,
     reason = "a plugin logs to stderr, which the session keeps"
 )]
+pub mod actions;
 pub mod ask;
 pub mod chat;
 pub mod clock;
