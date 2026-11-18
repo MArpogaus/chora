@@ -70,9 +70,7 @@ struct Job {
 
 /// `$XDG_DATA_HOME/chora`, else `~/.local/share/chora`.
 pub fn data_dir() -> PathBuf {
-    let base = std::env::var_os("XDG_DATA_HOME")
-        .filter(|d| !d.is_empty())
-        .map_or_else(|| crate::expand("~/.local/share"), PathBuf::from);
+    let base = chora_scene::paths::data_home().unwrap_or_else(|| crate::expand("~/.local/share"));
     base.join("chora")
 }
 

@@ -260,7 +260,7 @@ impl Menu {
         let footer = theme
             .size(sheets::WINXP, "startmenu-footer")
             .unwrap_or([WIDTH, 41]);
-        let face = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".face"));
+        let face = chora_scene::paths::home().map(|h| h.join(".face"));
         let name = Text::new(
             &self.user,
             Font::Name,
@@ -1016,7 +1016,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
     // directory.
     let open = |dir: &Path| Action::Run(desktop_icons::open_with(&config.file_manager, dir));
     let folder = |var: &str, name: &str| {
-        let home = std::env::var_os("HOME").map_or_else(|| "/".into(), PathBuf::from);
+        let home = chora_scene::paths::home().unwrap_or_else(|| "/".into());
         open(&desktop_icons::user_dir(var).unwrap_or_else(|| home.join(name)))
     };
     let run = |command: &str| Action::Run(command.into());

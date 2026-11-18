@@ -164,7 +164,7 @@ struct StatusFile(std::path::PathBuf);
 impl StatusFile {
     fn create() -> Option<Self> {
         static COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-        let dir = std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+        let dir = chora_scene::paths::runtime_home().unwrap_or_else(std::env::temp_dir);
         let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = dir.join(format!("chora-xp-exit-{}-{n}", std::process::id()));
         std::fs::OpenOptions::new()

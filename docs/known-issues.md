@@ -60,7 +60,6 @@ MINOR
 - ti-12: there is no focus-left/right key; Super+Right switches the tag and Super+l widens the master (by design, to be listed).
 - ti-14: the key list shows only keyboard chords, no mouse basics.
 - ti-25: stale or torn buffers after a re-tile; the launcher shows raw .desktop text; a floated window can land half off-screen.
-- ti-26: an empty LC_ALL="" masks LANG=de.
 - ti-8, ti-9, ti-10, ti-13 (verify): new windows do not take focus; key list is 692 px high; key list is translucent over seams; bar network shows the address.
 
 COSMETIC

@@ -55,7 +55,10 @@ fn main() -> ExitCode {
     let result = match &args.input {
         Some(_) => field(),
         None if args.door => {
-            println!("{}", opener::door_word(language(), &opener::helpers()));
+            println!(
+                "{}",
+                opener::door_word(Language::of_session(), &opener::helpers())
+            );
             Ok(())
         }
         None => opener::open(args.name.as_deref()).map_err(|e| e.to_string()),
@@ -67,15 +70,6 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-/// The language of the words on the screen, from the locale variables.
-fn language() -> Language {
-    let tag = ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .into_iter()
-        .filter_map(|name| std::env::var(name).ok())
-        .find(|value| !value.is_empty());
-    tag.map_or(Language::En, |tag| Language::from_tag(&tag))
 }
 
 /// Runs the field until the host quits it or goes away.
@@ -94,7 +88,7 @@ fn field() -> Result<(), String> {
     let mut queue = conn.new_event_queue();
     let qh = queue.handle();
     conn.display().get_registry(&qh, ());
-    let session = Session::new(language());
+    let session = Session::new(Language::of_session());
     let mut window = Window::new(qh.clone(), session, requests, wake);
     queue.roundtrip(&mut window).map_err(|e| e.to_string())?;
     window.attach_seat(&qh);

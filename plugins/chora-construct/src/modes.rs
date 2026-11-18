@@ -100,14 +100,6 @@ fn chip_text(word: Word, language: Language, step_back: Option<&str>) -> String 
     }
 }
 
-/// The language of the words, from the locale of the session.
-fn language() -> Language {
-    let tag = ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .iter()
-        .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()));
-    tag.map_or(Language::En, |tag| Language::from_tag(&tag))
-}
-
 /// The name of a mode in an answer.
 fn mode_name(mode: Mode) -> &'static str {
     match mode {
@@ -159,7 +151,7 @@ fn no_cube() -> ClientError {
 impl Construct {
     /// The texts of the chips, in the order of `CHIPS`.
     fn chip_texts(&self) -> Vec<(Word, String)> {
-        let language = language();
+        let language = Language::of_session();
         let key = self.cube.as_ref().and_then(cube::Host::step_back_key);
         (CHIPS.into_iter())
             .map(|word| (word, chip_text(word, language, key)))

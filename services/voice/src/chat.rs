@@ -1422,11 +1422,7 @@ fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
 
 /// `$XDG_STATE_HOME/chora/voice-history.json`.
 pub fn history_file() -> Option<PathBuf> {
-    let state = std::env::var_os("XDG_STATE_HOME")
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".local/state")))?;
-    Some(state.join("chora/voice-history.json"))
+    Some(chora_scene::paths::state_home()?.join("chora/voice-history.json"))
 }
 
 /// The requests in the history file; none for a missing or broken file.

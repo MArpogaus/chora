@@ -36,7 +36,7 @@ pattern = '"confirm\.answer"'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 3
+max = 0
 name = "fn language"
 pattern = 'fn language\b'
 

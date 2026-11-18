@@ -759,7 +759,7 @@ fn is_double(last: Option<(String, Instant)>, key: &str, now: Instant) -> bool {
 /// Desktop folder by name, folders first, and the Recycle Bin. My Network
 /// Places is left out: without a network browser it opens nothing.
 fn items(terminal: &str, icons: &mut Icons) -> Vec<Item> {
-    let home = std::env::var_os("HOME").map_or_else(|| PathBuf::from("/"), PathBuf::from);
+    let home = chora_scene::paths::home().unwrap_or_else(|| PathBuf::from("/"));
     let documents = user_dir("DOCUMENTS").unwrap_or_else(|| home.clone());
     let mut items = vec![
         Item {
@@ -902,11 +902,10 @@ pub fn user_dir(name: &str) -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os(&var) {
         return Some(dir.into());
     }
-    let home = std::env::var("HOME").ok()?;
-    let config = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
-    let file = Path::new(&config).join("user-dirs.dirs");
+    let home = chora_scene::paths::home()?;
+    let file = chora_scene::paths::config_home()?.join("user-dirs.dirs");
     let text = chora_kit::read_text(&file, chora_kit::MAX_TEXT).ok()?;
-    parse_user_dir(&text, &var, &home)
+    parse_user_dir(&text, &var, &home.to_string_lossy())
 }
 
 /// The value of a line `XDG_DESKTOP_DIR="$HOME/Desktop"`.
@@ -929,7 +928,7 @@ fn trash_dir() -> Option<PathBuf> {
 pub fn trash_to_open() -> PathBuf {
     trash_dir()
         .filter(|d| fs::create_dir_all(d).is_ok())
-        .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+        .or_else(chora_scene::paths::home)
         .unwrap_or_else(|| "/".into())
 }
 

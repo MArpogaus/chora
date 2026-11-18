@@ -2042,7 +2042,7 @@ mod panel {
             .env_clear()
             .env("PATH", bin)
             .env("LANG", lang)
-            .env("XDG_RUNTIME_DIR", bin);
+            .env(chora_scene::paths::RUNTIME_ENV, bin);
         command
     }
 
