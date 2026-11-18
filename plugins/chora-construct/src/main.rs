@@ -58,6 +58,7 @@ mod pull;
 mod scene;
 mod space;
 mod start;
+mod state;
 mod stride;
 mod voice;
 mod wm;
@@ -591,6 +592,9 @@ struct Construct {
     cube: Option<cube::Host>,
     /// The window managers of the panes (`wm.rs`).
     managed: Vec<wm::Managed>,
+    /// The surface with the keyboard as `focus.changed` last told; read
+    /// only by `state.get`.
+    core_focus: Option<String>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -712,6 +716,7 @@ impl Construct {
             effects: effects::Driver::default(),
             cube: None,
             managed: Vec::new(),
+            core_focus: None,
         };
         construct.effects.set(&construct.settings.value.effects);
         Ok(construct)
@@ -730,7 +735,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 23] = [
     "voice.*",
     "assistant.ready",
     "assistant.chat",
@@ -744,6 +749,7 @@ const EVENTS: [&str; 22] = [
     "surface.changed",
     "surface.destroyed",
     "surface.detached",
+    "focus.changed",
     "output.changed",
     "output.removed",
     "node.key",

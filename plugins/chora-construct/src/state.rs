@@ -1,0 +1,230 @@
+//! `state.get` (design 3.1): what the construct shows and holds, read
+//! from its model until it uses `kit::wm`; the port deletes this adapter.
+//! Only reads, besides `core_focus`, which follows `focus.changed` for
+//! this answer alone. A pane of a window that the construct owns is a
+//! window; a pane of a window of another client, of a plugin node or of a
+//! virtual output is a view, never an owner. Panes lie in a space, so a
+//! window has no rectangle on the output; desks are the cube's faces,
+//! which the window manager on them reports.
+
+use serde_json::{Value, json};
+
+use super::{Construct, Content, NAME, hud, space};
+
+impl Construct {
+    /// The windows that the construct owns, the views of the others, the
+    /// focus, what is open and what still moves.
+    pub(crate) fn state_value(&self) -> Value {
+        let output = self.output.as_ref().map(|o| o.name.as_str());
+        let far = self.radius();
+        let inside = self.flown.as_ref().map(|f| f.surface.as_str());
+        let in_sight = |p: &super::Pane| {
+            if let Some(surface) = inside {
+                return p.source == surface;
+            }
+            let covered = (self.cube.as_ref()).is_some_and(|c| c.covers(&self.pose, p.at));
+            !covered
+                && !self.backs.contains(&p.name)
+                && space::sight(&self.lens, &self.pose, p.spot(), far) == "shown"
+        };
+        let mut windows = Vec::new();
+        let mut views = Vec::new();
+        for pane in &self.panes {
+            let owner = match &pane.content {
+                Content::Window { .. } if pane.attached => {
+                    windows.push(json!({"surface": pane.source, "output": output,
+                        "shown": self.active && in_sight(pane)}));
+                    continue;
+                }
+                Content::Window { .. } => None,
+                Content::Plugin { plugin, .. } => Some(plugin.as_str()),
+                Content::Manager { manager } => Some(manager.as_str()),
+            };
+            views.push(json!({"surface": pane.source, "owner": owner, "pane": pane.name}));
+        }
+        windows.extend(
+            (self.hidden.iter())
+                .map(|surface| json!({"surface": surface, "output": output, "shown": false})),
+        );
+        json!({"windows": windows, "views": views, "focus": self.focus_value(),
+            "open": self.open_value(), "busy": self.busy_value()})
+    }
+
+    /// The construct holds the focus on a window it owns, or with its own
+    /// space while that shows as the flavor and no surface has the focus.
+    fn focus_value(&self) -> Value {
+        let owned = |s: &str| {
+            self.hidden.iter().any(|h| h == s)
+                || (self.panes.iter()).any(|p| p.attached && p.window() == Some(s))
+        };
+        match self.core_focus.as_deref() {
+            Some(surface) if owned(surface) => json!({"holder": NAME, "surface": surface}),
+            None if self.active && !self.overlay => json!({"holder": NAME}),
+            _ => json!({"holder": null}),
+        }
+    }
+
+    /// The window list, the help, a question of the voice agent and the
+    /// window of the launcher, in the order Escape shuts them.
+    fn open_value(&self) -> Vec<Value> {
+        let shown = [
+            (self.voice.ask.is_some(), hud::ASK, "ask", true),
+            (self.list.is_some(), hud::LIST, "list", true),
+            (self.help, hud::HELP, "sheet", true),
+            (
+                self.launcher_window.is_some(),
+                "construct-launcher",
+                "launcher",
+                false,
+            ),
+        ];
+        (shown.into_iter().filter(|(on, ..)| *on))
+            .map(|(_, id, kind, modal)| json!({"id": id, "kind": kind, "modal": modal}))
+            .collect()
+    }
+
+    /// What still moves or waits: quiet once this is empty.
+    fn busy_value(&self) -> Vec<&'static str> {
+        let running = [
+            (self.glide.is_some(), "glide"),
+            (self.stride.is_some(), "walk"),
+            (self.moving.is_some(), "move"),
+            (self.effects.animating(), "effects"),
+            (self.cube_turns(), "cube"),
+            (!self.waiting.is_empty(), "waiting"),
+        ];
+        (running.into_iter().filter(|(on, _)| *on))
+            .map(|(_, name)| name)
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chora_kit::{
+        runtime::{Plugin as _, Runtime},
+        settings,
+        testing::FakeCore,
+    };
+    use serde_json::json;
+
+    use super::super::{Construct, Content, NAME, Pane, config};
+
+    /// A construct on a fake core, as the flavor or beside another.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn construct(tag: &str, overlay: bool) -> (Construct, FakeCore) {
+        let core = FakeCore::start();
+        let rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        let dir =
+            std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = dir.join("chora-construct.yaml");
+        let settings = settings::File::load(file, config::DEFAULT).unwrap();
+        let shaders = |name: &str, _: &str| Ok(name.to_owned());
+        let construct = Construct::new(rt, settings, overlay, &shaders).unwrap();
+        (construct, core)
+    }
+
+    /// A pane straight ahead of the camera.
+    fn pane(name: &str, source: &str, content: Content, attached: bool) -> Pane {
+        Pane {
+            name: name.into(),
+            source: source.into(),
+            content,
+            at: [0.0, 1500.0],
+            yaw: 0.0,
+            size: [640.0, 400.0],
+            taken: false,
+            attached,
+            placed: false,
+        }
+    }
+
+    /// A fresh construct shows nothing, holds the focus with its space
+    /// only as the flavor, and is quiet.
+    #[test]
+    fn a_fresh_construct_has_an_empty_state() {
+        let (mut flavor, _core) = construct("state-empty", false);
+        let state = flavor.state().expect("the construct has a state");
+        let expected = json!({"windows": [], "views": [], "focus": {"holder": null},
+            "open": [], "busy": []});
+        assert_eq!(state, expected);
+        flavor.active = true;
+        assert_eq!(
+            flavor.state().unwrap()["focus"],
+            json!({"holder": "construct"})
+        );
+        let (mut beside, _core) = construct("state-overlay", true);
+        beside.active = true;
+        assert_eq!(beside.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// An owned window is a window; the panes of a window of another
+    /// client, of a plugin and of a manager are views.
+    #[test]
+    fn a_pane_of_another_owner_is_a_view() {
+        let (mut c, _core) = construct("state-views", false);
+        c.active = true;
+        let window = || Content::Window { command: None };
+        c.panes.push(pane("foot", "s1", window(), true));
+        c.panes.push(pane("taken", "s2", window(), false));
+        let agenda = Content::Plugin {
+            plugin: "mc".into(),
+            scene: "agenda".into(),
+        };
+        c.panes.push(pane("agenda", "mc-agenda", agenda, false));
+        c.panes.push(pane(
+            "xp",
+            "VIRTUAL-1",
+            Content::Manager {
+                manager: "xp".into(),
+            },
+            false,
+        ));
+        c.hidden.push("s3".into());
+        let state = c.state().unwrap();
+        let surfaces: Vec<_> = state["windows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|w| (w["surface"].clone(), w["shown"].clone()))
+            .collect();
+        assert_eq!(
+            surfaces,
+            [(json!("s1"), json!(true)), (json!("s3"), json!(false))]
+        );
+        let views = json!([
+            {"surface": "s2", "owner": null, "pane": "taken"},
+            {"surface": "mc-agenda", "owner": "mc", "pane": "agenda"},
+            {"surface": "VIRTUAL-1", "owner": "xp", "pane": "xp"},
+        ]);
+        assert_eq!(state["views"], views);
+    }
+
+    /// The construct holds the focus on a window that it owns, not on a
+    /// view of another client's window.
+    #[test]
+    fn the_focus_is_held_only_on_an_owned_window() {
+        let (mut c, _core) = construct("state-focus", false);
+        let window = || Content::Window { command: None };
+        c.panes.push(pane("foot", "s1", window(), true));
+        c.panes.push(pane("taken", "s2", window(), false));
+        c.core_focus = Some("s1".into());
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        c.core_focus = Some("s2".into());
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// The help is open while it shows.
+    #[test]
+    fn the_help_is_open_while_it_shows() {
+        let (mut c, _core) = construct("state-help", false);
+        c.help = true;
+        let open = json!([{"id": "construct-help", "kind": "sheet", "modal": true}]);
+        assert_eq!(c.state().unwrap()["open"], open);
+    }
+}
