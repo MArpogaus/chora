@@ -1140,7 +1140,12 @@ mod tests {
     #[test]
     fn the_agent_question_line_follows_the_session_language() {
         let line = super::question_line("Run it?", chora_kit::words::Language::De);
-        assert!(line.contains("Ja") && line.contains("Nein"), "{line}");
+        let de = |word: chora_kit::words::Word| word.text(chora_kit::words::Language::De);
+        let (yes, no) = (
+            de(chora_kit::words::Word::Yes),
+            de(chora_kit::words::Word::No),
+        );
+        assert!(line.contains(yes) && line.contains(no), "{line}");
         assert!(!line.contains("ja / nein"), "{line}");
         let en = super::question_line("Run it?", chora_kit::words::Language::En);
         assert!(en.contains("Yes") && en.contains("No"), "{en}");
