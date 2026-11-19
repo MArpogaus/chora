@@ -26,6 +26,9 @@
 #   CELLS   a regular expression of the cells that run (default all)
 #   SHOTS   a directory that keeps a capture and the nodes of each cell,
 #           and the logs of waybar and of the core of each round
+#   BAR_STALL  seconds that waybar stands stopped from the start of the
+#           fullscreen window: the reproducer of F29, a panel that hides
+#           late under load
 #   CHORA_FRAME_BUDGET_US  the frame budget of the watchdog of the core
 #           (default 500000): the audit checks the look, and a watchdog
 #           that drops the effects of a slow software renderer at
@@ -181,6 +184,11 @@ round() {
     echo '[{"shortcut": {"keys": "Escape"}}]' | ctl inject - >/dev/null
     [ -z "$launcher" ] || kill "$launcher" 2>/dev/null
     sleep 1
+    if [ -n "${BAR_STALL:-}" ]; then
+        stalled=$(cat "$XDG_RUNTIME_DIR/chora-tiling/waybar.pid")
+        kill -STOP "$stalled"
+        (sleep "$BAR_STALL" && kill -CONT "$stalled") &
+    fi
     ctl run "$bin/chora-tiling" --launch foot -F -T fullscreen sh -c 'printf "\\n\\n\\n\\n\\n\\n\\n\\n"; echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
     sleep 3
     audit fullscreen "$tag" "$theme" "$scale"
