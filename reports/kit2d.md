@@ -94,3 +94,12 @@ Closed in 188b642d (fix and docs in one commit, since a commit-message hook refu
 - rw-4: docs/api.md: one sentence per fact, rewrapped.
 
 Checks: `cargo test -p chora-xp` 209 passed; `cargo test -p chora-kit --features testing` all green (224 lib). `tests/merge-gate.sh --only xp,keys,acts,hud,cube` (after `cargo build --workspace --locked`, which the subset does not do): xp PASS 90 s, hud PASS 69 s, acts PASS 66 s, cube PASS 107 s, keys PASS 18 s. A first run without the build failed in `xp` at "chora-xp starts nested" (no binary), not a code finding. No full gate.
+
+## Review r2 (PM; small diff, PM not the builder)
+
+Head 188b642d (fix), fb02ad6d (red cells), a7ba4daa (merge of the session branch at 4548feb3). Read fb02ad6d~1..188b642d, 6 files, +176 -25.
+- rw-1 closed: keys.rs `Wm::button` matches `self.rt.action(&binding)`; `cube` grabs and releases, another action runs `self.key` at the press, the release of a non-cube button does nothing. `Config::refuse` drops a `BTN_*` binding to anything but `cube` and `cube` on a non-button key, one warning that names the key (cell config.rs `a_button_and_the_cube_go_together_or_are_dropped`; wm.rs `a_button_bound_to_close_closes_and_turns_no_cube`).
+- rw-2 closed: `fallback(binding, action)` compares with `default_of`; `grab_keys` and `help::rows` pass the action (cells wm.rs `a_moved_cube_key_has_no_stand_in`, help.rs `a_moved_cube_key_shows_no_stand_in`).
+- rw-3, rw-4 closed in the docs.
+- NIT (no change): `default_of` repeats four defaults of xp.yaml; a later keysheet (KIT3) may read them from the defaults.
+Verdict computed: no open BLOCK or MAJOR: **MERGE-OK**. The train runs the full gate.
