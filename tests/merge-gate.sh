@@ -160,7 +160,7 @@ gate-lib|tests/gate-lib-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
-ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh
+ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh
 2d-guard|tests/2d-guard.sh 8742dee
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
