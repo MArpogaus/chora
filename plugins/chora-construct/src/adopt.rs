@@ -92,11 +92,11 @@ impl Construct {
         }
         let size = (file.and_then(|f| f.size)).unwrap_or([self.lens.w, self.lens.h]);
         let Some(at) = self.place(file.and_then(|f| f.at), size, force) else {
-            self.voice.notice(NO_ROOM, Instant::now());
+            self.tell(NO_ROOM);
             if hold == Hold::Own {
                 self.attach_hidden(surface)?;
             }
-            return self.draw_hud();
+            return Ok(());
         };
         let pane = Pane {
             name: self.label(label),

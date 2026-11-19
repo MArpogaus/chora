@@ -38,7 +38,7 @@ impl Construct {
 
     /// The notice of a key that did not start its program, a script that
     /// is missing, or a window manager that did not take a window.
-    fn say_failed(&mut self, failure: Failure) -> Result<(), ClientError> {
+    fn say_failed(&mut self, failure: Failure) {
         let language = Language::of_session();
         let words = match failure {
             Failure::NoScript(_) | Failure::NotStarted(_) => not_started(language).to_owned(),
@@ -47,8 +47,7 @@ impl Construct {
                 crate::input::refusal(language, &to, &why)
             }
         };
-        self.voice.notice(&words, Instant::now());
-        self.draw_hud()
+        self.tell(&words);
     }
 }
 
@@ -74,11 +73,13 @@ impl Host for Construct {
         if chora_kit::launch("chora-chat", mint.as_deref()).is_some() {
             return Ok(());
         }
-        self.say_failed(Failure::NotStarted("chora-chat".into()))
+        self.say_failed(Failure::NotStarted("chora-chat".into()));
+        Ok(())
     }
 
     fn failed(&mut self, failure: Failure) -> Result<(), ClientError> {
-        self.say_failed(failure)
+        self.say_failed(failure);
+        Ok(())
     }
 
     fn terminal(&mut self) -> Result<(), ClientError> {
