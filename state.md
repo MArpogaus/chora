@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 05:32 UTC)
+## Now (2026-11-19 05:43 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 98 % at 03:35 Thu (owner); tokens.py 05:21: PM 0.5 % today. Day cap lifted (owner 03:41). 05:21: no reset yet (lanes allowed_warning, resets Sat); net3, wm2 briefs ready (opus, after train 56 and the reset).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -26,8 +26,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 |---|---|---|
 | docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | merged train 55 (4417ab86) |
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK (review r1, 3 MINOR); train 57 |
-| kit2b-r1.md (F2) | sonnet high, claude/kit2b | ce0a564d done; in review |
-| review-kit2b-r1.md | sonnet high, read-only | session_016iS3kNXjxo87usnFpCavH2 05:32 |
+| kit2b-r2.md (F2) | sonnet medium, claude/kit2b | review r1 FIX (rk-1 MAJOR: run/give new in construct); r2 starting |
 | mv3-r1.md (F4) | sonnet medium, claude/mv3 | 917df9d0 MERGE-OK; train 56 05:16 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
