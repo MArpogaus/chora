@@ -211,7 +211,7 @@ column_at() {
     ok "at $size the column stands at $left to $((left + width)), nothing is clipped"
 }
 has_text "Chat with a helper" || fail "the key list does not name the chat"
-has_text "Super+a" || fail "the key list does not name Super+a"
+has_text "Super+A" || fail "the key list does not name Super+A"
 key Super+Return
 until_ok '[ "$(current)" = terminal ]' 20 || fail "Super+Return does not show the terminal scene: $(current)"
 key Super+Home
