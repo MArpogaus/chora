@@ -1,0 +1,90 @@
+{
+ "flat_rest": {
+  "HEADLESS-1": {
+   "frames": 51.59,
+   "damaged_frames": 1.2,
+   "passes": 0.0
+  }
+ },
+ "hosted_rest": {
+  "HEADLESS-1": {
+   "frames": 51.79,
+   "damaged_frames": 0.0,
+   "passes": 0.0
+  },
+  "VIRTUAL-1": {
+   "frames": 51.79,
+   "damaged_frames": 0.0,
+   "passes": 0.0
+  }
+ },
+ "hosted_navigate_rest": {
+  "HEADLESS-1": {
+   "frames": 43.14,
+   "damaged_frames": 0.0,
+   "passes": 0.0
+  },
+  "VIRTUAL-1": {
+   "frames": 43.14,
+   "damaged_frames": 0.0,
+   "passes": 0.0
+  },
+  "VIRTUAL-2": {
+   "frames": 43.14,
+   "damaged_frames": 0.0,
+   "passes": 0.0
+  }
+ },
+ "claims": [
+  [
+   "construct",
+   "construct",
+   [
+    0.0,
+    0.0,
+    1280.0,
+    800.0
+   ]
+  ],
+  [
+   "xp",
+   "xp",
+   [
+    -1048576.0,
+    -262144.0,
+    787712.0,
+    800.0
+   ]
+  ]
+ ],
+ "keys_on_face": {
+  "inside the claim (on the face)": 1
+ },
+ "turn_key_to_window": 2,
+ "after_turn_key": {
+  "front": 1,
+  "turning": false,
+  "mode": "use"
+ },
+ "grab_error": "input.grab: Super+BTN_LEFT is grabbed already",
+ "turn_frames_per_s": {
+  "HEADLESS-1": 29,
+  "VIRTUAL-1": 20,
+  "VIRTUAL-2": 29
+ },
+ "kill_marks": {
+  "xp_gone": 0.0,
+  "window_without_live_owner": 0.0,
+  "xp_process_gone": 1.9,
+  "construct_restarted": 3.04,
+  "virtual_outputs_gone": 3.15,
+  "window_back_with_construct": 8.14
+ },
+ "surfaces_after": [
+  [
+   "s1",
+   "construct",
+   "construct-pane-s1"
+  ]
+ ]
+}
