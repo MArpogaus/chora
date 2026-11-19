@@ -213,10 +213,11 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let mut tools = Tools::chora(&config, &mcp);
     tools.own.clone_from(&name);
     let harness = config.spawn(&config.coder_cmd);
-    let coder = coder::Coder::new(harness, coder::data_dir(), tx.clone());
+    let data = coder::data_dir()?;
+    let coder = coder::Coder::new(harness, data.clone(), tx.clone());
     coder.set_keys(config.key_envs());
     tools.coder = Some(coder.clone());
-    let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
+    let agents = agents::Agents::new(&config, data, tx.clone());
     tools.agents = Some(agents.clone());
     let physical = tools.physical.clone();
     let mut chat = net.block_on(Chat::start(
@@ -680,8 +681,8 @@ fn start_recording(dir: &str) -> Option<Recorder> {
 /// The projects of the agents for the prompt of the ASR: those of
 /// `agent_projects` and of the inventory.
 fn projects(config: &Config) -> Vec<String> {
-    let inventory = std::fs::read_dir(coder::data_dir().join("inventory"));
-    let inventory = (inventory.into_iter().flatten().flatten())
+    let inventory = coder::data_dir().map(|dir| std::fs::read_dir(dir.join("inventory")));
+    let inventory = (inventory.into_iter().flatten().flatten().flatten())
         .map(|e| e.file_name().to_string_lossy().into_owned());
     config
         .agent_projects

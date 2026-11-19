@@ -68,17 +68,20 @@ struct Job {
     stop: Option<oneshot::Sender<()>>,
 }
 
-/// `$XDG_DATA_HOME/chora`, else `~/.local/share/chora`.
-pub fn data_dir() -> PathBuf {
-    let base = chora_scene::paths::data_home().unwrap_or_else(|| crate::expand("~/.local/share"));
-    base.join("chora")
+/// `$XDG_DATA_HOME/chora`, else `$HOME/.local/share/chora`.
+///
+/// # Errors
+///
+/// Neither variable is an absolute path: no relative path takes its place.
+pub fn data_dir() -> Result<PathBuf, String> {
+    data_dir_in(chora_scene::paths::data_home())
 }
 
 /// [`data_dir`] for a given data home.
-#[allow(dead_code, clippy::unnecessary_wraps, reason = "a stub until the fix")]
 fn data_dir_in(data_home: Option<PathBuf>) -> Result<PathBuf, String> {
-    let base = data_home.unwrap_or_else(|| crate::expand("~/.local/share"));
-    Ok(base.join("chora"))
+    data_home.map(|base| base.join("chora")).ok_or_else(|| {
+        "no data directory: neither XDG_DATA_HOME nor HOME is an absolute path".into()
+    })
 }
 
 impl Coder {
