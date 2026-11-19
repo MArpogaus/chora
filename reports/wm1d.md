@@ -84,3 +84,10 @@ Head `3c84b2d1` on claude/wm1d (merge of claude/wm2 8db02220 into 679e7786; push
 - tools/copies.toml, tests/acts/known-red.toml: auto-merged. No cell broke in the merge.
 - Green: `cargo build --workspace`; `cargo test -p chora-tiling` (153), `-p chora-xp` (198), `-p chora-kit --features testing` (225+), `-p chora input::` (47); `tests/merge-gate.sh --only keys,pane-keys,wm-pane,acts,xp,hud,tiling-audit` all PASS (run dir /tmp/merge-gate.uxvYko). No full gate.
 - Note for the lane: the local `claude/wm1d` of a fresh clone is stale (18231aa1, before the net3 merge); a first merge onto it built fine but state.rs did not conflict, which showed the wrong base. Reset to origin/claude/wm1d first (I did, and redid the merge; the stale merge was never pushed).
+
+## Review r3 (PM, not the builder; merge-only round)
+Checked `git show --remerge-diff 3c84b2d1` (docs/api.md, plugins/chora-tiling/src/state.rs; 4 +, 40 -).
+- state.rs: wm2's `self.focus.state(NAME, |s| self.wm.has(s))` kept, holder set while keys_open; the hand-built Focus and the unused `Focus`/`Map` imports gone; open via wm1d's `open_value`. One focus path: OK.
+- docs/api.md: wm2 holder/surface text plus wm1d's xp `title`/`app_id`; wm1d window paragraph (xp listed) plus wm2 "Such a look applies". Both texts: OK.
+- Lane gate --only keys,pane-keys,wm-pane,acts,xp,hud,tiling-audit PASS (/tmp/merge-gate.uxvYko, lane container).
+Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK. Head 3c84b2d1 into train 61 (contains wm2 8db02220).
