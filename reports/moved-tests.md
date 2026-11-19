@@ -194,3 +194,69 @@ Base 31df2bb9..4904ef79, one commit, 7 files, +436/-1: three `#[cfg(test)] mod t
 Checks: mc lifecycle 97.0, hits 96.3, acts 84.4 (drag hand-over 33-43 reached): met. Worker's gate GATE-EXIT=0, tests and clippy clean (worker's report; the train gate re-runs it).
 Open: xp panels 40.7 (unchanged, "not analysed", which the brief excluded as a reason) and pointer 63.3: not met; r3 (haiku) owns it, with the line table first.
 Verdict (computed): no open MAJOR in the diff: MERGE-OK for 4904ef79 (tests only). F5 module coverage stays open until r3.
+
+## moved-tests-mk r3
+
+Lane: moved-tests-mk r3 (F5, xp wm/panels.rs and wm/pointer.rs to 70 %), branch
+claude/moved-tests-mk3 from 4904ef79 (r2), merged with origin/claude/autonomous-dev-session-3w-i33pg7
+(85764974, it had moved). Step 0: cargo, sccache, cargo-llvm-cov, foot, python3 present; `cargo check --workspace` clean.
+
+Step 1, uncovered line ranges before any test (`env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-xp
+--features chora-kit/testing --show-missing-lines`, 253 tests):
+- wm/panels.rs: 40.68 % lines (526 lines, 312 missed; 70 % needs 369 covered, 155 more)
+- wm/pointer.rs: 63.30 % lines (455 lines, 167 missed; 70 % needs 319 covered, 31 more)
+
+Ranges, by function (class: UT = unit test on the fake core; GATE = the path spawns a program or
+a shared script, or needs the user's files):
+
+wm/panels.rs
+| lines | function | class | reason |
+|---|---|---|---|
+| 33-37 | dismiss_notice (Err arm) | UT | dismiss on a dropped connection is logged |
+| 40-60 | tell, incl. 56-60 | UT | Change::{Starting,Failed,Fallback,Done} as the launcher sends them |
+| 73-77 | run, Action::Run | GATE | start_program spawns a program |
+| 79-82 | run, LogOff/TurnOff/Set/Help | UT | opens the dialog, sets, opens help |
+| 84-85, 88-89 | run, Lock and Screenshot | GATE | run_shared spawns the shared script when it is installed |
+| 92 | run, end of match | UT | follows the arms above |
+| 126-132 | open_help, help open already | UT | raises the open help and shows its topic |
+| 158 | open_date_dialog, raise | UT | second open raises the dialog |
+| 172 | open_display_dialog, raise | UT | second open raises the dialog |
+| 188-191 | open_display_dialog, output not listed | UT | bar output unknown to the core |
+| 224 | with_display, no dialog | UT | nothing to change |
+| 233-286 | click_display (Effects and Display arms, Apply, List, Effects) | UT | Hit::Control names of the dialogs |
+| 289-307 | open_display_list | UT | list click of Display Properties |
+| 310-321 | open_effects | UT | Effects click, and a second open raises |
+| 329, 334-335 | close_panel, Display tab kept, focus of the topmost window | UT | |
+| 346-347 | change, settings refused | UT | settings.set error (invalid value) |
+| 351 | change, settings not saved | GATE | needs the settings file to be unwritable |
+| 381-402 | press_tray, speaker and clock double click | UT (clock); GATE (speaker: mixer command) | |
+| 406-467 | release_panel, the hits of each dialog kind | UT; Help "Helper" arm GATE (start_program of chat, lines 428-429) | |
+| 472-490 | redraw_panel, Taskbar, Clock, Help | UT | |
+| 506-521 | set_taskbar, on_top change and open taskbar dialog | UT | |
+| 531-542 | refit | UT | maximized window of the old work area |
+| 550-559 | auto_hide | UT | |
+| 564-580 | slide_frame | UT | |
+| 598-606 | press_wallpaper | UT | |
+| 610-621 | press_icon | UT | |
+| 625-645 | open_icon, every arm | GATE | each arm starts a program (open_with, xdg_open, start_named, start_program) |
+
+wm/pointer.rs
+| lines | function | class | reason |
+|---|---|---|---|
+| 14, 18, 20, 22 | press_left, tray, menu, desktop icon, wallpaper | UT | |
+| 34-71 | press_decoration, arms and early returns | UT | |
+| 60-61 | press_decoration, resize start | UT | window edge |
+| 78-95 | press_icon_of, system_below_icon | UT | single click opens the system menu, double click closes |
+| 130-131, 141, 154 | press_title (maximized), press_taskbar (no bar), Speaker | UT | |
+| 156-157 | press_taskbar, Helper | GATE | start_program of chat |
+| 176-208 | dragged: dialog drag, desktop drag, resize drag, same point, no drag, removed window | UT | pull_out at 205 UT only if the core takes the give |
+| 237-251 | release: context row, no act, hand over, far output | UT | |
+| 260-270 | release: dialog group wobble, resize, dialog, icons | UT | |
+| 273-291 | release: dialog choice, button, menu row | UT | |
+| 306-332 | drop_on_far_output, release_icons | UT | |
+| 349-369 | pull_out, give refused, grab | UT | |
+| 380-392 | hand_over with a claim, claim error, no index | UT (claim error GATE if the fake core cannot fail) | |
+| 464, 476 | release_button, no index, maximize | UT | |
+| 484-511 | start_program, start_named's notepad chain | GATE | spawns the program |
+| 515-520 | start_named | GATE | spawns the program |
+| 523-529 | check_launches, the loop with a change | 523-525 UT; 526-528 GATE | a change needs a started program |
