@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 11:00 UTC)
+## Now (2026-11-19 11:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 10:40 PM 2.8 %; 41 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,15 +25,15 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
-| wm3-r2.md (F3) | sonnet high | session_016iS3kNQwBx7TAFsVTz5juX (10:35) |
+| kit7-r1.md (F2) | opus high | starting 11:10 |
 | wm7b-r1.md (F3) | opus high | session_016iS3kNrkiV5gM6vDZnWG4q (10:55) |
 | kit5-r2.md (F2) | sonnet high | session_016iS3kL5zrc1QTWqPQ4hMJR (10:55) |
 | wm5-r2.md (F3) | sonnet high | session_016iS3kPPNTB8rQ1LaBuFV7u (11:00) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 60 red pull (F21 flake). 61 = 60 + kit2c, docs-f8b, wm1d on daf83391 (PM resolved conflicts), running 10:33. 62: kit2d 188b642d MERGE-OK (PM r2), wm7a f4e4f4d9 (r3 merge); wm3 FIX (I12 key) to r2; wm5 FIX (I12 held key) to r2. Pace 1.5-2 %/h.
-5. Next (sonnet unless complex): all 6 lanes stopped 10:42-48 on the 5-h limit, resumed 10:53 (kit5, flakes-f past 250 k: hand back). WM7b hosted (owner 10:52), opus 4 %, after wm7a r3; KIT6 in kit2c; then KIT7. Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
+4. Trains (F6): 60 red pull (F21 flake). 61 = 60 + kit2c, docs-f8b, wm1d on daf83391 (PM resolved conflicts), running 10:33. 62: kit2d 188b642d MERGE-OK (PM r2), wm7a f4e4f4d9 (r3 merge); wm3 9d55e300 MERGE-OK (PM r2); wm5 FIX (I12 held key) to r2. Pace 1.5-2 %/h.
+5. Next (sonnet unless complex): all 6 lanes stopped 10:42-48 on the 5-h limit, resumed 10:53 (kit5, flakes-f past 250 k: hand back). WM7b hosted (owner 10:52), opus 4 %, after wm7a r3; KIT6 in kit2c; KIT7 opus 5 % started 11:10. Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner

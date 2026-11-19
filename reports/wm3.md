@@ -87,3 +87,11 @@ Ranked refactor proposal for rw-4 (not done; each its own brief):
 3. construct: the same for its overlay surfaces; lowest value, as it has few surfaces and an enum that already says which is open.
 
 Checks: `cargo test -p chora-kit --features testing` 229+ green, `-p chora-xp` 199, `-p chora-mc` 141, `-p chora-construct` 198, `-p chora-tiling` 152 green; `python3 -m pytest tests/test_acts.py -q` 101 green; `cargo build --workspace --locked` ok; `tests/merge-gate.sh --only xp,acts,keys,hud`: xp PASS 87 s, hud PASS 67 s, acts PASS 69 s, keys PASS 18 s (run dir /tmp/merge-gate.HdCC4e). No full gate run (the train does).
+
+## Review r2 (PM, small diff; PM not the builder)
+2026-11-19. claude/wm3 0e0bd700..9d55e300, 8 files +85 -46. Verdict: MERGE-OK (0 BLOCK, 0 MAJOR).
+- rw-1: invariants.py:491, 512 read `by`; red a8eef236, green fb1cde7d; no `for` reader left. OK.
+- rw-2/3: `escape_target` walks `open` newest first (dialog, help panel, menu); cell
+  escape_shuts_the_newest_surface_first (red cb1ff7d0). OK.
+- rw-5, rw-6: api.md sentence; `Why` dropped from `shut_at`, the kit test still covers drag and give alike. OK.
+- NIT (no fix): a help panel whose group is not in `open` is no longer shut by Escape; today every panel opens through `open`.
