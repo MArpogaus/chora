@@ -134,11 +134,13 @@ impl<'a> Script<'a> {
                 "the last output went: the window is let go"
             );
             assert_eq!(owner(&model, "s4"), None, "free for any manager");
-            look.hear(Event::OutputChanged {
-                output: self::output(output),
-            });
         } else {
             assert!(look.has("s4"), "the window stays");
+        }
+        look.hear(Event::OutputChanged {
+            output: self::output(output),
+        });
+        if !self.releases {
             look.hear(Event::SurfaceDestroyed {
                 surface: "s4".into(),
             });
@@ -192,14 +194,20 @@ pub fn surface(model: &Model, id: &str) {
 /// core says so, with the activation token `t1`.
 #[must_use]
 pub fn created(id: &str, to: Option<&str>) -> Event {
+    created_by(id, "probe", to, Some("t1"))
+}
+
+/// The event `surface.created` of a surface of the app `app_id`.
+#[must_use]
+pub fn created_by(id: &str, app_id: &str, to: Option<&str>, token: Option<&str>) -> Event {
     Event::SurfaceCreated {
         surface: id.into(),
-        app_id: Some("probe".into()),
+        app_id: Some(app_id.into()),
         title: None,
         decoration: None,
         to: to.map(Into::into),
         pid: None,
-        token: Some("t1".into()),
+        token: token.map(Into::into),
     }
 }
 

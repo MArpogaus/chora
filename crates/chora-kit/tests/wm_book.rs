@@ -429,3 +429,15 @@ fn a_window_moved_away_is_forgotten_once() {
     book.keep("s2");
     assert!(!book.give("s2", NAME), "a give to itself");
 }
+
+#[test]
+fn the_book_names_the_app_of_a_created_surface_only() {
+    assert_eq!(
+        Book::announced_app(&created("s1", None)),
+        Some(Some("probe"))
+    );
+    let detached = Event::SurfaceDetached {
+        surface: "s1".into(),
+    };
+    assert_eq!(Book::announced_app(&detached), None);
+}

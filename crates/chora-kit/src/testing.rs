@@ -23,7 +23,7 @@ use crate::conn::Conn;
 
 mod script;
 
-pub use script::{Script, Subject, created, detach, output, owner, phases, surface};
+pub use script::{Script, Subject, created, created_by, detach, output, owner, phases, surface};
 
 /// The scene model of the fake core, shared with the test.
 pub type Model = Arc<Mutex<Core>>;
