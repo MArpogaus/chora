@@ -1,11 +1,12 @@
 //! The agents that report their state with `agent.set`, for the status
-//! line of the regions and the agents scene, and the notifications of
-//! `notify.push`.
+//! line of the regions and the agents scene, and the notices of
+//! `notify.push`, which chora-notify shows.
 
 use std::time::Instant;
 
 use chora_kit::{
     ask::{self, Button, Card, Click, Keys, Question, show_key},
+    notice::{self, Notice},
     words::Language,
 };
 use chora_scene::{
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    Mc,
+    Mc, NAME,
     config::{Color, Style},
     invalid,
     region::{self, Content, Item, Put, Region},
@@ -30,8 +31,8 @@ const SIGN_WIDTH: f64 = 18.0;
 
 /// The most helpers that a side shows, one row each.
 const MAX_ROWS: usize = 4;
-/// The lines of the notifications: three, with a blank line between them.
-const NOTIFY_LINES: usize = 3;
+/// The most notices whose ids mc keeps for `notify.clear`.
+const NOTICES: usize = 32;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
@@ -165,7 +166,8 @@ fn question_line(question: &str, language: Language) -> String {
     format!("? {question}  — {yes} / {no}")
 }
 
-/// As in the freedesktop notifications: critical breaks through in red.
+/// As in the freedesktop notifications: a critical notice stays until the
+/// person closes it, the others show for the time of chora-notify.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Urgency {
@@ -175,19 +177,12 @@ enum Urgency {
     Critical,
 }
 
-/// The content that stacks the notifications, newest on top.
-const NOTIFY: &str = "notify";
-/// The content of the last critical notification.
-const URGENT: &str = "urgent";
-/// The word before a critical notification, in the column and in the
-/// footer, so that the red is not its only sign.
-const URGENT_WORD: &str = "Urgent";
 /// The content of a spoken confirmation: its prompt as the title, its
 /// detail in mono.
 const CONFIRM: &str = "confirm";
-/// The text contents that mc writes itself, from `notify.push` and
-/// `voice.confirm`: `content.set` and `content.add` refuse them.
-pub const OWN_TEXTS: [&str; 3] = [NOTIFY, URGENT, CONFIRM];
+/// The text contents that mc writes itself, from `voice.confirm`:
+/// `content.set` and `content.add` refuse them.
+pub const OWN_TEXTS: [&str; 1] = [CONFIRM];
 /// The scenes whose panels mc writes itself, from the agents and the
 /// scenes: `panel.set` refuses them.
 pub const OWN_SCENES: [&str; 2] = [SCENE, crate::manage::OVERVIEW];
@@ -594,47 +589,44 @@ impl Mc {
     }
 
     /// Tells the person that something did not work, as a critical
-    /// notification.
+    /// notice of chora-notify.
     pub fn notice(&mut self, title: &str, body: &str) {
-        let push = Push {
-            title: title.to_owned(),
-            body: body.to_owned(),
-            urgency: Urgency::Critical,
-        };
-        if let Err(err) = self.push(push) {
-            eprintln!("chora-mc: notice {title}: {}", err.message);
+        let notice = Self::notice_of(title, body, Urgency::Critical);
+        if let Some(id) = notice::show_or_log(&mut self.rt.conn, None, &notice) {
+            self.remember(id);
         }
     }
 
-    /// Adds a notification on top of the stack; a critical one starts
-    /// with the word `Urgent` and also shows in red in `urgent`, until the
-    /// next one, a click on that line or `notify.clear`.
-    pub fn push(&mut self, push: Push) -> Result<(), RpcError> {
-        let Push {
-            title,
+    /// Shows a notice of chora-notify; a critical one stays until the
+    /// person closes it.
+    pub fn push(&mut self, push: &Push) -> Result<(), RpcError> {
+        let notice = Self::notice_of(&push.title, &push.body, push.urgency);
+        let id = notice::show(&mut self.rt.conn, None, &notice).map_err(|err| gone(&err))?;
+        self.remember(id);
+        Ok(())
+    }
+
+    fn notice_of<'a>(summary: &'a str, body: &'a str, urgency: Urgency) -> Notice<'a> {
+        let critical = urgency == Urgency::Critical;
+        Notice {
+            app: NAME,
+            icon: "",
+            summary,
             body,
-            urgency,
-        } = push;
-        let text = if body.is_empty() {
-            title
-        } else {
-            format!("{title}: {body}")
-        };
-        let text = if urgency == Urgency::Critical {
-            format!("{URGENT_WORD}: {text}")
-        } else {
-            text
-        };
-        let line = format!("{}  {}", region::date("%H:%M"), text.replace('\n', " "));
-        if urgency == Urgency::Critical {
-            self.set_text(URGENT, None, |_| vec![text.clone()])?;
+            expire_ms: if critical { 0 } else { -1 },
+            urgency: if critical {
+                notice::Urgency::Critical
+            } else {
+                notice::Urgency::Normal
+            },
         }
-        self.set_text(NOTIFY, None, |old| {
-            let mut lines = vec![line];
-            lines.extend(old);
-            lines.truncate(NOTIFY_LINES);
-            lines
-        })
+    }
+
+    fn remember(&mut self, id: u32) {
+        self.notices.push(id);
+        if self.notices.len() > NOTICES {
+            self.notices.remove(0);
+        }
     }
 
     /// Shows a spoken confirmation alone in the drawer over any scene,
@@ -830,21 +822,18 @@ impl Mc {
         true
     }
 
-    /// Takes the urgent line of the footer away; the notification stays
-    /// in the column.
-    pub fn clear_urgent(&mut self) -> Result<(), RpcError> {
-        self.set_text(URGENT, None, |_| Vec::new())
-    }
-
-    /// Empties the notifications.
-    pub fn clear_notifications(&mut self) -> Result<(), RpcError> {
-        for content in [NOTIFY, URGENT] {
-            if self.texts.contains_key(content) {
-                self.set_text(content, None, |_| Vec::new())?;
-            }
+    /// Closes the notices that mc showed and chora-notify still holds.
+    pub fn clear_notices(&mut self) -> Result<(), RpcError> {
+        let mut failed = Ok(());
+        for id in std::mem::take(&mut self.notices) {
+            failed = failed.and(notice::dismiss(&mut self.rt.conn, id).map_err(|err| gone(&err)));
         }
-        Ok(())
+        failed
     }
+}
+
+fn gone(err: &notice::Gone) -> RpcError {
+    RpcError::new(RpcError::REJECTED, err.to_string())
 }
 
 /// The cell of the `n`-th column of the agents, for `count` agents on a
