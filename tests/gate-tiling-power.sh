@@ -5,7 +5,8 @@
 # the power icon open it three times, Super+Print writes a file and says so
 # in a notice, the Apps list has an entry "Screenshot" that takes one, and
 # a missing script is an error on stderr and a notice, never a silent
-# `true`. Needs fuzzel, grim, waybar and jq; notify-send is a stand-in.
+# `true`. Needs fuzzel, grim, waybar and jq; notify-send is a stand-in
+# for the screenshot script, chora-notify shows the notice of a missing script.
 #
 # Usage: tests/gate-tiling-power.sh   BIN: directory with the binaries
 set -u
@@ -32,7 +33,8 @@ temp_config
 session_start 1280x800 -- "$bin/chora-tiling"
 CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
 run_pid $!
-grant screen.capture input.inject
+grant screen.capture input.inject methods.call
+start_notify "$fake/notify.log"
 shot=$fake/bar.png
 for _ in $(seq 40); do
     sleep 0.5
@@ -124,7 +126,7 @@ out=$(env -u CHORA_FLAVOR_DIR HOME="$lost" XDG_CONFIG_HOME="$lost" XDG_RUNTIME_D
 status=$?
 [ "$status" != 0 ] || fail "a missing power.sh exited 0"
 grep -q 'power' <<<"$out" || fail "a missing power.sh said nothing on stderr: $out"
-grep -q '^notify.*Power menu' "$marks" || fail "a missing power.sh showed no notice"
+shown_notices | grep -q '^Power menu' || fail "a missing power.sh showed no notice: $(shown_notices)"
 ok "a missing script is an error and a notice"
 
 stub=$(mktemp -d "$fake/stub.XXXXXX")
