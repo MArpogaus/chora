@@ -25,6 +25,8 @@ terms and no synonyms.
 | **Log file** | The file `$XDG_STATE_HOME/chora/logs/NAME.log` of the core (`chora`) or the voice agent (`voice`), next to stderr. It moves to `NAME.log.1` at 4 MiB and at each start; three old files stay (see [Logs](logs.md)). |
 | **chora-report** | The script that bundles the versions, log files, journal and settings into an anonymised `.tar.gz` that the person reads and sends by hand. It uploads nothing. |
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
+| **Order** | The band a group under `root` draws in: `background`, `normal`, `held`, `overlay` or `lock`, bottom first (D89). The core keeps the roots sorted by it; inside one order the plugins order with `move`. `lock` belongs to the core. Not a layer: a layer is a node that draws through a texture of its own. |
+| **Held window** | The window a person holds in a drag. `kit::wm::stack` puts it on top of the order of its look; across looks a group in the `held` order draws above every window. |
 | **Owner** | The client name that created or attached a node. Only the owner changes the node. |
 | **Toplevel** | A surface with the role of an application window (`xdg_toplevel`). Other roles are layer surfaces and popups. |
 | **Damage-less attach** | A commit that attaches an shm buffer of the same size and format as the buffer before, with no damage inside the buffer. The core keeps the texture of the surface as it is, a leniency that foot relies on. |
