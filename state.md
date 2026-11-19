@@ -28,7 +28,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | wm3-r1.md (F3) | sonnet high | session_016iS3kMQapsj8QueGbfqBuP (09:18) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm7a-r2.md (F3) | sonnet high | session_016iS3kN6hpfMtLbawkpssbH (09:17) |
-| wm1d-r3.md (F3) | sonnet high | starting |
+| wm1d-r3.md (F3) | sonnet high | session_016iS3kMkvC3baGFos6eWYE4 (09:34) |
 | kit2d-r1.md (F2) | sonnet high | session_016iS3kM1JMwzfGGNbUurCv7 (08:50) |
 
 ## Queue (% of week; 5 % reserve)
