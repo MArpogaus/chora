@@ -108,3 +108,14 @@ Findings:
   show it by running on); fix: attach to a temp env in a unit test and assert the folder exists after `__exit__`.
 - rw-8 NIT tests/persona/check.py:60: POWER omits `loginctl terminate-*`, so `T4:power` (cancelled) passes after a
   Log out; fix: add `loginctl terminate` to the pattern and a test line.
+
+## r2
+
+Head `5755b578887736cbb782e3e35051b39eaa6f3514` on claude/pw (merged origin/claude/autonomous-dev-session-3w-i33pg7 before the gate).
+
+1. rw-1 fixed. Red first: cb67dd3b (selftest line: `bash tests/persona-selftest.sh` fails with `screenshot.sh wrote no file under ... new on the host: /root/Pictures/...`; the stray file was removed). Green: a8a6cddc (session.sh: XDG_PICTURES_DIR=$dir/pictures, xdg-user-dir stand-in). `bash tests/persona-selftest.sh`: 6 ok lines incl. "screenshot.sh in the environment of the core writes under the session directory"; `find /root/Pictures -name '*.png'` finds 0.
+2. rw-2: one green and one red test each for X2, L1, L2, L3, M2, C2, C3 in PersonaContracts. Count: check.py's table has 17 task entries (T1-T7, X1-X2, L1-L3, M1-M2, C1-C3), T4 with four parts; r1 and the review said 18, I find 17. All 17 now have green and red tests (`python3 -I tests/test_acts.py`: 134 tests OK, 125 before: +7 contracts, +1 T6, +1 T4 power).
+3. rw-3: T6 compares notice ids with `before` (`test_t6_an_old_notice_alone_is_red`). rw-5: Run.env_file and Ctx.since deleted. rw-8: POWER includes `loginctl terminate` (`test_t4_power_a_log_out_is_a_power_call`).
+Backlog (no code): rw-4 (sha vs binaries of target/debug), rw-6 (status of `check.py start` ignored in round.sh), rw-7 (unit test that an attached Session leaves the folder).
+
+Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,gate-lib,acts,doors`: all 7 PASS (pre-commit, gate-lib 67 s, build, test 182 s, ci-check 89 s, acts 181 s, doors 328 s), rc 0. `bash tests/persona-selftest.sh` ok. `ROUND_DIR=$(mktemp -d) tests/persona/round.sh smoke`: tiling, xp, mc, construct each `task T7 pass breaches 0`.
