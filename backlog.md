@@ -29,6 +29,7 @@ CI2 | 11-12 | rc | cargo deny fails on an advisory (xattr "unsound", via tar via
 A7 | 11-09 | rc | Dependabot: #105, #104, #103, #95, #88, #86, #94, #93, #92, #2, #1; majors #96 (zbus 6), #87 (serde-saphyr 2) may wait.
 
 ## UX and looks (rc 1)
+- rk-9 (MINOR, kit3 r2 14:53): construct config.rs:460 `bound` matches the merged row by first action; launcher keys vanish when `run: fuzzel` sorts first (custom config only). rk-10, rk-11 NIT (reports/kit3.md).
 S5 | 11-11 | rc | showcase findings still open after the re-record on 67f93a9: mc Agents scene empty; OPEN CUBE black for 16 frames and the SUNSET pill on the face; injected Alt+Y and "No" give no feedback; question card white in the dark chat, covers the transcript, hint cut; xp chat without a helper covers the taskbar; OPEN CUBE overlaps the chat and moves at 2x; pulled pane cut at the right edge. Recheck on train 4.
 U2 | 11-11 | rc | HUD colours per theme: a folder may carry a `dark:` block, the manager emits `<wm>.theme`; partly fixed by the theme merge (S5 update): confirm in the pixel pass; xp chat field over the taskbar.
 U3 | 11-11 | rc | one surface per helper conversation in every look: while the chat is open the sentence and the question live inside it, no second balloon (construct, mc); confirm after train 4.
