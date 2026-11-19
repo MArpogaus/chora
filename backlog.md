@@ -232,3 +232,6 @@ wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRe
 - wm1d review r1 MINOR rw-1 (xp state.rs:28,30 rect floats, output "" not null), rw-2 (construct adopt.rs:223 launched marker taken before free test). Plus wm1d refactor proposals 1-6 (reports/wm1d.md).
 - mv4 review r1 nits: report counts stale (chat.rs 1,055), docs/hud.md:363 rewrap, hits.rs/fit.rs pub -> pub(super).
 - wm7a-m1 (MINOR, construct): after a restart the start card says "Nothing is open yet" while it holds the adopted pane (reports/wm7a.md); WM7b.
+- wm7a-m2 (WM7b, review wm7a rw-7): after a construct kill without a restart the window lies ownerless at root; I1 case.
+- wm7a-m3 (WM7b, review wm7a rw-8): `construct.cube` sends no last event when the cube closes; a look keeps `turning: true`.
+- harness-acts-midstate (FIX wm7a rw-1, routines): earliest gate = acts step; acts that claim a mid-act state (mid-turn) must assert it via cube.list before the action. Tool: act helper `expect_state`.
