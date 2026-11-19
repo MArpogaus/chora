@@ -1,6 +1,6 @@
 # wm2 r1 (F3, F2): kit::wm::focus and the core grab fix
 
-Model: opus, effort high (reason: a hard cause in the core input path; the pointer-gated grab at
+Model: opus, effort high, because (a hard cause in the core input path; the pointer-gated grab at
 input.rs:461-519 before mv3, now in the input child modules, sends stray keys and splits the focus)
 Lane: cloud, branch claude/wm2 from dc4bc46d (the train 56 head: mv3 split input.rs). One round,
 stop at 250 k. Cost about 4 %. Run `git fetch --unshallow` first.

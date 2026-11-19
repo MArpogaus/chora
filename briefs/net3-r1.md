@@ -1,6 +1,6 @@
 # net3 r1 (F7, F5 prep): core scene.boxes and text runs
 
-Model: opus, effort high (reason: a new core read API and text runs out of chora-draw; the core stays lean
+Model: opus, effort high, because (a new core read API and text runs out of chora-draw; the core stays lean
 and safe, and wrong boxes would make every later invariant lie)
 Lane: cloud, branch claude/net3 from dc4bc46d (the train 56 head: mv3 split scene.rs). One round,
 stop at 250 k. Cost about 4.5 %. Run `git fetch --unshallow` first.
