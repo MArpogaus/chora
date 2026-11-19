@@ -644,3 +644,6 @@ impl Wm {
         Vec::new()
     }
 }
+
+#[cfg(test)]
+mod tests_moved;
