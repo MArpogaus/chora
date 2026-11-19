@@ -229,6 +229,15 @@ fn the_default_hooks_do_nothing() {
     assert_eq!(look.0.failures, Vec::<Failure>::new());
 }
 
+/// A look without a power menu of its own leaves the action to the shared
+/// script: its hook says no.
+#[test]
+fn the_default_power_hook_leaves_the_menu_to_the_shared_script() {
+    let core = FakeCore::start();
+    let mut look = Bare(Look::new(&core));
+    assert_eq!(look.power(), Ok(false));
+}
+
 #[test]
 fn the_keys_of_every_look_are_the_shared_ones() {
     let shared = [
