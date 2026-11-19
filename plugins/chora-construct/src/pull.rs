@@ -279,8 +279,8 @@ impl Construct {
     /// of a drag it turns back and stays where the user stands, and the
     /// keyboard stays where the flight left it. The pane
     /// comes under the pointer, with the point of the window that the
-    /// giver names there, in front of the front face of the cube, both
-    /// for the pose where the camera stays: a drag that comes during the
+    /// giver names there, in front of the front face of the cube and
+    /// turned to the eye, all for the pose where the camera stays: a drag that comes during the
     /// flight places the pane for the end of the turn back, not for the
     /// pose the flight passed (F21). The moves and the release of
     /// `move` drag and drop it as a drag with the modifier does. A pane
@@ -315,7 +315,7 @@ impl Construct {
         };
         let d = self.pull_depth(&stays);
         let to = space::under_pointer(&self.lens, &stays, (at, grab.point), self.panes[i].size, d);
-        self.move_pane(i, to)?;
+        self.move_pane_facing(i, to, [stays.x, stays.z])?;
         if boxed(self).is_none() {
             return Ok(());
         }
