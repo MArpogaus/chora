@@ -19,7 +19,7 @@ Commits: b7afaa13 `test(acts)` (red), fec3a98a `feat(construct)` (green), 90956a
 Red on a17e7858 (b7afaa13): every cube act "no client exports cube.list"; `cube.turn` refused `to`.
 Green on fec3a98a: `acts: 19 pass, 2 known red, 0 blocking`: cube opens (4 faces, use), a window on the
 front face (owner xp), turn key, `cube.turn {to}`, Alt+Escape stands back, drag turns, back at 1:1 the screen
-equals the front face pixel for pixel (after the 3 s step-back hint), construct killed mid-turn and started
+equals the front face (after the 3 s step-back hint; tolerance: a channel may differ by 8, in at most 1/1000 of the pixels), construct killed mid-turn and started
 again loses no window (I1). Known red, slice WM7b: wm7a-a1 I3 (construct and xp both claim the focus when the
 cube opens, no window focused); wm7a-a2 the pager (xp shows no pager on a face, so it cannot call `{to}`).
 Harness: `Expect.cube`, `Expect.verify`, `Session.call`/`cube`, looks get `target/debug` on PATH.
@@ -35,9 +35,9 @@ Build fec3a98a, debug, headless 1280x800, 4 vCPU container. Scripts:
 | direct scanout | not measurable headless; structural: the screen always shows the face plane composited by the core | code |
 | a turn | 29 frames/s on HEADLESS-1 (VIRTUAL-1 20, VIRTUAL-2 29), debug build | `render.stats` over 1 s of a 3 s turn |
 | keys, pointer on the face at 1:1 | xp grab Super+d acts; typed text reaches the window | inject, xp `state.get` |
-| keys, pointer outside the claim | Super+d swallowed stood back, both on the cube and beside it; by input.rs:480-499 also during a turn (faces forward nothing) | inject |
+| keys, pointer outside the claim | Super+d swallowed stood back, both on the cube and beside it; by input.rs:480-499 also during a turn (code reading only, see r2 for the measured cell) | inject |
 | the turn grab | Super+drag on the face at 1:1 goes to construct's own grab (its pane move, camera.rs:473): 0 presses reach the window, the cube does not turn. On a face the claimant under the pointer is xp, so if the face manager also grabs the button (xp wm.rs:219 off virtual outputs today; tiling's move), ipc.rs:432-448 gives it the press, not construct | inject, render of grabs |
-| construct killed mid-turn | xp leaves the core at 0.0 s (process gone 1.9 s); a restarted construct (3.0 s) removes the virtual outputs at 3.15 s; the window is back, as a construct pane, at 8.14 s. Without a restart the outputs and the window stay ~10 s, then the window lies ownerless at root | SIGKILL, poll 0.1 s |
+| construct killed mid-turn | xp leaves the core at 0.0 s (process gone 1.9 s); a restarted construct (3.0 s) removes the virtual outputs at 3.15 s; the window is back, as a construct pane, at 8.14 s. Without a restart the outputs and the window stay ~10 s, then the window lies ownerless at root (finding wm7a-m2, I1, slice WM7b; r2 does not fix it) | SIGKILL, poll 0.1 s |
 | return to 1:1 | the step-back hint chip (184x44 px, 7833 px) shows 3 s (hints.rs:32), then 0 px differ from the face output | capture diff |
 
 Captures: wm7a-fec3a98a-hosted-rest-1to1.png, -hosted-turn-third.png, -hosted-stood-back.png,
@@ -109,6 +109,23 @@ measure.json; gaps rw-6, rw-7.
   follows the event keeps `turning: true` after a close mid-turn; fix: emit a last event on close or document
   that the end of the cube is `cube.list` with no faces.
 
+## r2
+Lane: sonnet high, cloud, branch claude/wm7a 066ae80d (base 1d1aa5fd merged as b2a77ff0). Gate: `cargo test -p chora-construct` 200 pass,
+`-p chora-kit --features testing` green; `tests/merge-gate.sh --only acts,cube,pull,construct-hud,placed` all PASS (no full gate).
+- rw-1 fixed (c3721e75): the kill act drops the `{to: 0}` cue, asserts the 3000 ms `cube.turn` answers true and `cube.list` says
+  `turning: true` before the SIGKILL. It was green at once, so construct needs no fix: I1 holds mid-turn (window given back, no loss).
+- rw-5 (eba00709): the step-back act starts with `cube.turn {to: 0}` and a 0.8 s wait, so no act depends on the front the known-red pager leaves.
+- rw-3, a real defect (eba00709 red, f644d056 fix): the new act pulls the probe window, checks the pane in `construct.list`, a second pull is
+  refused, removes the pane and expects owner xp again. Red: `cube.pull` refused every window ("no window s2 on a face of the cube") because
+  `Host::manager` and `cube.list` answered the display name `XP` where windows are owned by the client `xp` (the docs say "client name" for `manager`).
+  The unit test had hidden it by setting the name to "xp"; it now uses "XP". Fix: both use `cube::MANAGER`.
+- rw-2 (f644d056): `pull` returns `crate::modes::no_cube()`.
+- rw-4 (066ae80d): api.md and configuration.md name `{pane}` of `cube.pull` and the full stop of `cube.turn` (`false` when ignored: a turn runs, or `to` is the front face).
+- rw-6, measured once on this build (headless, probe window on the face): Ctrl+Alt+Right reaches the probe window as `key 29` and `key 56`, the two
+  modifier presses (Ctrl_L, Alt_L evdev codes); the Right key is not forwarded. Keys during a turn (0.5 s into a 3000 ms turn, `turning: true`):
+  a typed "a" reached the window (`key 30`), Super+d did not. So "faces forward nothing" during a turn is wrong for plain keys; the row now says code
+  reading only, and this cell stands as one run, not an act.
+- rw-7: the 1:1 act tolerates a channel difference of 8 in at most 1/1000 of the pixels (stated in section 2); the ownerless window is filed as wm7a-m2, rw-8 as wm7a-m3, both WM7b, not fixed here.
 ## Review r2 (PM, not the builder)
 Diff b2a77ff0..066ae80d (5 files, +64 -17) and merge b2a77ff0. Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 0 MINOR, 1 NIT).
 - rw-1 closed: c3721e75 drops the `{to: 0}` cue, asserts the 3000 ms turn answered true and `turning: true` before SIGKILL;
