@@ -30,7 +30,7 @@ lists what does not work yet.
 |------|------------|-------|
 | tiling | Tiles windows by tags and layouts, with a bar, a launcher and a key list. The look "Ink and Paper". | `chora -- chora-tiling` |
 | xp | A stacking desktop with a taskbar, a start menu, wobbly windows and a cube of four desktops. Experimental. | `chora -- chora-xp` |
-| mc | A voice-first page: one scene at a time and a margin column for the helper, notes and chat. Experimental. | `chora -- chora-mc` |
+| mc | A voice-first page: one scene at a time and a margin column for the helper, notes and chat. Experimental. | `chora -- sh -c 'chora-notify --assets /usr/share/chora/mc/notify --config /usr/share/chora/mc/notify/notify.yaml & exec chora-mc'` |
 | construct | A space with a polished floor. Windows stand in it as panes that you walk to. Experimental. | `chora -- chora-construct` |
 
 All four share the same doors: a launcher, a key list, the voice

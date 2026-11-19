@@ -411,6 +411,15 @@ the running head and the clock, what the voice agent does, notes and a
 docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.
 
+`chora-mc` draws no notices of its own: `chora-notify` shows them in the
+mc slot (see [chora-notify](#chora-notify)). mc has no flavor target, so
+its start runs both:
+
+```sh
+chora -- sh -c 'chora-notify --assets /usr/share/chora/mc/notify \
+    --config /usr/share/chora/mc/notify/notify.yaml & exec chora-mc'
+```
+
 By default mc claims no windows: it shows its scenes, for example as the
 source of a plugin pane beside chora-construct or chora-tiling. With
 `--manage-windows` it is a window manager: it claims the work area of its
@@ -846,9 +855,11 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
-`flavors/construct/` holds its target and its services: `chora-construct`
-and `chora-assistant`, the voice HUD and the chat in the construct
-folder, in the theme that `construct.theme` names. The first output shows
+`flavors/construct/` holds its target and its services: `chora-construct`,
+`chora-notify`, which shows the notices of the construct (a refusal, a
+dead key, no room) as the neutral card, and `chora-assistant`, the voice
+HUD and the chat in the construct folder, in the theme that
+`construct.theme` names. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
 lies over a floor of white polished marble with soft grey veins. In the
 dark theme, a black void lies over black polished marble with faint
