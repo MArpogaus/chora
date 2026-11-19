@@ -1073,10 +1073,6 @@ mod tests {
         let text = |n: &str| all.iter().find(|(k, _)| *k == n).unwrap().1.clone();
         assert!(text("fuzzel.ini").contains("background=1a1d27ff"));
         assert!(!text("fuzzel.ini").contains("selection-radius"));
-        let mako = text("mako.conf");
-        assert!(mako.contains("background-color=#1a1d27"));
-        assert!(mako.contains("border-color=#2e3344"));
-        assert!(mako.contains("border-radius=10"));
         assert!(text("foot.ini").contains("pad=16x16"));
         assert!(text("foot.ini").contains("font=JetBrains Mono:size=10.5"));
     }
@@ -1098,11 +1094,25 @@ mod tests {
     }
 
     #[test]
-    fn the_notifications_keep_clear_of_the_dot_and_the_border() {
-        let all = files(&Colors::of(Scheme::Ink));
-        let mako = &all.iter().find(|(k, _)| *k == "mako.conf").unwrap().1;
-        assert!(mako.contains("margin=24,24,62,24"));
-        assert!(mako.contains("[mode=chat]\nmargin=24,424,62,24"));
-        assert!(!mako.contains("max-icon-size"), "mako refuses a size of 0");
+    fn the_palette_files_are_those_of_the_programs_the_flavor_starts() {
+        let names: Vec<&str> = files(&Colors::of(Scheme::Ink))
+            .iter()
+            .map(|(k, _)| *k)
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "colors.css",
+                "fuzzel.ini",
+                "foot.ini",
+                "swaylock.conf",
+                "icons/apps.svg",
+                "icons/apps@2.svg",
+                "icons/keys.svg",
+                "icons/keys@2.svg",
+                "icons/power.svg",
+                "icons/power@2.svg",
+            ]
+        );
     }
 }
