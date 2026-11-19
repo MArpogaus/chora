@@ -56,6 +56,20 @@ pub trait Settings: Serialize + DeserializeOwned + schemars::JsonSchema {
     ///
     /// A value is wrong; the message names it.
     fn check(&self) -> Result<(), String>;
+
+    /// The old names of keys of the top level, as `(old, new)`: a file or
+    /// a change that has the old name and not the new one is read as if it
+    /// had the new one, for one release.
+    #[must_use]
+    fn renamed() -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
+
+    /// Drops what the plugin cannot act on, before [`Settings::check`];
+    /// answers one warning for each thing dropped, which the load logs.
+    fn refuse(&mut self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// The settings of a plugin and their file.
@@ -230,10 +244,15 @@ impl<S: Settings> Store for File<S> {
 
     fn set(&mut self, changes: Value) -> Result<Value, RpcError> {
         let invalid = |e: String| RpcError::new(RpcError::INVALID_PARAMS, e);
-        let Value::Object(changes) = changes else {
+        let Value::Object(mut changes) = changes else {
             return Err(invalid("settings.set takes an object".into()));
         };
         self.unbroken()?;
+        for (old, new) in S::renamed() {
+            if let Some(kept) = changes.remove(*old) {
+                changes.entry((*new).to_owned()).or_insert(kept);
+            }
+        }
         let mut merged = self.get();
         let schema = schema::<S>();
         merge(&mut merged, Value::Object(changes), &schema, &schema);
@@ -333,8 +352,24 @@ fn schema<S: Settings>() -> Value {
 fn complete<S: Settings>(mut value: Value, default: &str) -> Result<S, String> {
     let default = serde_json::to_value(parse::<S>(default)?).map_err(|e| e.to_string())?;
     let schema = schema::<S>();
+    if let Value::Object(map) = &mut value {
+        for (old, new) in S::renamed() {
+            if let Some(kept) = map.remove(*old) {
+                if map.contains_key(*new) {
+                    eprintln!(
+                        "`{old}` is the old name of `{new}`: `{new}` wins, `{old}` is dropped"
+                    );
+                } else {
+                    map.insert((*new).to_owned(), kept);
+                }
+            }
+        }
+    }
     fill(&mut value, &default, &schema, &schema);
-    let value: S = serde_json::from_value(value).map_err(|e| e.to_string())?;
+    let mut value: S = serde_json::from_value(value).map_err(|e| e.to_string())?;
+    for warning in value.refuse() {
+        eprintln!("{warning}");
+    }
     value.check()?;
     Ok(value)
 }
@@ -477,6 +512,10 @@ pub(crate) mod tests {
     }
 
     impl Settings for Demo {
+        fn renamed() -> &'static [(&'static str, &'static str)] {
+            &[("spacing", "gap")]
+        }
+
         fn check(&self) -> Result<(), String> {
             if (0.0..=1.0).contains(&self.opacity) {
                 return Ok(());
@@ -492,6 +531,23 @@ pub(crate) mod tests {
         let dir = std::env::temp_dir().join(format!("chora-kit-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir
+    }
+
+    /// With the old and the new name in a file the new one wins and the
+    /// old one is dropped, so the file loads (rk-2); a change with the old
+    /// name is read as the new one (rk-3).
+    #[test]
+    fn the_new_name_wins_over_the_old_one_and_a_change_may_use_the_old() {
+        let dir = dir("renamed");
+        let path = dir.join("demo.yaml");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&path, "gap: 7\nspacing: 9\n").unwrap();
+        let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        assert!(file.broken().is_none(), "{:?}", file.broken());
+        assert_eq!(file.value.gap, 7, "the new name wins");
+        file.set(json!({"spacing": 3})).unwrap();
+        assert_eq!(file.value.gap, 3, "the old name in a change is the new");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

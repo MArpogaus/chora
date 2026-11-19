@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Duration, FLY_MS, Grab, InputMode, LOOK,
-    NAME, NodeKind, PropsUpdate, Query, RpcError, create, cube,
+    NAME, NodeKind, Own, PropsUpdate, Query, RpcError, System, create, cube,
     faces::{self, Health},
     input::walk_key,
 };
@@ -292,10 +292,11 @@ impl Construct {
         let wanted = cube_bindings(host.view().mode(), host.switching, step_back);
         let mut step_back = None;
         for (binding, action) in wanted {
+            let is_step_back = matches!(action, Grab::StepBack);
             let grabbed = (binding.parse().map_err(|e| format!("{e}")))
                 .and_then(|parsed| self.rt.grab(parsed, action).map_err(|e| e.to_string()));
             match grabbed {
-                Ok(true) if matches!(action, Grab::StepBack) => step_back = Some(binding),
+                Ok(true) if is_step_back => step_back = Some(binding),
                 Ok(_) => {}
                 Err(err) => eprintln!("chora-construct: the cube key {binding}: {err}"),
             }
@@ -415,9 +416,9 @@ impl Construct {
             .settings
             .value
             .action(key, modifiers)
-            .is_some_and(|action| {
-                matches!(action, Action::Terminal | Action::Windows)
-                    || Action::SHARED.contains(&action)
+            .is_some_and(|action| match action {
+                Action::System(system) => *system == System::Terminal || system.in_every_look(),
+                Action::Look(own) => *own == Own::Windows,
             });
         (view.mode() == Mode::Use && !opens).then_some(Pressed::Nothing)
     }

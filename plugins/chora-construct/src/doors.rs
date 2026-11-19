@@ -3,12 +3,13 @@
 //! Screenshot and the volume word. It shows in the walk and stood back
 //! from a cube, and hides in a pane and in a face of a cube, whose
 //! window or look has the whole screen. A click on a word does what its key does (the keys of every
-//! look, `Action::SHARED`); the clock stands still and is re-drawn each
+//! look, `System::in_every_look`); the clock stands still and is re-drawn each
 //! minute. The words carry no button chrome (docs/construct-style.md,
 //! rule 20): the pointer over a word shows the hover fill.
 
 use std::time::{Duration, Instant};
 
+use chora_kit::{actions::System, volume::Change};
 use chora_kit::{
     glass::{CAPSULE, Material, Type, margin},
     modes::Mode,
@@ -19,7 +20,6 @@ use chora_scene::{Command, Event, InputMode};
 
 use crate::{
     BTN_LEFT, ClientError, Construct, NAME,
-    config::Action,
     glass::{Surface, face, group, rect, surface, text},
     hud::Look,
 };
@@ -89,15 +89,15 @@ impl Door {
 
     /// The key that does what the door does.
     #[must_use]
-    pub const fn action(self) -> Action {
+    pub const fn action(self) -> System {
         match self {
-            Self::Programs => Action::Launcher,
-            Self::Helper => Action::Chat,
-            Self::Keys => Action::Help,
-            Self::Lock => Action::Lock,
-            Self::Power => Action::Power,
-            Self::Screenshot => Action::Screenshot,
-            Self::Volume => Action::Mute,
+            Self::Programs => System::Launcher,
+            Self::Helper => System::Chat,
+            Self::Keys => System::Keys,
+            Self::Lock => System::Lock,
+            Self::Power => System::Power,
+            Self::Screenshot => System::Screenshot,
+            Self::Volume => System::Volume(Change::Mute),
         }
     }
 
@@ -405,7 +405,7 @@ impl Construct {
                     return Ok(false);
                 };
                 if !*injected || self.rt.accepts_injected() {
-                    self.grabbed_key(door.action())?;
+                    self.grabbed_key(&door.action())?;
                 }
                 Ok(true)
             }
@@ -433,7 +433,7 @@ mod tests {
     fn every_door_has_its_node_and_a_key_of_every_look() {
         for door in ALL {
             assert_eq!(Door::of(&door.id()), Some(door));
-            assert!(Action::SHARED.contains(&door.action()));
+            assert!(door.action().in_every_look());
         }
         assert_eq!(Door::of("construct-door-clock"), None);
         assert_eq!(Door::of("construct-door-volume-text"), None);
@@ -461,7 +461,7 @@ mod tests {
         assert_eq!(Door::Lock.word(Language::De, None), "Sperren");
         assert_eq!(Door::Helper.word(Language::En, None), "Helper");
         assert_eq!(Door::Helper.word(Language::De, None), "Helfer");
-        assert_eq!(Door::Helper.action(), Action::Chat);
+        assert_eq!(Door::Helper.action(), System::Chat);
     }
 
     #[test]
