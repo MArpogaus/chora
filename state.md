@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 06:52 UTC)
+## Now (2026-11-19 06:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %. use the week (owner 06:04); trains (1 per 3 h) cap merges.
 models: haiku tests; sonnet builds, port reviews; opus hard causes, core reviews; Fable flakes.
@@ -28,13 +28,13 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every 
 | kit2b-r2.md (F2) | sonnet medium, claude/kit2b | 517ce830 MERGE-OK (PM r2); train 58
 | net3-r1.md (F7) | opus high, claude/net3 | session_016iS3kLZ9zKCda38a6cRs6a |
 | wm2-r1.md (F3) | opus high, claude/wm2 | session_016iS3kMAkdWBVDyLsYxLUjZ |
-| flakes-f-r1.md (F5) | fable high, claude/flakes-f | starting |
+| flakes-f-r1.md (F5) | Fable high, claude/flakes-f | session_016iS3kQ9bWVUeeX7ANWMb2Q |
 | wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | session_016iS3kPjrW3RH4BYJ8KZtJc |
 | kit6-r1.md (F2) | sonnet high, claude/kit6 | session_016iS3kQVP9HrenFDKnEYDaa |
 | cut2-r1.md (F6) | sonnet high, claude/cut2 | session_016iS3kNdkNBFAYBgQRp7tcg |
 
 ## Queue (% of week; 5 % reserve)
-4. Use the week (owner 06:04), critics 06:16: F2 ports first; <= 4 unmerged; reviews seeded, no gate run (sonnet for ports, opus for NET3, WM2, WM7a); slack on flakes and tests.
+4. Use the week (owner 06:04), critics 06:16: F2 ports first; <= 4 unmerged; reviews seeded, no gate run (sonnet ports, opus NET3, WM2, WM7a).
 5. Next lanes: KIT2c, WM1d, KIT2d, KIT3, KIT5 (F2); MV4 region.rs, chat.rs (F4); WM7a (F3); docs F8b (F8). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4. F7 open (tour next week).
 6. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
