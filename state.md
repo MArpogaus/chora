@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 12:07 UTC)
+## Now (2026-11-19 12:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:02 PM 3.4 %; 40 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -27,7 +27,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | review-kit7-r1.md (F2) | opus high | session_016iS3kNmrY2LR4aRVcqNyZL (12:01) |
 | wm7b-r2.md (F3) | opus high | session_016iS3kLKs3MjAmmEjvvYvnT (11:29) |
 | review-kit5-r1.md (F2) | opus high | session_016iS3kPtPDrqeGUu2h175Vv (12:07) |
-| flakes-g-r1.md (F5) | opus high | starting |
+| flakes-g-r1.md (F5) | opus high | session_016iS3kLDotvtMhy21xRyFAF (12:08) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
 ## Queue (% of week; 5 % reserve)
