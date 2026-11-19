@@ -90,6 +90,7 @@ def boxes_of(nodes, size=(1280, 800)):
 
 
 ACT = Act("plain")
+HELD = Act("held", held=True)
 
 
 def breaches(name, before, after, act=ACT):
@@ -230,7 +231,12 @@ def helper_state(helper, shown=()):
 
 class WorkRect(unittest.TestCase):
     def test_a_screen_at_the_origin(self):
-        output = {"position": [0, 0], "size": [1280, 800], "work_area": [0, 0, 1280, 770]}
+        output = {
+            "position": [0, 0],
+            "size": [1280, 800],
+            "work_area": [0, 0, 1280, 770],
+            "default_work_area": [0, 0, 1280, 770],
+        }
         self.assertEqual(harness.work_rect(output), [0, 0, 1280, 770])
 
     def test_a_virtual_output_far_off_the_screens(self):
@@ -238,6 +244,7 @@ class WorkRect(unittest.TestCase):
             "position": [-262144, -262144],
             "size": [1280, 800],
             "work_area": [-262144, -262144, 1280, 770],
+            "default_work_area": [-262144, -262144, 1280, 770],
         }
         self.assertEqual(harness.work_rect(output), [0, 0, 1280, 770])
 
@@ -736,12 +743,15 @@ class I13(unittest.TestCase):
         self.assertEqual(breaches("I13", snap(), self.ring(0, 1, 2, 3)), [])
 
     def test_a_neighbour_of_a_shown_face_is_missing(self):
-        out = breaches("I13", snap(), self.ring(0, 1, 2))
+        out = breaches("I13", snap(), self.ring(0, 1, 2), HELD)
         self.assertTrue(any("construct-cube-face-3" in b and "missing" in b for b in out), out)
 
     def test_a_neighbour_of_a_shown_face_has_no_corners(self):
-        out = breaches("I13", snap(), self.ring(0, 1, 2, 3, bare=(1,)))
+        out = breaches("I13", snap(), self.ring(0, 1, 2, 3, bare=(1,)), HELD)
         self.assertTrue(any("construct-cube-face-1" in b and "corners" in b for b in out), out)
+
+    def test_at_rest_a_hidden_neighbour_is_no_breach(self):
+        self.assertEqual(breaches("I13", snap(), self.ring(0, 1)), [])
 
     def test_no_face_shown_is_no_breach(self):
         self.assertEqual(breaches("I13", snap(), snap()), [])
@@ -752,12 +762,12 @@ class I13(unittest.TestCase):
         self.assertTrue(breaches("I13", snap(), snap(nodes=nodes)))
 
     def test_the_last_face_meets_the_first(self):
-        side = [[180, 240], [300, 200], [300, 600], [180, 560]]
-        nodes = snap().nodes + [face(0, self.FRONT), face(3, side)]
-        self.assertEqual(breaches("I13", snap(), snap(nodes=nodes)), [])
-        moved = [[180, 240], [290, 200], [290, 600], [180, 560]]
-        nodes = snap().nodes + [face(0, self.FRONT), face(3, moved)]
-        self.assertTrue(breaches("I13", snap(), snap(nodes=nodes)))
+        self.assertEqual(breaches("I13", snap(), self.ring(0, 1, 2, 3)), [])
+        after = self.ring(0, 1, 2, 3)
+        last = next(n for n in after.nodes if n["id"].endswith("face-3"))
+        last["corners"] = [[250, 228], [290, 200], [290, 600], [250, 572]]
+        after.boxes = boxes_of(after.nodes)
+        self.assertTrue(breaches("I13", snap(), after))
 
 
 class MissingKeys(unittest.TestCase):

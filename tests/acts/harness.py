@@ -90,12 +90,14 @@ class Snapshot:
 
 @dataclasses.dataclass
 class Act:
-    """An act: its name, what it opens, closes and disconnects on purpose."""
+    """An act: its name, what it opens, closes and disconnects on purpose,
+    and whether it reads a look held in the middle of its motion."""
 
     name: str
     opens: list = dataclasses.field(default_factory=list)
     closes: list = dataclasses.field(default_factory=list)
     disconnects: list = dataclasses.field(default_factory=list)
+    held: bool = False
 
 
 def app_id(node):
@@ -171,11 +173,13 @@ class Expect:
 
 
 def work_rect(output):
-    """The work area of an output in its own logical pixels: `work_area`
-    is in scene coordinates, which the default camera moves by the
-    position of the output (a virtual output lies far off the screens)."""
-    x, y, w, h = output.get("work_area") or [*output.get("position", [0, 0]), *output["size"]]
+    """The work area of an output in its own logical pixels: the zone of
+    the output, `default_work_area`, in scene coordinates of the default
+    camera, which moves it by the position of the output (a virtual output
+    lies far off the screens). `work_area` follows the camera of the
+    output, so a look that moves the camera would move this crop."""
     px, py = output.get("position") or [0, 0]
+    x, y, w, h = output.get("default_work_area") or [px, py, *output["size"]]
     return [x - px, y - py, w, h]
 
 
@@ -588,7 +592,7 @@ class Session:
         `held` seconds the act reads the session that long after its cues
         without waiting for quiet: a look that animates is read in the
         middle of its motion, which the next act waits out."""
-        act = Act(name, list(opens), list(closes), list(disconnects))
+        act = Act(name, list(opens), list(closes), list(disconnects), held is not None)
         look = look or self.label
         try:
             before = self.snapshot(wait_quiet(self.states, timeout))

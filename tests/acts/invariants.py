@@ -25,19 +25,21 @@ I2   a shown window has a size and lies at least 32 px inside its
 I5   no two text boxes of visible nodes or reported runs overlap on one
      output without an opaque node between
 I6   a text box lies inside its panel
-I9   a notice chora-notify accepted during the act is in its `shown` and
-     has a box inside the output, not under the chat
+I9   a notice chora-notify accepted during the act is in its `shown`,
+     `waiting` or `closed`; one that shows has a box inside the output,
+     not under the chat
 I10  no visible text matches a raw entry (`.desktop`, `%U`, a reverse-DNS
      id, a path of a binary)
 I12  no bar or panel box over a fullscreen window; a modal above its
      parent
-I13  the projected corners of neighbouring cube faces meet within 1 px
+I13  the projected corners of neighbouring cube faces meet within 1 px;
+     held in a turn, a neighbour of a face that shows is there with corners
 
 Limits: the texts are text nodes and the runs that chora-draw reports;
 text of outside programs (waybar, mako) and SVG text in a picture are not
 seen. Images count as not opaque, so a menu image over a label does not
-hide it for I5. I12 has no `held` window yet (WM5). I13 checks the
-faces at rest only.
+hide it for I5. I12 has no `held` window yet (WM5). I13 reads the faces
+as the acts hold them, at rest and halfway through a turn.
 """
 
 import re
@@ -276,10 +278,68 @@ def reported_texts(snap):
     ]
 
 
+def plain(m):
+    """Whether a column-major 4x4 matrix is a 2D scale and translation."""
+    flat = (1, 2, 3, 4, 6, 7, 8, 9, 11, 14)
+    return all(abs(m[i]) < 1e-9 for i in flat) and m[0] > 0 and m[5] > 0
+
+
+def matmul(a, b):
+    """The product a * b of two column-major 4x4 matrices."""
+    return [sum(a[k * 4 + r] * b[c * 4 + k] for k in range(4)) for c in range(4) for r in range(4)]
+
+
+def matrix_of(node):
+    """The matrix of the transform of a node; identity without one."""
+    m = (node.get("transform") or {}).get("matrix")
+    return m if m and len(m) == 16 else [1.0 if i % 5 == 0 else 0.0 for i in range(16)]
+
+
+def placement(snap, nodes, output, box):
+    """The matrix of a node on an output before any clip: the transforms
+    of its ancestors and its own, and the camera of the output for a node
+    of the scene. None when it is not a plain scale and translation."""
+    chain = []
+    node = nodes.get(box.get("node"))
+    while node is not None:
+        chain.append(matrix_of(node))
+        node = nodes.get(node.get("parent"))
+    matrix = [1.0 if i % 5 == 0 else 0.0 for i in range(16)]
+    if box.get("layer") == "scene":
+        info = next((o for o in snap.outputs if o.get("name") == output), {})
+        matrix = (info.get("camera") or {}).get("matrix") or matrix
+    for m in reversed(chain):
+        matrix = matmul(matrix, m)
+    return matrix if plain(matrix) else None
+
+
+def clipped(rect, box):
+    """A rect cut to a box; None when nothing is left."""
+    return overlap(rect, box, 0.0)
+
+
+def run_rect(snap, nodes, output, box, run):
+    """The screen rect of a run of a picture: through the placement of its
+    node before any clip, cut to the box afterwards, so a picture that a
+    clip shows in part keeps its runs where they are. A node that does not
+    place as a plain scale and translation, or whose placement does not
+    hold the box, scales the run with its box against its size."""
+    size = (nodes.get(run["node"]) or {}).get("size") or box["rect"][2:]
+    x, y, w, h = run["rect"]
+    m = placement(snap, nodes, output, box)
+    if m is not None and size[0] and size[1]:
+        whole = [m[12], m[13], m[0] * size[0], m[5] * size[1]]
+        if inside(box["rect"], whole):
+            rect = [m[12] + x * m[0], m[13] + y * m[5], w * m[0], h * m[5]]
+            return clipped(rect, box["rect"])
+    sx = box["rect"][2] / size[0] if size[0] else 1.0
+    sy = box["rect"][3] / size[1] if size[1] else 1.0
+    return [box["rect"][0] + x * sx, box["rect"][1] + y * sy, w * sx, h * sy]
+
+
 def screen_texts(snap):
     """{output: [(index, label, text, rect)]}: the text boxes of text nodes
-    and the reported runs, mapped through the box of their node; a run
-    scales with its node's box against the node's size."""
+    and the reported runs, mapped through the placement of their node."""
     nodes = snap.by_id()
     placed = node_boxes(snap)
     out = {}
@@ -292,12 +352,9 @@ def screen_texts(snap):
             index, box = placed[output].get(run.get("node"), (None, None))
             if box is None:
                 continue
-            size = (nodes.get(run["node"]) or {}).get("size") or box["rect"][2:]
-            sx = box["rect"][2] / size[0] if size[0] else 1.0
-            sy = box["rect"][3] / size[1] if size[1] else 1.0
-            x, y, w, h = run["rect"]
-            rect = [box["rect"][0] + x * sx, box["rect"][1] + y * sy, w * sx, h * sy]
-            items.append((index, run["node"], run.get("text", ""), rect))
+            rect = run_rect(snap, nodes, output, box, run)
+            if rect is not None:
+                items.append((index, run["node"], run.get("text", ""), rect))
     return out
 
 
@@ -375,11 +432,22 @@ def i9(before, after, _act):
     state = after.blocks.get("notify")
     if not state:
         return []
-    if "shown" not in state:
-        return ["notify missing key shown: its state.get does not answer it"]
+    if gaps := [
+        f"notify missing key {key}: its state.get does not answer it"
+        for key in ("shown", "accepted", "waiting", "closed")
+        if key not in state
+    ]:
+        return gaps
     was = {n.get("id") for n in (before.blocks.get("notify") or {}).get("shown") or []}
+    old = set((before.blocks.get("notify") or {}).get("accepted") or [])
+    kept = {n.get("id") for n in state["shown"]} | set(state["waiting"]) | set(state["closed"])
+    out = [
+        f"the notice {i} was accepted during the act and never shown: "
+        "it is not in shown, waiting or closed"
+        for i in state["accepted"]
+        if i not in old and i not in kept
+    ]
     helpers = {n["id"] for n in after.nodes if helper_surfaces(n)}
-    out = []
     for notice in state["shown"]:
         if notice.get("id") in was:
             continue
@@ -414,16 +482,21 @@ def i10(_before, after, _act):
     return out
 
 
-def bars_over_fullscreen(after, look, window):
+def bars_over_fullscreen(after, look, window, state):
     """The bars and panels over a fullscreen window: a layer surface above
-    the scene or a node of a look, above the window and over its box."""
+    the scene or a node of a look, above the window and over its box. A
+    window attached to it, such as a dialog, and the open entries of the
+    look for the window are no bars."""
     looks = set(after.states)
+    own = {o.get("id") for o in state.get("open") or [] if o.get("for") == window.get("surface")}
     out = []
     for output, nodes in sorted(node_boxes(after).items()):
         i, box = nodes.get(window.get("surface"), (None, None))
         if box is None:
             continue
         for b in boxes_on(after)[output][i + 1 :]:
+            if b.get("kind") == "surface" or b.get("node") in own:
+                continue
             bar = b.get("layer") in ("top", "shell_overlay") or b.get("owner") in looks
             if bar and overlap(box["rect"], b["rect"]):
                 name = b.get("node") or b.get("namespace")
@@ -453,7 +526,7 @@ def i12(_before, after, _act):
     for look, state in sorted(looks_with_state(after).items()):
         for w in state.get("windows") or []:
             if w.get("fullscreen"):
-                out += bars_over_fullscreen(after, look, w)
+                out += bars_over_fullscreen(after, look, w, state)
         out += modals_below(after, look, state)
     return out
 
@@ -478,24 +551,45 @@ def shares_edge(a, b):
     )
 
 
-def i13(_before, after, _act):
-    """Neighbouring cube faces that both show share an edge within 1 px."""
+def ring_breaches(output, owner, faces, count, held):
+    """The breaches of the faces of one cube on one output: a face meets
+    the next one; held in a turn, each neighbour of a face that shows also
+    has a box with corners."""
+    out = []
+    for k in sorted(k for k, face in faces.items() if face.get("corners")):
+        face = faces[k]
+        for n in sorted({(k + 1) % count, (k - 1) % count} - {k}) if held else []:
+            other = faces.get(n)
+            name = f"{owner}-cube-face-{n}"
+            if other is None:
+                out.append(f"on {output} the face {name} is missing beside {face['node']}")
+            elif not other.get("corners"):
+                out.append(
+                    f"on {output} the face {other['node']} has no corners beside {face['node']}"
+                )
+        other = faces.get((k + 1) % count)
+        if other and other.get("corners") and not shares_edge(face["corners"], other["corners"]):
+            out.append(
+                f"on {output} the faces {face['node']} and {other['node']} do not meet: "
+                f"{[[round(v, 1) for v in c] for c in face['corners']]} and "
+                f"{[[round(v, 1) for v in c] for c in other['corners']]}"
+            )
+    return out
+
+
+def i13(_before, after, act):
+    """Neighbouring cube faces that show share an edge within 1 px; in an
+    act that holds the cube in a turn, a face next to one that shows has
+    a box with corners too."""
     out = []
     for output, boxes in sorted(boxes_on(after).items()):
-        faces = {}
+        cubes = {}
         for b in boxes:
             found = FACE.search(b.get("node") or "")
-            if found and b.get("corners"):
-                faces[(b.get("owner"), int(found.group(1)))] = b
-        for (owner, k), face in sorted(faces.items()):
-            count = 1 + max(i for o, i in faces if o == owner)
-            other = faces.get((owner, (k + 1) % max(count, 4)))
-            if other and other is not face and not shares_edge(face["corners"], other["corners"]):
-                out.append(
-                    f"on {output} the faces {face['node']} and {other['node']} do not meet: "
-                    f"{[[round(v, 1) for v in c] for c in face['corners']]} and "
-                    f"{[[round(v, 1) for v in c] for c in other['corners']]}"
-                )
+            if found:
+                cubes.setdefault(b.get("owner"), {})[int(found.group(1))] = b
+        for owner, faces in sorted(cubes.items(), key=lambda c: str(c[0])):
+            out += ring_breaches(output, owner, faces, max(4, 1 + max(faces)), act.held)
     return out
 
 
