@@ -95,6 +95,23 @@ notices() {
     ctl call notify state.get 2>/dev/null |
         python3 -I -c 'import json, sys; print("\n".join(n["summary"] for n in json.load(sys.stdin).get("shown", [])))'
 }
+
+start_notify() {
+    "$bin/chora-notify" >"${1:-/dev/null}" 2>&1 &
+    pids+=($!)
+    for _ in $(seq 40); do
+        ctl call notify state.get >/dev/null 2>&1 && return 0
+        sleep 0.5
+    done
+    fail "chora-notify does not answer state.get"
+}
+shown_notices() { ctl call notify state.get 2>&1 | jq -r '.shown[]? | "\(.summary) \(.body)"'; }
+dismiss_notices() {
+    local id
+    for id in $(ctl call notify state.get 2>/dev/null | jq -r '.shown[]?.id'); do
+        ctl call notify notify.close "{\"id\": $id}" >/dev/null 2>&1
+    done
+}
 layout_audit() {
     local tag=$1 dir out
     shift

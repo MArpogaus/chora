@@ -14,9 +14,9 @@
 #   look        the wallpaper, the glow of the focus and the shadows
 # The cells: desktop (two tiles; the bar word is the door of the chat, no
 # row floats over them), chat (the chat
-# open), question (the card), chatq (the chat open over the card), chattoast
-# (a notification with the chat open), toast (a notification of mako), keys (the key
-# list), layout (the chip of a layout change), tooltip (that of Keys),
+# open), question (the card), chatq (the chat open over the card), toast
+# (a notice of chora-notify, started in the cell as its unit starts it),
+# keys (the key list), layout (the chip of a layout change), tooltip (that of Keys),
 # launcher (fuzzel), fullscreen
 # (a fullscreen window).
 #
@@ -36,7 +36,6 @@ need_bins chora choractl chora-tiling chora-assistant
 need foot
 need fuzzel
 need waybar
-need mako
 need gdbus
 need jq
 need mkfifo
@@ -72,7 +71,7 @@ until_shows() {
 }
 
 audit() {
-    local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall='' lead=${5:-1} ref=${6:-}
+    local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall='' lead=${5:-1}
     [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
     sleep "$lead"
     ctl query '*' >"$shots/audit-$cell-$tag.json"
@@ -83,7 +82,7 @@ audit() {
         echo "FAIL: $cell $tag: the bar does not show"
         failed=1
     fi
-    if out=$(python3 -I "$repo/tests/tiling-audit.py" "$shots/audit-$cell-$tag.png" "$shots/audit-$cell-$tag.json" "$theme" "$scale" "$cell" $bar $wall ${ref:+ref=$ref}); then
+    if out=$(python3 -I "$repo/tests/tiling-audit.py" "$shots/audit-$cell-$tag.png" "$shots/audit-$cell-$tag.json" "$theme" "$scale" "$cell" $bar $wall); then
         ok "$cell $tag${bar:+ (bar)}"
     else
         echo "FAIL: $cell $tag:"
@@ -137,8 +136,7 @@ round() {
     sleep 6
     audit desktop "$tag" "$theme" "$scale"
 
-    "$bin/chora-tiling" --launch mako >"$shots/mako-$tag.log" 2>&1 &
-    pids+=($!)
+    start_notify "$shots/notify-$tag.log"
     sleep 2
     emit voice.state '{"state": "question", "task": "Write file", "said": ""}'
     emit voice.confirm '{"id": "51", "name": "Atlas", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/notes/notes.txt", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true, "timeout_s": 42}'
@@ -151,17 +149,12 @@ round() {
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
     sleep 0.5
     audit chat "$tag" "$theme" "$scale"
-    notify
-    sleep 1.5
-    audit chattoast "$tag" "$theme" "$scale" 1 "$shots/audit-chat-$tag.png"
-    makoctl dismiss --all >/dev/null 2>&1
-    sleep 1
     ctl call assistant chat.hide >/dev/null 2>&1
     sleep 1
     notify
     sleep 1.5
     audit toast "$tag" "$theme" "$scale"
-    makoctl dismiss --all >/dev/null 2>&1
+    dismiss_notices
     echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
     sleep 1.5
     audit keys "$tag" "$theme" "$scale"

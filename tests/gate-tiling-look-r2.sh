@@ -1,9 +1,10 @@
 #!/bin/bash
 # Three honest states of the tiling flavor (ti-22, ti-23, ti-24), in Ink
-# and Paper, on a session bus where no notification daemon was started:
+# and Paper, on a session bus where no notification server was started:
 #   notice   Super+Print says "Screenshot saved" with the path, or
-#            "Screenshot failed" when grim fails: the notice is in the
-#            notification daemon, and it stands at the bottom right
+#            "Screenshot failed" when grim fails: chora-notify, started in
+#            the cell as its unit starts it, lists the notice (`state.get`
+#            of notify), and it stands at the bottom right
 #   tooltip  the tooltip of Apps leaves with the pointer, after a click
 #            on Apps and Escape, and never stays over a client
 #   door     the bar has the power icon and the lock key of the key list;
@@ -21,8 +22,6 @@ need_bins chora choractl chora-tiling chora-assistant chora-chat
 need foot
 need fuzzel
 need waybar
-need mako
-need makoctl
 need grim
 need gdbus
 need jq
@@ -178,7 +177,7 @@ PY
 listed_after() {
     local out
     for _ in $(seq 20); do
-        out=$(makoctl list 2>&1)
+        out=$(shown_notices)
         grep -q "$1" <<<"$out" && break
         sleep 0.5
     done
@@ -188,7 +187,8 @@ listed_after() {
 
 cell_notice() {
     local theme=$1 shot=$work/notice.png base=$work/notice-base.png listed changed file
-    ! makoctl list >/dev/null 2>&1 || fail "$theme notice: a notification daemon runs before the cell"
+    ! ctl call notify state.get >/dev/null 2>&1 || fail "$theme notice: a notification server runs before the cell"
+    start_notify "$shots/notify-$theme.log"
     rm -f "$work/stub/grim-fails"
     shoot "$base" || fail "$theme notice: the capture"
     keys Super+Print
@@ -206,7 +206,7 @@ cell_notice() {
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-screenshot-saved-$theme.png"
     [ "$changed" -gt 500 ] || fail "$theme notice: nothing stands at the bottom right ($changed pixels differ)"
     ok "$theme notice: Super+Print saves $(basename "$file") and the notice names it"
-    makoctl dismiss --all >/dev/null 2>&1
+    dismiss_notices
     sleep 1
     : >"$work/stub/grim-fails"
     shoot "$base" || fail "$theme notice: the capture"
@@ -219,7 +219,7 @@ cell_notice() {
     [ "$changed" -gt 500 ] || fail "$theme notice: no failure stands at the bottom right ($changed pixels differ)"
     rm -f "$work/stub/grim-fails"
     ok "$theme notice: a failed screenshot says so"
-    makoctl dismiss --all >/dev/null 2>&1
+    dismiss_notices
 }
 
 for theme in ${THEMES:-ink paper}; do
