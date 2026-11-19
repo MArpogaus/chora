@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 10:42 UTC)
+## Now (2026-11-19 10:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 10:40 PM 2.8 %; 41 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -33,9 +33,8 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 60 red pull (F21 flake). 61 = 60 + kit2c, docs-f8b, wm1d on daf83391 (PM resolved conflicts), running 10:33. 62: kit2d 188b642d MERGE-OK (PM r2), wm7a r3; wm3 FIX (I12 key) to r2. Pace 1.5-2 %/h.
-5. Next (sonnet unless complex, owner 06:56): WM3 r2 10:40; KIT3 starting 10:10 (F2). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
+5. Next (sonnet unless complex): all 6 lanes stopped 10:42-48 on the 5-h limit, resumed 10:53 (kit5, flakes-f past 250 k: hand back). WM7b hosted (owner 10:52), opus 4 %, after wm7a r3; KIT6 in kit2c; then KIT7. Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
-- Cube form (WM7b, 14:55 'after WM7a'): wm7a measured hosted works (reports/wm7a.md); default hosted, flat stays fallback; by 11-19 14:00 UTC.
 - F27 closed 07:47: fuzzel 1.11.1 in a fresh lane (flakes-f). Delete claude/release-rc4 in GitHub (session push 403). rc.4 tag: kept local (owner).

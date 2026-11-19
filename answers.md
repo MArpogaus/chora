@@ -436,3 +436,6 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-19 06:59 UTC "Can we speed up merges?" -> question: yes; PM decision: trains take every MERGE-OK branch at once (2-3 per train, bisect on red); --jobs 3 once flakes-f proves 10/10 (gate 60 to about 25 min).
 - 2026-11-19 07:01 UTC "OK, go ahead. Note new strategy in mgn notes. Let opus reviewers mgnt CTX so nothing is lost on compactation" -> order: train strategy in routines.md and state.md; opus critic compares the PM transcript with the session-log notes, PM fixes the gaps.
 - 2026-11-19 10:39 UTC "Cleanup artefact. Rewrite status page. Had another agent finish work now at 17% probably only of of which is yours" -> order: status page rewritten as one lean page, unused images and old tour videos removed from the artifact; reading: 17 % of the week at 10:39 including another agent (PM tokens.py 2.8 %); pace stays, 6 lanes.
+- 2026-11-19 10:49 UTC "Cube question?" -> order: ask the WM7b cube form now (asked 10:52).
+- 2026-11-19 10:50 UTC "?" -> order: same; reminder.
+- 2026-11-19 10:52 UTC dialog "Cube form": "Hosted (Recommended)" -> decision: WM7b hosted; construct alone holds the mouse turn on faces; xp turn code goes or moves to kit; flat fallback. Brief WM7b opus, ~4 %.
