@@ -22,6 +22,27 @@ use serde_json::{Value, json};
 use crate::conn::Conn;
 
 mod script;
+#[cfg(test)]
+mod temp;
+
+/// A temporary folder for one test (stub: named by name and pid only).
+pub struct TempDir(PathBuf);
+
+impl TempDir {
+    /// Makes the folder `name` in the temporary directory.
+    #[must_use]
+    pub fn new(name: &str) -> Self {
+        let path = std::env::temp_dir().join(format!("{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        Self(path)
+    }
+
+    /// The path of the folder.
+    #[must_use]
+    pub fn path(&self) -> &std::path::Path {
+        &self.0
+    }
+}
 
 pub use script::{
     Script, Subject, created, created_by, created_child, detach, output, owner, phases, surface,
