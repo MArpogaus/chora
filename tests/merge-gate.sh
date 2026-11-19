@@ -57,7 +57,7 @@
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
 #                            [--base REF] [--jobs N] [--red-first-check]
-#                            [--identity-check] [--list]
+#                            [--identity-check] [--list] [--commands]
 #   --only STEP,...  run only these steps; never pushes
 #   --worker STEP,...  the lane mode: build, test, clippy and the steps
 #                    named here (`--worker xp,hud`; `--worker ''` for none);
@@ -70,6 +70,7 @@
 #   --red-first-check  run only the red-first check, without the lock
 #   --identity-check run only the identity check, without the lock
 #   --list           print the step names, one per line
+#   --commands       print `name|command` of each step, one per line
 #   -h, --help       this text
 #   MERGE_GATE_IDENTITY  the expected identity, instead of expected_identity
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
@@ -98,6 +99,7 @@ base=origin/claude/autonomous-dev-session-3w-i33pg7
 red_check=""
 id_check=""
 list_steps=""
+list_commands=""
 jobs_max=1
 while [ $# -gt 0 ]; do
     case $1 in
@@ -131,6 +133,10 @@ while [ $# -gt 0 ]; do
         ;;
     --list)
         list_steps=1
+        shift
+        ;;
+    --commands)
+        list_commands=1
         shift
         ;;
     --jobs)
@@ -199,7 +205,7 @@ default_steps() {
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
-gate-lib|tests/gate-lib-selftest.sh && tests/under-load-selftest.sh
+gate-lib|tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -254,6 +260,11 @@ while IFS='|' read -r name command; do
     step_names+=("$name")
     step_commands+=("$command")
 done <<<"$steps"
+
+if [ -n "$list_commands" ]; then
+    printf '%s\n' "$steps"
+    exit 0
+fi
 
 if [ -n "$list_steps" ]; then
     printf '%s\n' "${step_names[@]}"
