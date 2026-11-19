@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | kit3-r2.md (F2) | sonnet high | session_016iS3kNpggngKGiK1zhQ6qQ (13:56; review r1 FIX: rk-1 MAJOR, 5 MINOR) |
 | integ-r1.md (F6) | sonnet high | session_016iS3kNXpgUxiE2BdHxpC8S (13:37) |
-| flakes-g-r3.md (F5) | opus high | starts 14:00 UTC (default: step 0 runs setup.sh; adds pull flake) |
+| flakes-g-r3.md (F5) | opus high | session_016iS3kLbyuHiuqm149tXExQ (13:58; step 0 setup.sh; adds pull flake) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 62 green 13:00 (head dd2a0aa3). 63 = flakes-f 847f0964 gating. 64 = wm3 e15155da + wm7b 99c04d54 (fa457b29) + kitcov ea468e3 + cubesplit 10cf04c (PM reviews ok); kit5b, kit7 on old head, wm5 vs wm3 conflict: integ r1 (sonnet 2 %) merges them, then train 65.
