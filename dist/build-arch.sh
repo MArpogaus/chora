@@ -25,6 +25,7 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/bin/chora-construct usr/share/chora/flavors/construct/chora-construct.target \
     usr/bin/chora-notify usr/bin/chora-assistant \
     usr/share/chora/notify/assets/values.yaml usr/share/chora/huds/neutral/hud.yaml \
+    usr/share/chora/mc/notify/values.yaml usr/share/chora/mc/notify/notify.yaml \
     usr/share/chora/huds/tiling/hud.yaml \
     usr/share/chora/flavors/xp/chora-xp-notify.service \
     usr/share/chora/flavors/xp/chora-xp-assistant.service \
