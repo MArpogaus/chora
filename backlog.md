@@ -268,3 +268,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - MINOR rd-9b (minor-sweep review 11-19 20:48, F5): move the Move filter into tell_ungrabbed so connection close (ipc.rs ipc_close) and grab revoke (input.rs ~364) do not tell a move grab either; red test for the close path.
 - F2 kit-report step 4 (11-19 20:57): testing::connect helper in the kit replaces 14 allows in 12 files; a lane round of its own. Lane kit-connect r1 (20:59).
 - HARNESS ig-1 MINOR (id-gate r1 review 11-19): tests/merge-gate-selftest.sh runs in no gate step or CI job; call it from gate-lib. NIT ig-2: print MERGE_GATE_IDENTITY when it overrides.
+- HARNESS gate-pick MINOR (train 73 red 11-19 21:17): a lane brief's `--only` list missed the xp cell that greps the notify line the lane changed. Earliest gate: xp. Build: tools/cells_for.sh <base> prints the gate cells whose scripts or plugins the diff touches; start_lane and the PM review use it.
