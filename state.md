@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 07:39 UTC)
+## Now (2026-11-19 07:40 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -26,10 +26,10 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
 | wm1d-r1.md (F2, F3) | sonnet high | session_016iS3kMFcpxEosCsyqBwCBk (07:37) |
-| kit5-r1.md (F2) | sonnet high | starting |
-| wm7a-r1.md (F3) | opus high | starting |
-| mv4-r1.md (F4) | sonnet high | starting |
-| docs-f8b-r1.md (F8) | sonnet medium | starting |
+| kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
+| wm7a-r1.md (F3) | opus high | session_016iS3kPRrXrPs57WvWHZBEU (07:40) |
+| mv4-r1.md (F4) | sonnet high | session_016iS3kMxQ13N2u6G3eiYh8H (07:40) |
+| docs-f8b-r1.md (F8) | sonnet medium | session_016iS3kPbv1SdeF6SPA1G8h5 (07:40) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6; procedures.md): 57 green; 58 1d1aa5fd (kit2b 517ce830, wm1c 5e72e4f9; MERGE-OK 07:18) running; 59 after 58: cut2 29b2fd25, wm2 12305e5a, net3 dc00d33c, kit6 ad88ebaf (MERGE-OK 07:18-07:35). Pace 1.5-2 %/h.
