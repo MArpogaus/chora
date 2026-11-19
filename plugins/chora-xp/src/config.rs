@@ -137,6 +137,13 @@ pub const fn acts_in_xp(system: &System) -> bool {
     )
 }
 
+/// Whether the key of a binding is a pointer button, such as `BTN_LEFT`.
+fn is_button(binding: &str) -> bool {
+    binding
+        .parse::<chora_scene::Binding>()
+        .is_ok_and(|b| b.key.to_ascii_uppercase().starts_with("BTN_"))
+}
+
 /// The settings of the plugin.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -183,12 +190,18 @@ impl Settings for Config {
         let mut warnings = Vec::new();
         self.common.bindings.retain(|key, action| {
             let unfit = matches!(action, KeyAction::System(s) if !acts_in_xp(s));
+            let odd = is_button(key) != matches!(action, KeyAction::Look(Look::Cube));
             if unfit {
                 warnings.push(format!(
                     "chora-xp: the binding {key} is dropped: xp has no action for {action:?}"
                 ));
+            } else if odd {
+                warnings.push(format!(
+                    "chora-xp: the binding {key} is dropped: only a pointer button turns \
+                     the cube, and a pointer button does nothing else ({action:?})"
+                ));
             }
-            !unfit
+            !unfit && !odd
         });
         warnings
     }

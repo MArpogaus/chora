@@ -123,16 +123,24 @@ impl Wm {
                 .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key_released(&binding),
             Event::InputButton {
-                state, position, .. // injected: hears drops an injected event unless xp accepts them
-            } => match state {
-                PressState::Pressed => self.grab_cube(position),
-                PressState::Released => {
-                    self.release_cube();
-                    Vec::new()
-                }
-            },
+                binding, state, position, .. // injected: hears drops an injected event unless xp accepts them
+            } => self.button(&binding, state, position),
             Event::InputMoved { position, .. } => self.drag_cube(position), // injected: hears drops an injected event unless xp accepts them
             _ => Vec::new(),
+        }
+    }
+
+    /// A grabbed pointer button: the pointer turns the cube for `cube`,
+    /// and any other action runs at the press.
+    fn button(&mut self, binding: &str, state: PressState, position: [f64; 2]) -> Vec<Command> {
+        match (self.rt.action(binding), state) {
+            (Some(KeyAction::Look(Look::Cube)), PressState::Pressed) => self.grab_cube(position),
+            (Some(KeyAction::Look(Look::Cube)), PressState::Released) => {
+                self.release_cube();
+                Vec::new()
+            }
+            (Some(_), PressState::Pressed) => self.key(binding),
+            (_, PressState::Released) | (None, _) => Vec::new(),
         }
     }
 

@@ -163,7 +163,7 @@ pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool)
             continue;
         };
         let (group, text) = LINES[line];
-        let shown = [Some(binding.as_str()), fallback(binding)]
+        let shown = [Some(binding.as_str()), fallback(binding, action)]
             .into_iter()
             .flatten()
             .find(|b| held(b));

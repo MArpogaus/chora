@@ -28,7 +28,7 @@ use std::{
 };
 
 use chora_kit::{
-    actions::System,
+    actions::{System, Turn},
     give,
     icons::Icons,
     notify::{Message, Notifier},
@@ -165,8 +165,9 @@ fn move_method() -> ExportMethod {
 }
 
 /// The key that stands in when another client holds a binding of the
-/// cube: Super+Ctrl and the same arrow. Only the default bindings have a
-/// stand-in; a binding that the settings move has none.
+/// cube: Super+Ctrl and the same arrow. Only a default binding with its
+/// default action has a stand-in; a binding that the settings move, or
+/// give another action, has none.
 pub const FALLBACKS: [(&str, &str); 4] = [
     ("Ctrl+Alt+Left", "Super+Ctrl+Left"),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right"),
@@ -174,8 +175,22 @@ pub const FALLBACKS: [(&str, &str); 4] = [
     ("Ctrl+Alt+Shift+Right", "Super+Ctrl+Shift+Right"),
 ];
 
-/// The stand-in of a binding, when it has one.
-pub fn fallback(binding: &str) -> Option<&'static str> {
+/// The default action of a key that has a stand-in.
+fn default_of(binding: &str) -> Option<KeyAction> {
+    Some(match binding {
+        "Ctrl+Alt+Left" => KeyAction::System(System::Cube(Turn::Left)),
+        "Ctrl+Alt+Right" => KeyAction::System(System::Cube(Turn::Right)),
+        "Ctrl+Alt+Shift+Left" => KeyAction::Look(Look::Carry(Turn::Left)),
+        "Ctrl+Alt+Shift+Right" => KeyAction::Look(Look::Carry(Turn::Right)),
+        _ => return None,
+    })
+}
+
+/// The stand-in of a binding for its action, when it has one.
+pub fn fallback(binding: &str, action: &KeyAction) -> Option<&'static str> {
+    if default_of(binding).as_ref() != Some(action) {
+        return None;
+    }
     FALLBACKS
         .iter()
         .find(|(first, _)| *first == binding)
@@ -812,7 +827,7 @@ fn grab_keys(
     cube: bool,
 ) -> Result<(), ClientError> {
     for (text, action) in bindings.iter().filter(|(_, a)| cube || !of_the_cube(a)) {
-        for text in std::iter::once(text.as_str()).chain(fallback(text)) {
+        for text in std::iter::once(text.as_str()).chain(fallback(text, action)) {
             let binding: Binding = text.parse().expect("the settings check their bindings");
             if rt.grab(binding, action.clone())? {
                 break;
@@ -925,7 +940,7 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use chora_kit::{actions::Turn, conn::Conn, volume::Change};
+    use chora_kit::{conn::Conn, volume::Change};
     use serde_json::{Value, json};
 
     use super::*;

@@ -463,12 +463,12 @@ The actions that every look shares are one enum, `chora_kit::actions::System`
 binding. A look adds its own actions as a second enum and binds both with
 `chora_kit::actions::Action<Look>`; its settings take the shared keys
 `bindings` and `test_accept_injected_keys` from `chora_kit::settings::Common`
-through `#[serde(flatten)]`. A look refuses a `System` value that it has no
-act for, naming the binding. `desk` and `cube` are values only; no look acts
-on them in mc and construct; xp acts on `cube` as a quarter turn of its cube. mc, construct
-and xp are on it (xp has the setting `bindings` since KIT2d, with the keys that it
-had hard-coded as its defaults); tiling follows. A look drops or refuses a
-binding to a `System` value that it has no act for, naming the key.
+through `#[serde(flatten)]`. A look drops a binding to a `System` value that
+it has no act for, with one warning that names the key. `desk` and `cube`
+are values only in mc and construct. xp acts on `cube` as a quarter turn of
+its cube. mc, construct and xp read `bindings`; tiling follows. xp has had
+the setting since KIT2d, with the keys that it had hard-coded as its
+defaults.
 
 The key action `give` is the same on every window manager. A binding
 `give: NAME` gives the focused window to the window manager `NAME`.
