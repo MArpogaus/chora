@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 14:45 UTC)
+## Now (2026-11-19 14:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 14:41 PM 5.1 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,13 +25,13 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | review-kit3-r2.md (F2) | sonnet high | session_016iS3kQVMPwqHVFjtwMitFY (14:45; claude/review-kit3 04ea5851; kit3 worker archived) |
-| integ-r1.md (F6) | sonnet high | session_016iS3kNXpgUxiE2BdHxpC8S (13:37) |
+| review-integ-r1.md (F6) | opus high | starting 14:46 (integ r1 done af5547c7: wm5, kit5b, kit7 on wm3+wm7b) |
 | focus-port-r1.md (F2, F3, F7) | opus high | session_016iS3kQVDi6exe5ECXeDNUD (14:20; audit rank 3; from integ 3619ccb3) |
 | moved-tests-xp-r2.md (F5) | haiku high | session_016iS3kNLneVa6Lit4p35nsS (14:29; r1 blocked: setup.sh refused; tools present) |
 | flakes-g-r3.md (F5) | opus high | session_016iS3kLbyuHiuqm149tXExQ (13:58; step 0 setup.sh; adds pull flake) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 63 green 14:11 (05878d2a). 64/64b red: wm3 xp tests (cubesplit carries wm3). 64c/d (wm7b+kitcov): matrix 255/250 s > 240 cap, base 192-231 s: slowdown, bisect 14:41. cubesplit, wm3, kit5b, kit7, wm5: integ r1 fixes wm3 tests, then train 65.
+4. Trains (F6): 63 green 14:11 (05878d2a). 64-64d red (wm3 xp cells; matrix 255/250 s > 240 cap). Bisect: wm7b merge 235 s. integ af5547c7 (wm3, wm7b, wm5, kit5b, kit7) in review, then train 65 with cubesplit, kit3.
 5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; after 64b moved-tests rest (haiku 1.25 %); then DEBT-R (F4 0.8 %), COPIES-0 after focus-port (F2 2.5 %), FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %); kit3 r2.
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
