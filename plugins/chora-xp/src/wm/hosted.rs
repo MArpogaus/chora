@@ -259,6 +259,54 @@ impl Wm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::window::Window;
+
+    /// A virtual output of a face, far from the screen as the construct
+    /// places them.
+    fn face_output(name: &str, i: i32) -> OutputInfo {
+        OutputInfo {
+            name: name.into(),
+            position: [-262_144 * (i + 1), -262_144],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [-262_144 * (i + 1), -262_144, 1280, 800],
+            default_work_area: [-262_144 * (i + 1), -262_144, 1280, 800],
+            is_virtual: Some(true),
+            owner: Some("construct".into()),
+        }
+    }
+
+    /// The host goes: the window of face `i` lands on desktop `i` of the
+    /// screen, and the desktop of the focused window shows.
+    #[test]
+    fn the_window_of_face_i_goes_to_desktop_i_when_the_host_goes() {
+        let (mut wm, _methods) = super::super::tests::wm_on_fake_core("host-gone");
+        let faces: Vec<String> = (1..=4).map(|i| format!("V-{i}")).collect();
+        for (i, face) in (0..).zip(&faces) {
+            let _ = wm.output_changed(&face_output(face, i));
+        }
+        let _ = wm.leave_output("X", None);
+        for (i, face) in faces.iter().enumerate() {
+            let usable = wm.bars.iter().find(|b| &b.output == face).unwrap().usable();
+            let mut w = Window::new(&format!("s{i}"), None, None);
+            w.size = Some([200, 100]);
+            w.shown = true;
+            w.pos = [usable[0] + 40, usable[1] + 40];
+            wm.windows.push(w);
+        }
+        wm.focused = Some("s0".into());
+        wm.host = Some(Host {
+            client: "construct".into(),
+            faces,
+        });
+        let _ = wm.host_gone("construct");
+        let desks: Vec<usize> = wm.windows.iter().map(|w| w.desktop).collect();
+        assert_eq!(desks, [0, 1, 2, 3]);
+        assert_eq!(wm.desktop, 0, "the desktop of the focused window shows");
+        let on_screen = |w: &Window| wm.bars[0].contains(w.pos);
+        assert!(wm.windows.iter().all(on_screen));
+    }
 
     fn listing(faces: &[&str]) -> cube::Listing {
         cube::Listing {
