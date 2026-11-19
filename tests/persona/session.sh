@@ -97,9 +97,9 @@ fi
 exit 0
 EOF
 chmod +x "$fakes/notify-send" "$fakes/loginctl"
-for hud in "$repo"/plugins/chora-assistant/huds/*/; do
-    ln -sfn "${hud%/}" "$dir/data/chora/huds/$(basename "$hud")"
-done
+while read -r name hud; do
+    ln -sfn "$hud" "$dir/data/chora/huds/$name"
+done < <("$repo/tests/hud-folders.sh")
 echo '[]' >"$dir/voice/entries.json"
 
 # The plugins start apps with `choractl run` from PATH (D42).

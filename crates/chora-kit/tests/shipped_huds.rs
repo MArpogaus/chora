@@ -37,7 +37,7 @@ fn the_xp_folder_loads_with_the_balloon_chat() {
 fn the_colours_of_every_shipped_folder_read_well() {
     for below in [
         "plugins/chora-assistant/huds/neutral",
-        "plugins/chora-assistant/huds/tiling",
+        "plugins/chora-tiling/hud",
         "flavors/xp/assets/assistant",
         "plugins/chora-mc/hud",
         "plugins/chora-construct/hud",

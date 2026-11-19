@@ -9,7 +9,7 @@
 
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs,
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
@@ -30,7 +30,7 @@ use zune_jpeg::{
 
 use chora_scene::Command;
 
-use crate::text::{Font, Fonts, Text};
+use crate::text::{Font, Fonts, Run, Text};
 
 /// A rectangle: x, y, width and height in logical pixels.
 pub type Rect = [i32; 4];
@@ -286,6 +286,22 @@ pub struct Theme {
     pictures: HashMap<String, Picture>,
     /// The parsed SVG files by path, so that a file parses once.
     trees: RefCell<HashMap<PathBuf, Rc<usvg::Tree>>>,
+    /// The runs of text of the pictures, by path, beside `pictures`.
+    runs: HashMap<String, Vec<Run>>,
+    /// The picture that each image node of the plugin shows, by node, as
+    /// the commands through [`Self::size_images`] set it.
+    shown: BTreeMap<String, String>,
+}
+
+/// A run of text in an image node, for the `texts` of `state.get`.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct NodeRun {
+    /// The image node.
+    pub node: String,
+    /// The run, its rect in the logical pixels of the picture, which are
+    /// the logical pixels of the node at its own size.
+    #[serde(flatten)]
+    pub run: Run,
 }
 
 /// How many rendered files the cache keeps.
@@ -389,6 +405,8 @@ impl Theme {
             scale: 1.0,
             pictures: HashMap::new(),
             trees: RefCell::default(),
+            runs: HashMap::new(),
+            shown: BTreeMap::new(),
         };
         let blank = Pixmap::new(1, 1).ok_or("no pixmap of one pixel")?;
         theme.blank = theme
@@ -535,8 +553,13 @@ impl Theme {
         if path != self.blank && !self.pictures.contains_key(&path) {
             if self.pictures.len() >= PICTURES {
                 self.pictures.clear();
+                self.runs.clear();
             }
             self.pictures.insert(path.clone(), picture.clone());
+            let runs = self.runs_of(picture);
+            if !runs.is_empty() {
+                self.runs.insert(path.clone(), runs);
+            }
         }
         path
     }
@@ -598,13 +621,53 @@ impl Theme {
         Some((self.render(&picture), picture.size.map(f64::from)))
     }
 
+    /// The runs of text that a picture paints, as [`Fonts::run`] gives
+    /// them.
+    fn runs_of(&self, picture: &Picture) -> Vec<Run> {
+        (picture.layers.iter())
+            .filter_map(|layer| match layer {
+                Layer::Text(text) => self.fonts.run(text),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The runs of text in the image nodes that the commands of the
+    /// plugin last set to a rendered picture, by node. A node removed by
+    /// a command of its own id leaves; a node removed with its parent
+    /// stays listed, and a check matches the runs to the nodes that show.
+    #[must_use]
+    pub fn texts(&self) -> Vec<NodeRun> {
+        (self.shown.iter())
+            .flat_map(|(node, path)| {
+                let runs = self.runs.get(path).map_or(&[][..], Vec::as_slice);
+                runs.iter().map(|run| NodeRun {
+                    node: node.clone(),
+                    run: run.clone(),
+                })
+            })
+            .collect()
+    }
+
     /// Gives the image nodes of rendered pictures their logical size,
-    /// unless a command sets a size or a slice itself.
-    pub fn size_images(&self, commands: &mut [Command]) {
+    /// unless a command sets a size or a slice itself, and notes which
+    /// picture each node shows, for [`Self::texts`].
+    pub fn size_images(&mut self, commands: &mut [Command]) {
         for command in commands {
-            let (Command::Create { props, .. } | Command::Update { props, .. }) = command else {
+            if let Command::Remove { id, .. } = command {
+                self.shown.remove(id.as_str());
+            }
+            let (Command::Create { id, props, .. } | Command::Update { id, props }) = command
+            else {
                 continue;
             };
+            if let Some(image) = &props.image {
+                if self.pictures.contains_key(image) {
+                    self.shown.insert(id.clone(), image.clone());
+                } else {
+                    self.shown.remove(id.as_str());
+                }
+            }
             if props.size.is_some() || props.slice.is_some() {
                 continue;
             }
@@ -1228,6 +1291,45 @@ mod tests {
             _ => None,
         });
         assert_eq!(sizes, [Some([100.0, 30.0]), None]);
+        let _ = fs::remove_dir_all(cache);
+    }
+
+    /// The runs of a picture belong to the node that shows it, and leave
+    /// with the node or with another picture.
+    #[test]
+    fn texts_are_the_runs_of_the_pictures_that_nodes_show() {
+        let (mut theme, cache) = theme("texts");
+        let label = crate::text::Text::new("Recycle Bin", Font::Body, [255; 4], [4, 2, 120, 20]);
+        let picture = Picture::new(128, 24).text(label);
+        let path = theme.render(&picture);
+        let plain = theme.render(&Picture::new(10, 10).element(SHEET, "box", [0, 0, 10, 10]));
+        let show = |id: &str, image: &str| Command::Update {
+            id: id.into(),
+            props: chora_scene::PropsUpdate {
+                image: Some(image.into()),
+                ..chora_scene::PropsUpdate::default()
+            },
+        };
+        theme.size_images(&mut [show("icon-label", &path), show("other", &plain)]);
+        let texts = theme.texts();
+        assert_eq!(texts.len(), 1, "{texts:?}");
+        assert_eq!(texts[0].node, "icon-label");
+        assert_eq!(texts[0].run.text, "Recycle Bin");
+        assert_eq!(texts[0].run.px, crate::text::BODY_SIZE);
+        let json = serde_json::to_value(&texts[0]).expect("json");
+        assert_eq!(json["node"], "icon-label");
+        assert!(
+            json["rect"].is_array() && json["text"] == "Recycle Bin",
+            "{json}"
+        );
+        theme.size_images(&mut [show("icon-label", &plain)]);
+        assert!(theme.texts().is_empty(), "another picture has no text");
+        theme.size_images(&mut [show("icon-label", &path)]);
+        theme.size_images(&mut [Command::Remove {
+            id: "icon-label".into(),
+            to: None,
+        }]);
+        assert!(theme.texts().is_empty(), "a removed node has no text");
         let _ = fs::remove_dir_all(cache);
     }
 

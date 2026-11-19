@@ -3,6 +3,8 @@
 The cube acts (arch plan 1.2, WM7a) run the hosted form: the construct
 hosts the cube, one xp manages its four faces, and the acts read the cube
 through the role `cube.list` (D71), never through construct's own state.
+The cube opens once; after the pull act it stands back and I13 reads the
+corners of its faces held halfway through a turn and at rest (co-21).
 """
 
 import os
@@ -15,10 +17,35 @@ from harness import LOOKS, Expect, key, load_png_rows, program, wait
 MANAGER = "xp"
 HINT_GONE = 4.0
 
+FACES = 4
+TURN_MS = 4000
+HELD = 2.0
+
+
+def method(name, params=None):
+    """A cue: call a method of the construct."""
+    return lambda s: s.core.call(
+        "methods.call", {"client": "construct", "method": name, "params": params or {}}
+    )
+
+
+def faces_up(s):
+    """A cue: wait until the four virtual outputs of the faces are up and
+    xp, their window manager, shows a desktop on each."""
+    s.until(
+        lambda: (
+            len([o for o in s.outputs() if o.get("virtual")]) == FACES
+            and len((s.state("xp") or {}).get("desks") or []) == FACES
+        ),
+        80,
+        "four faces with xp",
+    )
+
 
 def run(s):
     """A window opens as a pane and closes. The keys stay with the walk
-    until a flight into the pane, so the act does not ask for the focus."""
+    until a flight into the pane, so the act does not ask for the focus.
+    Then the cube opens and stands back."""
     window_acts(s, focused=None)
     door_acts(s, "construct-help", "Escape")
     cube_acts(s)
@@ -30,6 +57,7 @@ def open_cube(s):
     s.looks.append(MANAGER)
     s.until(lambda: s.state(MANAGER) is not None, 30, "the xp of the cube")
     s.until(lambda: all(f["health"] == "up" for f in s.cube().get("faces", [])), 30, "faces up")
+    faces_up(s)
 
 
 def pager(desk):
@@ -189,13 +217,14 @@ def all_with_a_look(s):
 
 def cube_acts(s):
     """The cube turns by key, pager and drag, comes back to 1:1 with no
-    construct surface left, and a construct killed mid-turn loses no
-    window."""
+    construct surface left, stands back and is read held in a turn and at
+    rest, and a construct killed mid-turn loses no window."""
     s.wallpaper = {o["name"] for o in s.outputs()}
     s.act(
         "the cube opens with one xp on four faces",
         [open_cube],
         expect=Expect(cube={"faces": 4, "front": 0, "turning": False, "mode": "use"}),
+        timeout=60,
     )
     s.act(
         "a window opens on the front face",
@@ -240,6 +269,14 @@ def cube_acts(s):
         [pull_and_remove],
         expect=Expect(gone=0, cube={"mode": "use"}),
     )
+    s.act("the cube stands back", [method("view.step_back")], timeout=30)
+    s.act(
+        "the cube is held halfway through a turn",
+        [method("cube.turn", {"by": 1, "ms": TURN_MS})],
+        timeout=30,
+        held=HELD,
+    )
+    s.act("the cube comes to rest", [], timeout=30)
     s.act(
         "construct killed mid-turn loses no window",
         [kill_construct_mid_turn],
