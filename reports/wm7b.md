@@ -123,3 +123,34 @@ Findings:
   the Flat key-sheet text.
 - rw-6 MINOR crates/chora/src/input.rs (e450d672): core fix and its test in one commit, no red commit first
   (rules.md 8); 1ae3f243 also edits acts in a fix commit. Fix: none in code (no history rewrite); record it.
+
+## r3
+Lane: cloud sonnet high, claude/wm7b 31f04c07 -> 3e193a9. Setup ok (cargo check -p chora, foot fuzzel waybar). The
+session branch was already merged in (merge: Already up to date, twice).
+
+Red first: `python3 tools/cut-check` on 31f04c07 FAIL (3):
+construct names chora-mc 19/17 (config.rs:307), construct names chora-xp 9/5 (config.rs:300),
+XDG_RUNTIME_DIR (KIT1) 1 left, row allows 0. REPORT: Command::Focus outside kit::wm grew to 19, max 18.
+
+Items:
+- rw-1 MAJOR closed, 7e91ceb: cube/start.rs log_file() uses chora_scene::paths::runtime_home(); neutral program
+  names chora-foo / chora-bar in cube/role.rs and names.rs tests and doc comments, and a doc comment in cube/hand.rs:3
+  that the review list missed (it named chora-xp too; xp 9 -> 5 needs it); Command::Focus in modes.rs:749 through the
+  new kit helper chora_kit::wm::focus::release() (Focus back to 18, no table row raised).
+- rw-5 MINOR closed, 3e193a9: docs/api.md "no desk switch" on virtual outputs without a host; help.rs flat() and
+  the flat_desks parameter of rows() gone with their test (the test only proved the dead text), panels.rs call
+  updated; stale comments in wm/hosted.rs and wm/windows.rs say "none". No visible change.
+
+Gate lines (tests/merge-gate.sh --only build,ci-check,acts,cube,construct-hud,xp,xp-faces,keys), all PASS:
+build 139s, ci-check 68s, xp 86s, xp-faces 15s, acts 98s, cube 106s, construct-hud 239s, keys 18s.
+cut-check: ok (8 crates, 20 reported). cargo test -p chora-construct -p chora-xp -p chora-kit
+--features chora-kit/testing: 698 pass, 0 fail (699 minus the removed flat-desks test).
+clippy --workspace --all-targets -D warnings: clean.
+
+Open:
+- REPORT only, not failing: Event::FocusChanged outside kit grew to 9, max 8 (rw-3 territory, not in this round).
+- CubeKeys::Flat in chora-xp now grabs the same keys as Hosted (none); the enum could shrink to two states.
+  Left alone (not in rw-5).
+- Backlog unchanged: rw-2, rw-3, rw-4, rw-6.
+- Local note: `git reset --hard` was denied in this lane, so I worked on a new local branch from
+  origin/claude/wm7b and pushed HEAD:claude/wm7b; no force, nothing lost.
