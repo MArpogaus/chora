@@ -11,11 +11,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn wait_for(file: &Path, words: &str) -> String {
+/// Reads `file` until it holds all of `words`, or 20 s have passed. The
+/// panic of the test thread starts with the core and can reach the log
+/// before the line of the core that says it runs, so a test that reads
+/// both waits for both.
+fn wait_for(file: &Path, words: &[&str]) -> String {
     let start = Instant::now();
     loop {
         let text = fs::read_to_string(file).unwrap_or_default();
-        if text.contains(words) || start.elapsed() > Duration::from_secs(20) {
+        if words.iter().all(|w| text.contains(w)) || start.elapsed() > Duration::from_secs(20) {
             return text;
         }
         std::thread::sleep(Duration::from_millis(100));
@@ -44,10 +48,10 @@ fn a_second_chora_leaves_the_log_of_the_first() {
     fs::create_dir_all(&work).unwrap();
     let log = work.join("state/chora/logs/chora.log");
     let mut first = headless(&work, "first", &work.join("first.log"));
-    let first_log = wait_for(&log, "chora runs");
+    let first_log = wait_for(&log, &["chora runs"]);
     let second_stderr = work.join("second.log");
     let mut second = headless(&work, "second", &second_stderr);
-    let words = wait_for(&second_stderr, "chora runs");
+    let words = wait_for(&second_stderr, &["chora runs"]);
     let open = fs::read_dir(format!("/proc/{}/fd", first.id()))
         .unwrap()
         .filter_map(|fd| fs::read_link(fd.ok()?.path()).ok())
@@ -86,7 +90,10 @@ fn the_log_file_has_the_start_and_the_last_words_of_a_panic() {
         .spawn()
         .unwrap();
     let log = work.join("state/chora/logs/chora.log");
-    let text = wait_for(&log, "the core goes on without this thread");
+    let text = wait_for(
+        &log,
+        &["chora runs", "the core goes on without this thread"],
+    );
     let _ = chora.kill();
     let _ = chora.wait();
     assert!(text.contains("INFO chora: chora runs"), "{text}");
