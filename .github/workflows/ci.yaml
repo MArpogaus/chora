@@ -68,7 +68,7 @@ jobs:
       run: tests/packaging-files.py
     - name: a file over 1,500 production lines does not grow
       run: tools/size-ratchet && tests/size-ratchet-selftest.sh
-    - name: a plugin depends on no other plugin
+    - name: the cut holds, a plugin could be packaged alone
       run: tools/cut-check && tests/cut-check-selftest.sh
 
   # The line coverage of the unit tests, without a threshold. The job

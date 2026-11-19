@@ -1,6 +1,8 @@
 use chora_kit::actions::System;
+use chora_kit::actions::perform::{Failure, Host};
+use std::convert::Infallible;
 
-use super::{Action, Mc, NAME, PressState, launch};
+use super::{Action, Mc, NAME, PressState};
 use crate::config::Look;
 
 impl Mc {
@@ -47,57 +49,11 @@ impl Mc {
         }
     }
 
-    /// Runs a shared script as an app, or says that it is not installed.
-    pub(crate) fn run_shared(&mut self, script: &str, args: &[&str]) {
-        let Some(command) = chora_kit::shared::command(script, args) else {
-            self.notice(script, "The shared script is not installed.");
-            return;
-        };
-        let mint = self.rt.conn.activation_token();
-        let _ = launch(&command, mint.as_deref());
-    }
-
-    /// Runs an action of every look that mc has: the locker, the power
-    /// menu, the screenshot, the volume, a command, a give, the chat and
-    /// the key list. The rest has no meaning in mc.
-    pub(crate) fn system(&mut self, system: &System) {
-        if let Some((script, args)) = system.script() {
-            self.run_shared(script, args);
-            return;
-        }
-        match system {
-            System::Volume(change) => self.volume.change(*change, true),
-            System::Run(command) => {
-                let mint = self.rt.conn.activation_token();
-                let _ = launch(&chora_kit::shared::launcher(command), mint.as_deref());
-            }
-            System::Give(to) => {
-                if let Err(err) = chora_kit::give::focused(self, to) {
-                    eprintln!("chora-mc: give to {to}: {}", err.message);
-                }
-            }
-            System::Chat => self.chat_with(None),
-            System::Keys => {
-                self.keys = self.keys.flip();
-                if let Err(err) = self.render() {
-                    eprintln!("chora-mc: keys: {err}");
-                }
-            }
-            System::Drag
-            | System::Terminal
-            | System::Launcher
-            | System::Close
-            | System::Desk(_)
-            | System::Cube(_)
-            | System::Lock
-            | System::Power
-            | System::Screenshot => {}
-        }
-    }
-
     pub fn perform(&mut self, action: Action) {
         match action {
-            Action::System(system) => self.system(&system),
+            Action::System(system) => {
+                let Ok(()) = chora_kit::actions::perform::perform(self, &system);
+            }
             Action::Look(look) => self.turn(look),
         }
     }
@@ -130,5 +86,40 @@ impl Mc {
         if let Err(err) = self.show(&next, true) {
             eprintln!("chora-mc: {next}: {}", err.message);
         }
+    }
+}
+
+/// What mc does for the actions of every look that it has: the volume, the
+/// chat and the key list. The rest has no meaning in mc.
+impl Host for Mc {
+    type Error = Infallible;
+
+    fn volume(&mut self, change: chora_kit::volume::Change) -> Result<(), Infallible> {
+        self.volume.change(change, true);
+        Ok(())
+    }
+
+    fn keys(&mut self) -> Result<(), Infallible> {
+        self.keys = self.keys.flip();
+        if let Err(err) = self.render() {
+            eprintln!("chora-mc: keys: {err}");
+        }
+        Ok(())
+    }
+
+    fn chat(&mut self) -> Result<(), Infallible> {
+        self.chat_with(None);
+        Ok(())
+    }
+
+    fn failed(&mut self, failure: Failure) -> Result<(), Infallible> {
+        match failure {
+            Failure::NoScript(script) => {
+                self.notice(&script, "The shared script is not installed.");
+            }
+            Failure::NotStarted(_) => {}
+            Failure::NotGiven { to, why } => eprintln!("chora-mc: give to {to}: {why}"),
+        }
+        Ok(())
     }
 }

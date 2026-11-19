@@ -46,6 +46,7 @@ mod hints;
 mod hud;
 mod input;
 mod keys;
+mod lifecycle;
 mod list;
 mod methods;
 mod modes;
@@ -73,13 +74,14 @@ use std::{
 };
 
 use chora_kit::{
+    actions::System,
     effects,
     give::{self, Give},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, OutputTexture, PropsUpdate,
+    Command, Event, InputMode, Node, NodeKind, NodeTexture, OutputInfo, OutputTexture, PropsUpdate,
     ToplevelState, Transform, Uniform,
     ipc::{ClientError, ExportMethod, Filter, PressState, Query, RpcError},
     overlay_id,
@@ -90,7 +92,7 @@ use serde_json::{Value, json};
 
 use crate::{
     camera::{moved, takes_the_camera, window_flown_into},
-    config::{Action, Config},
+    config::{Action, Config, Own},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_ROWS, Look, Metrics, Voice},
     methods::{
@@ -429,13 +431,13 @@ impl Waiting {
 /// The grabbed bindings: the drag with the modifier, which the flavor
 /// grabs so that it shares it with the window managers of other outputs
 /// (D55), and the fly-out.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Grab {
     Drag,
     FlyOut,
     /// A key that starts a terminal or is a key of every look, grabbed
     /// while the camera is in a pane.
-    Key(Action),
+    Key(System),
     Give(&'static str),
     /// With a cube: the step back from its face, and a turn of it.
     StepBack,
@@ -564,7 +566,7 @@ struct Construct {
     /// The windows of the panes that have no buffer yet, which show the
     /// placeholder.
     unfilled: Vec<String>,
-    /// The id that `chora-notify` gave the last notice of the construct,
+    /// The id that the notification server gave the last notice of the construct,
     /// which the next one replaces.
     notice_id: Option<u32>,
     claim: Claim,
@@ -601,6 +603,9 @@ struct Construct {
     core_focus: Option<String>,
     /// The word of `state.get`; only reads.
     voiced: chora_kit::helper::Helpers,
+    /// Which windows are the construct's, and where each came from
+    /// (`kit::wm::book`).
+    book: chora_kit::wm::Book,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -699,6 +704,7 @@ impl Construct {
             managed: Vec::new(),
             core_focus: None,
             voiced: chora_kit::helper::Helpers::default(),
+            book: chora_kit::wm::Book::new(NAME, false),
         };
         construct.effects.set(&construct.settings.value.effects);
         Ok(construct)

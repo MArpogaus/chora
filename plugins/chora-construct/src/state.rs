@@ -27,13 +27,18 @@ impl Construct {
                 && !self.backs.contains(&p.name)
                 && space::sight(&self.lens, &self.pose, p.spot(), far) == "shown"
         };
+        let origin = |surface: &str| self.book.origin(surface).map(chora_kit::wm::Origin::word);
         let mut windows = Vec::new();
         let mut views = Vec::new();
         for pane in &self.panes {
             let owner = match &pane.content {
                 Content::Window { .. } if pane.attached => {
-                    windows.push(json!({"surface": pane.source, "output": output,
-                        "shown": self.active && in_sight(pane)}));
+                    let mut window = json!({"surface": pane.source, "output": output,
+                        "shown": self.active && in_sight(pane)});
+                    if let Some(word) = origin(&pane.source) {
+                        window["origin"] = json!(word);
+                    }
+                    windows.push(window);
                     continue;
                 }
                 Content::Window { .. } => None,
@@ -42,10 +47,13 @@ impl Construct {
             };
             views.push(json!({"surface": pane.source, "owner": owner, "pane": pane.name}));
         }
-        windows.extend(
-            (self.hidden.iter())
-                .map(|surface| json!({"surface": surface, "output": output, "shown": false})),
-        );
+        for surface in &self.hidden {
+            let mut window = json!({"surface": surface, "output": output, "shown": false});
+            if let Some(word) = origin(surface) {
+                window["origin"] = json!(word);
+            }
+            windows.push(window);
+        }
         json!({"windows": windows, "views": views, "focus": self.focus_value(),
             "open": self.open_value(), "busy": self.busy_value(),
             "helper": self.voiced.word()})

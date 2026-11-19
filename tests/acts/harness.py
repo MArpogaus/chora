@@ -8,8 +8,10 @@ and the invariants of invariants.py after every act.
                                         "focused": True}))
 
 `act` runs the cues, waits until every `busy` of every look is empty
-(quiet; a timeout fails the act), reads `state.get` of each look and
-`scene.query`, compares with `expect` and runs every invariant. A
+(quiet; a timeout fails the act), reads `state.get` of each look and of
+the blocks (chora-notify), `scene.query` for the nodes and `scene.boxes`
+for what each output shows, compares with `expect` and runs every
+invariant. A
 mismatch keeps the act, the state diff and a still in the run folder.
 An act declares what it leaves open (`opens`), what it closes
 (`closes`) and the clients it ends on purpose (`disconnects`).
@@ -69,7 +71,8 @@ class Snapshot:
     events: list = dataclasses.field(default_factory=list)
     logs: dict = dataclasses.field(default_factory=dict)
     outputs: list = dataclasses.field(default_factory=list)
-    notify: dict | None = None
+    boxes: dict | None = None
+    blocks: dict = dataclasses.field(default_factory=dict)
 
     def by_id(self):
         """The nodes by id."""
@@ -87,14 +90,14 @@ class Snapshot:
 
 @dataclasses.dataclass
 class Act:
-    """An act: its name, what it opens, closes and disconnects on purpose."""
+    """An act: its name, what it opens, closes and disconnects on purpose,
+    and whether it reads a look held in the middle of its motion."""
 
     name: str
     opens: list = dataclasses.field(default_factory=list)
     closes: list = dataclasses.field(default_factory=list)
     disconnects: list = dataclasses.field(default_factory=list)
-    notices: list = dataclasses.field(default_factory=list)
-    dismissed: list = dataclasses.field(default_factory=list)
+    held: bool = False
 
 
 def app_id(node):
@@ -167,6 +170,17 @@ class Expect:
             for key, want in self.new_window.items()
             if got.get(key) != want
         ]
+
+
+def work_rect(output):
+    """The work area of an output in its own logical pixels: the zone of
+    the output, `default_work_area`, in scene coordinates of the default
+    camera, which moves it by the position of the output (a virtual output
+    lies far off the screens). `work_area` follows the camera of the
+    output, so a look that moves the camera would move this crop."""
+    px, py = output.get("position") or [0, 0]
+    x, y, w, h = output.get("default_work_area") or [px, py, *output["size"]]
+    return [x - px, y - py, w, h]
 
 
 class NotQuiet(Exception):
@@ -324,6 +338,7 @@ LOOKS = {
     ),
 }
 WALLPAPER = {"xp", "mc", "construct"}
+BLOCKS = ["notify"]
 
 
 class Session:
@@ -370,6 +385,7 @@ class Session:
             XDG_STATE_HOME=str(self.work / "state"),
             XDG_PICTURES_DIR=str(self.work / "pictures"),
             CHORA_BIN=str(self.bin),
+            PATH=f"{self.bin}:{os.environ.get('PATH', '')}",
             CHORA_TEST_ACCEPT_INJECTED_KEYS="1",
         )
         command, extra = LOOKS[self.looks[0]]
@@ -495,6 +511,10 @@ class Session:
         """The states of the looks."""
         return {look: self.state(look) for look in self.looks}
 
+    def blocks(self, clients):
+        """The states of the connected blocks that are no look."""
+        return {b: self.state(b) for b in BLOCKS if b in clients and b not in self.looks}
+
     def inject(self, events):
         """Synthetic input through the core."""
         self.core.call("input.inject", {"events": events})
@@ -507,7 +527,7 @@ class Session:
     def colours(self, output):
         """The number of colours in the work area of an output."""
         shot, png = self.capture(output["name"])
-        x, y, w, h = output.get("work_area") or [0, 0, *output["size"]]
+        x, y, w, h = work_rect(output)
         scale = shot["width"] / output["size"][0]
         x0, y0 = int(x * scale), int(y * scale)
         x1, y1 = int((x + w) * scale), int((y + h) * scale)
@@ -542,17 +562,19 @@ class Session:
         if wallpaper is None:
             wallpaper = {o["name"] for o in outputs} if self.looks[0] in WALLPAPER else set()
         colours = {o["name"]: self.colours(o) for o in outputs if o["name"] in wallpaper}
+        clients = self.clients()
         return Snapshot(
             states=self.states() if states is None else states,
             nodes=nodes,
             toplevels={n["id"] for n in nodes if n.get("kind") == "surface"},
             colours=colours,
             wallpaper=set(wallpaper),
-            clients=self.clients(),
+            clients=clients,
             events=list(events),
             logs=self.new_log_text(),
             outputs=outputs,
-            notify=self.state("notify") if "notify" in self.clients() else None,
+            boxes=self.core.call("scene.boxes"),
+            blocks=self.blocks(clients),
         )
 
     def act(
@@ -565,13 +587,13 @@ class Session:
         disconnects=(),
         timeout=10,
         look=None,
-        notices=(),
-        dismissed=(),
+        held=None,
     ):
-        """Run an act, record its result and those of the invariants."""
-        act = Act(
-            name, list(opens), list(closes), list(disconnects), list(notices), list(dismissed)
-        )
+        """Run an act, record its result and those of the invariants. With
+        `held` seconds the act reads the session that long after its cues
+        without waiting for quiet: a look that animates is read in the
+        middle of its motion, which the next act waits out."""
+        act = Act(name, list(opens), list(closes), list(disconnects), held is not None)
         look = look or self.label
         try:
             before = self.snapshot(wait_quiet(self.states, timeout))
@@ -579,8 +601,9 @@ class Session:
             self.mark_logs()
             for cue in cues:
                 cue(self)
-            time.sleep(SETTLE)
-            after = self.snapshot(wait_quiet(self.states, timeout), self.watch.drain())
+            time.sleep(SETTLE if held is None else held)
+            states = self.states() if held is not None else wait_quiet(self.states, timeout)
+            after = self.snapshot(states, self.watch.drain())
         except (NotQuiet, RuntimeError, OSError, queue.Empty) as err:
             self.record(look, f"act:{name}", [f"{type(err).__name__}: {err}"], name)
             return None

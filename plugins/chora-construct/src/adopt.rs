@@ -187,16 +187,16 @@ impl Construct {
 
     /// A new window: the launcher's own window, a pane of the construct,
     /// the program of the launcher, or, for the flavor, a free window.
-    #[allow(clippy::too_many_arguments, reason = "the fields of surface.created")]
+    /// `free` is the claim of the book: no other window manager has the
+    /// surface reserved.
     pub(crate) fn created(
         &mut self,
-        surface: &str,
-        label: &str,
-        to: Option<&str>,
-        pid: Option<u32>,
-        token: Option<&str>,
+        window: &chora_kit::wm::Created,
+        free: bool,
     ) -> Result<(), ClientError> {
-        let free = to.is_none_or(|t| t == NAME);
+        let (surface, label) = (window.surface.as_str(), window.label());
+        let label = label.as_str();
+        let (pid, token) = (window.pid, window.token.as_deref());
         self.waiting.retain(|w| !w.stale());
         let started = (self.launcher.as_ref()).filter(|(t, _)| token == Some(t.as_str()));
         if let Some(&(_, launcher_pid)) = started {

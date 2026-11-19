@@ -1,11 +1,11 @@
-//! The notices of the construct: it draws none, `chora-notify` does.
+//! The notices of the construct: it draws none, the notification server does.
 
 use chora_kit::notice::{self, Notice, Urgency};
 
 use crate::{Construct, NAME, NOTICE_MS};
 
 impl Construct {
-    /// Tells the person `text` in a notice of `chora-notify`, in the place
+    /// Tells the person `text` in a notice of the notification server, in the place
     /// of the notice of the construct that still shows. Without the
     /// server the person gets none, and the construct goes on.
     pub(crate) fn tell(&mut self, text: &str) {
@@ -24,10 +24,10 @@ impl Construct {
 
 #[cfg(test)]
 mod tests {
-    use chora_kit::notice;
+    use chora_kit::{actions::System, notice};
     use serde_json::{Value, json};
 
-    use crate::{config::Action, state::tests::construct};
+    use crate::state::tests::construct;
 
     /// The calls of `notify.show` that the construct made, as the fake core
     /// recorded them.
@@ -44,7 +44,7 @@ mod tests {
     fn a_key_that_did_not_start_its_program_gives_a_notice() {
         let (mut c, core) = construct("notice-key", false);
         core.answer_with(notice::SHOW, json!({"id": 3}));
-        c.shared_key(Action::Chat).unwrap();
+        c.grabbed_key(&System::Chat).unwrap();
         let calls = shown(&core);
         assert_eq!(calls.len(), 1, "{calls:?}");
         assert_eq!(calls[0]["params"]["app"], "construct");
@@ -83,6 +83,6 @@ mod tests {
         let (mut c, core) = construct("notice-gone", false);
         core.refuse_next("methods.call");
         c.keys_walk();
-        c.shared_key(Action::Chat).unwrap();
+        c.grabbed_key(&System::Chat).unwrap();
     }
 }

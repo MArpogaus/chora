@@ -379,7 +379,7 @@ struct Mc {
     volume_ticks: u32,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
-    /// The ids that chora-notify gave the notices of mc, for `notify.clear`.
+    /// The ids that the notification server gave the notices of mc, for `notify.clear`.
     notices: Vec<u32>,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
@@ -1629,7 +1629,7 @@ mod tests {
     }
 
     /// A chat that cannot open says so in a critical notice of
-    /// chora-notify, not only in a log.
+    /// the notification server, not only in a log.
     #[test]
     fn a_chat_that_does_not_open_shows_a_notice() {
         use chora_kit::testing::FakeCore;
@@ -2341,7 +2341,7 @@ mod tests {
         mc.method("panel.set", lines).unwrap();
     }
 
-    /// The notifications are chora-notify's: `notify.push` of mc shows
+    /// The notifications are the notification server's: `notify.push` of mc shows
     /// through `notify.show` as `chora_kit::notice` does, a critical one
     /// until the person closes it, and `notify.clear` closes what mc
     /// showed.

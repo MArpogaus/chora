@@ -484,8 +484,9 @@ impl Construct {
     }
 
     /// The caps of the key of an action: a one-letter key if it has one.
-    pub(crate) fn keys_of(&self, action: crate::config::Action) -> Vec<String> {
-        let bound = || (self.settings.value.keys.iter()).filter(|(_, a)| **a == action);
+    pub(crate) fn keys_of(&self, action: impl Into<crate::config::Action>) -> Vec<String> {
+        let action = action.into();
+        let bound = || (self.settings.value.common.bindings.iter()).filter(|(_, a)| **a == action);
         (bound().find(|(k, _)| k.chars().count() == 1))
             .or_else(|| bound().next())
             .map_or_else(Vec::new, |(k, _)| crate::glass::chord(k))
@@ -494,13 +495,16 @@ impl Construct {
     /// The hints of a set, with the keys of the settings.
     fn hint_items(&self, set: crate::hints::Set) -> Vec<crate::hints::Item> {
         use crate::{
-            config::Action,
+            config::Own,
             glass::chord,
             hints::{HINT, Item, Set, Walking},
         };
-        use chora_kit::words::{Language, Word};
+        use chora_kit::{
+            actions::System,
+            words::{Language, Word},
+        };
         let language = Language::of_session();
-        let key = |action: Action| self.keys_of(action);
+        let key = |action: Own| self.keys_of(action);
         let item = |keys: Vec<String>, word: Word, hit: &str| Item {
             keys,
             word: word.text(language).to_owned(),
@@ -510,25 +514,22 @@ impl Construct {
         };
         match set {
             Set::Walk => {
-                let walk: Vec<String> =
-                    [Action::Forward, Action::Left, Action::Back, Action::Right]
-                        .into_iter()
-                        .flat_map(key)
-                        .collect();
+                let walk: Vec<String> = [Own::Forward, Own::Left, Own::Back, Own::Right]
+                    .into_iter()
+                    .flat_map(key)
+                    .collect();
                 let ahead = self.pane_ahead().is_some();
                 crate::hints::walking(self.panes.len(), ahead)
                     .into_iter()
                     .map(|hint| match hint {
                         Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
-                        Walking::FlyIn => item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
-                        Walking::Windows => {
-                            item(key(Action::Windows), Word::WindowsHint, "windows")
-                        }
+                        Walking::FlyIn => item(key(Own::FlyIn), Word::FlyIn, "fly-in"),
+                        Walking::Windows => item(key(Own::Windows), Word::WindowsHint, "windows"),
                         Walking::Terminal => Item {
                             word: crate::hints::terminal_word(language).to_owned(),
-                            ..item(key(Action::Terminal), Word::Walk, "terminal")
+                            ..item(self.keys_of(System::Terminal), Word::Walk, "terminal")
                         },
-                        Walking::Keys => item(key(Action::Help), Word::AllKeys, "keys"),
+                        Walking::Keys => item(self.keys_of(System::Keys), Word::AllKeys, "keys"),
                     })
                     .collect()
             }
@@ -712,7 +713,8 @@ impl Construct {
     /// The start card made anew when it appears or its output changes,
     /// faded out when it stops showing.
     pub(crate) fn draw_start(&mut self) -> Result<(), ClientError> {
-        use crate::{config::Action, start};
+        use crate::{config::Own, start};
+        use chora_kit::actions::System;
         use chora_kit::words::Language;
         let wanted = self.shows_start();
         let out = [self.lens.w, self.lens.h];
@@ -728,8 +730,12 @@ impl Construct {
             return Ok(());
         }
         let words = start::words(Language::of_session());
-        let keys = [Action::Terminal, Action::Launcher, Action::Cube].map(|a| self.keys_of(a));
-        let help = self.keys_of(Action::Help);
+        let keys = [
+            self.keys_of(System::Terminal),
+            self.keys_of(System::Launcher),
+            self.keys_of(Own::Cube),
+        ];
+        let help = self.keys_of(System::Keys);
         let hovered = self.start_card.hover;
         let mut commands = Vec::new();
         if !self
@@ -935,7 +941,7 @@ impl Construct {
             return Ok(false);
         };
         match name {
-            "fly-in" => self.act(crate::config::Action::FlyIn),
+            "fly-in" => self.act(crate::config::Own::FlyIn),
             "terminal" => self.start_terminal(),
             "windows" => self.open_list()?,
             "keys" => self.toggle_help()?,

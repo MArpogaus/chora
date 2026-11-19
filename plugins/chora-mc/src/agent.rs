@@ -1,6 +1,6 @@
 //! The agents that report their state with `agent.set`, for the status
 //! line of the regions and the agents scene, and the notices of
-//! `notify.push`, which chora-notify shows.
+//! `notify.push`, which the notification server shows.
 
 use std::time::Instant;
 
@@ -167,7 +167,7 @@ fn question_line(question: &str, language: Language) -> String {
 }
 
 /// As in the freedesktop notifications: a critical notice stays until the
-/// person closes it, the others show for the time of chora-notify.
+/// person closes it, the others show for the time of the notification server.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Urgency {
@@ -589,7 +589,7 @@ impl Mc {
     }
 
     /// Tells the person that something did not work, as a critical
-    /// notice of chora-notify.
+    /// notice of the notification server.
     pub fn notice(&mut self, title: &str, body: &str) {
         let notice = Self::notice_of(title, body, Urgency::Critical);
         if let Some(id) = notice::show_or_log(&mut self.rt.conn, None, &notice) {
@@ -597,7 +597,7 @@ impl Mc {
         }
     }
 
-    /// Shows a notice of chora-notify; a critical one stays until the
+    /// Shows a notice of the notification server; a critical one stays until the
     /// person closes it.
     pub fn push(&mut self, push: &Push) -> Result<(), RpcError> {
         let notice = Self::notice_of(&push.title, &push.body, push.urgency);
@@ -822,7 +822,7 @@ impl Mc {
         true
     }
 
-    /// Closes the notices that mc showed and chora-notify still holds.
+    /// Closes the notices that mc showed and the notification server still holds.
     pub fn clear_notices(&mut self) -> Result<(), RpcError> {
         let mut failed = Ok(());
         for id in std::mem::take(&mut self.notices) {

@@ -30,9 +30,9 @@ temp_config
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work/shots}
 mkdir -p "$work/chora" "$work/data/chora/huds" "$shots" "$work/stub" "$work/home"
-for hud in "$repo"/plugins/chora-assistant/huds/*/; do
-    cp -rL "${hud%/}" "$work/data/chora/huds/$(basename "$hud")"
-done
+while read -r name dir; do
+    cp -rL "$dir" "$work/data/chora/huds/$name"
+done < <("$repo/tests/hud-folders.sh")
 export PATH=$work/stub:$bin:$PATH
 export CHORA_BIN=$bin
 export HOME=$work/home

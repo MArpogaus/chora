@@ -591,6 +591,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-saphyr",
+ "serde_json",
  "zune-jpeg",
 ]
 

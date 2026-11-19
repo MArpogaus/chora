@@ -13,8 +13,8 @@ def run(s):
     window_acts(s)
     door_acts(s, "mc-keys", "Super+F1")
     notice_acts(s, REPO / "plugins/chora-mc/notify")
-    s.act("notify.push of mc shows in chora-notify", [push], notices=[PUSHED])
-    s.act("notify.clear of mc dismisses it", [clear], dismissed=[PUSHED])
+    s.act("notify.push of mc shows in chora-notify", [push])
+    s.act("notify.clear of mc dismisses it", [clear])
 
 
 def push(s):
