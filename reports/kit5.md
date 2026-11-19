@@ -133,3 +133,29 @@ construct input/keys keep the session `System`/`Own` actions with `tell`; nothin
 - rw-6, MINOR, docs/api.md:1552, api.md documents neither `notify.show {app, replaces, icon, summary, body, expire_ms, urgency} -> {id}` nor `notify.close {id}`, the id shared with the bus, nor `body` in `shown` and `node` as the card picture; fix: add the two methods and the changed `shown` entry to api.md.
 - rw-7, MINOR, flavors/shared/screenshot.sh:42, with CHORA_NOTIFIER gone a session without a session bus no longer gets the own-bus daemon, and chora-notify serves no bus there, so the screenshot notice only reaches stderr; fix: fall back to `choractl` `notify.show` when notify-send fails, and drop the dead CHORA_NOTIFIER path (proposal 3 of r1).
 - rw-8, MINOR, crates/chora/Cargo.toml:47, the RPM assets lack `plugins/chora-mc/notify/*` while PKGBUILD installs it to /usr/share/chora/mc/notify and docs/configuration.md tells the person to start chora-notify from there; fix: add the asset row to the generate-rpm list and to dist/build-arch.sh checks.
+
+## r3 (F2): review r1 fixed, gate green
+
+claude/kit5b head 7b01dd5a. Merge d7cd08b9 of the session branch (head daf83391, no rebase); conflicts, each to
+both sides: chora-kit Cargo.toml (tests notice and launch), kit testing.rs (`answers` and `mints_tokens`/`selects`),
+copies.toml (KIT5 and KIT6/KIT2c rows), tiling main.rs imports, xp dispatch.rs (session `window_created`; kit5b
+`dismiss_notice` moved into lifecycle.rs), xp startup.rs (no `Notifier`), mc region.rs (session split into
+region/items, hits, fit; kit5b removal of urgent/notify applied there).
+
+| Finding | Red | Fix |
+|---|---|---|
+| rw-1 MAJOR | 4da3634e (notify unit test on a private bus with the name taken) | bb650abb; 7b01dd5a: a second chora-notify (bus name and core name `notify` both taken) still ends 0, red was step 17 of tests/xp.sh at 5157c260 |
+| rw-2 MAJOR | c6031968 (tests/flavor-notify.py in ci-check and CI) | 9e388870: chora-construct-notify.service in the target (packaged by the flavors/construct/* globs, build-arch.sh row); mc: documented start in README and configuration.md |
+| rw-3 MAJOR | bdb5af3a (card/chat unit tests red on stubs; gate-chat-keys cell: card box vs `hud-chat` box from `scene.query`, red: card [1102,692,162,52] covers chat [868,12,400,776]) | 03e06230: assistant puts `rect` in `assistant.chat`; chora-notify keeps the card beside it on that output, lists `rect` and `chat` in `state.get`; `notify.ready` makes the host say an open chat again |
+| rw-4 MINOR | f1df4b1f is test only; red shown locally with `notify.close` stubbed (2 act cells FAIL), not committed | f1df4b1f |
+| rw-5 MINOR | 7d9de9a4 | 40631574: critical ids never pushed out by the cap, a clear stops at the first Gone and keeps the rest |
+| rw-6 MINOR | docs only | c440ed57 |
+| rw-7 MINOR | a5f4f048 (tests/screenshot-notice.sh, fake grim/choractl, no bus) | 2cbeaa44: notify-send, else `choractl call notify notify.show`; CHORA_NOTIFIER path removed |
+| rw-8 MINOR | c16e2449 (packaging-files.py reads plugins/*/notify) | 5157c260 |
+
+Checks on 7b01dd5a: `cargo test -p chora-kit --features testing -p chora-notify -p chora-mc -p chora-tiling
+-p chora-construct` all ok; `python3 tools/cut-check` ok; `tests/merge-gate.sh --only build,ci-check,acts,xp,hud,
+construct-hud,mc-handover,keys,chat-keys` all PASS (run /tmp/merge-gate.4KGfXi; the first run on 5157c260 failed at
+xp step 17, fixed by 7b01dd5a).
+Open: mc still has no unit of its own (documented start only); the `assistant.chat` `rect` and `notify.ready` are
+new event fields for docs/api.md's event list if the PM wants them there (documented in configuration.md).
