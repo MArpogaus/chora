@@ -3,13 +3,13 @@
 //! scene commands and settles them with [`book::Book::confirm`] or
 //! [`book::Book::refused`].
 //!
-//! This first slice (WM1) has the lifecycle: [`book`] (which windows are
-//! the look's), [`give`] (a window that goes to another window manager),
-//! [`kept`] (what a restart keeps in node meta) and [`state`] (the shape of
-//! `state.get`). WM2 adds [`focus`] (who holds the keyboard, and the
-//! [`focus::Policy`] of the look for the focus after a window goes). [`stack`]
-//! (WM5) holds the two stacking rules that every look shares. Open shell
-//! surfaces and desks follow in later slices.
+//! The parts: [`book`] (which windows are the look's), [`give`] (a window
+//! that goes to another window manager), [`kept`] (what a restart keeps in
+//! node meta), [`state`] (the shape of `state.get`), [`focus`] (who holds the
+//! keyboard, and the [`focus::Policy`] of the look for the focus after a
+//! window goes), [`open`] (the open menus, popups, dialogs, sheets and
+//! launchers) and [`stack`] (the two stacking rules that every look shares).
+//! Desks follow in a later slice.
 
 pub mod book;
 pub mod focus;

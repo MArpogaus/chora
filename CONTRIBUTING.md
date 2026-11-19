@@ -14,7 +14,7 @@
 A mechanism that two looks (mc, xp, tiling, construct) need lives in a shared crate, not in a look:
 
 - `crates/chora-scene`: the scene model, IPC types and client, and `paths` (every XDG and runtime directory, `private_dir`; D101).
-- `crates/chora-kit`: the plugin runtime, `actions` and `settings::Common` (D98), `ask` (D100), `words` and `Language` (D102), `wm` (`book`, `give`, `kept`, `state`; D99), `helper`, `runtime_file`, and `testing` with `FakeCore` (D96).
+- `crates/chora-kit`: the plugin runtime, `actions` and `settings::Common` (D98), `ask` (D100), `words` and `Language` (D102), `wm` (`book`, `focus`, `give`, `kept`, `open`, `stack`, `state`; D99), `helper`, `runtime_file`, and `testing` with `FakeCore` (D96); the rest is in the list below, one line per module.
 - `crates/chora-draw`: drawing blocks.
 
 One line per module of `crates/chora-kit/src`: what lives there, and when to use it. A new module adds its line in the commit that adds it.
