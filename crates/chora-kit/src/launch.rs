@@ -185,7 +185,7 @@ impl StatusFile {
         static COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let dir = chora_scene::paths::runtime_home().unwrap_or_else(std::env::temp_dir);
         let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let path = dir.join(format!("chora-xp-exit-{}-{n}", std::process::id()));
+        let path = dir.join(format!("chora-launch-exit-{}-{n}", std::process::id()));
         std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -195,11 +195,13 @@ impl StatusFile {
     }
 
     /// The command that runs `command` and writes its status here when
-    /// it fails. A program that replaces the shell leaves no status.
+    /// it fails. The command runs in a subshell, so that an `exit` or an
+    /// `exec` that fails ends the subshell and leaves its status to the
+    /// shell around it.
     fn wrap(&self, command: &str) -> String {
         let file = quoted(&self.0.to_string_lossy());
         format!(
-            "{{ {command}\n}}; status=$?; [ $status -eq 0 ] || ! [ -e {file} ] || echo $status >{file}; exit $status"
+            "( {command}\n); status=$?; [ $status -eq 0 ] || ! [ -e {file} ] || echo $status >{file}; exit $status"
         )
     }
 
@@ -550,71 +552,89 @@ impl Entry {
 
 /// Follows the program of a start on a thread of its own and tells
 /// `sender` when it ended: its main process is gone and its unit has no
-/// process left. The thread gives up with the limit of [`GIVE_UP`].
+/// process left. A process that a pidfd cannot hold, and a unit without a
+/// main process, are looked at once a second. The thread gives up with
+/// the limit of [`GIVE_UP`].
 fn watch(sender: Sender<Heard>, token: String, (pid, unit): (Option<u32>, Option<String>)) {
     std::thread::spawn(move || {
-        let main_gone = pid.is_none_or(|pid| main_process_gone(pid, unit.as_deref()));
-        let unit_empty = !unit.as_deref().is_some_and(unit_active);
-        if main_gone && unit_empty {
+        let deadline = Instant::now() + GIVE_UP + Duration::from_secs(1);
+        let unit = unit.as_deref();
+        let main_gone = pid.is_none_or(|pid| {
+            main_process_gone(pid, unit, deadline).unwrap_or_else(|| {
+                gone_by_polling((pid, unit), (deadline, POLL), (alive, unit_main_pid))
+            })
+        });
+        let unit_empty = || unit.is_none_or(|u| becomes(deadline, POLL, || !unit_active(u)));
+        if main_gone && unit_empty() {
             let _ = sender.send(Heard::Gone(token));
         }
     });
 }
 
-/// Whether the process `pid` is gone, waiting for its end up to the limit
-/// of [`GIVE_UP`]. The process is held with a pidfd, which tells the end
-/// of a process that is no child; a pid that the unit no longer names has
-/// ended, and may name another process by now.
-fn main_process_gone(pid: u32, unit: Option<&str>) -> bool {
+/// Whether the process `pid` is gone, waiting for its end until
+/// `deadline`; `None` when it cannot be held: the pidfd cannot be opened
+/// or the wait was interrupted. The process is held with a pidfd, which
+/// tells the end of a process that is no child; a pid that the unit no
+/// longer names has ended, and may name another process by now.
+fn main_process_gone(pid: u32, unit: Option<&str>, deadline: Instant) -> Option<bool> {
     use rustix::{
         event::{PollFd, PollFlags, Timespec, poll},
         process::{Pid, PidfdFlags, pidfd_open},
     };
     let Some(raw) = i32::try_from(pid).ok().and_then(Pid::from_raw) else {
-        return true;
+        return Some(true);
     };
     let fd = match pidfd_open(raw, PidfdFlags::empty()) {
         Ok(fd) => fd,
-        Err(rustix::io::Errno::SRCH) => return true,
+        Err(rustix::io::Errno::SRCH) => return Some(true),
         Err(err) => {
             eprintln!("chora-kit: pidfd_open({pid}): {err}");
-            return false;
+            return None;
         }
     };
     if unit.is_some_and(|unit| unit_main_pid(unit) != Some(pid)) {
-        return true;
+        return Some(true);
     }
-    let limit = GIVE_UP + Duration::from_secs(1);
+    let left = deadline.saturating_duration_since(Instant::now());
     let timeout = Timespec {
-        tv_sec: i64::try_from(limit.as_secs()).unwrap_or(i64::MAX),
-        tv_nsec: 0,
+        tv_sec: i64::try_from(left.as_secs()).unwrap_or(i64::MAX),
+        tv_nsec: i64::from(left.subsec_nanos()),
     };
     let mut fds = [PollFd::new(&fd, PollFlags::IN)];
-    poll(&mut fds, Some(&timeout)).is_ok_and(|ready| ready > 0)
+    match poll(&mut fds, Some(&timeout)) {
+        Ok(ready) => Some(ready > 0),
+        Err(_) => None,
+    }
 }
 
 /// The time between two looks at a program that cannot be held with a pidfd.
-#[allow(dead_code)]
 const POLL: Duration = Duration::from_secs(1);
 
 /// Whether `probe` turns true before `deadline`, asked once every `every`.
-#[allow(dead_code)]
-fn becomes(deadline: Instant, every: Duration, probe: impl FnMut() -> bool) -> bool {
-    let _ = (deadline, every, probe);
-    false
+fn becomes(deadline: Instant, every: Duration, mut probe: impl FnMut() -> bool) -> bool {
+    loop {
+        if probe() {
+            return true;
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            return false;
+        }
+        std::thread::sleep(every.min(deadline - now));
+    }
 }
 
 /// Whether the process `pid` is gone before `deadline`, found by looking
 /// at it once every `every`: it is no process any more, or the unit names
 /// another main process.
-#[allow(dead_code)]
 fn gone_by_polling(
     (pid, unit): (u32, Option<&str>),
     (deadline, every): (Instant, Duration),
     (alive, main_pid): (impl Fn(u32) -> bool, impl Fn(&str) -> Option<u32>),
 ) -> bool {
-    let _ = (pid, unit, deadline, every, alive, main_pid);
-    false
+    becomes(deadline, every, || {
+        !alive(pid) || unit.is_some_and(|unit| main_pid(unit) != Some(pid))
+    })
 }
 
 /// The trimmed stdout of `systemctl --user ARGS`; empty when it fails to
