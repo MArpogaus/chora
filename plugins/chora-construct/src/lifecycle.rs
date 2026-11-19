@@ -31,7 +31,7 @@ impl Construct {
 
     /// A new window came as a pane and the camera is in no window, while
     /// a window of a pane has the keyboard from a press. A child of that
-    /// window (a dialog, or the new window of the same app) gets the
+    /// window (a dialog with an xdg parent at its first commit) gets the
     /// keyboard, as a new window takes it in the other looks; any other
     /// new pane gives it back to the walk (D116). A focus of another
     /// window manager, of the launcher or of a window that the camera
