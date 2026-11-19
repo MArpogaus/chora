@@ -259,8 +259,19 @@ pub fn aside(
     chat: Option<[i32; 4]>,
     (margin, right): (i32, bool),
 ) -> [i32; 2] {
-    let _ = (size, chat, margin, right);
-    origin
+    let Some([cx, cy, cw, ch]) = chat else {
+        return origin;
+    };
+    let ([x, y], [w, h]) = (origin, size);
+    if !(x < cx + cw && cx < x + w && y < cy + ch && cy < y + h) {
+        return origin;
+    }
+    let x = if right {
+        cx - margin - w
+    } else {
+        cx + cw + margin
+    };
+    [x.max(0), y]
 }
 
 /// A card on the overlay root of an output.

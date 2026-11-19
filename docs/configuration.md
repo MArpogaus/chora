@@ -1369,6 +1369,18 @@ and never takes the name from it; it keeps serving `notify.show` and
 the clients of the bus reach the other server. Without a session bus it
 does the same.
 
+A card never covers the open chat of the HUD host. The host names the
+box of its open chat in the event `assistant.chat {open, name, output,
+rect}` (`rect` is `[x, y, width, height]` on the output, `null` while the
+chat is closed). While that box is on the output of the card and the card
+would cover it, the card moves along the edge of its corner to the side
+of the chat toward the middle of the output, `margin` away from it; when
+the chat closes, the card goes back to its corner. `chora-notify` emits
+`notify.ready` once it listens, and the host then says `assistant.chat`
+of an open chat again, so a server that starts later steps aside too.
+`state.get` of `notify` lists the box of the card on its output as `rect`
+in `shown`, and the box of the chat that it keeps clear as `chat`.
+
 The look of the card comes from the asset folder. A folder replaces the
 neutral one and does not merge with it. A missing or broken file stops the
 start with an error that names it. The folder holds:
@@ -1585,6 +1597,7 @@ swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 `chora-notify`, the only notification server of the flavor: it shows the
 notices of the plugins and serves `notify-send` for other programs, in the
 neutral asset folder (`chora-notify.yaml` changes its times and corner).
+While the chat panel is open at the right, a card stands to its left.
 The helpers of the scripts
 are recommended too: grim and slurp (screenshots), wl-clipboard
 (`wl-copy`) and libnotify (`notify-send`). The fonts are Inter (Arch

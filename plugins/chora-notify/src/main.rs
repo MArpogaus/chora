@@ -237,7 +237,11 @@ impl Notify {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let ids = Ids::default();
         let bus = Bus::start(ids.clone());
-        let rt = Runtime::start(NAME, Vec::new(), EVENTS, Self::methods())?;
+        let mut rt = Runtime::start(NAME, Vec::new(), EVENTS, Self::methods())?;
+        let ready = json!({"event": READY, "data": {}});
+        if let Err(err) = rt.conn.call::<_, Value>("events.emit", ready) {
+            eprintln!("chora-notify: {READY}: {err}");
+        }
         Ok(Self::on(rt, bus, ids, (theme, values), settings))
     }
 
@@ -451,14 +455,22 @@ const EVENTS: &[&str] = &[
 /// The client name of the HUD host, which draws the chat.
 const HOST: &str = "assistant";
 
+/// The event of the plugin once it listens, so that the HUD host says
+/// where its open chat is.
+const READY: &str = "notify.ready";
+
 /// The event of the HUD host when its chat opens, closes or moves.
 const CHAT: &str = "assistant.chat";
 
 /// The output and the box of the chat that `assistant.chat {open, output,
 /// rect}` names; `None` when the chat closed or names no box.
 fn chat_box(data: &Value) -> Option<(String, [i32; 4])> {
-    let _ = data;
-    None
+    if data["open"] != true {
+        return None;
+    }
+    let output = data["output"].as_str()?.to_owned();
+    let rect: [i32; 4] = serde_json::from_value(data["rect"].clone()).ok()?;
+    Some((output, rect))
 }
 
 fn main() -> ExitCode {

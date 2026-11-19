@@ -94,6 +94,7 @@ const EVENTS: &[&str] = &[
     "mc.theme",
     "tiling.theme",
     "xp.theme",
+    chat::NOTIFY_READY,
 ];
 
 /// The assistant of the voice agent.
@@ -280,6 +281,7 @@ impl Plugin for Agent {
             } => {
                 self.look_event(&event, &client, &data)?;
                 self.slot_event(&event, &client, &data)?;
+                self.chat_again(&event, &client)?;
                 self.voice_event(&event, &client, &data)?
             }
             Event::ClientConnected { name } => {
