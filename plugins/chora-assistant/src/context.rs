@@ -473,7 +473,13 @@ impl Agent {
             return Ok(());
         };
         let commands = self.restyle(&context)?;
-        self.apply(commands)
+        self.apply(commands)?;
+        if self.card.is_none() {
+            for old in std::mem::take(&mut self.stale) {
+                let _ = std::fs::remove_dir_all(old);
+            }
+        }
+        Ok(())
     }
 
     /// The place of the focus: the focused window and the claims of the
@@ -507,7 +513,9 @@ impl Agent {
     /// rules when the folder changed, the values picked again when a field
     /// that a panel reads changed, the figure on the output of the focus. A
     /// folder that fails to load leaves the look as it is and is not asked
-    /// for again.
+    /// for again. The cache of the old look goes with the stale ones: the
+    /// figure on the screen draws with its files, the ring shader among
+    /// them, until the commands are applied.
     pub fn restyle(&mut self, context: &Context) -> Result<Vec<Command>, ClientError> {
         let wanted = if self.source.assets.is_some() {
             self.folder.clone()
@@ -539,7 +547,7 @@ impl Agent {
                     self.folder = wanted;
                     self.failed = None;
                     let old = std::mem::replace(&mut self.look_cache, cache);
-                    let _ = std::fs::remove_dir_all(old);
+                    self.stale.push(old);
                     self.watch_slot()?;
                 }
                 Err(err) => {
