@@ -7,6 +7,7 @@
 //! window has no rectangle on the output; desks are the cube's faces,
 //! which the window manager on them reports.
 
+use chora_kit::wm::open::{Kind, Open, Surface};
 use serde_json::{Value, json};
 
 use super::{Construct, Content, NAME, hud, space};
@@ -74,22 +75,26 @@ impl Construct {
     }
 
     /// The window list, the help, a question of the voice agent and the
-    /// window of the launcher, in the order Escape shuts them.
-    fn open_value(&self) -> Vec<Value> {
+    /// window of the launcher, in the order Escape shuts them: the one that
+    /// opened last first.
+    fn open_value(&self) -> Value {
         let shown = [
-            (self.voice.ask.is_some(), hud::ASK, "ask", true),
-            (self.list.is_some(), hud::LIST, "list", true),
-            (self.help, hud::HELP, "sheet", true),
             (
                 self.launcher_window.is_some(),
                 "construct-launcher",
-                "launcher",
+                Kind::Launcher,
                 false,
             ),
+            (self.help, hud::HELP, Kind::Sheet, true),
+            (self.list.is_some(), hud::LIST, Kind::Popup, true),
+            (self.voice.ask.is_some(), hud::ASK, Kind::Dialog, true),
         ];
-        (shown.into_iter().filter(|(on, ..)| *on))
-            .map(|(_, id, kind, modal)| json!({"id": id, "kind": kind, "modal": modal}))
-            .collect()
+        let mut open = Open::default();
+        for (_, id, kind, modal) in shown.into_iter().filter(|(on, ..)| *on) {
+            let surface = Surface::new(id, kind);
+            open.open(if modal { surface.modal() } else { surface });
+        }
+        serde_json::to_value(open.state()).unwrap_or_default()
     }
 
     /// What still moves or waits: quiet once this is empty.

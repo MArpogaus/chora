@@ -126,6 +126,7 @@ impl Wm {
                 moved_at: Instant::now(),
             });
             self.start_wobble(surface, position);
+            return self.shut_surfaces();
         }
         Vec::new()
     }
@@ -142,6 +143,7 @@ impl Wm {
                 let (origin, area) = (bar.origin(), bar.usable());
                 let control = self.control_panel();
                 let mut commands = self.menu.open(&output, origin, area, control);
+                self.menu_opened();
                 commands.extend(self.start_look(&output));
                 commands.push(Command::FocusNode {
                     node: Some(startmenu::FOCUS.into()),
@@ -446,7 +448,9 @@ impl Wm {
             self.focused = None;
             self.grab_system_key(false);
         }
-        Ok((answer, self.forget(surface)))
+        let mut commands = self.shut_surfaces();
+        commands.extend(self.forget(surface));
+        Ok((answer, commands))
     }
 
     /// A button acts when the pointer goes up on it.

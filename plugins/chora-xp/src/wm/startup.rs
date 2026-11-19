@@ -72,6 +72,7 @@ impl Wm {
             cube_keys: false,
             floats: float::Floats::default(),
             dialog: None,
+            open: chora_kit::wm::open::Open::default(),
             fade: None,
             fade_shader: None,
             context: None,

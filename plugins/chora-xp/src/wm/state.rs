@@ -96,28 +96,7 @@ impl Wm {
 
     /// The menus and dialogs that show, in the order Escape shuts them.
     fn open_value(&self) -> Vec<Open> {
-        let entry = |id: &str, kind: &str, modal: bool| Open {
-            id: id.into(),
-            kind: kind.into(),
-            modal,
-        };
-        let mut open = Vec::new();
-        if self.switcher.is_some() {
-            open.push(entry("xp-switcher", "switcher", false));
-        }
-        if self.dialog.is_some() {
-            open.push(entry("xp-session", "dialog", true));
-        }
-        if self.context.is_some() {
-            open.push(entry("xp-ctx", "menu", false));
-        }
-        if self.menu.is_open() {
-            open.push(entry("xp-menu", "menu", false));
-        }
-        for panel in self.panels.iter().rev() {
-            open.push(entry(&panel.window_ref().group(), "dialog", false));
-        }
-        open
+        self.open.state()
     }
 
     /// What still moves: quiet once this is empty.
@@ -253,6 +232,79 @@ mod tests {
         );
         wm.method("start_menu", json!({"open": false})).unwrap();
         assert_eq!(wm.state().unwrap()["open"], json!([]));
+    }
+
+    /// The ids of what is open, in the order Escape shuts them.
+    fn open_ids(wm: &super::Wm) -> Vec<String> {
+        let open = wm.state().unwrap()["open"].clone();
+        let ids = open.as_array().unwrap().iter();
+        ids.map(|o| o["id"].as_str().unwrap().to_owned()).collect()
+    }
+
+    /// I4 (sd-h2): a window that goes to another window manager, by the
+    /// give keys or by a drag out of the face, shuts the Start menu and
+    /// the context menu; they stayed open and covered the window.
+    #[test]
+    fn a_give_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-give-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        assert_eq!(open_ids(&wm), ["xp-menu"]);
+        wm.give("s1", "tiling")
+            .expect("the fake core takes the give");
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the give");
+    }
+
+    /// The same for the drag that carries the window out (`pull_out`).
+    #[test]
+    fn a_give_with_the_drag_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-drag-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let grab = chora_scene::GivenGrab {
+            point: [10.0, 10.0],
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        wm.give_dragged("s1", "tiling", Some(grab))
+            .expect("the give");
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the drag");
+    }
+
+    /// A press on a title bar, which starts a drag, shuts the menu too.
+    #[test]
+    fn a_press_on_a_title_bar_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-title-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let commands = wm.pressed("xp-title-s1", 272, [100.0, 100.0]);
+        wm.apply(commands).unwrap();
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the press");
+    }
+
+    /// Escape shuts what opened last: a Help panel, then the Start menu on
+    /// top of it. The first Escape shuts the menu, the second the panel,
+    /// the order `state.open` lists them in.
+    #[test]
+    fn escape_shuts_the_newest_surface_first() {
+        let (mut wm, _methods) = wm_on_fake_core("state-escape-order");
+        let commands = wm.open_help(0);
+        wm.apply(commands).unwrap();
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let ids = open_ids(&wm);
+        assert_eq!(ids.len(), 2, "open: {ids:?}");
+        assert_eq!(ids[0], "xp-menu", "the menu is the newest: {ids:?}");
+        let panel = ids[1].clone();
+        let commands = wm.node_key("Escape");
+        wm.apply(commands).unwrap();
+        assert_eq!(
+            open_ids(&wm),
+            std::slice::from_ref(&panel),
+            "the first Escape"
+        );
+        let commands = wm.node_key("Escape");
+        wm.apply(commands).unwrap();
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "the second Escape");
     }
 
     /// `texts` holds the runs of text that xp painted into the image

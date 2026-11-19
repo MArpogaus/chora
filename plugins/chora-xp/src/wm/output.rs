@@ -65,6 +65,7 @@ impl Wm {
     pub(super) fn output_removed(&mut self, name: &str) -> Vec<Command> {
         let mut commands = Vec::new();
         if self.menu.output() == Some(name) {
+            self.open.shut(super::surfaces::MENU);
             commands.extend(self.menu.close(&mut self.theme));
         }
         if let Some(i) = self.bars.iter().position(|b| b.output == name) {

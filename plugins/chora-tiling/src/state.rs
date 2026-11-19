@@ -4,23 +4,12 @@
 //! them. Title and app id are core facts that tiling does not keep;
 //! `views` and `texts` stay out.
 
-use chora_kit::wm::state::{Desks, Open, State, Window};
+use chora_kit::wm::state::{Desks, State, Window};
 use serde_json::{Value, json};
 
-use crate::{NAME, Tiling, keys};
+use crate::{NAME, Tiling};
 
 impl Tiling {
-    /// The key list, while it is open.
-    fn open_value(&self) -> Vec<Open> {
-        (self.keys_open.then(|| Open {
-            id: keys::KEYS.into(),
-            kind: "sheet".into(),
-            modal: true,
-        }))
-        .into_iter()
-        .collect()
-    }
-
     /// The windows bottom first, the tags that show, the focus, the key
     /// list while it is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
@@ -54,9 +43,10 @@ impl Tiling {
             })
             .collect();
         let mut focus = self.focus.state(NAME, |s| self.wm.has(s));
-        if self.keys_open {
+        if self.keys_open() {
             focus.holder = Some(NAME.to_owned());
         }
+        let open = self.open.state();
         let running = [
             (self.effects.animating(), "effects"),
             (self.chip_until.is_some(), "chip"),
@@ -68,7 +58,7 @@ impl Tiling {
             windows,
             desks,
             focus,
-            open: self.open_value(),
+            open,
             busy,
             more: [("helper".to_owned(), json!(self.voiced.word()))]
                 .into_iter()
@@ -139,7 +129,10 @@ mod tests {
     #[test]
     fn the_key_list_is_open_while_it_shows() {
         let (mut tiling, _) = on_fake_core("state-keys");
-        tiling.keys_open = true;
+        tiling.open.open(
+            chora_kit::wm::open::Surface::new(crate::keys::KEYS, chora_kit::wm::open::Kind::Sheet)
+                .modal(),
+        );
         let state = tiling.state().unwrap();
         let open = json!([{"id": "tiling-keys", "kind": "sheet", "modal": true}]);
         assert_eq!(state["open"], open);

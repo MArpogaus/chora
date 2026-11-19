@@ -120,6 +120,10 @@ impl Wm {
         let dialog = Dialog::new(mode, &bar.output, [w, h], suspend);
         let mut commands = dialog.create(&mut self.theme);
         self.dialog = Some(dialog);
+        self.session_opened();
+        commands.push(Command::FocusNode {
+            node: Some(Dialog::FOCUS.into()),
+        });
         if self.fade_shader.is_none() {
             match self.theme.cache_file("fade.frag", session::FADE_SHADER) {
                 Ok(path) => self.fade_shader = Some(path.to_string_lossy().into_owned()),
@@ -184,7 +188,8 @@ impl Wm {
         if self.dialog.take().is_none() {
             return Vec::new();
         }
-        let mut commands = vec![Dialog::remove()];
+        self.open.shut(super::surfaces::SESSION);
+        let mut commands = vec![Dialog::remove(), self.desktop_keys()];
         if self.fade.take().is_some() {
             commands.push(Command::Update {
                 id: NAME.into(),

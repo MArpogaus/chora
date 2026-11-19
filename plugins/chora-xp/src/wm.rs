@@ -19,6 +19,7 @@ mod resize;
 mod restart;
 mod startup;
 mod state;
+mod surfaces;
 mod windows;
 
 use std::{
@@ -321,6 +322,8 @@ pub struct Wm {
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
+    /// The open shell surfaces.
+    open: chora_kit::wm::open::Open,
     /// When the dialog opened, while the desktop fades to gray.
     fade: Option<Instant>,
     /// The shader of the fade, in the cache.
