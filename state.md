@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 03:36 UTC)
+## Now (2026-11-19 03:44 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 98 % at 03:35 Thu (owner; another agent used it); tokens.py 03:36: PM 0.2 % today. Stop: no lanes, no opus until the owner's reset or Sat 03:59. PM logs only.
+budget: 98 % at 03:35 Thu (owner); tokens.py 03:44: PM 0.3 % today. Day cap lifted (owner 03:41); sonnet lanes now; owner resets about 05:10; then opus and Fable lanes with a reason, no waste.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 27bd60c7 (train 54 01:48: kit1; run 1 F29 flake); 22 greens (30b, 33-41, 43-54); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1 in.
 burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths, words) in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
@@ -24,15 +24,16 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| kit1-r1.md (F2) | sonnet high, claude/kit1 | merged train 54 01:48; opus security MERGE-OK 0 BLOCK/MAJOR, 6 MINOR to backlog |
 | docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | running session_016iS3kMRsiR4v7muvLbd2bf 03:38; start check 03:45 (owner: use the last 2 %) |
+| wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | starting 03:4x |
+| kit2b-r1.md (F2) | sonnet high, claude/kit2b | starting 03:4x |
+| mv3-r1.md (F4) | sonnet medium, claude/mv3 | starting 03:4x |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
-1. (process) Done: rc.4 on dev, main (13:41), untagged (owner 14:20); train 43 merged 14:42.
 2. Done 20:35 (F4, F6): MV1+CUT1, MV2 x3 merged (trains 44-47); ratchet --update with the next lane.
 3. (F6) Done 06:16: NET2 acts, I1 I3 I4 I7 I8 I14, known-red (trains 49, 50).
-4. Now-Fri (F2, F3, 7 %): KIT2, WM1, KIT4 in (trains 51-53); KIT1 in (train 54); Fri NET3 (4.5 %), docs F8 (1.5 %). Thu: NET3 brief, lanes Fri. F3b-d, F4, F5, F7, user test: next week.
+4. Now (F2, F3, F4, F8, 6 %): docs-f8, wm1b, kit2b, mv3 (sonnet, 1.5 % each); trains one at a time. After the reset: NET3 (opus, 4.5 %), WM2 (opus, 4 %), KIT2c-d, WM1c-d (sonnet). F5, F7, user test: next week.
 5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
