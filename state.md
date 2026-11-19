@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 12:01 UTC)
+## Now (2026-11-19 12:02 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 10:40 PM 2.8 %; 41 h left: about 2 %/h; 6 lanes; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:02 PM 3.4 %; 40 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: daf83391 (train 61: mv4, wm2, kit2c+kit6, wm1d, docs-f8b); 28 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -24,7 +24,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-kit7-r1.md (F2) | opus high | starting (kit7 c1dbc47b handed back 11:59) |
+| review-kit7-r1.md (F2) | opus high | session_016iS3kNmrY2LR4aRVcqNyZL (12:01) |
 | wm7b-r2.md (F3) | opus high | session_016iS3kLKs3MjAmmEjvvYvnT (11:29) |
 | kit5-r2.md (F2) | sonnet high | session_016iS3kL5zrc1QTWqPQ4hMJR (10:55) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
