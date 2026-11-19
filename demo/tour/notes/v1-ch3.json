@@ -10,7 +10,7 @@
  "03-09-agenda": "Super+a shows the agenda.",
  "03-10-drawer": "Super+Return slides a terminal drawer into the lower half over the agenda; it shows the same foot colour errors.",
  "03-11-drawer-closed": "The second Super+Return closes the drawer.",
- "03-12-right": "Super+n shows the right side: only the heading NOTES, empty.",
+ "03-12-right": "Super+n shows the right side: only the headings NOTES and NOTIFICATIONS, both empty.",
  "03-13-right-hidden": "The second Super+n hides the right side.",
  "03-14-chat-drawer": "A click on the Chat ... pill opens the chat drawer in the lower part: Chat with a helper, Close, 1 Atlas working, a field with caret. The pill and helper row vanish; Listening and a red dot show at the top right.",
  "03-15-chat-closed": "Escape closes the drawer; the Chat ... pill and the helper row Atlas working Tidy notes (1/2) are back at the top right."
