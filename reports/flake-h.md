@@ -45,3 +45,11 @@ An earlier set of 5 on 745def72 (before bc3f1662) was also 5 of 5 green (doors s
 Not done: the fix was not run under `under-load.sh`. The reds only showed under load (2 of 5), and the 5 green runs are without load, so they show no regression, not that the load reds are gone. Say so if a loaded set is wanted.
 
 Head: bc3f1662e4cb329f97267df6cb6a2991d323c721 on claude/flake-h.
+
+## PM review r1 (23:30)
+Diff 219d5afe...bc3f1662: tests/doors/lib.sh, xp.sh, gate-construct-layout.sh, gate-construct-pull.sh (+19 -16). Read in full.
+- rw-1 MAJOR: the reds showed only under `under-load.sh --cpus 2` (3 of 5 green); the fix was run 5 times without load. No passing cell under the load that failed, so the claim "load reds gone" is open (rules.md 7).
+- rw-2 MINOR: `until_ok`'s second argument keeps the old round count and halves it to seconds (`${2:-40} / 2`); a caller reads "40" as rounds. Name the unit in a comment at the function.
+- rw-3 NIT: `menu_close` passes 24 to keep the old 10 s because `menu_open` is true with no menu shown; the root cause goes to the backlog (lane's side find).
+Good: the sunset wait now fails instead of falling through; pull waits for 200 px instead of one read.
+Verdict: FIX (rw-1 open MAJOR). r2: run under load, fix what is red, rw-2.
