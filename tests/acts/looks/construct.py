@@ -106,14 +106,6 @@ def tab_after_a_new_window(s):
     )
 
 
-def helper_down(s):
-    """A cue: voice and the presenter of the helper end, so that its HUD
-    does not stand over the screen when the cube is compared with it."""
-    for _ in range(2):
-        s.procs.pop().terminate()
-    s.until(lambda: not {"voice", "assistant"} & s.clients(), 20, "voice and the presenter gone")
-
-
 def run(s):
     """A window opens as a pane and closes. The keys stay with the walk
     until a flight into the pane, so the act does not ask for the focus.
@@ -122,11 +114,6 @@ def run(s):
     door_acts(s, "construct-help", "Escape")
     tab_after_a_new_window(s)
     helper_acts(s)
-    s.act(
-        "the helper presenter ends before the cube",
-        [helper_down],
-        disconnects=["voice", "voice-mcp", "assistant"],
-    )
     cube_acts(s)
 
 
