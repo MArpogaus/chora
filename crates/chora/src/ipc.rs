@@ -3996,6 +3996,42 @@ mod tests {
         second.ok(&mut core, "input.grab", grab);
     }
 
+    /// A client that gave a grab up says so to the others, so that one that
+    /// was refused the key can ask again (D-ungrab). The core does not know
+    /// who waits: every subscriber hears it, and a refused ungrab says
+    /// nothing.
+    #[test]
+    fn an_ungrab_is_told_to_the_subscribers() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        let grab = json!({"binding": "Alt+Escape"});
+        holder.ok(&mut core, "input.grab", grab.clone());
+        let told = |waiting: &mut crate::testing::Client, core: &mut Core| {
+            (waiting.events_now(core).into_iter())
+                .filter(|e| e["event"] == "input.ungrabbed")
+                .collect::<Vec<_>>()
+        };
+        assert!(
+            told(&mut waiting, &mut core).is_empty(),
+            "a grab is not told"
+        );
+        let (_, _) = waiting.fails(&mut core, "input.ungrab", grab.clone());
+        assert!(
+            told(&mut waiting, &mut core).is_empty(),
+            "a refused ungrab is not told"
+        );
+        holder.ok(&mut core, "input.ungrab", grab);
+        let events = told(&mut waiting, &mut core);
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert_eq!(events[0]["binding"], "Alt+Escape");
+    }
+
     #[test]
     fn a_grab_takes_its_key_with_exactly_its_modifiers() {
         let mut core = Core::new();
