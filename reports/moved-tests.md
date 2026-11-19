@@ -89,3 +89,9 @@ session scratchpad). The first run, on 75387408, failed in ci-check (gate-0.8-pl
 construct tests named the raw method `output.list` outside an item that allows
 clippy::disallowed_methods. They now carry that allow, the commit was amended, the gate was green.
 Commits carry the author Marcel Arpogaus and no attribution lines (the commit hook refuses them).
+
+## Review ct r1 (PM, 16:06)
+Base af5547c7..c4c4f5d5, 6 files, +789; production change only `#[cfg(test)] mod tests_moved;` in cube.rs, methods.rs, overlay.rs.
+Checks: every `#[test]` fn has an assert (only helpers on_core, count, virtual_outputs, properties, required, calls, one_window, on_scene, drawn have none); no assert under an `if`; names match the asserts (spot check cube/tests_moved.rs: hand, release, manager_runs, face_manager, reopen); lane gate 41/41 on c4c4f5d5.
+Note: cube.rs may conflict with cubesplit 10cf04cf in train 65; resolve by moving the mod line to the split module.
+Counts: BLOCK 0, MAJOR 0, MINOR 0. Verdict: MERGE-OK.
