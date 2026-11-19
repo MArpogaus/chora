@@ -25,14 +25,14 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
-| wm1d-r2.md (F3) | sonnet high | session_016iS3kMu2Me5Yp8sQFfyzaD (08:52) |
+| (free) | | wm1d r2 679e7786 back 09:16, PM merge check ok, train 60 |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
-| wm7a-r2.md (F3) | sonnet high | starting |
+| wm7a-r2.md (F3) | sonnet high | session_016iS3kN6hpfMtLbawkpssbH (09:17) |
 | kit2c-r2.md (F2) | sonnet high | session_016iS3kNz4FAJW7nH4GHrt8f (09:15) |
 | kit2d-r1.md (F2) | sonnet high | session_016iS3kM1JMwzfGGNbUurCv7 (08:50) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 58 green; 59 cut2 29b2fd25, net3 dc00d33c running; 60: mv4 7e339880, wm2 8db02220 (MERGE-OK; PM: r3 merge checked, size list takes mv4); wm1d r2 merges net3 (xp texts); kit2c MERGE-OK 09:12, r2 merges wm2 (tiling conflict); docs-f8b 5f97b0eb with kit2c. Pace 1.5-2 %/h.
+4. Trains (F6): 58 green; 59 cut2, net3 running; 60: mv4 7e339880, wm2 8db02220 (size list takes mv4), wm1d 679e7786 (r2 net3 merged, PM checked); kit2c r2 merges wm2 (tiling); docs-f8b 5f97b0eb with kit2c. Pace 1.5-2 %/h.
 5. Next (sonnet unless complex, owner 06:56): KIT3 (F2, after KIT2c-d). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
