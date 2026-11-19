@@ -26,8 +26,8 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK; train 57 06:16 |
 | kit2b-r2.md (F2) | sonnet medium, claude/kit2b | 517ce830 MERGE-OK (PM r2); train 58
-| net3-r2.md (F7) | sonnet high, claude/net3 | r1 FIX (rw-1 MAJOR I13 45 deg); r2 |
-| wm2-r2.md (F3) | sonnet high, claude/wm2 | r1 FIX (rw-1 MAJOR); session_016iS3kPxLbWirfzDNrMXErf |
+| net3-r2.md (F7) | sonnet high, claude/net3 | r1 FIX; session_016iS3kLPXZ8cwf6kjLhkoMH |
+| wm2-r2.md (F3) | sonnet high, claude/wm2 | r1 FIX; session_016iS3kPxLbWirfzDNrMXErf |
 | flakes-f-r1.md (F5) | opus high, claude/flakes-f | session_016iS3kPLuNxC9L4qF4UPzzP |
 | wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | 5e72e4f9 MERGE-OK (1 MINOR backlog); train 58 |
 | kit6-r1.md (F2) | sonnet high, claude/kit6 | session_016iS3kQVP9HrenFDKnEYDaa |
