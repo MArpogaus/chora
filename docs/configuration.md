@@ -1399,7 +1399,7 @@ which lists every option. The file and its changes work as for
 | `enabled` | `true` | the figure shows while the voice agent is connected |
 | `position` | `null` | the corner of the first output where the figure shows; `null`: the place of the voice panel of the folder |
 | `hud` | `neutral` | the name of the HUD folder when no rule of `huds` matches: `$XDG_DATA_HOME/chora/huds/NAME`, else `/usr/share/chora/huds/NAME`, else `plugins/chora-assistant/huds/NAME`, `plugins/chora-NAME/hud` or `flavors/NAME/assets/assistant` of the source tree when the binary runs from `target/<profile>/` |
-| `huds` | `[]` | rules `{when: {...}, folder: NAME}`; the first whose `when` matches the context (`wm`, `space`, `app`, `state`, `agents`, `chat`, `output`) names the folder that draws; see `hud.md` |
+| `huds` | `[]` | rules `{when: {...}, folder: NAME}`; the first whose `when` matches the context (`wm`, `space`, `app`, `state`, `agents`, `chat`, `output`) names the folder that draws; the name `@look` stands for the folder of a look that named itself with `look.theme` and ships one; see `hud.md` |
 
 `chora-assistant` subscribes to `voice.*`. The figure shows a state of the
 agent with the picture that the folder names for it: `asleep`,

@@ -493,19 +493,14 @@ impl Agent {
     }
 
     /// The folder that draws in a context: that of the first rule that
-    /// matches, else that of a look that named itself and ships one, else
-    /// `hud`.
+    /// matches, a rule `@look` giving the folder of a look that named
+    /// itself and ships one; `hud` when no rule does.
     fn wanted_folder(&self, context: &Context) -> String {
-        let settings = &self.settings.value;
-        settings
-            .rule_folder(context)
-            .map(str::to_owned)
-            .or_else(|| {
-                let roots = &self.source.roots;
-                self.switcher
-                    .look_folder(context, |name| folders::find(roots, name).is_some())
-            })
-            .unwrap_or_else(|| settings.hud.clone())
+        let roots = &self.source.roots;
+        self.settings.value.folder_of_looks(context, |context| {
+            let ships = |name: &str| folders::find(roots, name).is_some();
+            self.switcher.look_folder(context, ships)
+        })
     }
 
     /// The commands that show the context: the look of the folder of the
@@ -611,6 +606,7 @@ mod tests {
         .unwrap()
     }
 
+    const SHIPPED_AND_LOOKS: &str = "huds:\n  - {when: {space: construct}, folder: construct}\n  - {folder: '@look'}\n  - {when: {wm: mc}, folder: mc}\n";
     const SHIPPED: &str = "huds:\n  - {when: {space: construct}, folder: construct}\n  - {when: \
         {wm: mc}, folder: mc}\n  - {when: {wm: xp}, folder: xp}\n  - {when: {space: \
         tiling}, folder: tiling}\n";
@@ -669,7 +665,13 @@ mod tests {
             Some("fifth")
         );
         assert_eq!(switcher.look_folder(&fifth, |_| false), None, "no folder");
-        assert_eq!(rules(SHIPPED).rule_folder(&fifth), None, "no rule names it");
+        let open = rules(SHIPPED_AND_LOOKS);
+        assert_eq!(open.folder(&fifth), "neutral", "no rule names it");
+        let of_look = |config: &Config, context: &Context| {
+            config.folder_of_looks(context, |c| switcher.look_folder(c, ships))
+        };
+        assert_eq!(of_look(&open, &fifth), "fifth");
+        assert_eq!(of_look(&rules(SHIPPED), &fifth), "neutral", "no rule @look");
         let inside = context(&place("mc", "fifth"));
         switcher.set_theme("mc", "light", now);
         assert_eq!(

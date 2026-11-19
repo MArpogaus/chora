@@ -89,9 +89,10 @@ trusts.
 
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
-always matches. A look that names itself with `look.theme` and ships a
-folder of its name is drawn with it when no rule matches (see Themes). The
-shipped settings have these rules, so each look shows its own folder:
+always matches. The shipped settings have these rules, so each look
+shows its own folder, and a look that is not listed shows its own folder
+too if it names itself with `look.theme` and ships one (rule `@look`, see
+Themes):
 
 ```yaml
 huds:
@@ -99,6 +100,7 @@ huds:
   - {when: {wm: mc}, folder: mc}
   - {when: {wm: xp}, folder: xp}
   - {when: {space: tiling}, folder: tiling}
+  - {folder: '@look'}
 ```
 
 A matching rule overrides `hud`, and so `--use-hud`, which prints a warning
@@ -320,11 +322,13 @@ emit the old names, to `construct.theme`, `construct.view`, `mc.theme`,
 `tiling.theme` and `xp.theme`. The context field `theme` is the theme of
 the client of `space`, else of `wm`, else `light`.
 
-A look that names itself needs no rule for its folder: when no rule
-matches, the host draws the folder that has the name of the `space` of the
-context, else of its `wm`, if the look shipped one in its own directory
-(`plugins/chora-NAME/hud` of the source tree, `chora/huds/NAME` of the
-installed system).
+A look that names itself needs no rule for its folder: the folder name
+`@look` in a rule stands for the folder that has the name of the `space`
+of the context, else of its `wm`, if that look named itself and shipped one
+in its own directory (`plugins/chora-NAME/hud` of the source tree,
+`chora/huds/NAME` of the installed system). When there is none, the next
+rule decides. The shipped rules end with `{folder: '@look'}`; a setting
+`huds` of your own has no such rule unless you write it.
 
 The block `dark:` gives the colours of the dark theme over those of the
 folder: `chat` takes `fill`, `text`, `name`, `border`, `well` and `glow`, and

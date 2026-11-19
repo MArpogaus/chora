@@ -46,6 +46,11 @@ pub struct Config {
     pub huds: Vec<Rule>,
 }
 
+/// The name that a rule of `huds` gives to the folder of the look of the
+/// context: the folder that has the name of its space or window manager,
+/// when that look named itself with `look.theme` and ships it.
+pub const LOOK_FOLDER: &str = "@look";
+
 /// A rule of `huds`: the folder that draws while `when` matches the
 /// context; without `when` it always matches.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -63,17 +68,32 @@ impl Config {
     /// else `hud`.
     #[must_use]
     pub fn folder(&self, context: &Context) -> &str {
-        self.rule_folder(context).unwrap_or(self.hud.as_str())
-    }
-
-    /// The folder of the first rule that matches the context, none when no
-    /// rule does.
-    #[must_use]
-    pub fn rule_folder(&self, context: &Context) -> Option<&str> {
         self.huds
             .iter()
-            .find(|rule| rule.when.matches(context))
-            .map(|rule| rule.folder.as_str())
+            .find(|rule| rule.when.matches(context) && rule.folder != LOOK_FOLDER)
+            .map_or(self.hud.as_str(), |rule| rule.folder.as_str())
+    }
+
+    /// [`Config::folder`] with the rules `@look` open: such a rule that
+    /// matches draws the folder that `look` gives for the context, and
+    /// passes to the next rule when it gives none.
+    #[must_use]
+    pub fn folder_of_looks(
+        &self,
+        context: &Context,
+        look: impl Fn(&Context) -> Option<String>,
+    ) -> String {
+        self.huds
+            .iter()
+            .filter(|rule| rule.when.matches(context))
+            .find_map(|rule| {
+                if rule.folder == LOOK_FOLDER {
+                    look(context)
+                } else {
+                    Some(rule.folder.clone())
+                }
+            })
+            .unwrap_or_else(|| self.hud.clone())
     }
 }
 
@@ -88,7 +108,7 @@ impl Settings for Config {
         }
         for (index, rule) in self.huds.iter().enumerate() {
             let at = format!("huds[{index}]");
-            if !folders::good_name(&rule.folder) {
+            if rule.folder != LOOK_FOLDER && !folders::good_name(&rule.folder) {
                 errors.push(format!(
                     "{at}.folder: {:?} is not a folder name: 1 to 64 of a-z, A-Z, 0-9, _ and -",
                     rule.folder
