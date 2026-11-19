@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 07:40 UTC)
+## Now (2026-11-19 07:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -37,4 +37,4 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
-- F27: setup re-saved by owner 11-19 06:01; fuzzel >= 1.11 unchecked: next lane start check. Delete claude/release-rc4 in GitHub (session push 403). rc.4 tag: kept local (owner).
+- F27 closed 07:47: fuzzel 1.11.1 in a fresh lane (flakes-f). Delete claude/release-rc4 in GitHub (session push 403). rc.4 tag: kept local (owner).
