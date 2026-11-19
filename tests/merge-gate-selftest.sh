@@ -120,7 +120,7 @@ printf 'one|timeout 5 bash -c %s\n' "'. tests/gate-lib.sh'" >"$work/steps"
 run_gate
 check "a gate script inside the gate does not wait for the lock of the gate" "$rc" 0
 
-env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock" \
+env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock" MERGE_GATE_NESTED=1 \
     MERGE_GATE_RUNS="$work/runs" "$gate" --only gate-lib >"$work/out" 2>&1
 check "the step gate-lib runs the self-test of tests/gate-lib.sh" "$?" 0
 
