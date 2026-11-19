@@ -85,10 +85,16 @@ agent_cmd: [sh, {REPO / "services/voice/tests/fake-acp.sh"}]
 agent_projects: {{demo: {demo}}}
 """
     )
-    s.spawn([str(s.bin / "chora-voice")], "voice.log")
+    s.spawn([str(s.bin / "chora-voice")], "voice.log", FAKE_ACP_ASK_AFTER=str(asked(s)))
     s.spawn([str(s.bin / "chora-assistant")], "assistant.log")
     s.until(lambda: {"voice", "assistant"} <= s.clients(), 40, "voice and the presenter connect")
     s.until(lambda: s.state("assistant") is not None, 30, "the presenter answers state.get")
+
+
+def asked(s):
+    """The file that lets the stand-in helper ask its question: until it
+    exists the helper works (FAKE_ACP_ASK_AFTER of fake-acp.sh)."""
+    return pathlib.Path(s.env["XDG_CONFIG_HOME"]) / "demo-ask"
 
 
 def click_node(node):
@@ -136,12 +142,23 @@ def helper_acts(s):
         timeout=30,
     )
     s.act(
+        "the helper works",
+        [agent("agent_say", name="coder", text="Schreib notes.txt."), helper_is("working")],
+        expect=Expect(helper="working"),
+        timeout=30,
+    )
+    s.act(
         "the helper asks",
-        [agent("agent_say", name="coder", text="Schreib notes.txt."), helper_is("question")],
+        [lambda s: asked(s).touch(), helper_is("question")],
         expect=Expect(helper="answered"),
         timeout=30,
     )
-    s.act("the helper answers", [click_node("hud-card-yes"), helper_is("done")], timeout=30)
+    s.act(
+        "the helper answers",
+        [click_node("hud-card-yes"), helper_is("done")],
+        expect=Expect(helper="answered"),
+        timeout=30,
+    )
     s.act("the chat of the helper opens", [presenter("chat.show")], timeout=30)
     s.act("the chat of the helper shuts", [presenter("chat.hide")], timeout=30)
     s.act(

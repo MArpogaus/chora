@@ -368,6 +368,26 @@ mod tests {
         );
     }
 
+    /// The answer of a helper holds while the voice agent goes back to
+    /// listening after the person answered its question (rw-6): the
+    /// helper answered until a helper reports again.
+    #[test]
+    fn the_answer_of_a_helper_holds_while_voice_listens_again() {
+        let mut h = Helper::default();
+        h.hear(&state("coder", "idle"));
+        h.hear(&state("coder", "question"));
+        h.hear(&state("", "confirming"));
+        h.hear(&state("coder", "working"));
+        h.hear(&state("coder", "done"));
+        h.hear(&state("", "listening"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Answered, "coder · done".into())
+        );
+        h.hear(&state("coder", "idle"));
+        assert_eq!(h.state(), State::Idle, "the helper reported again");
+    }
+
     /// After an answer event the machine never says `working`, whichever
     /// word the answer has, until a new report works (I8).
     #[test]
