@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 21:20 UTC)
+## Now (2026-11-19 21:35 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 20:26 PM 1.2 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; use the week.
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need
@@ -10,15 +10,15 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); open findings to known issues |
+| 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | 30b, 33-40 green (9); F26 held, F28 holds; F17 open |
 | 4 | CI green | green on 29e2cd77 13:13 (train 41, PR #106, all 10 checks) |
-| 5 | Packaging smoke | arch, rpm, podman green on 29e2cd77 13:13 |
+| 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
 | 6 | Code review per area | 08:59, no HIGH; MEDIUM fixed or known issues |
 | 7 | deny, machete | clean (ci-rc) |
-| 8 | Docs, CHANGELOG, known issues | docs merged; decision records D78-D95 train 37; changelog by cz at the tag |
-| 9 | Logging audit, flakes closed | train 14; flakes r5 train 17 |
+| 8 | Docs, CHANGELOG, known issues | docs merged; D78-D95 train 37; cz changelog at the tag |
+| 9 | Logging audit, flakes | train 14, 17 |
 | 11 | Tour, UX loop | v7 MERGE-OK; no tour work (owner 11-17 14:20); new tour with checks after refactor and user test (next week) |
 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
@@ -26,17 +26,18 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 |---|---|---|
 | kit-report-r1.md (F2, F4) | sonnet high | MERGE-OK 582ab506, train 73 |
 | flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt (20:30) from 219d5afe |
-| kit-minors-r2.md (F2, F5) | sonnet medium | session_016iS3kLejbodHAtEu7ALMD9 (21:18); r1 broke xp 17 |
+| kit-minors-r2.md (F2, F5) | sonnet medium | MERGE-OK e4208314, train 75 |
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 73 |
 | id-gate-r1.md (F6) | sonnet high | MERGE-OK a9fd91f3, own train 74 next |
 | flake-j-r1.md (F5) | sonnet high | session_016iS3kMAsaXSn33qWo4iN2k (21:03) |
-| ig-fix-r1.md (F6) | sonnet medium | session_016iS3kPJ6TqYMFjmMcjoCCa (21:07) |
-| gate-pick-r1.md (F6) | sonnet medium | session_016iS3kMWBfrZW5Qx6DpNPbF |
+| ig-fix-r2.md (F6) | sonnet low | r1 FIX (conflicts with 74); r2 after 74 green |
+| gate-pick-r1.md (F6) | sonnet medium | MERGE-OK 31cfe52d, train 74 |
 | kc-fix-r1.md (F2) | sonnet low | session_016iS3kLSpF9Nq7D8JfRzSxz |
+| temp-dirs-r1.md (F5) | sonnet high | session_016iS3kQayjpPhdEwcyCx7q9 (21:34) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 72 green 21:03. 73 red 21:17 (xp 17: kit-minors). 73b running 21:20 (f3709748): kit-report, minors-2. 74 (harness, alone): id-gate a9fd91f3. 75: flake-i e5e44719, kit-connect f7569c24, then flake-h, flake-j, kit-minors r2.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: GATE-PICK 0.5 %, KC-FIX 0.3 %, KIT-MINORS r2 0.3 %, IG-FIX 0.3 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 72 green 21:03. 73b red 21:31: hud flake (rerun green, backlog); reruns after 74. 74 running 21:36: id-gate, gate-pick (harness). 75: flake-i e5e44719, kit-connect f7569c24, kit-minors e4208314, then flake-h, flake-j.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: TEMP-DIRS 0.8 %, KC-FIX 0.3 %, IG-FIX r2 0.2 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: GATE-PICK, KIT-MINORS r2, FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
