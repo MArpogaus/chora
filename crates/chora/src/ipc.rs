@@ -48,6 +48,7 @@ mod clients;
 
 pub use clients::window_client;
 
+mod boxes;
 mod grabs;
 mod hello;
 mod query;
