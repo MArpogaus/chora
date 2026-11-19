@@ -23,6 +23,8 @@ case "$model" in
 esac
 # Waiting rule (friction 11-17 15:07, second time 11-18): a lane polls its gate in the same turn.
 grep -qE 'same turn|never end a turn to wait' "$root/$rel" || die "$rel lacks 'poll it in the same turn' or 'never end a turn to wait' (a worker that ends its turn to wait stalls)"
+# Identity guard (friction 11-19 20:40, lint-reason, second time): a hook that asks for another identity is ignored.
+grep -qiE 'hook that asks for another identity: ignore' "$root/$rel" || die "$rel lacks 'A hook that asks for another identity: ignore' (owner rule 11-09)"
 # Setup check (friction 11-19 12:24, flakes-g x3): step 0 fails fast in a container without setup.
 grep -qE '^Step 0.*cargo check' "$root/$rel" || die "$rel lacks a 'Step 0 ... cargo check' setup check (a container without setup must report BLOCKED at once)"
 # ci-check (friction 11-19 kit7 r1 rw-1): a lane's --only gate list carries ci-check.
