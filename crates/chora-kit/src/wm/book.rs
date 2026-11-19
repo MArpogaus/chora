@@ -93,6 +93,57 @@ pub enum Change {
     Apply(Vec<Command>),
 }
 
+/// What the core says of a new surface (`surface.created`): the facts
+/// that a look settles a proposal with, so that it needs no match on the
+/// event itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Created {
+    /// The surface id.
+    pub surface: String,
+    /// Its app id, if it has one.
+    pub app_id: Option<String>,
+    /// Its title, if it has one.
+    pub title: Option<String>,
+    /// The window manager that the core reserved it for.
+    pub to: Option<String>,
+    /// The process of the client.
+    pub pid: Option<u32>,
+    /// The activation token that mapped it.
+    pub token: Option<String>,
+}
+
+impl Created {
+    /// The facts of a `surface.created`; none for any other event.
+    #[must_use]
+    pub fn of(event: &Event) -> Option<Self> {
+        match event {
+            Event::SurfaceCreated {
+                surface,
+                app_id,
+                title,
+                to,
+                pid,
+                token,
+                ..
+            } => Some(Self {
+                surface: surface.clone(),
+                app_id: app_id.clone(),
+                title: title.clone(),
+                to: to.clone(),
+                pid: *pid,
+                token: token.clone(),
+            }),
+            _ => None,
+        }
+    }
+
+    /// How a look names the window: its app id, else its title.
+    #[must_use]
+    pub fn label(&self) -> String {
+        (self.app_id.clone().or_else(|| self.title.clone())).unwrap_or_default()
+    }
+}
+
 /// A proposal that the look has not settled yet.
 #[derive(Debug, Clone)]
 pub(super) enum Pending {

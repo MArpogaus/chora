@@ -6,7 +6,7 @@
 use chora_kit::{
     conn::Conn,
     testing::{FakeCore, Script, Subject, created, detach, output, owner, phases, surface},
-    wm::{Book, Change, Origin, Phase, Why, give::pass_on},
+    wm::{Book, Change, Created, Origin, Phase, Why, give::pass_on},
 };
 use chora_scene::{Command, Event, NodeKind, PropsUpdate, ROOT};
 use serde_json::{Value, json};
@@ -440,4 +440,43 @@ fn the_book_names_the_app_of_a_created_surface_only() {
         surface: "s1".into(),
     };
     assert_eq!(Book::announced_app(&detached), None);
+}
+
+/// A look reads the facts of a created surface without a match on the
+/// event: its reservation, process and token, and a label from the app id,
+/// else the title.
+#[test]
+fn a_created_surface_tells_its_facts_and_its_label() {
+    let event = Event::SurfaceCreated {
+        surface: "s1".into(),
+        app_id: None,
+        title: Some("A title".into()),
+        decoration: None,
+        to: Some(NAME.into()),
+        pid: Some(7),
+        token: Some("t1".into()),
+    };
+    let created = Created::of(&event).unwrap();
+    assert_eq!(created.surface, "s1");
+    assert_eq!(created.to.as_deref(), Some(NAME));
+    assert_eq!(
+        (created.pid, created.token.as_deref()),
+        (Some(7), Some("t1"))
+    );
+    assert_eq!(created.label(), "A title");
+    let named = Created {
+        app_id: Some("foot".into()),
+        ..created
+    };
+    assert_eq!(named.label(), "foot");
+    let bare = Created {
+        app_id: None,
+        title: None,
+        ..named
+    };
+    assert_eq!(bare.label(), "");
+    let gone = Event::SurfaceDestroyed {
+        surface: "s1".into(),
+    };
+    assert_eq!(Created::of(&gone), None);
 }

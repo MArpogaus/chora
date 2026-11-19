@@ -2,9 +2,9 @@
 //! construct.
 
 use super::{
-    ClientError, Command, Construct, Entry, Event, Give, GlideTo, Grab, LOOK, ManagerPane,
-    MovePane, Named, OpenCube, Plugin, Pose, ResizePane, RpcError, Runtime, Store, TurnCube, Value,
-    file, give, json, moved, runtime,
+    ClientError, Construct, Entry, Event, Give, GlideTo, Grab, ManagerPane, MovePane, Named,
+    OpenCube, Plugin, Pose, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give,
+    json, moved, runtime,
 };
 
 impl Plugin for Construct {
@@ -23,35 +23,24 @@ impl Plugin for Construct {
         let Some(event) = self.pulled(event)? else {
             return Ok(());
         };
+        if let Some(created) = chora_kit::wm::Created::of(&event) {
+            return self.window_created(&created);
+        }
+        if matches!(
+            event,
+            Event::OutputChanged { .. } | Event::OutputRemoved { .. }
+        ) {
+            self.book.apply(&event);
+        }
         match event {
-            Event::SurfaceCreated {
-                surface,
-                app_id,
-                title,
-                to,
-                pid,
-                token,
-                ..
-            } => {
-                let label = app_id.or(title).unwrap_or_default();
-                self.created(&surface, &label, to.as_deref(), pid, token.as_deref())
-            }
-            Event::SurfaceDetached { surface } => self.detached(&surface),
+            Event::SurfaceDetached { surface } => self.window_detached(&surface),
             Event::FocusChanged { surface } => {
                 self.core_focus = surface;
                 Ok(())
             }
-            Event::SurfaceDestroyed { surface }
-                if self.launcher_window.as_deref() == Some(&surface) =>
-            {
-                self.launcher_window = None;
-                self.rt.conn.apply(vec![Command::FocusNode {
-                    node: Some(LOOK.into()),
-                }])
-            }
-            Event::SurfaceDestroyed { surface } => {
-                self.hidden.retain(|s| *s != surface);
-                self.forget(&surface)
+            Event::SurfaceDestroyed { ref surface } => {
+                let surface = surface.clone();
+                self.window_destroyed(&event, &surface)
             }
             Event::SurfaceChanged {
                 surface,
