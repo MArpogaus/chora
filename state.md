@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 01:50 UTC)
+## Now (2026-11-19 03:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 62 % at 23:59 Tue (owner); lanes since $20.5 (7 %), PM 1.6 % (tokens.py 01:50), opus review kit1 (est 1 %). About 72 %, even pace 70 %: 2 % over; 28 % for 50 h. Thu: one opus (kit1 review) done.
+budget: 98 % at 03:35 Thu (owner; another agent used it); tokens.py 03:36: PM 0.2 % today. Stop: no lanes, no opus until the owner's reset or Sat 03:59. PM logs only.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 27bd60c7 (train 54 01:48: kit1; run 1 F29 flake); 22 greens (30b, 33-41, 43-54); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1 in.
 burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths, words) in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
