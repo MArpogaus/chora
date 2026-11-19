@@ -415,6 +415,21 @@ mod keys {
         assert!(wm.switch_escape.is_none(), "and Alt+Escape is given back");
     }
 
+    /// The refusal of the Alt+Escape grab by a holder is expected and not
+    /// reported on every Alt+Tab (rd-2); a failed socket still is.
+    #[test]
+    fn only_a_refusal_by_a_holder_is_expected() {
+        use chora_scene::ipc::{ClientError, RpcError};
+        let held = ClientError::Rpc(RpcError::new(
+            RpcError::REJECTED,
+            "Alt+Escape is grabbed already",
+        ));
+        assert!(super::super::keys::held_by_a_client(&held));
+        assert!(!super::super::keys::held_by_a_client(&ClientError::Closed));
+        let limit = ClientError::Rpc(RpcError::new(RpcError::LIMIT_REACHED, "too many"));
+        assert!(!super::super::keys::held_by_a_client(&limit));
+    }
+
     /// Alt+Escape cancels the switch: its key is grabbed while the
     /// switcher shows, and the window stays where it was.
     #[test]

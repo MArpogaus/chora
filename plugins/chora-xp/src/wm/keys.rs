@@ -6,10 +6,19 @@ use chora_kit::actions::perform::{Failure, Host, perform};
 use chora_kit::actions::{Step, Turn};
 
 use super::{
-    Binding, Command, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY, MENUS, Mode, NodeKind,
-    PressState, PropsUpdate, SWITCHER, Switcher, Transform, Value, Window, Wm, add_help, close,
-    control, give, help, switcher, taskbar,
+    Binding, ClientError, Command, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY, MENUS, Mode,
+    NodeKind, PressState, PropsUpdate, RpcError, SWITCHER, Switcher, Transform, Value, Window, Wm,
+    add_help, close, control, give, help, switcher, taskbar,
 };
+
+/// The key that cancels the switch, in the normal form of `input.key`.
+const ALT_ESCAPE: &str = "Alt+Escape";
+
+/// Whether the core refused a grab because another client holds the
+/// binding; xp asks again when that client gives it up.
+pub(super) fn held_by_a_client(err: &ClientError) -> bool {
+    matches!(err, ClientError::Rpc(rpc) if rpc.code == RpcError::REJECTED)
+}
 
 /// A turn of the cube in quarter turns: left is back.
 const fn quarter(turn: Turn) -> i32 {
@@ -402,11 +411,12 @@ impl Wm {
 
     /// Takes Alt+Escape from the clients only while the switcher shows,
     /// so that it cancels the switch. A client that holds the key refuses
-    /// the grab until it has heard `xp.switcher`; xp does not wait for it
-    /// but grabs again on the event `construct.escape_free`
-    /// (`escape_freed`).
+    /// the grab until it has given the key up; xp does not wait for it but
+    /// grabs again on the core event `input.ungrabbed` (`ungrabbed`). That
+    /// refusal is expected and not reported, or each Alt+Tab would write
+    /// a line to the log.
     pub(super) fn grab_switch_escape(&mut self) {
-        let binding = match "Alt+Escape".parse() {
+        let binding = match ALT_ESCAPE.parse() {
             Ok(binding) => binding,
             Err(err) => {
                 crate::report(&err);
@@ -416,14 +426,19 @@ impl Wm {
         let grab = Grab { binding };
         match self.rt.conn.call::<_, String>("input.grab", grab) {
             Ok(normal) => self.switch_escape = Some(normal),
+            Err(err) if held_by_a_client(&err) => {}
             Err(err) => crate::report(&err),
         }
     }
 
-    /// The holder of Alt+Escape gave it up for the switcher: the grab that
-    /// it refused is made again, if the switcher still shows.
-    pub(super) fn escape_freed(&mut self) -> Vec<Command> {
-        if self.switcher.is_some() && self.switch_escape.is_none() {
+    /// A client gave a grab up: if it was Alt+Escape and the switcher still
+    /// shows without the key, the grab that the holder refused is made
+    /// again. The holder may be any client (D-ungrab).
+    pub(super) fn ungrabbed(&mut self, binding: &str) -> Vec<Command> {
+        let ours = binding
+            .parse::<Binding>()
+            .is_ok_and(|b| b.to_string() == ALT_ESCAPE);
+        if ours && self.switcher.is_some() && self.switch_escape.is_none() {
             self.grab_switch_escape();
         }
         Vec::new()

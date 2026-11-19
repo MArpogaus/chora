@@ -101,9 +101,6 @@ const SWITCHER: &str = "xp-alttab";
 /// buttons and Alt+Tab, in the place of a surface. It has no dash, which
 /// the ids of task buttons split at.
 const HELP_TASK: &str = "helppanel";
-/// The event of a client that held Alt+Escape and gave it up on the event
-/// `xp.switcher`: the switcher grabs the key again.
-const ESCAPE_FREE: &str = "construct.escape_free";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -142,7 +139,7 @@ const EVENTS: [&str; 25] = [
     "voice.state",
     "voice.say",
     "voice.remove",
-    ESCAPE_FREE,
+    "input.ungrabbed",
 ];
 
 /// The methods that other clients call with the client name, as

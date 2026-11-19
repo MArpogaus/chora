@@ -4014,6 +4014,7 @@ mod tests {
         holder.ok(&mut core, "input.grab", grab.clone());
         let told = |waiting: &mut crate::testing::Client, core: &mut Core| {
             (waiting.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
                 .filter(|e| e["event"] == "input.ungrabbed")
                 .collect::<Vec<_>>()
         };

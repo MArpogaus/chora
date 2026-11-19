@@ -1,5 +1,7 @@
 //! The `grab` and `ungrab` calls of a connection.
 
+use chora_scene::Event;
+
 use super::{
     Binding, Capability, MAX_GRABS, RpcError, State, Trigger, Value, is_safety_key, media_key,
     rejected, trigger,
@@ -59,7 +61,9 @@ impl State {
         Ok(Value::String(normal))
     }
 
-    /// Ends a grab of a connection (D45).
+    /// Ends a grab of a connection (D45) and tells the subscribers of
+    /// `input.ungrabbed`, so that a client that was refused the binding
+    /// can ask again (D-ungrab).
     pub(super) fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let trigger = trigger(binding)?;
         let before = self.ipc.grabs.len();
@@ -69,6 +73,9 @@ impl State {
         if self.ipc.grabs.len() == before {
             return Err(rejected(format!("{binding} is no grab of this connection")));
         }
+        self.emit(&Event::InputUngrabbed {
+            binding: binding.to_string(),
+        });
         Ok(Value::Null)
     }
 }

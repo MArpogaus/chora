@@ -28,9 +28,6 @@ const TURN_KEYS: [(&str, i32); 2] = [("Ctrl+Alt+Left", -1), ("Ctrl+Alt+Right", 1
 /// The event of the window manager of the cube while its window
 /// switcher shows; the switcher needs the binding of the step back.
 pub(crate) const SWITCHER: &str = "xp.switcher";
-/// The event of the construct that tells the switcher of the cube that
-/// `Alt+Escape` is free again.
-const ESCAPE_FREE: &str = "construct.escape_free";
 /// The event of the window manager of the cube when the floating
 /// windows of an output change (`chora_kit::float`).
 pub(crate) const FLOATING: &str = "xp.floating";
@@ -390,20 +387,7 @@ impl Construct {
             Some(host) if host.switching != shown => host.switching = shown,
             _ => return Ok(()),
         }
-        self.regrab()?;
-        if shown {
-            self.say_escape_free();
-        }
-        Ok(())
-    }
-
-    /// Tells the switcher that `Alt+Escape` is free: it asked for the
-    /// key before the construct heard `xp.switcher`, and the core refused.
-    fn say_escape_free(&mut self) {
-        let event = json!({"event": ESCAPE_FREE, "data": {}});
-        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            crate::report(&err);
-        }
+        self.regrab()
     }
 
     /// The act of a key that the look node got. In navigate mode F1 shows
