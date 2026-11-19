@@ -3,9 +3,9 @@
 ## Now (2026-11-19 20:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 20:26 PM 1.2 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; use the week.
-models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
+models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need
 session branch: 6aa0bd37 (train 71: debt-down D117, green 20:12); 36 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, COPIES-0, DOCS-F8c, MK, MC-I5, CONSTRUCT-RED, DEBT-DOWN in.
-burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
+burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -32,7 +32,7 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | minors-2-r1.md (F4, F5) | sonnet high | session_016iS3kQ6JaM7E3oq3XUE8gn (20:46) from 9db45f8a |
 | id-gate-r1.md (F6) | sonnet high | session_016iS3kPzqf25zVAmDLkSHnx (20:53) |
 | flake-i-r1.md (F5) | sonnet high | session_016iS3kPo5jVnFwva6MmkaoG (20:53) |
-| kit-connect-r1.md (F2) | sonnet high | starting 103844da |
+| kit-connect-r1.md (F2) | sonnet high | session_016iS3kLJr2GhWMz7EpzMLch |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 70 green 19:32. 71 green 20:12. 72 running 20:36: cube-tests 03d0bcfd, mx1-m2 5197fa22, docs-f8d c8249e2c. 73: lint-reason 1f99a98f, kit-report 582ab506, minor-sweep dfa8ddd8, flake-h, kit-minors 88f441e4.
