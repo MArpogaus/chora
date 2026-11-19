@@ -128,6 +128,9 @@ printf '#!/bin/sh\necho systemctl "$@" >>"%s"\n' "$marks" >"$fakes/systemctl"
 printf '#!/bin/sh\necho wpctl "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$marks" >"$fakes/wpctl"
 # shellcheck disable=SC2016 # the stand-in expands its own arguments
 printf '#!/bin/sh\necho grim "$@" >>"%s"\nfor last; do :; done\n: >"$last"\n' "$marks" >"$fakes/grim"
+mkdir -p "$dir/pictures"
+printf '#!/bin/sh\necho "%s"\n' "$dir/pictures" >"$fakes/xdg-user-dir"
+chmod +x "$fakes/xdg-user-dir"
 chmod +x "$fakes/notify-send" "$fakes/loginctl" "$fakes/systemctl" "$fakes/wpctl" "$fakes/grim"
 while read -r name hud; do
     ln -sfn "$hud" "$dir/data/chora/huds/$name"
@@ -137,6 +140,7 @@ echo '[]' >"$dir/voice/entries.json"
 # The plugins start apps with `choractl run` from PATH (D42).
 export PATH="$fakes:$bin:$PATH"
 export XDG_DATA_HOME=$dir/data
+export XDG_PICTURES_DIR=$dir/pictures
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 unset DBUS_SESSION_BUS_ADDRESS
 # A private config home: the settings of the user stay out of the run.
