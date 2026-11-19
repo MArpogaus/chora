@@ -119,7 +119,10 @@ pub fn runtime_subdir(name: &str) -> io::Result<PathBuf> {
     runtime_subdir_in(runtime_home(), name)
 }
 
-/// [`runtime_subdir`] below a given runtime directory.
+/// [`runtime_subdir`] below a given runtime directory. The directory is
+/// resolved once, to its canonical path; the check and the path that is
+/// returned are of that one, so that a link cannot be retargeted between
+/// the check and the use.
 ///
 /// # Errors
 ///
@@ -128,6 +131,8 @@ pub fn runtime_subdir_in(runtime: Option<PathBuf>, name: &str) -> io::Result<Pat
     let runtime = runtime
         .filter(|p| p.is_absolute())
         .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
+    let runtime = fs::canonicalize(&runtime)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", runtime.display())))?;
     check_runtime_home(&runtime)?;
     let dir = runtime.join(name);
     private_dir(&dir)?;
