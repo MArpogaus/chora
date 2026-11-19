@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | matrix-cap-r1.md (F5, F6) | sonnet high | done 17:22: b71c5096 MERGE-OK (PM review 17:25); train 67 own |
 | moved-tests-mk-r3.md (F5) | haiku high | session_016iS3kQE68SuUq1P3CTXdcg (17:02; r2 4904ef79 MERGE-OK: mc met; xp panels, pointer open) |
-| debt-down-r2.md (F4) | sonnet high | starting (review r1 17:32 FIX: rd-1 MAJOR xp hears construct event) |
+| debt-down-r2.md (F4) | sonnet high | session_016iS3kL9NWEvkDk3CywjPVD (17:33; review r1 FIX: rd-1 MAJOR xp hears a construct event) |
 | mc-i5-r1.md (F7, F2) | sonnet high | session_016iS3kPmUV3tqFg95ggDRVk (17:25) |
 | construct-red-r1.md (F7, F3) | opus high | session_016iS3kPVR6nqwcuaf8UKMDX (17:25) |
 | docs-f8c-r1.md (F8) | sonnet high | session_016iS3kNDb4WhQZ6C9YeKVX9 (17:13; from ee53e09c) |

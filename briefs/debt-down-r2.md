@@ -1,6 +1,6 @@
 # debt-down r2 (F4): fix the review findings of r1 (rd-1 MAJOR, rd-2..rd-4)
 
-Model: sonnet, effort high (a small core event with a clear spec; opus reviews it after)
+Model: sonnet, effort high (a small core event with a clear spec; a seeded review follows)
 Lane: cloud, branch claude/debt-down from c79a9d66 (r1). One round, stop at 250 k. Cost about 1 %.
 Step 0: `command -v cargo python3 jq`, then `git fetch --unshallow` and `cargo check --workspace`; tools missing: run the setup below once; a failure: send_message the PM "debt-down BLOCKED: <MISSING line>" and stop.
 Setup: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`.
