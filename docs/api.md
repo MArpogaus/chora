@@ -1531,8 +1531,12 @@ its virtual `output`, the client name of its window `manager` and its
 and the `mode` (`use` at 1:1, else `navigate`). `cube.turn` takes either
 `by` quarter turns, positive to the right, or `to` a face, the short
 way, with an optional `ms` a quarter, and answers whether the cube took
-the turn. `cube.pull` takes the `surface` of a window on a face and makes
-it a pane in the space. A look reaches the cube through
+the turn: `false` when it is ignored, because a turn runs or `to` names
+the front face. `cube.pull` takes the `surface` of a window on a face and
+makes it a pane in the space, and answers `{pane}`, the name of the pane,
+which `pane.remove` takes; the window goes back to the manager of the
+faces when the pane goes. It is refused for a window that is not on a face
+and while no cube is open. A look reaches the cube through
 `chora_kit::cube`, which finds the exporter with `methods.list`, and
 never names the plugin:
 
