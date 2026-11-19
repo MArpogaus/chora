@@ -43,3 +43,8 @@ log file fail. Named here, not a hidden gap.
 
 Not done: the kit cells cover the cube IO through the fake core; no kit cell
 for the wm parts (already modelled, see F5 in reports/audit-f.md r2).
+
+## Review r1 (PM, tests only, PM not the builder)
+Base f2b7112a..b4d6321e, 4 files, +693, no production code. Checks: cube/construct.rs 96.67 % (lane's llvm-cov, target 70 %); the 13 construct cells and 4 kit cells assert states and requests (output.add/remove counts, health, refusals), not only that code runs; waits are bounded by condition (settled: 5 s, 20 ms poll), no fixed sleep as a check; the late-manager cell moves `since` back instead of sleeping. Gate --jobs 3 green on the same tree (lane).
+Finding cr-1 NIT: tests_construct.rs about line 314, a doc comment is split ("Opening refuses ... / that has not yet had its time"): backlog.
+Identity: the tip had committer Claude <noreply@anthropic.com>; the PM re-made the commit with the same tree, parent, author and message and committer Marcel Arpogaus: 03d0bcfd on claude/cube-tests-c (no force push). Verdict: MERGE-OK (no MAJOR). Train 72 takes 03d0bcfd.

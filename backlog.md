@@ -257,3 +257,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - construct-red review r2 (19:01, after merge): MINOR rc-4 lifecycle.rs:34 and D116 claim a Ctrl+N window of the same app counts as a child; code matches the xdg parent only: drop the claim or match the pid. MINOR rc-5 api.md: say "parent at the first commit" (a later set_parent sends no event). NIT rc-6 ipc.rs:4412: a core cell asserting surface.created parent.
 - MINOR rd-9 (debt-down review r3): grabs.rs:75 explicit input.ungrab("move") still emits input.ungrabbed, docs say a move grab is not told; skip Trigger::Move plus a test.
 - NIT rd-10 (debt-down review r3): a shared button binding (D55) is told while another WM still holds it; docs note.
+- NIT cr-1 (cube-tests review): plugins/chora-construct/src/cube/tests_construct.rs ~314 split doc comment.
+- HARNESS (cube-tests r1): a lane stop hook set the committer to Claude <noreply@anthropic.com>; briefs should also set the committer (git -c user.name/-c user.email covers both); earliest gate: a pre-push or merge-gate check of committer identity.

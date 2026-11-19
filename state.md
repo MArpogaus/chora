@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 19:41 UTC)
+## Now (2026-11-19 19:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 19:33 PM 1.0 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,7 +25,7 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | review-debt-down-r3.md (F4) | opus high | 121c30aa MERGE-OK 19:18 (rd-9, rd-10 to backlog); train 71 running 19:34 (6aa0bd37, D117) |
-| cube-tests-r1.md (F5) | haiku high | session_016iS3kLXCAumfbUY5Q6Dntk (19:14) from f2b7112a |
+| cube-tests-r1.md (F5) | haiku high | done 19:57: cube/construct.rs 38.5 to 96.7 %; PM review MERGE-OK; 03d0bcfd (committer fixed, claude/cube-tests-c) to train 72 |
 | mx1-m2-r1.md (F5) | sonnet high | session_016iS3kNt2MZUSRkTBzPphxj (19:14) from f2b7112a |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
