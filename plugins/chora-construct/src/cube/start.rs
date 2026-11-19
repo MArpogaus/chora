@@ -79,7 +79,8 @@ pub(super) fn launch(command: &str) -> std::io::Result<(Child, Tail)> {
 impl Construct {
     /// At the start: the virtual outputs that an earlier construct left
     /// show the cube again when its window manager still runs on them, as
-    /// after a crash; else they go.
+    /// after a crash; else they go. A window of that manager may have the
+    /// focus already, which no `focus.changed` tells a new construct.
     pub(crate) fn reopen_left_cube(&mut self) -> Result<(), ClientError> {
         let outputs = self.rt.all_outputs()?;
         let left: Vec<String> = (outputs.into_iter())
@@ -112,6 +113,7 @@ impl Construct {
         }
         host.since = Instant::now();
         self.cube = Some(host);
+        self.core_focus = self.focused_surface()?;
         self.open_modes()?;
         self.frame()
     }
