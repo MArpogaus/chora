@@ -935,7 +935,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings, the keys of the window list and its pointer presses take the input of `input.inject` as the user's (see [Injected keys](#injected-keys)) |
-| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
+| `voice_hud` | `host` | `host`, the only value: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator. The own voice HUD of the construct is gone: `own`, `true` and `false`, the values of earlier versions, load as `host` for one release, and `own` and `true` log a warning |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
@@ -1150,7 +1150,7 @@ camera, not far off in the fog.
 A notice of the construct, such as a refused give or the hint that the
 keys walk, shows for 4 seconds as one line of text on a glass capsule
 under the island at the top right, 32 from the edge and at most 520
-wide, while the host draws the HUD (`voice_hud: host`). A refused give
+wide; the host draws the voice HUD. A refused give
 names the window manager by its display name (`XP`, `Tiling`, `Media
 center`, `Construct`) and the reason, as in `Tiling did not take the
 window: it is not running.`; the German words are `Tiling hat das
@@ -1248,35 +1248,19 @@ a pane goes in any way.
 
 ### The voice HUD
 
-With `voice_hud: own` (the default is `host`), the construct shows the voice agent
-([voice](voice.md), section 10) at the bottom centre of the output, from its first
-`voice.state` on. A glass panel holds a ring in the accent and the state
-as a label: a thin, dim ring asleep, a full ring listening, a turning arc
-thinking and working, a pulse at a question, and five moving bars while
-a sentence plays. While thinking or working, the task shows under the
-label; a spoken sentence shows in two lines at most, keeps its end, and
-fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
-ring and the label at the bottom right. `voice.confirm` opens a question
-at the top centre with the prompt and the whole detail; the wheel
-scrolls a long one, and its `done` closes it. The answer is by voice.
-With `buttons`, the question has the glass buttons Yes and No (Ja and
-Nein in a German session) at its bottom; a click 400 ms or more after the
-question showed calls `voice.confirm.answer {id, yes}`. A question about
-a security key (`physical`) shows the key caps of its `keys`, such as
-Alt+Y and Alt+N, beside them, after an accent mark, and says that it
-needs a key press or a click. Only a pointer press on a button answers;
-no method of the construct calls `confirm.answer`, but the construct
-cannot tell an injected click (`input.inject`) from a real one.
-The construct claims the indicator of the agent (`indicator.claim`) at
-the start and on each connection of the agent, and hides the HUD while
-the agent is away.
+The HUD host `chora-assistant` is the only presenter of the voice agent
+([voice](voice.md), section 10) in the construct: it draws the voice HUD
+and the questions with the folder `plugins/chora-construct/hud` ([HUD
+folders](hud.md)). The construct draws neither and claims no indicator;
+an open question of the agent (`voice.confirm`) only hides its hints.
+The own voice HUD of earlier versions (`voice_hud: own`) is gone.
 
-The notices of the construct show in the same place with either value
-of `voice_hud`, as one line of text on the glass with no label and no
-ring, for 4 s: a typed key that does nothing, a window with no room in
-view, and a give key that gives nothing ("No window to give.", "xp did
-not take the window."). A give key gives the focused window, else the
-window of the pane ahead.
+The notices of the construct show under the island
+([Notices](#notices)), as one line of text on the glass with no label
+and no ring, for 4 s: a typed key that does nothing, a window with no
+room in view, and a give key that gives nothing ("No window to give.",
+"xp did not take the window."). A give key gives the focused window,
+else the window of the pane ahead.
 
 Only the clients that the voice agent names may claim its indicator and
 answer its questions with `confirm.answer`: the names of its security
@@ -1299,11 +1283,10 @@ press to its release, so the label does not follow a hover. That pane,
 or the pane flown into, is the focused pane: it shows clear, without the
 fog of its distance, with an accent hairline and a soft glow under it.
 
-The ring, the bars and the glow are one shader, `glass.frag`. When the
-watchdog takes the shaders (`effects.dropped`), the panels and their
-labels stay, without the ring, until the settings change.
-`tests/gate-construct-hud.sh` checks the HUD with a fake agent,
-`tests/fake-voice.py`, and captures each state in both themes.
+The glow of the panels is one shader, `glass.frag`. When the watchdog
+takes the shaders (`effects.dropped`), the panels and their labels stay,
+plain, until the settings change. `tests/gate-construct-hud.sh` checks
+the list, the labels, the notices and the help in both themes.
 
 ## chora-notify
 

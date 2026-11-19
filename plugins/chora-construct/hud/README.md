@@ -9,8 +9,8 @@ island opens the chat. The chat is the glass column at the right, with
 the tint, the text and the muted colour of the glass tokens as `fill`,
 `text` and `name`, in both themes.
 
-construct uses this folder with `voice_hud: host` in
-`chora-construct.yaml`: construct then draws no voice HUD and no question
+construct always uses this folder (`voice_hud: host`, the only value of
+`chora-construct.yaml`): construct draws no voice HUD and no question
 glass of its own, only its own notices, and claims no indicator.
 
 | File | Content | Source | License |
