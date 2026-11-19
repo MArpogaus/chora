@@ -282,7 +282,7 @@ Ranges left (after), with the reason for each:
 - pointer 251, 306-308: gate only: a drop on an output that shows no part of the window needs a second output; the fake core lists one.
 - pointer 60-61, 185-190, 205, 237-241, 264, 273-277, 284-291, 328, 354-369, 380-392: unit test, not written (the file is over 70 %); the next lines to take, in this order: start_resize and the resize drag (60-61, 185-190), the context row and the dialog choice (237-241, 273-277), hand_over with a claim or a refused claim (380-392).
 
-Lines the fake core reaches but llvm still lists as missing: none after the raise test was restored (see Review below).
+The raise returns of open_date_dialog, open_display_dialog and open_effects (158, 172, 312) are covered: a test asserts the single Move command they return.
 
 Gates: `cargo clippy -p chora-xp --all-targets`: 0 warnings (clippy --fix on the three test files for `assert!(is_empty())`, and one reasoned allow on a cast). `cargo fmt -p chora-xp` applied. `cargo test -p chora-xp`: 301 passed (253 before). `tests/merge-gate.sh --jobs 3` on c00dcf3e: GATE-EXIT=0, 41 steps PASS, nothing pushed by the gate (log: the gate's run directory /tmp/merge-gate.TBhufP).
 
