@@ -382,7 +382,7 @@ struct Mc {
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
     /// The ids that the notification server gave the notices of mc, for `notify.clear`.
-    notices: Vec<u32>,
+    notices: agent::Notices,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
     /// The names of the helpers that voice reported.
@@ -534,7 +534,7 @@ impl Mc {
             volume_reading: None,
             volume_ticks: 0,
             texts: BTreeMap::new(),
-            notices: Vec::new(),
+            notices: agent::Notices::default(),
             agents: Vec::new(),
             voiced: Vec::new(),
             agent_focus: None,

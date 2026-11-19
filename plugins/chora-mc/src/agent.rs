@@ -36,6 +36,38 @@ const NOTICES: usize = 32;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
+/// The ids of the notices that mc showed, for `notify.clear`.
+#[derive(Debug, Default)]
+pub struct Notices {
+    ids: Vec<(u32, bool)>,
+}
+
+impl Notices {
+    /// Keeps the id of a notice that mc showed, critical or not.
+    pub fn remember(&mut self, id: u32, critical: bool) {
+        self.ids.push((id, critical));
+        if self.ids.len() > NOTICES {
+            self.ids.remove(0);
+        }
+    }
+
+    /// Dismisses the notices with `dismiss`; the first failure is the
+    /// answer.
+    pub fn clear<E>(&mut self, mut dismiss: impl FnMut(u32) -> Result<(), E>) -> Result<(), E> {
+        let mut failed = Ok(());
+        for (id, _) in std::mem::take(&mut self.ids) {
+            failed = failed.and(dismiss(id));
+        }
+        failed
+    }
+
+    /// The ids that a clear would dismiss, oldest first.
+    #[cfg(test)]
+    fn ids(&self) -> Vec<u32> {
+        self.ids.iter().map(|(id, _)| *id).collect()
+    }
+}
+
 /// An agent as `agent.set` reports it.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Agent {
@@ -593,7 +625,7 @@ impl Mc {
     pub fn notice(&mut self, title: &str, body: &str) {
         let notice = Self::notice_of(title, body, Urgency::Critical);
         if let Some(id) = notice::show_or_log(&mut self.rt.conn, None, &notice) {
-            self.remember(id);
+            self.notices.remember(id, true);
         }
     }
 
@@ -602,7 +634,7 @@ impl Mc {
     pub fn push(&mut self, push: &Push) -> Result<(), RpcError> {
         let notice = Self::notice_of(&push.title, &push.body, push.urgency);
         let id = notice::show(&mut self.rt.conn, None, &notice).map_err(|err| gone(&err))?;
-        self.remember(id);
+        (self.notices).remember(id, push.urgency == Urgency::Critical);
         Ok(())
     }
 
@@ -619,13 +651,6 @@ impl Mc {
             } else {
                 notice::Urgency::Normal
             },
-        }
-    }
-
-    fn remember(&mut self, id: u32) {
-        self.notices.push(id);
-        if self.notices.len() > NOTICES {
-            self.notices.remove(0);
         }
     }
 
@@ -824,11 +849,10 @@ impl Mc {
 
     /// Closes the notices that mc showed and the notification server still holds.
     pub fn clear_notices(&mut self) -> Result<(), RpcError> {
-        let mut failed = Ok(());
-        for id in std::mem::take(&mut self.notices) {
-            failed = failed.and(notice::dismiss(&mut self.rt.conn, id).map_err(|err| gone(&err)));
-        }
-        failed
+        let conn = &mut self.rt.conn;
+        (self.notices)
+            .clear(|id| notice::dismiss(conn, id))
+            .map_err(|err| gone(&err))
     }
 }
 
@@ -878,6 +902,41 @@ fn band(agent: &Agent) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
+
+    /// A critical notice stays until a click: the normal ones after it,
+    /// which expire by themselves, never push it out of what a clear
+    /// dismisses.
+    #[test]
+    fn a_clear_dismisses_an_old_critical_notice() {
+        let mut notices = super::Notices::default();
+        notices.remember(1, true);
+        for id in 2..=40 {
+            notices.remember(id, false);
+        }
+        let ids = notices.ids();
+        assert_eq!(ids.first(), Some(&1), "the critical one stays: {ids:?}");
+        assert_eq!(ids.len(), super::NOTICES + 1);
+    }
+
+    /// The server is gone at the first dismissal: the clear stops there
+    /// and keeps that id and the rest for the next clear.
+    #[test]
+    fn a_failed_dismissal_keeps_the_ids() {
+        let mut notices = super::Notices::default();
+        for id in 1..=3 {
+            notices.remember(id, true);
+        }
+        let mut tried = Vec::new();
+        let failed = notices.clear(|id| {
+            tried.push(id);
+            Err("gone")
+        });
+        assert_eq!(failed, Err("gone"));
+        assert_eq!(tried, [1], "one wait for a server that is gone");
+        assert_eq!(notices.ids(), [1, 2, 3]);
+        assert_eq!(notices.clear(|_| Ok::<(), ()>(())), Ok(()));
+        assert_eq!(notices.ids(), Vec::<u32>::new());
+    }
 
     use chora_kit::ask::{Card, Click, Question};
 
