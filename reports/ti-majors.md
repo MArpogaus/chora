@@ -10,3 +10,10 @@ Reproduced on a61e8eaa with `BIN=target/debug tests/gate-tiling-look-r2.sh` (ink
 
 Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,tiling-audit,tiling-look,keys,acts`: pre-commit, build, test (204 s), clippy, ci-check, tiling-audit, keys, acts PASS in one run; tiling-look (543 s) hit my 600 s foreground limit there and PASSED in a separate run on the same head.
 Not run: the host's grim outside the nested session.
+
+## PM review r1 (23:50)
+Base a61e8eaa, head c9ed1cfd, 2 commits, 7+/5- in flavors/shared/screenshot.sh and tests/gate-tiling-look-r2.sh. PM review (small diff; PM not the builder).
+- ti-22: red d4c00135 adds a reason check to cell notice (stub grim prints "compositor refused the capture"); fix c9ed1cfd captures grim stderr and passes it to the notice, removes the empty file. Holds: `fi ||` takes the status of the assignment, which is grim's.
+- ti-23, ti-24: gone before (cells tooltip, door, power in gate-tiling-look-r2, gate-tiling-power green on a61e8eaa); ledger was stale from tour v4.
+- rw-1 NIT: a multi-line grim error goes into the notice body as is; `| tail -n 1` would keep it short. Backlog.
+Verdict: no open MAJOR: MERGE-OK c9ed1cfd, train 79.
