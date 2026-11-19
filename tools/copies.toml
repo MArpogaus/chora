@@ -5,13 +5,13 @@
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 2
+max = 1
 name = "surface-created filter"
 pattern = 'to != NAME'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 4
+max = 2
 name = "Event::SurfaceCreated outside kit"
 paths = ["plugins", "services"]
 pattern = 'Event::SurfaceCreated\b'
@@ -26,6 +26,12 @@ pattern = 'to != NAME'
 max = 0
 name = "tiling: Event::SurfaceCreated (WM1)"
 paths = ["plugins/chora-tiling"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+max = 0
+name = "mc: Event::SurfaceCreated (WM1b)"
+paths = ["plugins/chora-mc"]
 pattern = 'Event::SurfaceCreated\b'
 
 [[row]]

@@ -269,6 +269,16 @@ impl Book {
         ) || matches!(event, Event::NodeRequested { action, .. } if action == "update")
     }
 
+    /// The app of a surface that an event announces: `Some` for a
+    /// surface created, with the app id that it has, if any.
+    #[must_use]
+    pub fn announced_app(event: &Event) -> Option<Option<&str>> {
+        match event {
+            Event::SurfaceCreated { app_id, .. } => Some(app_id.as_deref()),
+            _ => None,
+        }
+    }
+
     /// The core took the commands of a proposal.
     pub fn confirm(&mut self, id: &str) -> Vec<Change> {
         match self.pending.remove(id) {
