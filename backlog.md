@@ -255,3 +255,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - rf-1, rf-2 (docs-f8c review 11-19 17:50, MINOR): D95 row still 'proposed' (accepted 11-19 05:59); kit wm/mod.rs doc says open 'follows in later slices'. Next docs round.
 - rm-1 (mc-i5 review 11-19 18:14, MINOR): restore the harness.judge selftest (known-red row blocks a second overlap) on a synthetic row; deleted in f7a69761. rm-2: xp flake 'said Notify Starting slow-manager' (mc-i5 lane gate).
 - construct-red review r2 (19:01, after merge): MINOR rc-4 lifecycle.rs:34 and D116 claim a Ctrl+N window of the same app counts as a child; code matches the xdg parent only: drop the claim or match the pid. MINOR rc-5 api.md: say "parent at the first commit" (a later set_parent sends no event). NIT rc-6 ipc.rs:4412: a core cell asserting surface.created parent.
+- MINOR rd-9 (debt-down review r3): grabs.rs:75 explicit input.ungrab("move") still emits input.ungrabbed, docs say a move grab is not told; skip Trigger::Move plus a test.
+- NIT rd-10 (debt-down review r3): a shared button binding (D55) is told while another WM still holds it; docs note.
+- NIT cr-1 (cube-tests review): plugins/chora-construct/src/cube/tests_construct.rs ~314 split doc comment.
+- HARNESS (cube-tests r1): a lane stop hook set the committer to Claude <noreply@anthropic.com>; briefs should also set the committer (git -c user.name/-c user.email covers both); earliest gate: a pre-push or merge-gate check of committer identity.

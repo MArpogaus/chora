@@ -264,3 +264,41 @@ Brief: briefs/debt-down-r3.md. Fixes rd-7 of "## Review r2"; rd-8 (NIT) needs no
 
 - Number `D-ungrab` at the merge (`grep -rn D-ungrab`), as in r2.
 - A `Super+BTN_LEFT` style button grab is told like a key grab; `move` is not. If a subscriber should not hear buttons, say so.
+
+## Review r3
+
+Reviewed claude/debt-down at 121c30aa against r2 c8fe032b (2 commits, 6 files). Brief: briefs/review-debt-down-r3.md.
+
+**Verdict: MERGE-OK** (no open BLOCK or MAJOR; rd-7 closed).
+
+Checks:
+1. Red first: on b41d2aab both new tests fail on the behaviour (`a_grab_that_ends_with_its_connection_is_told`: left `[]`,
+   right the three bindings; `a_revoke_of_grab_any_tells_the_ungrab`: left `[]`, right `["Tab"]`). On 121c30aa
+   `cargo test -p chora` passes 616, xp 254. Both tests read `input.ungrabbed` from a subscriber's stream, not a helper, and
+   the ipc test grabs the key afterwards; the red commit holds the final bodies (rd-8 heeded).
+2. rd-7: `ipc_close` (ipc.rs:1187) and `revoke_free_grabs` (input.rs:348-364) now tell through `State::tell_ungrabbed`
+   (grabs.rs:83), as `ipc_ungrab` does. In `ipc_close` the connection has left `conns` first, so it hears nothing of its own.
+   Every end of a grab goes through one `retain` of `ipc.grabs`, so a binding is told once: an `input.ungrab` that ran first
+   leaves nothing for the close, and the loop is single-threaded. A revoke followed by a close tells disjoint sets. The
+   emergency reset closes through `ipc_close` and tells the clients that are closed next, which is harmless. `emit` only
+   queues (`broadcast`), so no re-entry from `ipc_flush`. A `move` grab is per connection (`ipc_grab` counts holders of
+   `move` only on the own connection), so nobody is ever refused it or waits for it: leaving it out is right. The close
+   and revoke paths leave it out, but an explicit `input.ungrab("move")` still tells it (probe test, not committed:
+   `[{"binding":"move"}]`), against the docs (rd-9).
+3. Button grabs: told like key grabs, which is what a plugin author expects of "a grab ended". Only xp subscribes
+   (keys.rs:437) and it acts on `Alt+Escape` only; tiling and kit do not listen, so no plugin grabs a button binding again.
+   A shared button binding (D55) is told when one window manager lets go while another still holds it, so the event means
+   "a grab ended", not "the binding is free" (rd-10).
+4. Docs: api.md:728 and :896, the D-ungrab entry (decisions.md:156), event.rs and grabs.rs name the three ends; the
+   "sends nothing" clause is gone (`grep` empty). D-ungrab stays unnumbered. The `move` sentence does not match the code
+   for an explicit ungrab (rd-9).
+5. `cargo clippy --workspace --all-targets -- -D warnings` on 121c30aa: clean. `cargo check --workspace`: ok.
+
+Findings:
+- rd-9, MINOR, crates/chora/src/ipc/grabs.rs:75 (docs/api.md:728, decisions.md:156): an explicit `input.ungrab("move")`
+  emits `input.ungrabbed {binding: "move"}`, while the docs say a `move` grab is not told and the close and revoke paths
+  leave it out. Fix: skip `Trigger::Move` in `ipc_ungrab` before `tell_ungrabbed`, with a test that an ungrab of `move` tells nothing.
+- rd-10, NIT, docs/api.md:728: with a shared button binding (D55) the event comes while another window manager still holds
+  the binding, so a waiter may be refused again. Fix: add to the event row that a shared button binding can still be held.
+
+Known, not findings: rd-5, rd-6 (deferred), rd-8 NIT; conflicts with trains 69, 70 are the train's.
