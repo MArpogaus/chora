@@ -115,3 +115,9 @@ max = 0
 name = "mc: its own stack of notifications, a column and an urgent line (KIT5)"
 paths = ["plugins/chora-mc"]
 pattern = 'NOTIFY_LINES|URGENT_WORD|urgent:clear|const (NOTIFY|URGENT)\b'
+
+[[row]]
+max = 0
+name = "construct-notice: a notice that construct draws itself (KIT5)"
+paths = ["plugins/chora-construct"]
+pattern = 'construct-notice'
