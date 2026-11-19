@@ -268,3 +268,9 @@ allow = ["crates/chora-kit/src/desktop_entry.rs", "crates/chora-kit/src/launcher
 max = 0
 name = "own on_path (a second look at PATH)"
 pattern = 'fn on_path\b'
+
+[[row]]
+max = 0
+name = "own report()"
+paths = ["plugins"]
+pattern = 'fn report\b'

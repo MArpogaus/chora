@@ -175,7 +175,10 @@ fn media_key(trigger: Trigger) -> bool {
 }
 
 // Each bool is one fact of the connection; no state machine joins them.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the connection keeps several independent flags"
+)]
 struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
@@ -408,7 +411,7 @@ impl Ipc {
     }
 
     /// Drops all the registrations of a connection, as happens when it
-    /// closes. Returns the bindings of the dropped grabs, except `move`.
+    /// closes. Returns the bindings of the dropped grabs; `tell_ungrabbed` skips `move`.
     pub fn drop_grabs(&mut self, conn: u64) -> Vec<Binding> {
         self.drop_grabs_where(|_, _, c| c == conn)
     }
@@ -420,7 +423,7 @@ impl Ipc {
         let mut told = Vec::new();
         self.grabs.retain(|(b, t, c)| {
             let gone = dropped(b, *t, *c);
-            if gone && *t != Trigger::Move {
+            if gone {
                 told.push(b.clone());
             }
             !gone
@@ -4093,6 +4096,68 @@ mod tests {
         assert_eq!(events[0]["binding"], "Alt+Escape");
     }
 
+    /// A `move` grab is not told: it is the own moves of a window manager
+    /// and nobody waits for it (docs/api.md, `input.ungrabbed`; rd-9).
+    #[test]
+    fn an_explicit_ungrab_of_move_is_not_told() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        holder.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        holder.ok(&mut core, "input.ungrab", json!({"binding": "move"}));
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .collect::<Vec<_>>();
+        assert!(told.is_empty(), "{told:?}");
+    }
+
+    /// The `move` filter is one rule in one place, `tell_ungrabbed` (rd-9b):
+    /// whichever path ends a grab, a `move` binding is not told.
+    #[test]
+    fn tell_ungrabbed_does_not_tell_a_move_binding() {
+        let mut core = Core::new();
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        core.state.tell_ungrabbed(["move".parse().unwrap()]);
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .collect::<Vec<_>>();
+        assert!(told.is_empty(), "{told:?}");
+    }
+
+    /// A `move` grab that ends with its connection is not told (rd-9b).
+    #[test]
+    fn a_move_grab_that_ends_with_its_connection_is_not_told() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        holder.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        waiting.events_now(&mut core);
+        holder.shut_down_writes();
+        assert!(holder.closed(&mut core), "the holder is gone");
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .collect::<Vec<_>>();
+        assert!(told.is_empty(), "{told:?}");
+    }
+
     /// A grab that ends with its connection is told as an explicit
     /// release is (rd-7), and the key is free for the next to grab.
     #[test]
@@ -4525,6 +4590,46 @@ mod tests {
         assert_eq!(
             heard(&mut b, &mut core),
             [json!({"event": "focus.changed", "surface": null})]
+        );
+    }
+
+    /// `surface.created` carries the `parent` of a dialog as it is at the
+    /// first commit; a later `set_parent` sends no event (docs/api.md,
+    /// D116; rc-6).
+    #[test]
+    fn surface_created_carries_the_parent_of_the_first_commit() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created"]}),
+        );
+        let mut wayland = Wayland::connect(&mut core);
+        let created = |wm: &mut crate::testing::Client, core: &mut Core| {
+            (wm.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
+                .filter(|e| e["event"] == "surface.created")
+                .collect::<Vec<_>>()
+        };
+        let parent = wayland.toplevel(&mut core, "app");
+        let first = created(&mut wm, &mut core);
+        assert_eq!(first.len(), 1, "{first:?}");
+        assert!(first[0].get("parent").is_none(), "{first:?}");
+        let child = wayland.child(&mut core, &parent);
+        let second = created(&mut wm, &mut core);
+        assert_eq!(second.len(), 1, "{second:?}");
+        assert_eq!(second[0]["surface"], "s2");
+        assert_eq!(second[0]["parent"], "s1");
+        let late = wayland.toplevel(&mut core, "other");
+        assert_eq!(created(&mut wm, &mut core).len(), 1, "the late toplevel");
+        wayland.reparent(&mut core, &late, Some(&parent));
+        wayland.reparent(&mut core, &child, None);
+        let after = created(&mut wm, &mut core);
+        assert!(
+            after.is_empty(),
+            "a later set_parent sends no event: {after:?}"
         );
     }
 

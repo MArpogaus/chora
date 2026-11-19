@@ -10,7 +10,7 @@ impl Mc {
     /// at most 4 KiB of lines
     /// ponytail: a line that wraps writes with the last line; the
     /// plugin does not know the layout of the core.
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "a line count, exact in f64")]
     pub(crate) fn write(&self, name: &str, panels: &[&Panel]) -> Vec<Command> {
         let config = &self.settings.value;
         if !config.write.enabled || self.shaders == Shaders::Dropped {

@@ -41,7 +41,10 @@ impl Wm {
         let min = self
             .index(&r.surface)
             .map_or([1, 1], |i| self.windows[i].min_frame());
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded pointer delta in pixels"
+        )]
         let delta = [
             (px - r.start[0]).round() as i32,
             (py - r.start[1]).round() as i32,

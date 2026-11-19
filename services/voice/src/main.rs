@@ -778,7 +778,11 @@ mod tests {
             .join("mic.wav");
         let (_, samples) = pcm::read_wav(&file).unwrap();
         let mut analyzer = Analyzer::new(Vad::new().unwrap());
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a start time in seconds, turned into a sample offset"
+        )]
         let skip = (from * f64::from(pcm::RATE)) as usize / FRAME;
         samples.as_chunks::<FRAME>().0[skip..]
             .iter()

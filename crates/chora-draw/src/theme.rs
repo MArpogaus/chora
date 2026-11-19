@@ -507,7 +507,10 @@ impl Theme {
     /// or its `viewBox` say, rounded to pixels.
     pub fn sheet_size(&self, sheet: Sheet) -> Option<[i32; 2]> {
         let size = self.sheets.get(&sheet)?.size();
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded image size in pixels"
+        )]
         let size = [size.width().round() as i32, size.height().round() as i32];
         (size[0] > 0 && size[1] > 0).then_some(size)
     }
@@ -516,7 +519,10 @@ impl Theme {
     pub fn size(&self, sheet: Sheet, id: &str) -> Option<[i32; 2]> {
         let node = self.sheets.get(&sheet)?.node_by_id(id)?;
         let bbox = node.abs_bounding_box();
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded bounding-box size in pixels"
+        )]
         let size = [bbox.width().round() as i32, bbox.height().round() as i32];
         (size[0] > 0 && size[1] > 0).then_some(size)
     }
@@ -706,12 +712,19 @@ impl Theme {
     }
 
     fn draw(&self, picture: &Picture, scale: f64) -> Result<Pixmap, String> {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a scaled picture size, at least 1 pixel"
+        )]
         let [w, h] = picture
             .size
             .map(|n| (f64::from(n) * scale).ceil().max(1.0) as u32);
         let mut pixmap = Pixmap::new(w, h).ok_or("an empty picture")?;
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "the render scale, narrowed to f32"
+        )]
         let base = Transform::from_scale(scale as f32, scale as f32);
         for layer in &picture.layers {
             if let Err(err) = self.draw_layer(layer, (base, &mut pixmap.as_mut())) {
@@ -783,7 +796,10 @@ impl Theme {
             return Ok(());
         };
         let [x, y, w, h] = rect.map(f64::from);
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "pixel coordinates and sizes, narrowed to f32"
+        )]
         let transform = base
             .pre_translate(x as f32, y as f32)
             .pre_scale(w as f32 / bbox.width(), h as f32 / bbox.height())
@@ -881,9 +897,8 @@ impl Theme {
                 );
                 return Ok(());
             }
-            let [w, h] = [size.width(), size.height()].map(f32::ceil);
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let mut tile = Pixmap::new(w as u32, h as u32).ok_or_else(|| error(&"empty"))?;
+            let mut tile =
+                tile_pixmap([size.width(), size.height()]).ok_or_else(|| error(&"empty"))?;
             resvg::render(&tree, Transform::identity(), &mut tile.as_mut());
             tile
         } else {
@@ -894,8 +909,7 @@ impl Theme {
             };
             load_raster(source, path).map_err(|e| error(&e))?
         };
-        #[allow(clippy::cast_precision_loss)]
-        let size = [image.width() as f32, image.height() as f32];
+        let size = pixmap_size(&image);
         let transform = place(rect, size, fit);
         if let Fit::Tile(_) = fit {
             let paint = Paint {
@@ -908,8 +922,7 @@ impl Theme {
                 ),
                 ..Paint::default()
             };
-            #[allow(clippy::cast_precision_loss)]
-            let [x, y, w, h] = rect.map(|n| n as f32);
+            let [x, y, w, h] = rect_f32(rect);
             if let Some(area) = tiny_skia::Rect::from_xywh(x, y, w, h) {
                 pixmap.fill_rect(area, &paint, base, None);
             }
@@ -933,7 +946,10 @@ impl Theme {
     /// The width and height of an SVG, PNG or JPEG file in pixels, from
     /// its header.
     pub fn image_size(&self, path: &Path) -> Option<[i32; 2]> {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded svg size in pixels"
+        )]
         let size = if is_svg(path) {
             let tree = self.tree(path).ok()?;
             [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
@@ -962,6 +978,35 @@ fn header_size(path: &Path) -> Option<[i32; 2]> {
     std::io::Read::read_exact(&mut chora_kit::open_file(path).ok()?, &mut head).ok()?;
     let word = |at: usize| u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]]);
     Some([i32::try_from(word(16)).ok()?, i32::try_from(word(20)).ok()?])
+}
+
+/// An empty pixmap for a tile of an SVG size, rounded up to whole pixels.
+fn tile_pixmap(size: [f32; 2]) -> Option<Pixmap> {
+    let [w, h] = size.map(f32::ceil);
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a rounded tile size, non-negative"
+    )]
+    Pixmap::new(w as u32, h as u32)
+}
+
+/// The width and height of a pixmap in pixels.
+fn pixmap_size(image: &Pixmap) -> [f32; 2] {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "an image side in pixels, exact in f32"
+    )]
+    [image.width() as f32, image.height() as f32]
+}
+
+/// A rectangle of pixels as `f32` values.
+fn rect_f32(rect: Rect) -> [f32; 4] {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "pixel rect values, exact in f32"
+    )]
+    rect.map(|n| n as f32)
 }
 
 /// Whether a file is an SVG file, by its extension.
@@ -1076,7 +1121,10 @@ pub enum Fit {
 /// The transform that puts an image of a size into a rectangle; for a
 /// tile, the transform of the first tile.
 fn place(rect: Rect, [width, height]: [f32; 2], fit: Fit) -> Transform {
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "pixel rect values, exact in f32"
+    )]
     let [x, y, room_x, room_y] = rect.map(|n| n as f32);
     let (across, down) = (room_x / width, room_y / height);
     let scale = match fit {
@@ -1084,7 +1132,7 @@ fn place(rect: Rect, [width, height]: [f32; 2], fit: Fit) -> Transform {
         Fit::Cover => across.max(down),
         Fit::Stretch => return Transform::from_translate(x, y).pre_scale(across, down),
         Fit::Tile([w, h]) => {
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(clippy::cast_precision_loss, reason = "pixel sizes, exact in f32")]
             let [w, h] = [w as f32, h as f32];
             return Transform::from_translate(x, y).pre_scale(w / width, h / height);
         }

@@ -62,7 +62,8 @@ impl State {
     }
 
     /// Ends a grab of a connection (D45) and tells the subscribers of
-    /// `input.ungrabbed` (D117).
+    /// `input.ungrabbed` (D117), unless it is a `move` grab: nobody waits
+    /// for the own moves of a window manager (rd-9, rd-9b).
     pub(super) fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let trigger = trigger(binding)?;
         let before = self.ipc.grabs.len();
@@ -79,9 +80,13 @@ impl State {
     /// Tells the subscribers of `input.ungrabbed` that grabs ended: by
     /// `input.ungrab`, with their connection or with the revoke of
     /// `input.grab-any`, so that a client that waits for the binding asks
-    /// again (D117).
+    /// again (D117). A `move` grab is never told, whichever way it ends
+    /// (rd-9b): this is the one place of that rule.
     pub(crate) fn tell_ungrabbed(&mut self, bindings: impl IntoIterator<Item = Binding>) {
         for binding in bindings {
+            if trigger(&binding).is_ok_and(|t| t == Trigger::Move) {
+                continue;
+            }
             self.emit(&Event::InputUngrabbed {
                 binding: binding.to_string(),
             });

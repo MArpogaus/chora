@@ -167,7 +167,7 @@ impl Mc {
     /// Starts `hud.say`: the first word shows now, each next one after
     /// the time of the word before, by its share of the letters.
     /// at most 4 KiB of text
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "a word count, exact in f64")]
     pub(crate) fn say(&mut self, say: Say) -> Result<(), ClientError> {
         let words: Vec<&str> = say.text.split_whitespace().collect();
         let letters: usize = words.iter().map(|w| w.chars().count() + 1).sum();

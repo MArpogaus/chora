@@ -73,6 +73,8 @@
 #   --commands       print `name|command` of each step, one per line
 #   -h, --help       this text
 #   MERGE_GATE_IDENTITY  the expected identity, instead of expected_identity
+#   MERGE_GATE_NESTED  set by the self-test's own gate-lib run: the gate-lib
+#                     step then skips merge-gate-selftest.sh (no recursion)
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
 #                     steps above (the self-test uses it)
 #   MERGE_GATE_RUNS   directory for the run directories (default: /tmp)
@@ -176,6 +178,7 @@ red_first() {
 identity() {
     local want=${MERGE_GATE_IDENTITY:-$expected_identity} bad=0 sha author committer
     git -C "$repo" rev-parse --verify -q "$base" >/dev/null || die "no base ref $base"
+    [ -z "${MERGE_GATE_IDENTITY:-}" ] || echo "identity: MERGE_GATE_IDENTITY overrides the expected identity: $want"
     while IFS=$'\t' read -r sha author committer; do
         [ -n "$sha" ] || continue
         if [ "$author" != "$want" ]; then
@@ -205,7 +208,7 @@ default_steps() {
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
-gate-lib|tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh
+gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings

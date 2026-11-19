@@ -923,7 +923,10 @@ fn badge_size(theme: &Theme, language: Language, area: [i32; 4]) -> [i32; 2] {
     let width = theme
         .text_width(Word::Muted.text(language), Font::Body)
         .ceil();
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a width in pixels, far below i32::MAX"
+    )]
     let w = (width as i32 + 2 * PAD).min(area[2] - 2 * EDGE);
     [w, LINE + 12]
 }
