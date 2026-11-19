@@ -188,3 +188,9 @@ by the 590 s limit of the shell at 7 steps; the second run ran to the end).
 Red-first does not apply (tests of existing behaviour).
 
 ## Review mk r2 (PM, pending)
+
+## Review mk r2 (PM, 17:03)
+Base 31df2bb9..4904ef79, one commit, 7 files, +436/-1: three `#[cfg(test)] mod tests_moved;` lines, the rest new test code; 53 asserts, none under an `if` that may skip it (read).
+Checks: mc lifecycle 97.0, hits 96.3, acts 84.4 (drag hand-over 33-43 reached): met. Worker's gate GATE-EXIT=0, tests and clippy clean (worker's report; the train gate re-runs it).
+Open: xp panels 40.7 (unchanged, "not analysed", which the brief excluded as a reason) and pointer 63.3: not met; r3 (haiku) owns it, with the line table first.
+Verdict (computed): no open MAJOR in the diff: MERGE-OK for 4904ef79 (tests only). F5 module coverage stays open until r3.

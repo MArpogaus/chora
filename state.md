@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 16:58 UTC)
+## Now (2026-11-19 17:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 16:58 PM 5.8 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,12 +25,12 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
-| moved-tests-mk-r2.md (F5) | haiku high | session_016iS3kPJ3EX6DKyE5Ugy1AD (16:08; r2 the four modules under 70 %) |
+| moved-tests-mk-r3.md (F5) | haiku high | starting (r2 4904ef79 MERGE-OK PM 17:03: mc met; xp panels, pointer open) |
 | debt-down-r1.md (F4) | sonnet high | session_016iS3kNwNGkLo2yS3ZYgvtV (16:14; F4 open, rows above RC) |
 | copies-0-r1.md (F2) | sonnet high | session_016iS3kQamLkh1Q8PUD3djE6 (16:06; from 85764974) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 65 green 16:57 after one rerun (first run: matrix 248 s over its 240 s cap). 66 gate 16:58: 85764974 + moved-tests-mk 31df2bb9. Next: matrix-cap when MERGE-OK (own train first), then mk r2, debt-down, copies-0.
+4. Trains (F6): 65 green 16:57 after one rerun (first run: matrix 248 s over its 240 s cap). 66 gate 16:58: 85764974 + moved-tests-mk 31df2bb9. Next: matrix-cap when MERGE-OK (own train first), then mk r2 4904ef79 (MERGE-OK), debt-down, copies-0.
 5. audit-f (3 of 8 met; 12.3 %): DEBT-R done 16:13 (F4 open), DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES after matrix-cap merges (F5 1 %), DOCS-F8c last (1 %).
 
 ## Needs owner
