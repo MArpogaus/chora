@@ -116,7 +116,7 @@ impl Construct {
 
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
-    fn keys_walk(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn keys_walk(&mut self) -> Result<(), ClientError> {
         let now = Instant::now();
         if !keys_walk_due(self.keys_walked, now) {
             return Ok(());
