@@ -2,9 +2,10 @@
 # Selftest of tests/grab-gap-check.py: a start_grabs that reaches end_grabs
 # with no grab call between them is an ungrab_all in disguise (GR1, GR2),
 # and the check names its file and line; a path with a grab between them
-# passes. So does a callee that returns early or grabs only inside an if or
-# a match: its caller reaches end_grabs with no grab on that branch. A grab
-# in a loop passes: an empty loop grabs nothing, and no check can know that.
+# passes. A callee of the same file that returns early or grabs only inside
+# an if or a match fails: its caller reaches end_grabs with no grab on that
+# branch. A grab in a loop passes (an empty loop grabs nothing, which no
+# check can know) and so does a callee in another file (not read).
 #
 # Usage: tests/grab-gap-check-selftest.sh
 set -euo pipefail
@@ -22,6 +23,7 @@ if out=$(python3 "$here/grab-gap-check.py" "$work/gap.rs" 2>&1); then
     echo "FAIL: the gap passed"
     exit 1
 fi
+grep -q 'gap.rs:2' <<<"$out" || { echo "FAIL: no file and line: $out"; exit 1; }
 python3 "$here/grab-gap-check.py" "$work/loop.rs" || { echo "FAIL: a grab in a loop passes"; exit 1; }
 for f in skip branch; do
     if out=$(python3 "$here/grab-gap-check.py" "$work/$f.rs" 2>&1); then
@@ -30,5 +32,4 @@ for f in skip branch; do
     fi
     grep -q "$f.rs:2" <<<"$out" || { echo "FAIL: no file and line ($f): $out"; exit 1; }
 done
-grep -q 'gap.rs:2' <<<"$out" || { echo "FAIL: no file and line: $out"; exit 1; }
 echo "grab-gap-check-selftest: ok"
