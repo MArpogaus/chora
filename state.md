@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 22:46 UTC)
+## Now (2026-11-19 22:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 % new Bangkok day (16:58: 5.8 %); 29 h left: 75 %, 2.6 %/h; 6 lanes.
+budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 %; 29 h left: 75 %, 2.6 %/h; 6 lanes.
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
 session branch: a9e7084d (train 74, 22:13); 38 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
 burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -33,10 +33,10 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | temp-dirs-r2.md (F2, F5) | sonnet medium | MERGE-OK 86f42d1f, train 78 |
 | flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH |
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
-| pw-r1.md (P2 prereq) | sonnet high | session_016iS3kNj1dj1ApmjZmprkka |
+| pw-r1.md (P2) | sonnet high | session_016iS3kNj1dj1ApmjZmprkka |
 | nits-3-r1.md (F5) | sonnet medium | session_016iS3kNnRm2jce7Mh1tANM6 (22:34) |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
-| tri-r1.md (P2 item 3) | sonnet low | starting |
+| tri-r1.md (P2) | sonnet low | session_016iS3kMLkdxVqmxMiJvqpuF |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 74 green 22:13. 75 red 22:18 (copies). 76 red 22:39 (xp rm-2 flake, 3rd), rerun: ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), temp-rest 2e8e67f3, f24-rest.
