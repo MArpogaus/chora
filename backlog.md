@@ -243,3 +243,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 
 - kit5 r2 MINOR (11-19 13:06): r2-1 notify main.rs:246 second chora-notify without bus restart-loops (exit 0 needs bus name); r2-2 mc agent.rs:50 critical ids never capped; NIT r2-3 card.rs:274 card over a very wide chat. reports/kit5.md.
 - kit7 r2 MINOR/nit (11-19 13:14): answered->working untested (helper.rs:195); new utterance does not clear answered (helper.rs:205); seed() alphabetical, not report order (helper.rs:142); no voice-alone cell per look; docs/api.md:1573 rewrap. reports/kit7.md.
+- flake (11-19 13:32, wm5 r3): pull gate-construct-pull.sh:163 pane 169 px for 200 under load, passed alone x2; for flakes-g.
+- cut-check REPORT (wm3 r3, wm5 r3): Event::FocusChanged outside kit 9 > max 8; a kit focus slice brings it back (F2).
