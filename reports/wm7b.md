@@ -42,3 +42,43 @@ so Super+drag on a face no longer opens xp's Start menu at the release; found by
 - construct `Host.child: Option<Child>` plus `end_manager`: a small `Manager` type with child, tail, command (S).
 - tests/acts: `click_box` (construct.py) belongs in harness.py next to `click` (S).
 Cut: core touched (input.rs, one rule); no plugin-to-plugin name added (xp finds the host by the role).
+
+## r2
+Lane: opus high, cloud, branch `claude/wm7b` from 1ae3f243 + train 62 (merge a636b9d2; conflicts in xp
+startup.rs and state.rs resolved on kit::wm::state types). Head 31f04c06 (pushed). Train unmoved at the gate.
+
+Items (red -> green):
+1. I3 a1: 14dad42 -> 60a2334. construct's step back sends `focus {surface: null}` before `focus_node` look,
+   xp drops its window on focus.changed null; row wm7a-a1 out of known-red. Act "the key of the step back
+   stands back" pass. Follow-on found by the acts: the restart act broke I3 (fresh construct claimed while an xp
+   window had the focus): red = that act on 0acdad8, fix 6e79fb7 (reopen reads the focused surface).
+2. Flat pager act: diagnosis = face order, not index base: host_gone handed each face's windows to the next
+   bar in turn, so all landed on the last desk (desk 4). 6078eed -> dc208f8 (faces go straight to the screen).
+   Second cause: construct's resume nodes (sky, look) stay 10 s after a kill and cover the screen, so the click
+   hit them; the cue now waits for the kept nodes (GRACE 15 s). Act pass.
+3. m4: f7819fb -> ae3b49d. `MANAGER` gone; face manager = client of cube_manager's program without `chora-`
+   (Host::client, Construct::face_manager); unit tests in role.rs and names.rs. Reading of "found by its role":
+   the core gives no pid/role for the manager, so the setting names it (backlog wording, KISS).
+4. Gate section 6: ec29903 (dying construct -> flat xp with the window on HEADLESS-1 within 3 s, same xp pid;
+   restart -> cube.list 4 faces, window back on a face; cube.close ends that xp). The section-5 fake manager is
+   now a program `chora-xp` (labels say XP), as the client name follows the program.
+   Found by it: the xp of a reopened cube outlived cube.close: 3579bc2 -> 31f04c0 (host kept while its faces go).
+5. I1 restart act ("construct answers state.get"): pass in gate acts (cell list in acts.log).
+6. Docs 0acdad8: api.md input.key (button grab ends another client's lone-modifier tap), xp hosted/flat;
+   configuration.md cube_manager (client name, outlives the construct), cube.open/close, pager on faces; D106.
+Also: xp-faces no-cube-on-faces was broken by r1's flat desk switch on pane-host outputs: b68e9e7 -> e973e15
+(no pager, no turn keys, turn_to inert on virtual outputs without a cube host; hosted pager unchanged).
+
+Gate: `tests/merge-gate.sh --only build,acts,cube,pull,construct-hud,xp,xp-faces,keys` on 31f04c0 (run
+/tmp/merge-gate.v4lOkT): build PASS 21s, xp PASS 83s, xp-faces PASS 15s, acts PASS 95s (89 pass, 7 known red,
+0 blocking), cube PASS 104s, pull PASS 63s, construct-hud PASS 229s, keys PASS 17s.
+`cargo test -p chora-construct -p chora-xp -p chora-kit --features chora-kit/testing` ok (204, 185, 255, ...);
+clippy --workspace --all-targets clean.
+
+Open / findings:
+- NEW MAJOR candidate (vision card): after a construct crash its kept resume nodes (sky, look, face) cover the
+  screen for the 10 s grace time: windows are with a flat xp at once but unseen and unclickable until then.
+  Fix needs core (hide kept nodes of a disconnected client during grace, or no grace for overlay nodes). Not built.
+- Backlog proposal (owner call): drop xp's own screen cube (xp/cube.rs + desktops turn, ~500 lines).
+- help.rs `flat_desks` text is now unreachable (Flat holds no turn key): remove in a refactor (S).
+- Refactor proposals of r1 stand (focus_away counting other clients' nodes, Manager type, click_box to harness).
