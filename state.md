@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 13:21 UTC)
+## Now (2026-11-19 13:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:50 PM 3.9 %; 39 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -24,7 +24,6 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| wm7b-r4.md (F3) | sonnet high | session_016iS3kNgz5Y2r1uhCZGXkY1 (13:04) |
 | wm5-r3.md (F3) | sonnet high | session_016iS3kMikERjA4gqYhoHDPA (13:04) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 | flakes-g-r2.md (F5) | opus high | held: no setup x5 (13:18, 3 of 4 lanes since 13:00 had it); 14:00 UTC default |
