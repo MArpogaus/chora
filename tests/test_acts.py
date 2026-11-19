@@ -903,7 +903,7 @@ import check  # noqa: E402
 
 
 def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=()):
-    return check.Ctx(look, list(hist), list(calls), 0.0, probe, list(keys), list(entries))
+    return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries))
 
 
 def seen(open_ids=(), helper="idle", keysheet=None, look="xp"):
@@ -979,6 +979,13 @@ class PersonaContracts(unittest.TestCase):
         out = verdict("T4:power", ctx(calls=["systemctl poweroff"]), snap(), snap())
         self.assertIn("systemctl was called", out[0])
 
+    def test_t4_power_a_log_out_is_a_power_call(self):
+        out = verdict("T4:power", ctx(calls=["loginctl terminate-session 3"]), snap(), snap())
+        self.assertIn("was called", out[0])
+        self.assertEqual(
+            verdict("T4:power", ctx(calls=["loginctl lock-session"]), snap(), snap()), []
+        )
+
     def test_t4_clock_needs_a_clock_node(self):
         clock = snap(nodes=[surface("s1", "xp"), {"id": "xp-clock", "kind": "text"}])
         self.assertEqual(verdict("T4:clock", ctx(), snap(), clock), [])
@@ -1007,6 +1014,12 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("T6", ctx(), snap(), say), [])
         self.assertIn("neither", verdict("T6", ctx(), snap(), snap())[0])
 
+    def test_t6_an_old_notice_alone_is_red(self):
+        old = snap(blocks=notify(1))
+        self.assertIn("neither", verdict("T6", ctx(), old, old)[0])
+        self.assertEqual(verdict("T6", ctx(), old, snap(blocks=notify(1, 2))), [])
+        self.assertEqual(verdict("T6", ctx(), snap(), snap(blocks=notify(1))), [])
+
     def test_t7_no_window_lost(self):
         self.assertEqual(verdict("T7", ctx(), snap(), snap()), [])
         gone = snap(nodes=[], toplevels=set())
@@ -1029,6 +1042,79 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("C1", ctx("construct"), snap(), snap(cube={"faces": []})), [])
         broken = snap(cube={"error": "no client exports cube.list"})
         self.assertIn("no client exports", verdict("C1", ctx("construct"), snap(), broken)[0])
+
+    def test_x2_a_window_moved_and_nothing_open(self):
+        moved = snap(nodes=[surface("s1", "xp", focused=True)])
+        before = snap(
+            states={
+                "xp": {
+                    "windows": [dict(window("s1"), rect=[0, 0, 5, 5])],
+                    "focus": {"holder": "xp"},
+                    "open": [],
+                    "busy": [],
+                }
+            }
+        )
+        after = snap(
+            states={
+                "xp": {
+                    "windows": [dict(window("s1"), rect=[9, 9, 5, 5])],
+                    "focus": {"holder": "xp"},
+                    "open": [],
+                    "busy": [],
+                }
+            },
+            nodes=moved.nodes,
+        )
+        self.assertEqual(verdict("X2", ctx(), before, after), [])
+        self.assertIn("nothing changed", verdict("X2", ctx(), before, before)[0])
+        menu = {
+            "xp": {
+                "windows": after.states["xp"]["windows"],
+                "focus": {"holder": "xp"},
+                "open": [{"id": "xp-menu"}],
+                "busy": [],
+            }
+        }
+        self.assertIn("expected open", verdict("X2", ctx(), before, snap(states=menu))[0])
+
+    def test_l1_one_window_closed_focus_with_the_look(self):
+        before = snap(nodes=[surface("s1", "xp"), surface("s2", "xp")], toplevels={"s1", "s2"})
+        self.assertEqual(verdict("L1", ctx(), before, snap()), [])
+        self.assertIn("1 windows gone", verdict("L1", ctx(), before, before)[0])
+        elsewhere = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": None}}})
+        self.assertIn("the focus", verdict("L1", ctx(), before, elsewhere)[0])
+
+    def test_l2_the_look_holds_the_focus(self):
+        self.assertEqual(verdict("L2", ctx(), snap(), snap()), [])
+        lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": "mc"}}})
+        self.assertIn("the focus", verdict("L2", ctx(), snap(), lost)[0])
+
+    def test_l3_windows_shown_again_with_the_focus(self):
+        self.assertEqual(verdict("L3", ctx(), snap(), snap()), [])
+        hidden = {"xp": {"windows": [window("s1", shown=False)], "focus": {"holder": "xp"}}}
+        self.assertIn("hidden windows ['s1']", verdict("L3", ctx(), snap(), snap(states=hidden))[0])
+        lost = {"xp": {"windows": [window("s1")], "focus": {"holder": None}}}
+        self.assertTrue(verdict("L3", ctx(), snap(), snap(states=lost)))
+
+    def test_m2_nothing_open_and_mc_holds_the_focus(self):
+        def mc(open_ids=(), holder="mc"):
+            state = {"windows": [], "focus": {"holder": holder}, "busy": []}
+            return snap(states={"mc": dict(state, open=[{"id": i} for i in open_ids])})
+
+        self.assertEqual(verdict("M2", ctx("mc"), mc(), mc()), [])
+        self.assertIn("expected open", verdict("M2", ctx("mc"), mc(), mc(["mc-menu"]))[0])
+        self.assertIn("the focus", verdict("M2", ctx("mc"), mc(), mc(holder=None))[0])
+
+    def test_c2_the_same_windows(self):
+        self.assertEqual(verdict("C2", ctx("construct"), snap(), snap()), [])
+        gone = snap(nodes=[], toplevels=set())
+        self.assertIn("windows lost", verdict("C2", ctx("construct"), snap(), gone)[0])
+
+    def test_c3_the_look_holds_the_focus(self):
+        self.assertEqual(verdict("C3", ctx(), snap(), snap()), [])
+        lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": None}}})
+        self.assertIn("the focus", verdict("C3", ctx(), snap(), lost)[0])
 
     def test_no_contract_for_an_unknown_task(self):
         self.assertIsNone(check.contracts("T99", ctx(), snap()))

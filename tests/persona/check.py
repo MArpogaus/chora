@@ -57,7 +57,7 @@ SHEETS = {
     "construct": "construct-help",
 }
 CODES = {"Space": 57, "Return": 28, "Escape": 1, "F1": 59, "Print": 210, "a": 30, "e": 18, "/": 53}
-POWER = r"systemctl .*(suspend|poweroff|reboot|hibernate|halt|kexec)"
+POWER = r"(systemctl .*(suspend|poweroff|reboot|hibernate|halt|kexec)|loginctl terminate)"
 
 
 def restore(raw):
@@ -76,7 +76,6 @@ class Run:
     """The files of the run in $PERSONA_DIR and the connection to the session."""
 
     def __init__(self, env_file):
-        self.env_file = env_file
         self.s = Session.attach(env_file)
         self.dir = self.s.work
         self.state_dir = self.dir / "check"
@@ -196,7 +195,6 @@ class Ctx:
     look: str
     hist: list
     calls: list
-    since: float
     probe: str | None
     keys: list
     entries: list
@@ -333,6 +331,29 @@ def shown_scene(snap, look="mc"):
     ]
 
 
+def notice_ids(snap):
+    """The ids of the notices that the snapshot shows, closed or accepted."""
+    block = snap.blocks.get("notify") or {}
+    ids = set()
+    for key in ("shown", "closed", "accepted"):
+        for item in block.get(key) or []:
+            ids.add(item.get("id") if isinstance(item, dict) else item)
+    return ids
+
+
+def verify_notice(before):
+    """A notice that is new against `before`, or the words No helper."""
+
+    def verify(after_):
+        if any("No helper" in str(n) for n in after_.nodes):
+            return []
+        if notice_ids(after_) - notice_ids(before):
+            return []
+        return ["neither a new notice nor the words No helper"]
+
+    return verify
+
+
 def contracts(task, ctx, before):
     """The Expect object of a task; None for a task that does not exist."""
     name, _, part = task.partition(":")
@@ -343,16 +364,7 @@ def contracts(task, ctx, before):
         "T3": Expect(verify=verify_helper(ctx)),
         "T4": Expect(open=[], verify=verify_system(ctx, part)),
         "T5": Expect(verify=verify_probe(ctx)),
-        "T6": Expect(
-            verify=lambda a: (
-                []
-                if any("No helper" in str(n) for n in a.nodes)
-                or any(
-                    (a.blocks.get("notify") or {}).get(k) for k in ("shown", "closed", "accepted")
-                )
-                else ["neither a notice nor the words No helper"]
-            )
-        ),
+        "T6": Expect(verify=verify_notice(before)),
         "T7": Expect(verify=same),
         "X1": Expect(focus=ctx.look, verify=verify_shown_focused(ctx)),
         "X2": Expect(
@@ -411,7 +423,6 @@ def end(run, args):
         look,
         run.history(since),
         run.calls.read_text().splitlines()[n_calls:],
-        since,
         probe,
         parse_chords([a for a in actions if a["time"] >= since]),
         entries,
