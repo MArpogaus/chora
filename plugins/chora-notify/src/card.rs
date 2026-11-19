@@ -252,7 +252,8 @@ fn body_lines(body: &str, width: impl Fn(&str) -> f64) -> Vec<String> {
 /// its output that it must not cover: the panel of the chat of the HUD
 /// host. A card that would cover the box moves along the edge of its
 /// corner to the side of the box toward the middle of the output, `margin`
-/// away from it, and stays on the output.
+/// away from it, and stays on the output. Where the box is wider than the
+/// room beside it, the card steps above or below it instead.
 pub fn aside(
     origin: [i32; 2],
     size: [i32; 2],
@@ -260,7 +261,6 @@ pub fn aside(
     (margin, right): (i32, bool),
     out: [i32; 2],
 ) -> [i32; 2] {
-    let _ = out;
     let Some([cx, cy, cw, ch]) = chat else {
         return origin;
     };
@@ -273,7 +273,20 @@ pub fn aside(
     } else {
         cx + cw + margin
     };
-    [x.max(0), y]
+    if x >= 0 && x + w <= out[0] {
+        return [x, y];
+    }
+    let above = cy - margin - h;
+    let below = cy + ch + margin;
+    let steps = if y * 2 > out[1] - h {
+        [above, below]
+    } else {
+        [below, above]
+    };
+    match steps.into_iter().find(|&v| v >= 0 && v + h <= out[1]) {
+        Some(y) => [origin[0], y],
+        None => [x.max(0), origin[1]],
+    }
 }
 
 /// A card on the overlay root of an output.
@@ -480,8 +493,8 @@ mod tests {
             aside([964, 704], size, broad, corner(true), out),
             [964, 204]
         );
-        let low = Some([100, 100, 1180, 450]);
-        assert_eq!(aside([964, 16], size, low, corner(true), out), [964, 566]);
+        let low = Some([100, 60, 1180, 450]);
+        assert_eq!(aside([964, 16], size, low, corner(true), out), [964, 526]);
     }
 
     #[test]
