@@ -29,6 +29,7 @@ use std::{
 };
 
 use chora_kit::{
+    actions::{System, Turn},
     give,
     icons::Icons,
     notify::{Message, Notifier},
@@ -53,7 +54,7 @@ use self::{
 };
 use crate::{
     apps,
-    config::{Config, Picture, Wallpaper},
+    config::{Config, KeyAction, Look, Picture, Wallpaper},
     context::{self, Act},
     control::{self, Setting},
     cube::DESKTOPS,
@@ -168,86 +169,38 @@ fn move_method() -> ExportMethod {
     ))
 }
 
-/// What a key binding does.
-#[derive(Clone, Copy)]
-pub enum Key {
-    Close,
-    /// Super+e opens the file manager.
-    Files,
-    /// Super+Space opens the launcher, the Run box of the start menu.
-    Launcher,
-    /// Super and a key of the show-the-desktop kind: Super+d.
-    Desktop,
-    /// Super pressed and released alone opens or closes the start menu.
-    Tap,
-    /// Turns the cube by quarter turns.
-    Turn(i32),
-    /// Moves the focused window along with a turn.
-    Carry(i32),
-    /// XP's Alt+Tab, forward or back.
-    Switch(i32),
-    /// Super and the left button turn the cube with the pointer.
-    Cube,
-    /// Ctrl+Escape opens or closes the start menu, as on XP.
-    Start,
-    /// Gives the focused window to the window manager of this name (D55).
-    Give(&'static str),
-    /// A media key changes the volume.
-    Volume(volume::Change),
-    /// Opens the chat, as on tiling.
-    Chat,
-    /// Super+F1 opens Help and Support on the keyboard shortcuts.
-    Help,
-    /// Super+/ opens the same help, without a row of its own.
-    HelpAlias,
-    /// Super+Shift+Escape locks the screen.
-    Lock,
-    /// Super+Shift+e opens the Turn Off dialog.
-    Power,
-    /// Super+Print takes a screenshot.
-    Screenshot,
+/// The key that stands in when another client holds a binding of the
+/// cube: Super+Ctrl and the same arrow. Only a default binding with its
+/// default action has a stand-in; a binding that the settings move, or
+/// give another action, has none.
+pub const FALLBACKS: [(&str, &str); 4] = [
+    ("Ctrl+Alt+Left", "Super+Ctrl+Left"),
+    ("Ctrl+Alt+Right", "Super+Ctrl+Right"),
+    ("Ctrl+Alt+Shift+Left", "Super+Ctrl+Shift+Left"),
+    ("Ctrl+Alt+Shift+Right", "Super+Ctrl+Shift+Right"),
+];
+
+/// The default action of a key that has a stand-in.
+fn default_of(binding: &str) -> Option<KeyAction> {
+    Some(match binding {
+        "Ctrl+Alt+Left" => KeyAction::System(System::Cube(Turn::Left)),
+        "Ctrl+Alt+Right" => KeyAction::System(System::Cube(Turn::Right)),
+        "Ctrl+Alt+Shift+Left" => KeyAction::Look(Look::Carry(Turn::Left)),
+        "Ctrl+Alt+Shift+Right" => KeyAction::Look(Look::Carry(Turn::Right)),
+        _ => return None,
+    })
 }
 
-/// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
-/// stands in when another client holds them. The media keys and the chat
-/// key are those of tiling.
-pub const KEYS: [(&str, &str, Key); 23] = [
-    ("Super+Super_L", "", Key::Tap),
-    ("Super+Super_R", "", Key::Tap),
-    ("Ctrl+Escape", "", Key::Start),
-    ("Super+d", "", Key::Desktop),
-    ("Super+space", "", Key::Launcher),
-    ("Super+F1", "", Key::Help),
-    ("Super+slash", "", Key::HelpAlias),
-    ("Super+Shift+Escape", "", Key::Lock),
-    ("Super+Shift+e", "", Key::Power),
-    ("Super+Print", "", Key::Screenshot),
-    ("Super+BTN_LEFT", "", Key::Cube),
-    ("Alt+F4", "", Key::Close),
-    ("Alt+Tab", "", Key::Switch(1)),
-    ("Alt+Shift+Tab", "", Key::Switch(-1)),
-    ("Super+e", "", Key::Files),
-    (control::CHAT_KEY, "", Key::Chat),
-    ("XF86AudioRaiseVolume", "", Key::Volume(volume::Change::Up)),
-    (
-        "XF86AudioLowerVolume",
-        "",
-        Key::Volume(volume::Change::Down),
-    ),
-    ("XF86AudioMute", "", Key::Volume(volume::Change::Mute)),
-    ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
-    ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
-    (
-        "Ctrl+Alt+Shift+Left",
-        "Super+Ctrl+Shift+Left",
-        Key::Carry(-1),
-    ),
-    (
-        "Ctrl+Alt+Shift+Right",
-        "Super+Ctrl+Shift+Right",
-        Key::Carry(1),
-    ),
-];
+/// The stand-in of a binding for its action, when it has one.
+pub fn fallback(binding: &str, action: &KeyAction) -> Option<&'static str> {
+    if default_of(binding).as_ref() != Some(action) {
+        return None;
+    }
+    FALLBACKS
+        .iter()
+        .find(|(first, _)| *first == binding)
+        .map(|(_, stand_in)| *stand_in)
+}
 
 /// A title bar that the pointer drags.
 struct Drag {
@@ -338,7 +291,7 @@ impl Helper {
 
 /// The state of the window manager.
 pub struct Wm {
-    rt: Runtime<Key>,
+    rt: Runtime<KeyAction>,
     theme: Theme,
     icons: Icons,
     /// The settings as the plugin applies them.
@@ -453,9 +406,9 @@ fn hears(event: &Event, accepts_injected: bool) -> bool {
 }
 
 impl Plugin for Wm {
-    type Action = Key;
+    type Action = KeyAction;
 
-    fn runtime(&mut self) -> &mut Runtime<Key> {
+    fn runtime(&mut self) -> &mut Runtime<KeyAction> {
         &mut self.rt
     }
 
@@ -478,7 +431,13 @@ impl Plugin for Wm {
         Some(self.state_value())
     }
 
+    /// New bindings change the grabs; a binding that stays is never free in
+    /// between.
     fn settings_changed(&mut self) -> Result<(), RpcError> {
+        self.rt.start_grabs();
+        self.grab()
+            .and_then(|()| self.rt.end_grabs())
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let commands = self.configure();
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
@@ -859,24 +818,30 @@ fn window_icon(icons: &mut Icons, app_id: Option<&str>) -> Option<std::path::Pat
         .or_else(|| icons.program_sized(id, 16))
 }
 
-/// Grabs the keys of the plugin with those of the cube that `cube`
-/// names; a key that another client holds falls back to its second
-/// binding.
-#[allow(clippy::expect_used, reason = "the bindings are constants")]
-fn grab_keys(rt: &mut Runtime<Key>, cube: CubeKeys) -> Result<(), ClientError> {
-    let held = |key: &Key| {
-        !matches!(
-            (cube, key),
-            (
-                CubeKeys::Flat | CubeKeys::Hosted,
-                Key::Turn(_) | Key::Carry(_) | Key::Cube
-            )
-        )
+/// Whether an action is one of the cube: a turn, a carry or the pointer.
+fn of_the_cube(action: &KeyAction) -> bool {
+    matches!(
+        action,
+        KeyAction::System(System::Cube(_)) | KeyAction::Look(Look::Carry(_) | Look::Cube)
+    )
+}
+
+/// Grabs the bindings of the settings with those of the cube that `cube`
+/// names; a binding of the cube that another client holds falls back to
+/// its stand-in.
+#[allow(clippy::expect_used, reason = "the settings check their bindings")]
+fn grab_keys(
+    rt: &mut Runtime<KeyAction>,
+    bindings: &BTreeMap<String, KeyAction>,
+    cube: CubeKeys,
+) -> Result<(), ClientError> {
+    let held = |action: &KeyAction| {
+        !matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) || !of_the_cube(action)
     };
-    for (binding, fallback, key) in KEYS.into_iter().filter(|k| held(&k.2)) {
-        for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
-            let binding: Binding = binding.parse().expect("valid bindings");
-            if rt.grab(binding, key)? {
+    for (text, action) in bindings.iter().filter(|(_, a)| held(a)) {
+        for text in std::iter::once(text.as_str()).chain(fallback(text, action)) {
+            let binding: Binding = text.parse().expect("the settings check their bindings");
+            if rt.grab(binding, action.clone())? {
                 break;
             }
         }
@@ -886,9 +851,13 @@ fn grab_keys(rt: &mut Runtime<Key>, cube: CubeKeys) -> Result<(), ClientError> {
 
 /// Changes the grabs to the keys with or without those of the cube. A
 /// key of both sets stays with the core, so it never reaches a window.
-fn change_keys(rt: &mut Runtime<Key>, cube: CubeKeys) -> Result<(), ClientError> {
+fn change_keys(
+    rt: &mut Runtime<KeyAction>,
+    bindings: &BTreeMap<String, KeyAction>,
+    cube: CubeKeys,
+) -> Result<(), ClientError> {
     rt.start_grabs();
-    grab_keys(rt, cube)?;
+    grab_keys(rt, bindings, cube)?;
     rt.end_grabs()
 }
 
@@ -964,7 +933,7 @@ mod tests {
 
     #[test]
     fn the_keys_of_the_other_looks_are_bound_here_too() {
-        let bound: Vec<&str> = KEYS.iter().map(|(b, ..)| *b).collect();
+        let bound = crate::config::defaults().common.bindings;
         for key in [
             "Super+Super_L",
             "Super+d",
@@ -972,12 +941,9 @@ mod tests {
             "Super+e",
             "Super+a",
         ] {
-            assert!(bound.contains(&key), "{key}");
+            assert!(bound.contains_key(key), "{key}");
         }
-        assert!(matches!(
-            KEYS.iter().find(|(b, ..)| *b == "Super+e").map(|k| k.2),
-            Some(Key::Files)
-        ));
+        assert_eq!(bound["Super+e"], KeyAction::Look(Look::Files));
     }
 
     use std::{
@@ -997,7 +963,20 @@ mod tests {
         clippy::disallowed_methods,
         reason = "the test connects to its fake core"
     )]
-    fn on_fake_core(tag: &str) -> (Runtime<Key>, Arc<Mutex<Vec<String>>>) {
+    fn on_fake_core(tag: &str) -> (Runtime<KeyAction>, Arc<Mutex<Vec<String>>>) {
+        on_fake_core_refusing(tag, &[])
+    }
+
+    /// As [`on_fake_core`], with a core that refuses the grab of the
+    /// `refused` bindings, as when another client holds them.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn on_fake_core_refusing(
+        tag: &str,
+        refused: &'static [&'static str],
+    ) -> (Runtime<KeyAction>, Arc<Mutex<Vec<String>>>) {
         let dir = std::env::temp_dir().join(format!("chora-xp-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -1017,11 +996,19 @@ mod tests {
                     "input.grab" => binding.clone(),
                     _ => Value::Null,
                 };
+                let held = method == "input.grab"
+                    && refused.contains(&binding.as_str().unwrap_or_default());
                 if method.starts_with("input.") {
                     let binding = binding.as_str().unwrap_or_default();
                     seen.lock().unwrap().push(format!("{method} {binding}"));
                 }
-                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                let answer = if held {
+                    json!({"jsonrpc": "2.0", "id": request["id"],
+                        "error": {"code": chora_scene::ipc::RpcError::REJECTED,
+                            "message": "held by another client"}})
+                } else {
+                    json!({"jsonrpc": "2.0", "id": request["id"], "result": result})
+                };
                 writeln!(writer, "{answer}").unwrap();
             }
         });
@@ -1156,11 +1143,68 @@ mod tests {
     #[test]
     fn without_a_cube_xp_holds_no_turn_key_and_no_drag() {
         let (mut rt, _calls) = on_fake_core("flat-keys");
-        grab_keys(&mut rt, CubeKeys::Flat).unwrap();
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, CubeKeys::Flat).unwrap();
         assert!(rt.action("Ctrl+Alt+Left").is_none(), "no turn key");
         assert!(
             rt.action("Super+BTN_LEFT").is_none(),
             "no drag without a cube"
+        );
+    }
+
+    /// A press of the binding `Super+BTN_RIGHT` that the user moved to
+    /// `close`: the focused window closes, and no cube turns (rw-1).
+    #[test]
+    fn a_button_bound_to_close_closes_and_turns_no_cube() {
+        let (mut wm, methods) = wm_on_fake_core("button-close");
+        wm.windows
+            .push(crate::window::Window::new("s1", None, Some("s1")));
+        wm.focused = Some("s1".into());
+        let binding: Binding = "Super+BTN_RIGHT".parse().unwrap();
+        wm.rt
+            .grab(binding, KeyAction::System(System::Close))
+            .unwrap();
+        let press = |state| {
+            wire(
+                json!({"event": "input.button", "binding": "Super+BTN_RIGHT",
+                "state": state, "position": [100.0, 100.0], "output": "X",
+                "local": [100.0, 100.0]}),
+            )
+        };
+        let seen = methods.lock().unwrap().len();
+        wm.event(press("pressed")).unwrap();
+        assert_eq!(wm.cube_grab, None, "no turn of the cube");
+        assert!(wm.effects.turn.is_none(), "no turn of the cube");
+        let sent = methods.lock().unwrap()[seen..].to_vec();
+        assert!(
+            sent.iter().any(|m| m.starts_with("scene.")),
+            "the close went out: {sent:?}"
+        );
+        wm.event(press("released")).unwrap();
+        assert!(wm.effects.turn.is_none(), "the release turns nothing");
+    }
+
+    /// A key that `bindings` moves to a stand-in-less action gets no
+    /// Super+Ctrl stand-in when the core refuses it (rw-2): the stand-in is
+    /// for the cube alone.
+    #[test]
+    fn a_moved_cube_key_has_no_stand_in() {
+        let (mut rt, calls) = on_fake_core_refusing("no-stand-in", &["Ctrl+Alt+Left"]);
+        let mut bindings = crate::config::defaults().common.bindings;
+        bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        let calls = calls.lock().unwrap().clone();
+        assert!(
+            !calls.iter().any(|c| c.contains("Ctrl+Super+Left")),
+            "{calls:?}"
+        );
+        assert!(rt.action("Ctrl+Super+Left").is_none());
+        let (mut rt, _calls) = on_fake_core_refusing("stand-in", &["Ctrl+Alt+Left"]);
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        assert_eq!(
+            rt.action("Ctrl+Super+Left"),
+            Some(&KeyAction::System(System::Cube(Turn::Left)))
         );
     }
 
@@ -1170,9 +1214,10 @@ mod tests {
     #[test]
     fn a_change_of_the_cube_keys_keeps_the_other_keys() {
         let (mut rt, calls) = on_fake_core("cube-keys");
-        grab_keys(&mut rt, CubeKeys::Own).unwrap();
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         calls.lock().unwrap().clear();
-        change_keys(&mut rt, CubeKeys::Hosted).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Hosted).unwrap();
         let mut gone = std::mem::take(&mut *calls.lock().unwrap());
         gone.sort();
         assert_eq!(
@@ -1185,10 +1230,17 @@ mod tests {
                 "input.ungrab Super+BTN_LEFT",
             ]
         );
-        assert!(matches!(rt.action("Super+d"), Some(Key::Desktop)));
+        assert_eq!(rt.action("Super+d"), Some(&KeyAction::Look(Look::Desktop)));
         assert!(rt.action("Ctrl+Alt+Left").is_none());
-        change_keys(&mut rt, CubeKeys::Own).unwrap();
-        assert!(matches!(rt.action("Super+BTN_LEFT"), Some(Key::Cube)));
+        change_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        assert_eq!(
+            rt.action("Ctrl+Alt+Left"),
+            Some(&KeyAction::System(System::Cube(Turn::Left)))
+        );
+        assert_eq!(
+            rt.action("Super+BTN_LEFT"),
+            Some(&KeyAction::Look(Look::Cube))
+        );
         assert!(
             calls
                 .lock()
@@ -1199,23 +1251,35 @@ mod tests {
         );
     }
 
+    /// A key does what its binding says, whatever the spelling: Super+F1
+    /// and Super+/ open the key list, and the power key the Turn Off
+    /// dialog of xp rather than the shared menu.
+    #[test]
+    fn a_key_does_the_action_of_its_binding() {
+        let (mut wm, _methods) = wm_on_fake_core("keys-act");
+        for key in ["Super+F1", "Super+slash"] {
+            wm.panels.clear();
+            let _ = wm.key(key);
+            assert!(
+                wm.panels.iter().any(|p| matches!(p, Panel::Help(_))),
+                "{key}"
+            );
+        }
+        assert!(wm.dialog.is_none());
+        let power: Binding = "Super+Shift+e".parse().unwrap();
+        let _ = wm.key(&power.to_string());
+        assert!(wm.dialog.is_some(), "the Turn Off dialog");
+    }
+
     /// The volume keys and the chat key are bound as on tiling.
     #[test]
     fn the_media_keys_and_the_chat_key_are_bound() {
-        let bound = |name: &str| KEYS.iter().find(|(b, _, _)| *b == name).map(|k| k.2);
-        assert!(matches!(
-            bound("XF86AudioRaiseVolume"),
-            Some(Key::Volume(Change::Up))
-        ));
-        assert!(matches!(
-            bound("XF86AudioLowerVolume"),
-            Some(Key::Volume(Change::Down))
-        ));
-        assert!(matches!(
-            bound("XF86AudioMute"),
-            Some(Key::Volume(Change::Mute))
-        ));
-        assert!(matches!(bound("Super+a"), Some(Key::Chat)));
+        let bound = crate::config::defaults().common.bindings;
+        let volume = |change| KeyAction::System(System::Volume(change));
+        assert_eq!(bound["XF86AudioRaiseVolume"], volume(Change::Up));
+        assert_eq!(bound["XF86AudioLowerVolume"], volume(Change::Down));
+        assert_eq!(bound["XF86AudioMute"], volume(Change::Mute));
+        assert_eq!(bound["Super+a"], KeyAction::System(System::Chat));
     }
 
     /// A window that comes back from the space lands with the middle of

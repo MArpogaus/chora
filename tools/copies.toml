@@ -151,3 +151,17 @@ max = 0
 name = "tiling: a shared action of its own (KIT2c)"
 paths = ["plugins/chora-tiling"]
 pattern = 'Action::(Run|Close|Give|Drag|Volume|ShowKeys)\b'
+
+# kit2d: xp takes its keys from `bindings` (kit::actions); no table of keys
+# and no enum of key actions of its own.
+[[row]]
+max = 0
+name = "xp: table of hard-coded keys (KIT2d)"
+paths = ["plugins/chora-xp"]
+pattern = 'const KEYS: \['
+
+[[row]]
+max = 0
+name = "xp: own enum of key actions (KIT2d)"
+paths = ["plugins/chora-xp"]
+pattern = 'pub enum Key \{'

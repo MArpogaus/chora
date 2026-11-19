@@ -362,7 +362,8 @@ impl Wm {
             return;
         }
         self.cube_keys = cube;
-        let grabbed = change_keys(&mut self.rt, cube).and_then(|()| self.rt.grab_give_keys());
+        let grabbed = change_keys(&mut self.rt, &self.settings.value.common.bindings, cube)
+            .and_then(|()| self.rt.grab_give_keys());
         if let Err(err) = grabbed {
             eprintln!("chora-xp: {err}");
         }

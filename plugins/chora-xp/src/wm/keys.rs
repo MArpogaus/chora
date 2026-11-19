@@ -1,10 +1,99 @@
 //! Keys: bindings, the Alt+Tab switcher and the system key.
 
+use std::convert::Infallible;
+
+use chora_kit::actions::perform::{Failure, Host, perform};
+use chora_kit::actions::{Step, Turn};
+
 use super::{
-    Binding, Command, ESCAPE_TRIES, ESCAPE_WAIT, Event, Grab, HELP_TASK, Key, MENU_KEY, MENUS,
-    Mode, NodeKind, PressState, PropsUpdate, SWITCHER, Switcher, Transform, Value, Window, Wm,
-    add_help, close, control, give, help, switcher, taskbar,
+    Binding, Command, ESCAPE_TRIES, ESCAPE_WAIT, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY,
+    MENUS, Mode, NodeKind, PressState, PropsUpdate, SWITCHER, Switcher, Transform, Value, Window,
+    Wm, add_help, close, control, give, help, switcher, taskbar,
 };
+
+/// A turn of the cube in quarter turns: left is back.
+const fn quarter(turn: Turn) -> i32 {
+    match turn {
+        Turn::Left => -1,
+        Turn::Right => 1,
+    }
+}
+
+/// The window manager while it does an action of every look: the hooks
+/// leave the scene commands of the action in `commands`.
+struct Acting<'a> {
+    wm: &'a mut Wm,
+    commands: Vec<Command>,
+}
+
+impl give::Windows for Acting<'_> {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        give::Windows::conn(self.wm)
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        give::Windows::has(self.wm, surface)
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, chora_scene::ipc::RpcError> {
+        give::Windows::hand(self.wm, surface, to)
+    }
+}
+
+/// What xp does for the actions of every look: the key list, the Turn Off
+/// dialog, the launcher, the chat, the volume, a close and a turn of the
+/// cube. The scripts (lock, screenshot) are the shared ones.
+impl Host for Acting<'_> {
+    type Error = Infallible;
+
+    fn volume(&mut self, change: chora_kit::volume::Change) -> Result<(), Infallible> {
+        self.commands.extend(self.wm.change_volume(change, true));
+        Ok(())
+    }
+
+    fn keys(&mut self) -> Result<(), Infallible> {
+        self.commands.extend(self.wm.open_help(help::KEYBOARD));
+        Ok(())
+    }
+
+    fn chat(&mut self) -> Result<(), Infallible> {
+        self.wm.start_program(control::CHAT);
+        Ok(())
+    }
+
+    fn failed(&mut self, failure: Failure) -> Result<(), Infallible> {
+        match failure {
+            Failure::NoScript(script) => self.wm.cannot_do(&script),
+            Failure::NotStarted(name) => eprintln!("chora-xp: {name} did not start"),
+            Failure::NotGiven { to, why } => eprintln!("chora-xp: give to {to}: {why}"),
+        }
+        Ok(())
+    }
+
+    /// The power key opens the Turn Off dialog of XP, not the shared menu.
+    fn power(&mut self) -> Result<bool, Infallible> {
+        self.commands
+            .extend(self.wm.open_dialog(Mode::TurnOff, None));
+        Ok(true)
+    }
+
+    fn launcher(&mut self) -> Result<(), Infallible> {
+        let launcher = self.wm.settings.value.launcher.clone();
+        self.wm.start_program(&launcher);
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), Infallible> {
+        let closing = self.wm.focused.as_deref().map(close).unwrap_or_default();
+        self.commands.extend(closing);
+        Ok(())
+    }
+
+    fn cube(&mut self, turn: Turn) -> Result<(), Infallible> {
+        self.commands.extend(self.wm.turn(quarter(turn)));
+        Ok(())
+    }
+}
 
 impl Wm {
     /// The events of the grabs of keys and buttons.
@@ -34,16 +123,24 @@ impl Wm {
                 .. // injected: the runtime drops an injected binding key unless it accepts them
             } => self.key_released(&binding),
             Event::InputButton {
-                state, position, .. // injected: hears drops an injected event unless xp accepts them
-            } => match state {
-                PressState::Pressed => self.grab_cube(position),
-                PressState::Released => {
-                    self.release_cube();
-                    Vec::new()
-                }
-            },
+                binding, state, position, .. // injected: hears drops an injected event unless xp accepts them
+            } => self.button(&binding, state, position),
             Event::InputMoved { position, .. } => self.drag_cube(position), // injected: hears drops an injected event unless xp accepts them
             _ => Vec::new(),
+        }
+    }
+
+    /// A grabbed pointer button: the pointer turns the cube for `cube`,
+    /// and any other action runs at the press.
+    fn button(&mut self, binding: &str, state: PressState, position: [f64; 2]) -> Vec<Command> {
+        match (self.rt.action(binding), state) {
+            (Some(KeyAction::Look(Look::Cube)), PressState::Pressed) => self.grab_cube(position),
+            (Some(KeyAction::Look(Look::Cube)), PressState::Released) => {
+                self.release_cube();
+                Vec::new()
+            }
+            (Some(_), PressState::Pressed) => self.key(binding),
+            (_, PressState::Released) | (None, _) => Vec::new(),
         }
     }
 
@@ -54,47 +151,40 @@ impl Wm {
         if self.switch_escape.as_deref() == Some(binding) {
             return self.cancel_switch();
         }
-        let action = self.rt.action(binding).copied();
-        match (&mut self.tap, action) {
-            (tap, Some(Key::Tap)) => *tap = Some(false),
+        let action = self.rt.action(binding).cloned();
+        let tap = matches!(action, Some(KeyAction::Look(Look::Tap)));
+        match (&mut self.tap, tap) {
+            (tap, true) => *tap = Some(false),
             (Some(used), _) => *used = true,
             _ => {}
         }
         match action {
-            Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
-            Some(Key::Files) => self.open_files(),
-            Some(Key::Launcher) => {
-                let launcher = self.settings.value.launcher.clone();
-                self.start_program(&launcher);
-                Vec::new()
+            Some(KeyAction::System(system)) => {
+                let mut acting = Acting {
+                    wm: self,
+                    commands: Vec::new(),
+                };
+                let Ok(()) = perform(&mut acting, &system);
+                acting.commands
             }
-            Some(Key::Desktop) => self.toggle_desktop(),
-            Some(Key::Turn(steps)) => self.turn(steps),
-            Some(Key::Carry(steps)) => self.carry(steps),
-            Some(Key::Switch(step)) => self.switch(step),
-            Some(Key::Start) => self.toggle_start(),
-            Some(Key::Give(to)) => {
-                if let Err(err) = give::focused(self, to) {
-                    eprintln!("chora-xp: give to {to}: {}", err.message);
-                }
-                Vec::new()
-            }
-            Some(Key::Volume(change)) => self.change_volume(change, true),
-            Some(Key::Chat) => {
-                self.start_program(control::CHAT);
-                Vec::new()
-            }
-            Some(Key::Help | Key::HelpAlias) => self.open_help(help::KEYBOARD),
-            Some(Key::Lock) => {
-                self.run_shared("power", &["lock"]);
-                Vec::new()
-            }
-            Some(Key::Power) => self.open_dialog(Mode::TurnOff, None),
-            Some(Key::Screenshot) => {
-                self.run_shared("screenshot", &[]);
-                Vec::new()
-            }
-            Some(Key::Cube | Key::Tap) | None => Vec::new(),
+            Some(KeyAction::Look(look)) => self.look(look),
+            None => Vec::new(),
+        }
+    }
+
+    /// Does an action of xp: the Start menu, the switcher, the desktop and
+    /// the windows that go with a turn.
+    fn look(&mut self, look: Look) -> Vec<Command> {
+        match look {
+            Look::Files => self.open_files(),
+            Look::Desktop => self.toggle_desktop(),
+            Look::Carry(turn) => self.carry(quarter(turn)),
+            Look::Switch(step) => self.switch(match step {
+                Step::Next => 1,
+                Step::Previous => -1,
+            }),
+            Look::Start => self.toggle_start(),
+            Look::Tap | Look::Cube => Vec::new(),
         }
     }
 
@@ -292,7 +382,7 @@ impl Wm {
     /// The release of the modifier of a key: Alt up after Alt+Tab
     /// activates the chosen window.
     pub(super) fn key_released(&mut self, binding: &str) -> Vec<Command> {
-        if matches!(self.rt.action(binding), Some(Key::Tap)) {
+        if matches!(self.rt.action(binding), Some(KeyAction::Look(Look::Tap))) {
             return match self.tap.take() {
                 Some(false) => self.toggle_start(),
                 _ => Vec::new(),

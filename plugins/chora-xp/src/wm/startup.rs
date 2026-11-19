@@ -4,9 +4,9 @@ use chora_kit::wm::Created;
 
 use super::{
     BARS, Bar, ClientError, Command, Config, DESKTOPS, DIALOGS, DesktopIcons, EVENTS, Effects,
-    ExportMethod, HashMap, Helper, Icons, Instant, Key, Launches, MENUS, METHODS, Menu, Mixer,
-    NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme,
-    Tooltip, WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give,
+    ExportMethod, HashMap, Helper, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
+    Mixer, NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound,
+    Theme, Tooltip, WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give,
     grab_keys, hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window,
     without_reserve,
 };
@@ -26,7 +26,7 @@ impl Wm {
     /// As [`Self::start`], on a runtime that is connected already.
     #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
     pub(super) fn start_on(
-        rt: Runtime<Key>,
+        rt: Runtime<KeyAction>,
         theme: Theme,
         settings: settings::File<Config>,
         slow: f64,
@@ -266,10 +266,12 @@ impl Wm {
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
         let cube = self.wanted_keys();
         self.cube_keys = cube;
-        grab_keys(&mut self.rt, cube)?;
+        grab_keys(&mut self.rt, &self.settings.value.common.bindings, cube)?;
         self.rt
-            .accept_injected(self.settings.value.test_accept_injected_keys);
-        self.rt.give_keys(Some(Key::Give));
+            .accept_injected(self.settings.value.common.test_accept_injected_keys);
+        self.rt.give_keys(Some(|to| {
+            KeyAction::System(chora_kit::actions::System::Give(to.into()))
+        }));
         self.rt.grab_give_keys()
     }
 

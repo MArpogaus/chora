@@ -55,6 +55,7 @@ impl Wm {
         };
         let mut more = Map::new();
         more.insert("helper".into(), json!(self.voiced.word()));
+        more.insert("texts".into(), json!(self.theme.texts()));
         let mut state = State {
             windows,
             desks,

@@ -11,13 +11,19 @@
 
 use std::fmt::Write as _;
 
-use chora_kit::{give, volume};
+use std::collections::BTreeMap;
+
+use chora_kit::{
+    actions::{Step, System, Turn},
+    give, volume,
+};
 
 use crate::{
+    config::{KeyAction, Look},
     dialog::{Control, Dialog, Hit, Page},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
-    wm::{KEYS, Key},
+    wm::fallback,
 };
 
 /// The client area: the pane and the page.
@@ -91,64 +97,90 @@ fn name(binding: &str) -> String {
         .join("+")
 }
 
-fn about(key: Key) -> Option<(&'static str, &'static str)> {
-    Some(match key {
-        Key::Start | Key::Tap => (GROUPS[0], "Open or close the Start menu"),
-        Key::Switch(1) => (GROUPS[0], "Switch between windows"),
-        Key::Help => (GROUPS[0], "Open this help"),
-        Key::Desktop => (GROUPS[0], "Show the desktop; press again for the windows"),
-        Key::Launcher => (
-            GROUPS[0],
-            "Run a program or a typed command: open the launcher",
-        ),
-        Key::Files => (GROUPS[0], "Open the file manager"),
-        Key::Chat => (GROUPS[1], "Chat with a helper"),
-        Key::Close => (GROUPS[2], "Close the window"),
-        Key::Turn(-1) => (GROUPS[2], "Turn the desktop cube to the left"),
-        Key::Turn(_) => (GROUPS[2], "Turn the desktop cube to the right"),
-        Key::Carry(-1) => (GROUPS[2], "Carry the window to the left"),
-        Key::Carry(_) => (GROUPS[2], "Carry the window to the right"),
-        Key::Cube => (GROUPS[2], "Turn the desktop cube with the pointer"),
-        Key::Lock => (GROUPS[3], "Lock the screen"),
-        Key::Power => (
-            GROUPS[3],
-            "Open the Turn Off dialog: lock, log off, restart",
-        ),
-        Key::Screenshot => (GROUPS[3], "Take a screenshot"),
-        Key::Volume(volume::Change::Up) => (GROUPS[3], "Volume up"),
-        Key::Volume(volume::Change::Down) => (GROUPS[3], "Volume down"),
-        Key::Volume(volume::Change::Mute) => (GROUPS[3], "Mute"),
-        Key::Volume(volume::Change::Set(_)) | Key::Switch(_) | Key::HelpAlias | Key::Give(_) => {
-            return None;
-        }
+/// The rows of the table in their order, each with its group.
+const LINES: [(&str, &str); 19] = [
+    (GROUPS[0], "Open or close the Start menu"),
+    (GROUPS[0], "Show the desktop; press again for the windows"),
+    (
+        GROUPS[0],
+        "Run a program or a typed command: open the launcher",
+    ),
+    (GROUPS[0], "Open this help"),
+    (GROUPS[3], "Lock the screen"),
+    (
+        GROUPS[3],
+        "Open the Turn Off dialog: lock, log off, restart",
+    ),
+    (GROUPS[3], "Take a screenshot"),
+    (GROUPS[2], "Turn the desktop cube with the pointer"),
+    (GROUPS[2], "Close the window"),
+    (GROUPS[0], "Switch between windows"),
+    (GROUPS[0], "Open the file manager"),
+    (GROUPS[1], "Chat with a helper"),
+    (GROUPS[3], "Volume up"),
+    (GROUPS[3], "Volume down"),
+    (GROUPS[3], "Mute"),
+    (GROUPS[2], "Turn the desktop cube to the left"),
+    (GROUPS[2], "Turn the desktop cube to the right"),
+    (GROUPS[2], "Carry the window to the left"),
+    (GROUPS[2], "Carry the window to the right"),
+];
+
+/// The place of the row of an action in [`LINES`]; an action without a
+/// row of its own is none.
+fn about(action: &KeyAction) -> Option<usize> {
+    Some(match action {
+        KeyAction::Look(Look::Start | Look::Tap) => 0,
+        KeyAction::Look(Look::Desktop) => 1,
+        KeyAction::System(System::Launcher) => 2,
+        KeyAction::System(System::Keys) => 3,
+        KeyAction::System(System::Lock) => 4,
+        KeyAction::System(System::Power) => 5,
+        KeyAction::System(System::Screenshot) => 6,
+        KeyAction::Look(Look::Cube) => 7,
+        KeyAction::System(System::Close) => 8,
+        KeyAction::Look(Look::Switch(Step::Next)) => 9,
+        KeyAction::Look(Look::Files) => 10,
+        KeyAction::System(System::Chat) => 11,
+        KeyAction::System(System::Volume(volume::Change::Up)) => 12,
+        KeyAction::System(System::Volume(volume::Change::Down)) => 13,
+        KeyAction::System(System::Volume(volume::Change::Mute)) => 14,
+        KeyAction::System(System::Cube(Turn::Left)) => 15,
+        KeyAction::System(System::Cube(Turn::Right)) => 16,
+        KeyAction::Look(Look::Carry(Turn::Left)) => 17,
+        KeyAction::Look(Look::Carry(Turn::Right)) => 18,
+        _ => return None,
     })
 }
 
-/// The rows of the table, made from the bindings that the plugin
-/// holds: `held` tells whether a binding is held.
-pub fn rows(held: impl Fn(&str) -> bool) -> Vec<Row> {
-    let mut rows: Vec<Row> = Vec::new();
-    for (binding, fallback, key) in KEYS {
-        let Some((group, text)) = about(key) else {
+/// The rows of the table, made from the bindings of the settings that
+/// the plugin holds: `held` tells whether a binding is held. A binding of
+/// the cube that another client holds shows its stand-in.
+pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool) -> Vec<Row> {
+    let mut lines: BTreeMap<usize, Row> = BTreeMap::new();
+    for (binding, action) in bindings {
+        let Some(line) = about(action) else {
             continue;
         };
-        let shown = [binding, fallback]
+        let (group, text) = LINES[line];
+        let shown = [Some(binding.as_str()), fallback(binding, action)]
             .into_iter()
-            .find(|b| !b.is_empty() && held(b));
+            .flatten()
+            .find(|b| held(b));
         let Some(shown) = shown else {
             continue;
         };
         let chord = name(shown);
-        match rows.iter_mut().find(|r| r.text == text) {
-            Some(row) if row.keys.contains(&chord) => {}
-            Some(row) => row.keys.push(chord),
-            None => rows.push(Row {
-                group,
-                keys: vec![chord],
-                text,
-            }),
+        let row = lines.entry(line).or_insert_with(|| Row {
+            group,
+            keys: Vec::new(),
+            text,
+        });
+        if !row.keys.contains(&chord) {
+            row.keys.push(chord);
         }
     }
+    let mut rows: Vec<Row> = lines.into_values().collect();
     let keys = give::KEYS
         .iter()
         .filter(|(binding, _)| held(binding))
@@ -441,10 +473,14 @@ mod tests {
         true
     }
 
+    fn defaults() -> BTreeMap<String, KeyAction> {
+        crate::config::defaults().common.bindings
+    }
+
     #[test]
     fn two_chords_of_one_binding_stand_apart_by_the_word_or() {
         let (theme, cache) = crate::sheets::tests::theme("help-or");
-        let all_rows = rows(all);
+        let all_rows = rows(&defaults(), all);
         let pairs = all_rows.iter().filter(|r| r.keys.len() > 1).count();
         let dialog = HelpDialog::new(KEYBOARD, all_rows, [0, 0, 1280, 800]);
         let page = dialog.page(&theme).body.expect("a page");
@@ -460,12 +496,12 @@ mod tests {
 
     #[test]
     fn every_bound_key_is_in_the_table() {
-        let rows = rows(all);
+        let rows = rows(&defaults(), all);
         let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
-        for (binding, _, key) in KEYS {
-            if about(key).is_some() {
+        for (binding, action) in defaults() {
+            if about(&action).is_some() {
                 assert!(
-                    shown.contains(&name(binding)),
+                    shown.contains(&name(&binding)),
                     "{binding} is bound but not in the table: {shown:?}"
                 );
             }
@@ -479,16 +515,27 @@ mod tests {
 
     #[test]
     fn a_key_that_is_not_held_is_not_listed() {
-        let rows = rows(|b| b != "Super+a");
+        let rows = rows(&defaults(), |b| b != "Super+a");
         assert!(
             rows.iter()
                 .all(|r| !r.keys.contains(&"Super+A".to_string()))
         );
     }
 
+    /// The stand-in of a cube key shows only while the key keeps its
+    /// default action (rw-2): `Ctrl+Alt+Left: close` shows no stand-in.
+    #[test]
+    fn a_moved_cube_key_shows_no_stand_in() {
+        let mut bindings = defaults();
+        bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
+        let rows = rows(&bindings, |b| b == "Super+Ctrl+Left");
+        let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
+        assert!(!shown.iter().any(|k| k.contains("Left")), "{shown:?}");
+    }
+
     #[test]
     fn the_rows_follow_the_groups() {
-        let rows = rows(all);
+        let rows = rows(&defaults(), all);
         let order: Vec<usize> = rows
             .iter()
             .map(|r| GROUPS.iter().position(|g| *g == r.group).unwrap())
@@ -498,7 +545,7 @@ mod tests {
 
     #[test]
     fn the_last_row_of_the_table_is_inside_the_window() {
-        let rows = rows(all);
+        let rows = rows(&defaults(), all);
         for area in [[0, 0, 1280, 764], [0, 0, 1024, 728]] {
             let (size, row) = fit(&rows, area);
             let end = table_end(&rows, row);
