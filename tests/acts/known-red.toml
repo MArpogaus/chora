@@ -60,3 +60,17 @@ id = "I3"
 look = "mc"
 match = "in act 'the chat of the helper opens'"
 slice = "WM2"
+
+[[red]]
+finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back"
+id = "act:Tab right after a new window opens the window list"
+look = "construct"
+match = "expected open ['construct-list'], got []"
+slice = "WM2"
+
+[[red]]
+finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back"
+id = "I4"
+look = "construct"
+match = "in act 'Tab right after a new window opens the window list': construct-list was declared open and is not"
+slice = "WM2"

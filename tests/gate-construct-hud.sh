@@ -122,6 +122,7 @@ round() {
     key Alt+Escape
     until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(not (c[\"z\"] == 0.0 and c[\"x\"] == 0.0))"' ||
         fail "$tag: no flight back out of the black pane"
+    ok "$tag: a flight in and out, which Tab needs after the press and a new window (kit7-a2, known red in the acts)"
 
     foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
     pids+=($!)
