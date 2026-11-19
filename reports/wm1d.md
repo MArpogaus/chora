@@ -54,3 +54,13 @@ xp 197 tests, construct 199, tiling 152, mc 140, chora-kit (testing) all pass. a
 6. FakeCore gives outputs (`output.list` answers `[]`): an xp output cell (bars, taskbar order buttons) needs them. S.
 
 Cut check: xp uses chora-kit, chora-scene, chora-draw only (dev-dependency chora-kit with `testing`); no breach added.
+
+## Review r1
+
+Head 18231aa1, base 1d1aa5fd. Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 2 MINOR, 0 NIT).
+
+Checked, each green: (1) `cargo test -p chora-xp` 197 pass; lifecycle (create, attach, detach, destroy, give in/out) runs through `kit::wm::book` (`lifecycle.rs`, `dispatch.rs`, `windows.rs`); `takes()` and the `SurfaceCreated` arm are gone; the state adapter is typed on `kit::wm::state`. (2) 8d194c19 precedes 218c2a6b and 18231aa1; run on 8d194c19 only, `a_launch_adopts_no_window_reserved_for_another_manager` fails (rw-1 red confirmed). (3) Restart cells read the 29e2cd77 meta by hand (stacking, frames, desktop, minimized, taskbar order); each adopted window opens once; the window reserved for mc is left. (4) `cargo test -p chora-construct` 199 pass; `created` adopts only when the book claimed (`free`); no window is lost when `free` is false (it is reserved for another manager, or already the construct's); rw-2 in docs/api.md matches the code (`with_groups` only in tiling and xp). (5) `tools/cut-check` ok; `Event::SurfaceCreated` outside kit is 0 by grep; `tools/size-ratchet` ok. (6) Visible behaviour as stated, but see rw-1, rw-2.
+
+Findings:
+- rw-1, MINOR, plugins/chora-xp/src/wm/state.rs:28,30: `state.get` of xp changed shape: `rect` ints now print as floats (300 to 300.0) and `output` is "" where it was null (a window under no bar). Fix: accept as the kit shape and say so in docs/api.md, or keep `output` an `Option` in `kit::wm::state::Window`.
+- rw-2, MINOR, plugins/chora-construct/src/adopt.rs:223: `self.launched.take()` (and `waiting.remove`) still run before the `free` test, so a window reserved for another manager that arrives within LAUNCHED of a launch eats the launch marker; the real program window is then adopted without `force` and without the fly-in. Fix: take `launched` only when `free`.
