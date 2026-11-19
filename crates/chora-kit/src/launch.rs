@@ -4,9 +4,10 @@
 //! `choractl run` starts a program in a unit of its own and answers the
 //! activation token, the pid of the main process and the unit. The shell
 //! owns that process with a pidfd, which needs no parent: when the main
-//! process is gone and the unit has no process left, the program ended,
-//! and a program that ended without a window is a failure at once. A
-//! program that is still starting after a moment shows that it is; one
+//! process is gone and the unit has no process left, the program ended;
+//! with a failed exit status, which the shell around the command writes
+//! to a file, it ended without a window and fails at once. A program that
+//! is still starting after a moment shows that it is; one
 //! that shows no window within [`GIVE_UP`] fails unless it still runs. The
 //! tracking answers each start with [`Change`]s that a look shows through
 //! the notification server.
@@ -166,6 +167,52 @@ struct Next {
     /// The program before this one that did not open, and why; said
     /// only once this one shows its window.
     fell: Option<(String, Why)>,
+    /// Where the shell of a start writes its failed exit status. A pidfd
+    /// tells that a program ended, not how, and a program that is no child
+    /// has no status to wait for; a status of zero may be a hand-over to a
+    /// running instance, so only a failure ends the wait at once.
+    status: Option<Arc<StatusFile>>,
+}
+
+/// A file in which the shell around a start of an early program writes
+/// its exit status when that is not zero. It is removed with the last
+/// holder.
+#[derive(Debug)]
+struct StatusFile(std::path::PathBuf);
+
+impl StatusFile {
+    fn create() -> Option<Self> {
+        static COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let dir = chora_scene::paths::runtime_home().unwrap_or_else(std::env::temp_dir);
+        let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = dir.join(format!("chora-xp-exit-{}-{n}", std::process::id()));
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .ok()?;
+        Some(Self(path))
+    }
+
+    /// The command that runs `command` and writes its status here when
+    /// it fails. A program that replaces the shell leaves no status.
+    fn wrap(&self, command: &str) -> String {
+        let file = quoted(&self.0.to_string_lossy());
+        format!(
+            "{{ {command}\n}}; status=$?; [ $status -eq 0 ] || ! [ -e {file} ] || echo $status >{file}; exit $status"
+        )
+    }
+
+    /// Whether the start ended with a status that is not zero.
+    fn failed(&self) -> bool {
+        std::fs::read_to_string(&self.0).is_ok_and(|text| !text.trim().is_empty())
+    }
+}
+
+impl Drop for StatusFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
 }
 
 /// The answer of `choractl run` for a command.
@@ -308,12 +355,20 @@ impl Launches {
             );
             return self.fail((name.to_owned(), None), Why::Missing, next, now);
         }
+        let status = (!DETACHED.contains(&name))
+            .then(StatusFile::create)
+            .flatten()
+            .map(Arc::new);
+        let command = status
+            .as_ref()
+            .map_or_else(|| first.command.clone(), |file| file.wrap(&first.command));
+        let next = Next { status, ..next };
         let sender = self.sender.clone();
         let starter = self.start.clone();
         let windows_before = self.windows;
         let name = name.to_owned();
         std::thread::spawn(move || {
-            let answer = starter(&first.command, next.activation.as_deref());
+            let answer = starter(&command, next.activation.as_deref());
             let _ = sender.send(Heard::Started(Started {
                 name,
                 answer,
@@ -449,7 +504,8 @@ impl Launches {
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
             let silent = entry.windows_before == windows;
-            if entry.gone && silent {
+            let crashed = entry.next.status.as_ref().is_some_and(|file| file.failed());
+            if entry.gone && silent && crashed {
                 failed.push((entry.take(), Why::Exited));
                 return false;
             }
@@ -639,6 +695,11 @@ pub fn alive(pid: u32) -> bool {
     stat.ok()
         .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
         .is_some_and(|zombie| !zombie)
+}
+
+/// A word in single quotes for the shell.
+fn quoted(word: &str) -> String {
+    format!("'{}'", word.replace('\'', "'\\''"))
 }
 
 /// Words that the shell runs without a program on `PATH`.
@@ -870,9 +931,15 @@ mod tests {
     #[test]
     fn a_program_that_ended_without_a_window_is_a_failure_at_once() {
         let now = Instant::now();
+        let file = StatusFile::create().expect("a status file");
+        std::fs::write(&file.0, "1\n").unwrap();
         let mut launches = Launches::new();
         launches.add(Started {
             answer: Some(answer(Some(u32::MAX))),
+            next: Next {
+                status: Some(Arc::new(file)),
+                ..Next::default()
+            },
             ..started(now)
         });
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -957,13 +1024,18 @@ mod tests {
         );
     }
 
-    fn ended_editor(now: Instant, rest: Vec<Candidate>) -> Launches {
+    fn ended_editor(now: Instant, status: Option<&str>, rest: Vec<Candidate>) -> Launches {
+        let file = StatusFile::create().expect("a status file");
+        if let Some(text) = status {
+            std::fs::write(&file.0, text).unwrap();
+        }
         let mut launches = Launches::new();
         launches.add(Started {
             name: "Notepad".into(),
             next: Next {
                 from: "writer".into(),
                 rest,
+                status: Some(Arc::new(file)),
                 ..Next::default()
             },
             ..started(now)
@@ -975,7 +1047,7 @@ mod tests {
     #[test]
     fn an_editor_that_failed_gives_way_to_the_next_and_says_so_when_it_shows() {
         let now = Instant::now();
-        let mut launches = ended_editor(now, chain()[1..].to_vec());
+        let mut launches = ended_editor(now, Some("1\n"), chain()[1..].to_vec());
         let changes = launches.check(seconds(now, 0));
         assert!(
             changes
@@ -1018,7 +1090,7 @@ mod tests {
     #[test]
     fn a_fallback_that_ends_without_a_window_leaves_no_notice_of_success() {
         let now = Instant::now();
-        let mut launches = ended_editor(now, Vec::new());
+        let mut launches = ended_editor(now, Some("1\n"), Vec::new());
         let fell = Some(("writer".to_owned(), Why::Exited));
         launches.entries[0].next.fell = fell;
         let changes = launches.check(seconds(now, 0));
@@ -1030,6 +1102,32 @@ mod tests {
             "{changes:?}"
         );
         assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn an_editor_that_handed_over_with_status_zero_is_waited_for() {
+        let now = Instant::now();
+        let mut launches = ended_editor(now, None, chain()[1..].to_vec());
+        for s in [2, 5, 10, GIVE_UP.as_secs() - 1] {
+            let changes = launches.check(seconds(now, s));
+            assert!(
+                changes.iter().all(|c| matches!(c, Change::Starting { .. })),
+                "{s}: {changes:?}"
+            );
+        }
+        launches.window(Some("t1"));
+        assert_eq!(launches.check(seconds(now, 40)), none());
+        assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn the_status_file_goes_with_the_start() {
+        let file = StatusFile::create().expect("a status file");
+        let path = file.0.clone();
+        assert!(path.exists() && !file.failed());
+        assert!(file.wrap("lowriter -n").contains("lowriter -n"));
+        drop(file);
+        assert!(!path.exists());
     }
 
     #[test]

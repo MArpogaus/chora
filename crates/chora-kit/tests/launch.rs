@@ -133,7 +133,7 @@ impl Look {
 fn a_program_that_exits_before_its_window_gives_exited_at_once() {
     let core = FakeCore::start();
     let mut look = Look::new(&core);
-    look.run("exit 1");
+    look.run("false");
     let changes = look.heard();
     assert!(
         matches!(
@@ -152,7 +152,7 @@ fn a_program_that_exits_before_its_window_gives_exited_at_once() {
 fn an_editor_that_exits_before_its_window_gives_way_to_the_next_at_once() {
     let core = FakeCore::start();
     let mut look = Look::new(&core);
-    let token = look.chain(["exit 1", "sleep 30"]);
+    let token = look.chain(["false", "sleep 30"]);
     let changes = look.heard();
     assert!(
         matches!(changes.as_slice(), [Change::Done { note: None }]),
