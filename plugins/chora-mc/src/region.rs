@@ -49,6 +49,13 @@ const PROBE: &str = "mc-probe";
 pub fn probe(id: &str) -> String {
     format!("{id}-probe")
 }
+
+/// The width that a text of a side wraps at: what is left of the side
+/// right of the item, as for the item and for its probe alike.
+fn room(item: &Item, width: f64) -> f64 {
+    (width - item.x - lead(item)).max(1.0)
+}
+
 /// How long a new docked app waits for a size that fits, in milliseconds.
 pub const FIT_MS: f64 = 1000.0;
 /// The most lines that `content.add` keeps.
@@ -731,7 +738,7 @@ impl Mc {
             let width = boxes.regions[region][2];
             for item in region_items {
                 let props = PropsUpdate {
-                    max_width: (!region.is_line()).then_some(width),
+                    max_width: (!region.is_line()).then(|| room(item, width)),
                     ..item.props.clone()
                 };
                 probes.push(create(&probe(&item.id), NodeKind::Text, PROBE, props));
@@ -907,9 +914,8 @@ impl Mc {
         }
         let faint = colors.get("faint").copied().unwrap_or(config.background());
         for item in items {
-            let room = (width - item.x - lead(item)).max(1.0);
             let props = PropsUpdate {
-                max_width: (!region.is_line()).then_some(room),
+                max_width: (!region.is_line()).then(|| room(item, width)),
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
