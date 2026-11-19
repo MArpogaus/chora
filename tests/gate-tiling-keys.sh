@@ -31,7 +31,7 @@ ctl call tiling settings.reload >/dev/null || fail "settings.reload"
 keys Super+slash
 sleep 2
 shown=$(list)
-for word in "Next window" "Super+j" "Say hello" "Super+x" "Closes it" ; do
+for word in "Next window" "Super+J" "Say hello" "Super+X" "Closes it" ; do
     case $word in "Closes it") word="Esc closes it" ;; esac
     grep -q "$word" <<<"$shown" || fail "the key list does not show '$word'"
 done

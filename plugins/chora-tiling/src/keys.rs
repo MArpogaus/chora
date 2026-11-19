@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use chora_kit::{actions::System, volume::Change, words::Language};
+use chora_kit::{actions::System, keysheet, volume::Change, words::Language};
 use chora_scene::{Backdrop, Border, Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
@@ -87,25 +87,52 @@ pub fn layout_word(layout: Layout, lang: Language) -> &'static str {
     }
 }
 
-/// The group of the key list that an action belongs to, and its words;
-/// a `{}` stands for the number of a tag.
-fn words(action: &Action, de: bool) -> Option<(usize, String)> {
-    let pick = |en: &str, german: &str| (if de { german } else { en }).to_owned();
-    if let Action::System(System::Run(command)) = action {
-        return Some((3, command.clone()));
+/// The group of the key list that an action belongs to.
+fn group_of(action: &Action) -> usize {
+    match action {
+        Action::System(
+            System::Run(_)
+            | System::Terminal
+            | System::Launcher
+            | System::Chat
+            | System::Lock
+            | System::Power
+            | System::Screenshot,
+        ) => 3,
+        Action::System(System::Close | System::Drag) => 0,
+        Action::System(_) => 4,
+        Action::Look(own) => {
+            let own = Action::Look(own.clone());
+            if window_words(&own).is_some() {
+                0
+            } else if layout_words(&own).is_some() {
+                1
+            } else if tag_words(&own).is_some() {
+                2
+            } else {
+                4
+            }
+        }
     }
-    if let Action::System(System::Give(to)) = action {
-        return Some((
-            4,
-            format!("{} {to}", pick("Give window to", "Fenster geben an")),
-        ));
+}
+
+/// The words of an action of the look, or the label that the file gives
+/// its binding; a `{}` stands for the number of a tag. None for an action
+/// of the system without a label: kit names it.
+fn named(config: &Config, binding: &str, action: &Action, de: bool) -> Option<String> {
+    if let Some(label) = config
+        .labels
+        .iter()
+        .find(|(bound, _)| bound.replace("MOD", &config.modifier) == binding)
+        .map(|(_, label)| label)
+    {
+        return Some(label.clone());
     }
-    let window = window_words(action).map(|w| (0, w));
-    let layout = layout_words(action).map(|w| (1, w));
-    let tag = tag_words(action).map(|w| (2, w));
-    let system = system_words(action).map(|w| (4, w));
-    let (group, [en, german]) = window.or(layout).or(tag).or(system)?;
-    Some((group, pick(en, german)))
+    let [en, german] = window_words(action)
+        .or_else(|| layout_words(action))
+        .or_else(|| tag_words(action))
+        .or_else(|| own_words(action))?;
+    Some((if de { german } else { en }).to_owned())
 }
 
 type Words = [&'static str; 2];
@@ -119,7 +146,6 @@ fn window_words(action: &Action) -> Option<Words> {
         Action::Look(Own::SwapNext) => ["Move window down", "Fenster nach hinten"],
         Action::Look(Own::SwapPrevious) => ["Move window up", "Fenster nach vorn"],
         Action::Look(Own::MoveToMaster) => ["Make window main", "Fenster zum Hauptfenster"],
-        Action::System(System::Close) => ["Close window", "Fenster schließen"],
         Action::Look(Own::ToggleFloating) => ["Float window", "Fenster schweben lassen"],
         Action::Look(Own::ToggleFullscreen) => ["Full screen", "Vollbild"],
         Action::Look(Own::ToggleMaximized) => ["Maximize", "Maximieren"],
@@ -128,7 +154,6 @@ fn window_words(action: &Action) -> Option<Words> {
         Action::Look(Own::ToggleOnTop) => ["Keep on top", "Immer oben"],
         Action::Look(Own::Minimize) => ["Hide window", "Fenster verstecken"],
         Action::Look(Own::RestoreMinimized) => ["Bring back window", "Fenster zurückholen"],
-        Action::System(System::Drag) => ["Drag window", "Fenster ziehen"],
         _ => return None,
     })
 }
@@ -169,13 +194,9 @@ fn tag_words(action: &Action) -> Option<Words> {
     })
 }
 
-fn system_words(action: &Action) -> Option<Words> {
+fn own_words(action: &Action) -> Option<Words> {
     Some(match action {
         Action::Look(Own::Reload) => ["Read the settings again", "Einstellungen neu lesen"],
-        Action::System(System::Volume(Change::Up)) => ["Volume up", "Lauter"],
-        Action::System(System::Volume(Change::Down)) => ["Volume down", "Leiser"],
-        Action::System(System::Volume(Change::Mute)) => ["Mute", "Stumm"],
-        Action::System(System::Keys) => ["Show this list", "Diese Liste zeigen"],
         _ => return None,
     })
 }
@@ -207,7 +228,7 @@ type Entry = (usize, String, String);
 
 /// The English words of the rows in the order that the key list shows
 /// them, by group; a row that is not here follows the others, by its keys.
-const ORDER: [&str; 45] = [
+const ORDER: [&str; 47] = [
     "Next window",
     "Previous window",
     "Window before",
@@ -243,126 +264,113 @@ const ORDER: [&str; 45] = [
     "Next tag",
     "Previous tag",
     "Tag before",
-    "Terminal",
-    "Run a program or a typed command",
+    "Open a terminal",
+    "Start a program or run a command",
     "Chat with a helper",
     "Lock the screen",
     "Power menu",
-    "Screenshot",
+    "Take a screenshot",
     "Screenshot of an area",
-    "Volume up / Volume down / Mute",
+    "Volume up",
+    "Volume down",
+    "Mute",
     "Read the settings again",
-    "Show this list",
+    "All keys",
 ];
 
-/// The keys as a person says them: `BTN_LEFT` is a drag, `slash` is `/`,
-/// and a volume key is its cap of `chora_kit::glass`.
-fn spell(keys: &str) -> String {
-    keys.split('+')
-        .map(|key| match key {
-            "BTN_LEFT" => "drag".to_owned(),
-            "slash" => "/".to_owned(),
-            "space" => "Space".to_owned(),
-            "Return" => "Enter".to_owned(),
-            "Escape" => "Esc".to_owned(),
-            other if other.starts_with("XF86Audio") => chora_kit::glass::cap(other),
-            other => other.to_owned(),
-        })
-        .collect::<Vec<_>>()
-        .join("+")
-}
-
-/// The row of the media keys of the volume with its group: the caps
-/// `Vol+ / Vol- / Mute` and their words in that order, in one row as the
-/// tags 1 to 9 take one.
-fn volume_row(config: &Config, de: bool) -> Option<(usize, Entry)> {
-    let mut parts: Vec<(usize, String, String, String)> = (config.common.bindings.iter())
-        .filter(|(binding, _)| !binding.contains("MOD"))
-        .filter_map(|(binding, action)| {
-            let Action::System(System::Volume(change)) = action else {
-                return None;
+/// The keys of the rows of the tags: the bindings of one stem with their
+/// digits as a span, `Super+1-9`, one span per stem.
+fn spans(chords: &[String]) -> String {
+    let mut spans: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    for chord in chords {
+        let stem = chord.trim_end_matches(|c: char| c.is_ascii_digit());
+        let Ok(n) = chord[stem.len()..].parse::<usize>() else {
+            continue;
+        };
+        let span = spans.entry(stem.to_owned()).or_insert((n, n));
+        (span.0, span.1) = (span.0.min(n), span.1.max(n));
+    }
+    let named: Vec<String> = (spans.into_iter())
+        .map(|(stem, (low, high))| {
+            let range = if low == high {
+                low.to_string()
+            } else {
+                format!("{low}-{high}")
             };
-            let order = [Change::Up, Change::Down, Change::Mute]
-                .iter()
-                .position(|c| c == change)?;
-            let (_, label) = words(action, de)?;
-            let (_, english) = words(action, false)?;
-            Some((order, spell(binding), label, english))
+            format!("{stem}{range}")
         })
         .collect();
-    parts.sort();
-    let (group, _) = words(&Action::System(System::Volume(Change::Up)), de)?;
-    let join = |part: fn(&(usize, String, String, String)) -> &str| {
-        parts.iter().map(part).collect::<Vec<_>>().join(" / ")
-    };
-    let english = join(|p| &p.3);
-    let rank = (ORDER.iter().position(|w| *w == english)).unwrap_or(ORDER.len());
-    (!parts.is_empty()).then(|| (group, (rank, join(|p| &p.1), join(|p| &p.2))))
+    named.join(" / ")
 }
 
-/// The row of the give keys with its group: `Super+Alt+1-4`, as the tags
-/// 1 to 9 take one row, and the window managers in the order of the keys.
-fn give_row(de: bool) -> Option<(usize, Entry)> {
-    let (keys, names) = chora_kit::give::keys_row("-");
-    let (last, others) = names.split_last()?;
-    let (group, lead) = words(&Action::System(System::Give(others.join(", "))), de)?;
-    let or = if de { "oder" } else { "or" };
-    Some((group, (ORDER.len(), keys, format!("{lead} {or} {last}"))))
+/// A row of kit as a row of the list: its rank by the English words, its
+/// keys and its words, with the tags as a span.
+fn entry(config: &Config, row: &keysheet::Row<Own>) -> Entry {
+    let english =
+        named(config, &row.binding, &row.action, false).unwrap_or_else(|| match &row.action {
+            Action::System(system) => keysheet::words(system, Language::En).unwrap_or_default(),
+            Action::Look(_) => String::new(),
+        });
+    let rank = ORDER
+        .iter()
+        .position(|w| *w == english)
+        .unwrap_or(ORDER.len());
+    if number(&row.action).is_none() {
+        let keys = row.chords.clone();
+        return (rank, keys.join(" / "), row.words.clone());
+    }
+    let keys = spans(&row.chords);
+    let range = keys.rsplit(['+', ' ']).next().unwrap_or_default();
+    let words = row.words.replace("{}", range);
+    (rank, keys, words)
 }
 
-/// The rows of the key list by group: the keys as the file spells them
-/// with `MOD` as the modifier, and the words. A `labels` entry names a
-/// binding; the bindings of the tags 1 to 9 take one row, the media keys
-/// of the volume another, and the give keys, which no file binds, a
-/// third.
+/// The rows of the key list by group: the keys as kit spells them, with the
+/// modifier of the file for `MOD`, and the words. The bindings of the tags
+/// 1 to 9 take one row, a binding with the words of another joins its row,
+/// the media keys of the volume take one, and the give keys, which no
+/// file binds, another.
 #[must_use]
 pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, String)>)> {
     let de = lang == Language::De;
+    let media = |action: &Action| {
+        matches!(
+            action,
+            Action::System(System::Volume(Change::Up | Change::Down | Change::Mute))
+        )
+    };
+    let resolved = (config.common.bindings.iter())
+        .filter(|(binding, action)| binding.contains("MOD") || media(action))
+        .map(|(binding, action)| (binding.replace("MOD", &config.modifier), action));
+    let sheet = keysheet::rows(resolved, lang, |binding, action| {
+        named(config, binding, action, de)
+    });
     let mut groups: Vec<Vec<Entry>> = vec![Vec::new(); 5];
-    let mut spans: BTreeMap<(usize, usize, String, String), (usize, usize)> = BTreeMap::new();
-    for (binding, action) in &config.common.bindings {
-        let Some((group, label)) = words(action, de) else {
-            continue;
-        };
-        if !binding.contains("MOD") {
-            continue;
-        }
-        let english = words(action, false).map_or_else(String::new, |(_, en)| en);
-        let named = config.labels.get(binding);
-        let rank = ORDER
-            .iter()
-            .position(|w| *w == named.unwrap_or(&english))
-            .unwrap_or(ORDER.len());
-        let label = named.cloned().unwrap_or(label);
-        let keys = spell(&binding.replace("MOD", &config.modifier));
-        let Some(n) = number(action) else {
-            match groups[group].iter_mut().find(|(_, _, l)| *l == label) {
-                Some((_, known, _)) if known.split(" / ").any(|k| k == keys) => {}
-                Some((_, known, _)) => *known = format!("{known} / {keys}"),
-                None => groups[group].push((rank, keys, label)),
-            }
-            continue;
-        };
-        let stem = keys
-            .trim_end_matches(|c: char| c.is_ascii_digit())
-            .to_owned();
-        let span = spans.entry((group, rank, stem, label)).or_insert((n, n));
-        (span.0, span.1) = (span.0.min(n), span.1.max(n));
-    }
-    for (group, row) in volume_row(config, de).into_iter().chain(give_row(de)) {
-        groups[group].push(row);
-    }
-    for ((group, rank, stem, label), (low, high)) in spans {
-        let range = if low == high {
-            low.to_string()
+    let mut volume_keys: Vec<Entry> = Vec::new();
+    for row in &sheet {
+        let entry = entry(config, row);
+        let volume = matches!(
+            row.action,
+            Action::System(System::Volume(Change::Up | Change::Down | Change::Mute))
+        );
+        if volume {
+            volume_keys.push(entry);
         } else {
-            format!("{low}-{high}")
-        };
-        let keys = format!("{stem}{range}");
-        groups[group].push((rank, keys, label.replace("{}", &range)));
+            groups[group_of(&row.action)].push(entry);
+        }
     }
-    let named = groups.into_iter().enumerate();
-    named
+    if let Some((rank, _, _)) = volume_keys.first() {
+        let rank = *rank;
+        let join =
+            |part: fn(&Entry) -> &str| volume_keys.iter().map(part).collect::<Vec<_>>().join(" / ");
+        let row = (rank, join(|e| &e.1), join(|e| &e.2));
+        groups[4].push(row);
+    }
+    let (keys, words) = keysheet::give_row(lang);
+    groups[4].push((ORDER.len(), keys, words));
+    groups
+        .into_iter()
+        .enumerate()
         .filter(|(_, rows)| !rows.is_empty())
         .map(|(group, mut rows)| {
             rows.sort();
@@ -863,6 +871,46 @@ mod tests {
     }
 
     #[test]
+    fn a_binding_without_mod_has_no_row_but_the_media_keys_do() {
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        config
+            .common
+            .bindings
+            .insert("Print".into(), Action::System(System::Screenshot));
+        config.common.bindings.insert(
+            "XF86AudioMute".into(),
+            Action::System(System::Volume(Change::Mute)),
+        );
+        let keys: Vec<String> = rows(&config, Language::En)
+            .into_iter()
+            .flat_map(|(_, rows)| rows.into_iter().map(|(keys, _)| keys))
+            .collect();
+        assert!(
+            !keys
+                .iter()
+                .any(|k| k.split(" / ").any(|key| key == "Print")),
+            "{keys:?}"
+        );
+        assert!(keys.iter().any(|k| k.contains("Mute")), "{keys:?}");
+    }
+
+    #[test]
+    fn an_arrow_keeps_the_thin_space_that_kit_spells_before_it() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        let keys: Vec<String> = rows(&config, Language::En)
+            .into_iter()
+            .flat_map(|(_, rows)| rows.into_iter().map(|(keys, _)| keys))
+            .filter(|k| k.contains(['←', '→', '↑', '↓']))
+            .collect();
+        assert!(!keys.is_empty(), "no arrow key in the list");
+        for key in keys {
+            for (at, c) in key.char_indices().filter(|(_, c)| "←→↑↓".contains(*c)) {
+                assert!(key[..at].ends_with("+\u{2009}"), "{key:?} at {c}");
+            }
+        }
+    }
+
+    #[test]
     fn no_two_lines_of_a_column_share_a_height() {
         for room in [1000.0, 696.0] {
             let plan = laid_out(room);
@@ -1052,7 +1100,7 @@ mod tests {
         assert_eq!(first(0), "Next window");
         assert_eq!(first(1), "Next layout");
         assert_eq!(first(2), "Show tag 1-9");
-        assert_eq!(first(3), "Terminal");
+        assert_eq!(first(3), "Open a terminal");
         assert_eq!(groups[0].1[1].1, "Previous window");
     }
 

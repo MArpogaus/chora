@@ -211,6 +211,26 @@ name = "tiling: a shared action of its own (KIT2c)"
 paths = ["plugins/chora-tiling"]
 pattern = 'Action::(Run|Close|Give|Drag|Volume|ShowKeys)\b'
 
+# kit3: kit::keysheet gives the words of a shared action and the spelling of
+# a key (one table, KIT3); a look names only its own actions and draws
+# its own costume.
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own words of a shared action in a key list (KIT3)"
+pattern = 'System::(Lock|Power|Screenshot|Chat|Keys)\) => (\[|")[A-Z]|Volume\(Change::(Up|Down|Mute)\)\) => (\[|")[A-Z]'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own spelling of a key in a key list (KIT3)"
+pattern = '"(Escape|slash|space|period|BTN_LEFT|XF86AudioRaiseVolume)" => "[^"]*"\.(to_owned|to_string|into)\(\)'
+
+[[row]]
+max = 0
+name = "own order of the volume keys in a key list (KIT3)"
+pattern = 'fn volume_order'
+
 # kit2d: xp takes its keys from `bindings` (kit::actions); no table of keys
 # and no enum of key actions of its own.
 [[row]]

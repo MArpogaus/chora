@@ -33,6 +33,27 @@ pub enum Own {
     Cube,
 }
 
+impl Own {
+    /// What the action does, in words.
+    #[must_use]
+    pub const fn words(self) -> &'static str {
+        match self {
+            Self::Forward => "Walk forward",
+            Self::Back => "Walk back",
+            Self::Left => "Step left",
+            Self::Right => "Step right",
+            Self::TurnLeft => "Turn left",
+            Self::TurnRight => "Turn right",
+            Self::LookUp => "Look up",
+            Self::LookDown => "Look down",
+            Self::Home => "Back to the start",
+            Self::FlyIn => "Fly into the pane ahead",
+            Self::Windows => "Show the windows",
+            Self::Cube => "Open the cube",
+        }
+    }
+}
+
 /// The action of a key: one of every look, or one of the construct.
 pub type Action = chora_kit::actions::Action<Own>;
 
@@ -407,19 +428,43 @@ impl Config {
     }
 
     /// The groups of keys of the help: the keys of the construct that work
-    /// now from its settings, then the keys that every look shares.
+    /// now from its settings, then the keys that every look shares. The
+    /// rows are those of `kit::keysheet` for the bindings; the construct
+    /// names its own actions, groups them and adds the keys that no
+    /// binding holds.
     #[must_use]
     #[allow(clippy::too_many_lines, reason = "one row per key")]
     pub fn help_groups(&self, cube: bool) -> Vec<crate::command::KeyGroup> {
         use crate::command::{KeyGroup, KeyRow, chord};
+        use chora_kit::keysheet;
         let settings = self;
+        let mut held: Vec<(String, &Action)> = (settings.common.bindings.iter())
+            .map(|(key, action)| (key.clone(), action))
+            .collect();
+        held.sort_by_key(|(key, _)| (key.chars().count() != 1, key.clone()));
+        let gives = ["tiling", "xp", "mc", "construct"]
+            .map(|to| System::Give(crate::names::manager_name(to).clone()));
+        let give_actions = gives.clone().map(Action::System);
+        let give_keys: Vec<(String, &Action)> = (give_actions.iter().enumerate())
+            .map(|(i, action)| (format!("Super+Alt+{}", i + 1), action))
+            .collect();
+        let all: Vec<(String, &Action)> = held.iter().cloned().chain(give_keys).collect();
+        let sheet = keysheet::rows(
+            all.iter().cloned(),
+            chora_kit::words::Language::En,
+            |_, action| match action {
+                Action::Look(own) => Some(own.words().to_owned()),
+                Action::System(_) => None,
+            },
+        );
         let bound = |action: Action| -> Vec<Vec<String>> {
-            let mut keys: Vec<&String> = (settings.common.bindings.iter())
-                .filter(|(_, a)| **a == action)
-                .map(|(k, _)| k)
-                .collect();
-            keys.sort_by_key(|k| (k.chars().count() != 1, (*k).clone()));
-            keys.into_iter().map(|k| chord(k)).collect()
+            let Some(row) = sheet.iter().find(|r| r.action == action) else {
+                return Vec::new();
+            };
+            (row.chords.iter())
+                .filter_map(|c| all.iter().find(|(b, _)| keysheet::chord(b) == *c))
+                .map(|(b, _)| chord(b))
+                .collect()
         };
         let row = |what: &str, keys: Vec<String>, alt: Vec<String>| KeyRow {
             what: what.into(),
@@ -427,16 +472,19 @@ impl Config {
             alt,
             gesture: None,
         };
+        let say = |system: &System| {
+            keysheet::words(system, chora_kit::words::Language::En).unwrap_or_default()
+        };
         let one = |action: Action| bound(action).into_iter().next().unwrap_or_default();
         let letters = |actions: &[Action]| -> Vec<String> {
             actions.iter().flat_map(|a| one(a.clone())).collect()
         };
         let second = |action: Action| bound(action).into_iter().nth(1).unwrap_or_default();
-        let help = bound(Action::System(System::Keys));
-        let shared_help = (help
+        let keys_of_help = bound(Action::System(System::Keys));
+        let shared_help = (keys_of_help
             .iter()
             .find(|k| k.first().is_some_and(|m| m == "Super")))
-        .or_else(|| help.first())
+        .or_else(|| keys_of_help.first())
         .cloned()
         .unwrap_or_default();
         let walk = KeyGroup {
@@ -467,23 +515,19 @@ impl Config {
                     letters(&[Action::Look(Own::LookUp), Action::Look(Own::LookDown)]),
                     Vec::new(),
                 ),
+                row(Own::Home.words(), one(Action::Look(Own::Home)), Vec::new()),
                 row(
-                    "Back to the start",
-                    one(Action::Look(Own::Home)),
-                    Vec::new(),
-                ),
-                row(
-                    "Fly into the pane ahead",
+                    Own::FlyIn.words(),
                     one(Action::Look(Own::FlyIn)),
                     Vec::new(),
                 ),
                 row(
-                    "Show the windows",
+                    Own::Windows.words(),
                     one(Action::Look(Own::Windows)),
                     Vec::new(),
                 ),
                 row(
-                    "Open the cube",
+                    Own::Cube.words(),
                     if cube {
                         Vec::new()
                     } else {
@@ -493,20 +537,13 @@ impl Config {
                 ),
             ],
         };
+        let system = |action: System| row(&say(&action), one(Action::System(action)), Vec::new());
         let panes = KeyGroup {
             head: "Panes".into(),
             shared: false,
             rows: vec![
-                row(
-                    "Open a terminal",
-                    one(Action::System(System::Terminal)),
-                    Vec::new(),
-                ),
-                row(
-                    "Close the pane ahead",
-                    one(Action::System(System::Close)),
-                    Vec::new(),
-                ),
+                system(System::Terminal),
+                system(System::Close),
                 KeyRow {
                     what: "Move or resize a pane".into(),
                     keys: chord(&settings.modifier),
@@ -542,11 +579,7 @@ impl Config {
                 head: "Helper and chat".into(),
                 shared: true,
                 rows: vec![
-                    row(
-                        "Chat with a helper",
-                        one(Action::System(System::Chat)),
-                        Vec::new(),
-                    ),
+                    system(System::Chat),
                     row("Answer a question", chord("Alt+y"), chord("Alt+n")),
                     row("Stop the helper", chord("Ctrl+period"), Vec::new()),
                 ],
@@ -554,64 +587,30 @@ impl Config {
             KeyGroup {
                 head: "Give a window".into(),
                 shared: true,
-                rows: [
-                    ("tiling", "1"),
-                    ("xp", "2"),
-                    ("mc", "3"),
-                    ("construct", "4"),
-                ]
-                .into_iter()
-                .map(|(to, n)| {
-                    row(
-                        &format!("Give it to {}", crate::names::manager_name(to)),
-                        chord(&format!("Super+Alt+{n}")),
-                        Vec::new(),
-                    )
-                })
-                .collect(),
+                rows: gives.into_iter().map(system).collect(),
             },
             KeyGroup {
                 head: "Everywhere".into(),
                 shared: true,
                 rows: vec![
                     row("Back out one step", chord("Escape"), Vec::new()),
-                    row(
-                        "Start a program or run a command",
-                        one(Action::System(System::Launcher)),
-                        Vec::new(),
-                    ),
-                    row("Show these keys", shared_help, Vec::new()),
-                    row(
-                        "Lock the screen",
-                        one(Action::System(System::Lock)),
-                        Vec::new(),
-                    ),
-                    row(
-                        "Open the power menu",
-                        one(Action::System(System::Power)),
-                        Vec::new(),
-                    ),
-                    row(
-                        "Take a screenshot",
-                        one(Action::System(System::Screenshot)),
-                        Vec::new(),
-                    ),
-                    row(
-                        "Volume up",
-                        one(Action::System(System::Volume(Change::Up))),
-                        Vec::new(),
-                    ),
-                    row(
-                        "Volume down",
-                        one(Action::System(System::Volume(Change::Down))),
-                        Vec::new(),
-                    ),
-                    row(
-                        "Mute",
-                        one(Action::System(System::Volume(Change::Mute))),
-                        Vec::new(),
-                    ),
-                ],
+                    system(System::Launcher),
+                    row(&say(&System::Keys), shared_help, Vec::new()),
+                    system(System::Lock),
+                    system(System::Power),
+                    system(System::Screenshot),
+                    system(System::Volume(Change::Up)),
+                    system(System::Volume(Change::Down)),
+                    system(System::Volume(Change::Mute)),
+                ]
+                .into_iter()
+                .chain(sheet.iter().filter_map(|r| match r.action {
+                    Action::System(System::Volume(Change::Set(_))) => {
+                        Some(row(&r.words, chord(&r.binding), Vec::new()))
+                    }
+                    _ => None,
+                }))
+                .collect(),
             },
         ]);
         for group in &mut groups {
@@ -984,7 +983,7 @@ mod tests {
             keys(&config, "Walk forward, back, sideways").unwrap(),
             ["W", "A", "S", "D"]
         );
-        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "F1"]);
+        assert_eq!(keys(&config, "All keys").unwrap(), ["Super", "F1"]);
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.common.bindings.remove("h");
@@ -1073,6 +1072,38 @@ mod tests {
         }
     }
 
+    /// KIT3: the rows of the help are the rows of `kit::keysheet` for the
+    /// bindings: any action of the system that the construct acts on has
+    /// a row with the words of kit, also one the shipped file does not
+    /// bind.
+    #[test]
+    fn every_action_of_the_system_has_a_row_with_the_words_of_the_keysheet() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        config.common.bindings.insert(
+            "Super+v".into(),
+            Action::System(System::Volume(Change::Set(30))),
+        );
+        let rows: Vec<_> = (config.help_groups(false).into_iter())
+            .flat_map(|g| g.rows)
+            .collect();
+        for (binding, action) in &config.common.bindings {
+            let Action::System(system) = action else {
+                continue;
+            };
+            let words =
+                chora_kit::keysheet::words(system, chora_kit::words::Language::En).expect("words");
+            let keys: Vec<Vec<String>> = (config.common.bindings.iter())
+                .filter(|(_, a)| *a == action)
+                .map(|(b, _)| chora_kit::keysheet::caps(b))
+                .collect();
+            assert!(
+                rows.iter()
+                    .any(|r| r.what == words && keys.contains(&r.keys)),
+                "{binding}: no row says {words:?} with one of its keys"
+            );
+        }
+    }
+
     /// Polish 14: the help names the window managers as people read them.
     #[test]
     fn the_help_gives_a_window_to_managers_by_their_display_names() {
@@ -1084,10 +1115,10 @@ mod tests {
         assert_eq!(
             gives,
             [
-                "Give it to Tiling",
-                "Give it to XP",
-                "Give it to Media center",
-                "Give it to Construct"
+                "Give window to Tiling",
+                "Give window to XP",
+                "Give window to Media center",
+                "Give window to Construct"
             ]
         );
     }

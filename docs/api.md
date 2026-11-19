@@ -483,6 +483,27 @@ its cube. mc, construct and xp read `bindings`; tiling follows. xp has had
 the setting since KIT2d, with the keys that it had hard-coded as its
 defaults.
 
+The key list of every look is made from the same rows, `chora_kit::keysheet::rows`:
+one row per wording, with the chords that do it (`chords`), the action of the
+first binding and that binding, as a click on the row acts like it. The words of
+an action of `System` are in `keysheet::words`, one wording per action in English
+and German (`keys` is "All keys", `lock` "Lock the screen", `power` "Power menu",
+`screenshot` "Take a screenshot", `chat` "Chat with a helper", `launcher` and `run: fuzzel`
+"Start a program or run a command", `close` "Close window", `volume` "Volume up",
+"Volume down" and "Mute", `give: NAME` "Give window to NAME"). A key is spelled
+as its cap, `keysheet::caps` and `keysheet::chord`: `Esc`, `Return`, `Space`, `/`, `.`,
+`←`, `→`, `Vol+`, `Vol-`, `Mute`, `drag`, a letter in capital, and a thin space
+between the plus and an arrow. A look names its own actions and may give one binding
+its own words (the `labels` of tiling), and draws the rows in its own costume: its
+groups, its caps, its order, as `Super+Alt+1-4` for the give keys that no file binds
+(`keysheet::give_row`, which says "Give window to a look" in the words of `give`).
+The four looks take every row of a bound action from `keysheet::rows`: mc and tiling
+draw them as a list, construct groups them in its help, xp in its table of keys; the
+keys that no binding holds (the move modifier, `Alt+y`) stay rows of the look. The key
+list of tiling shows a binding only when it names `MOD`, and the media keys of the volume. The act `the key list of LOOK speaks the keysheet` of
+`tests/acts` and the cell of the help of xp read the drawn texts of each look against
+`tests/keysheet/words.table`.
+
 The key action `give` is the same on every window manager. A binding
 `give: NAME` gives the focused window to the window manager `NAME`.
 `chora_kit::give::focused(windows, to)` implements it: it queries the

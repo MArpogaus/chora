@@ -240,3 +240,77 @@ def helper_acts(s):
         expect=Expect(helper="no_helper"),
         timeout=30,
     )
+
+
+KEYSHEET = pathlib.Path(__file__).resolve().parents[2] / "keysheet" / "words.table"
+
+EVERY_LOOK = [
+    "keys",
+    "chat",
+    "lock",
+    "power",
+    "screenshot",
+    "volume:up",
+    "volume:down",
+    "volume:mute",
+    "launcher",
+]
+
+
+def keysheet_spec():
+    """The English words by action and the spelling of the keys, from the
+    table that kit::keysheet is held to (tests/keysheet/words.table)."""
+    words, caps = {}, {}
+    for line in KEYSHEET.read_text().splitlines():
+        fields = line.split("\t")
+        if line.startswith("words\t"):
+            words[fields[1]] = fields[2]
+        elif line.startswith("cap\t"):
+            caps[fields[1]] = fields[2]
+    return words, caps
+
+
+def keysheet_breaches(texts, words=None, caps=None):
+    """What a key list that draws `texts` gets wrong: a wording of an action
+    of every look that is not the one of kit::keysheet, and a key spelled
+    another way than its cap. A row that joins keys or words with a slash
+    counts as one text for each part."""
+    spec_words, spec_caps = keysheet_spec()
+    texts = [part for line in texts for part in line.split(" / ")]
+    words = words or {name: spec_words[name] for name in EVERY_LOOK}
+    caps = caps or spec_caps
+    breaches = [
+        f"the key list does not say {english!r} for {name}"
+        for name, english in words.items()
+        if english not in texts
+    ]
+    raw = {key for key, cap in caps.items() if len(key) > 1 and cap != key} | {"Enter"}
+    for line in texts:
+        parts = line.replace(" ", "").split("+")
+        spelled = [p for p in parts if p in raw and (len(parts) > 1 or line in raw)]
+        breaches += [f"the key {p!r} is not spelled as its cap in {line!r}" for p in spelled]
+    return breaches
+
+
+def keysheet_acts(s, sheet, close="Escape", drawn_in_state=False):
+    """The key list opens and its drawn texts hold the words and the
+    spelling of kit::keysheet (KIT3): one wording per action of every
+    look and one spelling per key, in all four looks. A look that paints the
+    list into an image node (xp) tells its texts in `state.get`; the others
+    draw text nodes of the scene."""
+    name = f"the key list of {s.label} speaks the keysheet"
+    after = s.act(
+        name,
+        [key("Super+F1")],
+        opens=[sheet],
+    )
+    if after is not None:
+        if drawn_in_state:
+            runs = (s.state(s.label) or {}).get("texts") or []
+            texts = [r["text"] for r in runs if r["node"].startswith(sheet)]
+        else:
+            query = {"selector": f"owner:{s.label} kind:text"}
+            nodes = s.core.call("scene.query", query) or []
+            texts = [n.get("text") for n in nodes if n.get("visible") and n.get("text")]
+        s.record(s.label, f"act:{name}", keysheet_breaches(texts), name)
+    s.act(f"{close} shuts the key list of the keysheet", [key(close)], closes=[sheet])

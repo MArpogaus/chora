@@ -23,6 +23,7 @@ pub mod glass;
 pub mod helper;
 pub mod hud;
 pub mod icons;
+pub mod keysheet;
 pub mod lamp;
 pub mod launch;
 pub mod launcher;

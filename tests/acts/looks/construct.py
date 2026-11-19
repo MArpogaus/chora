@@ -15,7 +15,7 @@ import os
 import signal
 import time
 
-from common import door_acts, helper_acts, notice_acts, window_acts
+from common import door_acts, helper_acts, keysheet_acts, notice_acts, window_acts
 from harness import LOOKS, Expect, key, load_png_rows, program, wait
 
 MANAGER = "xp"
@@ -120,6 +120,7 @@ def run(s):
     Then the cube opens and stands back."""
     window_acts(s, focused=None)
     door_acts(s, "construct-help", "Escape")
+    keysheet_acts(s, "construct-help", "Escape")
     tab_after_a_new_window(s)
     helper_acts(s)
     s.act(
