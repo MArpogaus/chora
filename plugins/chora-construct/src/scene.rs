@@ -6,6 +6,7 @@ use super::{
     NAME, Node, Pane, PaneFile, RETRY, Value, Waiting, exported_methods, file, json, runtime,
     settings,
 };
+use chora_kit::wm::focus;
 
 impl Construct {
     /// Names the theme of the space to the HUD host, which colours its
@@ -186,9 +187,7 @@ impl Construct {
             },
         ])?;
         if let Some(surface) = self.focus_before.take() {
-            self.rt.conn.try_apply(vec![Command::Focus {
-                surface: Some(surface),
-            }])?;
+            self.rt.conn.try_apply(vec![focus::give(surface)])?;
         }
         self.list = None;
         self.labelled = None;

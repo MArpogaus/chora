@@ -28,6 +28,10 @@ impl Plugin for Construct {
         if let Some(created) = chora_kit::wm::Created::of(&event) {
             return self.window_created(&created);
         }
+        if let Some(surface) = chora_kit::wm::focus::changed(&event) {
+            self.core_focus = surface.map(String::from);
+            return Ok(());
+        }
         if matches!(
             event,
             Event::OutputChanged { .. } | Event::OutputRemoved { .. }
@@ -36,10 +40,6 @@ impl Plugin for Construct {
         }
         match event {
             Event::SurfaceDetached { surface } => self.window_detached(&surface),
-            Event::FocusChanged { surface } => {
-                self.core_focus = surface;
-                Ok(())
-            }
             Event::SurfaceDestroyed { ref surface } => {
                 let surface = surface.clone();
                 self.window_destroyed(&event, &surface)

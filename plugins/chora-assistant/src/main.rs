@@ -252,6 +252,10 @@ impl Plugin for Agent {
             return Ok(());
         }
         self.machine.hear(&event);
+        if let Some(surface) = chora_kit::wm::focus::changed(&event) {
+            self.switcher.focus_changed(surface, Instant::now());
+            return self.apply(Vec::new());
+        }
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
@@ -264,11 +268,6 @@ impl Plugin for Agent {
                 } else {
                     self.replace_assistant()?
                 }
-            }
-            Event::FocusChanged { surface } => {
-                self.switcher
-                    .focus_changed(surface.as_deref(), Instant::now());
-                Vec::new()
             }
             Event::SurfaceChanged {
                 surface, app_id, ..

@@ -5,6 +5,7 @@ use super::{
     ClientError, Command, Construct, Content, Hold, Instant, Kind, LAUNCHED, NAME, NO_ROOM, Pane,
     PaneFile, PropsUpdate, Transform, WINDOWS, Waiting, configure, update,
 };
+use chora_kit::wm::focus;
 
 /// Whether a window with the token of the launcher is the launcher's own:
 /// a launcher without a window, such as fuzzel, may pass its token on to
@@ -251,9 +252,7 @@ impl Construct {
                 surface: surface.into(),
                 parent: NAME.into(),
             },
-            Command::Focus {
-                surface: Some(surface.into()),
-            },
+            focus::give(surface),
         ];
         if let Some(err) = self.rt.conn.try_apply(commands)? {
             eprintln!("chora-construct: launcher {surface}: {err}");

@@ -77,9 +77,18 @@ name = "UnixListener::bind in plugin tests"
 paths = ["plugins"]
 pattern = 'UnixListener::bind'
 
+# FOCUS-PORT (WM2b): the looks hand focus through kit::wm::focus. Allowed:
+# chora-scene defines and applies the command, core ipc checks who may
+# send it, kit testing records it in the FakeCore, kit wm builds it.
 [[row]]
-allow = ["crates/chora-kit/src/wm", "crates/chora-kit/tests/wm_"]
-max = 18
+allow = [
+  "crates/chora-kit/src/wm",
+  "crates/chora-kit/tests/wm_",
+  "crates/chora-kit/src/testing.rs",
+  "crates/chora-scene/",
+  "crates/chora/src/ipc/"
+]
+max = 0
 name = "Command::Focus outside kit::wm"
 pattern = 'Command::Focus\b'
 
@@ -91,20 +100,22 @@ paths = ["plugins"]
 pattern = '\bShownFocus\b'
 
 [[row]]
-max = 2
+max = 0
 name = "mc: Command::Focus (WM2)"
 paths = ["plugins/chora-mc"]
 pattern = 'Command::Focus\b'
 
 [[row]]
-max = 1
+max = 0
 name = "tiling: Command::Focus (WM2)"
 paths = ["plugins/chora-tiling"]
 pattern = 'Command::Focus\b'
 
+# The core (crates/chora) emits the event and is outside `paths`; kit
+# wm::focus reads it and kit testing builds it for the cells of the looks.
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 8
+max = 0
 name = "Event::FocusChanged outside kit"
 paths = ["plugins", "services"]
 pattern = 'Event::FocusChanged\b'

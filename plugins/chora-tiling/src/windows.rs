@@ -106,11 +106,8 @@ impl Tiling {
             }));
         }
         let focus = self.wm.focused().map(String::from);
-        let send_focus = self.focus.sends(focus.as_deref());
-        if send_focus {
-            commands.push(Command::Focus {
-                surface: focus.clone(),
-            });
+        if self.focus.sends(focus.as_deref()) {
+            commands.push(self.focus.to(focus));
         }
         let saved = self.meta();
         for (id, meta) in &saved {
@@ -140,9 +137,6 @@ impl Tiling {
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
         self.last_tag = self.wm.current_tag_index();
         self.order = order;
-        if send_focus {
-            self.focus.sent(focus);
-        }
         self.apply(commands)?;
         if gained && self.claimed.is_some() {
             self.rt.start_grabs();

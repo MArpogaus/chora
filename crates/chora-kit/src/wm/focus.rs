@@ -27,6 +27,26 @@ pub fn release() -> Command {
     Command::Focus { surface: None }
 }
 
+/// The command that gives the keyboard to the window `surface`, for a
+/// client that keeps no [`Focus`] (a look keeps one and sends
+/// [`Focus::to`]).
+#[must_use]
+pub fn give(surface: impl Into<String>) -> Command {
+    Command::Focus {
+        surface: Some(surface.into()),
+    }
+}
+
+/// The surface of a `focus.changed` of the core: `Some(None)` when the
+/// core focuses no surface, `None` for every other event.
+#[must_use]
+pub fn changed(event: &Event) -> Option<Option<&str>> {
+    match event {
+        Event::FocusChanged { surface } => Some(surface.as_deref()),
+        _ => None,
+    }
+}
+
 /// Who holds the keyboard, seen from one look.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Holder {
@@ -57,12 +77,18 @@ pub struct Focus {
 }
 
 impl Focus {
-    /// Takes in a `focus.changed` of the core; other events change
-    /// nothing.
-    pub fn hear(&mut self, event: &Event) {
-        if let Event::FocusChanged { surface } = event {
-            self.moved(surface.as_deref());
-        }
+    /// Takes in a `focus.changed` of the core and returns its surface, as
+    /// [`changed`]; other events change nothing.
+    pub fn hear<'a>(&mut self, event: &'a Event) -> Option<Option<&'a str>> {
+        let surface = changed(event)?;
+        self.moved(surface);
+        Some(surface)
+    }
+
+    /// The surface that the core focuses, as it told or the look sent.
+    #[must_use]
+    pub fn core(&self) -> Option<&str> {
+        self.core.as_deref()
     }
 
     /// The core moved the focus to `surface`. An empty focus is no loss:
