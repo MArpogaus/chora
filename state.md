@@ -32,12 +32,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | flake-j-r1.md (F5) | sonnet high | session_016iS3kMAsaXSn33qWo4iN2k (21:03) |
 | ig-fix-r2.md (F6) | sonnet low | r1 FIX (conflicts with 74); r2 after 74 green |
 | gate-pick-r1.md (F6) | sonnet medium | MERGE-OK 31cfe52d, train 74 |
-| kc-fix-r1.md (F2) | sonnet low | session_016iS3kLSpF9Nq7D8JfRzSxz |
+| kc-fix-r1.md (F2) | sonnet low | MERGE-OK f666a025, train 75 |
 | temp-dirs-r1.md (F5) | sonnet high | session_016iS3kQayjpPhdEwcyCx7q9 (21:34) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 72 green 21:03. 73b red 21:31: hud flake (rerun green, backlog); reruns after 74. 74 running 21:36: id-gate, gate-pick (harness). 75: flake-i e5e44719, kit-connect f7569c24, kit-minors e4208314, then flake-h, flake-j.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: TEMP-DIRS 0.8 %, KC-FIX 0.3 %, IG-FIX r2 0.2 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: GATE-PICK, KIT-MINORS r2, FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 72 green 21:03. 73b red 21:31: hud flake (rerun green, backlog); reruns after 74. 74 running 21:36: id-gate, gate-pick (harness). 75: flake-i e5e44719, kit-connect f7569c24, kit-minors e4208314, kc-fix f666a025, then flake-h, flake-j.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: TEMP-DIRS 0.8 %, IG-FIX r2 0.2 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: KC-FIX, GATE-PICK, KIT-MINORS r2, FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
