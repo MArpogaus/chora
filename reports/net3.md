@@ -108,3 +108,11 @@ Red first: 10 selftest cells failed on bc54896a (one cell each for rw-2, rw-3 x2
 - rw-7 (NIT) not done: lazy `texts()` needs a RefCell in theme.rs, not small.
 Done: `cargo test -p chora ipc::` 134/134 six times; scene, draw, xp, notify pass; `tests/test_acts.py` 101 OK;
 `tests/merge-gate.sh --only acts,cube` acts PASS 63 s, cube PASS 102 s (first run FAIL only because pre-commit stashed the tree under it).
+
+## PM check r2 (07:33 UTC; PM not the builder)
+Diff bc54896a..dc00d33c (8 files, +409 -80); red c716301d before fixes dd827e9e, 2372edaa, dc00d33c.
+- rw-1 MAJOR: held I13 measured; red on the head, so co-21 is in known-red (slice WM6, match "is missing beside"); the slice row no longer overclaims. Closed as the brief named.
+- rw-2 to rw-6: selftest cells in tests/test_acts.py, red on bc54896a, green on dc00d33c. Closed.
+- rw-8: ipc.rs tests use one global subscriber with a thread-local route; hang.rs:301 and log.rs:118 keep with_default (thread default wins). Closed; the full crate tests run in the train.
+- rw-7 NIT open -> backlog. Note: the ring-neighbour rule is red at rest too; WM6 decides from the pose maths.
+Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK dc00d33c; train 59.
