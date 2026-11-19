@@ -6,9 +6,9 @@ use chora_kit::actions::perform::{Failure, Host, perform};
 use chora_kit::actions::{Step, Turn};
 
 use super::{
-    Binding, Command, ESCAPE_TRIES, ESCAPE_WAIT, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY,
-    MENUS, Mode, NodeKind, PressState, PropsUpdate, SWITCHER, Switcher, Transform, Value, Window,
-    Wm, add_help, close, control, give, help, switcher, taskbar,
+    Binding, Command, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY, MENUS, Mode, NodeKind,
+    PressState, PropsUpdate, SWITCHER, Switcher, Transform, Value, Window, Wm, add_help, close,
+    control, give, help, switcher, taskbar,
 };
 
 /// A turn of the cube in quarter turns: left is back.
@@ -401,7 +401,10 @@ impl Wm {
     }
 
     /// Takes Alt+Escape from the clients only while the switcher shows,
-    /// so that it cancels the switch.
+    /// so that it cancels the switch. A client that holds the key refuses
+    /// the grab until it has heard `xp.switcher`; xp does not wait for it
+    /// but grabs again on the event `construct.escape_free`
+    /// (`escape_freed`).
     pub(super) fn grab_switch_escape(&mut self) {
         let binding = match "Alt+Escape".parse() {
             Ok(binding) => binding,
@@ -410,24 +413,20 @@ impl Wm {
                 return;
             }
         };
-        let mut grabbed = Err(String::new());
-        for attempt in 0..ESCAPE_TRIES {
-            if attempt > 0 {
-                std::thread::sleep(ESCAPE_WAIT);
-            }
-            let grab = Grab {
-                binding: Binding::clone(&binding),
-            };
-            grabbed =
-                (self.rt.conn.call::<_, String>("input.grab", grab)).map_err(|e| e.to_string());
-            if grabbed.is_ok() {
-                break;
-            }
-        }
-        match grabbed {
+        let grab = Grab { binding };
+        match self.rt.conn.call::<_, String>("input.grab", grab) {
             Ok(normal) => self.switch_escape = Some(normal),
             Err(err) => crate::report(&err),
         }
+    }
+
+    /// The holder of Alt+Escape gave it up for the switcher: the grab that
+    /// it refused is made again, if the switcher still shows.
+    pub(super) fn escape_freed(&mut self) -> Vec<Command> {
+        if self.switcher.is_some() && self.switch_escape.is_none() {
+            self.grab_switch_escape();
+        }
+        Vec::new()
     }
 
     /// Tells the other clients that the switcher shows or went, with the

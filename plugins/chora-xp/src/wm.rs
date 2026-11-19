@@ -101,10 +101,9 @@ const SWITCHER: &str = "xp-alttab";
 /// buttons and Alt+Tab, in the place of a surface. It has no dash, which
 /// the ids of task buttons split at.
 const HELP_TASK: &str = "helppanel";
-/// How often and how long apart the switcher asks for Alt+Escape: a
-/// client that holds it gives it up on the event `xp.switcher`.
-const ESCAPE_TRIES: u32 = 4;
-const ESCAPE_WAIT: Duration = Duration::from_millis(15);
+/// The event of a client that held Alt+Escape and gave it up on the event
+/// `xp.switcher`: the switcher grabs the key again.
+const ESCAPE_FREE: &str = "construct.escape_free";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -118,7 +117,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 24] = [
+const EVENTS: [&str; 25] = [
     "client.connected",
     "client.disconnected",
     "surface.created",
@@ -143,6 +142,7 @@ const EVENTS: [&str; 24] = [
     "voice.state",
     "voice.say",
     "voice.remove",
+    ESCAPE_FREE,
 ];
 
 /// The methods that other clients call with the client name, as

@@ -3,8 +3,8 @@
 use chora_kit::wm::{Created, focus};
 
 use super::{
-    Bar, Call, ClientError, Command, Duration, Event, Instant, Language, MENUS, Panel, Reading,
-    RpcError, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar, volume,
+    Bar, Call, ClientError, Command, Duration, ESCAPE_FREE, Event, Instant, Language, MENUS, Panel,
+    Reading, RpcError, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar, volume,
     without_reserve,
 };
 
@@ -68,6 +68,7 @@ impl Wm {
             {
                 self.voice_state(heard)
             }
+            Event::Emitted { event, .. } if event == ESCAPE_FREE => self.escape_freed(),
             Event::ClientConnected { name } if name == "voice" && heard => self.trays(),
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
