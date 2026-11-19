@@ -253,7 +253,7 @@ default map:
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
 | `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[wobbly]`; `[]` turns it off |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action of tiling at least once; the actions that every look has are spelled as in mc: `run: CMD` starts a shell command with `choractl run`, `close`, `give: NAME`, `drag` and `keys` (the key list; `show_keys` of earlier versions still loads for one release); tiling does not act on `terminal`, `launcher`, `chat`, `lock`, `power`, `screenshot`, `desk` or `cube` as a turn: such a binding is dropped with one warning that names its key, and the rest of the file loads, so that a command is a `run`; the same `bindings` and `test_accept_injected_keys` are the settings of every look; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -1061,7 +1061,9 @@ windows of the other flavor.
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
 | `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends after it connected. A window manager that exits or does not connect within 10 s leaves the cube open: its faces show a card that says what failed, and a click on the face, `Return` or the hint `Try again` starts it again (see [cube modes](cube-modes.md#starting-and-failed-faces)). Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
-| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 360 a quarter turn by default, eased out; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat |
+| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, or `to`: to a face, the short way; in `ms` milliseconds, 360 a quarter turn by default, eased out; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat. Answers whether the cube took the turn: `false` when the turn is ignored, because one runs or `to` names the front face |
+| `cube.list` | none; answers the faces with their output, manager and health, the front face, whether the cube turns and the mode, as the cube role of the [API](api.md#plugin-methods) says; no faces without a cube |
+| `cube.pull` | `surface`: the window on a face of the cube becomes a pane in the space, where the camera stays; it goes back to the window manager of the faces when the pane or the construct goes. Answers `{pane}`, the name of the new pane, which `pane.remove` takes. Refused for a window that is not on a face, and while no cube is open |
 | `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
 | `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
 | `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
@@ -1615,7 +1617,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
   the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
   the word, in German with a German locale. Right island: **Keys**, which
-  shows the key list (`show_keys`), and the power icon, which opens the power
+  shows the key list (the method `show_keys`), and the power icon, which opens the power
   menu. Change the commands in `on-click` of `config.jsonc`.
   The bar follows the tags and the layout at once: after each event
   `chora-tiling` compares the tags and the layout with what it last
@@ -1829,9 +1831,12 @@ a notification server it writes the same words to its log:
   unless a window of another start opened meanwhile: a launcher such as
   `xdg-open` or a browser may hand its work to a program that runs
   already, and exit. A program that opens in less than 2 seconds shows
-  no balloon. A program that ends at once gets no message of its own: it
-  shows "Starting NAME" and then "Cannot open NAME". The wait is checked once a second, so each message can
-  come up to a second late.
+  no balloon. A program that ends with an error before its window
+  shows gets "Cannot open NAME" at once; the same exception holds: a window
+  of another start that opened meanwhile explains the end. A program that
+  ends without an error may have handed its work to a running instance and
+  has the 30 seconds. The wait for the limit is checked once a second, so a
+  message of the limit can come up to a second late.
 - For a file of the desktop, NAME is the name of the file, not `xdg-open`.
 
 The balloon of the start needs `chora-notify`, which the unit
@@ -2231,6 +2236,7 @@ that the file leaves out takes its default:
 | `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `bindings` | the keys of xp, see below | a key and its action, as in the other looks: `terminal` is not one for xp, but `launcher`, `keys`, `chat`, `lock`, `power`, `screenshot`, `close`, `{volume: up\|down\|mute}`, `{volume: {set: N}}` and `{cube: left\|right}` are, and so are the actions of xp itself: `files`, `desktop`, `tap`, `start`, `{switch: next\|previous}`, `{carry: left\|right}` and `cube` (with a pointer button). A binding to `terminal`, `run`, `give`, `drag` or `desk` is dropped with a warning, and so is `cube` on a key that is no pointer button, or a pointer button with another action. `settings.set` merges the map and `null` removes a key; `settings.reload` and `settings.set` grab the new keys at once |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
 
@@ -2248,6 +2254,31 @@ what changes:
 choractl call xp settings.set \
   '{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}}}'
 ```
+
+The default `bindings` are the keys of chora-xp as they were before the key
+existed:
+
+| Key | Action |
+|-----|--------|
+| `Super` alone (`Super+Super_L`, `Super+Super_R`), `Ctrl+Escape` | `tap`, `start`: open or close the Start menu |
+| `Super+d` | `desktop`: show the desktop |
+| `Super+space` | `launcher` |
+| `Super+F1`, `Super+slash` | `keys`: Help and Support on the keyboard shortcuts |
+| `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print` | `lock`, `power` (the Turn Off dialog), `screenshot` |
+| `Alt+F4` | `close` |
+| `Alt+Tab`, `Alt+Shift+Tab` | `{switch: next}`, `{switch: previous}` |
+| `Super+e` | `files`: the file manager |
+| `Super+a` | `chat` |
+| `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | `{volume: up}`, `{volume: down}`, `{volume: mute}` |
+| `Ctrl+Alt+Left`, `Ctrl+Alt+Right` | `{cube: left}`, `{cube: right}` |
+| `Ctrl+Alt+Shift+Left`, `Ctrl+Alt+Shift+Right` | `{carry: left}`, `{carry: right}` |
+| `Super+BTN_LEFT` | `cube`: the pointer turns the cube |
+
+When another client holds one of the four arrow keys of the cube, chora-xp binds
+`Super+Ctrl` with the same arrow instead; a key that `bindings` moves has no such
+stand-in. `Super+Alt+1` to `4` give the focused window to another window manager
+and are not in the list. The keys of the cube are grabbed only while xp has a
+desktop cube.
 
 To try the flavor from a source tree, start it nested:
 

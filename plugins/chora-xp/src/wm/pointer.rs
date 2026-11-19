@@ -2,8 +2,9 @@
 
 use super::{
     Bar, Button, Command, DOUBLE_CLICK, DesktopIcons, Drag, HELP_TASK, Instant, LEFT_BUTTON, Menu,
-    Panel, Part, RIGHT_BUTTON, RpcError, Value, Wm, apps, close, context, control, decoration,
-    dialog, dropped_on, launch, pulled_out, shared, speed, startmenu, taskbar, wallpaper,
+    NAME, Panel, Part, RIGHT_BUTTON, RpcError, Value, Wm, apps, close, context, control,
+    decoration, dialog, dropped_on, launch, pulled_out, shared, speed, startmenu, taskbar,
+    wallpaper,
 };
 
 impl Wm {
@@ -416,7 +417,30 @@ impl Wm {
             grab.wobble = grab.wobble.take().or(springs);
         }
         let dragged = grab.is_some();
-        let answer = self.rt.conn.give_dragged(surface, to, grab)?;
+        if to == NAME {
+            return Err(RpcError::new(
+                RpcError::INVALID_PARAMS,
+                format!("{surface} is with {to} already"),
+            ));
+        }
+        if !self.book.give(surface, to) {
+            return Err(RpcError::new(
+                RpcError::REJECTED,
+                format!("xp has no window {surface}"),
+            ));
+        }
+        let answer = match self.rt.conn.give_dragged(surface, to, grab) {
+            Ok(answer) => answer,
+            Err(err) => {
+                self.book.refused(surface);
+                return Err(err);
+            }
+        };
+        for change in self.book.confirm(surface) {
+            if let chora_kit::wm::Change::Phase { id, phase } = change {
+                self.tell_phase(&id, phase);
+            }
+        }
         if dragged {
             self.drag.take_if(|d| d.surface == surface);
         }

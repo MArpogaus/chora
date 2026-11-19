@@ -71,6 +71,7 @@ class Snapshot:
     events: list = dataclasses.field(default_factory=list)
     logs: dict = dataclasses.field(default_factory=dict)
     outputs: list = dataclasses.field(default_factory=list)
+    cube: dict | None = None
     boxes: dict | None = None
     blocks: dict = dataclasses.field(default_factory=dict)
 
@@ -116,6 +117,10 @@ class Expect:
     focus       the look that says it holds the focus once quiet
     open        the ids that are open afterwards, in any look
     helper      the `helper` word of every look that reports one
+    cube        fields of the answer of the cube role `cube.list`; `faces`
+                is compared by its count
+    verify      a function of the snapshot after the act that answers
+                the mismatches as sentences
     """
 
     new_window: dict | None = None
@@ -123,6 +128,8 @@ class Expect:
     focus: str | None = None
     open: list | None = None
     helper: str | None = None
+    cube: dict | None = None
+    verify: object = None
 
     def check(self, before, after):
         """The mismatches between the expectation and the two snapshots."""
@@ -151,7 +158,22 @@ class Expect:
             }
             if not words or any(w != self.helper for w in words.values()):
                 out.append(f"expected the helper {self.helper}, got {words}")
+        if self.cube is not None:
+            out += self.check_cube(after.cube or {})
+        if self.verify is not None:
+            out += self.verify(after)
         return out
+
+    def check_cube(self, listing):
+        """The mismatches of the answer of `cube.list`."""
+        if "error" in listing:
+            return [f"the cube role: {listing['error']}"]
+        got = dict(listing, faces=len(listing.get("faces") or []))
+        return [
+            f"the cube: {key} is {got.get(key)!r}, expected {want!r}"
+            for key, want in self.cube.items()
+            if got.get(key) != want
+        ]
 
     def check_new(self, after, new):
         """The mismatches of the one new window."""
@@ -506,6 +528,24 @@ class Session:
             return None
         return self.state_filter(look, state) if self.state_filter else state
 
+    def call(self, client, method, params=None):
+        """Call an exported method of a client."""
+        return self.core.call(
+            "methods.call", {"client": client, "method": method, "params": params or {}}
+        )
+
+    def cube(self):
+        """The answer of `cube.list` of the client that exports the cube
+        role (D71); {"error": ...} when none does or the call fails."""
+        try:
+            listed = self.core.call("methods.list") or []
+            host = next((m["client"] for m in listed if m.get("name") == "cube.list"), None)
+            if host is None:
+                return {"error": "no client exports cube.list"}
+            return self.call(host, "cube.list")
+        except RuntimeError as err:
+            return {"error": str(err)}
+
     def states(self):
         """The states of the looks."""
         return {look: self.state(look) for look in self.looks}
@@ -572,6 +612,7 @@ class Session:
             events=list(events),
             logs=self.new_log_text(),
             outputs=outputs,
+            cube=self.cube(),
             boxes=self.core.call("scene.boxes"),
             blocks=self.blocks(clients),
         )

@@ -20,6 +20,10 @@ pub struct State {
     pub open: Vec<Open>,
     /// What still moves.
     pub busy: Vec<String>,
+    /// The runs of text that the look painted into its image nodes, as
+    /// chora-draw reports them; left out when there are none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub texts: Vec<Value>,
     /// What only this look tells, such as the word of its helper.
     #[serde(flatten)]
     pub more: Map<String, Value>,
@@ -38,6 +42,12 @@ pub struct Window {
     /// `kept`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin: Option<&'static str>,
+    /// Its title, when the look keeps it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Its application id, when the look keeps it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_id: Option<String>,
     /// The output that it is on.
     pub output: String,
     /// The desks that it is on, from 1.
@@ -124,6 +134,18 @@ mod tests {
         let want = json!({"windows": [], "desks": [], "focus": {"holder": null},
             "open": [], "busy": []});
         assert_eq!(state, want);
+    }
+
+    #[test]
+    fn texts_are_left_out_when_empty() {
+        let run = json!({"node": "n", "text": "t"});
+        let state = State {
+            texts: vec![run.clone()],
+            ..State::default()
+        }
+        .value();
+        assert_eq!(state["texts"], json!([run]));
+        assert!(State::default().value().get("texts").is_none());
     }
 
     #[test]

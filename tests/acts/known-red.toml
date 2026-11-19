@@ -6,11 +6,18 @@
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
 [[red]]
-finding = "net2-a2: mc gives the keyboard to its page node after its window goes, and holds no focus by the net1 review rule"
+finding = "wm7a-a1: hosted cube, construct and the xp of the faces both say they hold the focus while no window has it"
 id = "I3"
-look = "mc"
-match = "no look says it holds the focus"
-slice = "WM2"
+look = "construct"
+match = "construct and xp each say they hold the focus"
+slice = "WM7b"
+
+[[red]]
+finding = "wm7a-a2: hosted cube, xp shows no pager on a face, so the pager cannot turn the cube (cube.turn {to})"
+id = "act:the pager turns the cube"
+look = "construct"
+match = "xp shows no pager on a face"
+slice = "WM7b"
 
 [[red]]
 finding = "net3-t1: the key list of tiling: the long row 'Run a program or a typed command' runs into the heading 'System' of the next column"

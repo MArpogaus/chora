@@ -4,8 +4,8 @@
 //! them. Title and app id are core facts that tiling does not keep;
 //! `views` and `texts` stay out.
 
-use chora_kit::wm::state::{Desks, Focus, State, Window};
-use serde_json::{Map, Value, json};
+use chora_kit::wm::state::{Desks, State, Window};
+use serde_json::{Value, json};
 
 use crate::{NAME, Tiling};
 
@@ -16,23 +16,23 @@ impl Tiling {
         let z = |id: &str| self.order.iter().position(|o| o == id);
         let windows = (self.wm.windows.iter())
             .map(|w| {
-                let placed = self.sent.get(&w.id);
-                let at = placed.and_then(|p| p.at);
-                let rect = at
-                    .zip(placed)
-                    .map(|([x, y], p)| [x, y, p.frame[0], p.frame[1]].map(f64::from));
+                let rect = self.sent.get(&w.id).and_then(|p| {
+                    let [x, y] = p.at?;
+                    Some([x, y, p.frame[0], p.frame[1]].map(f64::from))
+                });
                 Window {
                     surface: w.id.clone(),
                     origin: self.book.origin(&w.id).map(chora_kit::wm::Origin::word),
                     output: w.output.clone(),
                     desks: tags_of(w.tags),
                     rect,
-                    shown: at.is_some(),
+                    shown: rect.is_some(),
                     minimized: w.minimized,
                     maximized: w.maximized == (true, true),
                     fullscreen: w.fullscreen,
                     floating: w.floating,
                     z: z(&w.id),
+                    ..Window::default()
                 }
             })
             .collect();
@@ -42,12 +42,10 @@ impl Tiling {
                 output: o.name,
             })
             .collect();
-        let held = (self.focus.surface.as_deref())
-            .filter(|s| self.focus.sent && !self.focus.lost && self.wm.has(s));
-        let focus = Focus {
-            holder: (held.is_some() || self.keys_open()).then(|| NAME.to_owned()),
-            surface: held.map(str::to_owned),
-        };
+        let mut focus = self.focus.state(NAME, |s| self.wm.has(s));
+        if self.keys_open() {
+            focus.holder = Some(NAME.to_owned());
+        }
         let open = self.open.state();
         let running = [
             (self.effects.animating(), "effects"),
@@ -56,15 +54,16 @@ impl Tiling {
         let busy = (running.into_iter().filter(|(on, _)| *on))
             .map(|(_, name)| name.to_owned())
             .collect();
-        let mut more = Map::new();
-        more.insert("helper".into(), json!(self.voiced.word()));
         State {
             windows,
             desks,
             focus,
             open,
             busy,
-            more,
+            more: [("helper".to_owned(), json!(self.voiced.word()))]
+                .into_iter()
+                .collect(),
+            ..State::default()
         }
         .value()
     }

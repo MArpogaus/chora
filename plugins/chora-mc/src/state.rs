@@ -43,14 +43,8 @@ impl Mc {
         if self.typing.is_some() {
             busy.push("typing".to_owned());
         }
-        let focus = match self
-            .core_focus
-            .as_ref()
-            .filter(|s| windows.iter().any(|w| w["surface"] == s.as_str()))
-        {
-            Some(surface) => json!({"holder": NAME, "surface": surface}),
-            None => json!({"holder": null}),
-        };
+        let own = |s: &str| windows.iter().any(|w| w["surface"] == s);
+        let focus = serde_json::to_value(self.focus.state(NAME, own)).unwrap_or_default();
         json!({"windows": windows, "focus": focus, "open": self.open().state(),
             "busy": busy, "helper": self.voiced_word.word()})
     }
@@ -82,13 +76,13 @@ mod tests {
         let state = mc.state().expect("mc has a state");
         assert_eq!(state["windows"], serde_json::json!([]));
         mc.windows.insert("agenda".into(), "s1".into());
-        mc.core_focus = Some("s1".into());
+        mc.focus.moved(Some("s1"));
         let state = mc.state().unwrap();
         assert_eq!(state["windows"][0]["surface"], "s1");
         assert_eq!(state["windows"][0]["scene"], "agenda");
         assert_eq!(state["windows"][0]["output"], "test");
         assert_eq!(state["focus"]["surface"], "s1");
-        mc.core_focus = Some("other".into());
+        mc.focus.moved(Some("other"));
         assert!(mc.state().unwrap()["focus"].get("surface").is_none());
     }
 
@@ -101,12 +95,12 @@ mod tests {
         assert_eq!(state["focus"]["holder"], serde_json::Value::Null);
         assert_eq!(state["open"], serde_json::json!([]));
         mc.windows.insert("agenda".into(), "s1".into());
-        mc.core_focus = Some("other".into());
+        mc.focus.moved(Some("other"));
         assert_eq!(
             mc.state().unwrap()["focus"]["holder"],
             serde_json::Value::Null
         );
-        mc.core_focus = Some("s1".into());
+        mc.focus.moved(Some("s1"));
         assert_eq!(mc.state().unwrap()["focus"]["holder"], "mc");
     }
 
@@ -147,5 +141,24 @@ mod tests {
         let gone = json!({"event": "client.disconnected", "name": "voice"});
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
         assert_eq!(x.state().unwrap()["helper"], "none");
+    }
+
+    /// I3 (known red net2-a2): with no window in the scene mc gives the
+    /// keyboard to the node of its page; it holds the focus then, without
+    /// a surface, until a window of another look takes it.
+    #[test]
+    fn mc_holds_the_focus_of_its_page_node() {
+        let (mut mc, _model) = testing::mc("page-focus", [1280, 800]);
+        let commands = mc.keyboard_to("agenda", None);
+        let page = |c: &chora_scene::Command| {
+            matches!(c, chora_scene::Command::FocusNode { node: Some(_) })
+        };
+        assert!(commands.iter().any(page), "{commands:?}");
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+        mc.event(chora_scene::Event::FocusChanged {
+            surface: Some("other".into()),
+        })
+        .unwrap();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
     }
 }

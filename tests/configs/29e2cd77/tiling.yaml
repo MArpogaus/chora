@@ -1,0 +1,195 @@
+# The configuration of chora-tiling. It lists every option, and the
+# bindings use every action at least once. `chora-tiling --print-config` prints this
+# file. Copy it to ~/.config/chora/chora-tiling.yaml and change it there,
+# or change it with the method settings.set, which rewrites the file.
+# Edits by hand apply on the method settings.reload or MOD+Ctrl+r.
+# The bindings follow the default keymap of the awesome window manager.
+
+# What MOD means in the bindings: Super or Alt.
+modifier: Super
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
+# The gap of the old look, in logical pixels: the edge gets it, two tiles
+# get twice. It applies where look has null for a gap, and the method
+# set_layout sets it.
+gap: 4
+# The look of the windows, in logical pixels: the gap between the tiles and
+# the edge of the work area, the gap between two tiles and the radius of the
+# corners. The max and fullscreen layouts have no gap and no corners.
+look:
+  gap_outer: 12
+  gap_inner: 10
+  radius: 10
+  # The width of the border around each window, outside it; 0 for none. The
+  # max and fullscreen layouts have none.
+  border: 2
+  # Whether changes move over time (a window opens in 180 ms, slides to its
+  # tile or into view with a tag in 200 ms, the focus mark cross-fades in
+  # 120 ms); false makes every change at once. Shadows under the windows.
+  animations: true
+  shadows: true
+  # Which palette the look takes: system follows the colour scheme of the
+  # system (Paper when it asks for light, Ink when it asks for dark or says
+  # nothing), ink is the dark one and paper the light one.
+  theme: system
+  # Colours that replace those of the theme, each #rrggbb: base, surface,
+  # surface_2, line, text, muted, accent, on_accent, accent_2 and urgent.
+  # The focused window has a border in a gradient from accent to accent_2
+  # (the same colour twice makes it solid), the others line, and a window
+  # that asked for attention urgent. The bar, the launcher, the terminal and
+  # the lock screen take the same colours: chora-tiling writes them at each
+  # start and on reload, and chora-tiling --apply-theme writes them again.
+  # Example:
+  #   palette:
+  #     accent: '#f59e0b'
+  palette: {}
+# The number of tags of each output, at most 16.
+tags: 9
+# The layouts in the order of next_layout. Each tag starts with the first.
+layouts:
+- tile
+- tile_left
+- tile_bottom
+- tile_top
+- fair
+- fair_horizontal
+- spiral
+- dwindle
+- max
+- fullscreen
+- magnifier
+- floating
+# The share of the master area, from 0.05 to 0.95. Each tag starts with it.
+master_width: 0.5
+# The number of master windows. Each tag starts with it.
+masters: 1
+# The number of columns of the other windows. Each tag starts with it.
+columns: 1
+# Where a new window goes: master or stack.
+new_window: master
+# How the focus follows the pointer: click or follow_mouse.
+focus: follow_mouse
+# How a new window looks: its opacity from 0 to 1, and its effects, each
+# a GLSL ES fragment shader with uniforms, as in scene.apply.
+style:
+  opacity: 1.0
+  effects: []
+# The effects that tiling drives on its own windows: wobbly, a floating
+# window that bends while it is dragged. Empty turns them off. lamp is
+# refused, because tiling has no task button.
+effects: [wobbly]
+
+bindings:
+  # Windows
+  MOD+j: focus_next
+  MOD+k: focus_previous
+  MOD+Tab: focus_back
+  MOD+u: focus_urgent
+  MOD+Shift+j: swap_next
+  MOD+Shift+k: swap_previous
+  MOD+Ctrl+Return: move_to_master
+  MOD+Shift+c: close
+  MOD+Ctrl+space: toggle_floating
+  MOD+f: toggle_fullscreen
+  MOD+m: toggle_maximized
+  MOD+Shift+m: toggle_maximized_horizontal
+  MOD+Ctrl+m: toggle_maximized_vertical
+  MOD+t: toggle_on_top
+  MOD+n: minimize
+  MOD+Ctrl+n: restore_minimized
+  # Held on a window: dropped outside tiling, in the claim of another
+  # window manager, the window goes there.
+  MOD+BTN_LEFT: drag
+  # Layouts
+  MOD+l: {inc_master_width: 0.05}
+  MOD+h: {inc_master_width: -0.05}
+  MOD+Shift+h: {inc_masters: 1}
+  MOD+Shift+l: {inc_masters: -1}
+  MOD+Ctrl+h: {inc_columns: 1}
+  MOD+Ctrl+l: {inc_columns: -1}
+  MOD+Shift+space: next_layout
+  MOD+Ctrl+Shift+space: previous_layout
+  # Outputs
+  MOD+Ctrl+j: focus_next_output
+  MOD+Ctrl+k: focus_previous_output
+  MOD+o: move_to_next_output
+  # Tags; on a keyboard layout without digits on the top row, change
+  # the keys of the tag bindings.
+  MOD+Left: view_previous
+  MOD+Right: view_next
+  MOD+Escape: view_back
+  MOD+1: {view_tag: 1}
+  MOD+2: {view_tag: 2}
+  MOD+3: {view_tag: 3}
+  MOD+4: {view_tag: 4}
+  MOD+5: {view_tag: 5}
+  MOD+6: {view_tag: 6}
+  MOD+7: {view_tag: 7}
+  MOD+8: {view_tag: 8}
+  MOD+9: {view_tag: 9}
+  MOD+Ctrl+1: {toggle_tag_view: 1}
+  MOD+Ctrl+2: {toggle_tag_view: 2}
+  MOD+Ctrl+3: {toggle_tag_view: 3}
+  MOD+Ctrl+4: {toggle_tag_view: 4}
+  MOD+Ctrl+5: {toggle_tag_view: 5}
+  MOD+Ctrl+6: {toggle_tag_view: 6}
+  MOD+Ctrl+7: {toggle_tag_view: 7}
+  MOD+Ctrl+8: {toggle_tag_view: 8}
+  MOD+Ctrl+9: {toggle_tag_view: 9}
+  MOD+Shift+1: {move_to_tag: 1}
+  MOD+Shift+2: {move_to_tag: 2}
+  MOD+Shift+3: {move_to_tag: 3}
+  MOD+Shift+4: {move_to_tag: 4}
+  MOD+Shift+5: {move_to_tag: 5}
+  MOD+Shift+6: {move_to_tag: 6}
+  MOD+Shift+7: {move_to_tag: 7}
+  MOD+Shift+8: {move_to_tag: 8}
+  MOD+Shift+9: {move_to_tag: 9}
+  MOD+Ctrl+Shift+1: {toggle_window_tag: 1}
+  MOD+Ctrl+Shift+2: {toggle_window_tag: 2}
+  MOD+Ctrl+Shift+3: {toggle_window_tag: 3}
+  MOD+Ctrl+Shift+4: {toggle_window_tag: 4}
+  MOD+Ctrl+Shift+5: {toggle_window_tag: 5}
+  MOD+Ctrl+Shift+6: {toggle_window_tag: 6}
+  MOD+Ctrl+Shift+7: {toggle_window_tag: 7}
+  MOD+Ctrl+Shift+8: {toggle_window_tag: 8}
+  MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
+  # Programs
+  # chora-tiling --launch starts a program of the flavor with its config
+  # file in the palette (foot, fuzzel, swaylock), or a script of the flavor
+  # (power, screenshot).
+  MOD+Return: {run: chora-tiling --launch foot}
+  MOD+space: {run: chora-tiling --launch fuzzel}
+  MOD+r: {run: chora-tiling --launch fuzzel}
+  MOD+a: {run: chora-chat}
+  # swayidle of the tiling flavor runs swaylock on this request
+  MOD+Shift+Escape: {run: loginctl lock-session}
+  # The power menu: Lock, Log out, Restart, Shut down.
+  MOD+Shift+e: {run: chora-tiling --launch power}
+  # A screenshot of the output, or of an area, in ~/Pictures/Screenshots and
+  # on the clipboard. Print alone needs a grant that the core does not give
+  # yet, so these are the keys with MOD.
+  MOD+Print: {run: chora-tiling --launch screenshot}
+  MOD+Shift+s: {run: chora-tiling --launch screenshot area}
+  # Sound: the media keys need no modifier, as they type nothing.
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
+  # The plugin
+  MOD+Ctrl+r: reload
+  MOD+F1: show_keys
+  MOD+slash: show_keys
+
+# The words of a binding in the key list (MOD+F1): the binding as it is
+# spelled above, and its words. Without an entry a binding gets the words
+# of its action, and run its command.
+labels:
+  MOD+Return: Terminal
+  MOD+space: Run a program or a typed command
+  MOD+a: Chat with a helper
+  MOD+r: Run a program or a typed command
+  MOD+Shift+Escape: Lock the screen
+  MOD+Shift+e: Power menu
+  MOD+Print: Screenshot
+  MOD+Shift+s: Screenshot of an area
