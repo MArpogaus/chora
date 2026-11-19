@@ -64,3 +64,47 @@ is its head), so nothing came in.
   driver must seed it (session.sh still writes `[]`).
 - Not done in r1: the replay of an action log for a breach seen once (plan risk 2); the checker waits
   quiet by `busy` as wait_quiet does, 10 s per action.
+
+## Review r1
+
+Review of claude/pw head 3ba07d9b against a9e7084d (review-pw-r1, sonnet high, read only on code). Verdict: **FIX**
+(0 BLOCK, 2 MAJOR, 3 MINOR, 3 NIT; the two MAJOR are open).
+
+Checks, each with its command:
+1. Stand-ins: `bash tests/persona-selftest.sh` passes (5 ok lines). No path reaches the host's systemctl,
+   wpctl, loginctl or grim: the fake dir is first in `session.sh` PATH (session.env, core environ, act.py's
+   choractl); `choractl run` sees the empty `is-system-running` of the stand-in, so it starts no systemd-run
+   unit; check.py runs no program; cleanup uses the captured real systemctl for the companion units only
+   (none start now). Exception: rw-1 (the file a screenshot writes).
+2. Red first: 2068ed4c holds selftest and session.sh together. With `git show a9e7084d:tests/persona/session.sh`
+   in place, the selftest fails: `systemctl in the PATH of the session is /usr/bin/systemctl`. As claimed.
+3. harness: `python3 -I tests/test_acts.py` OK (125 tests). `attach` sets `attached`, `__exit__` returns before
+   the teardown; `setup` now calls `connect("acts")`, otherwise unchanged. See rw-7.
+4. check.py: writes only breaches.jsonl, evidence/, check/ (no print on `after`, act.py sends it to DEVNULL);
+   T4 ignores polls (`test_t4_a_poll_is_no_action`). Contract tests are not complete: rw-2.
+5. round.sh: no scratchpad or home path (/tmp default, flock slots 1 2). `ROUND_DIR=$(mktemp -d)
+   tests/persona/round.sh smoke`: tiling, xp, mc, construct each `task T7 pass breaches 0`, rc 0.
+6. planted: persona_check run alone: `persona sound` none, `persona I7 planted` found.
+
+Findings:
+- rw-1 MAJOR tests/persona/session.sh:137-143: HOME and XDG_PICTURES_DIR stay the host's, so a Screenshot click
+  (power.sh -> screenshot.sh) does `mkdir -p` and the grim stand-in `: >"$last"` writes an empty png into the
+  host's real Pictures/Screenshots (shown: screenshot.sh with the stand-in grim and no XDG_PICTURES_DIR saved to
+  $HOME/Pictures/Screenshots/...png); fix: export XDG_PICTURES_DIR=$dir/pictures (and an xdg-user-dir stand-in
+  printing it) and add a selftest line that runs screenshot.sh and finds the file under $PERSONA_DIR.
+- rw-2 MAJOR tests/test_acts.py (PersonaContracts): X2, L1, L2, L3, M2, C2, C3 have no test at all, so
+  reports/pw.md's "each contract green on a sound end state and red on its breach" holds for 11 of 18 contracts;
+  fix: one green and one red test for each of the seven (thin contracts still need them).
+- rw-3 MINOR tests/persona/check.py:346-355: T6 passes when `blocks.notify` shown/closed/accepted is non-empty in
+  the end snapshot only, so any notice from before the task makes it green; fix: compare the notice ids with
+  those of `before` (plausible from the code, not run).
+- rw-4 MINOR tests/persona/round.sh:33: `sha` is the repo HEAD, but the binaries are those of target/debug,
+  which may be older than HEAD, so "one sha per round" can name a commit the binaries are not from; fix: record
+  the sha only when `target/debug/chora` is newer than HEAD's tree, or write `sha256sum` of the copied binaries.
+- rw-5 MINOR tests/persona/check.py:79,198: `Run.env_file` and `Ctx.since` are never read (dead); fix: delete both.
+- rw-6 NIT tests/persona/round.sh:63: the status of `check.py start` is ignored, and an unquiet first snapshot
+  leaves no `last` snapshot (the first `after` then only takes it); fix: `|| echo ... >&2` and retry once.
+- rw-7 NIT tests/test_acts.py: no direct test that an attached Session leaves the folder (only planted and smoke
+  show it by running on); fix: attach to a temp env in a unit test and assert the folder exists after `__exit__`.
+- rw-8 NIT tests/persona/check.py:60: POWER omits `loginctl terminate-*`, so `T4:power` (cancelled) passes after a
+  Log out; fix: add `loginctl terminate` to the pattern and a test line.
