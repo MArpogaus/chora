@@ -6,6 +6,9 @@
 # session_pids PGREP_ARGS... prints the pids that pgrep finds whose
 # environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
 # it never counts, and exits 1 when it finds none.
+# session_start OUTPUTS [-- STARTUP...] starts a headless session; its env
+# file (env_file, else a new one) is emptied first, so that a session of a
+# name used before never reads the socket of the old one (F21).
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
 # software EGL for the headless renderer (CONTRIBUTING.md)
@@ -62,6 +65,7 @@ session_start() {
     local env_file=${env_file:-$(mktemp /tmp/gate-env.XXXXXX)}
     # shellcheck disable=SC2034 # read by the gate scripts that source this file
     GATE_ENV=$env_file
+    : >"$env_file"
     "$repo/tests/headless-session.sh" "$@" >"$env_file" 2>&1 &
     pids+=($!)
     trap gate_cleanup EXIT
