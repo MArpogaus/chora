@@ -25,3 +25,26 @@ the PM; the cell is `pull`, which the merge gate runs).
 - rw-2 MINOR tests/acts/looks/mc.py remote_acts: sets theme dark and never sets it back; helper_acts then
   run dark. Fix: restore the theme at the end of remote_acts.
 Verdict computed: rw-1 MAJOR open -> FIX. r2: briefs/block-v-r2.md.
+
+## r2 (mc-38: a remote's Home goes to the first page)
+
+Head ce230288 on claude/block-v (fix fa7faabd, red act dca24709, merge of claude/autonomous-dev-session-3w-i33pg7).
+
+1. Red act first: dca24709 adds `act:Home of a remote goes to the first page` and
+   `act:XF86HomePage of a remote goes to the first page` to tests/acts/looks/mc.py remote_acts.
+   Command: `python3 tests/acts/run.py --no-selftest mc` on dca24709 gave "FAIL: mc act:XF86HomePage of a remote
+   goes to the first page: mc shows the page 'morning', not 'agenda'" (1 blocking; the Home act shows the same fault).
+2. Fix fa7faabd: plugins/chora-mc/src/main.rs `page_key` takes plain Home and XF86HomePage to `default_scene`
+   (modifier or `--output` Bound: no key, as Right/Left); keys.rs full list has a `Home | First page` row on a page;
+   mc.yaml (and the two tests/configs copies), docs/configuration.md and docs/mc-style.md name Home.
+   Command: `python3 tests/acts/run.py --no-selftest mc` -> "43 pass, 0 known red, 0 blocking";
+   `cargo test -p chora-mc` -> 168 passed (new test plain_home_goes_to_the_first_page, keys test for the Home row).
+3. rw-2: remote_acts reads the theme with settings.get, and the act `the theme is set back` restores it
+   (cell `mc act:the theme is set back pass`).
+4. findings/mc.md: mc-38 `fixed fa7faabd act:...`, mc-32 `closed` with both acts.
+
+Gate after the merge of origin/claude/autonomous-dev-session-3w-i33pg7:
+`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,acts,mc-paths` -> all seven PASS
+(pre-commit, build, test, clippy, mc-paths, ci-check, acts); "partial run: nothing is pushed" is the gate's own line.
+Note: the first commit of the fix failed the clippy hook (doc backticks, a test over the complexity limit); the
+test was split, nothing skipped, no --no-verify.
