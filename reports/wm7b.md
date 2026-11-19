@@ -163,3 +163,16 @@ Diff 31f04c07..3e193a91 (2 commits, 11 files, +33 -60). Verdict: MERGE-OK (0 BLO
 - rw-5 closed: api.md and hosted.rs/windows.rs say "no desk switch"; help::rows drops flat_desks; only held bindings make rows,
   so no cube text shows without a host.
 - MINOR p-1: CubeKeys::Flat now equals Hosted (dead variant). MINOR p-2: Event::FocusChanged outside kit 9/8 (REPORT, rw-3). Backlog.
+
+## r4 (merge)
+
+Merge sha: 99c04d54 (claude/wm7b, parents 3e193a91 and dd2a0aa3, the session head; it had not moved at the gate).
+
+Conflicts, all kept to the session types and names, nothing of wm7b dropped:
+- plugins/chora-xp/src/help.rs: session side. `rows(bindings, held)` reads the settings bindings; wm7b only changed a doc comment here.
+- plugins/chora-xp/src/wm/startup.rs: session side (KeyAction, grab_keys with the bindings, give_keys closure) plus wm7b's `hosted::CubeKeys` import, since `grab` still passes `wanted_keys()`.
+- plugins/chora-xp/src/wm.rs: session `grab_keys(rt, bindings, ...)`, `change_keys`, `of_the_cube(&KeyAction)`; the third argument stays wm7b's `CubeKeys` (Own/Flat/Hosted) and Flat/Hosted skip the actions of the cube. Tests: both sides kept; the flat-keys, change-keys tests moved to the bindings and KeyAction (Super+BTN_LEFT is Look::Cube).
+
+Gate: `tests/merge-gate.sh --only build,ci-check,acts,cube,construct-hud,xp,xp-faces,keys`
+build PASS 144s, ci-check PASS 64s, xp PASS 87s, xp-faces PASS 14s, acts PASS 95s, cube PASS 103s, construct-hud PASS 232s, keys PASS 17s.
+`cargo clippy --workspace --all-targets` clean; `python3 tools/cut-check` exit 0 (REPORT lines only, non-blocking).
