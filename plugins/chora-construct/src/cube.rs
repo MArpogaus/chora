@@ -7,6 +7,8 @@
 //! the window manager ends, or does not connect in time, the outputs and
 //! the cube go.
 
+mod role;
+
 use std::{
     collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
@@ -149,6 +151,9 @@ pub(crate) struct Host {
     owing: BTreeSet<usize>,
     again: Option<Instant>,
     denied: BTreeSet<usize>,
+    /// The front face and the turning that the event of the cube role
+    /// told last.
+    told: Option<chora_kit::cube::Turned>,
 }
 
 /// The face of the geometry of the kit that shows face `i`: the four sides
@@ -1125,10 +1130,7 @@ impl Host {
 
     /// The quarter turns from the front face to `face`, the short way.
     pub(crate) fn turns_to(&self, face: usize) -> i32 {
-        let n = i32::try_from(self.outputs.len()).unwrap_or(1).max(1);
-        let face = i32::try_from(face).unwrap_or(0);
-        let by = (face - i32::try_from(self.front).unwrap_or(0)).rem_euclid(n);
-        if by * 2 > n { by - n } else { by }
+        chora_kit::cube::quarters_to(self.front, face, self.outputs.len())
     }
 }
 
@@ -1236,6 +1238,7 @@ impl Construct {
             owing: BTreeSet::new(),
             again: None,
             denied: BTreeSet::new(),
+            told: None,
         };
         host.seen_from = host.eye([self.pose.x, self.pose.z]);
         host
@@ -1308,10 +1311,7 @@ impl Construct {
         queue: bool,
     ) -> Result<bool, ClientError> {
         let Some(host) = &mut self.cube else {
-            return Err(ClientError::Rpc(RpcError::new(
-                RpcError::REJECTED,
-                "no cube is open; cube.open first",
-            )));
+            return Err(super::modes::no_cube());
         };
         let duration = ms.map_or(TURN, Duration::from_millis);
         let taken = host.start_turn(by, duration, queue, chora_kit::clock::now());
@@ -1732,7 +1732,7 @@ mod tests {
         host_of(1)
     }
 
-    fn host_of(faces: usize) -> Host {
+    pub(super) fn host_of(faces: usize) -> Host {
         let child = std::process::Command::new("true").spawn().expect("true");
         let cube = Cube {
             size: [1280.0, 800.0],
@@ -1775,6 +1775,7 @@ mod tests {
             owing: BTreeSet::new(),
             again: None,
             denied: BTreeSet::new(),
+            told: None,
         }
     }
 
