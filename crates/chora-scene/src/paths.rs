@@ -269,6 +269,39 @@ mod tests {
     }
 
     #[test]
+    fn a_dir_that_the_owner_cannot_write_is_refused_with_path_and_mode() {
+        let base = scratch("owner-bits");
+        for mode in [0o500, 0o400, 0o100, 0o600, 0o550] {
+            let dir = dir_with(&base, &format!("m{mode:o}"), mode);
+            let error = private_dir(&dir).expect_err("refused");
+            let text = error.to_string();
+            assert!(text.contains(&dir.display().to_string()), "{text}");
+            assert!(text.contains(&format!("{mode:04o}")), "{text}");
+            let kept = fs::metadata(&dir).expect("the dir").permissions().mode();
+            assert_eq!(kept & 0o7777, mode, "a refused dir keeps its mode");
+        }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn a_runtime_dir_that_the_owner_cannot_write_is_refused_with_path_and_mode() {
+        let base = scratch("runtime-owner-bits");
+        for mode in [0o500, 0o400, 0o600] {
+            let dir = dir_with(&base, &format!("m{mode:o}"), mode);
+            let error = check_runtime_home(&dir).expect_err("refused");
+            let text = error.to_string();
+            assert!(text.contains(&dir.display().to_string()), "{text}");
+            assert!(text.contains(&format!("{mode:04o}")), "{text}");
+            let error = runtime_subdir_in(Some(dir.clone()), "chora").expect_err("refused");
+            assert!(
+                error.to_string().contains(&format!("{mode:04o}")),
+                "{error}"
+            );
+        }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
     fn a_dir_that_group_or_other_can_write_is_refused() {
         let base = scratch("bits");
         for mode in [0o770, 0o707, 0o775, 0o757, 0o777] {
