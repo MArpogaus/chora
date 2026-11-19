@@ -109,6 +109,9 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         Some(_) => return Err(USAGE.into()),
     };
     log::init();
+    let runtime = chora_scene::paths::runtime_home()
+        .ok_or_else(|| std::io::Error::other("no absolute runtime directory in the environment"))?;
+    chora_scene::paths::check_runtime_home(&runtime)?;
 
     let mut event_loop: EventLoop<State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
