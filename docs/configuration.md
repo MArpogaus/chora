@@ -626,7 +626,8 @@ with `settings.reload`:
   order they appear, such as new scenes and those of `app.open`, so that
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
   scene file may set its own `chapter.number`. On a page, which has no
-  program, Right and Left alone turn the page as well, and Escape goes
+  program, Right and Left alone turn the page as well, Home and
+  XF86HomePage alone go to the first page, and Escape goes
   back one step: it closes the full key list, else it shows the page that
   showed before.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
