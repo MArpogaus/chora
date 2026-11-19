@@ -61,3 +61,22 @@ wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e 296 
    would not need the wrapper, but mc and construct would pay for it; leave until tiling (KIT2c) shows the shape.
 5. Tooling: `cargo llvm-cov` of kit fails without `XDG_RUNTIME_DIR` (one kit test needs it); the pre-commit clippy is
    cold for about 6 minutes per commit in a fresh container.
+
+## Review r1
+
+Reviewer: review lane (sonnet, high), read-only on code; claude/kit2d head 888dfb60 against base 18231aa1. No merge gate run.
+Verdict: **FIX** (0 BLOCK, 1 MAJOR, 1 MINOR, 2 NIT).
+
+Checks:
+1. Red first: c316198e (cell) comes before 09b1c797 in `git log`. Run at c316198e, the cell fails on the assertion (left `{}`, right the 23 keys), not on a parse error. OK.
+2. Defaults: the 23 keys of the old `KEYS` (wm.rs at 18231aa1) are the 23 of `HANDLED` and of xp.yaml, same action each (Help and HelpAlias to `keys`, Turn(-1/1) to `{cube: left|right}`, Carry to `{carry: ..}`, Switch(1/-1) to `{switch: next|previous}`); none lost, none added. `cargo test -p chora-xp`: 204 passed.
+3. kit hook f7bcc021: 13 lines in perform.rs, default `Ok(false)`, called only for `System::Power`; mc and construct unchanged. `cargo test -p chora-kit --features testing`: all green (224 lib); `cargo test -p chora-tiling -p chora-mc`: 140 and 152 passed. OK.
+4. Visible changes: Super+/ beside Super+F1 and chords in alphabetical order are POLS-safe (one more row entry; the Start menu row now reads "Ctrl+Escape, Super"). Lock and Screenshot through `perform` match mc and construct; a missing script still gives the balloon. Unfit bindings (`desk`, `terminal`, `drag`, `run`, `give`) are dropped with one named warning in `refuse` (called by `complete`). `settings_changed` regrabs (`start_grabs`, `grab`, `end_grabs`), and a failed regrab is rolled back by the runtime (runtime.rs:581). One gap: rw-1.
+5. No new System variant (actions.rs untouched); xp-only keys stay in `Look`; no keysheet. OK.
+6. `tools/cut-check` ok; both new copies rows count 0 (grep rc=1). docs/api.md and docs/configuration.md name `bindings` and the defaults (rw-3, rw-4).
+
+Findings:
+- rw-1, MAJOR, plugins/chora-xp/src/wm/keys.rs:125 (`Event::InputButton` arm): every button binding starts the cube drag, whatever its action; the event carries `binding` and the arm ignores it. `Super+BTN_RIGHT: close` turns the cube and never closes; `Super+x: cube` (a key, not a button) does nothing, silently. Fix: look up `self.rt.action(&binding)` in the arm and call `grab_cube`/`release_cube` only for `Look::Cube` (run `self.key` for another action on press), and have `refuse` or `check` drop with a warning a `BTN_*` binding to anything but `cube` and `cube` on a non-button key.
+- rw-2, MINOR, plugins/chora-xp/src/wm.rs:815 (and help.rs:166): `fallback(text)` keys on the spelling of the binding, not on its action; `Ctrl+Alt+Left: close` also takes `Super+Ctrl+Left` when the core refuses the first, against docs/configuration.md ("a key that `bindings` moves has no such stand-in"). Fix: give a stand-in only while the action is the default one of that key (compare the action, or the pair).
+- rw-3, NIT, docs/configuration.md:2234: the `bindings` row of xp lists `{volume: up|down|mute}` but not `{volume: {set: N}}`, which xp.yaml names and the code accepts. Fix: add it.
+- rw-4, NIT, docs/api.md:468: the paragraph now says twice which looks are on `bindings` ("xp acts on `cube` ... mc, construct and xp are on it ...") and the lines are not rewrapped. Fix: one sentence per fact, wrapped as the rest.
