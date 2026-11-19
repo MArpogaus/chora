@@ -1333,7 +1333,8 @@ mod tests {
                 )
             })
         });
-        let file = std::env::temp_dir().join(format!("voice-gr2-{}.yaml", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-voice-gr2");
+        let file = dir.path().join("voice.yaml");
         let settings = chora_kit::settings::File::<Config>::load(file, "{}").unwrap();
         let (tx, _rx) = mpsc::channel();
         let rt = chora_kit::runtime::Runtime::with(core.connect("voice"), "voice", Vec::new());
