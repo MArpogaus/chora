@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 19:58 UTC)
+## Now (2026-11-19 20:06 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 19:33 PM 1.0 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -30,11 +30,10 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | kit-report-r1.md (F2, F4) | sonnet high | starts at train 71 green, from 6aa0bd37 |
 | docs-f8d-r1.md (F8) | sonnet high | starts at train 71 green, from 6aa0bd37 |
 | lint-reason-r1.md (F4) | haiku high | starts at train 71 green, from 6aa0bd37 |
-| flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 69 green 19:03; 70 green 19:32 (construct-red, known-red 0). 71 running from 19:34: debt-down 121c30aa (D117). 72 Fri: cube-tests, mx1-m2, kit-report, docs-f8d.
-5. F work: DEBT-DOWN r3 (F4 1 %), FLAKE-SERIES haiku (F5 1 %); AUDIT-F r2 done: CUBE-TESTS haiku 0.8 %, MX1-M2 sonnet 0.3 % now; after train 71: KIT-REPORT 0.8 %, DOCS-F8d 0.4 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
+5. F work: DEBT-DOWN r3 (F4 1 %); FLAKE-SERIES done 20:05: 5/5 green, kit 91.06 % (F5: flakes met; mx1-m2, r3 recount); AUDIT-F r2 done: CUBE-TESTS haiku 0.8 %, MX1-M2 sonnet 0.3 % now; after train 71: KIT-REPORT 0.8 %, DOCS-F8d 0.4 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
