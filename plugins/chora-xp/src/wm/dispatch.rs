@@ -85,9 +85,7 @@ impl Wm {
             Event::PointerEntered { node, .. } => self.hovered(&node, true), // injected: hears drops an injected event unless xp accepts them
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
-            Event::FocusChanged {
-                surface: Some(surface),
-            } => self.focus_moved(&surface),
+            Event::FocusChanged { surface } => self.focus_moved(surface.as_deref()),
             _ => Vec::new(),
         };
         self.apply(commands)

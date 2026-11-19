@@ -742,11 +742,15 @@ enum Pressed {
 }
 
 /// The commands that give the keyboard to the look node of the
-/// construct.
+/// construct: first no surface has the focus, so that the window manager
+/// of the window that had it draws it inactive and holds it no more (I3).
 fn the_keyboard_to_the_look() -> Vec<Command> {
-    vec![Command::FocusNode {
-        node: Some(LOOK.into()),
-    }]
+    vec![
+        Command::Focus { surface: None },
+        Command::FocusNode {
+            node: Some(LOOK.into()),
+        },
+    ]
 }
 
 #[cfg(test)]
