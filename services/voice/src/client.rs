@@ -1317,4 +1317,42 @@ mod tests {
             .collect();
         assert!(!names.iter().any(|n| n == "restart"), "{names:?}");
     }
+
+    /// GR2: a change of the settings, and the end of a question, keep the
+    /// push-to-talk key with the core: no `input.ungrab` of a key that the
+    /// plugin grabs again, so that the key is never free in between.
+    #[test]
+    fn a_regrab_leaves_no_moment_without_the_grab() {
+        let core = chora_kit::testing::FakeCore::start();
+        let log = core.record(|method, params| {
+            method.starts_with("input.").then(|| {
+                format!(
+                    "{method} {}",
+                    params["binding"].as_str().unwrap_or_default()
+                )
+            })
+        });
+        let file = std::env::temp_dir().join(format!("voice-gr2-{}.yaml", std::process::id()));
+        let settings = chora_kit::settings::File::<Config>::load(file, "{}").unwrap();
+        let (tx, _rx) = mpsc::channel();
+        let rt = chora_kit::runtime::Runtime::with(core.connect("voice"), "voice", Vec::new());
+        let mut client = super::Client {
+            rt,
+            settings,
+            tx,
+            claims: Claims::default(),
+            confirming: false,
+            waiting: None,
+        };
+        let ptt = client.settings.value.ptt_key.clone();
+        client.grab().unwrap();
+        client.apply().unwrap();
+        client.confirming = true;
+        client.confirm_keys(&json!({"done": true})).unwrap();
+        assert_eq!(
+            *log.lock().unwrap(),
+            [format!("input.grab {ptt}")],
+            "the key stays grabbed: no ungrab, no second grab"
+        );
+    }
 }
