@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 04:34 UTC)
+## Now (2026-11-19 05:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 98 % at 03:35 Thu (owner); tokens.py 03:44: PM 0.3 % today. Day cap lifted (owner 03:41); sonnet lanes now; owner resets about 05:10; then opus and Fable lanes with a reason, no waste.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 27bd60c7 (train 54: kit1); 22 greens (30b, 33-41, 43-54); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1 in.
+session branch: 4417ab86 (train 55: docs-f8); 23 greens (30b, 33-41, 43-55); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1, DOCS-F8 in.
 burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths, words) in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
 
 ## RC (design/rc.md)
@@ -24,10 +24,10 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | ba9dd020 MERGE-OK; train 55 04:16 |
+| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | merged train 55 (4417ab86) |
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK (review r1, 3 MINOR); train 57 |
 | kit2b-r1.md (F2) | sonnet high, claude/kit2b | running session_016iS3kPbMHNnFH4xry3P2T5 03:44 |
-| mv3-r1.md (F4) | sonnet medium, claude/mv3 | 917df9d0 MERGE-OK (PM); train 56 next |
+| mv3-r1.md (F4) | sonnet medium, claude/mv3 | 917df9d0 MERGE-OK; train 56 05:16 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
