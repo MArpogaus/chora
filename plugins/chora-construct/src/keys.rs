@@ -58,7 +58,7 @@ impl Construct {
             _ => return Ok(()),
         };
         let mint = self.rt.conn.activation_token();
-        let started = command.and_then(|c| chora_kit::launch(&c, mint.as_deref()));
+        let started = command.and_then(|c| chora_kit::launch::start(&c, mint.as_deref()));
         if started.is_some() {
             return Ok(());
         }

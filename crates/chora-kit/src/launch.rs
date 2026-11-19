@@ -1,13 +1,21 @@
 //! Programs that a shell starts for the user, followed until their window
-//! shows.
+//! shows (D104).
 //!
-//! A program that cannot start, or ends without a window, or takes too
-//! long gives a message that names it; one that is still starting after a
-//! moment shows that it is. The window manager answers each start with
-//! [`Change`]s that it shows through the notification server.
+//! `choractl run` starts a program in a unit of its own and answers the
+//! activation token, the pid of the main process and the unit. The shell
+//! owns that process with a pidfd, which needs no parent: when the main
+//! process is gone and the unit has no process left, the program ended,
+//! and a program that ended without a window is a failure at once. A
+//! program that is still starting after a moment shows that it is; one
+//! that shows no window within [`GIVE_UP`] fails unless it still runs. The
+//! tracking answers each start with [`Change`]s that a look shows through
+//! the notification server.
 
 use std::{
-    sync::mpsc::{Receiver, Sender, channel},
+    sync::{
+        Arc,
+        mpsc::{Receiver, Sender, channel},
+    },
     time::{Duration, Instant},
 };
 
@@ -137,11 +145,12 @@ impl Change {
 struct Entry {
     name: String,
     token: String,
-    pid: Option<u32>,
     since: Instant,
     windows_before: u64,
     note: Option<u32>,
     shown: bool,
+    watched: bool,
+    gone: bool,
     next: Next,
 }
 
@@ -150,67 +159,40 @@ struct Entry {
 struct Next {
     /// The name of the program that runs.
     from: String,
-    /// The activation token of xp for the next start.
+    /// The activation token of the look for the next start.
     activation: Option<String>,
     /// The programs that follow, in order.
     rest: Vec<Candidate>,
-    /// Whether a start that ended without a window fails at once and not
-    /// after [`GIVE_UP`].
-    early: bool,
     /// The program before this one that did not open, and why; said
     /// only once this one shows its window.
     fell: Option<(String, Why)>,
-    /// Where the shell of a start that ends early writes its failed
-    /// status.
-    status: Option<std::sync::Arc<StatusFile>>,
-}
-
-/// A file in which the shell around a start of an early program writes
-/// its exit status when that is not zero. It is removed with the last
-/// holder.
-#[derive(Debug)]
-struct StatusFile(std::path::PathBuf);
-
-impl StatusFile {
-    fn create() -> Option<Self> {
-        static COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-        let dir = chora_scene::paths::runtime_home().unwrap_or_else(std::env::temp_dir);
-        let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let path = dir.join(format!("chora-xp-exit-{}-{n}", std::process::id()));
-        std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .ok()?;
-        Some(Self(path))
-    }
-
-    /// The command that runs `command` and writes its status here when
-    /// it fails. A program that replaces the shell leaves no status.
-    fn wrap(&self, command: &str) -> String {
-        let file = quoted(&self.0.to_string_lossy());
-        format!(
-            "{{ {command}\n}}; status=$?; [ $status -eq 0 ] || ! [ -e {file} ] || echo $status >{file}; exit $status"
-        )
-    }
-
-    /// Whether the start ended with a status that is not zero.
-    fn failed(&self) -> bool {
-        std::fs::read_to_string(&self.0).is_ok_and(|text| !text.trim().is_empty())
-    }
-}
-
-impl Drop for StatusFile {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
 }
 
 /// The answer of `choractl run` for a command.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Answer {
+    /// The activation token that finds the window of the program.
+    pub token: String,
+    /// The pid of its main process, when `choractl` knows it.
+    pub pid: Option<u32>,
+    /// The systemd unit that runs it, when a user manager does.
+    pub unit: Option<String>,
+}
+
+/// How a command starts: it answers what `choractl run` answers, or
+/// nothing when the program did not start. The command gets the
+/// activation token of the look, if the look has one.
+pub type Starter = Arc<dyn Fn(&str, Option<&str>) -> Option<Answer> + Send + Sync>;
+
+/// The start of a command that finished, or the end of a program.
+enum Heard {
+    Started(Started),
+    Gone(String),
+}
+
 struct Started {
     name: String,
-    token: Option<String>,
-    pid: Option<u32>,
+    answer: Option<Answer>,
     since: Instant,
     windows_before: u64,
     next: Next,
@@ -224,18 +206,9 @@ pub struct Launches {
     /// the answer of its start arrives.
     opened: Vec<String>,
     failed: Vec<Change>,
-    started: Receiver<Started>,
-    sender: Sender<Started>,
+    heard: Receiver<Heard>,
+    sender: Sender<Heard>,
     start: Starter,
-}
-
-/// How a command starts: it answers the activation token that finds the
-/// window and the pid of the program, or nothing when it did not start.
-pub type Starter =
-    std::sync::Arc<dyn Fn(&str, Option<&str>) -> Option<(String, Option<u32>)> + Send + Sync>;
-
-fn start(command: &str, token: Option<&str>) -> Option<(String, Option<u32>)> {
-    crate::launch(command, token)
 }
 
 impl Default for Launches {
@@ -245,27 +218,24 @@ impl Default for Launches {
 }
 
 impl Launches {
-    /// No program waits.
+    /// No program waits, and a command starts with `choractl run`.
     #[must_use]
     pub fn new() -> Self {
-        let (sender, started) = channel();
-        Self {
-            entries: Vec::new(),
-            windows: 0,
-            opened: Vec::new(),
-            failed: Vec::new(),
-            started,
-            sender,
-            start: std::sync::Arc::new(start),
-        }
+        Self::with_starter(Arc::new(choractl))
     }
 
     /// No program waits, and a command starts through `start`.
     #[must_use]
     pub fn with_starter(start: Starter) -> Self {
+        let (sender, heard) = channel();
         Self {
+            entries: Vec::new(),
+            windows: 0,
+            opened: Vec::new(),
+            failed: Vec::new(),
+            heard,
+            sender,
             start,
-            ..Self::new()
         }
     }
 
@@ -273,8 +243,7 @@ impl Launches {
     /// on a thread of its own, so the window manager never blocks; its
     /// answer comes with [`Self::collect`]. A program that is not on
     /// `PATH` never starts: the change says so. The app gets the
-    /// activation token of xp, if xp has one, as [`crate::launch`]
-    /// takes it.
+    /// activation token of the look, if it has one.
     pub fn run(
         &mut self,
         command: &str,
@@ -306,7 +275,6 @@ impl Launches {
     ) -> Vec<Change> {
         let template = Next {
             activation: token,
-            early: true,
             fell: skipped.map(|from| (from, Why::Missing)),
             ..Next::default()
         };
@@ -328,42 +296,31 @@ impl Launches {
             }];
         }
         let first = chain.remove(0);
-        let status = template
-            .early
-            .then(StatusFile::create)
-            .flatten()
-            .map(std::sync::Arc::new);
         let next = Next {
             from: first.name,
             rest: chain,
-            status,
             ..template
         };
         if missing(&first.command, crate::desktop_entry::on_path) {
             eprintln!(
-                "chora-xp: {:?} is not on PATH, {:?} does not run",
+                "chora-kit: {:?} is not on PATH, {:?} does not run",
                 next.from, first.command
             );
             return self.fail((name.to_owned(), None), Why::Missing, next, now);
         }
-        let command = next
-            .status
-            .as_ref()
-            .map_or_else(|| first.command.clone(), |file| file.wrap(&first.command));
         let sender = self.sender.clone();
         let starter = self.start.clone();
         let windows_before = self.windows;
         let name = name.to_owned();
         std::thread::spawn(move || {
-            let answer = starter(&command, next.activation.as_deref());
-            let _ = sender.send(Started {
+            let answer = starter(&first.command, next.activation.as_deref());
+            let _ = sender.send(Heard::Started(Started {
                 name,
-                pid: answer.as_ref().and_then(|(_, pid)| *pid),
-                token: answer.map(|(token, _)| token),
+                answer,
                 since: now,
                 windows_before,
                 next,
-            });
+            }));
         });
         Vec::new()
     }
@@ -383,7 +340,6 @@ impl Launches {
         }
         let template = Next {
             activation: next.activation,
-            early: next.early,
             fell: Some((next.from, why)),
             ..Next::default()
         };
@@ -412,19 +368,25 @@ impl Launches {
     }
 
     fn drain(&mut self) {
-        while let Ok(started) = self.started.try_recv() {
-            if started.token.is_some() {
-                self.add(started);
-            } else {
-                let name = (started.name, None);
-                let changes = self.fail(name, Why::Refused, started.next, Instant::now());
-                self.failed.extend(changes);
+        while let Ok(heard) = self.heard.try_recv() {
+            match heard {
+                Heard::Started(started) if started.answer.is_some() => self.add(started),
+                Heard::Started(started) => {
+                    let name = (started.name, None);
+                    let changes = self.fail(name, Why::Refused, started.next, Instant::now());
+                    self.failed.extend(changes);
+                }
+                Heard::Gone(token) => {
+                    if let Some(entry) = self.entries.iter_mut().find(|e| e.token == token) {
+                        entry.gone = true;
+                    }
+                }
             }
         }
     }
 
     fn add(&mut self, started: Started) {
-        let Some(token) = started.token else {
+        let Some(Answer { token, pid, unit }) = started.answer else {
             return;
         };
         if self.opened.contains(&token) {
@@ -434,14 +396,19 @@ impl Launches {
         if DETACHED.contains(&started.name.as_str()) {
             return;
         }
+        let watched = pid.is_some() || unit.is_some();
+        if watched {
+            watch(self.sender.clone(), token.clone(), (pid, unit));
+        }
         self.entries.push(Entry {
             name: started.name,
             token,
-            pid: started.pid,
             since: started.since,
             windows_before: started.windows_before,
             note: None,
             shown: false,
+            watched,
+            gone: false,
             next: started.next,
         });
     }
@@ -470,9 +437,10 @@ impl Launches {
     }
 
     /// What the programs that wait for a window call for at `now`. A
-    /// program that shows no window within [`GIVE_UP`] fails, unless a
+    /// program that ended without a window fails at once, unless a
     /// window of another start opened meanwhile, which a launcher that
-    /// hands its work to a running instance explains.
+    /// hands its work to a running instance explains. A program that
+    /// shows no window within [`GIVE_UP`] fails too, unless it still runs.
     pub fn check(&mut self, now: Instant) -> Vec<Change> {
         let mut changes = Vec::new();
         let mut failed = Vec::new();
@@ -481,21 +449,18 @@ impl Launches {
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
             let silent = entry.windows_before == windows;
-            let alive = entry.pid.is_some_and(crate::alive);
-            let early = entry.next.early;
+            if entry.gone && silent {
+                failed.push((entry.take(), Why::Exited));
+                return false;
+            }
             if age >= GIVE_UP {
-                if alive {
+                if entry.watched && !entry.gone {
                     changes.push(Change::Done { note: entry.note });
                     let (name, _, next) = entry.take();
                     served.push((name, next));
                 } else if silent {
                     failed.push((entry.take(), Why::Slow));
                 }
-                return false;
-            }
-            let crashed = entry.next.status.as_ref().is_some_and(|file| file.failed());
-            if early && silent && crashed {
-                failed.push((entry.take(), Why::Exited));
                 return false;
             }
             if age >= SHOW_AFTER && !entry.shown {
@@ -527,6 +492,155 @@ impl Entry {
     }
 }
 
+/// Follows the program of a start on a thread of its own and tells
+/// `sender` when it ended: its main process is gone and its unit has no
+/// process left. The thread gives up with the limit of [`GIVE_UP`].
+fn watch(sender: Sender<Heard>, token: String, (pid, unit): (Option<u32>, Option<String>)) {
+    std::thread::spawn(move || {
+        let main_gone = pid.is_none_or(|pid| main_process_gone(pid, unit.as_deref()));
+        let unit_empty = !unit.as_deref().is_some_and(unit_active);
+        if main_gone && unit_empty {
+            let _ = sender.send(Heard::Gone(token));
+        }
+    });
+}
+
+/// Whether the process `pid` is gone, waiting for its end up to the limit
+/// of [`GIVE_UP`]. The process is held with a pidfd, which tells the end
+/// of a process that is no child; a pid that the unit no longer names has
+/// ended, and may name another process by now.
+fn main_process_gone(pid: u32, unit: Option<&str>) -> bool {
+    use rustix::{
+        event::{PollFd, PollFlags, Timespec, poll},
+        process::{Pid, PidfdFlags, pidfd_open},
+    };
+    let Some(raw) = i32::try_from(pid).ok().and_then(Pid::from_raw) else {
+        return true;
+    };
+    let fd = match pidfd_open(raw, PidfdFlags::empty()) {
+        Ok(fd) => fd,
+        Err(rustix::io::Errno::SRCH) => return true,
+        Err(err) => {
+            eprintln!("chora-kit: pidfd_open({pid}): {err}");
+            return false;
+        }
+    };
+    if unit.is_some_and(|unit| unit_main_pid(unit) != Some(pid)) {
+        return true;
+    }
+    let limit = GIVE_UP + Duration::from_secs(1);
+    let timeout = Timespec {
+        tv_sec: i64::try_from(limit.as_secs()).unwrap_or(i64::MAX),
+        tv_nsec: 0,
+    };
+    let mut fds = [PollFd::new(&fd, PollFlags::IN)];
+    poll(&mut fds, Some(&timeout)).is_ok_and(|ready| ready > 0)
+}
+
+/// The trimmed stdout of `systemctl --user ARGS`; empty when it fails to
+/// run.
+fn systemctl(args: &[&str]) -> String {
+    std::process::Command::new("systemctl")
+        .arg("--user")
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        .unwrap_or_default()
+}
+
+/// Whether the unit has processes: it is active, or on its way up. A
+/// unit that ended is collected and has no state.
+fn unit_active(unit: &str) -> bool {
+    matches!(
+        systemctl(&["show", "--property=ActiveState", "--value", unit]).as_str(),
+        "active" | "activating" | "reloading"
+    )
+}
+
+/// The pid of the main process of the unit, if it has one.
+fn unit_main_pid(unit: &str) -> Option<u32> {
+    systemctl(&["show", "--property=MainPID", "--value", unit])
+        .parse()
+        .ok()
+        .filter(|pid| *pid > 0)
+}
+
+/// A command that runs `choractl run` for a shell command through
+/// `program`, with the activation token of the plugin, when it has one,
+/// in `CHORA_RUN_TOKEN` and not in the arguments, which every user can
+/// read.
+fn run_command(program: &[&str], command: &str, token: Option<&str>) -> std::process::Command {
+    let mut run = std::process::Command::new(program[0]);
+    run.args(&program[1..])
+        .args(["run", "--", "sh", "-c", command]);
+    if let Some(token) = token {
+        run.env("CHORA_RUN_TOKEN", token);
+    }
+    run
+}
+
+/// Starts a shell command as an app with `choractl run` (D42). The app
+/// gets the activation token `token`, which the plugin minted on its own
+/// connection with [`crate::conn::Conn::activation_token`] so that it
+/// carries the act that the plugin received, or else a token of
+/// `choractl`; and a unit of its own when a user manager runs. `&` lets
+/// the shell exit at once, so no zombie stays. The program is not
+/// followed: [`Launches`] does that.
+pub fn run(command: &str, token: Option<&str>) {
+    let program = ["sh", "-c", r#"choractl "$@" >/dev/null &"#, "choractl"];
+    let started = run_command(&program, command, token).status();
+    if let Err(err) = started {
+        eprintln!("cannot run {command:?}: {err}");
+    }
+}
+
+/// Starts a shell command as [`run`] does, and answers the activation
+/// token that finds its window and the pid of the app, if `choractl`
+/// knows it.
+#[must_use]
+pub fn start(command: &str, token: Option<&str>) -> Option<(String, Option<u32>)> {
+    let answer = choractl(command, token)?;
+    Some((answer.token, answer.pid))
+}
+
+/// Starts a shell command with `choractl run` and answers what it
+/// prints: token, pid and unit.
+fn choractl(command: &str, token: Option<&str>) -> Option<Answer> {
+    let run = run_command(&["choractl"], command, token)
+        .stdin(std::process::Stdio::null())
+        .output();
+    let line = match run {
+        Ok(out) if out.status.success() => out.stdout,
+        Ok(out) => {
+            let err = String::from_utf8_lossy(&out.stderr);
+            eprintln!("cannot run {command:?}: {}", err.trim());
+            return None;
+        }
+        Err(err) => {
+            eprintln!("cannot run {command:?}: choractl run: {err}");
+            return None;
+        }
+    };
+    let answer: serde_json::Value = serde_json::from_slice(&line).unwrap_or_default();
+    Some(Answer {
+        token: answer["token"].as_str()?.into(),
+        pid: answer["pid"].as_u64().and_then(|p| u32::try_from(p).ok()),
+        unit: answer["unit"].as_str().map(str::to_owned),
+    })
+}
+
+/// Whether a process runs: it has a `/proc` entry and is no zombie. A
+/// pid can be reused, so the answer is a hint.
+#[must_use]
+pub fn alive(pid: u32) -> bool {
+    let stat = crate::read_text(std::path::Path::new(&format!("/proc/{pid}/stat")), 4096);
+    stat.ok()
+        .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
+        .is_some_and(|zombie| !zombie)
+}
+
 /// Words that the shell runs without a program on `PATH`.
 const BUILTINS: [&str; 18] = [
     ".", ":", "alias", "cd", "command", "echo", "eval", "exec", "exit", "export", "printf", "pwd",
@@ -555,7 +669,405 @@ fn missing(command: &str, on_path: impl Fn(&str) -> bool) -> bool {
     plain && !shell && !BUILTINS.contains(&word) && !on_path(word)
 }
 
-/// A word in single quotes for the shell.
-fn quoted(word: &str) -> String {
-    format!("'{}'", word.replace('\'', "'\\''"))
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn launches() -> (Launches, Instant) {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(started(now));
+        (launches, now)
+    }
+
+    fn answer(pid: Option<u32>) -> Answer {
+        Answer {
+            token: "t1".into(),
+            pid,
+            unit: None,
+        }
+    }
+
+    fn started(since: Instant) -> Started {
+        Started {
+            name: "writer".into(),
+            answer: Some(answer(None)),
+            since,
+            windows_before: 0,
+            next: Next::default(),
+        }
+    }
+
+    fn none() -> Vec<Change> {
+        Vec::new()
+    }
+
+    fn seconds(now: Instant, s: u64) -> Instant {
+        now + Duration::from_secs(s)
+    }
+
+    #[test]
+    fn only_a_plain_command_of_a_program_that_is_not_there_counts_as_missing() {
+        let on_path = |word: &str| matches!(word, "env" | "foot");
+        let refused = ["chora-no-such", "chora-no-such --flag '/home/user'"];
+        let run = [
+            "foot",
+            "foot -e htop",
+            "/opt/app/bin/start",
+            "./app",
+            "'my app' --flag",
+            "\"my app\"",
+            "VAR=1 chora-no-such",
+            "env VAR=1 chora-no-such",
+            "cd /tmp && chora-no-such",
+            "chora-no-such || foot",
+            "chora-no-such $HOME",
+            "cd /tmp",
+            "exec chora-no-such",
+            "",
+        ];
+        for command in refused {
+            assert!(missing(command, on_path), "{command}");
+        }
+        for command in run {
+            assert!(!missing(command, on_path), "{command}");
+        }
+    }
+
+    #[test]
+    fn a_missing_program_gives_a_message_and_starts_nothing() {
+        let mut launches = Launches::new();
+        let change = launches.run(
+            "chora-no-such-program --flag",
+            ("chora-no-such-program".into(), None),
+            Instant::now(),
+        );
+        assert_eq!(
+            change,
+            Some(Change::Failed {
+                name: "chora-no-such-program".into(),
+                note: None,
+                why: Why::Missing
+            })
+        );
+        assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn a_program_that_runs_shows_a_message_only_after_a_moment() {
+        let (mut launches, now) = launches();
+        assert_eq!(launches.check(seconds(now, 1)), none());
+        let changes = launches.check(seconds(now, 2));
+        assert_eq!(
+            changes,
+            [Change::Starting {
+                token: "t1".into(),
+                name: "writer".into()
+            }]
+        );
+        assert_eq!(launches.check(seconds(now, 3)), none());
+    }
+
+    #[test]
+    fn the_window_of_the_token_ends_the_wait_and_names_the_message_to_close() {
+        let (mut launches, now) = launches();
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        assert_eq!(launches.window(Some("other")), None);
+        assert_eq!(launches.window(Some("t1")), Some(12));
+        assert_eq!(launches.check(seconds(now, 40)), none());
+    }
+
+    #[test]
+    fn a_window_that_shows_before_the_answer_of_its_start_ends_the_wait() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        assert_eq!(launches.window(Some("t1")), None);
+        launches.add(started(now));
+        assert_eq!(launches.check(seconds(now, 40)), none());
+    }
+
+    #[test]
+    fn a_launcher_that_exits_at_once_is_followed_like_any_program() {
+        let (mut launches, now) = launches();
+        assert_eq!(launches.check(seconds(now, 1)), none());
+        assert_eq!(
+            launches.check(seconds(now, 2)),
+            [Change::Starting {
+                token: "t1".into(),
+                name: "writer".into()
+            }]
+        );
+        launches.noted("t1", 12);
+        assert_eq!(launches.window(Some("t1")), Some(12));
+    }
+
+    #[test]
+    fn a_start_that_left_no_pid_waits_like_any_other() {
+        let (mut launches, now) = launches();
+        assert_eq!(launches.check(seconds(now, 1)), none());
+    }
+
+    #[test]
+    fn a_launcher_that_hands_over_to_a_running_instance_is_no_failure() {
+        let (mut launches, now) = launches();
+        assert_eq!(launches.window(None), None);
+        assert_eq!(launches.check(seconds(now, GIVE_UP.as_secs())), none());
+    }
+
+    #[test]
+    fn a_program_without_a_window_gives_up_after_the_limit() {
+        let (mut launches, now) = launches();
+        assert!(
+            launches
+                .check(seconds(now, GIVE_UP.as_secs() - 1))
+                .iter()
+                .all(|c| matches!(c, Change::Starting { .. }))
+        );
+        let changes = launches.check(seconds(now, GIVE_UP.as_secs()));
+        assert_eq!(
+            changes,
+            [Change::Failed {
+                name: "writer".into(),
+                note: None,
+                why: Why::Slow
+            }]
+        );
+        assert_eq!(launches.check(seconds(now, 60)), none());
+    }
+
+    #[test]
+    fn a_launcher_without_a_toplevel_is_not_followed() {
+        for name in ["fuzzel", "chora-chat"] {
+            let now = Instant::now();
+            let mut launches = Launches::new();
+            launches.add(Started {
+                name: name.into(),
+                ..started(now)
+            });
+            assert_eq!(launches.check(seconds(now, 2)), none(), "{name}");
+            assert_eq!(launches.check(seconds(now, 40)), none(), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_program_that_still_runs_at_the_limit_is_no_failure() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(Started {
+            answer: Some(answer(Some(std::process::id()))),
+            ..started(now)
+        });
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        assert_eq!(
+            launches.check(seconds(now, GIVE_UP.as_secs())),
+            [Change::Done { note: Some(12) }]
+        );
+        assert_eq!(launches.check(seconds(now, 60)), none());
+    }
+
+    #[test]
+    fn a_program_that_ended_without_a_window_is_a_failure_at_once() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(Started {
+            answer: Some(answer(Some(u32::MAX))),
+            ..started(now)
+        });
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !launches.entries[0].gone && Instant::now() < deadline {
+            launches.drain();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(matches!(
+            launches.check(now).as_slice(),
+            [Change::Failed {
+                why: Why::Exited,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn an_end_with_a_window_of_another_start_is_waited_for_and_not_told() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(started(now));
+        launches.entries[0].gone = true;
+        launches.window(Some("other"));
+        assert_eq!(launches.check(seconds(now, 1)), none());
+        assert_eq!(launches.check(seconds(now, GIVE_UP.as_secs())), none());
+    }
+
+    fn chain() -> Vec<Candidate> {
+        ["writer", "gedit", "nano"]
+            .map(|name| Candidate {
+                name: name.into(),
+                command: format!("chora-no-such-{name}"),
+            })
+            .to_vec()
+    }
+
+    #[test]
+    fn a_chain_of_missing_programs_says_only_that_the_app_cannot_open() {
+        let mut launches = Launches::new();
+        let changes = launches.run_chain(
+            "Notepad",
+            (chain(), Some("pad".into())),
+            None,
+            Instant::now(),
+        );
+        let closes = |changes: &[Change]| {
+            changes
+                .iter()
+                .all(|c| matches!(c, Change::Done { note: None }))
+        };
+        let (last, before) = changes.split_last().expect("a change");
+        assert!(closes(before), "{changes:?}");
+        assert_eq!(
+            last,
+            &Change::Failed {
+                name: "Notepad".into(),
+                note: None,
+                why: Why::Missing
+            }
+        );
+        assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn an_empty_chain_says_that_no_text_editor_is_installed() {
+        let mut launches = Launches::new();
+        let changes = launches.run_chain("Notepad", (Vec::new(), None), None, Instant::now());
+        let [
+            change @ Change::Failed {
+                why: Why::NoEditor, ..
+            },
+        ] = changes.as_slice()
+        else {
+            panic!("{changes:?}");
+        };
+        assert_eq!(
+            change.text(),
+            (
+                "Cannot open Notepad".to_owned(),
+                "No text editor installed (for example mousepad).".to_owned()
+            )
+        );
+    }
+
+    fn ended_editor(now: Instant, rest: Vec<Candidate>) -> Launches {
+        let mut launches = Launches::new();
+        launches.add(Started {
+            name: "Notepad".into(),
+            next: Next {
+                from: "writer".into(),
+                rest,
+                ..Next::default()
+            },
+            ..started(now)
+        });
+        launches.entries[0].gone = true;
+        launches
+    }
+
+    #[test]
+    fn an_editor_that_failed_gives_way_to_the_next_and_says_so_when_it_shows() {
+        let now = Instant::now();
+        let mut launches = ended_editor(now, chain()[1..].to_vec());
+        let changes = launches.check(seconds(now, 0));
+        assert!(
+            changes
+                .iter()
+                .all(|c| !matches!(c, Change::Fallback { .. })),
+            "{changes:?}"
+        );
+        let fell = Some(("writer".to_owned(), Why::Exited));
+        let next = Next {
+            from: "gedit".into(),
+            fell,
+            ..Next::default()
+        };
+        launches.add(Started {
+            name: "Notepad".into(),
+            answer: Some(Answer {
+                token: "t2".into(),
+                pid: None,
+                unit: None,
+            }),
+            next,
+            ..started(now)
+        });
+        let waiting = launches.check(seconds(now, 5));
+        assert!(
+            waiting.iter().all(|c| matches!(c, Change::Starting { .. })),
+            "{waiting:?}"
+        );
+        launches.window(Some("t2"));
+        let told = launches.collect();
+        assert_eq!(
+            told.first().map(Change::text),
+            Some((
+                "Notepad opened with gedit".into(),
+                "writer ended without a window.".into()
+            ))
+        );
+    }
+
+    #[test]
+    fn a_fallback_that_ends_without_a_window_leaves_no_notice_of_success() {
+        let now = Instant::now();
+        let mut launches = ended_editor(now, Vec::new());
+        let fell = Some(("writer".to_owned(), Why::Exited));
+        launches.entries[0].next.fell = fell;
+        let changes = launches.check(seconds(now, 0));
+        assert!(
+            matches!(
+                changes.as_slice(),
+                [Change::Failed { name, why: Why::Exited, .. }] if name == "Notepad"
+            ),
+            "{changes:?}"
+        );
+        assert_eq!(launches.collect(), none());
+    }
+
+    #[test]
+    fn the_messages_name_the_program() {
+        let failed = |why| Change::Failed {
+            name: "thunar".into(),
+            note: None,
+            why,
+        };
+        let (title, body) = failed(Why::Missing).text();
+        assert_eq!(title, "Cannot open thunar");
+        assert!(body.contains("not installed"), "{body}");
+        assert!(failed(Why::Slow).text().1.contains("30 seconds"));
+        let starting = Change::Starting {
+            token: "t".into(),
+            name: "writer".into(),
+        };
+        assert_eq!(starting.text().0, "Starting writer");
+        let (title, body) = failed(Why::Refused).text();
+        assert_eq!(title, "Cannot open thunar");
+        assert!(body.contains("could not start"), "{body}");
+    }
+
+    #[test]
+    fn the_token_of_a_run_goes_in_the_environment_not_the_arguments() {
+        let run = run_command(&["choractl"], "foot", Some("secret"));
+        assert!(run.get_args().all(|arg| arg != "secret"));
+        let env: Vec<_> = run.get_envs().collect();
+        let token = std::ffi::OsStr::new("secret");
+        assert_eq!(
+            env,
+            [(std::ffi::OsStr::new("CHORA_RUN_TOKEN"), Some(token))]
+        );
+    }
+
+    #[test]
+    fn a_running_process_is_alive_and_a_missing_one_not() {
+        assert!(alive(std::process::id()));
+        assert!(!alive(u32::MAX));
+    }
 }

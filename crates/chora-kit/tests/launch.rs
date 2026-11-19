@@ -12,7 +12,7 @@ use std::{
 
 use chora_kit::{
     conn::Conn,
-    launch::{Candidate, Change, Launches, Starter, Why},
+    launch::{Answer, Candidate, Change, Launches, Starter, Why},
     testing::FakeCore,
 };
 
@@ -41,6 +41,7 @@ struct Look {
 
 impl Look {
     fn new(core: &FakeCore) -> Self {
+        core.mint_tokens();
         let children = Arc::new(Children::default());
         let held = children.clone();
         let start: Starter = Arc::new(move |command, token| {
@@ -53,7 +54,11 @@ impl Look {
                 .ok()?;
             let pid = child.id();
             held.0.lock().unwrap().push(child);
-            Some((token.unwrap_or("none").to_owned(), Some(pid)))
+            Some(Answer {
+                token: token.unwrap_or("none").to_owned(),
+                pid: Some(pid),
+                unit: None,
+            })
         });
         Self {
             conn: core.connect("look"),
@@ -107,6 +112,18 @@ impl Look {
         panic!("no change within 5 s at the start of the clock");
     }
 
+    /// What the look is told once the start that followed has served.
+    fn told(&mut self) -> Vec<Change> {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let told = self.launches.collect();
+            if !told.is_empty() || Instant::now() >= deadline {
+                return told;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     fn mapped(&mut self, token: &str) -> Option<u32> {
         self.launches.window(Some(token))
     }
@@ -142,7 +159,7 @@ fn an_editor_that_exits_before_its_window_gives_way_to_the_next_at_once() {
         "{changes:?}"
     );
     assert_eq!(look.mapped(&token), None);
-    let told = look.launches.collect();
+    let told = look.told();
     assert_eq!(
         told.first().map(Change::text),
         Some((

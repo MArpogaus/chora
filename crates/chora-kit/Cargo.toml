@@ -1,6 +1,7 @@
 [dependencies]
 chora-scene.workspace = true
 libc = "0.2"
+rustix = { version = "1", features = ["event", "process"] }
 schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true

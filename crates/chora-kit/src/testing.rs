@@ -43,6 +43,8 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
+    /// Whether `activation.token` mints a token; without, it answers null.
+    pub mints_tokens: bool,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -84,6 +86,12 @@ impl FakeCore {
     /// it passes again.
     pub fn refuse_next(&self, method: &str) {
         self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Makes `activation.token` mint a new token on each call, as the
+    /// core does for a plugin that holds an act.
+    pub fn mint_tokens(&self) {
+        self.model.lock().unwrap().mints_tokens = true;
     }
 
     /// The scene model, shared with the fake core.
@@ -162,7 +170,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
                 )),
             }
         }
-        "activation.token" => Ok(activation_token()),
+        "activation.token" if model.lock().unwrap().mints_tokens => Ok(activation_token()),
         "input.grab" => Ok(params["binding"].clone()),
         "input.ungrab" => {
             let mut core = model.lock().unwrap();

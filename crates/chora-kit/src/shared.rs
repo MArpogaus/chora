@@ -51,7 +51,7 @@ fn script_in(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
 }
 
 /// The shell command that runs a shared script with its arguments, for
-/// [`crate::run`]: `sh '/…/shared/power.sh' lock`. None when no folder
+/// [`crate::launch::run`]: `sh '/…/shared/power.sh' lock`. None when no folder
 /// has the script.
 #[must_use]
 pub fn command(name: &str, args: &[&str]) -> Option<String> {

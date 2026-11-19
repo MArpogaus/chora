@@ -54,7 +54,7 @@ impl Mc {
             return;
         };
         let mint = self.rt.conn.activation_token();
-        let _ = launch(&command, mint.as_deref());
+        let _ = launch::start(&command, mint.as_deref());
     }
 
     /// Runs an action of every look that mc has: the locker, the power
@@ -69,7 +69,7 @@ impl Mc {
             System::Volume(change) => self.volume.change(*change, true),
             System::Run(command) => {
                 let mint = self.rt.conn.activation_token();
-                let _ = launch(&chora_kit::shared::launcher(command), mint.as_deref());
+                let _ = launch::start(&chora_kit::shared::launcher(command), mint.as_deref());
             }
             System::Give(to) => {
                 if let Err(err) = chora_kit::give::focused(self, to) {
