@@ -60,10 +60,36 @@ paths = ["plugins"]
 pattern = 'UnixListener::bind'
 
 [[row]]
-allow = ["crates/chora-kit/src/wm"]
-max = 20
+allow = ["crates/chora-kit/src/wm", "crates/chora-kit/tests/wm_"]
+max = 18
 name = "Command::Focus outside kit::wm"
 pattern = 'Command::Focus\b'
+
+# WM2: kit::wm::focus holds the focus of a look; tiling and mc moved.
+[[row]]
+max = 0
+name = "own focus model (ShownFocus, WM2)"
+paths = ["plugins"]
+pattern = '\bShownFocus\b'
+
+[[row]]
+max = 2
+name = "mc: Command::Focus (WM2)"
+paths = ["plugins/chora-mc"]
+pattern = 'Command::Focus\b'
+
+[[row]]
+max = 1
+name = "tiling: Command::Focus (WM2)"
+paths = ["plugins/chora-tiling"]
+pattern = 'Command::Focus\b'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 8
+name = "Event::FocusChanged outside kit"
+paths = ["plugins", "services"]
+pattern = 'Event::FocusChanged\b'
 
 # kit4: kit::ask is the only question model; mc and construct draw its card.
 [[row]]

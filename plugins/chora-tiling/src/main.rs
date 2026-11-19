@@ -44,7 +44,7 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use chora_kit::wm::focus::Focus as ShownFocus;
+use chora_kit::wm::focus::Focus;
 
 use crate::{
     commands::{GROUP, answers, leaves_tiling, runtime_shader},
@@ -146,7 +146,7 @@ struct Tiling {
     /// only.
     sent: HashMap<String, Placement>,
     order: Vec<String>,
-    focus: ShownFocus,
+    focus: Focus,
     /// The meta that the core has, by node: what a restart rebuilds from.
     saved: HashMap<String, BTreeMap<String, String>>,
     /// The claim that the core has (D55).
@@ -326,7 +326,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         ignore: args.ignore.clone(),
         sent: HashMap::new(),
         order: Vec::new(),
-        focus: ShownFocus::default(),
+        focus: Focus::default(),
         saved: HashMap::new(),
         claimed: None,
         dragged: None,
@@ -1140,7 +1140,7 @@ mod tests {
             ignore: Vec::new(),
             sent: HashMap::new(),
             order: Vec::new(),
-            focus: ShownFocus::default(),
+            focus: Focus::default(),
             saved: HashMap::new(),
             claimed: None,
             dragged: None,
@@ -1614,7 +1614,7 @@ mod tests {
 
     #[test]
     fn a_relayout_takes_no_focus_from_another_window_manager() {
-        let mut shown = ShownFocus::default();
+        let mut shown = Focus::default();
         assert!(shown.sends(Some("s3")));
         shown.sent(Some("s3".into()));
         assert!(!shown.sends(Some("s3")));
@@ -1656,7 +1656,7 @@ mod tests {
 
     #[test]
     fn a_focus_emptied_by_a_closed_window_is_no_loss() {
-        let mut shown = ShownFocus::default();
+        let mut shown = Focus::default();
         shown.sent(Some("s3".into()));
         // The focused window of tiling exits: the core empties the focus.
         shown.moved(None);
