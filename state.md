@@ -26,7 +26,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 |---|---|---|
 | kit-report-r1.md (F2, F4) | sonnet high | MERGE-OK 582ab506, train 73 |
 | flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt (20:30) from 219d5afe |
-| kit-minors-r2.md (F2, F5) | sonnet medium | r1 88f441e4 broke xp step 17 (train 73); r2 starting |
+| kit-minors-r2.md (F2, F5) | sonnet medium | session_016iS3kLejbodHAtEu7ALMD9 (21:18); r1 broke xp 17 |
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 73 |
 | id-gate-r1.md (F6) | sonnet high | MERGE-OK a9fd91f3, own train 74 next |
 | flake-i-r1.md (F5) | sonnet high | session_016iS3kPo5jVnFwva6MmkaoG (20:53) |
