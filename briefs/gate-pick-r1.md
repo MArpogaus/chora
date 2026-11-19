@@ -12,7 +12,7 @@ Build tests/cells-for.sh: `tests/cells-for.sh [--base <ref>]` (default base orig
 3. each cell whose script, or a lib it sources, names a binary of a changed crate (plugins/chora-X -> `chora-X`; services/voice -> chora-voice; crates/chora -> every cell; crates/chora-kit or chora-scene -> every cell);
 4. cfg(test)-only Rust changes may still pick cells: correctness over speed.
 Red first: tests/cells-for-selftest.sh with cases in a temp git repo (a change to plugins/chora-notify picks xp; a change to tests/gate-hud.sh picks hud; a core change picks all; a docs-only change picks only the fixed five); run it from the gate-lib step. Check on the real repo: for 219d5afe..88f441e4 (kit-minors r1) it must print xp.
-Docs: one paragraph in CONTRIBUTING.md (where the gate is described): a lane runs `tests/merge-gate.sh --only "$(tests/cells-for.sh)"`.
+Docs: one paragraph in CONTRIBUTING.md (where the gate is described): a lane passes the output of `tests/cells-for.sh` (it always holds ci-check) to the gate's only option.
 Do not touch the red-first or identity steps (lane ig-fix owns gate-lib's selftest call; if both edit the gate-lib line, keep yours a separate `&&` term at its end).
 Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,red-first,identity,gate-lib,build` green, then `tests/cells-for.sh` on your own diff. Poll it in the same turn; never end a turn to wait.
 Done when: selftest red then green; gate green; reports/gate-pick.md "## r1" on claude/session-log with the selftest cases and the 88f441e4 output; head sha.
