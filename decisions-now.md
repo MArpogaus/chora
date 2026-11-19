@@ -1,8 +1,8 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T03:35:00Z
+screened-through: 2026-11-19T03:38:00Z
+- 11-19 03:38Z "Use up the last 2% then I'll trigger? Reschedule to use 100% until sat reset possible?" -> question; goal change asked (day cap)
 - 11-19 03:35Z "Another agent ate our tokes. 98 % now. Shall I trigger the reset?" -> 98 %; reset? PM: yes
 
-- 11-18 00:04Z "All right, so we are progressing faster than expected." -> reading: ahead on schedule (MV Tue, not Wed); budget 7 % over pace, so pull-ins only from the 2.5 % reserve (WM1b if NET2 in Thu)
 - 11-17 23:59Z "62%. Pace looks good. Most usage die to your fable Planung session. How is it going?" -> reading 62 %; pace fine (Fable plan was the cost); question: status
 - 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor

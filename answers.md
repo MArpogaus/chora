@@ -418,3 +418,5 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-19 03:34 UTC owner: "Status?" -> question. Answer: KIT1 merged (train 54 green 01:48, opus security MERGE-OK); no lanes running; NET3 brief today, NET3 and docs F8 lanes Fri; budget about 72 % vs 70 % pace; F27 environment re-save open.
 
 - 11-19 03:35 UTC owner: "Another agent ate our tokes. 98 % now. Shall I trigger the reset?" -> reading 98 % (another agent, not this session); question. Answer: yes, recommended; without it nothing runs until Sat 03:59 (about 48 h idle). Until then: no lanes, no opus, PM only logs. After the reset: tell the PM the new reset time.
+
+- 11-19 03:38 UTC owner: "Use up the last 2% then I'll trigger? Reschedule to use 100% until sat reset possible?" -> question, and a goal change (lift the 12.5 % day cap until Sat 03:59). Answer: yes to the 2 % (docs F8 lane, sonnet, 1.5 %). 100 % in 48 h: not reachable with quality; trains run one at a time (about 45 min each, 18 G disk) and every lane needs an independent review; realistic 35-45 % with 4 parallel lanes. Applies after a yes.
