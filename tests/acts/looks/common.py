@@ -95,10 +95,12 @@ def keysheet_breaches(texts, words=None, caps=None):
     return breaches
 
 
-def keysheet_acts(s, sheet, close="Escape"):
+def keysheet_acts(s, sheet, close="Escape", drawn_in_state=False):
     """The key list opens and its drawn texts hold the words and the
     spelling of kit::keysheet (KIT3): one wording per action of every
-    look and one spelling per key, in all four looks."""
+    look and one spelling per key, in all four looks. A look that paints the
+    list into an image node (xp) tells its texts in `state.get`; the others
+    draw text nodes of the scene."""
     name = f"the key list of {s.label} speaks the keysheet"
     after = s.act(
         name,
@@ -106,7 +108,12 @@ def keysheet_acts(s, sheet, close="Escape"):
         opens=[sheet],
     )
     if after is not None:
-        nodes = s.core.call("scene.query", {"selector": f"owner:{s.label} kind:text"}) or []
-        texts = [n.get("text") for n in nodes if n.get("visible") and n.get("text")]
+        if drawn_in_state:
+            runs = (s.state(s.label) or {}).get("texts") or []
+            texts = [r["text"] for r in runs if r["node"].startswith(sheet)]
+        else:
+            query = {"selector": f"owner:{s.label} kind:text"}
+            nodes = s.core.call("scene.query", query) or []
+            texts = [n.get("text") for n in nodes if n.get("visible") and n.get("text")]
         s.record(s.label, f"act:{name}", keysheet_breaches(texts), name)
     s.act(f"{close} shuts the key list of the keysheet", [key(close)], closes=[sheet])

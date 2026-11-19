@@ -31,7 +31,7 @@ use smithay::{
 use crate::{images::Placement, mesh::MeshRenderer, render::SceneElement};
 
 /// The font size of a text node without `font_size`, in logical pixels.
-const FONT_SIZE: f64 = 16.0;
+pub(crate) const FONT_SIZE: f64 = 16.0;
 /// The line height as a multiple of the font size.
 const LINE_HEIGHT: f64 = 1.2;
 /// The largest raster of a text node, in bytes, per physical scale;

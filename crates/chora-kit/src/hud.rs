@@ -146,6 +146,23 @@ pub fn theme_event(client: &str, dark: bool) -> serde_json::Value {
     serde_json::json!({"event": format!("{client}.theme"), "data": {"theme": theme}})
 }
 
+/// The shared event `look.theme {theme: light|dark}` of a look, as
+/// `events.emit` takes it. The core adds the name of the emitter as
+/// `look`, so the HUD host learns a look by its name; a look emits it
+/// beside [`theme_event`] while hosts still read the old name.
+#[must_use]
+pub fn look_theme_event(dark: bool) -> serde_json::Value {
+    let theme = if dark { "dark" } else { "light" };
+    serde_json::json!({"event": "look.theme", "data": {"theme": theme}})
+}
+
+/// The shared event `look.view {pane}` of a look of a space, beside
+/// [`view_event`].
+#[must_use]
+pub fn look_view_event(in_pane: bool) -> serde_json::Value {
+    serde_json::json!({"event": "look.view", "data": {"pane": in_pane}})
+}
+
 /// The event `NAME.view {pane}` of a window manager of a space: whether its
 /// camera is in a pane, where the voice island of the host dims.
 #[must_use]
@@ -1817,5 +1834,11 @@ mod tests {
             serde_json::json!({"event": "mc.theme", "data": {"theme": "dark"}})
         );
         assert_eq!(theme_event("construct", false)["data"]["theme"], "light");
+        assert_eq!(
+            look_theme_event(true),
+            serde_json::json!({"event": "look.theme", "data": {"theme": "dark"}})
+        );
+        assert_eq!(look_theme_event(false)["data"]["theme"], "light");
+        assert_eq!(look_view_event(true)["data"]["pane"], true);
     }
 }

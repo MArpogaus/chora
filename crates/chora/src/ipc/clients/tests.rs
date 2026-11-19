@@ -992,6 +992,42 @@ fn a_client_socket_sees_only_its_own_nodes_and_windows() {
     assert_eq!(all.len(), 8, "the main socket sees all: {all:?}");
 }
 
+/// `scene.boxes` of a client socket holds only its own nodes and no
+/// layer surface, as `scene.query` does.
+#[test]
+fn a_client_socket_boxes_only_its_own_nodes() {
+    let (mut core, dir, mut agent, _wayland) = agent_ipc("boxes");
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "scene.apply", crate::testing::rect("theirs"));
+    agent.ok(&mut core, "scene.apply", crate::testing::rect("mine"));
+    let mut user = Wayland::connect(&mut core);
+    let _bar = user.layer(
+        &mut core,
+        wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::Layer::Top,
+        wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity::None,
+    );
+    let seen = agent.ok(&mut core, "scene.boxes", serde_json::Value::Null);
+    let all = wm.ok(&mut core, "scene.boxes", serde_json::Value::Null);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let names = |answer: &serde_json::Value| -> Vec<String> {
+        answer["A"]["boxes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| {
+                b["node"]
+                    .as_str()
+                    .or(b["namespace"].as_str())
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect()
+    };
+    assert_eq!(names(&seen), ["mine"]);
+    assert_eq!(names(&all), ["theirs", "mine", "test"]);
+}
+
 /// The attack of the review: through `clients/agent/ipc.sock`, one
 /// transaction draws a spy above all windows, takes the keyboard for it
 /// and moves the view. It fails as a whole.

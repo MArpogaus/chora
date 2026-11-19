@@ -3,7 +3,7 @@ keys page), the Start menu by its button and the dialog Turn Off Computer
 by its key (tests/doors keys-key, keys-alias, power-key; the Start button
 is the door of launcher-door and power-door)."""
 
-from common import door_acts, window_acts
+from common import door_acts, keysheet_acts, window_acts
 from harness import Expect, click, key
 
 HELP = "xp-dlg-help"
@@ -15,6 +15,7 @@ def run(s):
     """A window opens and closes, then the doors open and shut."""
     window_acts(s)
     door_acts(s, HELP)
+    keysheet_acts(s, HELP, drawn_in_state=True)
     s.act("the Start button opens the Start menu", [click(50, 785)], opens=[MENU],
           expect=Expect(open=[MENU]))
     s.act("Escape shuts the Start menu", [key("Escape")], closes=[MENU], expect=Expect(open=[]))
