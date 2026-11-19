@@ -182,13 +182,9 @@ impl Tiling {
             .collect()
     }
 
-    /// Forgets a window that left tiling: its place in the model, and
-    /// what the core shows of it.
-    ///
-    /// The focus on it is no longer that of tiling: when the window
-    /// comes back, tiling sends it again.
-    /// Forgets a window that went for `why`; the policy of tiling names
-    /// the window that gets the keyboard if this one had it.
+    /// Forgets a window that went for `why`: its place in the model, and
+    /// what the core shows of it. The policy of tiling names the window
+    /// that gets the keyboard if this one had it.
     pub(super) fn forget_window(&mut self, id: &str, why: &Why) {
         self.book.forget(id);
         self.wm.remove_window(id);

@@ -201,7 +201,8 @@ impl Mc {
         }
         let mut ours = self.windows.values().chain(self.docks.values());
         if ours.any(|s| s == node) {
-            if self.focus.surface.as_deref() != Some(node) {
+            self.focus.take();
+            if self.focus.sends(Some(node)) {
                 self.focus(Some(node.into()))?;
             }
             return Ok(());

@@ -1014,9 +1014,8 @@ impl Mc {
         if !focused.is_empty() {
             return Ok(());
         }
-        self.apply(vec![Command::FocusNode {
-            node: Some(page_id(&name)),
-        }])
+        let focus = self.focus.to_node(Some(page_id(&name)));
+        self.apply(vec![focus])
     }
 
     /// The voice agent came or went: its indicator is due again, and the

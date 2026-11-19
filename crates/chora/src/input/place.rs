@@ -43,7 +43,8 @@ pub(super) fn grab_action(
 
 /// The window manager where the person is when a key goes down: the one
 /// that a click on its empty claim chose (D55), else the owner of the
-/// keyboard focus, of a node or of a window, else the one whose claim
+/// keyboard focus, of a node or of a window (no window while a clicked
+/// layer surface has the keyboard), else the one whose claim
 /// holds the pointer. The keyboard goes before the pointer, which may
 /// rest on any pane while the person types.
 fn key_place(state: &State) -> Option<String> {
@@ -51,8 +52,14 @@ fn key_place(state: &State) -> Option<String> {
         return Some(chosen.into());
     }
     let scene = &state.scene;
+    let window_owner = || {
+        let surface = state
+            .focused_surface()
+            .filter(|_| !state.layer_has_keyboard())?;
+        scene.node(surface)?.owner.as_deref()
+    };
     let focus_owner = (scene.focused_node_owner())
-        .or_else(|| scene.node(state.focused_surface()?)?.owner.as_deref())
+        .or_else(window_owner)
         .filter(|owner| state.ipc.live(owner) && scene.holds_claim(owner));
     if let Some(owner) = focus_owner {
         return Some(owner.into());
