@@ -67,3 +67,44 @@ tests/merge-gate.sh on 4069e38f: every step PASS (41 steps, acts 76 s, cube 104 
 - construct `pid` of a client: clients.list has no pid, so acts read /proc like the gates (gate-construct-
   cube.sh:105); a `pid` in clients.list would end both copies (S, core).
 Cut: no new breach (construct and kit only).
+
+## Review r1
+Lane: opus high, cloud, read-only on claude/wm7a 4069e38f (base a17e7858). Verdict: **FIX** (1 MAJOR, 7 MINOR, 0 BLOCK).
+Checks: (1) red first holds by order: b7afaa13 touches only tests and fails with "no client exports cube.list"
+(read, not run); but the green commit also rewrote the 1:1 act (node check to pixel check plus a 4 s wait).
+(2) API small and typed, one cube code in construct, no core change, events `construct.cube` pass the core's
+`<client>.NAME` rule (ipc.rs:1052), `methods.list` shape matches `exporter_in`, xp/cube.rs untouched;
+`cargo test -p chora-kit --features testing --lib cube` 5 pass, `-p chora-construct` 191 pass.
+(3) I1 mid-turn: the act does not kill mid-turn (rw-1); the report's 8.14 s give-back is measured (measure.json
+kill_marks). (4) Docs match names and fields, gaps rw-4. (5) `tools/size-ratchet --base a17e7858` ok,
+cube.rs 1641 production lines as listed, role.rs split true; `tools/cut-check` ok (8 crates, 18 reported);
+copies.toml has no row for xp's `turn_to` copy (refactor proposal, WM7b). (6) Numbers in the table match
+measure.json; gaps rw-6, rw-7.
+
+- rw-1, MAJOR, tests/acts/looks/construct.py:197, the kill act's first cue `cube.turn {to: 0}` starts a 360 ms
+  turn, so `kill_construct_mid_turn`'s `cube.turn {by: 1, ms: 3000}` (line 131) is ignored ("ignored while a turn
+  runs", answer unchecked) and the SIGKILL lands about 1 s later at rest: I1 mid-turn is not guarded by the act;
+  fix: drop the `{to: 0}` cue (or wait for `turning: false`), assert the 3000 ms turn answered true and
+  `cube.list` says `turning: true` before the kill.
+- rw-2, MINOR, plugins/chora-construct/src/list.rs:102, `pull` spells its own "no cube is open" refusal beside
+  `modes::no_cube()` (modes.rs:148), against 90956a2b's one refusal; fix: return `crate::modes::no_cube()`.
+- rw-3, MINOR, plugins/chora-construct/src/list.rs:97, `cube.pull` has no unit test and no act (made pane,
+  refusal for a window off a face, give-back to the face manager when the pane goes, as configuration.md:1066
+  claims); fix: one act that pulls the probe window and removes the pane, expecting owner xp again.
+- rw-4, MINOR, docs/api.md:1533 and docs/configuration.md:1064-1066, the answer `{pane}` of `cube.pull` is not
+  documented, and the `cube.turn` row lacks the full stop before "Answers whether the cube took the turn"
+  (a turn to the front face answers false); fix: name the answer and the stop in both files.
+- rw-5, MINOR, tests/acts/looks/construct.py:182-196, the acts after the known-red pager act expect the front
+  the broken pager leaves (0, then 1), so the fix of wm7a-a2 in WM7b turns three green acts red; fix: start the
+  step-back act with `cube.turn {to: 0}` (or expect relative to the front read before).
+- rw-6, MINOR, reports/wm7a.md section 3, measure.json `turn_key_to_window = 2` (two key lines reached the probe
+  window on Ctrl+Alt+Right at 1:1) is not reported, and "also during a turn" for keys is code reading
+  (input.rs:480-499), not a cell (rules.md 7); fix: name what the two lines are (modifiers, or the Right key, a
+  stray key) and measure keys during a turn, or mark that row open.
+- rw-7, MINOR, reports/wm7a.md section 3, the kill row's "without a restart the window lies ownerless at root"
+  is an I1 case with no finding id or slice, and "pixel for pixel" at 1:1 overstates the act (it passes up to
+  1/1000 of the pixels); fix: file it as wm7a-m2 for WM7b and state the act's tolerance.
+- rw-8, MINOR, plugins/chora-construct/src/cube/role.rs:86, `construct.cube` is told on open and on each change
+  but never when the cube closes or its manager ends (the `told` state goes with the host), so a look that
+  follows the event keeps `turning: true` after a close mid-turn; fix: emit a last event on close or document
+  that the end of the cube is `cube.list` with no faces.
