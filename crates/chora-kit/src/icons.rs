@@ -73,7 +73,12 @@ impl Icons {
 
     /// Writes bytes to a new file of mode 0600 in a private folder.
     fn private_copy(&mut self, bytes: &[u8]) -> Option<PathBuf> {
-        let base = chora_scene::paths::runtime_home()
+        self.private_copy_in(chora_scene::paths::runtime_home(), bytes)
+    }
+
+    /// [`Self::private_copy`] below a given runtime directory.
+    fn private_copy_in(&mut self, runtime: Option<PathBuf>, bytes: &[u8]) -> Option<PathBuf> {
+        let base = runtime
             .filter(|d| d.is_dir())
             .unwrap_or_else(std::env::temp_dir);
         let dir = base.join(format!("chora-icons-{}", std::process::id()));
@@ -265,6 +270,47 @@ mod tests {
         let path = dir.join(name);
         fs::write(&path, bytes).unwrap();
         path
+    }
+
+    fn runtime_with(tag: &str, mode: u32) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = std::env::temp_dir().join(format!("chora-icons-rt-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).unwrap();
+        dir
+    }
+
+    #[test]
+    fn no_copy_is_made_in_a_runtime_dir_that_others_write() {
+        let runtime = runtime_with("open", 0o777);
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.private_copy_in(Some(runtime.clone()), b"png"), None);
+        assert_eq!(
+            fs::read_dir(&runtime).unwrap().count(),
+            0,
+            "nothing is made"
+        );
+        fs::remove_dir_all(runtime).unwrap();
+    }
+
+    #[test]
+    fn a_copy_is_private_below_a_runtime_dir_of_the_user() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let runtime = runtime_with("ok", 0o700);
+        let mut icons = Icons::new(["none"]);
+        let copy = icons
+            .private_copy_in(Some(runtime.clone()), b"png")
+            .unwrap();
+        assert!(copy.starts_with(&runtime), "{}", copy.display());
+        let dir = fs::metadata(copy.parent().unwrap())
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(dir & 0o7777, 0o700);
+        let file = fs::metadata(&copy).unwrap().permissions().mode();
+        assert_eq!(file & 0o7777, 0o600);
+        fs::remove_dir_all(runtime).unwrap();
     }
 
     #[test]
