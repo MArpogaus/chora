@@ -5,10 +5,10 @@
 
 use chora_kit::{
     conn::Conn,
-    testing::{FakeCore, Model},
+    testing::{FakeCore, Script, Subject, created, detach, output, owner, phases, surface},
     wm::{Book, Change, Origin, Phase, Why, give::pass_on},
 };
-use chora_scene::{Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceInfo};
+use chora_scene::{Command, Event, NodeKind, PropsUpdate, ROOT};
 use serde_json::{Value, json};
 
 const NAME: &str = "look";
@@ -84,58 +84,27 @@ impl Look {
     }
 }
 
-fn surface(model: &Model, id: &str) {
-    let info = SurfaceInfo {
-        app_id: Some("probe".into()),
-        ..SurfaceInfo::default()
-    };
-    model.lock().unwrap().scene.add_surface(id, info);
-}
+impl Subject for Look {
+    fn hear(&mut self, event: Event) {
+        Look::hear(self, &event);
+    }
 
-fn created(id: &str, to: Option<&str>) -> Event {
-    Event::SurfaceCreated {
-        surface: id.into(),
-        app_id: Some("probe".into()),
-        title: None,
-        decoration: None,
-        to: to.map(Into::into),
-        pid: None,
-        token: Some("t1".into()),
+    fn has(&self, surface: &str) -> bool {
+        self.book.has(surface)
+    }
+
+    fn give(&mut self, surface: &str, to: &str) -> bool {
+        Look::give(self, surface, to)
     }
 }
 
-fn owner(model: &Model, id: &str) -> Option<String> {
-    model.lock().unwrap().scene.node(id)?.owner.clone()
-}
-
-fn phases(model: &Model) -> Vec<(String, String)> {
-    let core = model.lock().unwrap();
-    core.emits
-        .iter()
-        .map(|e| {
-            assert_eq!(e["event"], format!("{NAME}.window"));
-            let d = &e["data"];
-            (
-                d["surface"].as_str().unwrap().into(),
-                d["phase"].as_str().unwrap().into(),
-            )
-        })
-        .collect()
-}
-
-fn output(name: &str) -> OutputInfo {
-    serde_json::from_value(json!({"name": name, "size": [800, 600], "position": [0, 0],
-        "scale": 1.0, "camera": chora_scene::Transform::default(),
-        "work_area": [0, 0, 800, 600], "default_work_area": [0, 0, 800, 600]}))
-    .unwrap()
-}
-
-/// The core takes the parent and the owner of a surface, as when its
-/// window manager goes.
-fn detach(model: &Model, id: &str) {
-    let mut core = model.lock().unwrap();
-    core.scene.remove_surface(id);
-    core.scene.add_surface(id, SurfaceInfo::default());
+/// The script that every look runs, here over a book that lets its
+/// windows go with its last output.
+#[test]
+fn the_script_runs_for_a_book() {
+    let core = FakeCore::start();
+    let mut look = Look::new(&core, true);
+    Script::new(&core, NAME).releasing().run(&mut look, "DP-1");
 }
 
 #[test]
@@ -152,9 +121,12 @@ fn a_created_window_is_adopted_and_opens() {
         })
     );
     assert_eq!(owner(&core.model(), "s1").as_deref(), Some(NAME));
-    assert_eq!(phases(&core.model()), [("s1".into(), "opened".into())]);
+    assert_eq!(
+        phases(&core.model(), NAME),
+        [("s1".into(), "opened".into())]
+    );
     look.hear(&created("s1", None));
-    assert_eq!(phases(&core.model()).len(), 1);
+    assert_eq!(phases(&core.model(), NAME).len(), 1);
 }
 
 #[test]
@@ -165,7 +137,7 @@ fn a_refused_attach_leaves_the_window_to_another_manager() {
     core.refuse_next("scene.apply");
     look.hear(&created("s1", None));
     assert!(!look.book.has("s1"), "another manager was first");
-    assert!(phases(&core.model()).is_empty(), "nothing opened");
+    assert!(phases(&core.model(), NAME).is_empty(), "nothing opened");
     assert!(
         matches!(&look.heard[..], [Change::Adopt { .. }]),
         "{:?}",
@@ -225,7 +197,7 @@ fn a_destroyed_window_is_forgotten_and_closes() {
     });
     assert!(!look.book.has("s1"));
     assert_eq!(
-        phases(&core.model()),
+        phases(&core.model(), NAME),
         [
             ("s1".into(), "opened".into()),
             ("s1".into(), "closed".into())
@@ -234,7 +206,7 @@ fn a_destroyed_window_is_forgotten_and_closes() {
     look.hear(&Event::SurfaceDestroyed {
         surface: "s9".into(),
     });
-    assert_eq!(phases(&core.model()).len(), 2);
+    assert_eq!(phases(&core.model(), NAME).len(), 2);
 }
 
 #[test]
@@ -314,7 +286,7 @@ fn a_refused_give_out_keeps_the_window() {
         look.heard
     );
     assert_eq!(
-        phases(&core.model()).last(),
+        phases(&core.model(), NAME).last(),
         Some(&("s1".into(), "given".into()))
     );
     assert!(!look.book.give("s1", "xp"), "not the look's any more");
