@@ -551,12 +551,14 @@ const VOICE: &str = "voice";
 const ASSISTANT: &str = "assistant";
 
 /// The events; `voice.*` are those of the voice agent (D65),
-/// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 19] = [
+/// `assistant.chat` says where the HUD host shows its chat, and
+/// `assistant.chat.keyboard` when its field takes the keyboard.
+const EVENTS: [&str; 20] = [
     "voice.*",
     "focus.changed",
     "node.key",
     "assistant.chat",
+    "assistant.chat.keyboard",
     "assistant.ready",
     "effects.dropped",
     "client.connected",
@@ -615,6 +617,10 @@ impl Plugin for Mc {
         if chora_kit::wm::Book::hears(&event) {
             self.lifecycle(&event)?;
         }
+        if let Some(surface) = self.focus.hear(&event) {
+            self.core_focus = surface.map(String::from);
+            return Ok(());
+        }
         match event {
             Event::SurfaceChanged {
                 surface,
@@ -669,11 +675,6 @@ impl Plugin for Mc {
                 client,
                 data,
             } => self.emitted(&event, &client, data),
-            Event::FocusChanged { surface } => {
-                self.focus.moved(surface.as_deref());
-                self.core_focus = surface;
-                Ok(())
-            }
             Event::NodeKey {
                 key,
                 state: PressState::Pressed,
@@ -893,6 +894,12 @@ impl Mc {
         match client {
             VOICE => self.follow(event, client, data),
             ASSISTANT if event == "assistant.chat" => self.chat_drawer(&data),
+            ASSISTANT if event == "assistant.chat.keyboard" => {
+                if data["on"] == true {
+                    self.focus.lose();
+                }
+                Ok(())
+            }
             ASSISTANT if event == "assistant.ready" => self.name_theme(),
             _ => Ok(()),
         }
@@ -932,9 +939,6 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
-        if open {
-            self.focus.lose();
-        }
         self.render()?;
         let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
         let mut ours = self.windows.values().chain(self.docks.values());
@@ -1230,12 +1234,8 @@ impl Mc {
     /// The keyboard goes to the window of a scene, else to its page.
     fn focus_scene(&mut self, name: &str) -> Result<(), ClientError> {
         let command = match self.windows.get(name) {
-            Some(surface) => Command::Focus {
-                surface: Some(surface.clone()),
-            },
-            None => Command::FocusNode {
-                node: Some(page_id(name)),
-            },
+            Some(surface) => self.focus.to(Some(surface.clone())),
+            None => self.focus.to_node(Some(page_id(name))),
         };
         self.apply(vec![command])
     }
@@ -1561,10 +1561,7 @@ mod tests {
         assert_eq!(mc.keyboard_back().len(), 2);
         mc.windows.insert("agenda".into(), "s1".into());
         let back = mc.keyboard_back();
-        assert!(matches!(
-            back.first(),
-            Some(Command::Focus { surface: Some(s) }) if s == "s1"
-        ));
+        assert_eq!(back.first(), Some(&chora_kit::wm::focus::give("s1")));
     }
 
     /// With the voice HUD to the host the first line of the column stays
@@ -1925,10 +1922,8 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("chat-click", [1280, 800]);
         mc.show("agenda", false).unwrap();
         mc.event(chat_event("assistant", true, "test")).unwrap();
-        mc.event(chora_scene::Event::FocusChanged {
-            surface: Some("s9".into()),
-        })
-        .unwrap();
+        mc.event(chora_kit::testing::focus_changed(Some("s9")))
+            .unwrap();
         let before = model.lock().unwrap().focuses.len();
         mc.event(chat_event("assistant", false, "test")).unwrap();
         assert_eq!(model.lock().unwrap().focuses.len(), before);
@@ -1943,8 +1938,8 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("chat-click-close", [1280, 800]);
         mc.show("agenda", false).unwrap();
         mc.event(chat_event("assistant", true, "test")).unwrap();
-        for surface in [Some("s9".to_owned()), None] {
-            mc.event(chora_scene::Event::FocusChanged { surface })
+        for surface in [Some("s9"), None] {
+            mc.event(chora_kit::testing::focus_changed(surface))
                 .unwrap();
         }
         let before = model.lock().unwrap().focuses.len();
@@ -1963,10 +1958,8 @@ mod tests {
         mc.windows.insert("agenda".into(), "s1".into());
         mc.click("s1", [0.0, 0.0], false).unwrap();
         let sent = model.lock().unwrap().focuses.len();
-        mc.event(chora_scene::Event::FocusChanged {
-            surface: Some("s9".into()),
-        })
-        .unwrap();
+        mc.event(chora_kit::testing::focus_changed(Some("s9")))
+            .unwrap();
         mc.click("s1", [0.0, 0.0], false).unwrap();
         let focuses = model.lock().unwrap().focuses.clone();
         assert_eq!(focuses.len(), sent + 1, "{focuses:?}");
@@ -1987,6 +1980,28 @@ mod tests {
             mc.state().unwrap()["focus"],
             serde_json::json!({"holder": "mc"})
         );
+    }
+
+    /// kit7-a1 (I3): a chat that opens without the keyboard leaves it with
+    /// the page, so mc still says it holds the focus; once the field of
+    /// the chat takes the keyboard, mc holds none.
+    #[test]
+    fn the_chat_takes_the_focus_of_mc_only_with_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("chat-claim", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.take_free_keyboard().unwrap();
+        let holds = json!({"holder": "mc"});
+        assert_eq!(mc.state().unwrap()["focus"], holds);
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        assert_eq!(mc.state().unwrap()["focus"], holds, "chat open");
+        let keyboard = chora_scene::Event::Emitted {
+            event: "assistant.chat.keyboard".into(),
+            client: "assistant".into(),
+            data: json!({"on": true}),
+        };
+        mc.event(keyboard).unwrap();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
     }
 
     /// A docked app that had the keyboard before the chat opened gets it

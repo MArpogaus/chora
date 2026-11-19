@@ -27,13 +27,6 @@ match = "is missing beside"
 slice = "WM6"
 
 [[red]]
-finding = "kit7-a1: after chat.show of the helper in mc the core focuses the page node of mc, and mc does not say in state.get that it holds the focus"
-id = "I3"
-look = "mc"
-match = "in act 'the chat of the helper opens'"
-slice = "WM2"
-
-[[red]]
 finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back"
 id = "act:Tab right after a new window opens the window list"
 look = "construct"
