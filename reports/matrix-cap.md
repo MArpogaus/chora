@@ -88,3 +88,9 @@ Neither red is in a file of this change. The step time of the matrix line is not
 ### Review m2
 
 Closed by this change: the cap measures the matrix's own wall time from the moment it holds the gate lock, the queue is not in it, and the PASS line says which time and which cap. m1 (silent fall-through of the two polls) is not touched.
+
+## mx1-m2 r1 PM review (2026-11-19 20:26 UTC)
+Diff f2b7112a..5197fa22, 3 files, +39 -7; builder sonnet lane, reviewer PM. Red commit 8003f052 first; identity ok.
+- OK: gate_t0 set right after gate_lock; matrix cap, PASS line and startup phase use gate_elapsed; breach prints five slowest cells.
+- MINOR m1: gate-lib-selftest wants gate_elapsed == 0 after the queued start; SECONDS is whole seconds, so a second boundary between gate_t0 and the echo reads 1 (rare flake). Fix: accept <= 1. Backlog.
+Verdict (computed): no BLOCK or MAJOR open -> MERGE-OK; 5197fa22 to train 72.
