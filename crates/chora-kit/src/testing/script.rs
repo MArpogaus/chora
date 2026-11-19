@@ -224,6 +224,35 @@ pub fn created_by(id: &str, app_id: &str, to: Option<&str>, token: Option<&str>)
         to: to.map(Into::into),
         pid: None,
         token: token.map(Into::into),
+        parent: None,
+    }
+}
+
+/// The event `surface.created` of a surface that is a child of `parent` in
+/// the xdg sense (a dialog), as [`created`] makes it otherwise.
+#[must_use]
+pub fn created_child(id: &str, parent: &str) -> Event {
+    match created(id, None) {
+        Event::SurfaceCreated {
+            surface,
+            app_id,
+            title,
+            decoration,
+            to,
+            pid,
+            token,
+            ..
+        } => Event::SurfaceCreated {
+            surface,
+            app_id,
+            title,
+            decoration,
+            to,
+            pid,
+            token,
+            parent: Some(parent.into()),
+        },
+        other => other,
     }
 }
 

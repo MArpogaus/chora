@@ -110,6 +110,9 @@ pub struct Created {
     pub pid: Option<u32>,
     /// The activation token that mapped it.
     pub token: Option<String>,
+    /// The surface of its xdg parent (a dialog, or a window that the app
+    /// of another window opened as its child).
+    pub parent: Option<String>,
 }
 
 impl Created {
@@ -124,6 +127,7 @@ impl Created {
                 to,
                 pid,
                 token,
+                parent,
                 ..
             } => Some(Self {
                 surface: surface.clone(),
@@ -132,6 +136,7 @@ impl Created {
                 to: to.clone(),
                 pid: *pid,
                 token: token.clone(),
+                parent: parent.clone(),
             }),
             _ => None,
         }

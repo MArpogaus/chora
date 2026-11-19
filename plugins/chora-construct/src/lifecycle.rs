@@ -179,7 +179,10 @@ mod tests {
     use chora_kit::{
         runtime::{Plugin, Runtime},
         settings,
-        testing::{FakeCore, Script, Subject, created, focus_changed, output, owner, surface},
+        testing::{
+            FakeCore, Script, Subject, created, created_child, focus_changed, output, owner,
+            surface,
+        },
     };
     use chora_scene::{Event, Node};
 
@@ -357,6 +360,68 @@ mod tests {
         construct.event(focus_changed(None)).unwrap();
         let focus = construct.state().unwrap()["focus"].clone();
         assert_eq!(focus, serde_json::json!({"holder": NAME}), "the walk");
+    }
+
+    /// kit7-a2, rc-1 (D116): a window that the pressed window opens as its
+    /// child (a dialog with an xdg parent) gets the keyboard, as in the
+    /// other looks; a new window that is no child of it does not.
+    #[test]
+    fn a_dialog_of_the_pressed_window_gets_the_keyboard_and_an_unrelated_window_does_not() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "press-then-dialog");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct
+            .event(Event::PointerPressed {
+                node: "s1".into(),
+                button: 272,
+                position: [0.0; 2],
+                local: [0.0; 2],
+                modifiers: Vec::new(),
+                injected: false,
+            })
+            .unwrap();
+        construct.event(focus_changed(Some("s1"))).unwrap();
+        let last = || core.model().lock().unwrap().focuses.last().cloned();
+        surface(&core.model(), "s2");
+        construct.event(created_child("s2", "s1")).unwrap();
+        assert!(Driven(&mut construct).has("s2"));
+        assert_eq!(last(), Some(Some("s2".into())), "the dialog gets the keys");
+        construct.event(focus_changed(Some("s2"))).unwrap();
+        surface(&core.model(), "s3");
+        construct.event(created("s3", None)).unwrap();
+        assert_eq!(
+            last(),
+            Some(None),
+            "an unrelated window gives them to the walk"
+        );
+    }
+
+    /// A new pane that is the child of a window other than the pressed
+    /// one is no child of it: the keys go back to the walk.
+    #[test]
+    fn a_child_of_another_window_gives_the_keyboard_to_the_walk() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "press-then-other-child");
+        for id in ["s1", "s2"] {
+            surface(&core.model(), id);
+            construct.event(created(id, None)).unwrap();
+        }
+        construct
+            .event(Event::PointerPressed {
+                node: "s1".into(),
+                button: 272,
+                position: [0.0; 2],
+                local: [0.0; 2],
+                modifiers: Vec::new(),
+                injected: false,
+            })
+            .unwrap();
+        construct.event(focus_changed(Some("s1"))).unwrap();
+        surface(&core.model(), "s3");
+        construct.event(created_child("s3", "s2")).unwrap();
+        let last = core.model().lock().unwrap().focuses.last().cloned();
+        assert_eq!(last, Some(None));
     }
 
     /// A new pane leaves the keyboard where another window manager put

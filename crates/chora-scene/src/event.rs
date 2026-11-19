@@ -33,6 +33,10 @@ pub enum Event {
         /// The activation token that mapped the surface, when one did.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         token: Option<String>,
+        /// The surface of the xdg parent, for a dialog or a window that
+        /// the app of another window opened as its child.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<String>,
     },
     /// The title, the application id, the size or the decoration of a
     /// surface changed.

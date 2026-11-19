@@ -157,6 +157,7 @@ impl Wm {
                 to: node.to.clone(),
                 pid: None,
                 token: None,
+                parent: None,
             };
             let changes = self.book.claim(&node.id, node.to.as_deref(), None);
             self.settle(changes, Some(&facts))?;
