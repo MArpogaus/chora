@@ -25,16 +25,17 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every 
 | Lane | Model, branch | State |
 |---|---|---|
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK; train 57 06:16 |
-| kit2b-r2.md (F2) | sonnet medium, claude/kit2b | r1 FIX; r2 session_016iS3kLM8gQdZfpG4r53S3j
+| kit2b-r2.md (F2) | sonnet medium, claude/kit2b | 517ce830 MERGE-OK (PM r2); train 58
 | net3-r1.md (F7) | opus high, claude/net3 | session_016iS3kLZ9zKCda38a6cRs6a |
 | wm2-r1.md (F3) | opus high, claude/wm2 | session_016iS3kMAkdWBVDyLsYxLUjZ |
+| flakes-f-r1.md (F5) | fable high, claude/flakes-f | starting |
 | wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | session_016iS3kPjrW3RH4BYJ8KZtJc |
 | kit6-r1.md (F2) | sonnet high, claude/kit6 | session_016iS3kQVP9HrenFDKnEYDaa |
 | cut2-r1.md (F6) | sonnet high, claude/cut2 | session_016iS3kNdkNBFAYBgQRp7tcg |
 
 ## Queue (% of week; 5 % reserve)
 4. Use the week (owner 06:04), critics 06:16: F2 ports first; <= 4 unmerged; reviews seeded, no gate run (sonnet for ports, opus for NET3, WM2, WM7a); slack on flakes and tests.
-5. Next lanes: Fable F21/F29 flake causes (F5, F17; trains); KIT2c, WM1d, KIT2d, KIT3, KIT5 (F2); MV4 region.rs, chat.rs (F4); WM7a (F3); docs F8b (F8). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4. F7 open (tour next week).
+5. Next lanes: KIT2c, WM1d, KIT2d, KIT3, KIT5 (F2); MV4 region.rs, chat.rs (F4); WM7a (F3); docs F8b (F8). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4. F7 open (tour next week).
 6. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
