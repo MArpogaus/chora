@@ -587,7 +587,6 @@ fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
     };
     let position = position_for(&state.scene, &outputs, &grab.node, spot);
     let local = local_for(&state.scene, &outputs, &grab.node, spot).unwrap_or(grab.local);
-    #[allow(clippy::float_cmp, reason = "the same input gives the same numbers")]
     if (grab.position, grab.local) != (position, local) {
         grab.position = position;
         grab.local = local;

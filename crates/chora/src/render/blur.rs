@@ -66,7 +66,6 @@ fn screen(core: &mut Core) -> Vec<u8> {
 fn captured(core: &mut Core, wm: &mut Client) -> Vec<u8> {
     let picture = wm.ok(core, "screen.capture", json!({"output": OUTPUT}));
     let (width, rgba) = decode(&picture);
-    #[allow(clippy::cast_sign_loss)]
     let row = ROW as usize * width;
     (220..420).map(|x| rgba[(row + x) * 4]).collect()
 }

@@ -388,7 +388,6 @@ fn encode(pixels: &Pixels) -> Result<Vec<u8>, String> {
         if a != 0 && a != 255 {
             for c in &mut px[..3] {
                 // At most 255, since a color is at most its alpha.
-                #[allow(clippy::cast_possible_truncation)]
                 let straight = (u32::from(*c) * 255 / a).min(255) as u8;
                 *c = straight;
             }

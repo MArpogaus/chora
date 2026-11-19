@@ -503,7 +503,6 @@ impl Painter {
 
 /// The focus ring around the well at `[x, y, w, h]`: 2 in the accent and
 /// a halo of 4.
-#[allow(clippy::many_single_char_names, reason = "the names of SVG")]
 fn focus_ring([x, y, w, h]: [f32; 4], glass: Glass) -> String {
     let halo = rounded(
         [x - 4.0, y - 4.0, w + 8.0, h + 8.0],

@@ -690,7 +690,6 @@ impl Tiling {
         }
     }
 
-    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
         if self.focus.hear(&event).is_some() {
             return Ok(());
@@ -1104,7 +1103,6 @@ mod tests {
         on_fake_core_with(tag, &[])
     }
 
-    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
     #[allow(
         clippy::disallowed_methods,
         reason = "the test connects to its fake core"

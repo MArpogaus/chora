@@ -171,7 +171,6 @@ impl Mc {
 
     /// Grabs the bindings of the settings; one that another client holds
     /// only logs.
-    #[allow(clippy::expect_used, reason = "the settings check their bindings")]
     pub(crate) fn grab_all(&mut self) -> Result<(), ClientError> {
         self.grab_some(|action| !needs_claim(action))?;
         if self.built {

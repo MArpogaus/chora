@@ -564,7 +564,6 @@ pub struct PropsUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub radius: Option<f64>,
     /// A line along the inner edge of a rect. `null` removes the border.
-    #[allow(clippy::option_option, reason = "three states: keep, remove, set")]
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -573,7 +572,6 @@ pub struct PropsUpdate {
     pub border: Option<Option<Border>>,
     /// Shows the node and its descendants only inside its size. `null`
     /// removes the clip.
-    #[allow(clippy::option_option, reason = "three states: keep, remove, set")]
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -582,7 +580,6 @@ pub struct PropsUpdate {
     pub clip: Option<Option<Clip>>,
     /// The blurred frame behind a rect, under its fill. `null` removes
     /// it, so the field has three states: keep, remove and set.
-    #[allow(clippy::option_option)]
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -595,7 +592,6 @@ pub struct PropsUpdate {
     /// The distance of the eye in front of the centre of a group with a
     /// size, from 1 to 10^6 logical pixels: the group becomes a 3D context.
     /// A missing field keeps it, `null` removes it.
-    #[allow(clippy::option_option)]
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -613,7 +609,6 @@ pub struct PropsUpdate {
     /// The scene area of the owner as a window manager: x, y, width and
     /// height in scene coordinates. A new toplevel can go to the owner
     /// (D55). `null` removes the claim.
-    #[allow(clippy::option_option, reason = "three states: keep, remove, set")]
     #[serde(
         default,
         deserialize_with = "nullable",

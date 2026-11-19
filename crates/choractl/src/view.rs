@@ -475,7 +475,6 @@ fn shorten(transform: &mut Value) {
         return;
     };
     let identity = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    #[allow(clippy::float_cmp, reason = "exact values of an identity")]
     let moves = m.len() == 16
         && m[..12]
             .iter()

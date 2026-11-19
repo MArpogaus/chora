@@ -168,7 +168,6 @@ pub mod tests {
     }
 
     #[test]
-    #[allow(clippy::float_cmp)]
     fn frames_have_the_sizes_of_their_parts() {
         let (mut theme, cache) = theme("frames");
         let frame = theme.frame(DECORATION, "decoration");
