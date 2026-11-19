@@ -108,3 +108,13 @@ measure.json; gaps rw-6, rw-7.
   but never when the cube closes or its manager ends (the `told` state goes with the host), so a look that
   follows the event keeps `turning: true` after a close mid-turn; fix: emit a last event on close or document
   that the end of the cube is `cube.list` with no faces.
+
+## Review r2 (PM, not the builder)
+Diff b2a77ff0..066ae80d (5 files, +64 -17) and merge b2a77ff0. Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 0 MINOR, 1 NIT).
+- rw-1 closed: c3721e75 drops the `{to: 0}` cue, asserts the 3000 ms turn answered true and `turning: true` before SIGKILL;
+  green at once, so I1 holds mid-turn (gate acts PASS per lane). rw-2, rw-4, rw-5 as briefed (read).
+- rw-3 found a real bug, red eba00709 then fix f644d056: pull and cube.list named the manager by display name "XP";
+  now `cube::MANAGER`. rw-6: modifier presses 29, 56 reach the probe (normal Wayland modifier state); "faces forward
+  nothing" corrected to code reading.
+- r2-1 NIT (backlog wm7a-m4, WM7b): `MANAGER` is the constant "xp" while `cube_manager` is a setting; a non-xp manager
+  is refused by pull and listed wrong (pre-existing at cube.rs:1152, 1251).

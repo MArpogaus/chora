@@ -235,3 +235,4 @@ wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRe
 - wm7a-m2 (WM7b, review wm7a rw-7): after a construct kill without a restart the window lies ownerless at root; I1 case.
 - wm7a-m3 (WM7b, review wm7a rw-8): `construct.cube` sends no last event when the cube closes; a look keeps `turning: true`.
 - harness-acts-midstate (FIX wm7a rw-1, routines): earliest gate = acts step; acts that claim a mid-act state (mid-turn) must assert it via cube.list before the action. Tool: act helper `expect_state`.
+- wm7a-m4 (WM7b, review wm7a r2-1 NIT): cube `MANAGER` is the constant "xp" while `cube_manager` is a setting; derive the client name from the setting.
