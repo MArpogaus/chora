@@ -162,6 +162,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
                 )),
             }
         }
+        "activation.token" => Ok(activation_token()),
         "input.grab" => Ok(params["binding"].clone()),
         "input.ungrab" => {
             let mut core = model.lock().unwrap();
@@ -192,6 +193,13 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
         }
         _ => Ok(Value::Null),
     }
+}
+
+/// A new activation token, as the core mints one for a plugin.
+fn activation_token() -> Value {
+    static TOKENS: AtomicUsize = AtomicUsize::new(0);
+    let n = TOKENS.fetch_add(1, Ordering::Relaxed);
+    json!({"token": format!("fake-token-{}-{n}", std::process::id())})
 }
 
 /// Whether the model has a node.

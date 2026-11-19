@@ -23,6 +23,7 @@ pub mod helper;
 pub mod hud;
 pub mod icons;
 pub mod lamp;
+pub mod launch;
 pub mod launcher;
 pub mod modes;
 pub mod notify;
