@@ -27,3 +27,7 @@ Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,gate-l
 pushed by it). tiling-audit (all 4 rounds, 8 cells each) twice more: exit 0, no FAIL line, both times.
 
 Head: 219d5afe (claude/flake-j, unchanged). Suggest closing F29 in the backlog as fixed by flakes-f.
+
+## PM review r1 (22:28)
+Checks: base wait at tests/gate-tiling-audit.sh:76-92 named; repro counts with BAR_STALL show the race and the fix; gate cell tiling-audit green three times. No code, no finding.
+Verdict (computed): no open BLOCK or MAJOR -> DONE, nothing to merge. F29 closed in backlog.
