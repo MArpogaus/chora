@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 18:17 UTC)
+## Now (2026-11-19 18:25 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 16:58 PM 5.8 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | matrix-cap-r1.md (F5, F6) | sonnet high | merged train 67 (17:57) |
 | moved-tests-mk-r3.md (F5) | haiku high | done 18:00: c00dcf3e MERGE-OK (PM review 18:03); train 69 |
-| debt-down-r2.md (F4) | sonnet high | done 18:15: c8fe032b; review-debt-down-r2.md opus session_016iS3kMUWxUcb9zmbRwwWAA (18:16) |
+| debt-down-r3.md (F4) | sonnet high | r2 review FIX (rd-7 MAJOR: no ungrab on holder exit); r3 starting |
 | mc-i5-r1.md (F7, F2) | sonnet high | done 18:11: f7a69761 MERGE-OK (PM review 18:14); train 69 |
 | construct-red-r2.md (F7, F3) | sonnet high | r1 review FIX (rc-1 MAJOR: app child window gets no keys); r2 session_016iS3kLATV1Do6n34Vo3soX (18:17) |
 | docs-f8c-r1.md (F8) | sonnet high | done 17:48: 65ef41a5 MERGE-OK (PM review 17:50); train 68 |
