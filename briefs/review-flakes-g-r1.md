@@ -3,8 +3,8 @@
 Model: opus, effort high, because f075a20d changes the core IPC (Conn::call_all, crates/chora/src/ipc.rs ordering of answers) and words.rs signal cells
 Lane: cloud, read-only on code: claude/flakes-g head f075a20d. Own commits (`git show <sha>` each): 8d555fc5 f0c9e640 c227d433
 8d953291 eb5a23c7 28df6308 f075a20d. The merges (9bc22c94, 74157504, a463d753) bring the session head and claude/cubesplit; not in scope.
-One round. Step 0: `command -v cargo sccache foot python3`; all present: skip setup; else run the setup below once. Then `cargo check --workspace`;
-a failure: send BLOCKED to the PM and stop.
+One round.
+Step 0: `command -v cargo sccache foot python3`, then `cargo check --workspace`; tools missing: run the setup below once; a failure: send BLOCKED to the PM and stop.
 Setup: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate (cargo test -p only).
 Read reports/flakes-g.md on claude/session-log (r1 and r3 sections).
