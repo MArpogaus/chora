@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | kit7-r2.md (F2) | opus high | session_016iS3kPxdD4JTP78bWGsmpm (12:09; r1 FIX) |
 | wm7b-r2.md (F3) | opus high | session_016iS3kLKs3MjAmmEjvvYvnT (11:29) |
-| kit5-r3.md (F2) | opus high | starting 12:1x (review r1 FIX: 3 MAJOR notify) |
+| kit5-r3.md (F2) | opus high | session_016iS3kQpnC7s85zVK2bBPmM (12:13; review r1 FIX: 3 MAJOR notify) |
 | flakes-g-r1.md (F5) | opus high | session_016iS3kLDotvtMhy21xRyFAF (12:08) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
