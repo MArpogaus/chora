@@ -63,10 +63,17 @@ impl Config {
     /// else `hud`.
     #[must_use]
     pub fn folder(&self, context: &Context) -> &str {
+        self.rule_folder(context).unwrap_or(self.hud.as_str())
+    }
+
+    /// The folder of the first rule that matches the context, none when no
+    /// rule does.
+    #[must_use]
+    pub fn rule_folder(&self, context: &Context) -> Option<&str> {
         self.huds
             .iter()
             .find(|rule| rule.when.matches(context))
-            .map_or(self.hud.as_str(), |rule| rule.folder.as_str())
+            .map(|rule| rule.folder.as_str())
     }
 }
 

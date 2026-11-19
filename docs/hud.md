@@ -89,8 +89,9 @@ trusts.
 
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
-always matches. The shipped settings have these rules, so each look
-shows its own folder:
+always matches. A look that names itself with `look.theme` and ships a
+folder of its name is drawn with it when no rule matches (see Themes). The
+shipped settings have these rules, so each look shows its own folder:
 
 ```yaml
 huds:
@@ -310,12 +311,20 @@ when: {wm: [xp, mc], agents: any}
 
 ### Themes
 
-A window manager names its theme with its event `NAME.theme {theme:
+A window manager names its theme with the event `look.theme {theme:
 light|dark}`, at its start, when its settings change and on the event
-`assistant.ready`, which the host emits once it listens; mc and
-construct do. The host listens to `construct.theme`,
-`mc.theme`, `tiling.theme` and `xp.theme`, and the context field `theme`
-is the theme of the client of `space`, else of `wm`, else `light`.
+`assistant.ready`, which the host emits once it listens. Any client emits
+`look.theme` and `look.view {pane}`; the core adds the name of the emitter
+as `look`. The host listens to `look.*` and, for the looks that still
+emit the old names, to `construct.theme`, `construct.view`, `mc.theme`,
+`tiling.theme` and `xp.theme`. The context field `theme` is the theme of
+the client of `space`, else of `wm`, else `light`.
+
+A look that names itself needs no rule for its folder: when no rule
+matches, the host draws the folder that has the name of the `space` of the
+context, else of its `wm`, if the look shipped one in its own directory
+(`plugins/chora-NAME/hud` of the source tree, `chora/huds/NAME` of the
+installed system).
 
 The block `dark:` gives the colours of the dark theme over those of the
 folder: `chat` takes `fill`, `text`, `name`, `border`, `well` and `glow`, and

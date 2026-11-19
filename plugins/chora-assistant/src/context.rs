@@ -17,7 +17,7 @@ use chora_scene::{
 };
 use serde_json::Value;
 
-use crate::{Agent, assistant::Assistant, card};
+use crate::{Agent, assistant::Assistant, card, folders};
 
 /// How long the host waits after the last change before it re-evaluates.
 pub const DEBOUNCE: Duration = Duration::from_millis(150);
@@ -318,6 +318,17 @@ impl Switcher {
         self.set(|context| &mut context.theme, &theme, now);
     }
 
+    /// The folder of a look that named itself with `look.theme`: the one
+    /// of the space of the context, else of its window manager, when
+    /// `exists` finds it. A look ships its folder in its own directory,
+    /// so the rules need no line for it.
+    pub fn look_folder(&self, context: &Context, exists: impl Fn(&str) -> bool) -> Option<String> {
+        [&context.space, &context.wm]
+            .into_iter()
+            .find(|name| self.themes.contains_key(name.as_str()) && exists(name))
+            .cloned()
+    }
+
     /// The client that the folder on the screen names as the holder of the
     /// slot of its chat, none when it names no slot.
     pub fn set_look_client(&mut self, client: Option<String>, now: Instant) {
@@ -481,6 +492,22 @@ impl Agent {
         Ok(place_of(focused.first(), &claims_of(&groups), &outputs))
     }
 
+    /// The folder that draws in a context: that of the first rule that
+    /// matches, else that of a look that named itself and ships one, else
+    /// `hud`.
+    fn wanted_folder(&self, context: &Context) -> String {
+        let settings = &self.settings.value;
+        settings
+            .rule_folder(context)
+            .map(str::to_owned)
+            .or_else(|| {
+                let roots = &self.source.roots;
+                self.switcher
+                    .look_folder(context, |name| folders::find(roots, name).is_some())
+            })
+            .unwrap_or_else(|| settings.hud.clone())
+    }
+
     /// The commands that show the context: the look of the folder of the
     /// rules when the folder changed, the values picked again when a field
     /// that a panel reads changed, the figure on the output of the focus. A
@@ -490,7 +517,7 @@ impl Agent {
         let wanted = if self.source.assets.is_some() {
             self.folder.clone()
         } else {
-            self.settings.value.folder(context).to_owned()
+            self.wanted_folder(context)
         };
         let shown = (
             self.folder.as_str(),
@@ -619,6 +646,39 @@ mod tests {
         assert!(switcher.due().is_some());
         switcher.resolve(None, now);
         assert_eq!(switcher.applied().theme, "light");
+    }
+
+    #[test]
+    fn a_fifth_look_that_named_itself_gets_the_folder_of_its_name() {
+        let now = Instant::now();
+        let mut switcher = Switcher::new();
+        let place = |wm: &str, space: &str| Place {
+            wm: wm.into(),
+            space: space.into(),
+            app: "foot".into(),
+            output: "HEADLESS-1".into(),
+            focused: true,
+            screens: vec!["HEADLESS-1".into()],
+        };
+        let fifth = context(&place("fifth", "fifth"));
+        let ships = |name: &str| name == "fifth" || name == "mc";
+        assert_eq!(switcher.look_folder(&fifth, ships), None, "not named yet");
+        switcher.set_theme("fifth", "dark", now);
+        assert_eq!(
+            switcher.look_folder(&fifth, ships).as_deref(),
+            Some("fifth")
+        );
+        assert_eq!(switcher.look_folder(&fifth, |_| false), None, "no folder");
+        assert_eq!(rules(SHIPPED).rule_folder(&fifth), None, "no rule names it");
+        let inside = context(&place("mc", "fifth"));
+        switcher.set_theme("mc", "light", now);
+        assert_eq!(
+            switcher.look_folder(&inside, ships).as_deref(),
+            Some("fifth"),
+            "the space wins over the window manager"
+        );
+        let mc = context(&place("mc", "tiling"));
+        assert_eq!(switcher.look_folder(&mc, ships).as_deref(), Some("mc"));
     }
 
     #[test]
