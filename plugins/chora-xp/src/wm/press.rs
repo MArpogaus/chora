@@ -56,7 +56,7 @@ impl Wm {
     /// A press on a dialog raises it; its title bar starts a drag, its
     /// controls go down.
     pub(super) fn press_panel(&mut self, i: usize, node: &str, position: [f64; 2]) -> Vec<Command> {
-        let mut panel = self.panels.remove(i);
+        let mut panel = self.take_panel(i);
         let mut commands = vec![Command::Move {
             id: panel.window().group(),
             parent: None,
@@ -67,7 +67,7 @@ impl Wm {
             .window_ref()
             .dragging()
             .then(|| panel.window_ref().group());
-        self.panels.push(panel);
+        self.push_panel(panel);
         if let Some(group) = dragging {
             self.start_wobble(&group, position);
         }
@@ -125,7 +125,9 @@ impl Wm {
         let (area, usable) = (bar.area(), bar.usable());
         let menu = context::Menu::new(&self.theme, entries, point, area, 0);
         self.sys_window = Some(surface.into());
-        self.show_context(menu, usable)
+        let commands = self.show_context(menu, usable);
+        self.context_opened(Some(surface));
+        commands
     }
 
     /// Does what a row of the system menu says to its window.
@@ -158,12 +160,16 @@ impl Wm {
             node: Some(context::FOCUS.into()),
         });
         self.context = Some((menu, area));
+        self.context_opened(None);
         commands
     }
 
     /// A key while a node of the plugin has the keyboard: a context menu
     /// or the start menu.
     pub(super) fn node_key(&mut self, key: &str) -> Vec<Command> {
+        if key == "Escape" && self.dialog.is_some() {
+            return self.close_dialog();
+        }
         if let Some((menu, area)) = &mut self.context {
             let area = *area;
             return match menu.key(&mut self.theme, MENUS, key) {
@@ -239,6 +245,7 @@ impl Wm {
         let Some((menu, _)) = self.context.take() else {
             return Vec::new();
         };
+        self.open.shut(super::surfaces::CONTEXT);
         let mut commands = menu.remove();
         commands.extend(self.menu.hold(&mut self.theme, None));
         commands.push(self.desktop_keys());

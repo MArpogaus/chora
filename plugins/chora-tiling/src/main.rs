@@ -187,8 +187,9 @@ struct Tiling {
     /// Whether the next placement is a rebuild, not a change a person made:
     /// nothing moves.
     still: bool,
-    /// Whether the key list shows, and holds the keyboard.
-    keys_open: bool,
+    /// The open shell surfaces: the key list, a sheet that holds the
+    /// keyboard.
+    open: chora_kit::wm::open::Open,
     /// The word of `state.get`; only reads.
     voiced: chora_kit::helper::Helpers,
     /// When the layout chip leaves.
@@ -343,7 +344,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bar: None,
         bar_hidden: None,
         still: true,
-        keys_open: false,
+        open: chora_kit::wm::open::Open::default(),
         voiced: chora_kit::helper::Helpers::default(),
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
@@ -607,7 +608,7 @@ impl Tiling {
         self.sent.clear();
         self.grab_all()?;
         self.rt.end_grabs()?;
-        if self.keys_open {
+        if self.keys_open() {
             self.hide_keys()?;
             self.toggle_keys()?;
         }
@@ -871,11 +872,11 @@ impl Tiling {
                 text: _,
                 injected: _, // injected: hears drops an injected key unless tiling accepts them
             } => {
-                let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
+                let escape = self.keys_open() && key == "Escape" && *state == PressState::Pressed;
                 Some(if escape { self.hide_keys() } else { Ok(()) })
             }
             Event::PointerPressed { node, .. } // injected: hears drops an injected press unless tiling accepts them
-                if self.keys_open && node.starts_with(keys::KEYS) =>
+                if self.keys_open() && node.starts_with(keys::KEYS) =>
             {
                 Some(if node.ends_with("scrim") {
                     self.hide_keys()
@@ -1157,7 +1158,7 @@ mod tests {
             bar: None,
             bar_hidden: None,
             still: true,
-            keys_open: false,
+            open: chora_kit::wm::open::Open::default(),
             voiced: chora_kit::helper::Helpers::default(),
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),

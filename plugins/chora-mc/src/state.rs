@@ -1,17 +1,20 @@
 //! `state.get`: what mc shows and holds, in the shape of `choractl state`
 //! (design 3.1). The fields that only the core knows (title, app id,
 //! rectangle, stacking) and those of looks that mc has no concept of
-//! (desks, views, texts) are left out, as is `open` until mc fills it:
-//! a field that is absent is not read as empty.
+//! (desks, views, texts) are left out: a field that is absent is not read
+//! as empty.
 
 use serde_json::{Value, json};
 
 use crate::{Mc, NAME};
 
+/// The node of the key list.
+const KEYS: &str = "mc-keys";
+
 impl Mc {
     /// The windows of the scenes and the docks, the focus and what still
-    /// moves. mc holds the focus only on one of its windows; `open` stays
-    /// out until mc fills it.
+    /// moves. mc holds the focus only on one of its windows; the one shell
+    /// surface it has is the key list with every binding.
     pub(crate) fn state_value(&self) -> Value {
         let output = self.output.as_ref().map(|o| o.name.as_str());
         let shown = |scene: &str| self.current.as_deref() == Some(scene);
@@ -48,8 +51,19 @@ impl Mc {
             Some(surface) => json!({"holder": NAME, "surface": surface}),
             None => json!({"holder": null}),
         };
-        json!({"windows": windows, "focus": focus, "busy": busy,
-            "helper": self.voiced_word.word()})
+        json!({"windows": windows, "focus": focus, "open": self.open().state(),
+            "busy": busy, "helper": self.voiced_word.word()})
+    }
+
+    /// The open shell surfaces: the key list shows all bindings after the
+    /// `keys` binding, and holds the keyboard until Escape.
+    fn open(&self) -> chora_kit::wm::open::Open {
+        let mut open = chora_kit::wm::open::Open::default();
+        if self.keys == crate::keys::List::All {
+            let sheet = chora_kit::wm::open::Surface::new(KEYS, chora_kit::wm::open::Kind::Sheet);
+            open.open(sheet.modal());
+        }
+        open
     }
 }
 
@@ -79,14 +93,13 @@ mod tests {
     }
 
     /// mc holds the focus only while the core focus is on a window of
-    /// mc; else no look of mc's holds it (net1 review). `open` stays out
-    /// until mc fills it, so that I4 does not read an empty list as true.
+    /// mc; else no look of mc's holds it (net1 review).
     #[test]
     fn the_focus_holder_is_mc_only_on_a_window_of_mc() {
         let (mut mc, _model) = testing::mc("holder", [1280, 800]);
         let state = mc.state().unwrap();
         assert_eq!(state["focus"]["holder"], serde_json::Value::Null);
-        assert!(state.get("open").is_none());
+        assert_eq!(state["open"], serde_json::json!([]));
         mc.windows.insert("agenda".into(), "s1".into());
         mc.core_focus = Some("other".into());
         assert_eq!(
@@ -95,6 +108,17 @@ mod tests {
         );
         mc.core_focus = Some("s1".into());
         assert_eq!(mc.state().unwrap()["focus"]["holder"], "mc");
+    }
+
+    /// The key list is open while it shows every binding.
+    #[test]
+    fn the_key_list_is_open_while_it_shows_every_binding() {
+        let (mut mc, _model) = testing::mc("open", [1280, 800]);
+        mc.keys = crate::keys::List::All;
+        let open = json!([{"id": "mc-keys", "kind": "sheet", "modal": true}]);
+        assert_eq!(mc.state().unwrap()["open"], open);
+        mc.keys = crate::keys::List::Six;
+        assert_eq!(mc.state().unwrap()["open"], json!([]));
     }
 
     /// `helper` is `none` until voice reports, follows its latest

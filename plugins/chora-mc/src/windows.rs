@@ -352,10 +352,7 @@ mod tests {
         assert_eq!(origin("s1"), "new");
         assert_eq!(origin("s2"), "given");
         assert!(!state.to_string().contains("t1"), "no token: {state}");
-        assert!(
-            state.get("open").is_none(),
-            "open stays out until mc fills it"
-        );
+        assert_eq!(state["open"], serde_json::json!([]), "no key list open");
     }
 
     /// After a restart the core holds the windows free: mc adopts the

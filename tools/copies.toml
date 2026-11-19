@@ -97,3 +97,18 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own key cap of a question (cap, show_key copy)"
 pattern = 'fn cap\(key: &str\)'
+
+# wm3: kit::wm::open is the only list of the open shell surfaces; a look
+# builds no open entry by hand (the four matches are the cells that read
+# state.get) and keeps no flag for its key list.
+[[row]]
+max = 4
+name = "open entry of state.get built by hand (WM3)"
+paths = ["plugins"]
+pattern = 'json!\(\[\{"id": "[a-z-]+", "kind"'
+
+[[row]]
+max = 0
+name = "tiling: keys_open flag (WM3)"
+paths = ["plugins/chora-tiling"]
+pattern = 'keys_open: bool'

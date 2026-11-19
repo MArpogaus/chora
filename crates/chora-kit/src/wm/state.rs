@@ -82,7 +82,7 @@ pub struct Focus {
 pub struct Open {
     /// Its node id.
     pub id: String,
-    /// What it is: `menu`, `popup`, `dialog`, `sheet` or `launcher`.
+    /// What it is: `menu`, `popup`, `dialog`, `sheet`, `launcher` or `switcher`.
     pub kind: String,
     /// Whether it holds the keyboard and the pointer.
     pub modal: bool,

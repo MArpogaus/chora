@@ -126,71 +126,90 @@ impl Open {
     /// Opens a surface above the others. An open surface with the same id
     /// is replaced and counts as the newest. True when it was not open.
     pub fn open(&mut self, surface: Surface) -> bool {
-        drop(surface);
-        false
+        let was = self.shut(&surface.id).is_some();
+        self.list.push(surface);
+        !was
     }
 
     /// Shuts a surface by id; none when it was not open.
     pub fn shut(&mut self, id: &str) -> Option<Surface> {
-        let _ = id;
-        None
+        let at = self.list.iter().position(|s| s.id == id)?;
+        Some(self.list.remove(at))
     }
 
     /// Whether the surface is open.
     #[must_use]
     pub fn contains(&self, id: &str) -> bool {
-        let _ = id;
-        false
+        self.list.iter().any(|s| s.id == id)
     }
 
     /// Whether nothing is open.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        true
+        self.list.is_empty()
     }
 
     /// How many surfaces are open.
     #[must_use]
     pub fn len(&self) -> usize {
-        0
+        self.list.len()
     }
 
     /// The ids, the oldest first.
     #[must_use]
     pub fn ids(&self) -> Vec<&str> {
-        Vec::new()
+        self.list.iter().map(|s| s.id.as_str()).collect()
     }
 
     /// The surface that Escape shuts next: the newest.
     #[must_use]
     pub fn newest(&self) -> Option<&Surface> {
-        None
+        self.list.last()
     }
 
     /// Shuts the newest surface: one Escape, one surface.
     pub fn escape(&mut self) -> Option<Surface> {
-        None
+        self.list.pop()
     }
 
     /// The newest modal surface: while it is open, the keyboard and the
     /// pointer belong to it.
     #[must_use]
     pub fn modal(&self) -> Option<&Surface> {
-        None
+        self.list.iter().rev().find(|s| s.modal)
     }
 
     /// A drag or a give shuts every open surface that is not modal, not
     /// declared to stay and not named in `keep`. Returns what shut, the
     /// newest first, so that the look removes the nodes in Escape order.
     pub fn shut_at(&mut self, _why: Why, keep: &[&str]) -> Vec<Surface> {
-        let _ = keep;
-        Vec::new()
+        let mut shut = Vec::new();
+        let mut stay = Vec::new();
+        for surface in self.list.drain(..).rev() {
+            if surface.modal || surface.stays || keep.contains(&surface.id.as_str()) {
+                stay.push(surface);
+            } else {
+                shut.push(surface);
+            }
+        }
+        stay.reverse();
+        self.list = stay;
+        shut
     }
 
     /// The list as `state.get` tells it: Escape order, the newest first.
     #[must_use]
     pub fn state(&self) -> Vec<state::Open> {
-        Vec::new()
+        self.list
+            .iter()
+            .rev()
+            .map(|s| state::Open {
+                id: s.id.clone(),
+                kind: s.kind.word().to_owned(),
+                modal: s.modal,
+                by: s.by.clone(),
+            })
+            .collect()
     }
 }
 

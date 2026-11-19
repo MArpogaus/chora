@@ -152,6 +152,7 @@ impl Wm {
                 return commands;
             };
             self.switcher = Some(switcher);
+            self.switcher_opened();
             self.tell_switcher(true);
             self.grab_switch_escape();
         }
@@ -363,6 +364,7 @@ impl Wm {
             }
         }
         let switcher = self.switcher.take();
+        self.open.shut(super::surfaces::SWITCHER);
         if switcher.is_some() {
             self.tell_switcher(false);
         }

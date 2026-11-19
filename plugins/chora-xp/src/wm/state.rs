@@ -52,30 +52,8 @@ impl Wm {
     }
 
     /// The menus and dialogs that show, in the order Escape shuts them.
-    fn open_value(&self) -> Vec<Value> {
-        let entry =
-            |id: &str, kind: &str, modal: bool| json!({"id": id, "kind": kind, "modal": modal});
-        let mut open = Vec::new();
-        if self.switcher.is_some() {
-            open.push(entry("xp-switcher", "switcher", false));
-        }
-        if self.dialog.is_some() {
-            open.push(entry("xp-session", "dialog", true));
-        }
-        if self.context.is_some() {
-            let mut menu = entry("xp-ctx", "menu", false);
-            if let Some(surface) = &self.sys_window {
-                menu["for"] = json!(surface);
-            }
-            open.push(menu);
-        }
-        if self.menu.is_open() {
-            open.push(entry("xp-menu", "menu", false));
-        }
-        for panel in self.panels.iter().rev() {
-            open.push(entry(&panel.window_ref().group(), "dialog", false));
-        }
-        open
+    fn open_value(&self) -> Value {
+        serde_json::to_value(self.open.state()).unwrap_or_default()
     }
 
     /// What still moves: quiet once this is empty.

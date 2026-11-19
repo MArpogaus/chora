@@ -4,10 +4,10 @@
 //! them. Title and app id are core facts that tiling does not keep;
 //! `views` and `texts` stay out.
 
-use chora_kit::wm::state::{Desks, Focus, Open, State, Window};
+use chora_kit::wm::state::{Desks, Focus, State, Window};
 use serde_json::{Map, Value, json};
 
-use crate::{NAME, Tiling, keys};
+use crate::{NAME, Tiling};
 
 impl Tiling {
     /// The windows bottom first, the tags that show, the focus, the key
@@ -45,10 +45,10 @@ impl Tiling {
         let held = (self.focus.surface.as_deref())
             .filter(|s| self.focus.sent && !self.focus.lost && self.wm.has(s));
         let focus = Focus {
-            holder: (held.is_some() || self.keys_open).then(|| NAME.to_owned()),
+            holder: (held.is_some() || self.keys_open()).then(|| NAME.to_owned()),
             surface: held.map(str::to_owned),
         };
-        let open = self.open_list();
+        let open = self.open.state();
         let running = [
             (self.effects.animating(), "effects"),
             (self.chip_until.is_some(), "chip"),
@@ -67,19 +67,6 @@ impl Tiling {
             more,
         }
         .value()
-    }
-}
-
-impl Tiling {
-    /// The open shell surfaces: the key list, a sheet.
-    fn open_list(&self) -> Vec<Open> {
-        let sheet = Open {
-            id: keys::KEYS.into(),
-            kind: "sheet".into(),
-            modal: true,
-            ..Open::default()
-        };
-        self.keys_open.then_some(sheet).into_iter().collect()
     }
 }
 
@@ -143,7 +130,10 @@ mod tests {
     #[test]
     fn the_key_list_is_open_while_it_shows() {
         let (mut tiling, _) = on_fake_core("state-keys");
-        tiling.keys_open = true;
+        tiling.open.open(
+            chora_kit::wm::open::Surface::new(crate::keys::KEYS, chora_kit::wm::open::Kind::Sheet)
+                .modal(),
+        );
         let state = tiling.state().unwrap();
         let open = json!([{"id": "tiling-keys", "kind": "sheet", "modal": true}]);
         assert_eq!(state["open"], open);
