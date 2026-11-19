@@ -13,7 +13,6 @@ mod commands;
 mod config;
 mod drag;
 mod dress;
-mod focus;
 mod keys;
 mod layout;
 mod lifecycle;
@@ -45,10 +44,11 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use chora_kit::wm::focus::Focus as ShownFocus;
+
 use crate::{
     commands::{GROUP, answers, leaves_tiling, runtime_shader},
     config::{Action, Config},
-    focus::ShownFocus,
     layout::Layout,
     methods::exported_methods,
     wm::{Effect, OutputTags, Placement, WINDOW_KEY, Wm},
@@ -744,7 +744,7 @@ impl Tiling {
         if !commands.is_empty() {
             let applied = self.apply_report(commands)?;
             if leaves_tiling(applied, action, args) {
-                self.forget_window(node);
+                self.forget_window(node, &chora_kit::wm::Why::Detached);
             }
         }
         self.relayout()
@@ -1665,6 +1665,21 @@ mod tests {
         // Another window manager still takes it with its own window.
         shown.moved(Some("s9"));
         assert!(shown.lost && !shown.sends(Some("s4")));
+    }
+
+    /// The policy of tiling (`kit::wm::focus`): after the focused window
+    /// goes, the window focused before it gets the keyboard.
+    #[test]
+    fn the_window_focused_before_gets_the_keyboard_after_a_close() {
+        let (mut tiling, _) = on_fake_core("after");
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s2"));
+        tiling.forget_window("s2", &chora_kit::wm::Why::Destroyed);
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s1"));
+        assert!(tiling.focus.sends(Some("s1")), "the next relayout sends it");
     }
 
     /// A press on a window took the focus, and Escape hid the key list,

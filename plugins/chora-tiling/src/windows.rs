@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use chora_kit::wm::kept;
+use chora_kit::wm::{Why, kept};
 use chora_scene::{Command, NodeKind, PropsUpdate, ipc::ClientError};
 
 use crate::{
@@ -187,9 +187,16 @@ impl Tiling {
     ///
     /// The focus on it is no longer that of tiling: when the window
     /// comes back, tiling sends it again.
-    pub(super) fn forget_window(&mut self, id: &str) {
+    /// Forgets a window that went for `why`; the policy of tiling names
+    /// the window that gets the keyboard if this one had it.
+    pub(super) fn forget_window(&mut self, id: &str, why: &Why) {
         self.book.forget(id);
         self.wm.remove_window(id);
+        let next = self.focus.after(id, why, &self.wm, &self.book);
+        if next.is_some() || self.focus.surface.as_deref() == Some(id) {
+            self.focus.surface = next.flatten();
+            self.focus.sent = false;
+        }
         self.sent.remove(id);
         self.saved.remove(id);
         if self.groups.remove(id) {
@@ -197,10 +204,6 @@ impl Tiling {
         }
         self.effects.cancel_wobble(id);
         self.bent.remove(id);
-        if self.focus.surface.as_deref() == Some(id) {
-            self.focus.surface = None;
-            self.focus.sent = false;
-        }
     }
 
     /// Forgets what the core shows, so that the next transaction sends all.

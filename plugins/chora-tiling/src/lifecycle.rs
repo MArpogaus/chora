@@ -50,7 +50,7 @@ impl Tiling {
                     id,
                     why: Why::Detached,
                 } => self.wm.remove_window(&id),
-                Change::Forget { id, .. } => self.forget_window(&id),
+                Change::Forget { id, why } => self.forget_window(&id, &why),
                 Change::Phase { id, phase } => self.tell_phase(&id, phase)?,
                 Change::Apply(commands) => self.apply(commands)?,
                 Change::Outputs => {}
