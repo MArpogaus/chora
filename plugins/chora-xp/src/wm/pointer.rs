@@ -125,7 +125,7 @@ impl Wm {
                 moved_at: Instant::now(),
             });
             self.start_wobble(surface, position);
-            return self.shut_surfaces(chora_kit::wm::open::Why::Drag);
+            return self.shut_surfaces();
         }
         Vec::new()
     }
@@ -424,7 +424,7 @@ impl Wm {
             self.focused = None;
             self.grab_system_key(false);
         }
-        let mut commands = self.shut_surfaces(chora_kit::wm::open::Why::Give);
+        let mut commands = self.shut_surfaces();
         commands.extend(self.forget(surface));
         Ok((answer, commands))
     }

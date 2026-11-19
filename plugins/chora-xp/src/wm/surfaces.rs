@@ -4,7 +4,7 @@
 //! that `state.get`, Escape and the drag or the give of a window read one
 //! list.
 
-use chora_kit::wm::open::{Kind, Surface, Why};
+use chora_kit::wm::open::{Kind, Surface};
 
 use super::{Command, Panel, Wm};
 
@@ -84,9 +84,9 @@ impl Wm {
 
     /// A drag of a window began, or a window went to another window
     /// manager: the menus shut, the surfaces that declared to stay stay.
-    pub(super) fn shut_surfaces(&mut self, why: Why) -> Vec<Command> {
+    pub(super) fn shut_surfaces(&mut self) -> Vec<Command> {
         let mut commands = Vec::new();
-        for surface in self.open.shut_at(why, &[]) {
+        for surface in self.open.shut_at(&[]) {
             commands.extend(match surface.id.as_str() {
                 MENU => self.close_menu(),
                 CONTEXT => self.close_context(),

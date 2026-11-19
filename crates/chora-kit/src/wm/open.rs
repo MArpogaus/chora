@@ -8,13 +8,13 @@
 //! path to the state.
 //!
 //! ```
-//! use chora_kit::wm::open::{Kind, Open, Surface, Why};
+//! use chora_kit::wm::open::{Kind, Open, Surface};
 //!
 //! let mut open = Open::default();
 //! open.open(Surface::new("menu", Kind::Menu));
 //! open.open(Surface::new("keys", Kind::Sheet).modal().staying());
 //! // A drag shuts the menu; the sheet declared to stay.
-//! let shut = open.shut_at(Why::Drag, &[]);
+//! let shut = open.shut_at(&[]);
 //! assert_eq!(shut.len(), 1);
 //! assert_eq!(open.ids(), ["keys"]);
 //! // Escape shuts the newest.
@@ -54,15 +54,6 @@ impl Kind {
             Self::Switcher => "switcher",
         }
     }
-}
-
-/// Why surfaces shut that nobody shut by name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Why {
-    /// A drag of a window began or went on.
-    Drag,
-    /// A window went to another window manager.
-    Give,
 }
 
 /// An open surface.
@@ -182,7 +173,7 @@ impl Open {
     /// A drag or a give shuts every open surface that is not modal, not
     /// declared to stay and not named in `keep`. Returns what shut, the
     /// newest first, so that the look removes the nodes in Escape order.
-    pub fn shut_at(&mut self, _why: Why, keep: &[&str]) -> Vec<Surface> {
+    pub fn shut_at(&mut self, keep: &[&str]) -> Vec<Surface> {
         let mut shut = Vec::new();
         let mut stay = Vec::new();
         for surface in self.list.drain(..).rev() {
@@ -250,21 +241,15 @@ mod tests {
 
     #[test]
     fn a_drag_or_a_give_shuts_every_surface_not_declared_to_stay() {
-        for why in [Why::Drag, Why::Give] {
-            let mut open = Open::default();
-            open.open(menu("start"));
-            open.open(Surface::new("pop", Kind::Popup));
-            open.open(Surface::new("panel", Kind::Dialog).staying());
-            open.open(Surface::new("power", Kind::Dialog).modal());
-            open.open(menu("own"));
-            let shut: Vec<String> = open
-                .shut_at(why, &["own"])
-                .into_iter()
-                .map(|s| s.id)
-                .collect();
-            assert_eq!(shut, ["pop", "start"], "newest first, for {why:?}");
-            assert_eq!(open.ids(), ["panel", "power", "own"]);
-        }
+        let mut open = Open::default();
+        open.open(menu("start"));
+        open.open(Surface::new("pop", Kind::Popup));
+        open.open(Surface::new("panel", Kind::Dialog).staying());
+        open.open(Surface::new("power", Kind::Dialog).modal());
+        open.open(menu("own"));
+        let shut: Vec<String> = open.shut_at(&["own"]).into_iter().map(|s| s.id).collect();
+        assert_eq!(shut, ["pop", "start"], "newest first");
+        assert_eq!(open.ids(), ["panel", "power", "own"]);
     }
 
     #[test]
