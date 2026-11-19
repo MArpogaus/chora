@@ -92,7 +92,7 @@ impl Construct {
         }
         let size = (file.and_then(|f| f.size)).unwrap_or([self.lens.w, self.lens.h]);
         let Some(at) = self.place(file.and_then(|f| f.at), size, force) else {
-            self.voice.notice(NO_ROOM, Instant::now());
+            self.notice.notice(NO_ROOM, Instant::now());
             if hold == Hold::Own {
                 self.attach_hidden(surface)?;
             }

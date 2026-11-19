@@ -47,7 +47,7 @@ impl Construct {
                 crate::input::refusal(language, &to, &why)
             }
         };
-        self.voice.notice(&words, Instant::now());
+        self.notice.notice(&words, Instant::now());
         self.draw_hud()
     }
 }

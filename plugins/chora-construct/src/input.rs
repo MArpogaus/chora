@@ -7,8 +7,8 @@ use chora_kit::words::{Language, Word, say};
 
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
-    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, Voice,
-    WHEEL, cube, give, hud, space, window_flown_into,
+    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, WHEEL, cube,
+    give, space, window_flown_into,
 };
 
 /// The notice of a window manager that did not take a window, with the
@@ -126,7 +126,7 @@ impl Construct {
             .find(|(_, action)| **action == Action::System(System::Keys))
             .map_or("Super+F1", |(key, _)| key.as_str());
         let words = say(Language::of_session(), Word::KeysWalk, &[("key", help)]);
-        self.voice.notice(&words, now);
+        self.notice.notice(&words, now);
         self.draw_hud()
     }
 
@@ -147,7 +147,7 @@ impl Construct {
                 eprintln!("chora-construct: give to {to}: {err}");
                 let language = Language::of_session();
                 let words = refusal(language, to, &err.to_string());
-                self.voice.notice(&words, Instant::now());
+                self.notice.notice(&words, Instant::now());
                 return self.draw_hud();
             }
             return Ok(());
@@ -171,7 +171,7 @@ impl Construct {
                 }
             },
         };
-        self.voice.notice(&words, Instant::now());
+        self.notice.notice(&words, Instant::now());
         self.draw_hud()
     }
 
@@ -182,24 +182,11 @@ impl Construct {
                 event,
                 client,
                 data,
-            } if client == VOICE => self.follow(&event, data),
-            Event::ClientConnected { name } if name == VOICE => {
-                self.claim.due = true;
-                self.claim_indicator(false);
-                Ok(())
-            }
+            } if client == VOICE => self.follow(&event, &data),
             Event::ClientConnected { ref name } | Event::ClientDisconnected { ref name }
                 if self.manages(name) =>
             {
                 self.manager_client(&event)
-            }
-            Event::ClientDisconnected { name } if name == VOICE => {
-                self.claim.due = true;
-                self.voice = Voice::default();
-                self.rt
-                    .conn
-                    .try_apply(vec![hud::fade(hud::HUD, 0.0, hud::FADE_OUT)])?;
-                self.draw_ask()
             }
             Event::EffectsDropped { client } if client == NAME => {
                 if !self.glass.plain {
@@ -217,20 +204,7 @@ impl Construct {
                 if !nodes.is_empty() {
                     eprintln!("chora-construct: layers stay out: {}", nodes.join(" "));
                 }
-                self.float_dropped(&nodes)?;
-                let ours = [
-                    "construct-hud",
-                    "construct-ask",
-                    "construct-list",
-                    "construct-label",
-                ];
-                let hide = nodes.iter().any(|n| ours.iter().any(|o| n.starts_with(o)));
-                if hide != self.glass.hidden {
-                    self.glass.hidden = hide;
-                    self.draw_hud()?;
-                    self.draw_ask()?;
-                }
-                Ok(())
+                self.float_dropped(&nodes)
             }
             event => self.input(event),
         }
@@ -309,12 +283,6 @@ impl Construct {
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)), // injected: Construct::event drops an injected pointer event first
-            Event::PointerPressed {
-                node,
-                button,
-                injected,
-                ..
-            } if button == BTN_LEFT && self.answer(&node, injected) => return Ok(()),
             Event::PointerEntered { node, .. } => { // injected: Construct::event drops an injected pointer event first
                 let hovered = self.own_window(&node).then_some(node);
                 if hovered != self.hovered {
@@ -352,11 +320,6 @@ impl Construct {
                 if look_pointer(&event, accepts) && self.on_look(&node) =>
             {
                 return self.release(position, self.texture_pane(&node));
-            }
-            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => { // injected: Construct::event drops an injected pointer event first
-                if let Some(command) = self.voice.scroll(dy) {
-                    self.rt.conn.apply(vec![command])?;
-                }
             }
             Event::PointerScroll {
                 node,
@@ -630,7 +593,7 @@ impl Construct {
             return Ok(());
         }
         if let Err(err) = self.open_cube(cube::FACES) {
-            self.voice.notice(&err.to_string(), Instant::now());
+            self.notice.notice(&err.to_string(), Instant::now());
             return self.draw_hud();
         }
         Ok(())

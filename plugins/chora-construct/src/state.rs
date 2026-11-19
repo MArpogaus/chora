@@ -73,11 +73,11 @@ impl Construct {
         }
     }
 
-    /// The window list, the help, a question of the voice agent and the
-    /// window of the launcher, in the order Escape shuts them.
+    /// The window list, the help and the window of the launcher, in the
+    /// order Escape shuts them. The HUD host `chora-assistant` shows the
+    /// questions of the voice agent.
     fn open_value(&self) -> Vec<Value> {
         let shown = [
-            (self.voice.ask.is_some(), hud::ASK, "ask", true),
             (self.list.is_some(), hud::LIST, "list", true),
             (self.help, hud::HELP, "sheet", true),
             (

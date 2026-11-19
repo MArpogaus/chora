@@ -1,8 +1,8 @@
 #!/bin/bash
 # shellcheck disable=SC2016 # jq programs and code a helper evaluates later
 # W15 voice HUD: tests/fake-voice.py stands in for the voice agent. In
-# the construct flavor and in chora-assistant with the XP folder (mc draws
-# no voice HUD of its own; chora-assistant draws it there too):
+# chora-assistant with the XP folder (mc and the construct draw no voice
+# HUD of their own; chora-assistant draws it there too):
 # the states, a normal and a
 # physical `voice.confirm`, an answer by key (Alt+y reaches the grabber)
 # and by click on a button (`confirm.answer`), a foreign client that
@@ -102,9 +102,6 @@ plugin_round() {
   for s in asleep listening thinking working question speaking dreaming; do
     state "$s"
     sleep 0.7
-    case $plugin in
-      construct) expect "construct: state $s shows '$(ctl query id:construct-hud-state | py 'import json, sys; n = json.load(sys.stdin); print(n[0]["text"] if n else "")')'" breaks "test \"\$(ctl query id:construct-hud-state | py 'import json, sys; n = json.load(sys.stdin); print(n[0][\"text\"] if n else \"\")')\" = ${s^^}" 5 ;;
-    esac
     case $s in listening | thinking) shot_wm "$plugin-$s" ;; esac
   done
   health "$plugin states"
@@ -124,7 +121,7 @@ plugin_round() {
     rm -f "$work/claims.answers" "$work/claims.keys"
     emit voice.confirm "{\"id\": \"43\", \"prompt\": \"Set allow to [sh]?\", \"detail\": \"allow: [sh]\", \"physical\": true, \"keys\": {\"yes\": \"Alt+y\", \"no\": \"Alt+n\"}, \"buttons\": true}"
     expect "$plugin: the physical question does not show" breaks 'ui_has "allow: [sh]" || ui_has "Set allow"' 8
-    case $plugin in construct) yes_id=construct-ask-yes ;; assistant) yes_id=hud-card-yes ;; esac
+    case $plugin in assistant) yes_id=hud-card-yes ;; esac
     expect "$plugin: no Yes button on the physical question" breaks "ctl query id:$yes_id | grep -q $yes_id" 8
     sleep 0.5
     shot_wm "$plugin-physical-$how"
@@ -165,9 +162,6 @@ plugin_round() {
   state listening
   sleep 2
   ui_has "$evil" && finding "W15: $plugin shows text of a client named voice.evil" endangers "voice.evil emits voice.state, voice.say, voice.confirm"
-  case $plugin in
-    construct) [ "$(ctl query id:construct-hud-state | py 'import json, sys; n = json.load(sys.stdin); print(n[0]["text"] if n else "")')" = LISTENING ] || finding "W15: construct follows voice.evil: state label changed" endangers "voice.evil voice.state" ;;
-  esac
   shot_wm "$plugin-evil"
   health "$plugin spoof"
 
@@ -182,6 +176,5 @@ plugin_round() {
   session_stop
 }
 
-plugin_round construct "$bin/chora-construct"
 plugin_round assistant "$bin/chora-assistant" --assets "$repo/flavors/xp/assets/assistant"
 log_scan

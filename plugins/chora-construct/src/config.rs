@@ -131,8 +131,8 @@ pub struct Themes {
     pub dark: Colors,
 }
 
-/// The elements over the space: the voice HUD, the window list, the pane
-/// labels and the questions (docs/construct-style.md).
+/// The elements over the space: the notices, the window list, the pane
+/// labels and the help (docs/construct-style.md).
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Style {
@@ -235,8 +235,9 @@ pub struct Config {
     /// The modifier of a drag that moves a pane and of the wheel that
     /// resizes it.
     pub modifier: String,
-    /// Who draws the voice HUD (F28) and the questions: the construct,
-    /// or the HUD host with the folder `hud`.
+    /// Who draws the voice HUD (F28) and the questions: only the HUD
+    /// host `chora-assistant`, with the folder `hud`. Kept to read old
+    /// files.
     pub voice_hud: VoiceHud,
     /// The effects of the panes of own windows: `wobbly` bends a pane in
     /// 3D while the modifier drags it.
@@ -253,16 +254,16 @@ pub struct Config {
     pub style: Style,
 }
 
-/// Who draws the voice HUD and the questions of the voice agent. The
-/// values `true` and `false` of earlier versions read as `own` and
-/// `host` for one release.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+/// Who draws the voice HUD and the questions of the voice agent: the HUD
+/// host `chora-assistant`, the only presenter. The values `own`, `true`
+/// and `false` of earlier versions read as `host` for one release (D93);
+/// `own` and `true` warn that the own HUD is gone.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoiceHud {
-    /// The construct draws them and claims the indicator of the agent.
-    Own,
     /// The HUD host `chora-assistant` draws them; the construct claims
     /// nothing.
+    #[default]
     Host,
 }
 
@@ -274,24 +275,23 @@ impl<'de> Deserialize<'de> for VoiceHud {
             Before(bool),
             Name(String),
         }
-        match Written::deserialize(deserializer)? {
-            Written::Before(true) => Ok(Self::Own),
-            Written::Before(false) => Ok(Self::Host),
-            Written::Name(name) if name == "own" => Ok(Self::Own),
-            Written::Name(name) if name == "host" => Ok(Self::Host),
-            Written::Name(name) => Err(serde::de::Error::custom(format!(
-                "voice_hud: {name:?} is not own or host"
-            ))),
+        let own = match Written::deserialize(deserializer)? {
+            Written::Before(own) => own,
+            Written::Name(name) if name == "own" => true,
+            Written::Name(name) if name == "host" => false,
+            Written::Name(name) => {
+                return Err(serde::de::Error::custom(format!(
+                    "voice_hud: {name:?} is not host"
+                )));
+            }
+        };
+        if own {
+            eprintln!(
+                "chora-construct: voice_hud: the own voice HUD is gone; \
+                 chora-assistant draws it (read as host)"
+            );
         }
-    }
-}
-
-impl Config {
-    /// Whether the construct draws the voice HUD and the questions and
-    /// claims the indicator of the voice agent.
-    #[must_use]
-    pub fn draws_voice(&self) -> bool {
-        self.voice_hud == VoiceHud::Own
+        Ok(Self::Host)
     }
 }
 
@@ -876,47 +876,22 @@ mod tests {
         assert!(out.check().is_err());
     }
 
-    /// With `voice_hud: host` the host draws the voice HUD and the
-    /// question: the construct draws neither.
+    /// `own`, `true` and `false`, the values of earlier versions, load
+    /// as `host` for one release (D93); another value fails.
     #[test]
-    fn voice_hud_host_draws_no_voice_status() {
-        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        assert_eq!(config.voice_hud, VoiceHud::Host);
-        assert!(!config.draws_voice());
-        config.voice_hud = VoiceHud::Own;
-        assert!(config.draws_voice());
-        let text = DEFAULT.replace("voice_hud: host", "voice_hud: own");
-        let own: Config = serde_saphyr::from_str(&text).unwrap();
-        assert_eq!(own.voice_hud, VoiceHud::Own);
-    }
-
-    /// `true` and `false`, the values of the setting before `own` and
-    /// `host`, stay aliases for one release.
-    #[test]
-    fn true_and_false_are_aliases_of_own_and_host() {
+    fn old_values_of_voice_hud_load_as_host() {
         let with = |value: &str| {
             let text = DEFAULT.replace("voice_hud: host", &format!("voice_hud: {value}"));
             serde_saphyr::from_str::<Config>(&text)
                 .ok()
                 .map(|config| config.voice_hud)
         };
-        assert_eq!(with("true"), Some(VoiceHud::Own));
-        assert_eq!(with("false"), Some(VoiceHud::Host));
-        assert_eq!(with("own"), Some(VoiceHud::Own));
+        for value in ["host", "own", "true", "false"] {
+            assert_eq!(with(value), Some(VoiceHud::Host), "{value}");
+        }
         assert_eq!(with("maybe"), None);
-        let written = serde_json::to_value(VoiceHud::Own).unwrap();
-        assert_eq!(written, serde_json::json!("own"));
-    }
-
-    /// With `voice_hud: host` the construct never claims the indicator of
-    /// voice, also not when the claim is due.
-    #[test]
-    fn voice_hud_host_claims_no_indicator() {
-        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        config.voice_hud = VoiceHud::Host;
-        assert!(!config.draws_voice());
-        config.voice_hud = VoiceHud::Own;
-        assert!(config.draws_voice());
+        let written = serde_json::to_value(VoiceHud::Host).unwrap();
+        assert_eq!(written, serde_json::json!("host"));
     }
 
     /// Rule 5 holds for the block `chat:` of the folder `hud`: `text` 7:1

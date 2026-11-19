@@ -1,10 +1,8 @@
-//! Voice glue: following the voice agent, answers, the tick, and drawing
-//! the voice HUD.
+//! Voice glue: the questions of the voice agent, which hide the hints,
+//! the tick of the notices, and the pane labels. The HUD host
+//! `chora-assistant` draws the voice HUD and the questions.
 
-use chora_kit::{
-    ask::{self, Click},
-    modes::Mode,
-};
+use chora_kit::modes::Mode;
 
 use super::{
     ClientError, Command, Construct, Duration, Instant, Look, PropsUpdate, Transform, Value, hud,
@@ -28,136 +26,43 @@ pub(crate) fn neighbour_shows([left, _, right, _]: [f64; 4], width: f64) -> bool
 }
 
 impl Construct {
-    /// An event `voice.KIND` of the voice agent, while the construct
-    /// draws the voice HUD. Wrong data only log.
-    pub(crate) fn follow(&mut self, event: &str, data: Value) -> Result<(), ClientError> {
+    /// An event `voice.KIND` of the voice agent: an open question hides
+    /// the hints.
+    pub(crate) fn follow(&mut self, event: &str, data: &Value) -> Result<(), ClientError> {
         if event == "voice.confirm" {
             self.asked = data["done"] != true && data.get("prompt").is_some();
             self.draw_hints()?;
         }
-        if !self.settings.value.draws_voice() {
-            return Ok(());
-        }
-        self.claim_indicator(true);
-        let kind = event.strip_prefix("voice.").unwrap_or_default();
-        match self.voice.follow(kind, data, Instant::now()) {
-            Ok(changed) => {
-                if changed.hud {
-                    self.draw_hud()?;
-                }
-                if changed.ask {
-                    self.draw_ask()?;
-                }
-                Ok(())
-            }
-            Err(err) => {
-                eprintln!("chora-construct: {event}: {err}");
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
-    /// Answers the open question of the voice agent by the button `node`
-    /// with `confirm.answer`; a refusal, as for an old id, only logs.
-    /// True when the click was spent on a button, also when it came too
-    /// soon to count.
-    pub(crate) fn answer(&mut self, node: &str, injected: bool) -> bool {
-        let params = match self.voice.click(node, injected, Instant::now()) {
-            Click::Answer(params) => params,
-            Click::TooSoon => return true,
-            Click::Ignored => return false,
-        };
-        let call = ask::answer_call(&params);
-        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-construct: confirm.answer: {err}");
-        }
-        true
-    }
-
-    /// The deadlines of the sentence: the waveform stops at its end, the
-    /// sentence fades out 2 s later, and then the panel fits again.
+    /// The deadlines of the notice: it goes 4 s after it came.
     pub(crate) fn tick(&mut self) -> Result<(), ClientError> {
         let now = Instant::now();
         let due = |t: Option<Instant>| t.is_some_and(|t| t <= now);
-        if due(self.voice.say_until) {
-            self.voice.say_until = None;
-            self.draw_hud()?;
+        if due(self.notice.fade_at) {
+            self.notice.fade_at = None;
+            self.notice.drop_at = Some(now + Duration::from_millis(120));
         }
-        if due(self.voice.fade_at) {
-            self.voice.fade_at = None;
-            self.voice.drop_at = Some(now + Duration::from_millis(120));
-            if self.shows_hud() {
-                let fade = hud::fade(hud::HUD_SAY, 0.0, hud::FADE_OUT);
-                self.rt.conn.try_apply(vec![fade])?;
-            }
-        }
-        if due(self.voice.drop_at) {
-            self.voice.drop_at = None;
-            self.voice.say = None;
+        if due(self.notice.drop_at) {
+            self.notice.drop_at = None;
+            self.notice.say = None;
             self.draw_hud()?;
         }
         self.draw_hints()
     }
 
-    /// Whether the HUD line shows: the voice HUD with `voice_hud: own`,
-    /// and the notices of the construct always.
+    /// Whether the notices of the construct show.
     pub(crate) fn shows_hud(&self) -> bool {
         self.active && self.output.is_some()
     }
 
-    /// The voice HUD and the notices: at the bottom centre, or compact at
-    /// the bottom right while flown into a pane.
+    /// The notice of the construct, while the elements show.
     pub(crate) fn draw_hud(&mut self) -> Result<(), ClientError> {
         if !self.shows_hud() {
             return Ok(());
         }
-        if !self.settings.value.draws_voice() {
-            return self.draw_notice();
-        }
-        let out = [self.lens.w, self.lens.h];
-        let level = self.voice.level(Instant::now());
-        let (compact, glow) = (self.flown.is_some(), !self.glass.hidden);
-        let commands = self.fitted(|s| s.voice.hud(&s.styled(), out, compact, level, glow))?;
-        if commands.is_empty() {
-            return Ok(());
-        }
-        self.rt.conn.apply(commands)
-    }
-
-    /// The question of the voice agent, on top, made anew.
-    pub(crate) fn draw_ask(&mut self) -> Result<(), ClientError> {
-        self.draw_ask_at(Instant::now())
-    }
-
-    /// [`Self::draw_ask`] at `now`; a card that is drawn takes no click
-    /// for 400 ms from then.
-    pub(crate) fn draw_ask_at(&mut self, now: Instant) -> Result<(), ClientError> {
-        if !(self.settings.value.draws_voice() && self.shows_hud()) {
-            return Ok(());
-        }
-        let out = [self.lens.w, self.lens.h];
-        let glow = !self.glass.hidden;
-        let mut commands = self.fitted(|s| {
-            let look = Look {
-                style: &s.settings.value.style,
-                colors: s.settings.value.style.colors(s.settings.value.theme),
-                plain: s.glass.plain,
-                shader: &s.glass_shader,
-                shadow: &s.shadow_shader,
-                glass: chora_kit::glass::Material::of(
-                    s.settings.value.theme == crate::config::Theme::Dark,
-                ),
-                metrics: &s.metrics,
-            };
-            s.voice
-                .ask(&look, out, glow, chora_kit::words::Language::of_session())
-        })?;
-        if self.rt.conn.query(&format!("id:{}", hud::ASK))?.is_empty() {
-            commands.remove(0);
-        }
-        self.rt.conn.apply(commands)?;
-        self.voice.drawn(now);
-        Ok(())
+        self.draw_notice()
     }
 
     /// The pane label: the name of the pane under the pointer, else of the

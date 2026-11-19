@@ -93,7 +93,7 @@ use crate::{
     camera::{moved, takes_the_camera, window_flown_into},
     config::{Action, Config, Own},
     file::{Kind, PaneFile},
-    hud::{Claim, LIST, LIST_ROWS, Look, Metrics, Voice},
+    hud::{LIST, LIST_ROWS, Look, Metrics, Notice},
     methods::{
         GlideTo, ManagerPane, MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods,
     },
@@ -530,9 +530,8 @@ struct Construct {
     /// The window that had the keyboard when an overlay took the output;
     /// it gets it back on leave (F31).
     focus_before: Option<String>,
-    /// The voice agent: its state, sentence and question (F28), and the
-    /// claim of its indicator.
-    voice: Voice,
+    /// The notice of the construct.
+    notice: Notice,
     /// The sizes of the texts over the space, as the core measures them.
     metrics: Metrics,
     /// Whether the help panel shows.
@@ -565,7 +564,6 @@ struct Construct {
     unfilled: Vec<String>,
     /// The notice under the island exists.
     notice_drawn: bool,
-    claim: Claim,
     glass: Glass,
     /// The last point of the pointer over the space that the core told:
     /// it tells the place only from a press to its release.
@@ -668,7 +666,7 @@ impl Construct {
             drag: None,
             list: None,
             focus_before: None,
-            voice: Voice::default(),
+            notice: Notice::default(),
             metrics: Metrics::default(),
             help: false,
             help_query: String::new(),
@@ -685,7 +683,6 @@ impl Construct {
             label_text: String::new(),
             unfilled: Vec::new(),
             notice_drawn: false,
-            claim: Claim { due: true },
             glass: Glass::default(),
             pointer: None,
             labelled: None,
@@ -751,8 +748,6 @@ struct Glass {
     /// After the watchdog took the shaders: no more glow nodes until the
     /// settings change (D57).
     plain: bool,
-    /// They hide while a layer of the elements stays out.
-    hidden: bool,
 }
 
 /// A drag with the button held, in output coordinates.

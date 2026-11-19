@@ -36,7 +36,6 @@ impl Construct {
         self.active = true;
         self.build()?;
         self.regrab()?;
-        self.claim_indicator(false);
         let free = self.rt.conn.query("kind:surface")?;
         self.adopt_free(free)?;
         let start = self.settings.value.start.clone();
@@ -82,7 +81,7 @@ impl Construct {
             } else {
                 Duration::from_secs(3600)
             };
-            let wait = (self.voice.deadline().into_iter())
+            let wait = (self.notice.deadline().into_iter())
                 .chain(self.cube_deadline())
                 .chain(self.hints.until)
                 .chain(self.doors.deadline())
