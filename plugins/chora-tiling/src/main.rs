@@ -1088,58 +1088,32 @@ mod tests {
         dress::Dress,
         wm::{Mark, States},
     };
-    use std::{
-        io::{BufRead, BufReader, Write},
-        os::unix::net::UnixListener,
-        path::Path,
-        sync::{Arc, Mutex},
-    };
+    use std::path::Path;
 
-    use chora_kit::conn::Conn;
+    use chora_kit::{
+        conn::Conn,
+        testing::{FakeCore, Log},
+    };
 
     use super::*;
 
     /// A tiling on a fake core that answers every request, `input.grab`
     /// with its binding, and keeps the names of the methods called.
-    pub(crate) fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+    pub(crate) fn on_fake_core(tag: &str) -> (Tiling, Log) {
         on_fake_core_with(tag, &[])
     }
 
-    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
-    fn on_fake_core_with(
-        tag: &str,
-        effects: &[chora_kit::effects::Kind],
-    ) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+    /// A tiling on a fake core as [`on_fake_core`], with the effects
+    /// `effects`. The windows of these cells are not in the scene: the fake
+    /// core takes the commands as they come, and the test reads them.
+    fn on_fake_core_with(tag: &str, effects: &[chora_kit::effects::Kind]) -> (Tiling, Log) {
         let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("core.sock");
-        let listener = UnixListener::bind(&path).unwrap();
-        let methods = Arc::new(Mutex::new(Vec::new()));
-        let seen = methods.clone();
-        std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut writer = stream.try_clone().unwrap();
-            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-                let request: Value = serde_json::from_str(&line).unwrap();
-                let method = request["method"].as_str().unwrap_or_default().to_owned();
-                let result = match method.as_str() {
-                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
-                    "input.grab" => request["params"]["binding"].clone(),
-                    _ => Value::Null,
-                };
-                seen.lock()
-                    .unwrap()
-                    .push(format!("{method} {}", request["params"]));
-                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-                writeln!(writer, "{answer}").unwrap();
-            }
-        });
-        let conn = Conn::connect_at(NAME, &path).unwrap();
+        let core = FakeCore::start();
+        core.respond(|method, _| (method == "scene.apply").then_some(Value::Null));
+        let methods = core.record(|method, params| Some(format!("{method} {params}")));
+        let conn = core.connect(NAME);
         (tiling_on(conn, &dir, effects), methods)
     }
 
@@ -1223,7 +1197,7 @@ mod tests {
 
     /// Drags a floating window of 40 by 20 from its place to another and
     /// lets go; the transactions that tiling sent are the answer.
-    fn drag_a_floating_window(tiling: &mut Tiling, methods: &Arc<Mutex<Vec<String>>>) -> String {
+    fn drag_a_floating_window(tiling: &mut Tiling, methods: &Log) -> String {
         tiling
             .wm
             .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
@@ -1241,7 +1215,7 @@ mod tests {
     }
 
     /// The commands of the transactions that tiling sent, in order.
-    fn sent_commands(methods: &Arc<Mutex<Vec<String>>>) -> Vec<Value> {
+    fn sent_commands(methods: &Log) -> Vec<Value> {
         let calls = methods.lock().unwrap().clone();
         let applies = calls.iter().filter_map(|m| m.strip_prefix("scene.apply "));
         applies
@@ -1253,7 +1227,7 @@ mod tests {
     }
 
     /// The updates of a node that set a mesh with points.
-    fn bends(methods: &Arc<Mutex<Vec<String>>>, node: &str) -> usize {
+    fn bends(methods: &Log, node: &str) -> usize {
         let meshes = sent_commands(methods);
         let bent = |c: &&Value| {
             let update = &c["update"];
@@ -1266,7 +1240,7 @@ mod tests {
     }
 
     /// The updates of a node that remove its mesh.
-    fn unbends(methods: &Arc<Mutex<Vec<String>>>, node: &str) -> usize {
+    fn unbends(methods: &Log, node: &str) -> usize {
         let unmesh = |c: &&Value| {
             let update = &c["update"];
             update["id"] == node
@@ -1481,7 +1455,7 @@ mod tests {
     }
 
     /// tiling with the floating window s1 of 40 by 20 on the output X.
-    fn with_a_floating_window(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+    fn with_a_floating_window(tag: &str) -> (Tiling, Log) {
         let (mut tiling, methods) = on_fake_core_with(tag, &WOBBLY);
         tiling
             .wm

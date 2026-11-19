@@ -546,36 +546,13 @@ fn an_injected_pointer_does_not_drive_the_look() {
     clippy::disallowed_methods,
     reason = "the test connects to its fake core"
 )]
-fn on_fake_core(tag: &str) -> (Construct, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
-    use std::{
-        io::{BufRead as _, BufReader, Write as _},
-        os::unix::net::UnixListener,
-        sync::{Arc, Mutex},
-    };
+fn on_fake_core(tag: &str) -> (Construct, chora_kit::testing::Log) {
     let dir = std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("core.sock");
-    let listener = UnixListener::bind(&path).unwrap();
-    let methods = Arc::new(Mutex::new(Vec::new()));
-    let seen = Arc::clone(&methods);
-    std::thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
-        let mut writer = stream.try_clone().unwrap();
-        for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-            let request: Value = serde_json::from_str(&line).unwrap();
-            let method = request["method"].as_str().unwrap_or_default().to_owned();
-            let result = match method.as_str() {
-                "hello" => json!({"version": chora_scene::ipc::VERSION}),
-                "scene.query" => json!([]),
-                _ => Value::Null,
-            };
-            seen.lock().unwrap().push(method);
-            let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-            writeln!(writer, "{answer}").unwrap();
-        }
-    });
-    let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
+    let core = chora_kit::testing::FakeCore::start();
+    let methods = core.record(|method, _| Some(method.to_owned()));
+    let conn = core.connect(NAME);
     let mut rt = Runtime::with(conn, NAME, Vec::new());
     rt.pin_accepts_injected(false);
     let settings =

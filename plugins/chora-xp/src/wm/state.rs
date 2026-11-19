@@ -119,7 +119,10 @@ impl Wm {
 
 #[cfg(test)]
 mod tests {
-    use chora_kit::runtime::Plugin as _;
+    use chora_kit::{
+        runtime::Plugin as _,
+        wm::open::{Kind, Surface},
+    };
     use serde_json::json;
 
     use super::super::{Wm, tests::wm_on_fake_core};
@@ -244,10 +247,7 @@ mod tests {
         let (mut wm, _methods) = wm_on_fake_core("state-menu");
         wm.method("start_menu", json!({"open": true})).unwrap();
         let open = &wm.state().unwrap()["open"];
-        assert_eq!(
-            *open,
-            json!([{"id": "xp-menu", "kind": "menu", "modal": false}])
-        );
+        assert_eq!(*open, json!([Surface::new("xp-menu", Kind::Menu).entry()]));
         wm.method("start_menu", json!({"open": false})).unwrap();
         assert_eq!(wm.state().unwrap()["open"], json!([]));
     }

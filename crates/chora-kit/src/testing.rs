@@ -28,6 +28,18 @@ pub use script::{Script, Subject, created, created_by, detach, output, owner, ph
 /// The scene model of the fake core, shared with the test.
 pub type Model = Arc<Mutex<Core>>;
 
+/// The lines that a recorder of the fake core wrote, one per request.
+pub type Log = Arc<Mutex<Vec<String>>>;
+
+/// Gives the answer of a request, or `None` for the answer of the fake core.
+type Responder = Arc<dyn Fn(&str, &Value) -> Option<Value> + Send + Sync>;
+
+/// Gives the line that a request leaves in a log, or `None` for no line.
+type Recorder = (
+    Arc<dyn Fn(&str, &Value) -> Option<String> + Send + Sync>,
+    Log,
+);
+
 /// What the fake core keeps of a connection.
 #[derive(Default)]
 pub struct Core {
@@ -57,6 +69,12 @@ pub struct Core {
     /// The answers of `methods.call` by client and method: looked up by
     /// client first, then by method, else null.
     pub client_answers: Vec<((String, String), Value)>,
+    /// The bindings that another client holds: their `input.grab` fails.
+    pub held: Vec<String>,
+    /// The bindings that the plugin grabbed with `input.grab`.
+    pub grabs: Vec<Value>,
+    responders: Vec<Responder>,
+    recorders: Vec<Recorder>,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -124,6 +142,38 @@ impl FakeCore {
             .push(((client.to_owned(), method.to_owned()), answer));
     }
 
+    /// Plants a binding that another client holds: the `input.grab` of it
+    /// fails with `REJECTED`, every time.
+    pub fn hold(&self, binding: &str) {
+        self.model.lock().unwrap().held.push(binding.to_owned());
+    }
+
+    /// Plants a responder: it gets the method and the parameters of each
+    /// request, and a `Some` is the result; with `None` the fake core
+    /// answers as it does without it. The first responder that answers wins.
+    pub fn respond(
+        &self,
+        responder: impl Fn(&str, &Value) -> Option<Value> + Send + Sync + 'static,
+    ) {
+        self.model
+            .lock()
+            .unwrap()
+            .responders
+            .push(Arc::new(responder));
+    }
+
+    /// Plants a recorder: `line` gets the method and the parameters of each
+    /// request, and a `Some` is appended to the log that this returns.
+    #[must_use]
+    pub fn record(
+        &self,
+        line: impl Fn(&str, &Value) -> Option<String> + Send + Sync + 'static,
+    ) -> Log {
+        let log = Log::default();
+        (self.model.lock().unwrap().recorders).push((Arc::new(line), log.clone()));
+        log
+    }
+
     /// Makes `activation.token` mint a new token on each call, as the
     /// core does for a plugin that holds an act.
     pub fn mint_tokens(&self) {
@@ -178,15 +228,37 @@ fn serve(stream: &UnixStream, model: &Model) {
     }
 }
 
+/// What a request meets first: the recorders see it, a planted refusal or a
+/// held binding fails it. The responders are those that may answer it.
+fn admit(model: &Model, method: &str, params: &Value) -> Result<Vec<Responder>, (i64, String)> {
+    let mut core = model.lock().unwrap();
+    for (line, log) in &core.recorders {
+        if let Some(line) = line(method, params) {
+            log.lock().unwrap().push(line);
+        }
+    }
+    if let Some(at) = core.refusals.iter().position(|m| m == method) {
+        core.refusals.remove(at);
+        return Err((RpcError::REJECTED, format!("{method} is refused")));
+    }
+    if method == "input.grab" {
+        let binding = params["binding"].as_str().unwrap_or_default();
+        if core.held.iter().any(|held| held == binding) {
+            return Err((RpcError::REJECTED, "held by another client".to_owned()));
+        }
+        core.grabs.push(params["binding"].clone());
+    }
+    Ok(core.responders.clone())
+}
+
 fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, String)> {
     let params = &request["params"];
     let method = request["method"].as_str().unwrap_or_default();
+    let responders = admit(model, method, params)?;
+    if method != "hello"
+        && let Some(result) = responders.iter().find_map(|r| r(method, params))
     {
-        let mut core = model.lock().unwrap();
-        if let Some(at) = core.refusals.iter().position(|m| m == method) {
-            core.refusals.remove(at);
-            return Err((RpcError::REJECTED, format!("{method} is refused")));
-        }
+        return Ok(result);
     }
     match method {
         "hello" => Ok(json!({"version": chora_scene::ipc::VERSION})),

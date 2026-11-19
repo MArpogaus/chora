@@ -3,8 +3,8 @@
 use super::surfaces::Escape;
 use super::{
     Act, Action, Command, DesktopIcons, LEFT_BUTTON, MENU_KEY, MENUS, Menu, Panel, Part, Plan,
-    RIGHT_BUTTON, Rect, Wm, close, context, desktop_icons, desktop_plan, json, session, taskbar,
-    wallpaper, window,
+    RIGHT_BUTTON, Rect, Wm, close, context, desktop_icons, desktop_plan, json, taskbar, wallpaper,
+    window,
 };
 
 impl Wm {
@@ -285,7 +285,7 @@ impl Wm {
         let installed = manager
             .split_whitespace()
             .next()
-            .is_some_and(session::on_path);
+            .is_some_and(chora_kit::desktop_entry::on_path);
         if installed {
             let home = chora_scene::paths::home().unwrap_or_else(|| "/".into());
             self.start_program(&desktop_icons::open_with(&manager, &home));

@@ -373,7 +373,7 @@ impl Agent {
         }
         if shown.too_long {
             let refusal = json!({"id": shown.id, "yes": false});
-            if let Err(err) = self.voice_call("confirm.answer", &refusal) {
+            if let Err(err) = self.voice_call(chora_kit::ask::ANSWER_METHOD, &refusal) {
                 eprintln!("chora-assistant: voice: confirm.answer: {err}");
             }
         }
@@ -862,7 +862,7 @@ impl Agent {
         };
         match outcome {
             Outcome::Answer(params) => {
-                let answered = self.voice_call("confirm.answer", &params);
+                let answered = self.voice_call(chora_kit::ask::ANSWER_METHOD, &params);
                 if let Err(err) = &answered {
                     eprintln!("chora-assistant: voice: confirm.answer: {err}");
                     return Ok((true, Vec::new()));

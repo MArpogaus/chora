@@ -953,36 +953,21 @@ mod tests {
         reason = "the test connects to its fake core"
     )]
     fn on_fake_core(tag: &str, chats: bool) -> Agent {
-        use std::io::BufRead as _;
         let dir =
             std::env::temp_dir().join(format!("chora-assistant-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("core.sock");
-        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
-        std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut writer = stream.try_clone().unwrap();
-            for line in std::io::BufReader::new(&stream)
-                .lines()
-                .map_while(Result::ok)
-            {
-                let request: Value = serde_json::from_str(&line).unwrap();
-                let result = match request["method"].as_str().unwrap_or_default() {
-                    "hello" => serde_json::json!({"version": chora_scene::ipc::VERSION}),
-                    "output.list" => serde_json::json!([{
-                        "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
-                        "scale": 1.0, "camera": chora_scene::Transform::default(),
-                        "work_area": [0, 0, 1920, 1080]
-                    }]),
-                    _ => Value::Null,
-                };
-                let answer =
-                    serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-                writeln!(writer, "{answer}").unwrap();
-            }
+        let core = chora_kit::testing::FakeCore::start();
+        core.respond(|method, _| {
+            (method == "output.list").then(|| {
+                serde_json::json!([{
+                    "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
+                    "scale": 1.0, "camera": chora_scene::Transform::default(),
+                    "work_area": [0, 0, 1920, 1080]
+                }])
+            })
         });
-        let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
+        let conn = core.connect(NAME);
         let (theme, mut values, cache) = loaded(tag);
         values.chats = chats;
         let settings =

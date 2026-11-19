@@ -956,7 +956,7 @@ pub mod tests {
         let yes = json!({"id": "1", "yes": true});
         let answer = tools.call(&button, &yes).await;
         assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
-        let args = json!({"client": "voice", "method": "confirm.answer", "params": yes});
+        let args = chora_kit::ask::answer_call(&yes);
         let answer = tools.call("call_method", &args).await;
         assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
         assert_eq!(calls.load(Ordering::SeqCst), 2);

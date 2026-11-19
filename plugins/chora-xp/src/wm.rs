@@ -920,24 +920,18 @@ mod tests {
         assert_eq!(bound["Super+e"], KeyAction::Look(Look::Files));
     }
 
-    use std::{
-        io::{BufRead as _, BufReader, Write as _},
-        os::unix::net::UnixListener,
-        sync::{Arc, Mutex},
+    use chora_kit::{
+        conn::Conn,
+        testing::{FakeCore, Log},
+        volume::Change,
     };
-
-    use chora_kit::{conn::Conn, volume::Change};
     use serde_json::{Value, json};
 
     use super::*;
 
     /// The calls `input.grab` and `input.ungrab` that a fake core saw,
     /// as `METHOD BINDING`, and a runtime on that core.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
-    fn on_fake_core(tag: &str) -> (Runtime<KeyAction>, Arc<Mutex<Vec<String>>>) {
+    fn on_fake_core(tag: &str) -> (Runtime<KeyAction>, Log) {
         on_fake_core_refusing(tag, &[])
     }
 
@@ -950,60 +944,36 @@ mod tests {
     fn on_fake_core_refusing(
         tag: &str,
         refused: &'static [&'static str],
-    ) -> (Runtime<KeyAction>, Arc<Mutex<Vec<String>>>) {
+    ) -> (Runtime<KeyAction>, Log) {
         let dir = std::env::temp_dir().join(format!("chora-xp-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("core.sock");
-        let listener = UnixListener::bind(&path).unwrap();
-        let calls = Arc::new(Mutex::new(Vec::new()));
-        let seen = Arc::clone(&calls);
-        std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut writer = stream.try_clone().unwrap();
-            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-                let request: Value = serde_json::from_str(&line).unwrap();
-                let method = request["method"].as_str().unwrap_or_default();
-                let binding = request["params"]["binding"].clone();
-                let result = match method {
-                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
-                    "input.grab" => binding.clone(),
-                    _ => Value::Null,
-                };
-                let held = method == "input.grab"
-                    && refused.contains(&binding.as_str().unwrap_or_default());
-                if method.starts_with("input.") {
-                    let binding = binding.as_str().unwrap_or_default();
-                    seen.lock().unwrap().push(format!("{method} {binding}"));
-                }
-                let answer = if held {
-                    json!({"jsonrpc": "2.0", "id": request["id"],
-                        "error": {"code": chora_scene::ipc::RpcError::REJECTED,
-                            "message": "held by another client"}})
-                } else {
-                    json!({"jsonrpc": "2.0", "id": request["id"], "result": result})
-                };
-                writeln!(writer, "{answer}").unwrap();
-            }
+        let core = FakeCore::start();
+        for binding in refused {
+            core.hold(binding);
+        }
+        let calls = core.record(|method, params| {
+            let binding = params["binding"].as_str().unwrap_or_default();
+            method
+                .starts_with("input.")
+                .then(|| format!("{method} {binding}"))
         });
-        let conn = Conn::connect_at(NAME, &path).unwrap();
-        (Runtime::with(conn, NAME, Vec::new()), calls)
+        (Runtime::with(core.connect(NAME), NAME, Vec::new()), calls)
     }
 
     /// A window manager on a fake core that answers `scene.query` with no
     /// nodes and every other request with null, and the methods that it saw.
+    ///
+    /// The windows of these cells are not in the scene: the fake core takes
+    /// the commands as they come, and the test reads them.
     #[allow(
         clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
+        reason = "the test answers the requests of its fake core"
     )]
-    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Arc<Mutex<Vec<String>>>) {
+    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
         let dir = std::env::temp_dir().join(format!("chora-xp-wm-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("core.sock");
-        let listener = UnixListener::bind(&path).unwrap();
-        let methods = Arc::new(Mutex::new(Vec::new()));
-        let seen = Arc::clone(&methods);
         let output = chora_scene::OutputInfo {
             name: "X".into(),
             position: [0, 0],
@@ -1015,25 +985,14 @@ mod tests {
             is_virtual: None,
             owner: None,
         };
-        std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut writer = stream.try_clone().unwrap();
-            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-                let request: Value = serde_json::from_str(&line).unwrap();
-                let method = request["method"].as_str().unwrap_or_default().to_owned();
-                let result = match method.as_str() {
-                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
-                    "input.grab" => request["params"]["binding"].clone(),
-                    "scene.query" => json!([]),
-                    "output.list" => json!([output]),
-                    _ => Value::Null,
-                };
-                seen.lock().unwrap().push(method);
-                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-                writeln!(writer, "{answer}").unwrap();
-            }
+        let core = FakeCore::start();
+        core.respond(move |method, _| match method {
+            "output.list" => Some(json!([output])),
+            "scene.apply" => Some(Value::Null),
+            _ => None,
         });
-        let conn = Conn::connect_at(NAME, &path).unwrap();
+        let methods = core.record(|method, _| Some(method.to_owned()));
+        let conn = core.connect(NAME);
         (wm_on(conn, &dir), methods)
     }
 

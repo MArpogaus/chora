@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use crate::{CHIP_TIME, NAME, Tiling, tests::on_fake_core, theme};
 
 /// The number of requests of the method `method` that the fake core saw.
-fn calls(methods: &std::sync::Arc<std::sync::Mutex<Vec<String>>>, method: &str) -> usize {
+fn calls(methods: &chora_kit::testing::Log, method: &str) -> usize {
     let prefix = format!("{method} ");
     let seen = methods.lock().unwrap();
     seen.iter()
@@ -190,36 +190,15 @@ fn the_system_is_asked_only_when_the_check_is_due() {
 
 /// A tiling on a fake core that answers each scene query with what
 /// `answer` gives for its selector; the other requests get null.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
 fn on_scene(tag: &str, answer: fn(&str) -> Value) -> Tiling {
-    use std::{
-        io::{BufRead as _, BufReader, Write as _},
-        os::unix::net::UnixListener,
-    };
     let dir = std::env::temp_dir().join(format!("chora-tiling-moved-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("core.sock");
-    let listener = UnixListener::bind(&path).unwrap();
-    std::thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
-        let mut writer = stream.try_clone().unwrap();
-        for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-            let request: Value = serde_json::from_str(&line).unwrap();
-            let result = match request["method"].as_str().unwrap_or_default() {
-                "hello" => json!({"version": chora_scene::ipc::VERSION}),
-                "scene.query" => answer(request["params"]["selector"].as_str().unwrap_or_default()),
-                _ => Value::Null,
-            };
-            let reply = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-            writeln!(writer, "{reply}").unwrap();
-        }
+    let core = chora_kit::testing::FakeCore::start();
+    core.respond(move |method, params| {
+        (method == "scene.query").then(|| answer(params["selector"].as_str().unwrap_or_default()))
     });
-    let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
-    crate::tests::tiling_on(conn, &dir, &[])
+    crate::tests::tiling_on(core.connect(NAME), &dir, &[])
 }
 
 /// The renderer's answer to the scene queries of the key list and of the
