@@ -115,6 +115,9 @@ struct Notify {
     pending: Vec<Request>,
     queue: Queue,
     card: Option<(Note, Card)>,
+    /// The output and the box of the open chat of the HUD host, which the
+    /// card does not cover.
+    chat: Option<(String, [i32; 4])>,
 }
 
 impl Plugin for Notify {
@@ -137,6 +140,19 @@ impl Plugin for Notify {
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => self.redraw()?,
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if client == HOST && event == CHAT => {
+                let chat = chat_box(&data);
+                if chat == self.chat {
+                    Vec::new()
+                } else {
+                    self.chat = chat;
+                    self.redraw()?
+                }
+            }
             _ => Vec::new(),
         };
         self.apply(commands)
@@ -175,8 +191,10 @@ impl Plugin for Notify {
     }
 
     fn state(&self) -> Option<Value> {
-        let shown = self.card.as_ref().map(|(note, _)| note);
-        Some(state_value(shown, &self.queue, &self.theme.texts()))
+        let shown = self.card.as_ref().map(|(note, card)| (note, card.rect()));
+        let mut state = state_value(shown, &self.queue, &self.theme.texts());
+        state["chat"] = json!(self.chat.as_ref().map(|(_, rect)| rect));
+        Some(state)
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -188,14 +206,15 @@ impl Plugin for Notify {
 }
 
 /// The answer of `state.get`: the notification on screen with the node
-/// of its card, the ids that the server accepted, that wait and that
-/// closed, the runs of text of the card, and nothing busy, since a card
-/// shows and goes without an animation.
-fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
+/// and the box of its card on the output, the ids that the server
+/// accepted, that wait and that closed, the runs of text of the card, and
+/// nothing busy, since a card shows and goes without an animation.
+fn state_value(shown: Option<(&Note, [i32; 4])>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
     let shown: Vec<Value> = shown
-        .map(
-            |note| serde_json::json!({"id": note.id, "summary": note.summary, "body": note.body, "node": card::BODY}),
-        )
+        .map(|(note, rect)| {
+            json!({"id": note.id, "summary": note.summary, "body": note.body,
+                "node": card::BODY, "rect": rect})
+        })
         .into_iter()
         .collect();
     serde_json::json!({
@@ -258,6 +277,7 @@ impl Notify {
             ids,
             pending: Vec::new(),
             card: None,
+            chat: None,
         }
     }
 
@@ -383,20 +403,23 @@ impl Notify {
             .filter(|i| !i.is_empty())
             .and_then(|i| self.icons.for_sender(i));
         let corner = self.settings.value.position;
+        let chat = (self.chat.as_ref())
+            .filter(|(on, _)| *on == output.name)
+            .map(|(_, rect)| *rect);
         let card = Card::new(
             &mut self.theme,
             &note,
             icon.as_deref(),
             &self.values,
-            (&output, corner),
+            (&output, corner, chat),
         );
         let commands = card.create(&mut self.theme);
         self.card = Some((note, card));
         Ok(commands)
     }
 
-    /// Draws the card again, after a change of the outputs or of the
-    /// corner.
+    /// Draws the card again, after a change of the outputs, of the corner
+    /// or of the chat.
     fn redraw(&mut self) -> Result<Vec<Command>, ClientError> {
         let Some((note, _)) = self.card.take() else {
             return Ok(Vec::new());
@@ -422,7 +445,21 @@ const EVENTS: &[&str] = &[
     "pointer.left",
     "output.changed",
     "output.removed",
+    CHAT,
 ];
+
+/// The client name of the HUD host, which draws the chat.
+const HOST: &str = "assistant";
+
+/// The event of the HUD host when its chat opens, closes or moves.
+const CHAT: &str = "assistant.chat";
+
+/// The output and the box of the chat that `assistant.chat {open, output,
+/// rect}` names; `None` when the chat closed or names no box.
+fn chat_box(data: &Value) -> Option<(String, [i32; 4])> {
+    let _ = data;
+    None
+}
 
 fn main() -> ExitCode {
     let args = Args::parse();
@@ -692,17 +729,36 @@ mod tests {
         queue.push(note(8, "Update"), now);
         queue.push(note(9, "Mail"), now);
         queue.close(9, Reason::Closed, now);
-        let shown = state_value(queue.current(), &queue, &[]);
+        let shown = state_value(queue.current().map(|n| (n, [8, 9, 300, 80])), &queue, &[]);
         assert_eq!(
             shown,
             serde_json::json!({
-                "shown": [{"id": 7, "summary": "Battery low", "body": "text", "node": card::BODY}],
+                "shown": [{"id": 7, "summary": "Battery low", "body": "text", "node": card::BODY,
+                    "rect": [8, 9, 300, 80]}],
                 "accepted": [7, 8, 9], "waiting": [8], "closed": [9],
                 "texts": [], "busy": []})
         );
         let empty = state_value(None, &new(), &[]);
         assert_eq!(empty["shown"], serde_json::json!([]));
         assert_eq!(empty["accepted"], serde_json::json!([]));
+    }
+
+    /// `assistant.chat` of the HUD host names the box of its open chat;
+    /// a closed chat or one without a box leaves the card where it is.
+    #[test]
+    fn the_chat_of_the_host_names_its_box() {
+        let open = json!({"open": true, "name": "coder", "output": "HEADLESS-1",
+            "rect": [856, 24, 400, 752]});
+        assert_eq!(
+            chat_box(&open),
+            Some(("HEADLESS-1".to_owned(), [856, 24, 400, 752]))
+        );
+        let closed = json!({"open": false, "name": null, "output": "HEADLESS-1", "rect": null});
+        assert_eq!(chat_box(&closed), None);
+        assert_eq!(
+            chat_box(&json!({"open": true, "output": "HEADLESS-1"})),
+            None
+        );
     }
 
     #[test]

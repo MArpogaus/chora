@@ -213,7 +213,7 @@ struct Agent {
     chat: Session,
     /// When the chat last pulled from voice.
     chat_pulled: Instant,
-    /// What `assistant.chat` last said: open, and with whom.
+    /// What `assistant.chat` last said: open, with whom, where, and its box.
     announced: Option<chat::Announced>,
     /// The frame that the chat was last drawn in.
     chat_seen: Option<chat::Frame>,
