@@ -136,3 +136,6 @@ Out of scope: new features or new looks' behaviour; voice personas in en/de, two
 leak session, the battle script (rc.md round 5); the new tour and the video checker (after P2,
 plan-after-foundation Re-plan); MINOR and COSMETIC fixes; xp taskbar and tray redesign (X10-X12);
 opus vision on frames (only in the new tour).
+
+## PM review r1 (2026-11-19 22:45 UTC)
+Accepted as the P2 plan. Checks: 138 lines (<= 150); every task names a contract and a scripted twin; lanes 24.2 % <= 25 %; stop rule and P2-met line present; voice out of scope named. The systemctl stand-in (item 2) is a safety fix: a persona click must never suspend a host. PW starts now (slot free, test code only, budget underspent), TRI when a slot frees.
