@@ -12,7 +12,7 @@ Brief: briefs/debt-down-r1.md. F4 target: every debt category and the lint lines
 | workarounds | 9 | 13 | 9 | yes |
 | hygiene | 14 | 16 | 13 | yes |
 | `#[allow]`/`#[expect]` total | 378 | 395 | 375 | yes |
-| same, without `reason` | 238 | 251 | 197 | yes |
+| same, without `reason` | 238 | 251 | 197 (192 counted by the review, see r2 item 4) | yes |
 | `eprintln!` (crates/chora/src, plugins, services) | 135 | 147 | 126 | yes |
 
 Commands: the three greps of audit-f row F4, run on the head:
@@ -108,3 +108,75 @@ Findings:
 - rd-4, MINOR, reports/debt-down.md "## r1" table: the "without reason" count for the head is 192, not 197 (the 197 is from before 509b5b1f). Fix: correct the table, and note that 75 of the 192 have their reason on a wrapped line.
 - rd-5, MINOR, services/voice/src/client.rs:548, tools.rs:320, config.rs:903 (d3d70fcf): these copies-0 files were edited (one `reason` line each), but the r1 report lists them as "Not touched". Fix: list them in the report so copies-0 can expect a one-line conflict, or drop the three hunks.
 - rd-6, NIT, tests/gate-tiling-apps-click.sh:21: a 24th copy of `until_ok` in tests/*.sh. Fix: move `until_ok` into gate-lib.sh in a later hygiene lane.
+
+## r2
+
+Code: claude/debt-down at c8fe032b, 4 commits over r1 (c79a9d66): `git log c79a9d66..claude/debt-down`.
+Brief: briefs/debt-down-r2.md. Fixes the findings rd-1 to rd-4 of "## Review r1".
+
+| item | state | proof |
+|------|-------|-------|
+| rd-1 MAJOR xp knows the construct's event | closed | red 4f90c968 (`an_ungrab_is_told_to_the_subscribers` in ipc.rs, `alt_escape_is_grabbed_when_the_holder_gives_it_up` in xp tests_moved.rs; both failed), fix c8fe032b |
+| rd-2 refused-grab line on each Alt+Tab | closed | c8fe032b; unit test `only_a_refusal_by_a_holder_is_expected` |
+| rd-3 `settle` ends early | closed | red 07fe4d03 (`a_pass_that_ended_after_the_ask_but_began_before_it_does_not_settle`, failed: "the pass of before the ask settled it"), fix 9346e83d |
+| rd-4 table says 192 without reason | closed | see below |
+
+### rd-1
+
+- The core emits `input.ungrabbed {binding}` on every successful `input.ungrab` to every connection that subscribed to it
+  (an empty list hears it as any core event): `chora-scene/src/event.rs` (variant `InputUngrabbed`, `NAMES`),
+  `crates/chora/src/ipc/grabs.rs:ipc_ungrab` calls `State::emit`. A refused ungrab and a grab that ends with its
+  connection send nothing.
+- xp subscribes to it (`EVENTS`) and, in `wm/keys.rs:ungrabbed`, grabs Alt+Escape again when the binding is Alt+Escape
+  and the switcher shows without the key. xp knows no holder and no event name of another look.
+  The test also pins that another binding given up (`Super+a`) does not make xp grab.
+- The construct lost `ESCAPE_FREE` and `say_escape_free`; it ungrabs its step-back binding on `xp.switcher` as before
+  and the core's event does the rest. `grep -rn escape_free` is empty (the repo, without `target/`).
+- D entry in docs/decisions.md with the number `D-ungrab` as a placeholder (row after D106, "Decisions of the shared
+  core"): **the PM numbers it at the merge** (DOCS-F8c holds D107 and on; the three places that name it are
+  docs/decisions.md, docs/api.md (event table row and the `input.ungrab` row) and the Alt+Tab row of
+  docs/configuration.md, which also says that the first refusal is not logged).
+- Honest note on the red: the red test in ipc.rs failed at `events.subscribe` ("there is no event"), since the event did
+  not exist; its filter read `e["event"]` where a test client keeps `e["params"]["event"]`. The fix commit corrects the
+  filter, so the green test does check the event and its binding, and that a grab and a refused ungrab say nothing.
+  The red commit therefore proves "no event" but not the shape; the green run does.
+
+### rd-2
+
+`grab_switch_escape` no longer reports a refusal with code REJECTED: for the grab of `Alt+Escape` that can only be
+"grabbed already" (the safety-layer refusal needs Ctrl+Alt, and hello has been sent), which `input.ungrabbed` retries.
+Every other error (a socket, a limit) is still reported. The decision is the function `held_by_a_client`, unit tested; the
+log line itself is not captured by a test (`eprintln!`).
+
+### rd-3
+
+`Followed` now counts asks, not passes. The reader takes `begin_pass()` (the number of asks so far) before each read; at
+the end of the file it records `covered = max(covered, began)`. `settle` makes ask number n and waits until
+`covered >= n`, so only a pass that began after the ask counts. This is stricter than the review's `passes + 2`: it does not
+depend on how many passes were in flight. The W8 test of r1 (`..._is_there_without_a_wait`, limit 140 ms) still passes.
+
+### rd-4
+
+On the head of r1 and on r2: `grep -rE '#\[(allow|expect)\(' crates plugins services --include=*.rs | wc -l` is 375 and
+`... | grep -vc reason` is **192**; the r1 table said 197, which was the count before 509b5b1f. 75 of the 192 have their
+`reason` on a wrapped line that the one-line grep does not see (the review's count: 61 in the base, 75 on the head), so 117
+really have no reason. The table of "## r1" now says so. r2 changed no `#[allow]` line.
+rd-5 and rd-6 (copies-0 files edited by d3d70fcf, the 24th `until_ok`) were not part of this round and stay open: the three
+files with a one-line `reason` change are services/voice/src/client.rs, tools.rs and config.rs.
+
+### Evidence
+
+- `cargo test --workspace`: 2,493 passed, 0 failed (r1: 2,490; +3 tests).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `tests/merge-gate.sh --jobs 3 --base 85764974` on c8fe032b: all steps passed, once, no flake
+  (build 13 s, test 119 s, clippy 13 s, pull 59 s, mc-handover 9 s, e2e 283 s; 41 steps PASS). Nothing was pushed by the gate.
+- Commit author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>, no attribution lines, no `--no-verify`.
+  Two commit attempts failed on the pre-commit hooks (an inline comment in a test, a subject over 68 characters) and were
+  redone after the fix.
+
+### Open for the PM
+
+- Number `D-ungrab` at the merge (sed over docs/decisions.md, docs/api.md, docs/configuration.md, the doc comments of
+  `ipc/grabs.rs`, `event.rs` and `wm/tests_moved.rs`: `grep -rn D-ungrab`).
+- The event goes to every subscriber including a confined client; it carries only the binding string. If that is too wide,
+  the core could send it to unconfined connections only.
