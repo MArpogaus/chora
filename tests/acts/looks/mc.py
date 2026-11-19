@@ -1,6 +1,6 @@
 """The acts of mc. The door acts: the key list (tests/doors keys-key, keys-alias)."""
 
-from common import door_acts, window_acts
+from common import door_acts, helper_acts, window_acts
 
 
 def run(s):
@@ -9,3 +9,4 @@ def run(s):
     (WM3) gives."""
     window_acts(s)
     door_acts(s, "mc-keys", "Super+F1")
+    helper_acts(s)
