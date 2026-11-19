@@ -2,16 +2,44 @@
 
 use super::{
     Action, BARS, Bar, Change, Click, Command, DIALOGS, DOUBLE_CLICK, DateDialog, DisplayDialog,
-    EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Message, Mode, NAME, Outcome, Panel, Path,
-    Rect, Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display,
-    help, json, launch, taskbar, volume, wallpaper,
+    EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Mode, NAME, Outcome, Panel, Path, Rect,
+    Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display, help,
+    json, launch, taskbar, volume, wallpaper,
 };
 
+use chora_kit::notice::{self, Notice, Urgency};
+
 impl Wm {
+    /// Shows a notice of chora-xp, or replaces the one `replaces` names.
+    pub(super) fn notice(
+        &mut self,
+        replaces: Option<u32>,
+        summary: &str,
+        body: &str,
+        expire_ms: i32,
+    ) -> Option<u32> {
+        let notice = Notice {
+            app: NAME,
+            icon: "",
+            summary,
+            body,
+            expire_ms,
+            urgency: Urgency::Normal,
+        };
+        notice::show_or_log(&mut self.rt.conn, replaces, &notice)
+    }
+
+    /// Dismisses a notice of chora-xp; a server that is gone is logged.
+    pub(super) fn dismiss_notice(&mut self, id: u32) {
+        if let Err(err) = notice::dismiss(&mut self.rt.conn, id) {
+            eprintln!("{NAME}: notice {id}: {err}");
+        }
+    }
+
     /// Tells the user that a program starts or did not open.
     pub(super) fn tell(&mut self, change: &Change) {
         if let Change::Done { note: Some(note) } = change {
-            self.notifier.close(*note);
+            self.dismiss_notice(*note);
         }
         if matches!(change, Change::Done { .. }) {
             return;
@@ -25,13 +53,7 @@ impl Wm {
             Change::Failed { note, .. } | Change::Fallback { note, .. } => (*note, -1),
             Change::Done { .. } => return,
         };
-        let message = Message {
-            icon: "",
-            summary: &summary,
-            body: &body,
-            expire_ms,
-        };
-        let id = self.notifier.show("chora-xp", replaces, &message);
+        let id = self.notice(replaces, &summary, &body, expire_ms);
         if let (Change::Starting { token, .. }, Some(id)) = (change, id) {
             self.launches.noted(token, id);
         }
