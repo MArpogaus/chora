@@ -385,8 +385,44 @@ mod tests {
             (h.state(), h.door(Language::En, false)),
             (State::Answered, "coder · done".into())
         );
+        h.hear(&state("coder", "working"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Working, "coder · working".into()),
+            "a new working report clears the answer"
+        );
+        h.hear(&state("coder", "done"));
         h.hear(&state("coder", "idle"));
         assert_eq!(h.state(), State::Idle, "the helper reported again");
+    }
+
+    /// A new utterance of the person clears the answer of a helper: the
+    /// voice agent recording or transcribing leaves the helper idle (`listening` while it records), and a helper that works still wins (rw-6). The voice
+    /// agent thinking alone, as after a helper said something, does not.
+    #[test]
+    fn a_new_utterance_clears_the_answer_of_a_helper() {
+        for (utterance, want) in [
+            ("recording", State::Listening),
+            ("transcribing", State::Idle),
+        ] {
+            let mut h = Helper::default();
+            h.hear(&state("coder", "done"));
+            assert_eq!(h.state(), State::Answered, "{utterance}");
+            h.hear(&state("", utterance));
+            assert_eq!(
+                (h.state(), h.door(Language::En, false)),
+                (want, "coder · idle".into()),
+                "{utterance} clears the answer"
+            );
+        }
+        let mut h = Helper::default();
+        h.hear(&state("coder", "question"));
+        h.hear(&state("", "thinking"));
+        assert_eq!(h.state(), State::Answered, "thinking alone clears nothing");
+        let mut h = Helper::default();
+        h.hear(&state("coder", "working"));
+        h.hear(&state("", "recording"));
+        assert_eq!(h.state(), State::Working, "a helper that works still wins");
     }
 
     /// After an answer event the machine never says `working`, whichever
