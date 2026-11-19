@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 13:32 UTC)
+## Now (2026-11-19 13:37 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:50 PM 3.9 %; 39 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,11 +25,12 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
+| integ-r1.md (F6) | sonnet high | starting 13:50 |
 | kitcov-r1.md (F5) | haiku high | session_016iS3kQTAgVV1jfmvvvgmHY (13:24) |
 | flakes-g-r2.md (F5) | opus high | held: no setup x5 (13:18, 3 of 4 lanes since 13:00 had it); 14:00 UTC default |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 62 green 13:00 (head dd2a0aa3). 63 = flakes-f 847f0964 gating. Train 64: wm3 e15155da (r3 13:21, PM check ok), kit5b 7b01dd5a (13:06), kit7 8321c16 (13:14), wm5 r3, wm7b r4 when done.
+4. Trains (F6): 62 green 13:00 (head dd2a0aa3). 63 = flakes-f 847f0964 gating. 64 = wm3 e15155da + wm7b 99c04d54 (known-red rows resolved, fa457b29); kit5b, kit7 on old head, wm5 vs wm3 conflict: integ r1 (sonnet 2 %) merges them, then train 65.
 5. (F2, F3, F5) kitcov r1 (haiku 1.5 %, chora-kit >= 80 % lines); after train 64: kit3 r1 review; Sat opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4.
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
