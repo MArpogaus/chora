@@ -24,7 +24,7 @@ The brief's act ("xp opens the Start menu, drags a window; `open` must shut") is
 ## Also fixed (cells turn green, known-red rows removed, as the rule says)
 - net2-a1: Escape did not cancel Turn Off Computer: the dialog never took the keyboard. It does now (`Dialog::FOCUS`), Escape cancels, the desktop gets the keys back.
 - net2-a3 (3 rows): mc reports `open` (its key list).
-Known red went 7 to 4 on the merged base (`mc I3`, two `I5`, `I13`), none added.
+Known red went 8 to 4 on the merged base (`mc I3`, two `I5`, `I13`), none added.
 
 ## Cells
 chora-kit `wm/open.rs` 5 unit cells + doctest; chora-xp: give, give with drag, title-bar press, state order; mc: key list open / shut; tiling and construct: the existing open cells run on the typed list.
