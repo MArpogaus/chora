@@ -97,3 +97,11 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own key cap of a question (cap, show_key copy)"
 pattern = 'fn cap\(key: &str\)'
+
+# WM5: the core orders the root groups by `order` (D89); no look moves its
+# root below the others at each build any more (D83 retired).
+[[row]]
+max = 0
+name = "root moved below the other roots by hand (D83)"
+paths = ["plugins", "services"]
+pattern = 'fn under_other_plugins|Order::Lock'
