@@ -29,7 +29,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | temp-dirs-r2.md (F2, F5) | sonnet medium | MERGE-OK 86f42d1f, train 78 |
 | flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH |
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
-| pw-r1.md (P2) | sonnet high | session_016iS3kNj1dj1ApmjZmprkka |
+| pw-r1.md (P2) | sonnet high | done 3ba07d9b; review-pw-r1.md sonnet high starting |
 | nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
 | block-v-r1.md (RC1) | sonnet high | session_016iS3kL7pjJSN94pqbtmfcF |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
@@ -37,7 +37,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 76 green 23:06 (ig-fix, kit-report, minors-2, flake-i, kit-minors). 77 running: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), temp-rest 2e8e67f3, f24-rest, nits-3 0b5f8c34.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, FLAKE-K 0.7 %, PW 1.5 %, KIT-SEC 1 %, BLOCK-V 1.2 %, FLAKE-H 1 %; AUDIT-F r3 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, FLAKE-K 0.7 %, REVIEW-PW 0.5 %, KIT-SEC 1 %, BLOCK-V 1.2 %, FLAKE-H 1 %; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
