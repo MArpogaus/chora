@@ -654,7 +654,7 @@ mod tests {
     #[test]
     fn a_file_with_voice_hud_own_loads_and_a_save_drops_it() {
         use chora_kit::settings::{File, Store};
-        let dir = std::env::temp_dir().join(format!("chora-mc-own-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-mc-own");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("mc.yaml");
         std::fs::write(&path, "theme: light\nvoice_hud: own\n").unwrap();
@@ -755,7 +755,7 @@ mod tests {
     #[test]
     fn a_binding_set_through_the_settings_is_saved_and_read_back() {
         use chora_kit::settings::{File, Store};
-        let dir = std::env::temp_dir().join(format!("chora-mc-common-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-mc-common");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("mc.yaml");
         let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();

@@ -527,10 +527,8 @@ pub(crate) mod tests {
     pub(crate) const DEFAULT: &str = "gap: 4\nopacity: 1.0\nbindings:\n  MOD+q: close\n  MOD+r: {run: foot}\n\
                            frame: {width: 1, title: demo}\n";
 
-    pub(crate) fn dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-kit-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        dir
+    pub(crate) fn dir(name: &str) -> crate::testing::TempDir {
+        crate::testing::TempDir::unmade(&format!("chora-kit-{name}"))
     }
 
     /// With the old and the new name in a file the new one wins and the
@@ -575,7 +573,8 @@ pub(crate) mod tests {
     /// that the user cleared; the file round-trips.
     #[test]
     fn a_save_writes_the_changes_only() {
-        let path = dir("diff").join("demo.yaml");
+        let dir = dir("diff");
+        let path = dir.join("demo.yaml");
         let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         file.set(json!({"frame": {"width": 3}, "bindings": {"MOD+x": "close"}}))
             .unwrap();
@@ -601,7 +600,8 @@ pub(crate) mod tests {
     /// the defaults.
     #[test]
     fn unchanged_settings_save_an_empty_mapping() {
-        let path = dir("empty").join("demo.yaml");
+        let dir = dir("empty");
+        let path = dir.join("demo.yaml");
         let file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         file.save().unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
@@ -640,7 +640,8 @@ pub(crate) mod tests {
 
     #[test]
     fn a_wrong_change_fails_and_changes_nothing() {
-        let path = dir("wrong").join("demo.yaml");
+        let dir = dir("wrong");
+        let path = dir.join("demo.yaml");
         let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         for wrong in [
             json!({"opacity": 2.0}),
@@ -674,7 +675,8 @@ pub(crate) mod tests {
     /// `null` removes a map entry and resets a field to its default.
     #[test]
     fn set_merges_a_patch() {
-        let path = dir("merge").join("demo.yaml");
+        let dir = dir("merge");
+        let path = dir.join("demo.yaml");
         let mut file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
         file.set(json!({"frame": {"width": 3}, "gap": 8})).unwrap();
         assert_eq!(file.value.frame.width, 3);
@@ -750,18 +752,18 @@ pub(crate) mod tests {
     /// chora-mc: the plugin starts with the defaults, the file stays.
     const STALE: &str = "gap: 9\ngrid: 3\n";
 
-    fn stale(name: &str) -> (PathBuf, File<Demo>) {
+    fn stale(name: &str) -> (crate::testing::TempDir, PathBuf, File<Demo>) {
         let dir = dir(name);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("demo.yaml");
         std::fs::write(&path, STALE).unwrap();
         let file = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
-        (path, file)
+        (dir, path, file)
     }
 
     #[test]
     fn a_wrong_file_loads_the_defaults_and_stays() {
-        let (path, file) = stale("stale-load");
+        let (_dir, path, file) = stale("stale-load");
         assert_eq!(file.value, parse::<Demo>(DEFAULT).unwrap());
         let err = file.broken().unwrap();
         assert!(err.contains("demo.yaml") && err.contains("grid"), "{err}");
@@ -773,7 +775,7 @@ pub(crate) mod tests {
 
     #[test]
     fn set_refuses_while_the_file_is_wrong() {
-        let (path, mut file) = stale("stale-set");
+        let (_dir, path, mut file) = stale("stale-set");
         let err = file.set(json!({"opacity": 0.5})).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(err.message.contains("demo.yaml"), "{}", err.message);
@@ -785,7 +787,7 @@ pub(crate) mod tests {
     /// reload after the fix takes the file and allows `set` again.
     #[test]
     fn a_reload_after_the_fix_ends_the_refusal() {
-        let (path, mut file) = stale("stale-reload");
+        let (_dir, path, mut file) = stale("stale-reload");
         let err = file.reload().unwrap_err();
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
         assert_eq!(file.value.gap, 4);

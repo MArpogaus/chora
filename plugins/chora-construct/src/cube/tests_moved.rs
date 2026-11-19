@@ -12,43 +12,30 @@ use chora_scene::{OutputInfo, Transform};
 use serde_json::{Value, json};
 
 use super::{FACES, Health, Turn, tests::host_of};
-use crate::{Config, Construct, Flown, NAME, Pose, Runtime, config, settings};
+use crate::{Config, Construct, Flown, NAME, Pose, config, settings};
 
 /// A construct on a fake core that answers each request with `answer`,
 /// which gets the method and the parameters; the methods that it saw.
 ///
 /// These cells do not build the pane tree that the cube hangs on: the fake
 /// core takes the commands as they come, and the test reads them.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
 fn on_core(tag: &str, answer: fn(&str, &Value) -> Option<Value>) -> (Construct, Log) {
     let (construct, methods, _core) = on_fake_core(tag, answer);
     (construct, methods)
 }
 
 /// As [`on_core`], with the fake core, whose model keeps the emits.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
 fn on_fake_core(
     tag: &str,
     answer: fn(&str, &Value) -> Option<Value>,
 ) -> (Construct, Log, FakeCore) {
-    let dir = std::env::temp_dir().join(format!(
-        "chora-construct-moved-{tag}-{}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = chora_kit::testing::TempDir::new(&format!("chora-construct-moved-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = FakeCore::start();
     core.respond(answer);
     core.respond(|method, _| (method == "scene.apply").then_some(Value::Null));
     let methods = core.record(|method, _| Some(method.to_owned()));
-    let conn = core.connect(NAME);
-    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    let mut rt = core.runtime(NAME);
     rt.pin_accepts_injected(false);
     let settings =
         settings::File::<Config>::load(dir.join("chora-construct.yaml"), config::DEFAULT).unwrap();

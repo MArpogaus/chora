@@ -9,6 +9,9 @@ serde-saphyr.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 
+[dev-dependencies]
+chora-scene = { workspace = true, features = ["schema", "testing"] }
+
 [lints]
 workspace = true
 

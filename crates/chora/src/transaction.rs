@@ -663,7 +663,8 @@ mod tests {
     fn an_image_that_fails_to_decode_rejects_the_transaction() {
         let mut core = Core::new();
         let mut loader = core.named("loader");
-        let path = std::env::temp_dir().join(format!("chora-{}-bad.png", std::process::id()));
+        let dir = crate::testing::TempDir::new("chora-bad-png");
+        let path = dir.join("bad.png");
         std::fs::write(&path, b"no png").unwrap();
         let path = path.to_str().unwrap();
         let id = loader.send("scene.apply", image("picture", path));

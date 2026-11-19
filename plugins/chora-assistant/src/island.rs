@@ -118,7 +118,7 @@ mod tests {
     use super::*;
 
     fn theme() -> Theme {
-        let cache = std::env::temp_dir().join(format!("chora-island-{}", std::process::id()));
+        let cache = chora_kit::testing::TempDir::unmade("chora-island").keep();
         Theme::host(&cache, "Inter").unwrap()
     }
 

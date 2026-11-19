@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn the_speaker_writes_the_pcm_and_stop_ends_it() {
-        let dir = std::env::temp_dir().join(format!("chora-voice-speaker-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-voice-speaker");
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("out.raw");
         let speaker = Speaker::new(sh(&format!("cat > {}", out.display())));

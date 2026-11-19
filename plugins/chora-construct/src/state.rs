@@ -115,26 +115,16 @@ impl Construct {
 #[cfg(test)]
 pub(crate) mod tests {
     use chora_kit::wm::open::{Kind, Surface};
-    use chora_kit::{
-        runtime::{Plugin as _, Runtime},
-        settings,
-        testing::FakeCore,
-    };
+    use chora_kit::{runtime::Plugin as _, settings, testing::FakeCore};
     use serde_json::json;
 
     use super::super::{Construct, Content, NAME, Pane, config};
 
     /// A construct on a fake core, as the flavor or beside another.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     pub(crate) fn construct(tag: &str, overlay: bool) -> (Construct, FakeCore) {
         let core = FakeCore::start();
-        let rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
-        let dir =
-            std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let rt = core.runtime(NAME);
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-construct-{tag}")).keep();
         let file = dir.join("chora-construct.yaml");
         let settings = settings::File::load(file, config::DEFAULT).unwrap();
         let shaders = |name: &str, _: &str| Ok(name.to_owned());

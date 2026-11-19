@@ -183,10 +183,9 @@ mod tests {
             Vec::<&str>::new()
         );
         let core = chora_kit::testing::FakeCore::start();
-        let dir = std::env::temp_dir().join(format!("chora-tiling-seed-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::new("chora-tiling-seed");
         std::fs::create_dir_all(&dir).unwrap();
-        let mut x = crate::tests::tiling_on(core.connect(crate::NAME), &dir, &[]);
+        let mut x = crate::tests::tiling_on(core.runtime(crate::NAME), &dir, &[]);
         core.answer_call(
             "voice",
             "state",

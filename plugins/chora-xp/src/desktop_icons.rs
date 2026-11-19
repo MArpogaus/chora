@@ -1101,8 +1101,7 @@ mod tests {
 
     #[test]
     fn the_desktop_folder_lists_folders_first_and_runs_desktop_files() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-desk-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade("chora-xp-desk");
         fs::create_dir_all(dir.join("zeta")).unwrap();
         fs::write(dir.join("Alpha.txt"), "").unwrap();
         fs::write(dir.join(".hidden"), "").unwrap();

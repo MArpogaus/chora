@@ -1203,9 +1203,9 @@ mod tests {
     const SHEET: Sheet = Sheet("sheet.svg");
 
     /// A theme with the sheet of the test data, and a cache of its own.
-    fn theme(test: &str) -> (Theme, PathBuf) {
+    fn theme(test: &str) -> (Theme, chora_kit::testing::TempDir) {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata");
-        let cache = std::env::temp_dir().join(format!("chora-draw-{test}-{}", std::process::id()));
+        let cache = chora_kit::testing::TempDir::unmade(&format!("chora-draw-{test}"));
         let theme = Theme::load(&dir, &cache, &[SHEET], "sans-serif");
         (theme.expect("the theme loads"), cache)
     }
@@ -1252,7 +1252,7 @@ mod tests {
     fn the_head_of_the_paperclip_is_at_the_top_of_its_picture() {
         const CLIP: Sheet = Sheet("paperclip.svg");
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
-        let cache = std::env::temp_dir().join(format!("chora-draw-head-{}", std::process::id()));
+        let cache = chora_kit::testing::TempDir::unmade("chora-draw-head");
         let mut theme = Theme::load(&dir, &cache, &[CLIP], "sans-serif").expect("the sheet");
         let [w, h] = theme.sheet_size(CLIP).expect("a size");
         for state in ["idle", "listening", "working", "speaking", "question"] {
@@ -1274,7 +1274,7 @@ mod tests {
     fn the_paperclip_stays_whole_at_both_scales() {
         const CLIP: Sheet = Sheet("paperclip.svg");
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
-        let cache = std::env::temp_dir().join(format!("chora-draw-clip-{}", std::process::id()));
+        let cache = chora_kit::testing::TempDir::unmade("chora-draw-clip");
         let mut theme = Theme::load(&dir, &cache, &[CLIP], "sans-serif").expect("the sheet");
         let [w, h] = theme.sheet_size(CLIP).expect("a size");
         for scale in [1.0, 2.0] {
@@ -1400,16 +1400,14 @@ mod tests {
     }
 
     struct Folder {
-        root: PathBuf,
+        root: chora_kit::testing::TempDir,
         dir: PathBuf,
         outside: PathBuf,
     }
 
     impl Folder {
         fn new(test: &str) -> Self {
-            let root =
-                std::env::temp_dir().join(format!("chora-hud-{test}-{}", std::process::id()));
-            let _ = fs::remove_dir_all(&root);
+            let root = chora_kit::testing::TempDir::unmade(&format!("chora-hud-{test}"));
             let dir = root.join("folder");
             let outside = root.join("outside");
             fs::create_dir_all(&dir).expect("a folder");
@@ -1435,12 +1433,6 @@ mod tests {
                     r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20"><image width="20" height="20" xlink:href="{href}"/></svg>"#
                 ),
             );
-        }
-    }
-
-    impl Drop for Folder {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.root);
         }
     }
 

@@ -269,9 +269,8 @@ mod dialogs {
     #[test]
     fn a_change_that_cannot_be_saved_stays_applied() {
         let (mut wm, _methods) = wm_on_fake_core("change-unsaved");
-        let file = std::env::temp_dir()
-            .join(format!("chora-xp-wm-change-unsaved-{}", std::process::id()))
-            .join("chora-xp.yaml");
+        let file =
+            chora_kit::testing::TempDir::new("chora-xp-wm-change-unsaved").join("chora-xp.yaml");
         let _ = std::fs::remove_file(&file);
         std::fs::create_dir_all(&file).unwrap();
         wm.change(json!({"terminal": "xterm-unsaved"}));

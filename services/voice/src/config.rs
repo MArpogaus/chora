@@ -1323,7 +1323,7 @@ mod tests {
         let probe = "if test -e \"$1\"; then echo reached; else echo hidden; fi";
         let socket = socket.to_string_lossy().into_owned();
         let argv = config.spawn(&words(&["sh", "-c", probe, "sh", &socket]));
-        let empty = std::env::temp_dir().join(format!("chora-sandbox-cwd-{}", std::process::id()));
+        let empty = chora_kit::testing::TempDir::new("chora-sandbox-cwd");
         std::fs::create_dir_all(&empty).unwrap();
         let out = std::process::Command::new(&argv[0])
             .args(&argv[1..])
@@ -1436,7 +1436,7 @@ mod tests {
     fn a_key_goes_into_the_bearer_header() {
         let mut config = Config::default();
         assert_eq!(config.llm().unwrap().headers, []);
-        let file = std::env::temp_dir().join(format!("chora-voice-key-{}", std::process::id()));
+        let file = chora_kit::testing::TempDir::unmade("chora-voice-key");
         std::fs::write(&file, "sk-1\n").unwrap();
         config.llm_api_key_file = file.to_string_lossy().into();
         config.llm_headers.insert("X-Title".into(), "chora".into());

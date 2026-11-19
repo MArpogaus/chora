@@ -1060,8 +1060,8 @@ mod tests {
         assert!(strip.contains(r##"stroke="#ACA899""##), "{strip}");
     }
 
-    fn cache(test: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()))
+    fn cache(test: &str) -> chora_kit::testing::TempDir {
+        chora_kit::testing::TempDir::new(&format!("chora-assistant-{test}"))
     }
 
     fn shown(data: &Value, now: Instant) -> Shown {
