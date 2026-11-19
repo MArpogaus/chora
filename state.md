@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 14:46 UTC)
+## Now (2026-11-19 14:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 14:41 PM 5.1 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,7 +25,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | review-kit3-r2.md (F2) | sonnet high | session_016iS3kQVMPwqHVFjtwMitFY (14:45; claude/review-kit3 04ea5851; kit3 worker archived) |
-| review-integ-r1.md (F6) | opus high | starting 14:46 (integ r1 done af5547c7: wm5, kit5b, kit7 on wm3+wm7b) |
+| review-integ-r1.md (F6) | opus high | session_016iS3kPrZ5VvWErfpdrJ93Z (14:47; claude/review-integ af5547c7; integ worker archived) |
 | focus-port-r1.md (F2, F3, F7) | opus high | session_016iS3kQVDi6exe5ECXeDNUD (14:20; audit rank 3; from integ 3619ccb3) |
 | moved-tests-xp-r2.md (F5) | haiku high | session_016iS3kNLneVa6Lit4p35nsS (14:29; r1 blocked: setup.sh refused; tools present) |
 | flakes-g-r3.md (F5) | opus high | session_016iS3kLbyuHiuqm149tXExQ (13:58; step 0 setup.sh; adds pull flake) |
