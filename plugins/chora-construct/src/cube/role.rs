@@ -69,7 +69,7 @@ impl Construct {
         };
         let event = json!({"event": cube::event(crate::NAME), "data": rest});
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            eprintln!("chora-construct: {err}");
+            crate::report(&err);
         }
     }
 
@@ -108,7 +108,7 @@ impl Construct {
         };
         let event = json!({"event": cube::event(crate::NAME), "data": turned});
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            eprintln!("chora-construct: {err}");
+            crate::report(&err);
         }
     }
 }

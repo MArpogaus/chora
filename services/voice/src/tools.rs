@@ -317,7 +317,7 @@ impl Tools {
     /// Runs a tool and answers the content of the tool message: the text,
     /// and the pictures when the LLM reads them. An error is a text that
     /// starts with `error:`, which the LLM reads.
-    #[allow(clippy::too_many_lines)] // one early return per own tool
+    #[allow(clippy::too_many_lines, reason = "one early return per own tool")]
     pub async fn call(&mut self, function: &str, args: &Value) -> Value {
         let Some(name) = self.mcp_name(function).map(str::to_owned) else {
             return format!("error: no tool {function}").into();

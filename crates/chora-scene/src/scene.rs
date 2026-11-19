@@ -159,7 +159,10 @@ fn flat(t: Transform) -> Transform {
 
 /// Whether a transform is a camera: exactly a translation in x and y after
 /// a scale in x and y, within the limits.
-#[allow(clippy::float_cmp)] // the other entries of such a matrix are exactly 0 or 1
+#[allow(
+    clippy::float_cmp,
+    reason = "the other entries of such a matrix are exactly 0 or 1"
+)]
 fn valid_camera(t: &Transform) -> bool {
     let m = t.matrix();
     let zero = [1, 2, 3, 4, 6, 7, 8, 9, 11, 14];

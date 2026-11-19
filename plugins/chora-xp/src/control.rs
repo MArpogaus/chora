@@ -59,7 +59,7 @@ pub enum Effect {
 }
 
 /// Which effects are on.
-#[allow(clippy::struct_excessive_bools)] // independent switches
+#[allow(clippy::struct_excessive_bools, reason = "independent switches")]
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]

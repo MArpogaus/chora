@@ -317,7 +317,11 @@ pub fn put_check(content: &Content, region: Region) -> Result<(), String> {
 
 /// A color as RRGGBB.
 fn hex(rgba: [f64; 4]) -> String {
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // 0 to 255
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "0 to 255"
+    )]
     let [r, g, b] = [0, 1, 2].map(|i| (rgba[i].clamp(0.0, 1.0) * 255.0).round() as u8);
     format!("{r:02x}{g:02x}{b:02x}")
 }
@@ -352,7 +356,7 @@ pub fn to_next_minute() -> f64 {
 
 /// `to_next_minute` at `now` milliseconds since the epoch.
 fn next_minute_after(now: u128) -> f64 {
-    #[allow(clippy::cast_precision_loss)] // below 60000
+    #[allow(clippy::cast_precision_loss, reason = "below 60000")]
     let ms = (60_000 - now % 60_000) as f64;
     (ms + 50.0).min(chora_scene::MAX_DURATION)
 }
@@ -850,7 +854,7 @@ impl Mc {
         let [_, _, width, height] = boxes.regions[region];
         let text = items.get(region).is_some_and(|(i, _)| !i.is_empty());
         let [_, _, w, h] = dock_box(width, height, text, self.settings.value.scale.baseline);
-        #[allow(clippy::cast_possible_truncation)] // pixels of a screen
+        #[allow(clippy::cast_possible_truncation, reason = "pixels of a screen")]
         Some([w.round() as i32, h.round() as i32])
     }
 
@@ -1060,7 +1064,7 @@ impl Mc {
                 .collect()
         };
         let span = |g: &[(&Item, f64, f64)]| -> f64 {
-            #[allow(clippy::cast_precision_loss)] // a few items
+            #[allow(clippy::cast_precision_loss, reason = "a few items")]
             let gaps = g.len().saturating_sub(1) as f64 * gap;
             g.iter().map(|(_, w, _)| w).sum::<f64>() + gaps
         };

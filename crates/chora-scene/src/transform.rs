@@ -243,7 +243,10 @@ impl Transform {
     /// The scale along x and y, if the transform is a 2D translation and
     /// scale only.
     #[must_use]
-    #[allow(clippy::float_cmp)] // translate and scale leave these entries exactly 0 or 1
+    #[allow(
+        clippy::float_cmp,
+        reason = "translate and scale leave these entries exactly 0 or 1"
+    )]
     pub fn scale_2d(&self) -> Option<(f64, f64)> {
         let m = &self.m;
         let plain = m[1] == 0.0 && m[4] == 0.0 && m[3] == 0.0 && m[7] == 0.0 && m[15] == 1.0;

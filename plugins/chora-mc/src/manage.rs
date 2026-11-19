@@ -112,7 +112,7 @@ impl Mc {
         if let Some(panel) = self.overview_panel()
             && let Err(err) = self.replace_panel(OVERVIEW, &panel, false)
         {
-            eprintln!("chora-mc: {OVERVIEW}: {}", err.message);
+            crate::report(OVERVIEW, &err.message);
         }
         let ty = self.ty("chapter_number", None);
         let heads: Vec<String> = (self.scenes.iter())
@@ -142,7 +142,7 @@ impl Mc {
             .filter(|p| p != name && self.scenes.contains_key(p))
             .unwrap_or_else(|| self.settings.value.default_scene.clone());
         if let Err(err) = self.show(&back, keyboard) {
-            eprintln!("chora-mc: {back}: {}", err.message);
+            crate::report(&back, &err.message);
         }
     }
 
@@ -249,7 +249,7 @@ impl Mc {
         if let Some(name) = name
             && let Err(err) = self.show(&name, true)
         {
-            eprintln!("chora-mc: {name}: {}", err.message);
+            crate::report(&name, &err.message);
         }
     }
 

@@ -964,7 +964,6 @@ impl Tiling {
     /// The watchdog of the core removed the meshes: the effects end.
     #[allow(clippy::unnecessary_wraps, reason = "an event handler")]
     fn effects_dropped(&mut self) -> Result<(), ClientError> {
-        eprintln!("chora-tiling: frames were slow, the core dropped the effects");
         self.effects.dropped();
         self.bent.clear();
         Ok(())

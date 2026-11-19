@@ -516,7 +516,7 @@ pub fn fit_scale([w, h]: [f64; 2], scale: f64, max: f64) -> f64 {
 
 /// The pixel size of a texture of a logical size, at most `max` a side.
 pub fn pixel_size([w, h]: [f64; 2], scale: f64, max: f64) -> Option<Size<i32, BufferCoords>> {
-    #[allow(clippy::cast_possible_truncation)] // clamped
+    #[allow(clippy::cast_possible_truncation, reason = "clamped")]
     let side = |v: f64| (v * scale).round().clamp(1.0, max) as i32;
     (w > 0.0 && h > 0.0).then(|| Size::from((side(w), side(h))))
 }
@@ -697,7 +697,7 @@ fn cut_at(polygon: &[Corner], near: f64) -> Vec<Corner> {
 /// depth, and the clip position keeps the w of each point, so the texture
 /// maps perspective-correct. `None` when no triangle shows, or when the
 /// mesh has more points than 16-bit indices reach.
-#[allow(clippy::cast_possible_truncation)] // GL takes 32-bit floats
+#[allow(clippy::cast_possible_truncation, reason = "GL takes 32-bit floats")]
 fn project(mesh: &Mesh, at: &Placing<'_>) -> Option<Shape> {
     let (m, scale) = (at.transform.matrix(), at.scale);
     let (cols, rows) = (f64::from(mesh.cols), f64::from(mesh.rows));
@@ -709,7 +709,7 @@ fn project(mesh: &Mesh, at: &Placing<'_>) -> Option<Shape> {
         let hx = m[0] * px + m[4] * py + m[8] * pz + m[12];
         let hy = m[1] * px + m[5] * py + m[9] * pz + m[13];
         let hw = m[3] * px + m[7] * py + m[11] * pz + m[15];
-        #[allow(clippy::cast_precision_loss)] // at most 65 points per side
+        #[allow(clippy::cast_precision_loss, reason = "at most 65 points per side")]
         let uv = [
             ((index % stride) as f64 / cols) as f32,
             ((index / stride) as f64 / rows) as f32,
@@ -1044,7 +1044,7 @@ pub(crate) fn clip_space(vertices: &[Vertex], p: &[f32; 9]) -> (Vec<f32>, Vec<f3
 }
 
 /// The size of a texture as 32-bit floats.
-#[allow(clippy::cast_precision_loss)] // at most 8192
+#[allow(clippy::cast_precision_loss, reason = "at most 8192")]
 fn float_size(texture: &GlesTexture) -> [f32; 2] {
     let size = Texture::size(texture);
     [size.w as f32, size.h as f32]

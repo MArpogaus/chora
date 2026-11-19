@@ -1105,7 +1105,10 @@ fn click_focus(state: &mut State) {
 /// Tells the owner of the node under the pointer about scrolling, unless
 /// the node is a surface, whose client gets it through Wayland.
 fn scroll_node(state: &mut State, delta: [f64; 2], discrete: [f64; 2], source: AxisSource) {
-    #[allow(clippy::float_cmp)] // the end of a scroll on a touchpad is exactly 0
+    #[allow(
+        clippy::float_cmp,
+        reason = "the end of a scroll on a touchpad is exactly 0"
+    )]
     if delta == [0.0; 2] && discrete == [0.0; 2] {
         return;
     }

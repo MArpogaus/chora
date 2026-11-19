@@ -137,7 +137,7 @@ pub enum Color {
 /// that it sets; a scene can name a style and change single fields.
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
-#[allow(clippy::struct_field_names)] // `style` is the name of the file
+#[allow(clippy::struct_field_names, reason = "`style` is the name of the file")]
 pub struct Style {
     /// The style that this one changes.
     #[serde(skip_serializing_if = "Option::is_none")]

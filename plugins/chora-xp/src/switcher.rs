@@ -80,7 +80,7 @@ impl Switcher {
     }
 
     /// The picture of the box.
-    #[allow(clippy::many_single_char_names)] // coordinates
+    #[allow(clippy::many_single_char_names, reason = "coordinates")]
     pub fn picture(&self, theme: &Theme) -> Picture {
         let pad = theme
             .size(sheets::WINXP, "alttab-hint-left-margin")

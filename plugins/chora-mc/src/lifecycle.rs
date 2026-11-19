@@ -144,7 +144,7 @@ impl Mc {
         if let Some(name) = default
             && let Err(err) = self.show(&name, false)
         {
-            eprintln!("chora-mc: {name}: {}", err.message);
+            crate::report(&name, &err.message);
         }
         self.autostart();
         self.take_free_keyboard()?;

@@ -193,7 +193,7 @@ impl Device for input::Device {
 
 /// The settings before the first `input.configure`: the key repeat of the
 /// core, libinput's defaults for the rest.
-#[allow(clippy::cast_possible_truncation)] // small
+#[allow(clippy::cast_possible_truncation, reason = "small")]
 pub fn defaults() -> InputSettings {
     let mut settings = InputSettings::default();
     settings.keyboard.repeat_rate = Some(REPEAT_RATE as u32);
@@ -242,7 +242,7 @@ impl State {
         self.input_settings = settings;
         let (rate, delay) = self.repeat();
         let keyboard = self.keyboard();
-        #[allow(clippy::cast_possible_wrap)] // checked ranges
+        #[allow(clippy::cast_possible_wrap, reason = "checked ranges")]
         keyboard.change_repeat_info(rate as i32, delay as i32);
         for device in &mut self.input_devices {
             apply(&self.input_settings, &resets, device.as_mut());

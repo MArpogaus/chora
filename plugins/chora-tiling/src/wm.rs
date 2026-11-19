@@ -26,7 +26,10 @@ const ON_TOP: u8 = 6;
 
 /// A tiled or floating window.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[allow(clippy::struct_excessive_bools)] // independent states, as in awesome
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent states, as in awesome"
+)]
 pub struct Window {
     /// The meta of the node holds the rest, so it needs no id.
     #[serde(skip)]
@@ -82,7 +85,10 @@ pub struct OutputTags {
 
 /// The state of one tag of an output.
 #[derive(Debug, PartialEq, Eq, Serialize)]
-#[allow(clippy::struct_excessive_bools)] // independent marks of a panel
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent marks of a panel"
+)]
 pub struct TagState {
     /// The tag number, from 1.
     pub tag: usize,
@@ -143,7 +149,7 @@ struct TileLook {
 
 /// The toplevel states of a window.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[allow(clippy::struct_excessive_bools)] // the states of xdg-shell
+#[allow(clippy::struct_excessive_bools, reason = "the states of xdg-shell")]
 pub struct States {
     pub tiled: bool,
     pub maximized: bool,

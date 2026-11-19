@@ -84,7 +84,7 @@ fn scale(n: i32, by: i32, of: i32) -> i32 {
 
 /// The desktop of a screen of a size, drawn into a picture of another
 /// size: the wallpaper itself, or its preview in Display Properties.
-#[allow(clippy::many_single_char_names)] // coordinates and colors
+#[allow(clippy::many_single_char_names, reason = "coordinates and colors")]
 pub fn picture(theme: &Theme, style: &Wallpaper, screen: [i32; 2], [w, h]: [i32; 2]) -> Picture {
     let [r, g, b] = style.color;
     let picture = Picture::new(w, h).svg(format!(

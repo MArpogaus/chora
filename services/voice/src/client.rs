@@ -545,7 +545,7 @@ impl Held {
     }
 }
 
-#[allow(clippy::too_many_lines)] // one entry per method
+#[allow(clippy::too_many_lines, reason = "one entry per method")]
 fn exported_methods() -> Vec<ExportMethod> {
     let none = json!({});
     vec![

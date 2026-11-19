@@ -114,7 +114,7 @@ impl Turn {
         let Some(angle) = self.held.take() else {
             return;
         };
-        #[allow(clippy::cast_possible_truncation)] // a few turns
+        #[allow(clippy::cast_possible_truncation, reason = "a few turns")]
         let steps = (angle / FRAC_PI_2).round() as i32;
         let rest = (f64::from(steps) * FRAC_PI_2 - angle).abs() / FRAC_PI_2;
         self.steps = steps;
@@ -167,7 +167,7 @@ impl Turn {
     /// How far a window flew off its face at a phase; higher windows of
     /// the stack fly farther.
     pub fn lift(phase: f64, index: usize, count: usize) -> f64 {
-        #[allow(clippy::cast_precision_loss)] // a few windows
+        #[allow(clippy::cast_precision_loss, reason = "a few windows")]
         let share = index as f64 / count.saturating_sub(1).max(1) as f64;
         LIFT * (0.6 + 0.4 * share) * phase
     }
@@ -177,7 +177,7 @@ impl Turn {
         let turned = self.angle(t);
         let mut faces: Vec<Face> = (0..DESKTOPS)
             .map(|desktop| {
-                #[allow(clippy::cast_precision_loss)] // below 4
+                #[allow(clippy::cast_precision_loss, reason = "below 4")]
                 let place = ((desktop + DESKTOPS - self.from) % DESKTOPS) as f64;
                 let angle = turned - place * FRAC_PI_2;
                 Face {

@@ -115,7 +115,7 @@ mod tests {
     const BUTTON: [f64; 4] = [300.0, 773.0, 160.0, 25.0];
 
     #[test]
-    #[allow(clippy::float_cmp)] // the corners are exact
+    #[allow(clippy::float_cmp, reason = "the corners are exact")]
     fn the_genie_starts_flat_and_ends_in_the_button() {
         let start = genie(WINDOW, BUTTON, 0.0);
         assert_eq!(start[0], [100.0, 50.0]);

@@ -347,7 +347,7 @@ impl Wm {
         let binding = match parsed {
             Ok(binding) => binding,
             Err(err) => {
-                eprintln!("chora-xp: {err}");
+                crate::report(&err);
                 return;
             }
         };
@@ -358,14 +358,14 @@ impl Wm {
                 .call::<_, String>("input.grab", Grab { binding })
             {
                 Ok(normal) => self.system_key = Some(normal),
-                Err(err) => eprintln!("chora-xp: {err}"),
+                Err(err) => crate::report(&err),
             }
         } else if let Err(err) = self
             .rt
             .conn
             .call::<_, Value>("input.ungrab", Grab { binding })
         {
-            eprintln!("chora-xp: {err}");
+            crate::report(&err);
         }
     }
 
@@ -406,7 +406,7 @@ impl Wm {
         let binding = match "Alt+Escape".parse() {
             Ok(binding) => binding,
             Err(err) => {
-                eprintln!("chora-xp: {err}");
+                crate::report(&err);
                 return;
             }
         };
@@ -426,7 +426,7 @@ impl Wm {
         }
         match grabbed {
             Ok(normal) => self.switch_escape = Some(normal),
-            Err(err) => eprintln!("chora-xp: {err}"),
+            Err(err) => crate::report(&err),
         }
     }
 
@@ -436,7 +436,7 @@ impl Wm {
     pub(super) fn tell_switcher(&mut self, shown: bool) {
         let event = serde_json::json!({"event": "xp.switcher", "data": {"shown": shown}});
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            eprintln!("chora-xp: {err}");
+            crate::report(&err);
         }
     }
 
@@ -452,7 +452,7 @@ impl Wm {
                         .map_err(|e| e.to_string())
                 });
             if let Err(err) = ungrab {
-                eprintln!("chora-xp: {err}");
+                crate::report(&err);
             }
         }
         let switcher = self.switcher.take();

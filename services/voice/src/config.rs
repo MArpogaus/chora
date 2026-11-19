@@ -900,7 +900,7 @@ fn backend(
 }
 
 impl Default for Config {
-    #[allow(clippy::too_many_lines)] // one line per key
+    #[allow(clippy::too_many_lines, reason = "one line per key")]
     fn default() -> Self {
         Self {
             asr_url: "ws://127.0.0.1:8881/v1/realtime?intent=transcription".into(),

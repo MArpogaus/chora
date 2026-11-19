@@ -19,7 +19,7 @@ const CORNER: i32 = 16;
 const MIN_FRAME: [i32; 2] = [112, decoration::TITLE + BORDER + 1];
 
 /// The edges that a drag of the border of a frame moves.
-#[allow(clippy::struct_excessive_bools)] // four edges
+#[allow(clippy::struct_excessive_bools, reason = "four edges")]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Edges {
     /// The left edge.
@@ -81,7 +81,10 @@ fn edge([pos, size]: [i32; 2], d: i32, [low, high]: [bool; 2], min: i32) -> (i32
 }
 
 /// A window that the plugin manages.
-#[allow(clippy::struct_excessive_bools)] // independent states of a window
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent states of a window"
+)]
 pub struct Window {
     /// The surface node.
     pub surface: String,
@@ -430,7 +433,7 @@ impl Places {
 /// the other, or in columns side by side. The last one takes the pixels
 /// that the division leaves.
 // ponytail: strips only; XP tiles four and more windows in a grid.
-#[allow(clippy::many_single_char_names)] // coordinates
+#[allow(clippy::many_single_char_names, reason = "coordinates")]
 pub fn tile(count: usize, [x, y, w, h]: Rect, columns: bool) -> Vec<Rect> {
     let n = i32::try_from(count.max(1)).unwrap_or(i32::MAX);
     (0..n)

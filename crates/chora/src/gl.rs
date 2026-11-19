@@ -302,7 +302,7 @@ unsafe fn set_uniform(gl: &ffi::Gles2, program: ffi::types::GLuint, name: &str, 
     let Ok(cname) = CString::new(name) else {
         return;
     };
-    #[allow(clippy::cast_possible_truncation)] // GL takes 32-bit floats
+    #[allow(clippy::cast_possible_truncation, reason = "GL takes 32-bit floats")]
     let values: Vec<f32> = value.values().iter().map(|v| *v as f32).collect();
     // SAFETY: plain GL calls on the current context.
     unsafe {

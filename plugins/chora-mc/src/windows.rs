@@ -172,7 +172,7 @@ impl Mc {
         }
         self.windows.insert(name.clone(), surface.into());
         if let Err(err) = self.show(&name, user) {
-            eprintln!("chora-mc: {name}: {}", err.message);
+            crate::report(&name, &err.message);
         }
         if new {
             self.renumber()?;

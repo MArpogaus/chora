@@ -318,7 +318,7 @@ fn node_capture(id: &str) -> Capture {
 
 /// A size in pixels, at least 1 and at most `MAX_SIDE` a side.
 fn pixel_size(w: f64, h: f64) -> smithay::utils::Size<i32, smithay::utils::Physical> {
-    #[allow(clippy::cast_possible_truncation)] // clamped
+    #[allow(clippy::cast_possible_truncation, reason = "clamped")]
     let side = |v: f64| v.ceil().clamp(1.0, MAX_SIDE) as i32;
     (side(w), side(h)).into()
 }
@@ -495,7 +495,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::cast_precision_loss)] // screen coordinates
+    #[allow(clippy::cast_precision_loss, reason = "screen coordinates")]
     fn a_text_node_shows_its_text_inside_its_rect() {
         if !crate::text::fonts_present() {
             println!("SKIP: no fonts for the text node");

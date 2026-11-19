@@ -152,7 +152,11 @@ fn part(output: &Output, region: Option<[i32; 4]>) -> Option<[u32; 4]> {
     let top = clamp((f64::from(y) * scale).floor(), h);
     let right = clamp((f64::from(x.saturating_add(rw)) * scale).ceil(), w);
     let bottom = clamp((f64::from(y.saturating_add(rh)) * scale).ceil(), h);
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "clamped"
+    )]
     let px = |v: f64| v as u32;
     (right > left && bottom > top).then(|| [px(left), px(top), px(right - left), px(bottom - top)])
 }
@@ -240,7 +244,7 @@ impl Copy {
         }
         let now: Duration = state.clock.now().into();
         let secs = now.as_secs();
-        #[allow(clippy::cast_possible_truncation)] // split into two halves
+        #[allow(clippy::cast_possible_truncation, reason = "split into two halves")]
         self.frame
             .ready((secs >> 32) as u32, secs as u32, now.subsec_nanos());
     }

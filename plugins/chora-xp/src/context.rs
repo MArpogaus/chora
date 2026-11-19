@@ -124,7 +124,7 @@ impl Sys {
 }
 
 /// A row of a menu.
-#[allow(clippy::struct_excessive_bools)] // independent states of a row
+#[allow(clippy::struct_excessive_bools, reason = "independent states of a row")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
     title: String,
@@ -438,7 +438,7 @@ impl Level {
 }
 
 /// The underlined access key of a row whose text starts at `x`.
-#[allow(clippy::many_single_char_names)] // a place and a color
+#[allow(clippy::many_single_char_names, reason = "a place and a color")]
 fn underline(
     picture: Picture,
     theme: &Theme,
@@ -901,7 +901,7 @@ fn frame(w: i32, h: i32) -> Picture {
 
 /// A row: the highlight, the check mark, the text and the arrow of a
 /// submenu, or a separator.
-#[allow(clippy::many_single_char_names)] // colors and coordinates
+#[allow(clippy::many_single_char_names, reason = "colors and coordinates")]
 fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) -> Picture {
     let mut picture = Picture::new(w, h);
     if entry.is_separator() {
@@ -959,7 +959,7 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) ->
 }
 
 /// The glyph and the shortcut of a row of the system menu.
-#[allow(clippy::many_single_char_names)] // colors and coordinates
+#[allow(clippy::many_single_char_names, reason = "colors and coordinates")]
 fn system_parts(
     mut picture: Picture,
     theme: &Theme,
