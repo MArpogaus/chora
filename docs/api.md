@@ -1567,9 +1567,10 @@ of the helper machine of the kit (`chora_kit::helper`, from the events
 of voice): `no_helper` (no helper exists, or voice does not run; the
 voice agent alone is no helper, and its thinking and speaking show only
 in the figure), `working` (a helper works, whoever reported after it),
-`idle`, `listening` or `answered` (no helper works and the latest report
-is an answer: spoken, a question, done or blocked; never `working` after
-it until a helper works again). chora-assistant, the only presenter of
+`answered` (no helper works and the latest report of a helper is an
+answer: spoken, a question, done or blocked; the voice agent listening
+again changes nothing, and it is never `working` after it until a helper
+works again), else `idle` or `listening`, by the latest report. chora-assistant, the only presenter of
 the helper, adds `door`, the words of a helper door (`No helper`, or the
 name and state of the helper that works and reported last, else of the
 helper that reported last), which `chora-chat --door`

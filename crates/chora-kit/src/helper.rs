@@ -47,16 +47,17 @@ pub enum State {
     /// No helper exists, or voice does not run. The voice agent alone is
     /// no helper: its listening, thinking and speaking show in the figure.
     NoHelper,
-    /// A helper exists, none works, and the latest report rests.
+    /// A helper exists, rests, and the latest report rests.
     Idle,
-    /// A helper exists, none works, and the voice agent listens.
+    /// A helper exists and rests, and the voice agent listens.
     Listening,
     /// A named helper works: its latest report thinks or works, whoever
     /// reported after it.
     Working,
-    /// No helper works and the latest report is an answer: spoken, a
-    /// question to the person, done or blocked. Never `Working` after it
-    /// until a helper works again.
+    /// No helper works, and the latest report of a helper, or else the
+    /// latest report, is an answer: spoken, a question to the person, done
+    /// or blocked. The voice agent listening again changes nothing. Never
+    /// `Working` after it until a helper works again.
     Answered,
 }
 
@@ -197,14 +198,14 @@ impl Helper {
     }
 
     /// The state from all live reports: `NoHelper` without a named
-    /// helper, `Working` while any named helper works, else the latest
-    /// report that does not work (the voice agent thinking makes no
-    /// helper work).
+    /// helper, `Working` while any named helper works, `Answered` while
+    /// the latest report of a helper is an answer, else the latest report
+    /// that does not work (the voice agent thinking makes no helper work).
     #[must_use]
     pub fn state(&self) -> State {
-        match self.named() {
+        match self.named().map(|(_, raw, _)| State::of(raw)) {
             None => State::NoHelper,
-            Some((_, raw, _)) if State::of(raw) == State::Working => State::Working,
+            Some(state @ (State::Working | State::Answered)) => state,
             Some(_) => self
                 .seen
                 .iter()
