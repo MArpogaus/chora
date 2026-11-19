@@ -150,3 +150,47 @@ present at step 0). Author Marcel Arpogaus, no attribution lines, as the brief s
 Own commit 31df2bb9: 4 files, +402 -14, production change only the `mod tests_moved;` line in mc acts.rs. Every `#[test]` in acts/tests_moved.rs and kit tests/moved_cells.rs asserts; no assert under an `if`; mt-1..3 fixed as named. Lane gate 41/41 on 31df2bb9.
 Done criterion short: lifecycle 60.5, hits 60.9, panels 40.7, pointer 61.1 below 70 %; lifecycle and hits "not analysed" is no reason. That is scope left, not a fault in the tests: r2 (haiku) takes the four.
 Counts: BLOCK 0, MAJOR 0, MINOR 0. Verdict: MERGE-OK (tests); F5 module coverage open until r2.
+
+## moved-tests-mk r2
+
+Lane: moved-tests-mk r2 (F5, the four modules under 70 %), branch claude/moved-tests-mk2 at
+4904ef79 (on 31df2bb9 = r1; the autonomous-dev branch was already contained). Production code
+unchanged. step 0: all tools present, setup.sh not run; cargo check --workspace clean.
+
+Line coverage, `env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-mc -p chora-xp --features
+chora-kit/testing --summary-only`; before = 31df2bb9, after = 4904ef79:
+
+| module | before | after | at 70 %? |
+|---|---|---|---|
+| mc lifecycle.rs | 60.5 | 97.0 | yes |
+| mc region/hits.rs | 60.9 | 96.3 | yes |
+| mc acts.rs | 77.1 | 84.4 | yes |
+| xp wm/pointer.rs | 61.1 | 63.3 | **no** |
+| xp wm/panels.rs | 40.7 | 40.7 | **no, not reached this round** |
+
+New tests (18): mc lifecycle/tests_moved.rs (8), mc region/hits/tests_moved.rs (8), mc
+acts/tests_moved.rs (+1: a release on another manager's claim reserves the window for it,
+reached with a second connection on the fake core), xp wm/pointer/tests_moved.rs (1: a release
+on no claim keeps the window with xp).
+
+Open, with the reasons:
+- xp pointer.rs, 31 more lines needed: start_program, start_named and check_launches (484-529)
+  start programs through the launcher, which spawns a process; not reached without one. The
+  release and drag branches (237-291, 306-332, 349-369) need window geometry per case; not done.
+- xp panels.rs, 155 more lines needed: the dialog pages (display, effects, date, help, taskbar,
+  tray) and their open, click, release and redraw paths; the page geometry per dialog is what a
+  test must set up. Not analysed line by line this round.
+
+Tests: `cargo test -p chora-mc -p chora-xp --features chora-kit/testing` green (167 and 250).
+`cargo clippy -p chora-mc -p chora-xp --all-targets --features chora-kit/testing`: 0 warnings.
+`tests/merge-gate.sh --jobs 3` on 4904ef79: GATE-EXIT=0, all steps passed (a first run was cut
+by the 590 s limit of the shell at 7 steps; the second run ran to the end).
+Red-first does not apply (tests of existing behaviour).
+
+## Review mk r2 (PM, pending)
+
+## Review mk r2 (PM, 17:03)
+Base 31df2bb9..4904ef79, one commit, 7 files, +436/-1: three `#[cfg(test)] mod tests_moved;` lines, the rest new test code; 53 asserts, none under an `if` that may skip it (read).
+Checks: mc lifecycle 97.0, hits 96.3, acts 84.4 (drag hand-over 33-43 reached): met. Worker's gate GATE-EXIT=0, tests and clippy clean (worker's report; the train gate re-runs it).
+Open: xp panels 40.7 (unchanged, "not analysed", which the brief excluded as a reason) and pointer 63.3: not met; r3 (haiku) owns it, with the line table first.
+Verdict (computed): no open MAJOR in the diff: MERGE-OK for 4904ef79 (tests only). F5 module coverage stays open until r3.
