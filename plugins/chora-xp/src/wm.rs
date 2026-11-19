@@ -10,6 +10,7 @@ mod effects;
 mod float;
 mod items;
 mod keys;
+mod lifecycle;
 mod output;
 mod panels;
 mod pointer;
@@ -416,6 +417,9 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
+    /// Which surfaces are xp's windows, and where they came from
+    /// (`kit::wm::book`).
+    book: chora_kit::wm::Book,
     /// The programs that started and show no window yet.
     launches: Launches,
     notepad: apps::Editors,
@@ -478,7 +482,7 @@ impl give::Windows for Wm {
     }
 
     fn has(&self, surface: &str) -> bool {
-        self.index(surface).is_some()
+        self.book.has(surface)
     }
 
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
@@ -583,12 +587,6 @@ fn without_reserve(reserved: &HashMap<String, i32>, mut output: OutputInfo) -> O
         }
     }
     output
-}
-
-/// Whether chora-xp takes a created surface: a free one, or one the core
-/// reserved for it. A surface of another window manager does nothing.
-fn takes(to: Option<&str>) -> bool {
-    to.is_none_or(is_own)
 }
 
 /// A call of a method that `chora-xp` exports.
@@ -1057,6 +1055,16 @@ mod tests {
             }
         });
         let conn = Conn::connect_at(NAME, &path).unwrap();
+        (wm_on(conn, &dir), methods)
+    }
+
+    /// A window manager on `conn`, with the theme and the settings of a
+    /// start in `dir`.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn wm_on(conn: Conn, dir: &Path) -> Wm {
         let mut rt = Runtime::with(conn, NAME, Vec::new());
         rt.pin_accepts_injected(false);
         let theme_dir =
@@ -1070,8 +1078,17 @@ mod tests {
         .expect("the theme loads");
         let file = dir.join("chora-xp.yaml");
         let settings = settings::File::<Config>::load(file, crate::config::DEFAULT).unwrap();
-        let wm = Wm::start_on(rt, theme, settings, 1.0).expect("xp starts on the fake core");
-        (wm, methods)
+        Wm::start_on(rt, theme, settings, 1.0).expect("xp starts on the fake core")
+    }
+
+    /// A window manager on the fake core of `chora_kit::testing`, which
+    /// keeps the scene model that the script of the life of a window
+    /// reads.
+    pub(super) fn wm_on_kit_core(core: &chora_kit::testing::FakeCore, tag: &str) -> Wm {
+        let dir = std::env::temp_dir().join(format!("chora-xp-kit-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        wm_on(core.connect(NAME), &dir)
     }
 
     /// An event as the core sends it.
@@ -1264,13 +1281,6 @@ mod tests {
         assert!(is_own("xp"));
         assert!(!is_own("tiling"));
         assert!(!is_own(""));
-    }
-
-    #[test]
-    fn a_surface_of_another_window_manager_is_nothing_to_do() {
-        assert!(takes(None));
-        assert!(takes(Some("xp")));
-        assert!(!takes(Some("tiling")));
     }
 
     #[test]

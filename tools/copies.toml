@@ -11,7 +11,7 @@ pattern = 'to != NAME'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 1
+max = 0
 name = "Event::SurfaceCreated outside kit"
 paths = ["plugins", "services"]
 pattern = 'Event::SurfaceCreated\b'
@@ -38,6 +38,12 @@ pattern = 'Event::SurfaceCreated\b'
 max = 0
 name = "construct: Event::SurfaceCreated (WM1c)"
 paths = ["plugins/chora-construct"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+max = 0
+name = "xp: Event::SurfaceCreated (WM1d)"
+paths = ["plugins/chora-xp"]
 pattern = 'Event::SurfaceCreated\b'
 
 [[row]]

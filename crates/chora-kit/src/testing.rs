@@ -49,6 +49,8 @@ pub struct Core {
     pub ungrabs: Vec<Value>,
     /// Whether `activation.token` mints a token; without, it answers null.
     pub mints_tokens: bool,
+    /// Whether `scene.query` answers every selector; else only `id:`.
+    pub selects: bool,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -83,6 +85,14 @@ impl FakeCore {
             }
         });
         Self { path, model }
+    }
+
+    /// Makes `scene.query` answer every selector (`kind:`, `owner:`, ...)
+    /// from the model, as the core does; by default it answers `id:` only.
+    #[must_use]
+    pub fn selecting(self) -> Self {
+        self.model.lock().unwrap().selects = true;
+        self
     }
 
     /// Plants a refusal: the next call of `method` fails with
@@ -193,17 +203,10 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
             model.lock().unwrap().emits.push(params.clone());
             Ok(Value::Null)
         }
-        "scene.query" => {
-            let id = params["selector"]
-                .as_str()
-                .and_then(|s| s.strip_prefix("id:"));
-            let mut core = model.lock().unwrap();
-            core.queries += 1;
-            let found = id
-                .and_then(|id| core.scene.node(id))
-                .and_then(|n| serde_json::to_value(n).ok());
-            Ok(found.into_iter().collect())
-        }
+        "scene.query" => Ok(query(
+            model,
+            params["selector"].as_str().unwrap_or_default(),
+        )),
         _ => Ok(Value::Null),
     }
 }
@@ -213,6 +216,26 @@ fn activation_token() -> Value {
     static TOKENS: AtomicUsize = AtomicUsize::new(0);
     let n = TOKENS.fetch_add(1, Ordering::Relaxed);
     json!({"token": format!("fake-token-{}-{n}", std::process::id())})
+}
+
+/// The nodes that a selector finds: every selector when the core selects,
+/// else only `id:`.
+fn query(model: &Model, selector: &str) -> Value {
+    let mut core = model.lock().unwrap();
+    core.queries += 1;
+    let found: Vec<Value> = if core.selects {
+        let selector = selector.parse::<chora_scene::Selector>().unwrap();
+        (core.scene.query(&selector).into_iter())
+            .filter_map(|n| serde_json::to_value(n).ok())
+            .collect()
+    } else {
+        let id = selector.strip_prefix("id:");
+        (id.and_then(|id| core.scene.node(id)))
+            .and_then(|n| serde_json::to_value(n).ok())
+            .into_iter()
+            .collect()
+    };
+    Value::Array(found)
 }
 
 /// Whether the model has a node.
