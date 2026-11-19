@@ -235,8 +235,13 @@ impl Live {
 /// the handling, on the clock of the construct.
 pub(crate) fn input_time(ms: u64) -> Duration {
     static START: LazyLock<Instant> = LazyLock::new(Instant::now);
+    time_of(ms, START.elapsed())
+}
+
+/// `input_time` for a clock that stands at `elapsed`.
+fn time_of(ms: u64, elapsed: Duration) -> Duration {
     match ms {
-        0 => START.elapsed() + Duration::from_millis(1),
+        0 => elapsed + Duration::from_millis(1),
         ms => Duration::from_millis(ms),
     }
 }
@@ -746,9 +751,9 @@ impl Host {
         }
         let exited = (self.child.as_mut()).is_some_and(|c| matches!(c.try_wait(), Ok(Some(_))));
         if exited {
-            std::thread::sleep(Duration::from_millis(150));
+            self.tail.settle();
         }
-        let last = self.tail.lock().map(|t| t.clone()).unwrap_or_default();
+        let last = self.tail.last();
         let waited = now.saturating_duration_since(self.since);
         let reason = crate::faces::failure(language, &self.program, waited, exited, &last)?;
         self.end_manager();
@@ -1436,17 +1441,18 @@ mod tests {
     fn an_event_without_a_time_takes_the_time_of_the_clock() {
         let ms = Duration::from_millis;
         assert_eq!(input_time(81_234), ms(81_234));
+        assert_eq!(time_of(81_234, ms(5)), ms(81_234));
         let first = input_time(0);
-        std::thread::sleep(ms(20));
-        let later = input_time(0);
-        assert!(later >= first + ms(20), "{first:?} then {later:?}");
+        assert!(input_time(0) >= first, "the clock of the construct runs on");
+        assert_eq!(time_of(0, ms(20)), ms(21), "the time of the handling");
         let mut host = host_of(4);
         host.press(0, [740.0, 400.0]);
+        let mut now = ms(0);
         for x in [700.0, 680.0, 660.0] {
-            host.drag([x, 400.0], 1280.0, input_time(0));
-            std::thread::sleep(ms(40));
+            host.drag([x, 400.0], 1280.0, time_of(0, now));
+            now += ms(40);
         }
-        host.release(Instant::now(), input_time(0));
+        host.release(Instant::now(), time_of(0, now));
         assert_eq!(host.front, 0, "a slow drag without times is no flick");
     }
 

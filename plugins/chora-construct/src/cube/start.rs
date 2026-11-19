@@ -11,7 +11,7 @@ use std::{
     path::PathBuf,
     process::{Child, Stdio},
     sync::{
-        Arc, Mutex,
+        Arc, Condvar, Mutex, MutexGuard, PoisonError,
         atomic::{AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
@@ -22,11 +22,82 @@ use serde_json::Value;
 
 use super::{CUBE, ClientError, Construct, Health, NodeKind, PANES, PropsUpdate, create};
 
-/// The last line that a window manager wrote to its error output.
-pub(super) type Tail = Arc<Mutex<String>>;
+/// The last line that a window manager wrote to its error output, and how
+/// far the reader of the file got.
+pub(super) type Tail = Arc<Followed>;
 
 /// How often the construct reads the error output of the manager.
 const FOLLOW: Duration = Duration::from_millis(100);
+/// The longest `Followed::settle` waits for the reader: a reader that
+/// died never answers.
+const SETTLE: Duration = Duration::from_millis(500);
+
+/// What the reader of the error output of a manager keeps, and the event
+/// that it reached the end of the file.
+#[derive(Default)]
+pub(super) struct Followed {
+    state: Mutex<Reading>,
+    moved: Condvar,
+}
+
+/// The state of the reader of the error output.
+#[derive(Default)]
+struct Reading {
+    /// The last line that was not empty.
+    last: String,
+    /// How often the reader came to the end of the file.
+    passes: u64,
+    /// Somebody wants the reader to look at the file now.
+    asked: bool,
+    /// The reader stopped.
+    closed: bool,
+}
+
+impl Followed {
+    fn state(&self) -> MutexGuard<'_, Reading> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The last line that the manager wrote.
+    pub(super) fn last(&self) -> String {
+        self.state().last.clone()
+    }
+
+    fn keep(&self, line: String) {
+        self.state().last = line;
+    }
+
+    /// The reader came to the end of the file: tells it to those who wait,
+    /// and rests until the next look, which is at most `FOLLOW` away or
+    /// when somebody asks for it.
+    fn rest_at_the_end(&self) {
+        let mut state = self.state();
+        state.passes += 1;
+        self.moved.notify_all();
+        let (mut state, _) = (self.moved)
+            .wait_timeout_while(state, FOLLOW, |s| !s.asked)
+            .unwrap_or_else(PoisonError::into_inner);
+        state.asked = false;
+    }
+
+    fn close(&self) {
+        self.state().closed = true;
+        self.moved.notify_all();
+    }
+
+    /// Waits until the reader has read the file to its end once more, so
+    /// that the last line of a manager that has exited is in `last`. The
+    /// reader wakes at once; no fixed time stands in for its work.
+    pub(super) fn settle(&self) {
+        let mut state = self.state();
+        let target = state.passes + 1;
+        state.asked = true;
+        self.moved.notify_all();
+        let _ = (self.moved)
+            .wait_timeout_while(state, SETTLE, |s| s.passes < target && !s.closed)
+            .unwrap_or_else(PoisonError::into_inner);
+    }
+}
 
 /// A new file for the error output of a manager.
 fn log_file() -> PathBuf {
@@ -58,18 +129,21 @@ pub(super) fn launch(command: &str) -> std::io::Result<(Child, Tail)> {
         let mut line = String::new();
         while let Some(last) = kept.upgrade() {
             match reader.read_line(&mut line) {
-                Ok(0) => std::thread::sleep(FOLLOW),
+                Ok(0) => last.rest_at_the_end(),
                 Ok(_) if line.ends_with('\n') => {
                     let text = line.trim_end().to_owned();
                     eprintln!("chora-construct: cube manager: {text}");
-                    if let (false, Ok(mut kept)) = (text.trim().is_empty(), last.lock()) {
-                        *kept = text;
+                    if !text.trim().is_empty() {
+                        last.keep(text);
                     }
                     line.clear();
                 }
                 Ok(_) => {}
                 Err(_) => break,
             }
+        }
+        if let Some(last) = kept.upgrade() {
+            last.close();
         }
         let _ = std::fs::remove_file(&path);
     });
@@ -146,13 +220,9 @@ mod tests {
         let (mut child, tail) = launch("echo first >&2; echo 'the last line' >&2").expect("sh");
         let _ = child.wait();
         let end = Instant::now() + Duration::from_secs(2);
-        while tail.lock().map(|t| t.clone()).unwrap_or_default() != "the last line" {
-            assert!(
-                Instant::now() < end,
-                "the tail is {:?}",
-                tail.lock().map(|t| t.clone())
-            );
-            std::thread::sleep(Duration::from_millis(20));
+        while tail.last() != "the last line" {
+            assert!(Instant::now() < end, "the tail is {:?}", tail.last());
+            tail.settle();
         }
     }
 
