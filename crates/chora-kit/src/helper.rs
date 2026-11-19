@@ -56,7 +56,8 @@ pub enum State {
     Working,
     /// No helper works, and the latest report of a helper, or else the
     /// latest report, is an answer: spoken, a question to the person, done
-    /// or blocked. The voice agent listening again changes nothing. Never
+    /// or blocked. The voice agent listening again changes nothing, a new
+    /// utterance of the person (recording, transcribing) clears it. Never
     /// `Working` after it until a helper works again.
     Answered,
 }
@@ -132,6 +133,13 @@ impl Helper {
     }
 
     fn report(&mut self, name: &str, state: &str, task: &str) {
+        if name.is_empty() && matches!(state, "recording" | "transcribing") {
+            for (kept, raw, _) in &mut self.seen {
+                if !kept.is_empty() && State::of(raw) == State::Answered {
+                    "idle".clone_into(raw);
+                }
+            }
+        }
         self.seen.retain(|(n, ..)| n != name);
         self.seen
             .push((name.to_owned(), state.to_owned(), task.to_owned()));
@@ -397,8 +405,10 @@ mod tests {
     }
 
     /// A new utterance of the person clears the answer of a helper: the
-    /// voice agent recording or transcribing leaves the helper idle (`listening` while it records), and a helper that works still wins (rw-6). The voice
-    /// agent thinking alone, as after a helper said something, does not.
+    /// voice agent recording or transcribing leaves the helper idle
+    /// (`listening` while it records), and a helper that works still wins
+    /// (rw-6). The voice agent thinking alone, as after a helper said
+    /// something, does not.
     #[test]
     fn a_new_utterance_clears_the_answer_of_a_helper() {
         for (utterance, want) in [

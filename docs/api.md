@@ -1626,8 +1626,10 @@ voice agent alone is no helper, and its thinking and speaking show only
 in the figure), `working` (a helper works, whoever reported after it),
 `answered` (no helper works and the latest report of a helper is an
 answer: spoken, a question, done or blocked; the voice agent listening
-again changes nothing, and it is never `working` after it until a helper
-works again), else `idle` or `listening`, by the latest report. chora-assistant, the only presenter of
+again changes nothing, a new utterance of the person, recording or
+transcribing, clears it to `idle` or `listening`, and it is never
+`working` after it until a helper works again), else `idle` or
+`listening`, by the latest report. chora-assistant, the only presenter of
 the helper, adds `door`, the words of a helper door (`No helper`, or the
 name and state of the helper that works and reported last, else of the
 helper that reported last), which `chora-chat --door`
