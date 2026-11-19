@@ -33,7 +33,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
 | block-v-r2.md (RC1, mc-38) | sonnet medium | session_016iS3kQmymuHisQ92V8khSe |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
-| review-kit-sec-r1.md (F5; kit-sec cb2976c1 done) | opus high | starting |
+| review-kit-sec-r1.md (F5; kit-sec cb2976c1 done) | opus high | session_016iS3kQ3zvBR5uTP72XiUtD |
 | ti-majors-r1.md (RC, ti-22-24) | sonnet high | session_016iS3kN6CpA9ijuBr2jMwMF |
 
 ## Queue (% week; 5 % reserve)
