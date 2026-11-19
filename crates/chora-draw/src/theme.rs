@@ -1125,7 +1125,8 @@ fn part(prefix: &str, name: &str) -> String {
 ///
 /// # Errors
 ///
-/// The runtime directory is not an absolute path.
+/// The runtime directory is not an absolute path or is not safe, or the
+/// directories are not private.
 pub fn cache_dir(name: &str) -> Result<PathBuf, String> {
     cache_dir_in(
         chora_scene::paths::runtime_home(),
@@ -1139,12 +1140,16 @@ fn cache_dir_in(
     socket: Option<std::ffi::OsString>,
     name: &str,
 ) -> Result<PathBuf, String> {
-    let runtime = runtime.ok_or("no absolute runtime directory for the cache")?;
+    let base = chora_scene::paths::runtime_subdir_in(runtime, name)
+        .map_err(|error| format!("the cache of {name}: {error}"))?;
     let instance = socket
         .map(PathBuf::from)
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "default".into());
-    Ok(runtime.join(name).join(instance))
+    let dir = base.join(instance);
+    chora_scene::paths::private_dir(&dir)
+        .map_err(|error| format!("the cache of {name}: {error}"))?;
+    Ok(dir)
 }
 
 /// Creates a directory, or removes the PNG files in it.

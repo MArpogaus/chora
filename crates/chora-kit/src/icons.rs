@@ -78,11 +78,14 @@ impl Icons {
 
     /// [`Self::private_copy`] below a given runtime directory.
     fn private_copy_in(&mut self, runtime: Option<PathBuf>, bytes: &[u8]) -> Option<PathBuf> {
-        let base = runtime
-            .filter(|d| d.is_dir())
-            .unwrap_or_else(std::env::temp_dir);
-        let dir = base.join(format!("chora-icons-{}", std::process::id()));
-        chora_scene::paths::private_dir(&dir).ok()?;
+        let name = format!("chora-icons-{}", std::process::id());
+        let dir = if let Some(runtime) = runtime.filter(|d| d.is_dir()) {
+            chora_scene::paths::runtime_subdir_in(Some(runtime), &name).ok()?
+        } else {
+            let dir = std::env::temp_dir().join(name);
+            chora_scene::paths::private_dir(&dir).ok()?;
+            dir
+        };
         let serial = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = dir.join(format!("{serial}.png"));
         let mut file = fs::OpenOptions::new()

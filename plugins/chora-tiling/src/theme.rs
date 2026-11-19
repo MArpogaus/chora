@@ -504,10 +504,11 @@ pub fn apply(dir: &Path, colors: &Colors, scheme: Scheme) -> std::io::Result<()>
 }
 
 /// `chora-tiling` in the runtime directory of the user: the theme that
-/// [`apply`] writes and the pids of the panel.
+/// [`apply`] writes and the pids of the panel; a private directory, so
+/// that `runtime_file` of the same name finds it as it needs it.
 #[must_use]
 pub fn runtime_dir() -> Option<std::path::PathBuf> {
-    chora_scene::paths::runtime_home().map(|runtime| runtime.join("chora-tiling"))
+    chora_scene::paths::runtime_subdir("chora-tiling").ok()
 }
 
 /// The directory that [`apply`] writes by default: `chora-tiling/theme`
