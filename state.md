@@ -30,7 +30,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | flakes-f-r1.md (F5) | opus high, claude/flakes-f | session_016iS3kPFThYoJNuEYopVbjn |
 | wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | 5e72e4f9 MERGE-OK; train 58 07:18 |
 | wm1d-r1.md (F2, F3) | sonnet high, claude/wm1d | session_016iS3kPB9kYUxpv4QX67qbo |
-| review-kit6-r1.md (F2) | opus high, claude/kit6 | ad88ebaf handed back (D104 status file kept); review |
+| review-kit6-r1.md (F2) | opus high, claude/kit6 | ad88ebaf; review session_016iS3kLouVwqKJH31JqRuLb |
 | cut2-r1.md (F6) | sonnet high, claude/cut2 | 29b2fd25 MERGE-OK (2 MINOR backlog); train 59 |
 
 ## Queue (% of week; 5 % reserve)
