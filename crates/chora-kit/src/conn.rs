@@ -245,3 +245,211 @@ pub(crate) mod fake_core {
         (path, thread)
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        path::PathBuf,
+        sync::{
+            Arc, Mutex,
+            atomic::{AtomicU32, Ordering},
+        },
+    };
+
+    use chora_scene::{
+        Command, Event, NodeKind, ROOT,
+        ipc::{ClientError, Message, RpcError, SOCKET_ENV},
+    };
+    use serde_json::{Value, json};
+
+    use super::{
+        Conn,
+        fake_core::{self, Answer},
+    };
+    use crate::testing::{FakeCore, has};
+
+    fn group(id: &str) -> Command {
+        Command::Create {
+            id: id.into(),
+            kind: NodeKind::Group,
+            parent: ROOT.into(),
+            props: chora_scene::PropsUpdate::default(),
+        }
+    }
+
+    /// A core that answers `hello` and then sends `events`, and closes the
+    /// connection after them.
+    pub(crate) fn pushing_core(events: Vec<Event>) -> PathBuf {
+        static COUNT: AtomicU32 = AtomicU32::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "chora-kit-push-{}-{}.sock",
+            std::process::id(),
+            COUNT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_file(&path);
+        let listener = UnixListener::bind(&path).unwrap();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut lines = BufReader::new(stream.try_clone().unwrap()).lines();
+            let hello: Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
+            let reply = json!({"jsonrpc": "2.0", "id": hello["id"], "result": {"version": "test"}});
+            writeln!(stream, "{reply}").unwrap();
+            for event in events {
+                let line = serde_json::to_string(&Message::event(&event)).unwrap();
+                writeln!(stream, "{line}").unwrap();
+            }
+        });
+        path
+    }
+
+    /// The core says whether it renders in software in its answer to
+    /// `hello`; a core that does not say it renders in hardware.
+    #[test]
+    fn software_is_what_the_core_says_in_hello() {
+        let (path, core) = fake_core::serve(|method, _| match method {
+            "hello" => Answer::Result(json!({"version": "test", "software": true})),
+            _ => Answer::Result(Value::Null),
+        });
+        let conn = Conn::connect_at("probe", &path).unwrap();
+        assert!(conn.software());
+        drop(conn);
+        core.join().unwrap();
+
+        let core = FakeCore::start();
+        assert!(!core.connect("probe").software());
+    }
+
+    /// A plugin that serves a confined caller gets no activation token, so
+    /// that the caller never turns an earlier act of the person into one.
+    #[test]
+    fn a_confined_caller_gets_no_activation_token() {
+        let core = FakeCore::start();
+        core.mint_tokens();
+        let mut conn = core.connect("probe");
+        assert!(conn.activation_token().is_some());
+        conn.serving_confined = true;
+        assert_eq!(conn.activation_token(), None);
+    }
+
+    /// `answer` sends `methods.return` with the result of the call, or with
+    /// the error that refuses it.
+    #[test]
+    fn answer_returns_the_result_or_the_error_of_a_call() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let log = seen.clone();
+        let (path, core) = fake_core::serve(move |method, params| {
+            if method == "methods.return" {
+                log.lock().unwrap().push(params.clone());
+            }
+            Answer::Result(Value::Null)
+        });
+        let mut conn = Conn::connect_at("probe", &path).unwrap();
+        conn.answer(7, Ok(json!({"x": 1}))).unwrap();
+        conn.answer(8, Err(RpcError::new(RpcError::REJECTED, "no")))
+            .unwrap();
+        drop(conn);
+        core.join().unwrap();
+
+        let returns = seen.lock().unwrap().clone();
+        assert_eq!(returns.len(), 2);
+        assert_eq!(returns[0]["call"], 7);
+        assert_eq!(returns[0]["result"]["x"], 1);
+        assert_eq!(returns[1]["call"], 8);
+        assert_eq!(returns[1]["error"]["code"], RpcError::REJECTED);
+    }
+
+    /// A rejected transaction only logs in `apply`, and `try_apply` hands
+    /// the error back; an accepted one applies the commands.
+    #[test]
+    fn a_rejected_transaction_is_handed_back_or_only_logged() {
+        let core = FakeCore::start();
+        let model = core.model();
+        let mut conn = core.connect("probe");
+
+        core.refuse_next("scene.apply");
+        let err = conn.try_apply(vec![group("probe.group")]).unwrap();
+        assert_eq!(err.map(|e| e.code), Some(RpcError::REJECTED));
+        assert!(!has(&model, "probe.group"));
+
+        core.refuse_next("scene.apply");
+        conn.apply(vec![group("probe.group")]).unwrap();
+        assert!(!has(&model, "probe.group"));
+
+        assert!(
+            conn.try_apply(vec![group("probe.group")])
+                .unwrap()
+                .is_none()
+        );
+        assert!(has(&model, "probe.group"));
+    }
+
+    /// `query` returns the nodes that match, as nodes, also when the core
+    /// leaves out their `effects`; a selector without a match gives none.
+    #[test]
+    fn query_returns_the_matching_nodes() {
+        let core = FakeCore::start().selecting();
+        let mut conn = core.connect("probe");
+        conn.apply(vec![group("probe.group")]).unwrap();
+
+        let nodes = conn.query("id:probe.group").unwrap();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].id, "probe.group");
+        assert_eq!(nodes[0].kind, NodeKind::Group);
+        assert_eq!(conn.query("id:missing").unwrap().len(), 0);
+    }
+
+    /// `connect` names the socket in `CHORA_SOCKET`; without it, the
+    /// connection fails with `NoSocket`. The test leaves the variable alone
+    /// and only checks it when the test run has it unset.
+    #[test]
+    fn connect_needs_the_socket_in_the_environment() {
+        if std::env::var_os(SOCKET_ENV).is_some() {
+            return;
+        }
+        assert!(matches!(Conn::connect("probe"), Err(ClientError::NoSocket)));
+    }
+
+    /// The events that the core sends come out in order, and the close of
+    /// the core after them is an error for the next read.
+    #[test]
+    fn next_event_takes_the_events_in_order_then_reports_the_close() {
+        let path = pushing_core(vec![
+            Event::ClientConnected { name: "a".into() },
+            Event::ClientDisconnected { name: "a".into() },
+        ]);
+        let mut conn = Conn::connect_at("probe", &path).unwrap();
+        assert!(matches!(
+            conn.next_event().unwrap(),
+            Event::ClientConnected { name } if name == "a"
+        ));
+        assert!(matches!(
+            conn.next_event().unwrap(),
+            Event::ClientDisconnected { name } if name == "a"
+        ));
+        assert!(matches!(
+            conn.next_event(),
+            Err(ClientError::Closed | ClientError::Io(_))
+        ));
+    }
+
+    /// `next_event_timeout` hands out a queued event at once, and answers
+    /// `None` when no event comes in time.
+    #[test]
+    fn next_event_timeout_gives_an_event_or_none() {
+        let path = pushing_core(vec![Event::ClientConnected { name: "a".into() }]);
+        let mut conn = Conn::connect_at("probe", &path).unwrap();
+        let event = conn
+            .next_event_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        assert!(matches!(event, Some(Event::ClientConnected { .. })));
+
+        let core = FakeCore::start();
+        let mut quiet = core.connect("probe");
+        let none = quiet
+            .next_event_timeout(std::time::Duration::from_millis(20))
+            .unwrap();
+        assert!(none.is_none());
+    }
+}

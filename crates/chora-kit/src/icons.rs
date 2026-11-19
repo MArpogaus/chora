@@ -356,4 +356,108 @@ mod tests {
         drop(icons);
         assert!(!copy.exists());
     }
+
+    /// A theme of the test with a PNG icon `tool` at 16, 48 and 128 pixels.
+    fn theme(tag: &str) -> PathBuf {
+        let theme =
+            std::env::temp_dir().join(format!("chora-icons-theme-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&theme);
+        for size in ["16x16", "48x48", "128x128"] {
+            let dir = theme.join(size).join("apps");
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("tool.png"), png(8, 8, 0)).unwrap();
+        }
+        theme
+    }
+
+    /// A theme directory is searched for the wanted size first, then the
+    /// largest PNG icon of up to 64 pixels; a name that no level holds
+    /// finds nothing.
+    #[test]
+    fn a_theme_gives_the_wanted_size_or_the_largest_up_to_64() {
+        let theme = theme("search");
+        let at = |size: &str| theme.join(size).join("apps").join("tool.png");
+        assert_eq!(search(&theme, "tool", Some(16)), Some(at("16x16")));
+        assert_eq!(search(&theme, "tool", None), Some(at("48x48")));
+        assert_eq!(search(&theme, "tool", Some(128)), Some(at("48x48")));
+        assert_eq!(search(&theme, "missing", None), None);
+        fs::remove_dir_all(theme).unwrap();
+    }
+
+    /// A symbolic icon never counts, an SVG icon ranks above any PNG, and
+    /// a PNG icon of more than 64 pixels is not an icon of the menus.
+    #[test]
+    fn a_candidate_ranks_by_size_and_skips_symbolic_and_large_icons() {
+        let theme = theme("candidate");
+        let apps = |size: &str| theme.join(size).join("apps");
+        let symbolic = theme.join("symbolic").join("apps");
+        fs::create_dir_all(&symbolic).unwrap();
+        fs::write(symbolic.join("tool.png"), png(8, 8, 0)).unwrap();
+        assert_eq!(candidate(&symbolic, "tool", None), None);
+
+        let rank = |dir: &Path, wanted: Option<u32>| candidate(dir, "tool", wanted).map(|c| c.0);
+        assert_eq!(rank(&apps("48x48"), Some(48)), Some(2000));
+        assert_eq!(rank(&apps("48x48"), None), Some(48));
+        assert_eq!(rank(&apps("128x128"), Some(128)), None);
+
+        let scalable = theme.join("scalable").join("apps");
+        fs::create_dir_all(&scalable).unwrap();
+        fs::write(scalable.join("tool.svg"), b"<svg/>").unwrap();
+        assert_eq!(rank(&scalable, None), Some(1000));
+        fs::remove_dir_all(theme).unwrap();
+    }
+
+    /// An absolute path names its own file; a name with a slash, an empty
+    /// name and a missing path name nothing.
+    #[test]
+    fn a_path_names_its_own_file_and_a_bad_name_names_none() {
+        let svg = file("path-icon.svg", b"<svg/>");
+        let name = svg.to_str().unwrap();
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.find(name), Some(svg.clone()));
+        assert_eq!(icons.find_sized(name, 16), Some(svg));
+        assert_eq!(icons.find("missing/icon.png"), None);
+        assert_eq!(icons.find(""), None);
+        assert_eq!(icons.find("/no/such/icon-file.png"), None);
+    }
+
+    /// An answer is kept for its name and size, and the fallbacks of the
+    /// program icon and of a list of names use the same answers.
+    #[test]
+    fn an_answer_is_kept_and_the_fallbacks_use_it() {
+        let svg = file("kept-icon.svg", b"<svg/>");
+        let name = svg.to_str().unwrap();
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.find(name), Some(svg.clone()), "from the cache next");
+        assert_eq!(icons.find(name), Some(svg.clone()));
+        assert_eq!(
+            icons.first_sized(&["no-such-icon-x", name], 16),
+            Some(svg.clone())
+        );
+        assert_eq!(icons.program(name), Some(svg.clone()));
+        assert_eq!(icons.program_sized(name, 16), Some(svg));
+        assert_eq!(
+            icons.program("no-such-icon-x"),
+            icons.find("application-x-executable"),
+            "a program without an icon falls back to the generic one"
+        );
+        assert_eq!(
+            icons.program_sized("no-such-icon-x", 16),
+            icons.find_sized("application-x-executable", 16)
+        );
+    }
+
+    /// More copies than are kept remove the oldest one from the disk.
+    #[test]
+    fn the_oldest_copy_goes_when_more_are_held() {
+        let mut icons = Icons::new(["none"]);
+        let mut copies = Vec::new();
+        for i in 0..=KEPT_COPIES {
+            let path = file(&format!("evict-{i}.png"), &png(8, 8, i));
+            copies.push(icons.for_sender(path.to_str().unwrap()).unwrap());
+        }
+        assert!(!copies[0].exists(), "the oldest copy is gone");
+        assert!(copies[1].exists());
+        assert!(copies.last().unwrap().exists());
+    }
 }

@@ -1098,4 +1098,349 @@ mod tests {
             serde_json::from_value(json!({"event": "pointer.entered", "node": "a"})).unwrap();
         assert!(hears_pointer(&person, false));
     }
+
+    use crate::testing::FakeCore;
+
+    /// One event of each variant that carries the `injected` flag, as the
+    /// core sends it with `injected: true`.
+    fn injected_events() -> Vec<Event> {
+        [
+            json!({"event": "input.key", "binding": "Super+a", "injected": true}),
+            json!({"event": "input.button", "binding": "Super+BTN_LEFT", "state": "pressed",
+                   "position": [1, 2], "output": "DP-1", "local": [1, 2], "injected": true}),
+            json!({"event": "input.moved", "binding": "Super+BTN_LEFT", "position": [1, 2],
+                   "output": "DP-1", "local": [1, 2], "injected": true}),
+            json!({"event": "node.key", "node": "a", "key": "a", "code": 30,
+                   "state": "pressed", "injected": true}),
+            json!({"event": "pointer.pressed", "node": "a", "button": 272,
+                   "position": [1, 2], "injected": true}),
+            json!({"event": "pointer.entered", "node": "a", "injected": true}),
+            json!({"event": "pointer.moved", "node": "a", "position": [1, 2], "injected": true}),
+            json!({"event": "pointer.released", "node": "a", "button": 272,
+                   "position": [1, 2], "injected": true}),
+            json!({"event": "pointer.scroll", "node": "a", "position": [0, 0], "dx": 0, "dy": 1,
+                   "discrete": [0, 0], "source": "wheel", "injected": true}),
+        ]
+        .into_iter()
+        .map(|j| serde_json::from_value(j.clone()).unwrap_or_else(|e| panic!("{j}: {e}")))
+        .collect()
+    }
+
+    /// A person's key or pointer event is the person's; an injected one
+    /// is the person's only where the plugin accepts injected input.
+    #[test]
+    fn from_person_judges_each_injected_event() {
+        for event in injected_events() {
+            assert!(!from_person(&event, false), "{event:?}");
+            assert!(from_person(&event, true), "{event:?}");
+        }
+        assert!(from_person(
+            &Event::ClientConnected { name: "a".into() },
+            false
+        ));
+    }
+
+    /// The pointer events that a plugin hears only from the person are
+    /// the four of the list; a key or a press is judged by the plugin itself.
+    #[test]
+    fn hears_pointer_skips_the_injected_pointer_events_of_others() {
+        for event in injected_events() {
+            let pointer_only = matches!(
+                event,
+                Event::InputButton { injected: true, .. }
+                    | Event::InputMoved { injected: true, .. }
+                    | Event::PointerEntered { injected: true, .. }
+                    | Event::PointerScroll { injected: true, .. }
+            );
+            assert_eq!(hears_pointer(&event, false), !pointer_only, "{event:?}");
+            assert!(hears_pointer(&event, true), "{event:?}");
+        }
+    }
+
+    /// The defaults of the plugin trait: no settings, no state, changes
+    /// apply, and the settings show as they are.
+    #[test]
+    fn the_defaults_of_a_plugin_change_nothing() {
+        let core = FakeCore::start();
+        let mut plugin = core_recorder(&core);
+        assert!(plugin.settings().is_none());
+        assert!(plugin.settings_changed().is_ok());
+        assert!(plugin.state().is_none());
+        assert_eq!(plugin.shown_settings(json!({"gap": 4})), json!({"gap": 4}));
+    }
+
+    /// `settings.*` and `state.get` answer a plugin without them with
+    /// `METHOD_NOT_FOUND`; any other method goes to the plugin.
+    #[test]
+    fn a_plugin_without_settings_or_state_answers_no_such_method() {
+        let core = FakeCore::start();
+        let mut plugin = core_recorder(&core);
+        for method in [
+            "settings.get",
+            "settings.set",
+            "settings.reload",
+            "state.get",
+        ] {
+            let err = answer_call(&mut plugin, method, json!({"gap": 1})).unwrap_err();
+            assert_eq!(err.code, RpcError::METHOD_NOT_FOUND, "{method}");
+        }
+        let err = answer_call(&mut plugin, "open", Value::Null).unwrap_err();
+        assert_eq!(
+            err.code,
+            RpcError::METHOD_NOT_FOUND,
+            "the plugin's own answer"
+        );
+    }
+
+    /// The export of `state.get` is named so, and a privileged export is
+    /// marked so, whether it has a description or not.
+    #[test]
+    fn exports_name_their_method_and_mark_the_privileged_ones() {
+        assert!(matches!(
+            state_method(),
+            ExportMethod::Described(DescribedMethod { name, .. }) if name == "state.get"
+        ));
+        assert!(matches!(
+            privileged(ExportMethod::Plain("run".into())),
+            ExportMethod::Described(DescribedMethod { name, privileged: true, .. })
+                if name == "run"
+        ));
+        assert!(matches!(
+            privileged(method("open", "Opens.", json!({}), &[])),
+            ExportMethod::Described(DescribedMethod {
+                privileged: true,
+                ..
+            })
+        ));
+    }
+
+    /// A message cut at a byte that is not a character boundary ends
+    /// before the character, and the cut is marked.
+    #[test]
+    fn a_long_error_is_cut_before_a_split_character() {
+        let text = format!("{}{}", "a".repeat(511), "ä".repeat(10));
+        let message = capped(RpcError::new(RpcError::INVALID_PARAMS, text)).message;
+        assert_eq!(message, format!("{}…", "a".repeat(511)));
+    }
+
+    /// A method that the runtime does not answer goes to the plugin, and
+    /// its error comes back as the answer.
+    #[test]
+    fn the_method_of_a_plugin_is_called_when_no_runtime_method_is() {
+        let core = FakeCore::start();
+        let mut plugin = core_recorder(&core);
+        let err = answer_call(&mut plugin, "anything", Value::Null).unwrap_err();
+        assert_eq!(err.code, RpcError::METHOD_NOT_FOUND);
+        assert_eq!(err.message, "anything");
+    }
+
+    /// A method call is answered, and the caller of it is kept for the
+    /// plugin; a refused answer only logs.
+    #[test]
+    fn a_method_call_is_answered_and_a_refused_answer_only_logs() {
+        let core = FakeCore::start();
+        let mut plugin = core_recorder(&core);
+        let call = |method: &str, confined: bool| Event::MethodCalled {
+            call: 3,
+            caller: "choractl".into(),
+            method: method.into(),
+            params: Value::Null,
+            confined,
+            connection: 1,
+        };
+        dispatch(&mut plugin, call("open", true)).unwrap();
+        assert_eq!(plugin.rt.caller, "choractl");
+        assert!(plugin.rt.confined_call);
+        assert!(
+            !plugin.rt.conn.serving_confined,
+            "back to free after the answer"
+        );
+        assert!(plugin.seen.is_empty(), "a method call is not an event");
+
+        core.refuse_next("methods.return");
+        dispatch(&mut plugin, call("open", false)).unwrap();
+        assert!(!plugin.rt.confined_call);
+    }
+
+    /// `serve` hands the events of the core on, and returns the error of
+    /// the close after them.
+    #[test]
+    fn serve_hands_the_events_on_until_the_core_closes() {
+        let path = crate::conn::tests::pushing_core(vec![
+            Event::ClientConnected { name: "a".into() },
+            Event::ClientDisconnected { name: "a".into() },
+        ]);
+        let conn = Conn::connect_at("tiling", &path).unwrap();
+        let mut plugin = Recorder {
+            rt: Runtime::with(conn, "tiling", Vec::new()),
+            seen: Vec::new(),
+        };
+        assert!(serve(&mut plugin).is_err());
+        assert_eq!(plugin.seen.len(), 2);
+    }
+
+    /// The events of an output that `--output` leaves to others do not
+    /// reach the plugin; the others do.
+    #[test]
+    fn an_output_of_another_plugin_is_not_handed_on() {
+        let core = FakeCore::start();
+        let mut plugin = core_recorder(&core);
+        plugin.rt.outputs = vec!["DP-1".into()];
+        dispatch(
+            &mut plugin,
+            Event::OutputRemoved {
+                name: "HDMI-1".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(plugin.seen.len(), 0);
+        dispatch(
+            &mut plugin,
+            Event::OutputRemoved {
+                name: "DP-1".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(plugin.seen.len(), 1);
+        assert!(plugin.rt.filters());
+        assert!(plugin.rt.manages("DP-1") && !plugin.rt.manages("HDMI-1"));
+    }
+
+    /// Without `--output`, the plugin manages every output and filters
+    /// none; the core has no outputs in the fake core.
+    #[test]
+    fn outputs_are_the_ones_the_plugin_manages() {
+        let core = FakeCore::start();
+        let mut rt: Runtime<()> = Runtime::with(core.connect("tiling"), "tiling", Vec::new());
+        assert!(!rt.filters());
+        assert!(rt.manages("anything"));
+        assert_eq!(rt.outputs().unwrap().len(), 0);
+        assert_eq!(rt.all_outputs().unwrap().len(), 0);
+    }
+
+    /// `announce` subscribes to the events and then exports the methods;
+    /// `subscribe` replaces the subscription.
+    #[test]
+    fn announce_subscribes_and_exports_the_methods() {
+        use std::sync::{Arc, Mutex};
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let log = Arc::clone(&seen);
+        let (path, core) = fake_core::serve(move |method, params| {
+            log.lock()
+                .unwrap()
+                .push((method.to_owned(), params.clone()));
+            Answer::Result(Value::Null)
+        });
+        let conn = Conn::connect_at("tiling", &path).unwrap();
+        let mut rt: Runtime<()> = Runtime::with(conn, "tiling", Vec::new());
+        rt.announce(&["voice.state"], vec![state_method()]).unwrap();
+        rt.subscribe(&["output.changed"]).unwrap();
+        drop(rt);
+        core.join().unwrap();
+
+        let calls = seen.lock().unwrap().clone();
+        let methods: Vec<&str> = calls.iter().map(|(m, _)| m.as_str()).collect();
+        assert_eq!(
+            methods,
+            [
+                "hello",
+                "events.subscribe",
+                "methods.export",
+                "events.subscribe"
+            ]
+        );
+        assert_eq!(calls[1].1["events"], json!(["voice.state"]));
+        assert_eq!(calls[3].1["events"], json!(["output.changed"]));
+    }
+
+    /// A grab takes its action; grabbing the same binding again replaces
+    /// the action, and a refused grab holds nothing and answers false.
+    #[test]
+    fn a_grab_replaces_its_action_and_a_refusal_holds_nothing() {
+        let core = FakeCore::start();
+        let mut rt: Runtime<&'static str> =
+            Runtime::with(core.connect("tiling"), "tiling", Vec::new());
+        assert!(rt.grab("Super+t".parse().unwrap(), "tiling").unwrap());
+        assert!(rt.grab("Super+t".parse().unwrap(), "xp").unwrap());
+        assert_eq!(rt.action("Super+t"), Some(&"xp"));
+        assert!(rt.holds("Super+t"));
+        assert!(!rt.holds("Super+x"));
+        assert!(!rt.holds("not a binding"));
+
+        core.refuse_next("input.grab");
+        assert!(!rt.grab("Super+x".parse().unwrap(), "xp").unwrap());
+        assert!(!rt.holds("Super+x"));
+    }
+
+    /// The give keys stay with the core when a set of grabs restarts, and
+    /// the other bindings are let go at the end of the set.
+    #[test]
+    fn a_new_set_of_grabs_keeps_the_give_keys_and_ends_the_others() {
+        let core = FakeCore::start();
+        let mut rt: Runtime<&'static str> = Runtime::with(core.connect("mc"), "mc", Vec::new());
+        rt.give_keys(Some(|to| to));
+        rt.grab("Alt+Super+1".parse().unwrap(), "tiling").unwrap();
+        rt.grab("Super+t".parse().unwrap(), "xp").unwrap();
+        rt.start_grabs();
+        rt.end_grabs().unwrap();
+        assert_eq!(rt.action("Alt+Super+1"), Some(&"tiling"));
+        assert_eq!(rt.action("Super+t"), None);
+        assert_eq!(core.model().lock().unwrap().ungrabs, [json!("Super+t")]);
+    }
+
+    /// A binding that the old set held and that does not parse fails the
+    /// end of the set with `INVALID_PARAMS`.
+    #[test]
+    fn end_grabs_names_a_binding_that_does_not_parse() {
+        let core = FakeCore::start();
+        let mut rt: Runtime<()> = Runtime::with(core.connect("mc"), "mc", Vec::new());
+        rt.old_grabs.push("Hyper+t".into());
+        let err = rt.end_grabs().unwrap_err();
+        assert!(
+            matches!(&err, ClientError::Rpc(e) if e.code == RpcError::INVALID_PARAMS),
+            "{err:?}"
+        );
+    }
+
+    /// The give keys come only with an action for them, and the regrab is
+    /// a no-op for a plugin without them.
+    #[test]
+    fn no_give_keys_means_nothing_is_grabbed() {
+        let core = FakeCore::start();
+        let mut rt: Runtime<()> = Runtime::with(core.connect("mc"), "mc", Vec::new());
+        rt.grab_give_keys().unwrap();
+        rt.regrab_give_keys().unwrap();
+        assert!(!rt.holds("Alt+Super+1"));
+
+        rt.give_keys(Some(|_| ()));
+        rt.regrab_give_keys().unwrap();
+        assert!(rt.holds("Alt+Super+1"));
+    }
+
+    /// `run` ends with the first session that ends without an error, and
+    /// comes back after a session that failed.
+    #[test]
+    fn run_comes_back_after_a_failed_session() {
+        let mut sessions = 0;
+        let code = run("tiling", || {
+            sessions += 1;
+            if sessions == 1 {
+                Err("the core went away".into())
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(sessions, 2);
+        assert_eq!(format!("{code:?}"), format!("{:?}", ExitCode::SUCCESS));
+    }
+
+    fn core_recorder(core: &FakeCore) -> Recorder {
+        Recorder {
+            rt: Runtime::with(core.connect("tiling"), "tiling", Vec::new()),
+            seen: Vec::new(),
+        }
+    }
 }

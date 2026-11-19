@@ -86,6 +86,44 @@ mod tests {
         assert_eq!(h.word(), "listening");
     }
 
+    /// `hear` follows the `voice.state` and `voice.remove` of the client
+    /// `voice`, and forgets the helpers when `voice` disconnects; the
+    /// events of other clients and other names do not count.
+    #[test]
+    fn hear_follows_voice_and_forgets_it_on_its_disconnect() {
+        let voice = |event: &str, data: serde_json::Value| Event::Emitted {
+            event: event.into(),
+            client: "voice".into(),
+            data,
+        };
+        let mut h = Helpers::default();
+        h.hear(&voice("voice.state", json!({"state": "idle"})));
+        assert_eq!(h.word(), "idle");
+        h.hear(&Event::Emitted {
+            event: "voice.state".into(),
+            client: "other".into(),
+            data: json!({"state": "busy"}),
+        });
+        assert_eq!(h.word(), "idle", "another client is no voice");
+        h.hear(&voice("voice.other", json!({"state": "busy"})));
+        assert_eq!(h.word(), "idle", "another event is no report");
+        h.hear(&voice(
+            "voice.state",
+            json!({"name": "atlas", "state": "working"}),
+        ));
+        assert_eq!(h.word(), "working");
+        h.hear(&voice("voice.remove", json!({"name": "atlas"})));
+        assert_eq!(h.word(), "idle");
+        h.hear(&Event::ClientDisconnected {
+            name: "other".into(),
+        });
+        assert_eq!(h.word(), "idle");
+        h.hear(&Event::ClientDisconnected {
+            name: "voice".into(),
+        });
+        assert_eq!(h.word(), "none");
+    }
+
     #[test]
     fn a_removed_helper_falls_back_to_the_one_before() {
         let mut h = Helpers::default();

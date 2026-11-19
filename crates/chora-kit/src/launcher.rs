@@ -322,4 +322,58 @@ mod tests {
             Answer::Closed
         );
     }
+
+    /// A stand-in for fuzzel: it reads the rows, then prints `text`
+    /// whatever rows it got, as a line that the person chose.
+    fn fuzzel_says(text: &str) -> Vec<String> {
+        vec![
+            "sh".into(),
+            "-c".into(),
+            "cat >/dev/null; printf '%s' \"$0\"".into(),
+            text.into(),
+        ]
+    }
+
+    /// `ask` shows the rows on the standard input of fuzzel and answers
+    /// the line that it prints without its blanks; a fuzzel that cannot
+    /// start, or that prints nothing, answers nothing.
+    #[test]
+    fn ask_shows_the_rows_and_answers_the_line_it_prints() {
+        let head = vec!["sh".into(), "-c".into(), "head -n 1".into()];
+        assert_eq!(
+            ask(&head, &["Screenshot", "terminal"]),
+            Some("Screenshot".into())
+        );
+        assert_eq!(
+            ask(&fuzzel_says("  Dark look \n"), &["Dark look"]),
+            Some("Dark look".into())
+        );
+        assert_eq!(ask(&fuzzel_says(""), &["Dark look"]), None);
+        assert_eq!(
+            ask(&["/chora-no-such-dir/fuzzel".into()], &["Dark look"]),
+            None
+        );
+        assert_eq!(ask(&[], &["Dark look"]), None);
+    }
+
+    /// A row that the person chose runs its program; a text that finds
+    /// several programs narrows the list, and after the rounds without an
+    /// answer the list gives up; text that finds nothing says so.
+    #[test]
+    fn choose_runs_the_chosen_row_and_gives_up_after_the_rounds() {
+        let list = list();
+        assert_eq!(
+            choose(&fuzzel_says("Screenshot"), &list),
+            Some("shot".into())
+        );
+        assert_eq!(choose(&fuzzel_says("THEME"), &list), None);
+        assert_eq!(choose(&fuzzel_says("zzqq"), &list), None);
+        assert_eq!(choose(&fuzzel_says(""), &list), None);
+    }
+
+    /// `run` with a list that the person closes starts no program.
+    #[test]
+    fn run_with_a_closed_list_starts_nothing() {
+        run(&["true".into()], "foot", None);
+    }
 }
