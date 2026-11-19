@@ -242,3 +242,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - WM7B-r2 (review r2, reports/wm7b.md): rw-2 core hides a disconnected client's kept nodes during its 10 s grace (ipc.rs:1191); rw-3 core emits focus.changed {surface:null} when a node takes the keyboard (state.rs:1035); rw-4 construct finds the face client by role, not program name (start.rs:133); rw-6 e450d672 core fix without red commit (record only).
 
 - kit5 r2 MINOR (11-19 13:06): r2-1 notify main.rs:246 second chora-notify without bus restart-loops (exit 0 needs bus name); r2-2 mc agent.rs:50 critical ids never capped; NIT r2-3 card.rs:274 card over a very wide chat. reports/kit5.md.
+- kit7 r2 MINOR/nit (11-19 13:14): answered->working untested (helper.rs:195); new utterance does not clear answered (helper.rs:205); seed() alphabetical, not report order (helper.rs:142); no voice-alone cell per look; docs/api.md:1573 rewrap. reports/kit7.md.
