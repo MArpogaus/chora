@@ -159,3 +159,46 @@ construct-hud,mc-handover,keys,chat-keys` all PASS (run /tmp/merge-gate.4KGfXi; 
 xp step 17, fixed by 7b01dd5a).
 Open: mc still has no unit of its own (documented start only); the `assistant.chat` `rect` and `notify.ready` are
 new event fields for docs/api.md's event list if the PM wants them there (documented in configuration.md).
+
+## Review r2 (F2): r3 fixes of kit5b checked
+
+claude/kit5b head 7b01dd5a (r1 head 4e003748, merge d7cd08b9 of daf83391). Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR,
+2 MINOR, 1 NIT). No merge gate run, as briefed.
+
+Checks run: step 0 ok (`cargo check -p chora`; foot, fuzzel, waybar present). On 7b01dd5a `cargo test -p chora-notify
+-p chora-mc` 22/22 and 139/139 ok (dbus-daemon present, so the private-bus tests ran, not returned early), `cargo test
+-p chora-kit --features testing --test notice` 4/4 ok; `cargo clippy -p chora-notify -p chora-kit -p chora-mc
+--all-targets` clean; `cargo check -p chora-xp -p chora-tiling -p chora-construct --all-targets` ok;
+`python3 tools/cut-check` ok; `tools/size-ratchet --base daf83391` ok (one file over 1,500, the same as before; the
+others over 1,500 are docs and old files that kit5b does not grow past the ratchet).
+
+1. Red then green, each replayed at its red sha in a worktree:
+   rw-1 4da3634 `a_taken_name_leaves_the_live_api_served` FAILED, ok at 7b01dd5a. rw-3 bdb5af3 `the_card_steps_aside_of_
+   the_chat_panel` and `the_chat_of_the_host_names_its_box` FAILED, ok at head. rw-5 7d9de9a `a_clear_dismisses_an_old_
+   critical_notice` FAILED, ok at head (`a_failed_dismissal_keeps_the_ids` ok). rw-2 c603196 `tests/flavor-notify.py`
+   rc 1 (2 gaps: construct target, mc README), head 0 gaps. rw-7 a5f4f04 `tests/screenshot-notice.sh` FAIL (no
+   notify.show through choractl), head ok. rw-8 c16e244 `tests/packaging-files.py` 5 gaps (rpm: mc notify files), head
+   0 gaps. rw-6 is docs: `docs/api.md` now lists `notify.show`, `notify.close`, `shown` with `body`, `node`, `rect`,
+   `chat` (read, matches the code). rw-4 f1df4b1 is test only, as the report says.
+   rw-1 is right as reported: bus name taken and core name `notify` free (mako) keeps serving the live API with
+   `bus: None`; both taken ends 0 (see r2-1 for the one case outside that). rw-3 cell read: gate-chat-keys starts
+   chora-notify after the chat is open (so it also exercises `notify.ready` and `chat_again`), shows a notice, takes
+   the `rects` of `hud-chat` and `notify-card-body` from `scene.query` and fails on any overlap or when it does not get
+   exactly two boxes: not vacuous; `Frame::rect()` is the box of the view (the slot box for a slot). rw-4 read:
+   `shown_id` waits for the summary in `shown` of `state.get` of notify, `closed` for the id in `closed` and not in
+   `shown`; `state_filter` is only set by planted.py, so `state("notify")` is unfiltered in the looks; a failed show
+   makes the dismiss act fail by `shown_before`: not vacuous. rw-2: target Wants, unit, build-arch row, README and
+   configuration.md for the mc slot (documented start only, as r3 says).
+2. Merge d7cd08b9: `git show --cc` of the 7 conflict files read. chora-kit Cargo.toml has `launch` and `notice` tests;
+   lib.rs has `launch` and `notice`; testing.rs has `answers`, `mints_tokens`, `selects`, `answer_with`,
+   `mint_tokens`; copies.toml has the KIT5 rows and the KIT6 and KIT2c rows; tiling main.rs imports `actions` and
+   `notice`; xp lifecycle.rs `window_created` calls `dismiss_notice` (panels.rs), startup.rs has `book` and no
+   `notifier`; mc region.rs keeps the `fit`/`hits`/`items` split, the `fit` and `column_width` tests live on in
+   region/fit.rs and only the urgent test and `URGENT` are gone (kit5b removal). Nothing of daf83391 lost.
+3. No new work beyond the findings.
+
+- r2-1, MINOR, plugins/chora-notify/src/main.rs:246, the exit 0 needs the bus name taken as well as the core name `notify`, so a second chora-notify in a session whose first one runs without a bus (`Err(NoBus)`, the case rw-7 names) gets NAME_TAKEN, returns `Err` and Restart=on-failure starts it every second; fix: end 0 on NAME_TAKEN of the core name alone (drop the `matches!(bus, Err(Taken))`).
+- r2-2, MINOR, plugins/chora-mc/src/agent.rs:50, `Notices::remember` never drops a critical id, also not one that the person clicked away, so the list grows by one per critical notice until a clear (8 bytes each, a clear closes them all as a no-op); fix: cap the critical ids too (e.g. 64, oldest first).
+- r2-3, NIT, plugins/chora-notify/src/card.rs:274, `x.max(0)` leaves the card over the chat when the chat is wider than the room beside it (the unit test `wide` asserts `[0, 704]` over a chat from x 100); fix: none needed for a chat panel of 400 px, or fall back to a vertical step.
+
+Open from r3 stays: mc has no unit of its own for the notice slot (documented start only).

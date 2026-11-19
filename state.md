@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 13:00 UTC)
+## Now (2026-11-19 13:06 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:50 PM 3.9 %; 39 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
-session branch: daf83391 (train 61: mv4, wm2, kit2c+kit6, wm1d, docs-f8b); 28 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
+session branch: dd2a0aa3 (train 62: kit2d, wm7a); 29 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
 
 ## RC (design/rc.md)
@@ -24,14 +24,16 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-kit7-r2.md (F2) | sonnet high | session_016iS3kLpi8PGbFSSRgrnb1u (13:01; kit7 8321c16f) |
-| review-kit5-r2.md (F2) | sonnet high | session_016iS3kPeJ9Pd53BpYjd8YMH (13:00; kit5b 7b01dd5a) |
+| review-kit7-r2.md (F2) | sonnet high | session_016iS3kLpi8PGbFSSRgrnb1u (13:01) |
+| wm7b-r4.md (F3) | sonnet high | session_016iS3kNgz5Y2r1uhCZGXkY1 (13:04) |
+| wm5-r3.md (F3) | sonnet high | session_016iS3kMikERjA4gqYhoHDPA (13:04) |
+| wm3-r3.md (F3) | sonnet high | session_016iS3kNGShrVmhCQAGTmdRy (13:04) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
-| flakes-g-r2.md (F5) | opus high | held: 12:51 BLOCKED no setup (4th); 14:00 UTC default |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 61 green 11:23 (pull passed). 62 = kit2d 188b642d + wm7a f4e4f4d9: gate died 11:4x (shell job), rerun 12:02. wm3 out: its kit::wm::open::Open clashes with wm7a state::Open (6 files); r3 merges head after 62. 63: wm5 f6c67200, flakes-f 847f0964, wm7b 3e193a91 (PM r3) MERGE-OK.
-5. (F2, F3) Next (sonnet unless complex): WM7b hosted (owner 10:52), opus 4 %, after wm7a r3; KIT6 in kit2c; KIT7 opus 5 % started 11:04. Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
+4. Trains (F6): 62 green 13:00 (kit2d, wm7a; head dd2a0aa3). 63 = flakes-f 847f0964 gating. wm3, wm5, wm7b conflict with 62 (state::Open, bindings): merge rounds r3/r3/r4, then train 64: kit5b 7b01dd5a MERGE-OK (13:06; MINOR r2-1, r2-2 to backlog), kit7 if MERGE-OK.
+5. (F2, F3) After train 64: kit3 r1 review; Sat opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4.
+5b. (F5) flakes-g r2 held: no setup x4; 14:00 UTC: step 0 runs setup.sh.
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
