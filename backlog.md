@@ -220,3 +220,4 @@ wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRe
 - Refactor (kit1 review, ranked high): fd-based private_dir plus paths::runtime_subdir(name); copies rows for XDG_*_HOME and var_os("HOME") at 0.
 - wm1b review r1 MINOR (11-19 04:34): rw-1 no cell for detach of a docked window (windows.rs:228); rw-2 restart cell skips build->adopt_free (windows.rs:253); rw-3 manage.rs:160 drops the result of book.give. Next WM1 round.
 - (kit2b review r1 FIX 11-19 05:43) earliest gate: none; harness item: cut-check report mode lists new config variants a look starts to act on (a new match arm on a shared enum) so a port that adds a feature shows before review.
+- (owner 11-19 05:59) records: D95 amends D77 (one plugin repository until a split is needed); next docs lane edits docs/decisions.md D77 status.
