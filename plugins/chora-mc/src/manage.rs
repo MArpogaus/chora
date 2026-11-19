@@ -112,7 +112,7 @@ impl Mc {
         if let Some(panel) = self.overview_panel()
             && let Err(err) = self.replace_panel(OVERVIEW, &panel, false)
         {
-            crate::report(OVERVIEW, &err.message);
+            chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", OVERVIEW, err.message));
         }
         let ty = self.ty("chapter_number", None);
         let heads: Vec<String> = (self.scenes.iter())
@@ -142,7 +142,7 @@ impl Mc {
             .filter(|p| p != name && self.scenes.contains_key(p))
             .unwrap_or_else(|| self.settings.value.default_scene.clone());
         if let Err(err) = self.show(&back, keyboard) {
-            crate::report(&back, &err.message);
+            chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", back, err.message));
         }
     }
 
@@ -249,7 +249,7 @@ impl Mc {
         if let Some(name) = name
             && let Err(err) = self.show(&name, true)
         {
-            crate::report(&name, &err.message);
+            chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
     }
 

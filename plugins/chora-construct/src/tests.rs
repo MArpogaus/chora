@@ -681,7 +681,7 @@ fn a_window_pulled_during_the_flight_into_it_comes_at_1_to_1_where_the_camera_st
 #[test]
 fn report_line() {
     if chora_kit::testing::in_child() {
-        report(&"no such window");
+        chora_kit::runtime::report(NAME, &"no such window");
         return;
     }
     assert_eq!(

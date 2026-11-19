@@ -40,7 +40,7 @@ One line per module of `crates/chora-kit/src`: what lives there, and when to use
 - `launcher`: the rows of `fuzzel --dmenu` for the installed programs, and what a typed text runs.
 - `modes`: the use and navigate modes of a view on a shape of panes, such as the cube.
 - `notice`: show, replace and dismiss a message through `chora-notify`; never draw a notice or call D-Bus yourself (D110).
-- `runtime`: the plugin runtime: connect, subscribe, export methods, grab bindings, `settings.*`, reconnect; also `runtime_file`.
+- `runtime`: the plugin runtime: connect, subscribe, export methods, grab bindings, `settings.*`, reconnect; also `runtime_file` and `report(name, err)`, the one log line of a failed request that a look keeps running through.
 - `settings`: the typed YAML settings of a plugin and `settings::Common` (D62, D98).
 - `shared`: the files every look shares in the folder `shared` (`power.sh`, `screenshot.sh`, launcher entries).
 - `testing`: `FakeCore` and the script of a test over it (D96); use it in every plugin test.

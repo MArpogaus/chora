@@ -172,7 +172,7 @@ impl Mc {
         }
         self.windows.insert(name.clone(), surface.into());
         if let Err(err) = self.show(&name, user) {
-            crate::report(&name, &err.message);
+            chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
         if new {
             self.renumber()?;
