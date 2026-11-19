@@ -249,4 +249,27 @@ mod tests {
             "it waited {waited:?} for a reader that is at the end in a moment"
         );
     }
+
+    /// A reader that came to the end of the file before the ask may not
+    /// have seen the last write of the manager: its pass does not settle
+    /// the ask. Only a pass that began after it does (rd-3).
+    #[test]
+    fn a_pass_that_ended_after_the_ask_but_began_before_it_does_not_settle() {
+        let followed = Arc::new(Followed::default());
+        let waiting = {
+            let followed = Arc::clone(&followed);
+            std::thread::spawn(move || followed.settle())
+        };
+        while !followed.state().asked {
+            std::thread::yield_now();
+        }
+        followed.rest_at_the_end();
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            !waiting.is_finished(),
+            "the pass of before the ask settled it"
+        );
+        followed.rest_at_the_end();
+        waiting.join().expect("settle");
+    }
 }
