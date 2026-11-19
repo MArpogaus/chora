@@ -1354,7 +1354,7 @@ impl Construct {
         queue: bool,
     ) -> Result<bool, ClientError> {
         let Some(host) = &mut self.cube else {
-            return Err(no_cube());
+            return Err(super::modes::no_cube());
         };
         let duration = ms.map_or(TURN, Duration::from_millis);
         let taken = host.start_turn(by, duration, queue, chora_kit::clock::now());
@@ -1368,7 +1368,7 @@ impl Construct {
     pub(crate) fn turn_method(&mut self, turn: cube::Turn) -> Result<bool, RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         let Some(host) = &self.cube else {
-            return Err(rejected(no_cube()));
+            return Err(rejected(super::modes::no_cube()));
         };
         let (front, faces) = host.front_face();
         let by = (turn.quarters(front, faces))
@@ -1719,14 +1719,6 @@ pub(crate) fn end(child: &mut Child) {
     if let Err(err) = child.wait() {
         eprintln!("chora-construct: wait for the window manager of the cube: {err}");
     }
-}
-
-/// The refusal of a method of the cube while none is open.
-fn no_cube() -> ClientError {
-    ClientError::Rpc(RpcError::new(
-        RpcError::REJECTED,
-        "no cube is open; cube.open first",
-    ))
 }
 
 #[cfg(test)]
