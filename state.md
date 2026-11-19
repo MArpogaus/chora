@@ -24,7 +24,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-kit7-r1.md (F2) | opus high | session_016iS3kNmrY2LR4aRVcqNyZL (12:01) |
+| kit7-r2.md (F2) | opus high | starting (r1 FIX: 1 BLOCK, 2 MAJOR) |
 | wm7b-r2.md (F3) | opus high | session_016iS3kLKs3MjAmmEjvvYvnT (11:29) |
 | review-kit5-r1.md (F2) | opus high | session_016iS3kPtPDrqeGUu2h175Vv (12:07) |
 | flakes-g-r1.md (F5) | opus high | session_016iS3kLDotvtMhy21xRyFAF (12:08) |
