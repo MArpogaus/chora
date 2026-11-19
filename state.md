@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | review-kit3-r2.md (F2) | sonnet high | session_016iS3kQVMPwqHVFjtwMitFY (14:45; claude/review-kit3 04ea5851; kit3 worker archived) |
 | review-integ-r1.md (F6) | opus high | session_016iS3kPrZ5VvWErfpdrJ93Z (14:47; claude/review-integ af5547c7; integ worker archived) |
-| matrix-cap-r1.md (F5, F6) | sonnet high | starting 14:51 (base alone 235 s) |
+| matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
 | focus-port-r1.md (F2, F3, F7) | opus high | session_016iS3kQVDi6exe5ECXeDNUD (14:20; audit rank 3; from integ 3619ccb3) |
 | moved-tests-xp-r2.md (F5) | haiku high | session_016iS3kNLneVa6Lit4p35nsS (14:29) |
 | flakes-g-r3.md (F5) | opus high | session_016iS3kLbyuHiuqm149tXExQ (13:58) |
