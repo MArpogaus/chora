@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 08:31 UTC)
+## Now (2026-11-19 08:37 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 07:50 PM 1.8 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,14 +25,14 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
-| review-wm1d-r1.md (F2, F3) | sonnet high, wm1d 18231aa1 done 08:31 | session_016iS3kLGVNsJEbayoL5mQak (08:31) |
+| wm2-r3.md (F3) | sonnet high | starting |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm7a-r1.md (F3) | opus high | session_016iS3kPRrXrPs57WvWHZBEU (07:40) |
 | kit2c-r1.md (F2) | sonnet high | session_016iS3kQWUsFuZNFkENAEJBT (07:51) |
 | mv4-r1.md (F4) | sonnet high | session_016iS3kMxQ13N2u6G3eiYh8H (07:40) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6; procedures.md): 58 green; 59 cut2 29b2fd25, net3 dc00d33c running; wm2 conflicts with wm1b/c book: r3 merge round (brief wm2-r3) at next free slot; kit6 ad88ebaf, docs-f8b 5f97b0eb conflict with kit2b actions: in via kit2c. Pace 1.5-2 %/h.
+4. Trains (F6; procedures.md): 58 green; 59 cut2 29b2fd25, net3 dc00d33c running; 60: wm1d 18231aa1 (MERGE-OK 08:37, 2 MINOR to backlog); wm2 conflicts with wm1b/c book: r3 merge round running; kit6 ad88ebaf, docs-f8b 5f97b0eb conflict with kit2b actions: in via kit2c. Pace 1.5-2 %/h.
 5. Next (sonnet unless complex, owner 06:56): KIT2d, KIT3 (F2). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
