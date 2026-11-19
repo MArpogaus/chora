@@ -1,6 +1,6 @@
 # review wm1d r1 (F2, F3): seeded review of claude/wm1d before its merge
 
-Model: sonnet, effort high (a port review on fixed kit::wm types; opus not needed, owner 06:56)
+Model: sonnet, effort high (a port review on fixed kit::wm types, owner 06:56)
 Lane: cloud, read-only on code: claude/wm1d head 18231aa1, base 1d1aa5fd (17 files, +555 -149). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green, 41/41).
 Read briefs/wm1d-r1.md (done criteria) and reports/wm1d.md on claude/session-log; `git diff 1d1aa5fd..18231aa1`.
