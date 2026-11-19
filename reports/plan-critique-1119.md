@@ -21,3 +21,5 @@
 - KIT6 keeps running (rule 5: no scope message); its successors wait.
 - The owner preferred opus (06:12), but port reviews go to sonnet high because the evidence shows sonnet finds the port defects. Opus stays on core and design reviews.
 - F7 is declared open for Sat (owner 11-17 14:20: tour after the refactor and the user test); no question to the owner.
+
+Superseded 11-19 06:56 (owner): flakes on opus, not Fable; opus only complex and planning. Procedures in procedures.md.
