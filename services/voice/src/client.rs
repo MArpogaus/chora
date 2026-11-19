@@ -672,6 +672,16 @@ impl Client {
         Ok(())
     }
 
+    /// Changes the set of grabs to the push-to-talk key alone: the key
+    /// stays with the core between the old set and the new one (GR2), and
+    /// the confirm keys go.
+    fn regrab(&mut self) -> Result<(), ClientError> {
+        self.rt.start_grabs();
+        let grabbed = self.grab();
+        self.rt.end_grabs()?;
+        grabbed
+    }
+
     /// Grabs the keys of `confirm_keys` while a question waits for them
     /// (`physical`), and lets them go when a question ends.
     fn confirm_keys(&mut self, data: &Value) -> Result<(), ClientError> {
@@ -686,12 +696,7 @@ impl Client {
             }
         } else if data["done"] == true && self.confirming {
             self.confirming = false;
-            #[allow(
-                clippy::disallowed_methods,
-                reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
-            )]
-            self.rt.ungrab_all()?;
-            self.grab()?;
+            self.regrab()?;
         }
         Ok(())
     }
@@ -707,12 +712,7 @@ impl Client {
     /// Hands the settings to the core and grabs the key again.
     fn apply(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
-        #[allow(
-            clippy::disallowed_methods,
-            reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
-        )]
-        self.rt.ungrab_all().map_err(rejected)?;
-        self.grab().map_err(rejected)?;
+        self.regrab().map_err(rejected)?;
         let config = Box::new(self.settings.value.clone());
         let hidden = self.claims.keep(&self.settings.value.indicator_clients);
         let gone = |_| RpcError::new(RpcError::REJECTED, "the core does not answer");
@@ -1317,5 +1317,43 @@ mod tests {
             })
             .collect();
         assert!(!names.iter().any(|n| n == "restart"), "{names:?}");
+    }
+
+    /// GR2: a change of the settings, and the end of a question, keep the
+    /// push-to-talk key with the core: no `input.ungrab` of a key that the
+    /// plugin grabs again, so that the key is never free in between.
+    #[test]
+    fn a_regrab_leaves_no_moment_without_the_grab() {
+        let core = chora_kit::testing::FakeCore::start();
+        let log = core.record(|method, params| {
+            method.starts_with("input.").then(|| {
+                format!(
+                    "{method} {}",
+                    params["binding"].as_str().unwrap_or_default()
+                )
+            })
+        });
+        let file = std::env::temp_dir().join(format!("voice-gr2-{}.yaml", std::process::id()));
+        let settings = chora_kit::settings::File::<Config>::load(file, "{}").unwrap();
+        let (tx, _rx) = mpsc::channel();
+        let rt = chora_kit::runtime::Runtime::with(core.connect("voice"), "voice", Vec::new());
+        let mut client = super::Client {
+            rt,
+            settings,
+            tx,
+            claims: Claims::default(),
+            confirming: false,
+            waiting: None,
+        };
+        let ptt = client.settings.value.ptt_key.clone();
+        client.grab().unwrap();
+        client.apply().unwrap();
+        client.confirming = true;
+        client.confirm_keys(&json!({"done": true})).unwrap();
+        assert_eq!(
+            *log.lock().unwrap(),
+            [format!("input.grab {ptt}")],
+            "the key stays grabbed: no ungrab, no second grab"
+        );
     }
 }
