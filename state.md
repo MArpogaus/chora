@@ -30,7 +30,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 76 |
 | flake-j-r1.md (F5) | sonnet high | session_016iS3kMAsaXSn33qWo4iN2k (21:03) |
 | ig-fix-r2.md (F6) | sonnet low | MERGE-OK b717a5f2, train 76 |
-| kit-connect-r2.md (F2) | sonnet low | train 75 red (cube-tests site); r2 starting |
+| kit-connect-r2.md (F2) | sonnet low | session_016iS3kQ2e4ZUb6Eqrn35W2n (22:19) |
 | temp-dirs-r2.md (F2, F5) | sonnet medium | session_016iS3kMvjHveBkn49PM1Z26 (22:11) |
 | flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH (21:43) |
 | f24-rest-r1.md (F5) | sonnet medium | session_016iS3kM5Mgv1MSREkhxtFPU (22:11) |
