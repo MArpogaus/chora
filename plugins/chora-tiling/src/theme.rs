@@ -328,7 +328,6 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("fuzzel.ini", fuzzel(colors)),
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
-        ("mako.conf", mako(colors)),
         ("icons/apps.svg", icon(&colors.text, APPS, 16)),
         ("icons/apps@2.svg", icon(&colors.text, APPS, 32)),
         ("icons/keys.svg", icon(&colors.text, KEYS_ICON, 16)),
@@ -386,46 +385,6 @@ fn fuzzel(c: &Colors) -> String {
          radius=12\n"
     )
 }
-
-fn mako(c: &Colors) -> String {
-    format!(
-        "# The notifications of the tiling flavor: an island in the palette, above\n\
-         # the dot of the helper and 12 inside the border of a tile. Written by\n\
-         # chora-tiling --apply-theme from the palette of chora-tiling.yaml.\n\
-         font=Inter 14\n\
-         layer=overlay\n\
-         anchor=bottom-right\n\
-         margin=24,24,62,24\n\
-         padding=12\n\
-         width=360\n\
-         border-size=1\n\
-         border-radius=10\n\
-         icons=0\n\
-         default-timeout=10000\n\
-         background-color={surface}\n\
-         text-color={text}\n\
-         border-color={line}\n\
-         progress-color=over {accent}\n\
-         \n\
-         [mode=chat]\n\
-         margin=24,{beside},62,24\n\
-         \n\
-         [urgency=high]\n\
-         border-color={urgent}\n\
-         default-timeout=0\n",
-        surface = c.surface,
-        text = c.text,
-        line = c.line,
-        accent = c.accent,
-        urgent = c.urgent,
-        beside = CHAT_BESIDE,
-    )
-}
-
-/// The right margin of a notification while the chat panel is open: the
-/// panel is 400 wide, 13 from the edge, and the notification stands 12
-/// left of it.
-const CHAT_BESIDE: i32 = 424;
 
 fn foot(c: &Colors) -> String {
     let b = bare;
@@ -772,11 +731,6 @@ pub fn launch_line(
             find(&["swaylock.conf"])
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
-        ),
-        "mako" => line.extend(
-            find(&["mako.conf"])
-                .into_iter()
-                .flat_map(|f| ["--config".into(), f]),
         ),
         "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
         "swaybg" => {
