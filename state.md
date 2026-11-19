@@ -31,8 +31,8 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
 | pw-r2.md (P2; r1 review FIX rw-1, rw-2) | sonnet medium | session_016iS3kMxhcmP8FUsVMZMJEN |
 | nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
-| block-v-r2.md (RC1, mc-38) | sonnet medium | MERGE-OK ce230288, train 78 |
-| mc-majors-r1.md (RC, mc-33-37) | sonnet high | starting |
+| block-v-r2.md (mc-38) | sonnet medium | MERGE-OK ce230288, train 78 |
+| mc-majors-r1.md (RC, mc-33-37) | sonnet high | session_016iS3kMSygrmeY6GnmekpAL |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | review-kit-sec-r1.md (F5; kit-sec cb2976c1 done) | opus high | session_016iS3kQ3zvBR5uTP72XiUtD |
 | ti-majors-r1.md (RC, ti-22-24) | sonnet high | session_016iS3kN6CpA9ijuBr2jMwMF |
