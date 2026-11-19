@@ -117,7 +117,10 @@ fn shared_display(device: EGLDevice) -> Result<EGLDisplay, String> {
         return Ok(display.clone());
     }
     // SAFETY: the display stays open for the rest of the process.
-    #[allow(unsafe_code)]
+    #[expect(
+        unsafe_code,
+        reason = "smithay's EGLDisplay::new is unsafe; the display is kept in `shared` for reuse"
+    )]
     let display = unsafe { EGLDisplay::new(device) }.map_err(|e| e.to_string())?;
     Ok(shared.insert(display).clone())
 }
@@ -133,7 +136,10 @@ impl Headless {
         let display = shared_display(device)?;
         // SAFETY: the display and its context live as long as the renderer,
         // and only the thread of the event loop uses them.
-        #[allow(unsafe_code)]
+        #[expect(
+            unsafe_code,
+            reason = "smithay's EGLContext::new and GlesRenderer::new are unsafe; the context is made on the display above"
+        )]
         let renderer = unsafe {
             let context = EGLContext::new(&display).map_err(|e| e.to_string())?;
             GlesRenderer::new(context).map_err(|e| e.to_string())?

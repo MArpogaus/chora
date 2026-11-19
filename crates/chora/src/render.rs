@@ -528,7 +528,10 @@ fn backdrop<R: MeshRenderer>(
     if !parts.assets.layers.afford(size, 2) {
         return None;
     }
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "an opacity in 0..=1, narrowed to f32"
+    )]
     let alpha = placed.opacity as f32;
     let assets = &mut *parts.assets;
     let element = assets.backdrops.element(
@@ -671,7 +674,10 @@ fn piece_element<R: MeshRenderer>(
         drawn
     }?;
     parts.assets.stats.splits += 1;
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "an opacity in 0..=1, narrowed to f32"
+    )]
     let alpha = placed.opacity as f32;
     let element = MeshElement::piece(
         &mut parts.assets.layers,
@@ -760,7 +766,10 @@ fn layer<R: MeshRenderer>(
     }
     let scale = texture_scale(&mut parts.assets.layers, node, &transform, view);
     let drawn = node_texture(parts, renderer.gles(), node, scale)?;
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "an opacity in 0..=1, narrowed to f32"
+    )]
     let alpha = placed.opacity as f32;
     let element = MeshElement::new(&mut parts.assets.layers, node, drawn, shape, alpha);
     Some(SceneElement::Mesh(element))
@@ -833,7 +842,10 @@ fn node_elements<R: MeshRenderer>(
     // Physical pixels from here on.
     let offset = offset.upscale(view.scale);
     let scale = (sx * view.scale, sy * view.scale);
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "an opacity in 0..=1, narrowed to f32"
+    )]
     let alpha = placed.opacity as f32;
     match placed.node.kind {
         NodeKind::Surface => {
@@ -916,7 +928,10 @@ where
 {
     let props = &placed.node.props;
     let [width, height] = props.size?;
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a rounded pixel size, and colour channels narrowed to f32"
+    )]
     let (size, color) = (
         (width.round() as i32, height.round() as i32),
         premultiplied(props.color?).map(|c| c as f32),

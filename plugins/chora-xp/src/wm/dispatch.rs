@@ -15,7 +15,10 @@ impl Wm {
     }
 
     /// Handles one event of the core, with one arm per event.
-    #[allow(clippy::too_many_lines)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one match over every event kind, in dispatch order"
+    )]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         let heard = self.voiced.hear_asking(&event, &mut self.rt.conn);
         if let Some(created) = Created::of(&event) {

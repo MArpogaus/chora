@@ -11,7 +11,10 @@ pub fn window_origin(state: &State, id: &str) -> Option<Point<i32, Logical>> {
     let list = state.scene.draw_list();
     let placed = list.iter().find(|p| p.node.id == id)?;
     let (x, y) = placed.transform.translation_2d();
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a rounded pointer position in pixels"
+    )]
     Some((x.round() as i32, y.round() as i32).into())
 }
 

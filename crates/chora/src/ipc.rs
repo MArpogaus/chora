@@ -175,7 +175,10 @@ fn media_key(trigger: Trigger) -> bool {
 }
 
 // Each bool is one fact of the connection; no state machine joins them.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the connection keeps several independent flags"
+)]
 struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.

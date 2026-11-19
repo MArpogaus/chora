@@ -675,7 +675,10 @@ pub fn scene_rect(camera: &Transform, local: Rectangle<i32, Logical>) -> Rectang
 }
 
 /// [`scene_rect`], rounded, as x, y, width and height.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "a rounded output size in pixels, far below i32::MAX"
+)]
 fn scene_area(camera: &Transform, local: Rectangle<i32, Logical>) -> [i32; 4] {
     let r = scene_rect(camera, local);
     [r.loc.x, r.loc.y, r.size.w, r.size.h].map(|v| v.round() as i32)

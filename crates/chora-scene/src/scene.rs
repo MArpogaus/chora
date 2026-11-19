@@ -1251,10 +1251,11 @@ fn request(
 }
 
 /// Cells of a grid for `n` items that fills `area`: x, y, width, height.
-#[allow(
+#[expect(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
+    clippy::cast_sign_loss,
+    reason = "a window count, small and non-negative"
 )]
 fn grid(count: usize, [left, top, width, height]: [f64; 4]) -> Vec<[f64; 4]> {
     if count == 0 {

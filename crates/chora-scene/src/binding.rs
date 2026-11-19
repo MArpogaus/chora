@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub const MOVE: &str = "move";
 
 /// Modifier keys of a binding.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools, reason = "one flag per modifier key")]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct Modifiers {
     /// Control.
