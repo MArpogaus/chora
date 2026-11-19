@@ -15,7 +15,6 @@ set -u
 need foot
 need jq
 need dbus-daemon
-need busctl
 need_bins chora choractl chora-xp
 temp_config
 work=$XDG_CONFIG_HOME
@@ -47,25 +46,23 @@ for _ in $(seq 50); do
     [ -S "$XDG_RUNTIME_DIR/bus" ] && break
     sleep 0.2
 done
-busctl --address "$bus" monitor --json=short org.freedesktop.Notifications >"$work/bus.jsonl" 2>/dev/null &
-pids+=($!)
-grant screen.capture input.inject
+grant screen.capture input.inject methods.call
+start_notify "$work/notify.log"
 click() {
     echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null ||
         fail "the click at $1, $2"
 }
 menu_visible() { ctl query id:xp-menu | jq -e '.[0].visible == true' >/dev/null; }
 notice() {
-    jq -e --arg s "$1" --arg b "$2" \
-        'select(.member == "Notify" and (.payload.data[3] // "") == $s and ((.payload.data[4] // "") | contains($b)))' \
-        "$work/bus.jsonl" >/dev/null
+    ctl call notify state.get 2>/dev/null |
+        jq -e --arg s "$1" --arg b "$2" '.shown[]? | select(.summary == $s and (.body | contains($b)))' >/dev/null
 }
 wait_notice() {
     for _ in $(seq 60); do
         notice "$1" "$2" && return 0
         sleep 0.5
     done
-    fail "no notice $1 / $2: $(jq -c 'select(.member == "Notify") | .payload.data[3:5]' "$work/bus.jsonl")"
+    fail "no notice $1 / $2: $(ctl call notify state.get 2>&1)"
 }
 click_notepad() {
     click 50 785
