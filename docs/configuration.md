@@ -1367,7 +1367,9 @@ Shell or mako, owns the name on the bus, `chora-notify` logs the owner
 and never takes the name from it; it keeps serving `notify.show` and
 `notify.close`, so the notices of the plugins still show as cards, while
 the clients of the bus reach the other server. Without a session bus it
-does the same.
+does the same. A second `chora-notify` in a session where the first owns
+the bus name and the client name `notify` logs the owner and ends with
+status 0, so that its unit does not restart it.
 
 A card never covers the open chat of the HUD host. The host names the
 box of its open chat in the event `assistant.chat {open, name, output,

@@ -228,21 +228,36 @@ fn state_value(shown: Option<(&Note, [i32; 4])>, queue: &Queue, texts: &[theme::
 }
 
 impl Notify {
-    /// Connects, takes the name on the session bus and exports the
-    /// methods of the settings; see [`Self::on`].
+    /// Takes the name on the session bus, connects and exports the
+    /// methods of the settings; see [`Self::on`]. `None` when another
+    /// chora-notify serves this session: it owns the bus name and the
+    /// client name `notify` of the core. The plugin ends without an error
+    /// then, so that no unit restarts it.
     fn start(
         theme: Theme,
         values: Values,
         settings: settings::File<Config>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
         let ids = Ids::default();
         let bus = Bus::start(ids.clone());
-        let mut rt = Runtime::start(NAME, Vec::new(), EVENTS, Self::methods())?;
+        let mut rt = match Runtime::start(NAME, Vec::new(), EVENTS, Self::methods()) {
+            Ok(rt) => rt,
+            Err(ClientError::Rpc(err))
+                if err.code == RpcError::NAME_TAKEN && matches!(bus, Err(StartError::Taken)) =>
+            {
+                eprintln!(
+                    "chora-notify: {}, and another chora-notify serves the session",
+                    StartError::Taken
+                );
+                return Ok(None);
+            }
+            Err(err) => return Err(err.into()),
+        };
         let ready = json!({"event": READY, "data": {}});
         if let Err(err) = rt.conn.call::<_, Value>("events.emit", ready) {
             eprintln!("chora-notify: {READY}: {err}");
         }
-        Ok(Self::on(rt, bus, ids, (theme, values), settings))
+        Ok(Some(Self::on(rt, bus, ids, (theme, values), settings)))
     }
 
     /// The plugin on a connection, with the outcome of taking the bus
@@ -490,7 +505,9 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         "plugins/chora-notify/assets",
     );
     let (theme, values) = load_assets(&dir, &theme::cache_dir("chora-notify")?)?;
-    let mut notify = Notify::start(theme, values, settings)?;
+    let Some(mut notify) = Notify::start(theme, values, settings)? else {
+        return Ok(());
+    };
     loop {
         let wait = notify
             .due(Instant::now())
