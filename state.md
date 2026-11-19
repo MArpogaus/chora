@@ -27,8 +27,8 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | review-debt-down-r3.md (F4) | opus high | r3 done 19:09: 121c30aa (rd-7: ungrab on close and revoke); review r3 session_016iS3kPHkN5XTNDzKsqeXRy (19:10) |
 | construct-red-r2.md (F7, F3) | sonnet high | done 18:53: da68737d MERGE-OK (opus review r2 19:01; rc-4, rc-5 MINOR to backlog); train 70 running 19:06 (known-red empty, D116 accepted) |
 | audit-f-r2.md (F1-F8) | opus high | done 19:13: 5/8 met on P (F4 with DD); kit 91.2 % (llvm-cov); 6 slices |
-| cube-tests-r1.md (F5) | haiku high | starting 19:15 from f2b7112a |
-| mx1-m2-r1.md (F5) | sonnet high | starting 19:15 from f2b7112a |
+| cube-tests-r1.md (F5) | haiku high | session_016iS3kLXCAumfbUY5Q6Dntk (19:14) from f2b7112a |
+| mx1-m2-r1.md (F5) | sonnet high | session_016iS3kNt2MZUSRkTBzPphxj (19:14) from f2b7112a |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
