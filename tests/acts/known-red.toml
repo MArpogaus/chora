@@ -46,3 +46,10 @@ id = "I5"
 look = "tiling"
 match = "tiling-keys-body"
 slice = "KIT3"
+
+[[red]]
+finding = "net3-m1: the key column of mc: the wrapped line of 'Start a program or run a command' overprints the next row 'Chat with a helper'"
+id = "I5"
+look = "mc"
+match = "mc-r1-right-keys"
+slice = "KIT3"
