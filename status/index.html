@@ -1,406 +1,128 @@
-<title>chora session log</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<title>chora session status</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: a sticky tab bar over one calm column; each tab answers one question: where are we, what happened, what does it look like, what comes next. */
 :root {
-  --bg: #f3f5f8;
-  --surface: #ffffff;
-  --ink: #18202c;
-  --muted: #5b6676;
-  --line: #d9dee6;
-  --accent: #2f5fd0;
-  --good: #1f7a4d;
-  --warn: #a55f00;
-  --bad: #b3261e;
-  --idle: #8a94a3;
-  --track: #e3e8ef;
+  --bg: #f3f5f8; --surface: #ffffff; --ink: #18202c; --muted: #5b6676; --line: #d9dee6;
+  --accent: #2f5fd0; --good: #1f7a4d; --warn: #a55f00; --bad: #b3261e; --track: #e3e8ef;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
-  --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-data: "JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342;
-    --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --idle: #6d7888; --track: #252e3b;
-    color-scheme: dark;
+    --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --track: #252e3b; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342;
-  --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --idle: #6d7888; --track: #252e3b;
-  color-scheme: dark;
+  --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --track: #252e3b; color-scheme: dark;
 }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-.wrap { max-width: 720px; margin: 0 auto; padding-block: 16px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 20px; }
-header { display: flex; flex-direction: column; gap: 6px; }
-.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-h1 { font-size: 26px; line-height: 1.15; margin: 0; text-wrap: balance; }
-h2 { font-size: 18px; margin: 0; text-wrap: balance; }
-h3 { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
+h1 { font-size: 26px; line-height: 1.15; margin: 0; }
+h2 { font-size: 17px; margin: 0 0 10px; }
 p { margin: 0; }
-.meta { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--font-data); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.meta span { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
-nav.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); display: flex; gap: 4px; overflow-x: auto; padding-block: 6px; border-bottom: 1px solid var(--line); }
-nav.tabs a { flex: 0 0 auto; font-family: var(--font-data); font-size: 13px; letter-spacing: .04em; text-decoration: none; color: var(--muted); padding: 8px 12px; border-radius: 6px; min-height: 24px; }
-nav.tabs a[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: inset 0 -2px 0 var(--accent); }
-nav.tabs a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-section.view { display: flex; flex-direction: column; gap: 14px; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.grid3 { display: grid; grid-template-columns: 1fr; gap: 10px; }
-@media (min-width: 640px) { .grid3 { grid-template-columns: repeat(3, 1fr); } }
-ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-ul.plain li { padding-left: 14px; position: relative; }
-ul.plain li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--idle); }
-.run li::before { background: var(--accent); }
-.you li::before { background: var(--warn); }
-.done li::before { background: var(--good); }
-.bars { display: flex; flex-direction: column; gap: 14px; }
-.bar { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
-.bar .name { font-weight: 700; }
-.bar .pct { font-family: var(--font-data); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.bar .track { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
-.bar .fill { height: 100%; border-radius: 4px; background: var(--good); }
-.bar.warn .fill { background: var(--warn); }
-.bar .note { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
-details.day { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-details.day > summary { cursor: pointer; padding: 12px 16px; font-family: var(--font-data); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; list-style: none; }
-details.day > summary::-webkit-details-marker { display: none; }
-details.day > summary::after { content: "+"; }
-details.day[open] > summary::after { content: "−"; }
-details.day > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 10px; }
-.timeline { list-style: none; margin: 0; padding: 0 16px 8px; display: flex; flex-direction: column; }
-.timeline li { display: grid; grid-template-columns: 52px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
-.timeline time { font-family: var(--font-data); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
-.tag { display: inline-block; font-family: var(--font-data); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; border-radius: 4px; padding: 0 6px; margin-right: 6px; border: 1px solid currentColor; }
-.tag.ok { color: var(--good); } .tag.issue { color: var(--bad); } .tag.info { color: var(--accent); }
-.filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.filters button { font: inherit; font-family: var(--font-data); font-size: 13px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; min-height: 28px; }
-.filters button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); }
-.filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.shots { display: grid; grid-template-columns: 1fr; gap: 16px; }
-@media (min-width: 640px) { .shots { grid-template-columns: 1fr 1fr; } }
-figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-figure img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; background: var(--track); }
-figcaption { font-size: 14px; color: var(--muted); }
-figcaption b { color: var(--ink); font-weight: 700; }
-ol.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
-ol.steps li.done { color: var(--muted); }
-ol.steps li.now { font-weight: 700; }
-.links { display: flex; flex-direction: column; gap: 6px; }
-a { color: var(--accent); }
-footer { font-size: 13px; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+.eyebrow, .meta { font-family: var(--font-data); font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.kpi b { display: block; font-family: var(--font-data); font-size: 22px; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 13px; color: var(--muted); }
+.bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-weight: 600; }
+td.n { font-family: var(--font-data); white-space: nowrap; }
+.tag { font-family: var(--font-data); font-size: 12px; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.done { color: var(--good); border: 1px solid var(--good); }
+.part { color: var(--warn); border: 1px solid var(--warn); }
+.open { color: var(--muted); border: 1px solid var(--line); }
+.red { color: var(--bad); border: 1px solid var(--bad); }
+ul { margin: 0; padding-left: 20px; }
+li + li { margin-top: 4px; }
+code { font-family: var(--font-data); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+figure { margin: 0; }
+img, video { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.scroll { overflow-x: auto; }
 </style>
-
 <div class="wrap">
-  <header>
-    <div class="eyebrow">chora · autonomous development session</div>
-    <h1>Where the session stands</h1>
-    <div class="meta">
-      <span>Updated Thu 19 Nov, 07:20 UTC (14:20 Bangkok)</span>
-      <span>Day 9 of 22</span>
-      <span>Release candidate: today, quick and dirty (your call 10:47 UTC); this week: clean foundation; then feature sprints</span>
-    </div>
-  </header>
+<header>
+  <p class="eyebrow">chora · autonomous session · foundation week</p>
+  <h1>Session status</h1>
+  <p class="meta">Updated 2026-11-19 10:45 UTC (17:45 Bangkok) · week ends Sat 11-21 03:59 UTC (10:59 Bangkok)</p>
+</header>
 
-  <nav class="tabs" aria-label="Sections">
-    <a href="#now" data-view="now">Now</a>
-    <a href="#media" data-view="media">Pictures</a>
-    <a href="#log" data-view="log">Log</a>
-    <a href="#plan" data-view="plan">Plan</a>
-    <a href="#more" data-view="more">Reports</a>
-  </nav>
+<section class="kpis" aria-label="Key numbers">
+  <div class="kpi"><b>17 %</b><span>of the week used (owner, 10:39 UTC; another agent included)</span><div class="bar"><i style="width:17%"></i></div></div>
+  <div class="kpi"><b>~2 %/h</b><span>pace to use the week by Sat 03:59 UTC (41 h left)</span></div>
+  <div class="kpi"><b>6</b><span>lanes running (4 sonnet, 2 opus)</span></div>
+  <div class="kpi"><b>27</b><span>green trains on the session branch</span></div>
+</section>
 
-  <section class="view" id="view-now" aria-label="Now">
-    <div class="grid3">
-      <div class="panel">
-        <h3>Running</h3>
-        <ul class="plain run">
-          <li>Merge run 48 green at 01:40 UTC (08:40 Bangkok): NET1 shared test core (FakeCore, plugin state) merged, review 0 BLOCK/MAJOR</li>
-          <li>Merge run 49 green at 04:07 UTC (11:07 Bangkok): acts harness r2 merged (cleanup on failed setup, missing keys are breaches)</li>
-          <li>Merge run 50 green at 06:16 UTC (13:16 Bangkok): look state adapters merged; the acts safety net (six invariants, known-red list) is complete</li>
-          <li>Merge run 51 green at 08:04 UTC (15:04 Bangkok): shared key actions in kit, mc as pilot (same table for the old configs, review 0 BLOCK/MAJOR)</li>
-          <li>Merge run 52 green at 09:08 UTC (16:08 Bangkok): shared window book in kit, tiling as pilot (review 0 BLOCK/MAJOR; kit::wm line coverage 98.3 % measured by the manager; the launcher click test passed here)</li>
-          <li>Merge run 53 green at 10:31 UTC (17:31 Bangkok): kit question card is the only one in mc and construct; the 400 ms press guard now starts when the card is drawn (opus security re-review 0 BLOCK/MAJOR; kit ask line coverage 97.5 % measured by the manager)</li>
-          <li>Merge run 54 green at 01:48 UTC (08:48 Bangkok): one shared place for runtime, config, state and data folders, with a private-folder check, and one language rule for every look (opus security review 0 BLOCK/MAJOR, 6 MINOR to backlog; paths 93.1 %, words 98.5 % line coverage measured by the manager; first run hit the known tiling fullscreen flake F29, cell alone 3/3 green)</li>
-          <li>Merge run 55 green at 05:15 UTC (12:15 Bangkok): decision records and docs for the kit work (F8 part); PM review MERGE-OK</li>
-          <li>Merge run 56 green at 06:15 UTC (13:15 Bangkok): core and scene files split under 1,500 lines, moves only (PM review MERGE-OK)</li>
-          <li>Merge run 57 green at 07:18 UTC (14:18 Bangkok): mc window book in kit (independent review 0 BLOCK/MAJOR)</li>
-          <li>Merge run 58 green at 08:20 UTC (15:20 Bangkok): kit2b key actions fix, WM1c construct window book (both reviews 0 BLOCK/MAJOR)</li>
-          <li>Merge run 59 green at 09:27 UTC (16:27 Bangkok): cut2 dead-code cut and net3 look state texts for tests (reviews 0 BLOCK/MAJOR)</li>
-          <li>Running: merge run 59 (CUT2 cut gate and core look events; NET3 acts fixes). WM2 goes back to its lane to merge with the window book (conflict). KIT6 and its docs come in with KIT2c (conflict with key actions). Lanes: flakes (opus), WM1d, KIT5, WM7a cube (opus), KIT2c, MV4</li>
-        </ul>
-      </div>
-      <div class="panel">
-        <h3>Next</h3>
-        <ul class="plain">
-          <li>Budget: 98 % of the week at 03:35 UTC (your reading); only sonnet lanes until your reset (about 05:10 UTC, 12:10 Bangkok); then opus lanes NET3 and WM2, each with a reason</li>
-          <li>Order (your call, 14:24): cleanup, then an intensive simulated user test, then a new human-paced tour with automatic checks against the look guidelines</li>
-          <li>Then: cleanup slices with tests (sonnet builds, haiku tests), the glitch checks first</li>
-          <li>Week goal until Sat 03:59 UTC (10:59 Bangkok): clean, well tested, well designed code (design/foundation.md F1-F8); a goal counts as met only with a measurement and an independent check</li>
-        </ul>
-      </div>
-      <div class="panel">
-        <h3>Needs you</h3>
-        <ul class="plain you">
-          <li>Now: this session may not push tags. Run: <code>git fetch origin main &amp;&amp; git tag -a v0.9.0-rc.4 -m v0.9.0-rc.4 d060dc03 &amp;&amp; git push origin v0.9.0-rc.4</code> (the push starts the release workflow)</li>
-          <li>By Thu: in the cloud environment menu, Edit and save the setup script again. Lanes still use an old setup from 15 Nov with an old launcher (fuzzel 1.9); until then the full test runs happen in the manager's container.</li>
-        </ul>
-      </div>
-    </div>
+<section class="card" aria-label="Foundation">
+  <h2>Foundation F1-F8 (met only with a measure and an independent check)</h2>
+  <div class="scroll"><table>
+    <tr><th>#</th><th>Goal</th><th>State</th><th>Where</th></tr>
+    <tr><td class="n">F1</td><td>Plan in merge-sized slices</td><td><span class="tag done">done</span></td><td>reviewed plan; slices by rank</td></tr>
+    <tr><td class="n">F2</td><td>Shared core in chora-kit, no copies</td><td><span class="tag part">open</span></td><td>KIT1-2, KIT2b, KIT4 in; KIT2c in train 61; KIT2d next train; KIT3, KIT5 running</td></tr>
+    <tr><td class="n">F3</td><td>WM core designed, first slice in</td><td><span class="tag part">open</span></td><td>WM1, WM1b-c in; WM1d, WM2 in train 61; WM3 r2, WM5, WM7a r3 running</td></tr>
+    <tr><td class="n">F4</td><td>No file over 1,500 lines; debt down</td><td><span class="tag open">open</span></td><td>size ratchet in the gate</td></tr>
+    <tr><td class="n">F5</td><td>Tests: kit coverage ≥ 80 %, no flaky gate</td><td><span class="tag open">open</span></td><td>flakes-f running (F21 pull flake)</td></tr>
+    <tr><td class="n">F6</td><td>Every slice through the merge gate; cut gate</td><td><span class="tag part">partly</span></td><td>CUT1-2 in; trains batch MERGE-OK branches</td></tr>
+    <tr><td class="n">F7</td><td>No regression against tour v8</td><td><span class="tag open">open</span></td><td>tour v9 next week</td></tr>
+    <tr><td class="n">F8</td><td>Docs and decision records</td><td><span class="tag part">open</span></td><td>DOCS-F8 in; DOCS-F8b in train 61</td></tr>
+  </table></div>
+  <p class="meta" style="margin-top:8px">Forecast for Saturday: F1, F3, F4, F6, F8 likely; F2 partly; F5 open; F7 next week.</p>
+</section>
 
-    <div class="panel">
-      <h3>Session 14 Nov</h3>
-      <p>The session manager stopped answering at 10:15 UTC: a helper switched its notes folder to a code branch, and its hooks then blocked every message. A new session took over at 16:30 UTC. The hooks now never block, the notes folder is guarded, and a heartbeat alerts the owner if the manager goes silent.</p>
-    </div>
+<section class="card" aria-label="Trains">
+  <h2>Merge trains today (UTC)</h2>
+  <div class="scroll"><table>
+    <tr><th>Train</th><th>Branches</th><th>Result</th></tr>
+    <tr><td class="n">59</td><td>cut2, net3</td><td><span class="tag done">green</span> 4548feb3</td></tr>
+    <tr><td class="n">60</td><td>mv4, wm2</td><td><span class="tag red">red</span> pull flake (F21); passes alone</td></tr>
+    <tr><td class="n">61</td><td>60 + kit2c, docs-f8b, wm1d</td><td><span class="tag part">running</span> since 10:33</td></tr>
+    <tr><td class="n">62</td><td>kit2d (MERGE-OK), wm7a r3</td><td><span class="tag open">next</span></td></tr>
+  </table></div>
+</section>
 
-    <div class="panel bars">
-      <h3>Progress</h3>
-      <div class="bar"><span class="name">Moving windows between window managers</span><span class="pct">85 of 85</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="note">A hard requirement: every case passes by key, command, drag and voice, also across virtual screens and the cube.</span></div>
-      <div class="bar"><span class="name">3D construct and the xp cube</span><span class="pct">merged</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="note">Cube with floating windows, step back and in, pull a window out and back, xp and tiling as panes. Not yet seen on real hardware.</span></div>
-      <div class="bar"><span class="name">HUD and helper chat</span><span class="pct">in every look</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">The chat follows each look: margin column in mc, under the bar in tiling, balloon in xp, glass in construct. A visible chat entry in every look is still an open release requirement.</span></div>
-      <div class="bar warn"><span class="name">Stability</span><span class="pct">flaky cells open</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Five flaky-test rounds merged. The flaky mc door click is fixed (20:23); one rare flake (F17) is still watched; CI green twice since the watchdog fix.</span></div>
-      <div class="bar"><span class="name">Release candidate</span><span class="pct">on main, your tag</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">For this candidate only: green test runs (10 in a row), CI, packaging, dependency checks and an honest list of known issues. The look issues go on that list and into the cleanup.</span></div>
-    </div>
-  </section>
+<section class="card" aria-label="Lanes">
+  <h2>Lanes</h2>
+  <div class="scroll"><table>
+    <tr><th>Lane</th><th>Goal</th><th>Model</th><th>Since</th></tr>
+    <tr><td class="n">flakes-f</td><td>F5: no flaky gate</td><td>opus high</td><td class="n">07:37</td></tr>
+    <tr><td class="n">kit5</td><td>F2</td><td>sonnet high</td><td class="n">07:40</td></tr>
+    <tr><td class="n">wm5</td><td>F3</td><td>opus high</td><td class="n">09:42</td></tr>
+    <tr><td class="n">kit3</td><td>F2: key sheet from the bindings</td><td>sonnet high</td><td class="n">10:06</td></tr>
+    <tr><td class="n">wm7a r3</td><td>F3: cube acts merge</td><td>sonnet high</td><td class="n">10:30</td></tr>
+    <tr><td class="n">wm3 r2</td><td>F3: review fixes (I12 check)</td><td>sonnet high</td><td class="n">10:35</td></tr>
+  </table></div>
+</section>
 
-  <section class="view" id="view-media" aria-label="Pictures" hidden>
-    <div class="filters" role="group" aria-label="Filter pictures">
-      <button type="button" data-filter="all" aria-pressed="true">All</button>
-      <button type="button" data-filter="cube" aria-pressed="false">Cube and 3D</button>
-      <button type="button" data-filter="hud" aria-pressed="false">HUD and chat</button>
-      <button type="button" data-filter="looks" aria-pressed="false">Looks</button>
-    </div>
-    <div class="shots">
-      <figure data-kind="looks" style="grid-column:1/-1"><video src="video/tour-v8.mp4" controls preload="metadata" style="width:100%;height:auto;border-radius:8px" aria-label="Tour v8 of all four looks"></video><figcaption><b>Tour v8, 4:04 min, the baseline before the cleanup.</b> xp 0:00 (helper by paperclip 0:33 and tray 1:10, desktop cube by keys 1:14 and Super+drag 1:17), tiling 1:19, mc light 2:13, mc dark 2:37, construct 2:52 (drag back onto the face now works), one window through the looks 3:26. Build 733967aa, 17 Nov; not yet independently reviewed. Still open: Notepad notice not visible in the recording (0:13), Start menu stays open after Super+drag (1:17), mc dark launcher raw entries, tiling screen black in the handover, chat shows Working after the answer.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v7-tiling-print.png" alt="Tiling: after Super+Print a notice says the screenshot was saved" loading="lazy"><figcaption><b>Fixed in v7: tiling screenshot.</b> Super+Print now shows "Screenshot saved" bottom right. Build 7e066694, 17 Nov, reviewed (reports/review-tour-v7.md).</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v7-xp-notepad.png" alt="xp: Notepad no longer opens the terminal editor nano" loading="lazy"><figcaption><b>Fixed in v7: xp Notepad.</b> No nano any more. The "no editor installed" notice still needs a clean capture (tour script fault). Build 7e066694, 17 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v7-mc-launcher.png" alt="mc dark: launcher with raw entries like Foot Server and ImageMagick" loading="lazy"><figcaption><b>Open, small: mc dark launcher.</b> Cream box and raw entries (Foot Server, ImageMagick). Small-fix round next. Build 7e066694, 17 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v7-mc-clock.png" alt="mc wide page: the clock touches the No helper pill" loading="lazy"><figcaption><b>Open, small: mc clock.</b> The clock touches the "No helper" pill. Small-fix round next. Build 7e066694, 17 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks" style="grid-column:1/-1"><video src="video/tour-v6.mp4" controls preload="metadata" style="width:100%;height:auto;border-radius:8px" aria-label="Tour v6 of all four looks"></video><figcaption><b>Tour v6, 3:28 min.</b> xp, tiling, mc light and dark, construct, then one window through the looks. Build aa8aa8c0, 17 Nov, reviewed (reports/review-tour-v6.md): 5 of 7 big issues from v5 fixed; open: Super+Print shows nothing (1:41), Notepad is the terminal editor nano (0:03).</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v6-xp-notepad.png" alt="xp: a window titled Notepad that holds the terminal editor nano" loading="lazy"><figcaption><b>Open: xp Notepad.</b> The Notepad window is nano, which a mouse-only user cannot finish. Fix running. Build aa8aa8c0, 17 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v6-tiling-print.png" alt="Tiling: after Super+Print the screen shows no notice" loading="lazy"><figcaption><b>Open: tiling screenshot.</b> One second after Super+Print: no notice. Fix running. Build aa8aa8c0, 17 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/v6-handover-mc.png" alt="Handover: the window dragged from xp shows on the mc page" loading="lazy"><figcaption><b>Fixed: handover to mc.</b> The window dragged from xp shows in mc during and after the drop. Build aa8aa8c0, 17 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks" style="grid-column:1/-1"><video src="video/tour-all.mp4" controls preload="metadata" style="width:100%;height:auto;border-radius:8px" aria-label="Tour v3 of all four looks"></video><figcaption><b>Tour v3, 13:37 min.</b> A person uses xp, tiling, mc and the 3D construct, then moves one window through all of them. Build 7d90f049, 16 Nov. Two big bugs are visible in it (side-by-side panes at 9:33, the cube sliding off at 10:56); fixes running.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/xp-desktop.png" alt="xp desktop: a terminal and an editor, the editor bending while dragged" loading="lazy"><figcaption><b>xp.</b> A terminal and an editor; the dragged one bends. Build 7d90f049, 16 Nov, reviewed.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/tiling-fair.png" alt="Tiling look: windows in the fair layout under the bar" loading="lazy"><figcaption><b>Tiling.</b> Fair layout under the bar (the stuck tooltip at the top right is a known small bug). Build 7d90f049, 16 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/mc-light.png" alt="mc look, light: The Morning page with the column at the right" loading="lazy"><figcaption><b>mc, light.</b> The Morning page, column at the right. Build 7d90f049, 16 Nov.</figcaption></figure>
-      <figure data-kind="looks"><img src="img/mc-dark.png" alt="mc look, dark: the same page in the dark theme" loading="lazy"><figcaption><b>mc, dark.</b> The same page, dark theme. Build 7d90f049, 16 Nov.</figcaption></figure>
-      <figure data-kind="cube"><img src="img/construct-panes.png" alt="Construct: three terminals as panes in the space, stepped back" loading="lazy"><figcaption><b>Construct.</b> Three panes in the space, stepped back, key hints below. Build 7d90f049, 16 Nov.</figcaption></figure>
-      <figure data-kind="cube"><img src="img/construct-cube-xp.png" alt="The cube of four xp desktops, stepped back" loading="lazy"><figcaption><b>xp cube.</b> Four xp desktops on the cube, stepped back. Build 7d90f049, 16 Nov.</figcaption></figure>
-      <figure data-kind="hud"><img src="img/helper-chat.png" alt="The helper chat in xp with a question card, Yes and No" loading="lazy"><figcaption><b>Helper chat.</b> A question card with Yes and No. Build 7d90f049, 16 Nov.</figcaption></figure>
-      <figure data-kind="hud"><img src="img/key-list.png" alt="Tiling key list opened with Super+/" loading="lazy"><figcaption><b>Key list.</b> Every key of the look, from the live bindings. Build 7d90f049, 16 Nov.</figcaption></figure>
-    </div>
-    <p style="color:var(--muted);font-size:14px">All captures: software rendering in a cloud container. A screencast of the new looks follows when construct v2 merges. Pictures name the look version; v2 pictures passed an independent review.</p>
-  </section>
+<section class="card" aria-label="Needs owner">
+  <h2>Needs you</h2>
+  <ul>
+    <li>Cube form (WM7b): default hosted, flat stays the fallback. Deadline 11-19 14:00 UTC (21:00 Bangkok); no answer means the default.</li>
+    <li>Delete branch <code>claude/release-rc4</code> in GitHub (the session's push is refused).</li>
+  </ul>
+</section>
 
-  <section class="view" id="view-log" aria-label="Log" hidden>
-    <details class="day" open>
-      <summary><span>Tue 17 Nov</span><span>11 entries</span></summary>
-      <ul class="timeline">
-        <li><time>17:13</time><p><span class="tag ok">merge</span>Merge run 44 green: the first cleanup slice, mc's 3,456-line main.rs split into 8 modules by pure moves (reviewed). Tiling and xp splits reviewed clean and queued; the size check needed one fix round.</p></li>
-        <li><time>14:42</time><p><span class="tag ok">merge</span>Merge run 43 green: the media test harness (pull gate checks both drags). rc.4 stays untagged (your call, 14:20). Plan changed: cleanup, simulated user test, then a new tour with automatic checks.</p></li>
-        <li><time>13:41</time><p><span class="tag ok">release</span>v0.9.0-rc.4 on dev and main (CI and packaging green). The tag waits for the owner (this session may not push tags). Tour v8 (4:04) added to Pictures.</p></li>
-        <li><time>08:56</time><p><span class="tag ok">merge</span>Merge run 39 green: the xp fix (Notepad opens only a real editor, or says none is installed) and the tiling fix (Super+Print shows a notice; Screenshot in the power menu of the bar) are in. Tour v7 started to show them.</p></li>
-        <li><time>08:01</time><p><span class="tag ok">merge</span>Security fix round 2 merged (train 38, all checks green): the helper now refuses a question the screen cannot show in full, and refuses settings that would hide text, while emoji and Persian text pass. The xp and tiling fixes passed review and are in merge run 39.</p></li>
-        <li><time>06:28</time><p><span class="tag warn">review</span>Tour v6 recorded (3:28) and reviewed: 5 of the 7 big issues from v5 are fixed (power menu in the tiling bar, bar spacing, window shows in mc after a drop, Helper in the 3D HUD, pane visible after step back). Two remain: Super+Print shows nothing in tiling, and Notepad in xp is a terminal editor. Two sonnet fix rounds started.</p></li>
-        <li><time>05:55</time><p><span class="tag ok">merged</span>Train 37: the decision log gets the nine missing records, your proposals D1-D8 and the packaging plan, all marked as proposed and revisable. Sixth green run in a row.</p></li>
-        <li><time>05:03</time><p><span class="tag ok">merged</span>Train 36: xp says Notepad opened only once its window shows, and no second editor starts. All checks passed; fifth green run in a row.</p></li>
-        <li><time>06:03</time><p><span class="tag warn">review</span>Security fix round 1 reviewed: the cleaning and the click guard work, but three big gaps remain, so round 2 has started. The CI coverage failure is a known flaky test (F22), not this change.</p></li>
-        <li><time>04:53</time><p><span class="tag info">review</span>Architecture plan for sprint 1 (shared code into kit modules) and a security review: question text in mc and construct can hide characters; fix started.</p></li>
-        <li><time>04:11</time><p><span class="tag ok">merged</span>Train 35: construct keeps a pulled window visible when you step back and shows the Helper word; tiling adds a power-menu check to the merge test. All checks passed. The xp fix (round 6) passed its review and runs in train 36.</p></li>
-        <li><time>03:40</time><p><span class="tag ok">CI</span>CI is green on train 34 (39fe12d2).</p></li>
-        <li><time>03:19</time><p><span class="tag ok">merged</span>Train 34: a window handed to mc now shows above the mc page during the drag. Third green merge run in a row. The construct and tiling fixes passed their reviews and run in train 35; the tiling tour issues were faults in the recording script and get checked again in tour v6.</p></li>
-        <li><time>01:06</time><p><span class="tag info">review</span>Tour v5 (3:48) on the fixed build: both blockers are gone (the cube keeps every window, the mc remote turns pages). An independent review found 7 big issues left: tiling bar text runs together, no screenshot notice and no power menu by mouse; xp Notepad opens a terminal editor; construct hides a pulled window when stepped back and has no helper button; a window handed to mc is not drawn for 6 s. Four fix lanes started.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Mon 16 Nov</span><span>12 entries</span></summary>
-      <ul class="timeline">
-        <li><time>23:50</time><p><span class="tag ok">CI</span>CI is green on train 33 (4105f8d1): all 10 jobs, the Arch and RPM package builds and the end-to-end tests included.</p></li>
-        <li><time>23:27</time><p><span class="tag ok">merged</span>Train 33: two CI failures fixed. The Arch package missed the tiling bar file, and a test removed its temporary folder while a closing program could still write into it. New checks now compare every shipped plugin file with both packages. The first review asked for one more round (the same cleanup bug in another test); all checks passed.</p></li>
-        <li><time>20:23</time><p><span class="tag ok">merged</span>Train 30b: tiling bar style (round 2) and the fix for the flaky mc door click: the chat field now hides on every close, so it no longer covers the screenshot and volume buttons. Train 30 without the fix hit that click again; with it, all checks passed.</p></li>
-        <li><time>17:49</time><p><span class="tag ok">merged</span>Train 32: the cube no longer loses a window, F1 shows the key list, Escape closes the cube; xp question-card hint and draw order. The first run hit the known flaky mc door click; the rerun passed.</p></li>
-        <li><time>15:58</time><p><span class="tag ok">merged</span>Train 28: the mc remote turns the page again (one of the two blockers), the empty column head and help cards are fixed; all checks passed.</p></li>
-        <li><time>10:55</time><p><span class="tag ok">merged</span>Train 25: helper programs no longer see your API keys, and a confirm list must cover starting programs (two security fixes, all checks passed). Reviewed and passed: the xp paperclip and text fields, keys in side-by-side looks, the cube no longer sliding away.</p></li>
-        <li><time>10:47</time><p><span class="tag info">plan</span>Cube round started: the drag that loses a window, F1 key list, Escape closes the cube, and no stray key into a window.</p></li>
-        <li><time>10:04</time><p><span class="tag warn">review</span>Tour v4 (3:18) reviewed by the PM and one independent reviewer: not fit to show yet. 2 BLOCK (cube drag loses a window; mc remote does not turn the page) and 14 new MAJOR. Fix lanes per look started; the Friday tag is at risk, decision Wed 12:00 UTC (19:00 Bangkok), else Tue 11-24.</p></li>
-        <li><time>09:41</time><p><span class="tag ok">CI</span>CI is green on the merged train 24 (caf9c80d): the e2e step that failed before now passes.</p></li>
-        <li><time>09:22</time><p><span class="tag ok">merged</span>Train 24: the red CI pixel is fixed. The glow and shadow were drawn twice over the old frame; now only the changed parts are drawn (30 of 30 runs green before the merge).</p></li>
-        <li><time>09:20</time><p><span class="tag info">plan</span>New working rules from your review: a cost and tag check for every request, at most 6 lanes that change code, no new features before the release candidate, a daily burn-down line.</p></li>
-        <li><time>09:04</time><p><span class="tag ok">fixed</span>Slow cloud workers: the setup script built four tools from source and failed on any missing one. It now downloads them; workers start within a minute.</p></li>
-        <li><time>08:59</time><p><span class="tag info">review</span>Code review of all eight areas: no serious finding; four medium security findings go to two fix lanes.</p></li>
-        <li><time>05:23</time><p><span class="tag ok">merged</span>Train 22: the tiling bar no longer dies when it is signalled before it is ready (it sometimes did not show), and the launcher click and this bar case now run in every merge and in CI. The first merge check failed on a known flaky mc door click; the rerun passed.</p></li>
-        <li><time>04:17</time><p><span class="tag ok">merged</span>Train 21: security fixes a. Every input event now carries a "faked by a program" mark in its type, so no look can forget to check it; faked clicks, moves, hovers and scrolls change nothing a person would see. Tests prove a real click on the chat row still opens the chat.</p></li>
-        <li><time>01:33</time><p><span class="tag ok">CI</span>The CI pull request is green on train 20: all 10 jobs, end-to-end included. The corner-pixel failure came and went before, so two more green runs are needed before it counts as fixed.</p></li>
-        <li><time>01:16</time><p><span class="tag ok">merged</span>Train 20: the frame watchdog counts only the slowest thread's wait, so a busy machine without a GPU no longer drops window effects. CI on this build shows whether it also fixes the corner-pixel failure.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Sun 15 Nov</span><span>29 entries</span></summary>
-      <ul class="timeline">
-        <li><time>13:10</time><p><span class="tag issue">reflection</span>Workday close with an independent critic: today spent more than its budget share, mostly in the PM's own turns; one new check now refuses an unmeasured budget line. Plan: no opus until Monday, fewer log updates.</p></li>
-        <li><time>11:47</time><p><span class="tag issue">review</span>The frame watchdog fix needs one more round: under load it could excuse a truly slow scene, so the safety switch would never fire. Fix round 2 started.</p></li>
-        <li><time>11:24</time><p><span class="tag ok">merged</span>Train 19: look fixes round 5. The chat Stop button stays put, and long pastes no longer slow the chat. The only open look blocker is clicking in the tiling launcher (fuzzel 1.11, Monday).</p></li>
-        <li><time>10:45</time><p><span class="tag ok">merged</span>Train 18: security fixes b. Secrets stay out of the helper logs, and plugins no longer see hidden settings. Look fixes round 5 merge next.</p></li>
-        <li><time>10:45</time><p><span class="tag info">review</span>Look fixes round 5 passed review. The mc voice-confirm finding was a stale test script, not a bug: a person can always answer by key, by voice or by waiting.</p></li>
-        <li><time>10:28</time><p><span class="tag ok">CI</span>The CI pull request is green again on train 17. The corner-pixel failure comes and goes (2 of the last 4 runs); the frame watchdog lane is chasing it.</p></li>
-        <li><time>10:07</time><p><span class="tag ok">merged</span>Train 17: flaky-test round 5 (a theme picture cache race, the lock takeover check, the tiling bar start). Security fixes b merge next.</p></li>
-        <li><time>09:52</time><p><span class="tag issue">review</span>Security fixes a: the review found two major gaps (injected keys still drive the 3D window list; an open plugin call can rewrite the agent column). A fix round started on a cheaper model.</p></li>
-        <li><time>09:50</time><p><span class="tag info">review</span>Security fixes b passed their review: secrets stay out of the helper logs, plugins see no hidden settings. Four minor points go to the backlog.</p></li>
-        <li><time>09:35</time><p><span class="tag issue">CI</span>CI end-to-end failed twice on the same corner pixel, so it is not a flaky test. Not reproduced locally; lead: the frame watchdog drops window effects on a busy machine without a GPU.</p></li>
-        <li><time>09:28</time><p><span class="tag info">plan</span>Plan re-paced after your budget reading (33 %): about 10 % a day until Saturday's reset; tests on haiku, fixes on sonnet, opus for reviews and hard causes. fuzzel 1.11 gets built in the cloud setup; the media lane refreshes status pictures, the screencast and README screenshots.</p></li>
-        <li><time>09:28</time><p><span class="tag ok">merged</span>Train 16: sharper tooling round 5 (the plugin call check no longer misses calls after a commented lint exception). The flaky-test round merges next.</p></li>
-        <li><time>08:50</time><p><span class="tag ok">merged</span>Train 15: the chat header never grows past two lines in any look, and tiling no longer cuts words. Tooling round 5 and the flaky-test round passed their reviews and merge next.</p></li>
-        <li><time>08:34</time><p><span class="tag ok">CI</span>The CI pull request is green again after train 14: all 10 jobs.</p></li>
-        <li><time>08:33</time><p><span class="tag info">started</span>Two security lanes: every medium security finding of the plugin review gets a failing test and a fix (release criterion 6).</p></li>
-        <li><time>08:11</time><p><span class="tag ok">merged</span>Train 14: logging audit round 2 (log files locked, secrets scrubbed). One known flaky tiling test needed a rerun.</p></li>
-        <li><time>08:05</time><p><span class="tag info">review</span>Chat fix passed its independent review: the chat header never grows past two lines in any look, and a long task ends in "…". Left for the next round: the Stop button moves 20 px when a run starts.</p></li>
-        <li><time>07:31</time><p><span class="tag issue">review</span>Tooling round 4 fixed all five earlier points, but its review found a new gap: a comment after a lint exception hid plugin calls from the check. Round 5 started.</p></li>
-        <li><time>05:31</time><p><span class="tag info">review</span>Open findings re-checked on the new build: 7 major or blocking before, 2 now. Open: clicking in the tiling launcher (needs fuzzel 1.11) and the "no helper" words cut off in tiling and construct.</p></li>
-        <li><time>05:17</time><p><span class="tag ok">CI</span>The CI pull request is green for the first time: all 10 jobs, end-to-end tests, the virtual-GPU job and both package builds (RPM, Arch).</p></li>
-        <li><time>04:57</time><p><span class="tag ok">merged</span>Train 13: the last major look fixes (typed text never reaches a helper you did not pick) and CI end-to-end tests where a skip fails in CI.</p></li>
-        <li><time>03:52</time><p><span class="tag ok">merged</span>Train 12: flaky-test round 4 (a slow first backtrace no longer ends the core; key grabs never drop during a change in xp, tiling and mc) and the virtual-GPU CI job on new kernels.</p></li>
-        <li><time>03:35</time><p><span class="tag info">budget</span>Fable used up and reset; all lanes on Opus, Sonnet and Haiku now. Every model at 20 % this week.</p></li>
-        <li><time>03:17</time><p><span class="tag ok">merged</span>Train 11: a stuck focus glow in tiling at 2x scale fixed (the layout audit found it), the CI check job, and the virtual-GPU job unbinds every other GPU.</p></li>
-        <li><time>03:05</time><p><span class="tag info">review</span>Three independent reviews: flaky-test round 4 ready; last look fixes and CI end-to-end tests need one more round each.</p></li>
-        <li><time>02:15</time><p><span class="tag info">plan</span>Sharper tooling now: harness issues join every reflection; every bug asks which compile-time gate would have caught it.</p></li>
-        <li><time>01:10</time><p><span class="tag ok">merged</span>Train 10: the virtual-GPU CI job runs on any runner, not only on Hyper-V.</p></li>
-        <li><time>00:39</time><p><span class="tag ok">merged</span>Train 9: the packages require fuzzel 1.11 (mouse in the launcher) and fontconfig, and recommend the DejaVu fonts; CI installs the fonts its text tests measure. Open findings re-checked: 32 major or blocking before, 7 now.</p></li>
-        <li><time>00:12</time><p><span class="tag ok">merged</span>Train 8: the shared doors in every look (key list, launcher with a helper row, helper, lock, power, screenshot, volume, clock) after four review rounds, and two fixed e2e checks.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Sat 14 Nov</span><span>9 entries</span></summary>
-      <ul class="timeline">
-        <li><time>22:48</time><p><span class="tag ok">merged</span>Train 7: flaky-test round 3 (input times, a lost key in the tests, xp window cascade, a key gap in the construct) and the fonts the CI tests need.</p></li>
-        <li><time>21:35</time><p><span class="tag ok">merged</span>Train 6: three crash fixes (xp Start menu, mc settings, long notifications) and CI: package builds on pull requests, locked dependencies. Draft pull request #106 to dev opened so GitHub CI runs on the candidate.</p></li>
-        <li><time>20:38</time><p><span class="tag ok">merged</span>Train 5: CI checks, docs, the xp/tiling/construct fixes, core security review with its fixes, the mc keyboard around the chat, and the fix for the test that blocked every merge. All 24 gate steps green.</p></li>
-        <li><time>18:03</time><p><span class="tag ok">fix</span>New workers hung at start: the setup script failed on a missing helper repo; now only a warning. Heartbeat verified.</p></li>
-        <li><time>17:00</time><p><span class="tag info">plan</span>Fable is used up this week with at most two lanes at once, then none until next week.</p></li>
-        <li><time>16:50</time><p><span class="tag ok">fix</span>Hooks that never block, a guard on the notes folder, a takeover script and a heartbeat with a push to the owner.</p></li>
-        <li><time>16:49</time><p><span class="tag ok">tests</span>mc fixes done: arrows turn pages, Mute and Urgent words, a click removes one notification. 22 of 23 gate steps; the cube step fails on a known flaky cell.</p></li>
-        <li><time>16:30</time><p><span class="tag issue">outage</span>Session manager silent since 10:15 UTC; a new session took over. One lane's unpushed work was lost and is redone.</p></li>
-        <li><time>05:18</time><p><span class="tag ok">merged</span>Train 4: mc, construct, tiling and xp picture rounds, review fixes, test harness. Full gate green.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Thu 12 Nov</span><span>7 entries</span></summary>
-      <ul class="timeline">
-        <li><time>10:20</time><p><span class="tag ok">merged</span>xp look v2: its own start mark (no Windows flag), a Help window that shows every row, a Run box in xp colours, no false launch notes; plus guard tools and the packaging check. Two picture reviews, all 19 gate steps green.</p></li>
-        <li><time>06:30</time><p><span class="tag ok">merged</span>mc look v2: the helper, chat, notifications and questions now live in the right margin like notes on a printed page; a visible key list; the chat and question card follow each look's colours and fonts in every look. Three review rounds, all 17 gate steps green.</p></li>
-        <li><time>04:50</time><p><span class="tag ok">merged</span>Tiling look v2: floating bar islands, a glowing focus border, rounded corners and shadows, a key list, light and dark themes, power menu and screenshots. Three review rounds, all 17 gate steps green.</p></li>
-        <li><time>01:00</time><p><span class="tag info">design</span>Design passes for all four looks done; four builders started. Simulated user tests stopped: the last round found nothing new.</p></li>
-        <li><time>00:45</time><p><span class="tag info">tests</span>Simulated user round 3 started with tighter limits (smaller screenshots, 30 steps).</p></li>
-        <li><time>00:30</time><p><span class="tag ok">tests</span>Simulated user round 2 sorted: 20 real findings, 9 caused by the test container. Worst: no visible way into the helper chat, and a key list only in construct.</p></li>
-        <li><time>00:10</time><p><span class="tag issue">fix</span>The session lost its rules after a memory compaction; a rule card is now reloaded automatically after each one.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Wed 11 Nov</span><span>9 entries</span></summary>
-      <ul class="timeline">
-        <li><time>21:30</time><p><span class="tag ok">merged</span>The construct HUD rework: one help sheet (F1), clearer looks.</p></li>
-        <li><time>18:20</time><p><span class="tag info">plan</span>Reflection loop done (opus): lanes cut by area, a merge train, failing tests first checked at merge, one review round per lane. Release candidate estimated for Wed 18 Nov.</p></li>
-        <li><time>17:00</time><p><span class="tag info">ux loop</span>Designer loop over every feature, KISS and least surprise first: 3 blockers and a list of things to remove. Chat fixes merged; construct fixes being traced.</p></li>
-        <li><time>16:30</time><p><span class="tag ok">merged</span>All fixes of user test round 3: voice opens the chat, the chat field takes the keyboard, volume, honest messages, pull out of the stood-back cube.</p></li>
-        <li><time>14:00</time><p><span class="tag ok">demo</span>Cube and pull-out clips, poster shot.</p></li>
-        <li><time>13:30</time><p><span class="tag ok">milestone</span>Window moves: 85 of 85. Floating windows, click rule, nested-desktop test.</p></li>
-        <li><time>12:00</time><p><span class="tag ok">merged</span>Pull a window out of the cube; step back, turn, step in.</p></li>
-        <li><time>07:05</time><p><span class="tag ok">milestone</span>The xp cube merged.</p></li>
-        <li><time>06:20</time><p><span class="tag ok">merged</span>Give a window during a drag, after a security review.</p></li>
-        <li><time>06:00</time><p><span class="tag issue">paused</span>5-hour limit stop overnight; resumed.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Tue 10 Nov</span><span>3D base, construct, crash work</span></summary>
-      <ul class="timeline">
-        <li><time>18:20</time><p><span class="tag ok">milestone</span>The xp cube runs in the 3D construct.</p></li>
-        <li><time>17:55</time><p><span class="tag ok">merged</span>3D construct and 3D wobble.</p></li>
-        <li><time>17:35</time><p><span class="tag ok">merged</span>Last words on every crash, watchdog fix, mc fast with 300 panels.</p></li>
-        <li><time>12:40</time><p><span class="tag issue">audit</span>Independent judge: code produced faster than verified; course corrected.</p></li>
-        <li><time>11:44</time><p><span class="tag ok">milestone</span>3D base complete, three days early.</p></li>
-        <li><time>06:55</time><p><span class="tag ok">merged</span>The merge gate: every step logged, stops at any failure.</p></li>
-      </ul>
-    </details>
-    <details class="day">
-      <summary><span>Mon 9 Nov</span><span>HUD sprint, principles</span></summary>
-      <ul class="timeline">
-        <li><time>20:00</time><p><span class="tag info">decision</span>One cube: the construct cube replaces xp's own.</p></li>
-        <li><time>17:20</time><p><span class="tag info">sprint</span>HUD and helper chat sprint started.</p></li>
-        <li><time>16:40</time><p><span class="tag ok">docs</span>Design principles: minimal, flawless, flexible.</p></li>
-        <li><time>15:20</time><p><span class="tag ok">merged</span>Risky actions need a key or a click, never a spoken yes.</p></li>
-      </ul>
-    </details>
-  </section>
-
-  <section class="view" id="view-plan" aria-label="Plan" hidden>
-    <div class="panel">
-      <h3>This week (dates UTC)</h3>
-      <ol class="steps">
-        <li>Sat 14: merge CI, docs, doors, mc, xp/tiling/construct and core fixes; restart the flaky-test work</li>
-        <li class="now">Sun 15: major look findings and the 3 high review findings fixed; blockers checked; CI pull request with package builds</li>
-        <li>Mon 16: burn-down check; one picture pass per look; your approval of each look</li>
-        <li>Tue 17 to Wed 18: user test round 4 and its fixes; logging audit; final review rounds until two in a row are clean</li>
-        <li>Thu 19: three green merge gates in a row on the candidate</li>
-        <li>Fri 20: tag the release candidate (target; a slip of 2 to 3 days is possible)</li>
-        <li>Sat 21 to Sun 22: extensive user test round, reflection with fresh Fable</li>
-        <li>Mon 23: idea round, then feature sprints: everyday system tasks, voice tools and grants, the report tool; one or two experiment lanes</li>
-      </ol>
-    </div>
-    <div class="panel">
-      <h3>Budget</h3>
-      <ul class="plain">
-        <li>Fable: used up and reset; Opus for reviews and hard work from 15 Nov 03:35</li>
-        <li>Builds on Sonnet, tests on Haiku, the manager on Opus</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="view" id="view-more" aria-label="Reports" hidden>
-    <div class="panel links">
-      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/design/rc.md">Release candidate plan</a>
-      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/design/voice-plan.md">Voice agent plan</a>
-      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/design/voice-models-research.md">Local model research</a>
-      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/reports/ux-loop-1.md">UX loop 1 report</a>
-      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/reports/persona-3.md">User test round 3</a>
-      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/reflections/2026-11-11-opus-judge.md">Reflection of 11 Nov</a>
-      <a href="https://github.com/MArpogaus/chora/blob/claude/autonomous-dev-session-3w-i33pg7/docs/design-principles.md">Design principles</a>
-      <a href="https://github.com/MArpogaus/chora/tree/claude/session-log">All session files</a>
-    </div>
-  </section>
-
-  <footer>Updated after notable events. Counts come from the tests; dates are estimates.</footer>
+<section class="card" aria-label="Baseline">
+  <h2>Baseline: tour v8 (no visible change allowed this week)</h2>
+  <video src="video/tour-v8.mp4" controls preload="metadata" aria-label="Tour v8 of all four looks"></video>
+  <p class="meta" style="margin:6px 0 12px">Build 733967aa, 17 Nov, 4:04 min: xp 0:00, tiling 1:19, mc 2:13, construct 2:52, one window through the looks 3:26.</p>
+  <div class="grid">
+    <figure><img src="img/xp-desktop.png" alt="xp desktop with a terminal and an editor" loading="lazy"><figcaption>xp (fallback art)</figcaption></figure>
+    <figure><img src="img/tiling-fair.png" alt="Tiling look, fair layout under the bar" loading="lazy"><figcaption>tiling</figcaption></figure>
+    <figure><img src="img/mc-light.png" alt="mc look, light, the Morning page" loading="lazy"><figcaption>mc</figcaption></figure>
+    <figure><img src="img/construct-cube-xp.png" alt="Construct: cube of four xp desktops" loading="lazy"><figcaption>construct</figcaption></figure>
+  </div>
+  <p class="meta" style="margin-top:6px">Stills: build 7d90f049, 16 Nov.</p>
+</section>
 </div>
-
-<script>
-(function () {
-  var views = ["now", "media", "log", "plan", "more"];
-  function show() {
-    var name = (location.hash || "#now").slice(1);
-    if (views.indexOf(name) < 0) name = "now";
-    views.forEach(function (v) {
-      document.getElementById("view-" + v).hidden = v !== name;
-    });
-    document.querySelectorAll("nav.tabs a").forEach(function (a) {
-      if (a.dataset.view === name) a.setAttribute("aria-current", "page");
-      else a.removeAttribute("aria-current");
-    });
-  }
-  window.addEventListener("hashchange", show);
-  show();
-  document.querySelectorAll(".filters button").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var f = b.dataset.filter;
-      document.querySelectorAll(".filters button").forEach(function (o) {
-        o.setAttribute("aria-pressed", String(o === b));
-      });
-      document.querySelectorAll(".shots figure").forEach(function (fig) {
-        fig.hidden = f !== "all" && fig.dataset.kind !== f;
-      });
-    });
-  });
-})();
-</script>

@@ -1,13 +1,13 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T07:01:00Z
+screened-through: 2026-11-19T10:39:00Z
 - 11-19 07:01Z "OK, go ahead. Note new strategy in mgn notes. Let opus reviewers mgnt CTX so nothing is lost on compactation" -> order: batched trains, --jobs 3 after flakes-f (routines.md); an opus critic checks the PM notes against the PM context for losses
 - 11-19 06:56Z "Only use stringer models where needed (complex task or planning). Rely on sonnet for routine tasks. haiku fort testing. Agree? Fable bursn tokens extremely fast. Use with goof care. Don't waste our additional time" -> order: opus only for complex tasks and planning, sonnet routine, haiku tests; Fable only by named need
-- 11-19 06:52Z "3%" -> reading: 3 % of week used (reset 05:55)
+- 11-19 10:39Z "Cleanup artefact. Rewrite status page. Had another agent finish work now at 17% probably only of of which is yours" -> order: lean status page; reading: 17 % week, another agent in it
 - 11-19 06:21Z "Continuously realign and update plan as you proceed" -> order: at each handback, merge and train result the PM re-checks Queue 4-5 (rank, F moved, merge backlog, budget) and rewrites it; routines.md By event
 - 11-19 06:12Z "OK better, but use tokens wisely and don't burn on unseeded reviews. Use fable where beneficial prefer opus. Let opus reviewers the updated plan and priorities and check for resources waste or misalignment" -> order: reviews only seeded (diff, brief, criteria, known findings); opus default, Fable where it pays; two opus critics on Queue 4 now
 - 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone -> yes (F27 check at lane start)
 - 11-19 05:59Z dialog: rc.4 tag "Keep local for now." -> no tag push; F27 "Yes, what do I have to do?" -> he re-saves (steps sent); D77 vs D95 "D95 holds, amends D77 (Recommended)" -> decision; release-rc4 "Yes, delete it (Recommended)" -> delete (proxy 403: owner deletes in GitHub)
-- 11-19 05:55Z "Reset. Continue and clarity open questions" -> reading: weekly reset done; order: continue (NET3, WM2 opus now); ask the open owner questions now
+- 11-19 05:55Z "Reset. Continue and clarity open questions" -> reading: reset done; order: continue, ask open questions
 
 - 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor
