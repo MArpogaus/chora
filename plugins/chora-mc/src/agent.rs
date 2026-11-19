@@ -659,6 +659,20 @@ mod tests {
         assert_eq!(ids.len(), super::NOTICES + 1);
     }
 
+    /// The critical ids are capped too, oldest first, so that notices
+    /// that nobody clears do not grow the list without end.
+    #[test]
+    fn the_critical_ids_are_capped_at_one_more() {
+        let mut notices = super::Notices::default();
+        for id in 1..=65 {
+            notices.remember(id, true);
+        }
+        let ids = notices.ids();
+        assert_eq!(ids.len(), 64, "capped at 64: {ids:?}");
+        assert_eq!(ids.first(), Some(&2), "the oldest went");
+        assert_eq!(ids.last(), Some(&65));
+    }
+
     /// The server is gone at the first dismissal: the clear stops there
     /// and keeps that id and the rest for the next clear.
     #[test]
