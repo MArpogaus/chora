@@ -1056,6 +1056,11 @@ impl State {
         }
     }
 
+    /// Whether a layer surface that a click focused has the keyboard.
+    pub(crate) fn layer_has_keyboard(&self) -> bool {
+        self.layer_focus.is_some()
+    }
+
     /// The node of `focus_node` that gets the keys, and its owner: not while
     /// the session is locked or a layer surface takes the keyboard.
     pub fn key_node(&self) -> Option<(String, String)> {
