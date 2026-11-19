@@ -76,108 +76,112 @@ pub struct Row {
     pub text: String,
 }
 
-fn name(binding: &str) -> String {
+/// A binding as the table names it: the two Super keys alone are one
+/// `Super`.
+fn plain(binding: &str) -> &str {
     if binding.ends_with("+Super_L") || binding.ends_with("+Super_R") {
-        return "Super".into();
+        "Super"
+    } else {
+        binding
     }
-    keysheet::chord(binding)
 }
 
-/// The rows of the table in their order, each with its group and, for an
-/// action of xp, its words; `kit::keysheet` names an action of the system.
-const LINES: [(&str, &str); 19] = [
-    (GROUPS[0], "Open or close the Start menu"),
-    (GROUPS[0], "Show the desktop; press again for the windows"),
-    (GROUPS[0], ""),
-    (GROUPS[0], ""),
-    (GROUPS[3], ""),
-    (GROUPS[3], ""),
-    (GROUPS[3], ""),
-    (GROUPS[2], "Turn the desktop cube with the pointer"),
-    (GROUPS[2], ""),
-    (GROUPS[0], "Switch between windows"),
-    (GROUPS[0], "Open the file manager"),
-    (GROUPS[1], ""),
-    (GROUPS[3], ""),
-    (GROUPS[3], ""),
-    (GROUPS[3], ""),
-    (GROUPS[2], ""),
-    (GROUPS[2], ""),
-    (GROUPS[2], "Carry the window to the left"),
-    (GROUPS[2], "Carry the window to the right"),
-];
-
-/// The place of the row of an action in [`LINES`]; an action without a
-/// row of its own is none.
-fn about(action: &KeyAction) -> Option<usize> {
-    Some(match action {
-        KeyAction::Look(Look::Start | Look::Tap) => 0,
-        KeyAction::Look(Look::Desktop) => 1,
-        KeyAction::System(System::Launcher) => 2,
-        KeyAction::System(System::Keys) => 3,
-        KeyAction::System(System::Lock) => 4,
-        KeyAction::System(System::Power) => 5,
-        KeyAction::System(System::Screenshot) => 6,
-        KeyAction::Look(Look::Cube) => 7,
-        KeyAction::System(System::Close) => 8,
-        KeyAction::Look(Look::Switch(Step::Next)) => 9,
-        KeyAction::Look(Look::Files) => 10,
-        KeyAction::System(System::Chat) => 11,
-        KeyAction::System(System::Volume(volume::Change::Up)) => 12,
-        KeyAction::System(System::Volume(volume::Change::Down)) => 13,
-        KeyAction::System(System::Volume(volume::Change::Mute)) => 14,
-        KeyAction::System(System::Cube(Turn::Left)) => 15,
-        KeyAction::System(System::Cube(Turn::Right)) => 16,
-        KeyAction::Look(Look::Carry(Turn::Left)) => 17,
-        KeyAction::Look(Look::Carry(Turn::Right)) => 18,
-        _ => return None,
-    })
-}
-
-/// The rows of the table, made from the bindings of the settings that
-/// the plugin holds: `held` tells whether a binding is held. A binding of
-/// the cube that another client holds shows its stand-in.
-pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool) -> Vec<Row> {
-    let mut lines: BTreeMap<usize, Row> = BTreeMap::new();
-    for (binding, action) in bindings {
-        let Some(line) = about(action) else {
-            continue;
-        };
-        let (group, text) = LINES[line];
-        let text = match action {
-            KeyAction::System(system) => keysheet::words(system, Language::En),
-            KeyAction::Look(_) => None,
+/// The words of an action of xp; none for the action that has no row of
+/// its own (the Alt+Shift+Tab that goes back shares the key of the row
+/// that goes forward).
+fn own_words(look: Look) -> Option<String> {
+    Some(
+        match look {
+            Look::Start | Look::Tap => "Open or close the Start menu",
+            Look::Desktop => "Show the desktop; press again for the windows",
+            Look::Cube => "Turn the desktop cube with the pointer",
+            Look::Switch(Step::Next) => "Switch between windows",
+            Look::Switch(Step::Previous) => return None,
+            Look::Files => "Open the file manager",
+            Look::Carry(Turn::Left) => "Carry the window to the left",
+            Look::Carry(Turn::Right) => "Carry the window to the right",
         }
-        .unwrap_or_else(|| text.to_owned());
+        .to_owned(),
+    )
+}
+
+/// The costume of a row: its group and its place in the group.
+const fn place(action: &KeyAction) -> (&'static str, u8) {
+    match action {
+        KeyAction::Look(Look::Start | Look::Tap) => (GROUPS[0], 0),
+        KeyAction::Look(Look::Desktop) => (GROUPS[0], 1),
+        KeyAction::System(System::Launcher) => (GROUPS[0], 2),
+        KeyAction::System(System::Keys) => (GROUPS[0], 3),
+        KeyAction::Look(Look::Switch(_)) => (GROUPS[0], 9),
+        KeyAction::Look(Look::Files) => (GROUPS[0], 10),
+        KeyAction::System(System::Run(_) | System::Terminal) => (GROUPS[0], 20),
+        KeyAction::System(System::Chat) => (GROUPS[1], 11),
+        KeyAction::Look(Look::Cube) => (GROUPS[2], 7),
+        KeyAction::System(System::Close) => (GROUPS[2], 8),
+        KeyAction::System(System::Cube(Turn::Left)) => (GROUPS[2], 15),
+        KeyAction::System(System::Cube(Turn::Right)) => (GROUPS[2], 16),
+        KeyAction::Look(Look::Carry(Turn::Left)) => (GROUPS[2], 17),
+        KeyAction::Look(Look::Carry(Turn::Right)) => (GROUPS[2], 18),
+        KeyAction::System(System::Give(_) | System::Drag | System::Desk(_)) => (GROUPS[2], 20),
+        KeyAction::System(System::Lock) => (GROUPS[3], 4),
+        KeyAction::System(System::Power) => (GROUPS[3], 5),
+        KeyAction::System(System::Screenshot) => (GROUPS[3], 6),
+        KeyAction::System(System::Volume(volume::Change::Up)) => (GROUPS[3], 12),
+        KeyAction::System(System::Volume(volume::Change::Down)) => (GROUPS[3], 13),
+        KeyAction::System(System::Volume(volume::Change::Mute)) => (GROUPS[3], 14),
+        KeyAction::System(System::Volume(volume::Change::Set(_))) => (GROUPS[3], 20),
+    }
+}
+
+/// The rows of the table in their order: the rows of `kit::keysheet` for
+/// the bindings of the settings that the plugin holds, in the groups of
+/// xp. `held` tells whether a binding is held; a binding of the cube that
+/// another client holds shows its stand-in.
+pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool) -> Vec<Row> {
+    let shown = bindings.iter().filter_map(|(binding, action)| {
         let shown = [Some(binding.as_str()), fallback(binding)]
             .into_iter()
             .flatten()
-            .find(|b| held(b));
-        let Some(shown) = shown else {
-            continue;
-        };
-        let chord = name(shown);
-        let row = lines.entry(line).or_insert_with(|| Row {
-            group,
-            keys: Vec::new(),
-            text,
-        });
-        if !row.keys.contains(&chord) {
-            row.keys.push(chord);
-        }
-    }
-    let mut rows: Vec<Row> = lines.into_values().collect();
-    let held_all = give::KEYS.iter().all(|(binding, _)| held(binding));
-    if held_all {
+            .find(|b| held(b))?;
+        Some((plain(shown).to_owned(), action))
+    });
+    let sheet = keysheet::rows(shown, Language::En, |_, action| match action {
+        KeyAction::Look(look) => own_words(*look),
+        KeyAction::System(_) => None,
+    });
+    let mut rows: Vec<(u8, Row)> = sheet
+        .into_iter()
+        .map(|row| {
+            let (group, at) = place(&row.action);
+            let mut keys: Vec<String> = Vec::new();
+            for chord in row.chords {
+                if !keys.contains(&chord) {
+                    keys.push(chord);
+                }
+            }
+            (
+                at,
+                Row {
+                    group,
+                    keys,
+                    text: row.words,
+                },
+            )
+        })
+        .collect();
+    if give::KEYS.iter().any(|(binding, _)| held(binding)) {
         let (keys, text) = keysheet::give_row(Language::En);
-        rows.push(Row {
-            group: GROUPS[2],
-            keys: vec![keys],
-            text,
-        });
+        rows.push((
+            30,
+            Row {
+                group: GROUPS[2],
+                keys: vec![keys],
+                text,
+            },
+        ));
     }
-    rows.sort_by_key(|r| GROUPS.iter().position(|g| *g == r.group));
-    rows
+    rows.sort_by_key(|(at, row)| (GROUPS.iter().position(|g| *g == row.group), *at));
+    rows.into_iter().map(|(_, row)| row).collect()
 }
 
 /// What a page of the help shows besides the keys.
@@ -451,6 +455,10 @@ pub enum Click {
 mod tests {
     use super::*;
 
+    fn name(binding: &str) -> String {
+        keysheet::chord(plain(binding))
+    }
+
     fn all(_: &str) -> bool {
         true
     }
@@ -481,7 +489,11 @@ mod tests {
         let rows = rows(&defaults(), all);
         let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
         for (binding, action) in defaults() {
-            if about(&action).is_some() {
+            let has_row = match &action {
+                KeyAction::Look(look) => own_words(*look).is_some(),
+                KeyAction::System(_) => true,
+            };
+            if has_row {
                 assert!(
                     shown.contains(&name(&binding)),
                     "{binding} is bound but not in the table: {shown:?}"
