@@ -24,7 +24,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| kit7-r2.md (F2) | opus high | session_016iS3kPxdD4JTP78bWGsmpm (12:09; r1 FIX) |
+| review-kit7-r2.md (F2) | sonnet high | starting (r2 done 8321c16) |
 | review-kit5-r2.md (F2) | sonnet high | session_016iS3kPeJ9Pd53BpYjd8YMH (13:00; kit5b 7b01dd5a) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 | flakes-g-r2.md (F5) | opus high | held: 12:51 BLOCKED no setup (4th); 14:00 UTC default |
