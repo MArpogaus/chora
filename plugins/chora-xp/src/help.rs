@@ -15,7 +15,8 @@ use std::collections::BTreeMap;
 
 use chora_kit::{
     actions::{Step, System, Turn},
-    give, volume,
+    give, keysheet, volume,
+    words::Language,
 };
 
 use crate::{
@@ -72,56 +73,36 @@ pub struct Row {
     /// The chords, in the words of the help.
     pub keys: Vec<String>,
     /// What they do.
-    pub text: &'static str,
+    pub text: String,
 }
 
 fn name(binding: &str) -> String {
     if binding.ends_with("+Super_L") || binding.ends_with("+Super_R") {
         return "Super".into();
     }
-    binding
-        .split('+')
-        .map(|part| {
-            let mut chars = part.chars();
-            match chars.next() {
-                _ if part == "BTN_LEFT" => "drag".to_string(),
-                _ if part.starts_with("XF86Audio") => chora_kit::glass::cap(part),
-                Some(c) if part.len() == 1 => c.to_ascii_uppercase().to_string(),
-                Some(c) if part.chars().all(|c| c.is_ascii_lowercase() || c == '_') => {
-                    format!("{}{}", c.to_ascii_uppercase(), chars.as_str())
-                }
-                _ => part.to_string(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("+")
+    keysheet::chord(binding)
 }
 
-/// The rows of the table in their order, each with its group.
+/// The rows of the table in their order, each with its group and, for an
+/// action of xp, its words; `kit::keysheet` names an action of the system.
 const LINES: [(&str, &str); 19] = [
     (GROUPS[0], "Open or close the Start menu"),
     (GROUPS[0], "Show the desktop; press again for the windows"),
-    (
-        GROUPS[0],
-        "Run a program or a typed command: open the launcher",
-    ),
-    (GROUPS[0], "Open this help"),
-    (GROUPS[3], "Lock the screen"),
-    (
-        GROUPS[3],
-        "Open the Turn Off dialog: lock, log off, restart",
-    ),
-    (GROUPS[3], "Take a screenshot"),
+    (GROUPS[0], ""),
+    (GROUPS[0], ""),
+    (GROUPS[3], ""),
+    (GROUPS[3], ""),
+    (GROUPS[3], ""),
     (GROUPS[2], "Turn the desktop cube with the pointer"),
-    (GROUPS[2], "Close the window"),
+    (GROUPS[2], ""),
     (GROUPS[0], "Switch between windows"),
     (GROUPS[0], "Open the file manager"),
-    (GROUPS[1], "Chat with a helper"),
-    (GROUPS[3], "Volume up"),
-    (GROUPS[3], "Volume down"),
-    (GROUPS[3], "Mute"),
-    (GROUPS[2], "Turn the desktop cube to the left"),
-    (GROUPS[2], "Turn the desktop cube to the right"),
+    (GROUPS[1], ""),
+    (GROUPS[3], ""),
+    (GROUPS[3], ""),
+    (GROUPS[3], ""),
+    (GROUPS[2], ""),
+    (GROUPS[2], ""),
     (GROUPS[2], "Carry the window to the left"),
     (GROUPS[2], "Carry the window to the right"),
 ];
@@ -163,6 +144,11 @@ pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool)
             continue;
         };
         let (group, text) = LINES[line];
+        let text = match action {
+            KeyAction::System(system) => keysheet::words(system, Language::En),
+            KeyAction::Look(_) => None,
+        }
+        .unwrap_or_else(|| text.to_owned());
         let shown = [Some(binding.as_str()), fallback(binding)]
             .into_iter()
             .flatten()
@@ -181,17 +167,13 @@ pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool)
         }
     }
     let mut rows: Vec<Row> = lines.into_values().collect();
-    let keys = give::KEYS
-        .iter()
-        .filter(|(binding, _)| held(binding))
-        .map(|(binding, _)| name(binding))
-        .collect::<Vec<_>>();
-    if let (Some(first), Some(last)) = (keys.first(), keys.last()) {
-        let digits = last.rsplit('+').next().unwrap_or_default();
+    let held_all = give::KEYS.iter().all(|(binding, _)| held(binding));
+    if held_all {
+        let (keys, text) = keysheet::give_row(Language::En);
         rows.push(Row {
             group: GROUPS[2],
-            keys: vec![format!("{first} ... {digits}")],
-            text: "Give the window to tiling, xp, mc or construct",
+            keys: vec![keys],
+            text,
         });
     }
     rows.sort_by_key(|r| GROUPS.iter().position(|g| *g == r.group));
@@ -401,7 +383,7 @@ impl HelpDialog {
                 }
             }
             let rect = [PAGE_LEFT + 214, y, PAGE_WIDTH - 214, self.row];
-            canvas.text(row.text, Font::Body, INK, rect);
+            canvas.text(&row.text, Font::Body, INK, rect);
             y += self.row;
             canvas.rule(y - 1, "#E6E4DB");
         }
@@ -507,10 +489,7 @@ mod tests {
             }
         }
         assert!(!shown.iter().any(|k| k == "F1"), "{shown:?}");
-        assert!(
-            shown.iter().any(|k| k.starts_with("Super+Alt+1 ... 4")),
-            "{shown:?}"
-        );
+        assert!(shown.iter().any(|k| k == "Super+Alt+1-4"), "{shown:?}");
     }
 
     #[test]
@@ -551,7 +530,7 @@ mod tests {
     #[test]
     fn chords_read_as_key_caps() {
         assert_eq!(name("Super+e"), "Super+E");
-        assert_eq!(name("Ctrl+Escape"), "Ctrl+Escape");
+        assert_eq!(name("Ctrl+Escape"), "Ctrl+Esc");
         assert_eq!(name("Alt+F4"), "Alt+F4");
         assert_eq!(name("Super+F1"), "Super+F1");
         assert_eq!(name("Super+Shift+e"), "Super+Shift+E");

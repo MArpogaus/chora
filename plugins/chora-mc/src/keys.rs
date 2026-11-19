@@ -2,8 +2,10 @@
 //! with the words for what they do. Six rows show at the foot of the
 //! column; the key Super+F1 shows all of them.
 
-use chora_kit::actions::System;
+use chora_kit::actions::{Action as Bound, System};
+use chora_kit::keysheet;
 use chora_kit::volume::Change;
+use chora_kit::words::Language;
 
 use crate::config::{Action, Config, Look};
 
@@ -76,41 +78,56 @@ fn page_keys(previous: &str, next: &str, plain: bool) -> String {
     }
 }
 
+/// The rows of the bindings of the file, with the words of kit and the
+/// words that mc gives to the actions of its own.
+fn sheet(config: &Config) -> Vec<keysheet::Row<Look>> {
+    let bindings = (config.common.bindings.iter()).map(|(key, action)| (key.clone(), action));
+    keysheet::rows(bindings, Language::En, |_, action| {
+        let Bound::Look(own) = action else {
+            return None;
+        };
+        Some(match own {
+            Look::NextScene => "Next page".to_owned(),
+            Look::PreviousScene => "Previous page".to_owned(),
+            Look::Scene(name) => format!("Show {}", crate::title_of(name).to_lowercase()),
+            Look::Toggle(crate::region::Region::Right) => "Hide this column".to_owned(),
+            Look::Toggle(region) => format!("Show or hide the {}", region.name()),
+            Look::Solo { content, .. } => format!("Show the {content}"),
+        })
+    })
+}
+
+/// The row of the page keys: the keys of both turns as one.
+fn page_row(config: &Config, next: &keysheet::Row<Look>, plain: bool) -> Option<Row> {
+    let previous = (config.common.bindings.iter())
+        .find(|(_, a)| **a == Action::Look(Look::PreviousScene))
+        .map(|(k, _)| k.as_str())?;
+    let keys = page_keys(previous, &next.binding, plain);
+    Some(Row::new(keys, "Turn the page", Some(&next.binding)))
+}
+
+/// A row of kit as a row of the column: its first key, as a click on the
+/// row acts like it.
+fn row_of(row: &keysheet::Row<Look>) -> Row {
+    let key = row.chords.first().cloned().unwrap_or_default();
+    Row::new(key, &row.words, Some(&row.binding))
+}
+
 /// The rows that always show; `plain` on a page, where the arrows alone
 /// turn it.
 pub fn short(config: &Config, plain: bool) -> Vec<Row> {
+    let sheet = sheet(config);
+    let find = |want: &dyn Fn(&Bound<Look>) -> bool| sheet.iter().find(|row| want(&row.action));
     let mut rows = Vec::new();
-    let find = |want: &dyn Fn(&Action) -> bool| {
-        config
-            .common
-            .bindings
-            .iter()
-            .find(|(_, a)| want(a))
-            .map(|(k, _)| k.as_str())
-    };
-    if let Some(key) = find(&|a| *a == Action::System(System::Keys)) {
-        rows.push(Row::new(human(key), "All keys", Some(key)));
-    }
-    if let (Some(next), Some(previous)) = (
-        find(&|a| *a == Action::Look(Look::NextScene)),
-        find(&|a| *a == Action::Look(Look::PreviousScene)),
-    ) {
-        let keys = page_keys(previous, next, plain);
-        rows.push(Row::new(keys, "Turn the page", Some(next)));
-    }
-    if let Some(key) = find(&|a| matches!(a, Action::System(System::Run(_)))) {
-        rows.push(Row::new(
-            human(key),
-            "Start a program or run a command",
-            Some(key),
-        ));
-    }
-    if let Some(key) = find(&|a| *a == Action::System(System::Chat)) {
-        rows.push(Row::new(human(key), "Chat with a helper", Some(key)));
-    }
-    if let Some(key) = find(&|a| *a == Action::Look(Look::Toggle(crate::region::Region::Right))) {
-        rows.push(Row::new(human(key), "Hide this column", Some(key)));
-    }
+    rows.extend(find(&|a| *a == Action::System(System::Keys)).map(row_of));
+    rows.extend(
+        find(&|a| *a == Action::Look(Look::NextScene)).and_then(|n| page_row(config, n, plain)),
+    );
+    rows.extend(find(&|a| matches!(a, Action::System(System::Run(_)))).map(row_of));
+    rows.extend(find(&|a| *a == Action::System(System::Chat)).map(row_of));
+    rows.extend(
+        find(&|a| *a == Action::Look(Look::Toggle(crate::region::Region::Right))).map(row_of),
+    );
     rows.push(Row::new("Esc".to_owned(), "Back one step", None));
     rows
 }
@@ -124,14 +141,8 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
 pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
-    let first_keys = (config.common.bindings.iter())
-        .find(|(_, a)| **a == Action::System(System::Keys))
-        .map(|(k, _)| k);
-    for (key, action) in &config.common.bindings {
-        if *action == Action::System(System::Keys) && Some(key) != first_keys {
-            continue;
-        }
-        let (rank, at) = match action {
+    for row in sheet(config) {
+        let (rank, at) = match &row.action {
             Action::System(System::Keys) => (0, 0),
             Action::Look(Look::NextScene) => (1, 0),
             Action::Look(Look::Scene(name)) => (2, scene_at(name).unwrap_or(usize::MAX)),
@@ -146,7 +157,7 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             Action::System(System::Lock) => (9, 0),
             Action::System(System::Power) => (9, 1),
             Action::System(System::Screenshot) => (9, 2),
-            Action::System(System::Volume(change)) => (9, 3 + volume_order(*change)),
+            Action::System(System::Volume(change)) => (9, 3 + usize::from(*change != Change::Up)),
             Action::Look(Look::PreviousScene)
             | Action::System(
                 System::Drag
@@ -157,103 +168,18 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
                 | System::Cube(_),
             ) => continue,
         };
-        let row = match action {
-            Action::Look(Look::NextScene) => short_page(config, key, plain),
-            _ => words(action).map(|words| Row::new(human(key), &words, Some(key))),
+        let shown = match &row.action {
+            Action::Look(Look::NextScene) => page_row(config, &row, plain),
+            _ => Some(row_of(&row)),
         };
-        found.extend(row.map(|row| (rank, at, row)));
+        found.extend(shown.map(|shown| (rank, at, shown)));
     }
-    let (give, _) = chora_kit::give::keys_row("-");
-    found.push((8, usize::MAX, Row::new(give, GIVE_KEYS, None)));
+    let (give, words) = keysheet::give_row(Language::En);
+    found.push((8, usize::MAX, Row::new(give, &words, None)));
     found.sort_by_key(|(rank, at, _)| (*rank, *at));
     let mut rows: Vec<Row> = found.into_iter().map(|(_, _, row)| row).collect();
     rows.push(Row::new("Esc".to_owned(), "Back one step", None));
     rows
-}
-
-/// The words of the row of the give keys: the column has no room for
-/// the four names.
-const GIVE_KEYS: &str = "Give window to a look";
-
-fn short_page(config: &Config, next: &str, plain: bool) -> Option<Row> {
-    let previous = (config.common.bindings.iter())
-        .find(|(_, a)| **a == Action::Look(Look::PreviousScene))
-        .map(|(k, _)| k.as_str())?;
-    let keys = page_keys(previous, next, plain);
-    Some(Row::new(keys, "Turn the page", Some(next)))
-}
-
-/// What an action does, in words, the same words as the short list; none
-/// for a drag, which the pointer does.
-fn words(action: &Action) -> Option<String> {
-    Some(match action {
-        Action::Look(Look::NextScene) => "Next page".to_owned(),
-        Action::Look(Look::PreviousScene) => "Previous page".to_owned(),
-        Action::Look(Look::Scene(name)) => format!("Show {}", crate::title_of(name).to_lowercase()),
-        Action::System(System::Run(command)) if command.starts_with("fuzzel") => {
-            "Start a program or run a command".to_owned()
-        }
-        Action::System(System::Run(command)) => {
-            format!("Run {}", command.split_whitespace().next()?)
-        }
-        Action::System(System::Give(to)) => format!("Give the window to {to}"),
-        Action::System(
-            System::Drag
-            | System::Terminal
-            | System::Launcher
-            | System::Close
-            | System::Desk(_)
-            | System::Cube(_),
-        ) => return None,
-        Action::Look(Look::Toggle(crate::region::Region::Right)) => "Hide this column".to_owned(),
-        Action::Look(Look::Toggle(region)) => format!("Show or hide the {}", region.name()),
-        Action::Look(Look::Solo { content, .. }) => format!("Show the {content}"),
-        Action::System(System::Keys) => "All keys".to_owned(),
-        Action::System(System::Chat) => "Chat with a helper".to_owned(),
-        Action::System(System::Lock) => "Lock the screen".to_owned(),
-        Action::System(System::Power) => "Power menu".to_owned(),
-        Action::System(System::Screenshot) => "Take a screenshot".to_owned(),
-        Action::System(System::Volume(Change::Up)) => "Volume up".to_owned(),
-        Action::System(System::Volume(Change::Down)) => "Volume down".to_owned(),
-        Action::System(System::Volume(Change::Mute)) => "Mute".to_owned(),
-        Action::System(System::Volume(Change::Set(percent))) => {
-            format!("Set the volume to {percent}%")
-        }
-    })
-}
-
-fn volume_order(change: Change) -> usize {
-    match change {
-        Change::Up => 0,
-        Change::Down => 1,
-        Change::Mute => 2,
-        Change::Set(_) => 3,
-    }
-}
-
-/// A key as people read it: arrows for the arrow keys, a capital Space,
-/// and the caps of the volume keys as every look shows them.
-/// A thin space after the plus keeps an arrow off it.
-pub fn human(key: &str) -> String {
-    let mut out = String::new();
-    for (i, part) in key.split('+').enumerate() {
-        let volume = chora_kit::glass::cap(part);
-        let (shown, arrow) = match part {
-            "Left" => ("←", true),
-            "Right" => ("→", true),
-            "space" => ("Space", false),
-            other if other.starts_with("XF86Audio") => (volume.as_str(), false),
-            other => (other, false),
-        };
-        if i > 0 {
-            out.push('+');
-            if arrow {
-                out.push(THIN);
-            }
-        }
-        out.push_str(shown);
-    }
-    out
 }
 
 /// A thin space.
@@ -262,7 +188,7 @@ const THIN: char = '\u{2009}';
 /// Two keys that differ in their last part, as `Super+←→` with a thin space
 /// between the arrows too, so that the pair reads as one key.
 fn pair(first: &str, second: &str) -> String {
-    let (a, b) = (human(first), human(second));
+    let (a, b) = (keysheet::chord(first), keysheet::chord(second));
     match (a.rsplit_once('+'), b.rsplit_once('+')) {
         (Some((head, x)), Some((other, y))) if head == other => {
             let arrows = [x, y].iter().all(|key| key.contains(['←', '→']));
@@ -330,24 +256,11 @@ mod tests {
     }
 
     #[test]
-    fn the_volume_keys_read_as_they_are_printed() {
-        assert_eq!(human("XF86AudioRaiseVolume"), "Vol+");
-        assert_eq!(human("XF86AudioLowerVolume"), "Vol-");
-        assert_eq!(human("XF86AudioMute"), "Mute");
-    }
-
-    #[test]
     fn a_page_names_the_plain_arrows_and_keeps_the_binding_of_the_click() {
         for rows in [short(&config(), true), all(&config(), true)] {
             assert_eq!(rows[1].key, "←\u{2009}→", "{rows:?}");
             assert_eq!(rows[1].words, "Turn the page");
             assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
         }
-    }
-
-    #[test]
-    fn an_arrow_keeps_a_thin_space_off_the_plus() {
-        assert_eq!(human("Super+Left"), "Super+\u{2009}←");
-        assert_eq!(human("Super+Return"), "Super+Return");
     }
 }

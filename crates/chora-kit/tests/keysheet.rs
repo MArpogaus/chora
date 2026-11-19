@@ -106,10 +106,11 @@ enum Own {
     Hide,
 }
 
-fn named(_: &str, own: &Own) -> Option<String> {
-    match own {
-        Own::Page(n) => Some(format!("Page {n}")),
-        Own::Hide => None,
+fn named(binding: &str, action: &Action<Own>) -> Option<String> {
+    match action {
+        Action::Look(Own::Page(n)) => Some(format!("Page {n}")),
+        Action::System(System::Run(_)) if binding == "Super+Return" => Some("Terminal".into()),
+        _ => None,
     }
 }
 
@@ -164,4 +165,14 @@ fn the_give_keys_are_one_row_in_both_languages() {
         keysheet::give_row(Language::De).1,
         "Fenster an einen Fenstermanager geben"
     );
+}
+
+#[test]
+fn the_words_of_a_look_replace_those_of_kit_for_one_binding_only() {
+    let rows = bound(&[
+        ("Super+Return", Action::System(System::Run("foot".into()))),
+        ("Super+r", Action::System(System::Run("foot".into()))),
+    ]);
+    let words: Vec<&str> = rows.iter().map(|r| r.words.as_str()).collect();
+    assert_eq!(words, ["Terminal", "Run foot"]);
 }

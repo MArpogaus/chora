@@ -470,6 +470,23 @@ and xp are on it (xp has the setting `bindings` since KIT2d, with the keys that 
 had hard-coded as its defaults); tiling follows. A look drops or refuses a
 binding to a `System` value that it has no act for, naming the key.
 
+The key list of every look is made from the same rows, `chora_kit::keysheet::rows`:
+one row per wording, with the chords that do it (`chords`), the action of the
+first binding and that binding, as a click on the row acts like it. The words of
+an action of `System` are in `keysheet::words`, one wording per action in English
+and German (`keys` is "All keys", `lock` "Lock the screen", `power` "Power menu",
+`screenshot` "Take a screenshot", `chat` "Chat with a helper", `launcher` and `run: fuzzel`
+"Start a program or run a command", `close` "Close window", `volume` "Volume up",
+"Volume down" and "Mute", `give: NAME` "Give window to NAME"). A key is spelled
+as its cap, `keysheet::caps` and `keysheet::chord`: `Esc`, `Return`, `Space`, `/`, `.`,
+`←`, `→`, `Vol+`, `Vol-`, `Mute`, `drag`, a letter in capital, and a thin space
+between the plus and an arrow. A look names its own actions and may give one binding
+its own words (the `labels` of tiling), and draws the rows in its own costume: its
+groups, its caps, its order, as `Super+Alt+1-4` for the give keys that no file binds
+(`keysheet::give_row`). The act `the key list of LOOK speaks the keysheet` of
+`tests/acts` and the cell of the help of xp read the drawn texts of each look against
+`tests/keysheet/words.table`.
+
 The key action `give` is the same on every window manager. A binding
 `give: NAME` gives the focused window to the window manager `NAME`.
 `chora_kit::give::focused(windows, to)` implements it: it queries the

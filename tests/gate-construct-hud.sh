@@ -381,7 +381,7 @@ for theme in ${THEMES:-light dark}; do
     key Super+F1
     until_ok 'test "$(node id:construct-help "n[0][\"opacity\"]")" = 1.0' || fail "$theme: Super+F1 shows no help"
     [ "$(helped 'Move or resize a pane')" = Super ] || fail "$theme: the row of the modifier is $(helped 'Move or resize a pane')"
-    [ "$(helped 'Show these keys')" = Super+F1 ] || fail "$theme: the key of the help is $(helped 'Show these keys')"
+    [ "$(helped 'All keys')" = Super+F1 ] || fail "$theme: the key of the help is $(helped 'All keys')"
     for t in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-help-body-row-") and n["id"].endswith("-what")])'); do
         fits "$t" construct-help-body-glass || fail "$theme: $t runs out of the help"
     done

@@ -427,6 +427,9 @@ impl Config {
             alt,
             gesture: None,
         };
+        let say = |system: &System| {
+            chora_kit::keysheet::words(system, chora_kit::words::Language::En).unwrap_or_default()
+        };
         let one = |action: Action| bound(action).into_iter().next().unwrap_or_default();
         let letters = |actions: &[Action]| -> Vec<String> {
             actions.iter().flat_map(|a| one(a.clone())).collect()
@@ -498,12 +501,12 @@ impl Config {
             shared: false,
             rows: vec![
                 row(
-                    "Open a terminal",
+                    &say(&System::Terminal),
                     one(Action::System(System::Terminal)),
                     Vec::new(),
                 ),
                 row(
-                    "Close the pane ahead",
+                    &say(&System::Close),
                     one(Action::System(System::Close)),
                     Vec::new(),
                 ),
@@ -543,7 +546,7 @@ impl Config {
                 shared: true,
                 rows: vec![
                     row(
-                        "Chat with a helper",
+                        &say(&System::Chat),
                         one(Action::System(System::Chat)),
                         Vec::new(),
                     ),
@@ -563,7 +566,7 @@ impl Config {
                 .into_iter()
                 .map(|(to, n)| {
                     row(
-                        &format!("Give it to {}", crate::names::manager_name(to)),
+                        &say(&System::Give(crate::names::manager_name(to).clone())),
                         chord(&format!("Super+Alt+{n}")),
                         Vec::new(),
                     )
@@ -576,38 +579,38 @@ impl Config {
                 rows: vec![
                     row("Back out one step", chord("Escape"), Vec::new()),
                     row(
-                        "Start a program or run a command",
+                        &say(&System::Launcher),
                         one(Action::System(System::Launcher)),
                         Vec::new(),
                     ),
-                    row("Show these keys", shared_help, Vec::new()),
+                    row(&say(&System::Keys), shared_help, Vec::new()),
                     row(
-                        "Lock the screen",
+                        &say(&System::Lock),
                         one(Action::System(System::Lock)),
                         Vec::new(),
                     ),
                     row(
-                        "Open the power menu",
+                        &say(&System::Power),
                         one(Action::System(System::Power)),
                         Vec::new(),
                     ),
                     row(
-                        "Take a screenshot",
+                        &say(&System::Screenshot),
                         one(Action::System(System::Screenshot)),
                         Vec::new(),
                     ),
                     row(
-                        "Volume up",
+                        &say(&System::Volume(Change::Up)),
                         one(Action::System(System::Volume(Change::Up))),
                         Vec::new(),
                     ),
                     row(
-                        "Volume down",
+                        &say(&System::Volume(Change::Down)),
                         one(Action::System(System::Volume(Change::Down))),
                         Vec::new(),
                     ),
                     row(
-                        "Mute",
+                        &say(&System::Volume(Change::Mute)),
                         one(Action::System(System::Volume(Change::Mute))),
                         Vec::new(),
                     ),
@@ -1009,7 +1012,7 @@ mod tests {
             keys(&config, "Walk forward, back, sideways").unwrap(),
             ["W", "A", "S", "D"]
         );
-        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "F1"]);
+        assert_eq!(keys(&config, "All keys").unwrap(), ["Super", "F1"]);
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.common.bindings.remove("h");
@@ -1109,10 +1112,10 @@ mod tests {
         assert_eq!(
             gives,
             [
-                "Give it to Tiling",
-                "Give it to XP",
-                "Give it to Media center",
-                "Give it to Construct"
+                "Give window to Tiling",
+                "Give window to XP",
+                "Give window to Media center",
+                "Give window to Construct"
             ]
         );
     }

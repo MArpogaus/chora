@@ -10,7 +10,7 @@
     reason = "builders of nodes: x, y, w, h of shapes, one node after the other"
 )]
 
-use chora_kit::glass::{INNER_RADIUS, PANEL_RADIUS, ROW, Type, UNIT, caps};
+use chora_kit::glass::{INNER_RADIUS, PANEL_RADIUS, ROW, Type, UNIT};
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform, Uniform};
 
 use crate::{
@@ -753,7 +753,7 @@ fn find(text: &str, query: &str) -> Option<(usize, usize)> {
 /// The caps of a binding of the settings.
 #[must_use]
 pub fn chord(binding: &str) -> Vec<String> {
-    caps(binding)
+    chora_kit::keysheet::caps(binding)
 }
 
 #[cfg(test)]

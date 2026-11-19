@@ -72,7 +72,7 @@ def bottom(x0, y0, y1, fill):
 
 for box, ident in caps:
     word = texts.get(ident[: -len("-cap")] + "-k")
-    if word and word["text"].startswith("Super+j"):
+    if word and word["text"].startswith("Super+J"):
         label = label_of(ident)
         cap_base = bottom(rect(word)[0], box[1], box[1] + box[3], cap_fill)
         label_base = bottom(label[0], label[1] - 2, label[1] + label[3] + 2, panel_fill)

@@ -1440,7 +1440,7 @@ impl Mc {
         });
         let key = (self.settings.value.common.bindings.iter())
             .find(|(_, a)| **a == System::Chat.into())
-            .map(|(k, _)| crate::keys::human(k));
+            .map(|(k, _)| chora_kit::keysheet::chord(k));
         items.extend(key.map(|key| end("key", &key, None)));
         items
     }

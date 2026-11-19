@@ -289,16 +289,16 @@ basics of the pointer (the Apps button starts a program, a click on a tag shows 
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows, Layouts, Tags, Programs and
 System: the keys on a keycap in JetBrains Mono, then the words of the
-action in Inter ("Next window"; `run` shows its command). Each group is
+action in Inter ("Next window"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
 whole in one of two columns, and the columns are as even as they can be.
 The rows of a group go in the order of a person, not of the keys, rows
 are 24 px apart with caps of 20 px, or 22 px with caps of 18 px, or 20 px
 with caps of 18 px when the output is low, so the keys and their
 descenders sit in the cap on the baseline of the words; every keycap has
 6 px of padding on both sides, and the words of a column start at one x. The keys are
-spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
+spelled as the key list of every look spells them (`chora_kit::keysheet`): `Super+drag`, `Super+/`, `Super+Return`, `Super+Esc`, a letter in capital as in `Super+J`.
 The option `labels` names a binding in its own words, by the binding as the
-file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
+file spells it, for example `MOD+Return: Open a terminal`. The tags 1 to 9 take
 one row, a binding with the words of another joins its row, and the
 media keys of the volume take one row, `Vol+ / Vol- / Mute` with the words
 "Volume up / Volume down / Mute". The list is built each time it opens and again when the

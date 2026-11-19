@@ -76,8 +76,10 @@ def keysheet_spec():
 def keysheet_breaches(texts, words=None, caps=None):
     """What a key list that draws `texts` gets wrong: a wording of an action
     of every look that is not the one of kit::keysheet, and a key spelled
-    another way than its cap."""
+    another way than its cap. A row that joins keys or words with a slash
+    counts as one text for each part."""
     spec_words, spec_caps = keysheet_spec()
+    texts = [part for line in texts for part in line.split(" / ")]
     words = words or {name: spec_words[name] for name in EVERY_LOOK}
     caps = caps or spec_caps
     breaches = [
