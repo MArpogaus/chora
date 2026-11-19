@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 09:08 UTC)
+## Now (2026-11-19 09:10 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 08:52 PM 2.2 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -27,7 +27,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
 | wm1d-r2.md (F3) | sonnet high | session_016iS3kMu2Me5Yp8sQFfyzaD (08:52) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
-| wm7a-r1.md (F3) | opus high | session_016iS3kPRrXrPs57WvWHZBEU (07:40) |
+| review-wm7a-r1.md (F3) | opus high | starting |
 | review-kit2c-r1.md (F2) | sonnet high | session_016iS3kQE87duGwNAXqW7P73 (09:08) |
 | kit2d-r1.md (F2) | sonnet high | session_016iS3kM1JMwzfGGNbUurCv7 (08:50) |
 
@@ -37,4 +37,5 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
+- Cube form (WM7b, 14:55 'after WM7a'): wm7a measured hosted works (reports/wm7a.md); default hosted, flat stays fallback; by 11-19 14:00 UTC.
 - F27 closed 07:47: fuzzel 1.11.1 in a fresh lane (flakes-f). Delete claude/release-rc4 in GitHub (session push 403). rc.4 tag: kept local (owner).
