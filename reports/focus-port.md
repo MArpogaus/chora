@@ -46,3 +46,41 @@ Commits: 39b27a4b (red), bda9d4ae (port), d0d7ec09 (kit7-a1 fix, row removed), 7
   The port does not touch the pull path (construct camera/adopt/input only swap the command builder).
 - Open: the steps after pull want a gate run in the train; kit7-a2 stays known red (design question above);
   setup.sh is refused by the classifier in lane sessions (it clones agent_skills and installs tools).
+
+## Review r1
+Seeded review (opus, high) of claude/focus-port 3b418008, own commits 39b27a4b bda9d4ae d0d7ec09 7a56a5b9. Step 0: tools
+present, `cargo check --workspace` green.
+- 1) Red first: `tools/cut-check` on 39b27a4b FAIL copies 10, 2, 1, 9 (Command::Focus, mc, tiling, FocusChanged); allow lists
+  only kit wm (+ tests/wm_), kit testing, chora-scene, core ipc; no look. On bda9d4ae still FAIL: Command::Focus 2, mc 2,
+  FocusChanged 4 (all chora-mc main.rs); the copies rows reach 0 only at d0d7ec09 (rp-1). The `names: chora-mc names
+  chora-notify` FAIL on 39b27a4b..d0d7ec09 is from the base and leaves with the integ merge; 3b418008 exit 0.
+- 2) Behaviour kept: tiling (hear before Book, which does not hear focus.changed; `Focus::to` records what `sent` recorded
+  after the push), xp (focus_moved hoisted after Created, `heard` unused on that path; release/give for None/Some),
+  construct (core_focus hoisted after Created; five give() in place of the literal), assistant (after machine.hear,
+  `apply(vec![])` is a no-op as before), mc (after Book lifecycle): each path one kit::wm::focus call, same surface and
+  order. No lost or reordered focus. Tests of the six packages (--features chora-kit/testing): all pass.
+- 3) kit7-a1: mc loses the focus only on `assistant.chat.keyboard {on:true}`; the new cell fails on bda9d4ae ("chat open":
+  holder null, expected mc). Probe at head: on -> null; off with the chat open -> null; chat closed -> mc (+1 focus
+  command); so mc gets it back with the close (keyboard_back), not with on:false (rp-2).
+- 4) kit7-a2: input.rs:301 a press on an own pane window sends focus::give(node); window_created sends no focus, so Tab goes
+  to the window: the cause holds. Both known-red rows name v8 733967aa.
+- 5) No new key, method or wording (mc subscribes to the existing assistant.chat.keyboard); clippy of the six, all
+  targets, -D warnings: clean.
+
+Findings:
+- rp-1 MINOR plugins/chora-mc/src/main.rs:620: bda9d4ae alone does not pass cut-check (mc keeps 2 Command::Focus and 4
+  FocusChanged); the mc port lands inside the kit7-a1 fix d0d7ec09 and the r1 report credits mc main.rs to bda9d4ae. Fix:
+  correct the report's attribution (history needs no rewrite; the head is green).
+- rp-2 MINOR plugins/chora-mc/src/main.rs:897: `{on:false}` is ignored, so mc's claim returns only when the chat closes, and a
+  field that drops the keyboard while the chat stays open leaves mc at holder null; no cell covers on:false or the close
+  after on:true. Fix: add a cell for on:true -> close -> holder mc, and decide (WM2) whether on:false with no foreign
+  core focus should give the claim back.
+- rp-3 MINOR plugins/chora-mc/src/main.rs:1235: pane.focus (focus_scene) now records the focus through Focus::to/to_node
+  (lost cleared, node set), so state.get says holder mc at once where it waited for focus.changed before; a behaviour
+  change with no cell. Fix: add a cell for state.get after pane.focus, or name the change in the report.
+- rp-4 NIT crates/chora-kit/src/wm/focus.rs:90: `Focus::core()` is new public API with no caller (mc, xp and the construct
+  keep their own core_focus). Fix: drop it, or use it in mc in place of `core_focus`.
+- rp-5 NIT crates/chora-kit/src/wm/focus.rs:34: give(), changed() and the return of Focus::hear have no cell in chora-kit,
+  only through the looks. Fix: one kit cell for each.
+
+Verdict: MERGE-OK (BLOCK 0, MAJOR 0, MINOR 3, NIT 2).
