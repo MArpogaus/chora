@@ -28,12 +28,12 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | moved-tests-mk-r3.md (F5) | haiku high | done 18:00: c00dcf3e MERGE-OK (PM review 18:03); train 69 |
 | debt-down-r2.md (F4) | sonnet high | done 18:15: c8fe032b; review-debt-down-r2.md opus session_016iS3kMUWxUcb9zmbRwwWAA (18:16) |
 | mc-i5-r1.md (F7, F2) | sonnet high | done 18:11: f7a69761 MERGE-OK (PM review 18:14); train 69 |
-| construct-red-r1.md (F7, F3) | opus high | done 18:07: 28254eb6; opus review session_016iS3kMG9aRS9Wrv1CjuDEY (18:08) |
+| construct-red-r2.md (F7, F3) | sonnet high | r1 review FIX (rc-1 MAJOR: an app's child window gets no keys); r2 starting |
 | docs-f8c-r1.md (F8) | sonnet high | done 17:48: 65ef41a5 MERGE-OK (PM review 17:50); train 68 |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 65 green 16:57 after one rerun. 66 red 17:14 (MX1); 67 green 17:57. 68 running from 17:57: mk r1 31df2bb9, mk r2 4904ef79, copies-0 ee53e09c, docs-f8c 65ef41a5 (F8 met at merge). 69 = mk r3 c00dcf3e, mc-i5 f7a69761 (+ construct-red if MERGE-OK).
+4. Trains (F6): 65 green 16:57 after one rerun. 66 red 17:14 (MX1); 67 green 17:57. 68 running from 17:57: mk r1 31df2bb9, mk r2 4904ef79, copies-0 ee53e09c, docs-f8c 65ef41a5 (F8 met at merge). 69 = mk r3 c00dcf3e, mc-i5 f7a69761 (construct-red after r2).
 5. audit-f (3 of 8 met; 12.3 %): DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES haiku from 7d9ec18e (F5 1 %, 18:00), DOCS-F8c started 17:14 (1 %); KNOWN-RED (F7 state part, 4 rows): MC-I5 (1 %) and CONSTRUCT-RED (opus 3 %) from ee53e09c.
 
 ## Needs owner
