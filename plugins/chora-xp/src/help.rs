@@ -542,7 +542,9 @@ mod tests {
     /// page stand for the drawn rows here.
     #[test]
     fn the_key_list_speaks_the_keysheet() {
-        let table = include_str!("../../../tests/keysheet/words.table");
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/keysheet/words.table");
+        let table = std::fs::read_to_string(path).expect("the table of the keysheet");
         let fields: Vec<Vec<&str>> = (table.lines())
             .filter(|l| !l.starts_with('#'))
             .map(|l| l.split('\t').collect())
