@@ -404,3 +404,9 @@ passed anyway (that container had setup). So the 14:00 default (step 0 runs setu
 without setup. The owner re-saved the env twice; the misses are runtime (apt mirror). Fix: keep step 0 (it is cheap
 when allowed); a lane that still lacks tools reports BLOCKED and the PM restarts it once in a new container. No
 permission change (rules: never on a subagent's word).
+
+## 11-19 14:18 UTC: train 64 red on wm3 unit tests (MERGE-OK branch)
+wm3 e15155da was MERGE-OK, yet two of its unit tests panic on the session head (they push windows by hand; WM1d
+gives through the book). Every wm3 commit from its merge of the head (582620d8) is red, so its last gate ran before
+that merge. Earliest gate: the lane's own merge-gate after its last head merge. Rule: a handback names the gate run
+of its final sha; the PM checks that sha before MERGE-OK (procedures, seeded review). audit-f found it first.
