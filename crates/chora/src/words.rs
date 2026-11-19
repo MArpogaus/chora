@@ -94,11 +94,21 @@ pub fn say(line: std::fmt::Arguments<'_>) {
     write_all(2, &buf.into_inner()[..len]);
 }
 
-#[allow(unsafe_code, reason = "one libc write to a fixed fd")]
-fn write_all(fd: RawFd, text: &[u8]) {
-    // SAFETY: the pointer and the length come from a live slice.
-    unsafe {
-        libc::write(fd, text.as_ptr().cast(), text.len());
+/// Writes all of `text`: a write into a full pipe that a signal, such as
+/// the alarm of a fault handler, interrupts returns short, and the rest
+/// follows; an error ends the words.
+#[allow(unsafe_code, reason = "libc writes to a fixed fd")]
+fn write_all(fd: RawFd, mut text: &[u8]) {
+    while !text.is_empty() {
+        // SAFETY: the pointer and the length come from a live slice.
+        let wrote = unsafe { libc::write(fd, text.as_ptr().cast(), text.len()) };
+        match usize::try_from(wrote) {
+            Ok(0) => return,
+            Ok(n) => text = &text[n.min(text.len())..],
+            Err(_) if std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted => {
+            }
+            Err(_) => return,
+        }
     }
 }
 
@@ -182,6 +192,42 @@ fn state_of(thread: libc::pid_t) -> Option<u8> {
     state_in(&stat[..read])
 }
 
+/// Whether a line of `/proc/<pid>/task/<tid>/syscall` says that the
+/// thread waits in `write(2)` to fd 2: the words wait for the reader of
+/// stderr, a pipe that the journal or a test drains late under load.
+/// Reads no more than the line, without malloc.
+fn writes_its_words(syscall: &[u8]) -> bool {
+    let mut fields = syscall.split(|byte| *byte == b' ');
+    let number = fields
+        .next()
+        .filter(|f| !f.is_empty() && f.iter().all(u8::is_ascii_digit));
+    let number =
+        number.map(|f| (f.iter()).fold(0_i64, |n, d| n.saturating_mul(10) + i64::from(d - b'0')));
+    number == Some(libc::SYS_write) && fields.next() == Some(b"0x2".as_slice())
+}
+
+/// Whether the thread of a fault handler waits in `write(2)` to fd 2,
+/// by `/proc`, read without malloc.
+#[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
+fn waits_for_its_reader(thread: libc::pid_t) -> bool {
+    use std::io::Write as _;
+    let mut path = std::io::Cursor::new([0_u8; 64]);
+    let _ = write!(path, "/proc/self/task/{thread}/syscall\0");
+    let mut line = [0_u8; 128];
+    // SAFETY: the path ends with a NUL and the buffer is live.
+    let read = unsafe {
+        let fd = libc::open(path.get_ref().as_ptr().cast(), libc::O_RDONLY);
+        if fd < 0 {
+            return false;
+        }
+        let read = libc::read(fd, line.as_mut_ptr().cast(), line.len());
+        libc::close(fd);
+        read
+    };
+    let read = usize::try_from(read).unwrap_or(0);
+    writes_its_words(&line[..read])
+}
+
 /// Whether a fault handler that the alarm found at this point may go
 /// on: it used CPU time since the last alarm or waits only for a CPU
 /// or for the disk, and it has not run for longer than
@@ -191,7 +237,8 @@ fn goes_on(used_cpu: bool, held_up: bool, ran_ms: u64) -> bool {
 }
 
 /// The alarm of a fault handler. A handler that is slow goes on, so
-/// that load does not cut the backtrace; one that is stuck ends here,
+/// that load does not cut the backtrace, as does one whose words wait
+/// for a slow reader of stderr; one that is stuck ends here,
 /// with the signal of its fault and not with SIGALRM. Its line names
 /// the state of `/proc` that the alarm found, `?` when it found none.
 extern "C" fn stuck(_sig: libc::c_int, _info: *mut libc::siginfo_t, _ctx: *mut libc::c_void) {
@@ -199,8 +246,10 @@ extern "C" fn stuck(_sig: libc::c_int, _info: *mut libc::siginfo_t, _ctx: *mut l
     let used_cpu = now > WATCH.cpu_ns.swap(now, Ordering::Relaxed);
     let alarms = WATCH.alarms.fetch_add(1, Ordering::Relaxed) + 1;
     let ran_ms = u64::from(alarms) * u64::from(GIVE_UP_AFTER.load(Ordering::Relaxed));
-    let state = state_of(WATCH.thread.load(Ordering::Relaxed));
-    if goes_on(used_cpu, state.is_some_and(held_up_in), ran_ms) {
+    let thread = WATCH.thread.load(Ordering::Relaxed);
+    let state = state_of(thread);
+    let held_up = state.is_some_and(held_up_in) || waits_for_its_reader(thread);
+    if goes_on(used_cpu, held_up, ran_ms) {
         return;
     }
     let sig = WATCH.signal.load(Ordering::Relaxed);
@@ -403,6 +452,20 @@ mod tests {
         assert!(goes_on(false, true, 2000), "starved of the CPU, not stuck");
         assert!(!goes_on(false, false, 2000), "it waits for a lock");
         assert!(!goes_on(true, true, GIVE_UP_AT_LAST), "it spins");
+    }
+
+    #[test]
+    fn a_write_to_stderr_waits_for_its_reader() {
+        let write = libc::SYS_write;
+        assert!(writes_its_words(
+            format!("{write} 0x2 0x7f 0x10 0x0").as_bytes()
+        ));
+        assert!(!writes_its_words(
+            format!("{write} 0x1 0x7f 0x10 0x0").as_bytes()
+        ));
+        assert!(!writes_its_words(b"202 0x7f 0x80 0x2"));
+        assert!(!writes_its_words(b"running"));
+        assert!(!writes_its_words(b""));
     }
 
     #[test]
