@@ -36,3 +36,9 @@ Cut check: no new breach; plugins use `chora_scene::paths` and `chora_kit::runti
 
 ## PM coverage (11-18 11:55, edb94c25, cargo llvm-cov -p chora-scene -p chora-kit --features chora-kit/testing)
 paths.rs lines 93.13 % (122/131), words.rs lines 98.52 % (333/338); scene+kit total 88.87 %. Target 80 % met. Security review (opus) Thu 00:05.
+
+## Security review (opus high, PM-run independent agent, 11-19 00:09 UTC): MERGE-OK
+0 BLOCK, 0 MAJOR, 6 MINOR, 2 COSMETIC (read-only, diff 5990b001..edb94c25). Clean: check_private uses symlink_metadata and euid; language values never reach a path; copies rows at 0 honest.
+MINOR: (1) XDG_RUNTIME_DIR parent not checked (world-writable or foreign accepted; path bind TOCTOU; pre-existing); (2) mode check exactly 0700 refuses setgid 02700 or umask 0500 (fails safe, may break start); (3) shader and cache dirs skip private_dir; (4) voice coder.rs:73 relative "~/.local/share" fallback; (5) behaviour changes lack CHANGELOG lines; (6) test gaps: env wrappers, listen, icons foreign dir, refusal logged, ipc group-bits test not red first.
+COSMETIC: xp launch.rs:167 /tmp fallback (safe); logs.rs, check.rs own 0700 code (safe).
+Refactor: fd-based private_dir (openat O_NOFOLLOW, fstat, fchmod, OwnedFd); paths::runtime_subdir(name) used by listen, runtime_file, cache_dir, icons, logs; copies rows for XDG_CONFIG/STATE/DATA_HOME and var_os("HOME") at 0.

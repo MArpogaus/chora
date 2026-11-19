@@ -215,3 +215,6 @@ wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRe
 - H-train (harness, critic 11-18): tools/train.sh wraps merge-gate.sh with timeout 7200000, worktree setup and cleanup (friction 49, train 46).
 - H-time (harness, critic 11-18): check_log time check also on status/index.html "Updated" line.
 - F5 pull flake (gate-construct-pull 170-197 px off in lanes kit2, kit4): ledger row; F5 stays open with F17.
+
+- KIT1 security MINORs (opus 11-19, MERGE-OK): check runtime dir parent (owner euid, no 022 bits) in listen and runtime_file; relax mode check to no 077 bits plus 0700 or fchmod after create; shader and cache dirs through the check; voice coder.rs:73 relative fallback; CHANGELOG lines for the behaviour changes; tests for env wrappers, listen, icons foreign dir, refusal logged.
+- Refactor (kit1 review, ranked high): fd-based private_dir plus paths::runtime_subdir(name); copies rows for XDG_*_HOME and var_os("HOME") at 0.
