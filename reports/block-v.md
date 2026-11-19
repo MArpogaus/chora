@@ -48,3 +48,8 @@ Gate after the merge of origin/claude/autonomous-dev-session-3w-i33pg7:
 (pre-commit, build, test, clippy, mc-paths, ci-check, acts); "partial run: nothing is pushed" is the gate's own line.
 Note: the first commit of the fix failed the clippy hook (doc backticks, a test over the complexity limit); the
 test was split, nothing skipped, no --no-verify.
+
+## PM review r2 (23:35)
+Diff a61e8eaa...ce230288 read in full (9 files, +175 -11). rw-1 closed: page_key takes plain Home and XF86HomePage to default_scene, guarded by modifiers and by_person like Right and Left; red act dca24709 before fix fa7faabd; unit test plain_home_goes_to_the_first_page covers Shift+Home as no key. rw-2 closed: theme read and set back (act cell). Docs, mc.yaml and both config copies agree.
+- rw-3 NIT keys.rs: the Home row is pushed with order 1 beside the page row; its place rests on the sort of (rank, at). Test asserts index 2; fine.
+Verdict: MERGE-OK (no open MAJOR). Train 78.
