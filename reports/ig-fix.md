@@ -19,3 +19,10 @@ Head b717a5f2 on claude/ig-fix; check commit f5950114 (red: the gate-lib line ha
 - igr-1 closed: merged gate-pick; the gate-lib step runs gate-lib-selftest, under-load-selftest and cells-for-selftest in one background group, merge-gate-selftest beside it, both exit codes checked, nested guard kept. Selftest greps cells-for-selftest.sh on the gate-lib line.
 - igr-2 closed: usage text names MERGE_GATE_NESTED.
 - Gate `--jobs 3 --only pre-commit,ci-check,red-first,identity,gate-lib`: green (gate-lib 65 s, ci-check 81 s).
+
+## PM review r2 (22:19 UTC; PM not the builder)
+Base a9e7084d (train 74), head b717a5f2, 2 files +13/-2. Red first: f5950114 before the merge.
+- igr-1 closed: the gate-lib line runs all four selftests, `wait $a && [ $b = 0 ]` checks both exit codes, nested guard kept.
+- igr-2 closed: the usage text names MERGE_GATE_NESTED.
+- No new finding.
+Verdict (computed): MERGE-OK (no open MAJOR). Harness branch: train 76 right after 75 (the gate lock is held).
