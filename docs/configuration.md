@@ -117,7 +117,7 @@ The plugins `chora-tiling`, `chora-xp`, `chora-notify`,
 `chora-voice` read their settings file (D62) as strict YAML too. If the file does not parse or check, for example because an
 update removed a key, the plugin does not stop. It starts with its
 default settings, writes the error to its log and does not change the
-file. `chora-mc` also shows the error as a critical notification.
+file. `chora-mc` also shows the error as a critical notice of `chora-notify`.
 `chora-voice` does not start on a broken file. It writes the error to
 its log. The error names the kind of the wrong value or the line of the
 wrong YAML. It does not quote the value or the line, because a value at
@@ -500,8 +500,7 @@ indicator; it still shows the helpers that `voice.state` names. A click
 on the column of a helper in the scene `agents`, or on its row in a
 region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
 `assistant` says that the chat is open on the output of mc, the content
-`chat` of the margin column holds it: the texts with `folds: true`, such
-as the notifications, fold into their head and the count of their lines
+`chat` of the margin column holds it: the texts with `folds: true` fold into their head and the count of their lines
 with `Show` flush right, the key list goes, and mc emits the box under the
 head `Chat` as `mc.chat.slot {output, rect}` (`rect` is
 `[x, y, width, height]` on the output, `null` when the chat closes). The
@@ -528,15 +527,15 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
-| `content.set` | `content`, `lines` and an optional `title` of a text content; not of `notify`, `urgent` or `confirm`, which mc writes itself |
-| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines; not to `notify`, `urgent` or `confirm` |
+| `content.set` | `content`, `lines` and an optional `title` of a text content; not of `confirm`, which mc writes itself |
+| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines; not to `confirm` |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
 | `agent.set` | privileged. `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red as a card on top of the column, in the footer where the column does not show, in the text `urgent`, until the next one or a click on the card, which leaves it in `notify`; the oldest lines of `notify` give way while the column is full |
-| `notify.clear` | privileged; empties `notify` and `urgent` |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): shows a notice through `chora-notify`, the only notification server beside mc, as `notify.show` does (`critical` stays until a click, the others show for its times); mc draws no notice, no column of notifications and no urgent line of its own. An error when `chora-notify` does not run |
+| `notify.clear` | privileged; closes the notices that mc showed, the last 32, and that `chora-notify` still holds |
 
 New text writes itself, as Write of manim: a soft front draws the
 outlines line by line, and the fill follows. This happens when a scene
@@ -725,7 +724,7 @@ The `contents` are named. Their `kind` is one of:
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
-| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines,; with `folds: true`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
 | `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat` with the state word of the first helper (`No helper` without one), `Esc  Close` and the box of the chat while it is open; the header of the host says `No helper is set up.` when there is none. When the host does not answer, a red notice says so. The helpers of voice go when voice ends |
 | `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the give keys `Super+Alt+1-4` in one row, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. While it shows, the side that holds the list has only the state line above it; the other sides keep their content. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
 | `doors` | the doors of the actions that have a key, in two lines at the foot of a side under the key list: `Programs` (the launcher), `Lock`, `Power` (the power menu), `Screenshot` and the volume (`Volume 40%`, or `Muted` or the words of a failure). A click acts as the key; a click on the volume mutes or unmutes. The volume is read every 5 s and after each change |
@@ -760,10 +759,9 @@ key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows
-the words of the agent left, a critical notification in red in the
-middle and the next entry of the agenda right (the collector fills the
+the words of the agent left and the next entry of the agenda right (the collector fills the
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
-with `content.add`, and the notifications below them, newest on top, and
+with `content.add`, and
 the key list and the doors at its foot. The state of the voice agent and the helpers
 stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden with `voice_hud: host`, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
@@ -1368,6 +1366,12 @@ start with an error that names it. The folder holds:
 
 `plugins/chora-notify/assets` is the neutral folder, a flat card without a
 tail. `flavors/xp/assets/notify` is the balloon of XP.
+`plugins/chora-mc/notify` is the slot of `chora-mc`, which has no notices of
+its own: assets and `notify.yaml` put the card at the bottom left, 160 pixels
+from the edge and 56 above the bottom, in the margin between the page and its
+footer line, where it covers neither the page nor the margin column with the
+chat. Start it with `chora-notify --assets /usr/share/chora/mc/notify --config
+/usr/share/chora/mc/notify/notify.yaml`.
 
 ## chora-assistant
 

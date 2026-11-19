@@ -29,11 +29,8 @@
 #   chat-click-close  (a second output with chora-tiling) with the chat
 #                  open a click on a window of tiling, that window closes,
 #                  the chat closes: the page of mc gets the keyboard
-#   all-keys       with notifications the full key list stays in the
-#                  column and on the screen, and its rule crosses no text
-#   urgent         a critical notification is a card in the column, named Urgent,
-#                  in full and at 14 px or more; a press on it takes it away
-#                  and the arrows still work
+#   all-keys       the full key list stays in the column and on the
+#                  screen, and its rule crosses no text
 #
 # The gate ends with the window audit: the terminal of the terminal page
 # is still there.
@@ -373,9 +370,6 @@ cell_chat_click_close() {
 
 cell_all_keys() {
     local rule over crossed
-    for n in 1 2 3; do
-        ctl call mc notify.push "{\"title\": \"Note $n\"}" >/dev/null || fail "notify.push"
-    done
     key Super+F1
     until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not show all keys"
     sleep 1
@@ -389,31 +383,6 @@ cell_all_keys() {
     [ -z "$crossed" ] || fail "the rule of the full list crosses: $crossed"
     key Super+F1
     until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
-    ctl call mc notify.clear '{}' >/dev/null
-}
-
-cell_urgent() {
-    local hit card full
-    full="Urgent: Disk is full: The notes have no room left, free some space before the night copy."
-    ctl call mc notify.push '{"title": "Update ready"}' >/dev/null || fail "notify.push"
-    ctl call mc notify.push '{"title": "Disk is full", "body": "The notes have no room left, free some space before the night copy.", "urgency": "critical"}' >/dev/null || fail "notify.push critical"
-    until_ok 'says "Disk is full"' 20 || fail "no critical notification"
-    sleep 1
-    shot urgent
-    [ "$(texts | grep -cxF "$full")" = 2 ] ||
-        fail "the card and the list do not both say the whole notice: $(texts | grep -iF 'disk' | tr '\n' '|')"
-    card=$(ctl query "owner:mc kind:text" | jq -c --arg t "$full" '[.[] | select(.visible and (.rects | length) > 0 and .text == $t) | {r: (.rects | to_entries[0].value), size: .font_size}] | min_by(.r[1])')
-    jq -ne --argjson c "$card" '$c.r[0] >= 860 and $c.r[0] + $c.r[2] <= 1230 and $c.r[1] + $c.r[3] <= 740 and $c.size >= 14' >/dev/null ||
-        fail "the notice is not a card in the column of at least 14 px: $card"
-    jq -ne --argjson c "$card" '$c.r[3] >= 40' >/dev/null || fail "the card does not wrap its notice: $card"
-    hit=$(hit_rect urgent)
-    jq -ne --argjson r "$hit" '$r[0] >= 860 and $r[2] >= 28 and $r[3] >= 28' >/dev/null || fail "the card takes a press on less than 28 by 28 in the column: $hit"
-    click_rect "$hit"
-    until_ok '[ "$(texts | grep -cxF "$full")" = 1 ]' 20 || fail "a press on the card does not take it away"
-    has_text "Update ready" || fail "the press took the other notifications too"
-    key Right
-    until_ok '[ "$(current)" = morning ]' 20 || fail "Right does not turn the page after the press: $(current)"
-    ctl call mc notify.clear '{}' >/dev/null
 }
 
 failed=()
@@ -427,7 +396,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page arrows terminal-keys mouse-back mute terminal-chat chat-click-turn all-keys urgent; do
+for name in first-page arrows terminal-keys mouse-back mute terminal-chat chat-click-turn all-keys; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

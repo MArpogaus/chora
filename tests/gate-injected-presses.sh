@@ -6,22 +6,20 @@
 # waits for a round trip to the plugin (settings.reload), which the
 # plugin answers after the input that came before it, not for a time.
 #
-# 1. mc: a critical notification stands as a card in the column; an injected click
-#    on it leaves it, a click with the switch on clears it.
-# 2. The construct over tiling: the window list stands open (opened with
+# 1. The construct over tiling: the window list stands open (opened with
 #    the switch on, which is then set off with settings.set); an injected
 #    Return and an injected click on a row take no window, and with the
 #    switch on each takes the window as a pane.
-# 3. tiling and xp: two windows, the second has the focus; an injected
+# 2. tiling and xp: two windows, the second has the focus; an injected
 #    click on the first (xp: on its task button) leaves the focus, a click with the switch on moves it.
-# 4. tiling with focus: follow_mouse (its default): an injected pointer move
+# 3. tiling with focus: follow_mouse (its default): an injected pointer move
 #    over the first window leaves the focus, a move with the switch on moves it.
 #
 # Usage: tests/gate-injected-presses.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-construct chora-mc chora-tiling chora-xp chora-probe
+need_bins chora choractl chora-construct chora-tiling chora-xp chora-probe
 temp_config
 work=$XDG_CONFIG_HOME
 mkdir -p "$work/chora/constructs"
@@ -53,31 +51,6 @@ nodes = json.load(sys.stdin)
 x, y, w, h = next(iter(nodes[0]["rects"].values()))
 print(f"{x + w / 2:.1f}, {y + h / 2:.1f}")'
 }
-urgent_text() {
-    call mc region.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["contents"]["urgent"]["text"])'
-}
-
-press_urgent() {
-    session_start 1280x800 -- "$bin/chora-mc"
-    grant input.inject methods.call methods.privileged
-    call mc notify.push '{"title": "Disk is full", "urgency": "critical"}' >/dev/null || fail "notify.push"
-    local hit=mc-r1-right-urgent-hit
-    until_ok "ctl query id:$hit | grep -q rects" || fail "no line for the urgent notification"
-    until_ok '[ -n "$(urgent_text)" ]' || fail "the notification did not reach the urgent text"
-    click_on "$hit"
-    barrier mc
-}
-
-CHORA_TEST_ACCEPT_INJECTED_KEYS=0 press_urgent
-[ -n "$(urgent_text)" ] || fail "an injected click cleared the urgent notification"
-ok "mc: an injected click on the urgent line leaves it"
-end_session
-
-CHORA_TEST_ACCEPT_INJECTED_KEYS=1 press_urgent
-[ -z "$(urgent_text)" ] || fail "the click did not clear the urgent notification with the switch on: $(urgent_text)"
-ok "mc: with the switch on the same click clears the urgent line"
-end_session
-
 probes=0
 taken() { call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "chora-probe"), "missing"))'; }
 list_with_probe() {

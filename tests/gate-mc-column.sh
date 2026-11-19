@@ -13,7 +13,7 @@
 # Usage: tests/gate-mc-column.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its first argument
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-mc
+need_bins chora choractl chora-mc chora-notify
 need jq
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
@@ -26,6 +26,11 @@ grant screen.capture input.inject
 "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc.log" 2>&1 &
 pids+=($!)
 ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
+notify_slot=$repo/plugins/chora-mc/notify
+"$bin/chora-notify" --assets "$notify_slot" --config "$notify_slot/notify.yaml" >"$XDG_CONFIG_HOME/notify.log" 2>&1 &
+pids+=($!)
+ctl wait owner:notify --timeout 20 >/dev/null || fail "chora-notify does not start: $(tail -n 3 "$XDG_CONFIG_HOME/notify.log")"
+shown_notices() { ctl call notify state.get '{}' | jq -r '.shown[].summary'; }
 
 until_ok() {
     for _ in $(seq "${2:-40}"); do
@@ -219,25 +224,22 @@ until_ok '[ "$(current)" = agenda ]' 20 || fail "Super+Home does not show the ag
 key Super+a
 until_ok 'grep -q "chat.show" "$XDG_CONFIG_HOME/mc.log"' 20 || fail "Super+a does not ask the host for the chat"
 [ "$(current)" = agenda ] || fail "Super+a left the agenda for $(current)"
-until_ok 'texts | grep -q "^Chat: The chat does not open"' 20 || fail "no notice that the chat does not open"
+until_ok 'shown_notices | grep -qx Chat' 20 || fail "no notice of chora-notify that the chat does not open"
+has_text "Chat: The chat does not open" && fail "mc draws a notice of its own"
 ctl call mc notify.clear '{}' >/dev/null || fail "notify.clear"
+until_ok '! shown_notices | grep -qx Chat' 20 || fail "notify.clear leaves the notice"
 drawer=$(ctl call mc region.list '{}' | jq -r '.regions.drawer.contents | length')
 [ "$drawer" = 0 ] || fail "the default setup still has contents in the drawer"
 ok "Super+a asks for the chat and says so when the host is gone, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
 
-notices() { texts | grep -c '^Note [0-9]$'; }
-has_text "NOTIFICATIONS" || fail "no NOTIFICATIONS head on an empty column"
-has_text "Nothing new." || fail "the empty notifications do not say so"
-ok "an empty column says Nothing new. under its head"
-for n in 1 2 3 4; do
-    ctl call mc notify.push "{\"title\": \"Note $n\"}" >/dev/null || fail "notify.push"
-done
-until_ok '[ "$(notices)" = 3 ]' 20 || fail "the column shows $(notices) notifications, not 3: $(texts | tr '\n' '|')"
-has_text "Nothing new." && fail "Nothing new. stays beside notifications"
-shot notifications
-ok "three notifications show, the newest first, and no Nothing new."
+has_text "NOTIFICATIONS" && fail "mc has a NOTIFICATIONS head"
+has_text "Nothing new." && fail "mc says Nothing new."
+ctl call mc notify.push '{"title": "Update ready"}' >/dev/null || fail "notify.push"
+until_ok 'shown_notices | grep -qx "Update ready"' 20 || fail "notify.push does not reach chora-notify"
+has_text "Update ready" && fail "mc draws the notice itself"
+ok "notify.push shows in chora-notify and mc draws no column of notifications"
 ctl call mc notify.clear '{}' >/dev/null
-until_ok 'has_text "Nothing new."' 20 || fail "Nothing new. does not come back"
+until_ok '! shown_notices | grep -qx "Update ready"' 20 || fail "notify.clear leaves the notice"
 
 column_at 1280x720 888 336
 column_at 1920x1080 1416 448
@@ -305,8 +307,6 @@ chat_session() {
     host_session "$theme"
     has_text "Chat with a helper ..." || fail "no door of the chat in the column"
     has_text "Back one step" || fail "no key list before the chat"
-    ctl call mc notify.push '{"title": "Note 1"}' >/dev/null
-    ctl call mc notify.push '{"title": "Note 2"}' >/dev/null
     sleep 1
     page_shot "$before"
     ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show"
@@ -318,14 +318,11 @@ chat_session() {
     jq -ne --argjson c "$chat" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56' >/dev/null ||
         fail "the chat is not in the column: $chat"
     until_ok '! has_text "Back one step"' 20 || fail "the key list stays beside the open chat"
-    has_text "NOTIFICATIONS  2" || fail "the notifications do not fold into their count: $(texts | tr '\n' '|')"
-    texts | grep -q "Note 2" && fail "a notification stays open beside the chat"
     shot "chat-$theme"
-    ok "the open chat fills the column ($chat), the page is the same, the keys go and the notifications fold ($theme)"
+    ok "the open chat fills the column ($chat), the page is the same, and the keys go ($theme)"
     ctl call assistant chat.hide '{}' >/dev/null || fail "chat.hide"
     until_ok 'has_text "Back one step"' 40 || fail "the column does not come back"
-    until_ok 'texts | grep -q "Note 2"' 20 || fail "the notifications do not unfold"
-    ok "closing the chat brings the key list and the notifications back"
+    ok "closing the chat brings the key list back"
 }
 chat_session light
 chat_session dark
