@@ -74,3 +74,40 @@ stacking; a card taller than title plus one line grows into the last page lines;
    `start_bus` for tiling-audit and tiling-look-r2.
 5. S: construct input.rs `give_key` builds words and calls `tell` in several places; one `refused_give`.
 6. S: plugins/chora-mc/notify/ holds copies of the two close icons of chora-notify (cut rule: no links out).
+
+## r2 (F2): kit5 on the session branch without the dev merge, gate proven
+
+Branch claude/kit5b, head 4e003748, from claude/autonomous-dev-session-3w-i33pg7 (4548feb3). 18 commits, no merge,
+no commit of dev (`git log origin/claude/autonomous-dev-session-3w-i33pg7..HEAD`).
+
+### Picks
+17 of the 18 kit5 commits of `git log --reverse --no-merges <session>..origin/claude/kit5 ^origin/dev`, in order:
+827ab5ab 7123479e 855445c4 4ac59ac7 f5ba85c2 c5bbaf54 34e08b31 9f957abf 4908c52a e0a70383 7589e533 57dccba8
+59399e78 7cdde49c 03a5e045 ef81d6a4 06c7ad6d. Skipped: 6aad3457 (release-file restore). No other commit was release only.
+
+### Conflicts (resolved to both sides, the kit5 merge af0dc379 as the model)
+- 7123479e, plugins/chora-notify/src/main.rs (+ card.rs): NET3's `state_value` with the kit5 `notify.show` and
+  `notify.close` methods, bus optional, `body` in `shown`, `node` is `card::BODY`; the duplicate `state()` of the pick
+  dropped. The file is kit5's.
+- 855445c4, tests/acts/{harness,invariants,looks/construct}.py and tests/test_acts.py: NET3's harness and I9 stay;
+  the pick's own I9, `notices` and `dismissed` arguments dropped; construct keeps the cube acts and adds `notice_acts`.
+- 9f957abf, plugins/chora-construct/src/{input,keys}.rs: the session branch moved the construct onto kit::actions
+  (`System`, `Own`); the construct tree of kit5 is taken (`tell`, `say_failed` returns nothing).
+
+### Own commit
+- 4e003748 fix: the picked kit5 cells follow the session branch. These changes were made inside the kit5 merge commit and
+  no pick has them: cut-check names/assets rule (mc and tiling say chora-notify in words no rule matches, the
+  mc notify slot holds copies of the two close icons, not links), and the notice acts of mc and common.py without the
+  `notices`/`dismissed` arguments. Red before: `python3 tools/cut-check` FAIL on 2 assets and 2 names rows.
+
+### Differs from claude/kit5
+`git diff origin/claude/kit5 HEAD`: only demo/tour/notes/v1-ch3.json and v2-ch3.json. Kit5 took them back to the rc.4
+text in 6aad3457 ("NOTES and NOTIFICATIONS"); here they keep the text of c5bbaf54 ("only the heading NOTES", since mc
+has no notifications column).
+
+### Done criteria
+- `cargo test -p chora-kit --features testing -p chora-notify -p chora-xp -p chora-mc -p chora-tiling -p chora-construct`: ok, exit 0.
+- kit `notice.rs` coverage (`cargo llvm-cov -p chora-kit --features chora-kit/testing`): 97.2 % lines, 87.5 % functions; crate 90.3 % lines.
+- `tests/merge-gate.sh` full run on 4e003748 in one run: all steps PASS (red-first to e2e, 41 steps), log dir
+  /tmp/merge-gate.eoD64e, stdout /tmp/gate-kit5b.log (the container is not durable). This closes the open item of r1.
+- Not run: shellcheck, desktop-file-validate (not installed, as in r1).
