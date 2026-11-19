@@ -8,3 +8,6 @@ Gate `--jobs 3 --only pre-commit,ci-check,build,test,clippy,xp` all PASS (run /t
 2. kit-minors NIT: renamed to `the_critical_ids_are_capped_at_64` (plugins/chora-mc/src/agent.rs). It sits in the red commit 2234bbd5, not a commit of its own.
 3. F24R-1: red 39014c94 (tests/grab-gap-check-selftest.sh: early return, grab only inside an if, loop passes), fix 0b5f8c34. The check reads a grab callee of the same file and flags an early return or a first grab inside an if/else/match. Limits, documented in the selftest: a grab in a loop passes, a callee in another file is not read. Repo is clean.
 Note: the first red test had a wrong top-corner case (no overlap); fixed in the fix commit.
+
+## PM review r1 (2026-11-19 22:55 UTC)
+Diff baf72dc8..0b5f8c34 (red commits 2234bbd5, 39014c94 first). card.rs aside(): steps above from a bottom corner, below from a top corner when the side room is short; tests `broad` (964,204) and `low` (964,526) check both and the card stays off the chat; a chat as tall as the output keeps the old x.max(0) fallback (no room anywhere; acceptable). grab-gap-check: callee scan of the same file, limits documented, selftest red first. Lane gate green. No MAJOR: MERGE-OK, train 78 (after f24-rest, which it contains).
