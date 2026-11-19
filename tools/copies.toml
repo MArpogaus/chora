@@ -275,7 +275,7 @@ pattern = 'fn on_path\b'
 # helpers that hand a file path on, and may only fall.
 [[row]]
 allow = ["crates/chora-scene/src/testing.rs"]
-max = 8
+max = 0
 name = "temp folder by pid outside the counted helper"
 pattern = 'temp_dir\(\)\s*\.join\(format!\(.*process::id'
 

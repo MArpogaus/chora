@@ -12,9 +12,9 @@ use crate::{
 
 const OUTPUT: &str = "HEADLESS-1";
 
-fn checkerboard(name: &str, side: u32) -> String {
-    let path =
-        std::env::temp_dir().join(format!("chora-sampling-{}-{name}.png", std::process::id()));
+fn checkerboard(name: &str, side: u32) -> (chora_scene::testing::TempDir, String) {
+    let dir = chora_scene::testing::TempDir::new("chora-sampling");
+    let path = dir.join(format!("{name}.png"));
     let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
     let mut encoder = png::Encoder::new(file, side, side);
     encoder.set_color(png::ColorType::Grayscale);
@@ -29,7 +29,8 @@ fn checkerboard(name: &str, side: u32) -> String {
         })
         .collect();
     writer.write_image_data(&pixels).unwrap();
-    path.to_str().unwrap().to_owned()
+    let path = path.to_str().unwrap().to_owned();
+    (dir, path)
 }
 
 fn show(core: &mut Core, wm: &mut Client, path: &str, size: [f64; 2], at: [f64; 2]) {
@@ -90,7 +91,7 @@ fn region(core: &mut Core, wm: &mut Client, from: [usize; 2], side: usize) -> (f
 #[test]
 fn an_image_scaled_down_by_a_fraction_shows_the_mean() {
     let (mut core, mut wm) = world(1.0);
-    let path = checkerboard("down", 512);
+    let (_dir, path) = checkerboard("down", 512);
     show(&mut core, &mut wm, &path, [100.0, 100.0], [50.0, 50.0]);
     let (mean, deviation) = region(&mut core, &mut wm, [52, 52], 96);
     assert!((mean - 127.5).abs() < 4.0, "mean {mean}");
@@ -100,15 +101,19 @@ fn an_image_scaled_down_by_a_fraction_shows_the_mean() {
 #[test]
 fn an_image_of_whole_physical_pixels_at_a_fractional_scale_stays_sharp() {
     let (mut core, mut wm) = world(1.25);
-    let path = checkerboard("sharp", 512);
+    let (_dir, path) = checkerboard("sharp", 512);
     show(&mut core, &mut wm, &path, [409.6, 409.6], [68.0, 20.0]);
     let (_, deviation) = region(&mut core, &mut wm, [85, 25], 400);
     assert!(deviation > 120.0, "standard deviation {deviation}");
 }
 
-fn colored(name: &str, side: u32, pixel: impl Fn(u32, u32) -> [u8; 3]) -> String {
-    let path =
-        std::env::temp_dir().join(format!("chora-sampling-{}-{name}.png", std::process::id()));
+fn colored(
+    name: &str,
+    side: u32,
+    pixel: impl Fn(u32, u32) -> [u8; 3],
+) -> (chora_scene::testing::TempDir, String) {
+    let dir = chora_scene::testing::TempDir::new("chora-sampling");
+    let path = dir.join(format!("{name}.png"));
     let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
     let mut encoder = png::Encoder::new(file, side, side);
     encoder.set_color(png::ColorType::Rgb);
@@ -117,13 +122,14 @@ fn colored(name: &str, side: u32, pixel: impl Fn(u32, u32) -> [u8; 3]) -> String
         .flat_map(|i| pixel(i % side, i / side))
         .collect();
     writer.write_image_data(&pixels).unwrap();
-    path.to_str().unwrap().to_owned()
+    let path = path.to_str().unwrap().to_owned();
+    (dir, path)
 }
 
 #[test]
 fn a_sliced_image_scaled_down_shows_no_color_of_the_next_slice() {
     let (mut core, mut wm) = world(1.0);
-    let path = colored(
+    let (_dir, path) = colored(
         "slice",
         256,
         |x, _| {
@@ -147,7 +153,7 @@ fn damaged(core: &Core) -> u64 {
 #[test]
 fn a_moved_image_and_one_that_switches_step_damage_the_output() {
     let (mut core, mut wm) = world(1.0);
-    let path = checkerboard("damage", 512);
+    let (_dir, path) = checkerboard("damage", 512);
     show(&mut core, &mut wm, &path, [100.0, 100.0], [50.0, 50.0]);
     for _ in 0..3 {
         render_all(&mut core.state);
