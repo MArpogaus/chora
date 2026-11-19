@@ -217,10 +217,7 @@ pub fn listen(state: &mut State) -> io::Result<PathBuf> {
 
 /// [`listen`] below a given runtime directory.
 fn listen_in(state: &mut State, runtime: Option<PathBuf>) -> io::Result<PathBuf> {
-    let runtime = runtime
-        .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
-    let dir = runtime.join("chora");
-    private_dir(&dir)?;
+    let dir = paths::runtime_subdir_in(runtime, "chora")?;
     let mut path = dir.join(&state.socket_name);
     path.set_extension("sock");
     let mut assets = path.clone();

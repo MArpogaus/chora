@@ -20,6 +20,9 @@ const PRIVATE_MODE: u32 = 0o700;
 /// The group and other bits, which a private directory has none of.
 const OTHERS: u32 = 0o077;
 
+/// The group and other write bits, which the runtime directory has none of.
+const WRITABLE: u32 = 0o022;
+
 /// `$XDG_RUNTIME_DIR`; `None` unless it is an absolute path.
 #[must_use]
 pub fn runtime_home() -> Option<PathBuf> {
@@ -98,24 +101,44 @@ pub fn runtime_subdir_in(runtime: Option<PathBuf>, name: &str) -> io::Result<Pat
     let runtime = runtime
         .filter(|p| p.is_absolute())
         .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
+    check_runtime_home(&runtime)?;
     let dir = runtime.join(name);
     private_dir(&dir)?;
     Ok(dir)
 }
 
 /// Checks the runtime directory itself: a directory of the current user
-/// that no group or other can write to. A refusal is logged.
+/// that no group or other can write to, so that none can plant or swap
+/// a socket or file below it. A refusal is logged with the path and the
+/// mode.
 ///
 /// # Errors
 ///
 /// The directory is missing or one of the checks does not hold.
-#[allow(clippy::unnecessary_wraps, reason = "a stub until the fix")]
-pub fn check_runtime_home(_dir: &Path) -> io::Result<()> {
-    Ok(())
+pub fn check_runtime_home(dir: &Path) -> io::Result<()> {
+    let meta = fs::metadata(dir)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", dir.display())))?;
+    let uid = rustix::process::geteuid().as_raw();
+    check_runtime_meta(dir, &meta, uid).inspect_err(|error| tracing::warn!("{error}"))
 }
 
-#[allow(dead_code, clippy::unnecessary_wraps, reason = "a stub until the fix")]
-fn check_runtime_meta(_dir: &Path, _meta: &fs::Metadata, _uid: u32) -> io::Result<()> {
+fn check_runtime_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
+    let refuse = |reason: &str| {
+        Err(io::Error::other(format!(
+            "{} is no safe runtime directory: {reason}",
+            dir.display()
+        )))
+    };
+    if !meta.is_dir() {
+        return refuse("it is not a directory");
+    }
+    if meta.uid() != uid {
+        return refuse(&format!("its owner is user {}, not user {uid}", meta.uid()));
+    }
+    let mode = meta.mode() & 0o7777;
+    if mode & WRITABLE != 0 {
+        return refuse(&format!("its mode is {mode:04o}, group or other can write"));
+    }
     Ok(())
 }
 
