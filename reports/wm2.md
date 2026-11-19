@@ -131,3 +131,11 @@ owner and the safety layer are unchanged); rw-4 one doc on `forget_window`. rw-5
 Green: `cargo test -p chora --lib input::` 47, `-p chora-mc` 138, `-p chora-tiling` 153, `-p chora-kit --features testing` 223 + integration.
 `tests/merge-gate.sh --only keys,pane-keys,wm-pane,acts`: all four PASS (acts 53 s, wm-pane 22 s, pane-keys 8 s, keys 17 s). No full gate.
 Pushed claude/wm2 (751dfbcb..12305e5a). Commit hooks: no-inline-comments and commit-message-length (subject <= 68) each rejected one attempt; fixed, no --no-verify.
+
+## PM check r2 (07:26 UTC; PM not the builder)
+Diff 751dfbcb..12305e5a (6 files, +98 -13); red fa6ba541 before fix 12305e5a.
+- rw-1: manage.rs:204 take() then sends(): a click after another look took the keyboard sends focus again; cell a_click_on_its_window_after_another_look_took_the_keyboard_sends_the_focus. Closed. NIT: a click on the window that still holds focus now resends it (idempotent).
+- rw-2: main.rs:1017 to_node keeps the Focus record; cell a_free_keyboard_taken_by_the_page_shows_in_the_state. Closed.
+- rw-3: place.rs:54 skips the window owner while layer_focus is set; cell the_key_place_is_not_the_window_owner_while_a_layer_has_the_keyboard. Closed.
+- rw-4: doc merged. rw-5 NIT open -> backlog.
+Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK 12305e5a; train 59.
