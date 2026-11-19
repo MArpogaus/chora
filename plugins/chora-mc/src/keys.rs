@@ -19,8 +19,8 @@ pub fn nothing_new(language: chora_kit::words::Language) -> &'static str {
 /// The keys of a page, which has no program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageKeys {
-    /// The page takes the keyboard: Right and Left alone turn it and
-    /// Escape goes back.
+    /// The page takes the keyboard: Right and Left alone turn it, Home
+    /// goes to the first page and Escape goes back.
     Plain,
     /// Only the bindings: beside other window managers (`--output`) the
     /// node with the keyboard would draw their new windows to mc (D55).
@@ -172,6 +172,13 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             _ => Some(row_of(&row)),
         };
         found.extend(shown.map(|shown| (rank, at, shown)));
+        if plain && matches!(row.action, Action::Look(Look::NextScene)) {
+            let first = Action::Look(Look::Scene(config.default_scene.clone()));
+            let binding = sheet(config).into_iter().find(|r| r.action == first);
+            let binding = binding.map(|r| r.binding);
+            let home = Row::new("Home".to_owned(), "First page", binding.as_deref());
+            found.push((rank, 1, home));
+        }
     }
     let (give, words) = keysheet::give_row(Language::En);
     found.push((8, usize::MAX, Row::new(give, &words, None)));
@@ -233,6 +240,7 @@ mod tests {
         let want = [
             "All keys",
             "Turn the page",
+            "First page",
             "Show agenda",
             "Show terminal",
             "Show overview",
@@ -261,5 +269,9 @@ mod tests {
             assert_eq!(rows[1].words, "Turn the page");
             assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
         }
+        let rows = all(&config(), true);
+        assert_eq!(rows[2].key, "Home");
+        assert_eq!(rows[2].words, "First page");
+        assert_eq!(rows[2].binding.as_deref(), Some("Super+Home"));
     }
 }

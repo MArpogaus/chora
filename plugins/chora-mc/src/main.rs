@@ -986,10 +986,12 @@ impl Mc {
     }
 
     /// A key without a modifier while a page has the keyboard: Right and
-    /// Left turn the page, Escape goes back one step.
+    /// Left turn the page, Home and `XF86HomePage` go to the first page,
+    /// Escape goes back one step.
     fn page_key(&mut self, key: &str, modifiers: &[String], injected: bool) {
         let look = match key {
             _ if !modifiers.is_empty() || !self.by_person(injected) => return,
+            "Home" | "XF86HomePage" => Look::Scene(self.settings.value.default_scene.clone()),
             "Right" => Look::NextScene,
             "Left" => Look::PreviousScene,
             "Escape" => return self.back(),
@@ -1466,6 +1468,22 @@ mod tests {
             injected,
         })
         .unwrap();
+    }
+
+    /// Home and `XF86HomePage` alone go to the first page; with a modifier
+    /// they are no key of the page.
+    #[test]
+    fn plain_home_goes_to_the_first_page() {
+        let (mut mc, _model) = crate::testing::mc("plain-home", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        press_key(&mut mc, "Right", &[]);
+        press_key(&mut mc, "Home", &["Shift"]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Home", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
+        press_key(&mut mc, "Right", &[]);
+        press_key(&mut mc, "XF86HomePage", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
     }
 
     /// On a page the arrows alone turn it, Escape goes back along the

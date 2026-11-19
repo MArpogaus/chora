@@ -382,6 +382,40 @@ def shown_desk(desk):
     return verify
 
 
+def stood_back_whole(s):
+    """A check for co-18 and co-16: after a drag on the cube stood back the
+    front face lies whole on the screen, the three chips still show the
+    caps of their keys, and every window lies on a face with the xp of it."""
+    chips = ["turn-left", "step-in", "turn-right"]
+
+    def verify(after):
+        out = []
+        screen = s.outputs()[0]
+        width, height = screen["size"]
+        front = (after.cube or {}).get("front")
+        rect = box(s, f"construct-cube-face-{front}")
+        if rect is None:
+            out.append(f"no box of the front face {front}")
+        else:
+            x, y, w, h = rect
+            if x < 0 or y < 0 or x + w > width or y + h > height:
+                out.append(f"the front face {front} leaves the screen: {rect}")
+        shown = {
+            n["id"]
+            for n in s.core.call("scene.query", {"selector": "owner:construct"}) or []
+            if n.get("visible", True) and "-keys-" in n["id"]
+        }
+        for chip in chips:
+            cap = f"construct-hints-construct-mode-{chip}-keys-0"
+            if cap not in shown:
+                out.append(f"the chip {chip} has no key cap")
+        if not windows_on_faces(s):
+            out.append("a window is off the faces of xp")
+        return out
+
+    return verify
+
+
 def cube_acts(s):
     """The cube turns by key, pager and drag, comes back to 1:1 with no
     construct surface left, stands back and is read held in a turn and at
@@ -429,7 +463,26 @@ def cube_acts(s):
     s.act(
         "a drag on a face turns the cube",
         [drag(780, 80)],
-        expect=Expect(cube={"front": 1, "turning": False, "mode": "navigate"}),
+        expect=Expect(
+            cube={"front": 1, "turning": False, "mode": "navigate"},
+            verify=stood_back_whole(s),
+        ),
+    )
+    s.act(
+        "a drag to the right on the stood back cube turns it back",
+        [drag(500, 900)],
+        expect=Expect(
+            cube={"front": 0, "turning": False, "mode": "navigate"},
+            verify=stood_back_whole(s),
+        ),
+    )
+    s.act(
+        "a second drag to the left turns it on again",
+        [drag(780, 80)],
+        expect=Expect(
+            cube={"front": 1, "turning": False, "mode": "navigate"},
+            verify=stood_back_whole(s),
+        ),
     )
     s.act(
         "back at 1:1 no construct surface is left once the hint went",
