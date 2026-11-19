@@ -27,7 +27,7 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | moved-tests-mk-r3.md (F5) | haiku high | done 18:00: c00dcf3e MERGE-OK (PM review 18:03); train 69 |
 | debt-down-r3.md (F4) | sonnet high | r2 review FIX (rd-7 MAJOR: no ungrab on holder exit); r3 session_016iS3kNw5fSqkKfpSP1s3vT (18:26) |
 | mc-i5-r1.md (F7, F2) | sonnet high | done 18:11: f7a69761 MERGE-OK (PM review 18:14); train 69 |
-| review-construct-red-r2.md (F7, F3) | opus high | r2 done 18:53: da68737d (rc-1 child gets keys; core event gains parent); review r2 starting |
+| review-construct-red-r2.md (F7, F3) | opus high | r2 done 18:53: da68737d (rc-1 child gets keys; core event gains parent); review r2 session_016iS3kNnVj6otRdxLwnDxqf (18:53) |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
