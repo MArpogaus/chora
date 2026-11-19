@@ -414,3 +414,5 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-18 04:00Z "Status? Still ahead of plan?" -> question: status and schedule
 
 - 2026-11-18 10:38 UTC owner: "How is refactor going?" -> question (rules.md 2): answered with per-F state, numbers and the plan to Sat.
+
+- 11-19 03:34 UTC owner: "Status?" -> question. Answer: KIT1 merged (train 54 green 01:48, opus security MERGE-OK); no lanes running; NET3 brief today, NET3 and docs F8 lanes Fri; budget about 72 % vs 70 % pace; F27 environment re-save open.
