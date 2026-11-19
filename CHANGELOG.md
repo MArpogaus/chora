@@ -9,6 +9,8 @@ remedy (chmod 0700 PATH, or set XDG_RUNTIME_DIR to a dir of yours) and
 the log names the path and the mode
 - **security**: make the shader, icon-copy and block cache directories
 private (mode 0700, checked) like the socket directory
+- **security**: without a runtime directory, the icon copies go in a
+temp folder with a random name that is removed with the icons
 - **paths**: accept a private directory with setgid (02700); refuse any
 group or other bit, and one that its owner cannot write to (0500), at the
 check with its path and mode, not at the next write

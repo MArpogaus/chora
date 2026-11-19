@@ -15,10 +15,25 @@ pub struct Icons {
     found: HashMap<String, Option<PathBuf>>,
     /// Private copies of sender icons, oldest first.
     copies: VecDeque<PathBuf>,
+    /// The private folder in the temp directory, made at the first copy
+    /// without a runtime directory; its name has a random part.
+    temp_dir: Option<PathBuf>,
 }
 
 /// Numbers the copies of all `Icons` of a process.
 static SERIAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A random number as hex, for a name that no other user can guess. The
+/// keys of `RandomState` come from the system.
+fn random_suffix() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    format!(
+        "{:016x}",
+        std::collections::hash_map::RandomState::new()
+            .build_hasher()
+            .finish()
+    )
+}
 
 /// Copies of sender icons kept at once.
 const KEPT_COPIES: usize = 16;
@@ -27,6 +42,9 @@ impl Drop for Icons {
     fn drop(&mut self) {
         for copy in self.copies.drain(..) {
             let _ = fs::remove_file(copy);
+        }
+        if let Some(dir) = self.temp_dir.take() {
+            let _ = fs::remove_dir(dir);
         }
     }
 }
@@ -41,6 +59,7 @@ impl Icons {
             themes: themes.into_iter().map(Into::into).collect(),
             found: HashMap::new(),
             copies: VecDeque::new(),
+            temp_dir: None,
         }
     }
 
@@ -82,7 +101,12 @@ impl Icons {
         let dir = if let Some(runtime) = runtime.filter(|d| d.is_dir()) {
             chora_scene::paths::runtime_subdir_in(Some(runtime), &name).ok()?
         } else {
-            let dir = std::env::temp_dir().join(name);
+            let dir = self
+                .temp_dir
+                .get_or_insert_with(|| {
+                    std::env::temp_dir().join(format!("{name}-{}", random_suffix()))
+                })
+                .clone();
             chora_scene::paths::private_dir(&dir).ok()?;
             dir
         };
