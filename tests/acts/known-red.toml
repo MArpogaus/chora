@@ -11,10 +11,3 @@ id = "I5"
 look = "mc"
 match = "'Start a program or run a command'"
 slice = "KIT3"
-
-[[red]]
-finding = "co-21: the cube held 2 s into a 4 s turn shows face 1 and no box for its neighbour face 0 (and face 3 beside face 2)"
-id = "I13"
-look = "construct"
-match = "is missing beside"
-slice = "WM6"
