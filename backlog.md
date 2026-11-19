@@ -223,3 +223,4 @@ wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRe
 - (owner 11-19 05:59) records: D95 amends D77 (one plugin repository until a split is needed); next docs lane edits docs/decisions.md D77 status.
 - kit2b rk2-1 (MINOR): settings.set drops an unfit construct binding with Ok; refuse it with INVALID_PARAMS (reports/kit2b.md PM review r2).
 - construct-hud flake (wm1c 11-19): "no claim after the restart of voice" failed 1 of 2 (10 s until_ok); claim timing after voice_start. Next flakes round.
+- wm1c rw-1 MINOR (review r1 11-19): plugins/chora-construct/src/adopt.rs:206,222 adopts a window by token or launch when `free` is false but never claims it in the book (no phase, no origin, give refuses). Fix: claim through the book, or skip a window reserved for another manager. rw-2 NIT docs/api.md:1513 `node` is the surface id where a look has no groups. Next WM1 round (WM1d).

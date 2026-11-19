@@ -4,7 +4,7 @@
 Modes:
   card       rules.md, routines.md and state.md, whole
   vision     vision-card.md
-  conventions conventions.md (agent_skills dev plus the session overrides)
+  conventions conventions.md (agent_skills dev plus the session overrides) and procedures.md
   decisions  decisions-now.md, plus user messages newer than its screened-through line
   decisions2 nothing (kept for the installed hooks)
   decisions3 nothing (kept for the installed hooks)
@@ -143,8 +143,8 @@ def main():
     if mode == "prompt":
         print(
             "PM main duties (owner 11-15 09:27, 09:35: 'This is your main job'): 1) budget: pace line in state.md,"
-            " week resets Sat 03:59 UTC (10:59 Bangkok); model and effort per lane: haiku tests, sonnet builds, opus"
-            " only reviews and hard causes; 2) RC first (design/rc.md), every Queue line names its criterion;"
+            " spend the week by Sat 03:59 UTC (10:59 Bangkok); model and effort per lane (owner 11-19 06:56): haiku tests,"
+            " sonnet routine, opus only complex and planning, Fable only by named need; 2) RC first (design/rc.md), every Queue line names its criterion;"
             " 3) vision card: four looks, KISS, POLS, stability and looks over new features. A user decision in this"
             " prompt goes verbatim into decisions-now.md and answers.md this turn; reply in 1-2 lines."
         )
@@ -155,7 +155,8 @@ def main():
     builders = {
         "card": mode_card,
         "vision": lambda: "VISION CARD (hook):\n" + read("vision-card.md"),
-        "conventions": lambda: "CONVENTIONS (hook; skills of agent_skills dev plus overrides):\n" + read("conventions.md"),
+        "conventions": lambda: "CONVENTIONS (hook; skills of agent_skills dev plus overrides):\n" + read("conventions.md")
+        + "\nPROCEDURES (hook):\n" + read("procedures.md"),
         "decisions": lambda: mode_decisions(transcript),
         "precompact": lambda: mode_precompact(transcript),
     }

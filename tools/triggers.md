@@ -1,6 +1,6 @@
 # Scheduled tasks of the PM (recreate on takeover; bound to the PM session unless noted)
 
-## PM watchdog, cron `15 */2 * * *`, bound to the PM session
+## PM watchdog trig_011UMxwYQRqwjHmDdYnz6mQa, cron `15 */2 * * *`, bound to the PM session
 PM watchdog (every 2 h, rules.md Routines). First check that /home/user/wt/log is on claude/session-log (else run tools/takeover.sh). Check the Lanes table of /home/user/wt/log/state.md: get_session for each cloud worker listed there; act on finished or stuck lanes (review, fix round, merge). Prune (owner 11-17 01:48): list_sessions children=true; archive every idle or completed child not running in the Lanes table, not testwatch, not the heartbeat host, whose work is merged or reported; never one without a parent. If nothing finished, got stuck, changed or was pruned, reply only "watchdog: no change" and stop, with no commit. Otherwise rewrite state.md (one log commit) and reply in two lines plus done, running, next, blocked, budget.
 
 ## PM self-check, cron `50 12 * * *`, bound to the PM session

@@ -27,9 +27,9 @@ MERGE-OK. The builder never reviews itself. Guard: manual.
 8. Merge. Only through tests/merge-gate.sh. A fix has its red test commit first. A
 MERGE-OK branch merges within 12 h. Before a budget stop: merge first, start
 nothing. Guard: merge-gate.sh (lock, steps); lanes.py (12 h).
-9. Budget is the main job (owner 11-15). Week resets Sat 03:59 UTC; pace in
-state.md, at most 12.5 % a UTC day; each brief names model and effort (haiku tests;
-sonnet builds, reviews; opus security, hard causes, complex (reason)). Compact at 300 k;
+9. Budget is the main job (owner 11-15). Spend the week by Sat 03:59 UTC, no day cap
+(owner 11-19); pace in state.md; each brief names model and effort (haiku tests; sonnet
+routine; opus complex, planning (reason); Fable by named need). Compact at 300 k;
 message the owner only on change, need or merge; log once per merge or hour.
 Guard: start_lane.sh (Model line); lanes.py; pace manual.
 10. Rules. Ten rules, 3,000 bytes. A Guard names a check that exists or says manual

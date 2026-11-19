@@ -1,6 +1,6 @@
 # Routines of the PM
 
-Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Bangkok.
+Procedures (train, lane start, seeded review, ids): procedures.md. Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Bangkok.
 
 ## By time
 - Budget (owner 11-15, "your main job"): week resets at the owner's reset; check the pace line at each lane start; model and effort in create_session.
