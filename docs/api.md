@@ -950,7 +950,14 @@ modifier, as they type nothing: `XF86AudioRaiseVolume`,
 `XF86AudioPlay`, `XF86AudioNext`, `XF86AudioPrev`,
 `XF86MonBrightnessUp` and `XF86MonBrightnessDown`. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
-F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
+F12, belong to no client. A key binding has one owner at a time. A
+window manager whose claims all lie on virtual outputs, as one in a pane
+or on a face of a cube, gets its key only where the person is: the
+manager that a click on its empty claim chose, else the owner of the
+keyboard focus (of a node or a window), else the owner of the smallest
+claim under the pointer. Elsewhere the key goes to nobody, not to the
+focused window. The keyboard goes before the pointer, which may rest
+on another pane while the person types. A pointer button binding has one
 owner too, unless each client that grabs it holds a claim and is on the
 main socket (D55): then a
 press goes to the client of the smallest claim that contains the pointer,
@@ -1532,8 +1539,9 @@ A plugin that implements `Plugin::state` also exports `state.get`, which
 answers what it shows and holds: its windows, the focus, what is open
 and what still moves (`busy`). `choractl state mc` prints it. All four
 looks answer it. `focus.holder` names the look only while the focus is
-on one of its windows (or, for the construct, on its space), else it is
-null. A field that a look does not fill is left out, never empty: mc
+on one of its windows or on one of its own nodes (the construct on its
+space, mc on its page), else it is null; `focus.surface` names the
+window. A field that a look does not fill is left out, never empty: mc
 has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`,
 xp also `title` and `app_id`;
 the construct adds `views`, the panes of windows, plugin nodes and
@@ -1554,10 +1562,14 @@ its own (`opened`), closes (`closed`) or goes to another window manager
 itself where a look has no groups (mc, the construct). `rect` is where
 the window showed, or null (mc and the construct tell no rect: their
 windows lie in a scene or a pane; xp tells none while the window has no
-size yet). tiling applies a foreign `update` of opacity,
+size yet). Such a look applies a foreign `update` of opacity,
 effects and meta (D58) on its windows, on the groups that carry them and
 on its root group, without its own meta keys. It keeps its restart state
-in node meta under the keys `kept.1.*` and reads the keys of before.
+in node meta under the keys `kept.1.*` and reads the keys of before. Its focus
+comes from `chora_kit::wm::focus` (tiling, mc): after another window
+manager took the keyboard the look holds no focus and sends none until
+one of its windows takes it back, and the look's policy names the window
+that gets the keyboard after the focused one goes.
 
 ```console
 $ choractl state mc

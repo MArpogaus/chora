@@ -4,6 +4,7 @@ use chora_kit::{
     effects::Target,
     give::{self, Give},
     runtime,
+    wm::Why,
 };
 use chora_scene::{
     GivenGrab,
@@ -79,7 +80,7 @@ impl Tiling {
         let given = self.book.confirm(surface);
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         self.settle(given).map_err(rejected)?;
-        self.forget_window(surface);
+        self.forget_window(surface, &Why::Given(to.into()));
         self.relayout().map_err(rejected)?;
         Ok(answer)
     }

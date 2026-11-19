@@ -4,7 +4,7 @@
 //! them. Title and app id are core facts that tiling does not keep;
 //! `views` and `texts` stay out.
 
-use chora_kit::wm::state::{Desks, Focus, Open, State, Window};
+use chora_kit::wm::state::{Desks, Open, State, Window};
 use serde_json::{Value, json};
 
 use crate::{NAME, Tiling, keys};
@@ -53,12 +53,10 @@ impl Tiling {
                 output: o.name,
             })
             .collect();
-        let held = (self.focus.surface.as_deref())
-            .filter(|s| self.focus.sent && !self.focus.lost && self.wm.has(s));
-        let focus = Focus {
-            holder: (held.is_some() || self.keys_open).then(|| NAME.to_owned()),
-            surface: held.map(str::to_owned),
-        };
+        let mut focus = self.focus.state(NAME, |s| self.wm.has(s));
+        if self.keys_open {
+            focus.holder = Some(NAME.to_owned());
+        }
         let running = [
             (self.effects.animating(), "effects"),
             (self.chip_until.is_some(), "chip"),
