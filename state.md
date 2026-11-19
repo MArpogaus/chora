@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 15:12 UTC)
+## Now (2026-11-19 15:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 14:41 PM 5.1 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 15:18 PM 5.4 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: 05878d2a (train 63: flakes-f); 30 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -27,11 +27,12 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | integ-r2.md (F6) | opus high | session_016iS3kM3xrCPULLrkVLWYGz (14:55; r1 FIX: ri-1 MAJOR, presenter ended before cube hides ring.frag fault) |
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
 | review-focus-port-r1.md (F2, F3) | opus high | session_016iS3kPuyDSLZfuxWYuBwXb (15:09; focus-port 3b418008: rows at 0, kit7-a1 fixed, gate red on pull flake) |
-| moved-tests-xp-r2.md (F5) | haiku high | session_016iS3kNLneVa6Lit4p35nsS (14:29) |
+| moved-tests-ct.md (F5) | haiku high | starting |
+| moved-tests-mk.md (F5) | haiku high | starting |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 63 green 14:11 (05878d2a). 64-64d red. Bisect: base and wm7b both 235 s: cap too tight, lane matrix-cap. integ af5547c7 r1 FIX (ri-1), r2 running, then train 65 with cubesplit, kit3 04ea5851, flakes-g f075a20d (MERGE-OK), focus-port (in review) (MERGE-OK).
-5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; after 64b moved-tests rest (haiku 1.25 %); then DEBT-R (F4 0.8 %), COPIES-0 after focus-port (F2 2.5 %), FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %).
+4. Trains (F6): 64-64d red. Bisect: base and wm7b both 235 s: cap too tight, lane matrix-cap. integ af5547c7 r1 FIX (ri-1), r2 running, then train 65 with cubesplit, kit3 04ea5851, flakes-g f075a20d (MERGE-OK), focus-port (review), moved-tests-xp bf0b66eb (MERGE-OK, PM).
+5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; moved-tests rest as ct and mk (haiku 1.4 %, 15:25); then DEBT-R (F4 0.8 %), COPIES-0 after focus-port (F2 2.5 %), FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %).
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).

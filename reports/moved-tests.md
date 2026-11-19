@@ -42,3 +42,10 @@ merge-gate: see the line below.
 merge-gate `tests/merge-gate.sh --jobs 3` on bf0b66eb: GATE-EXIT=0, 40 of 40 steps PASS (log: /tmp/merge-gate.mmWJGp/).
 
 Not pushed with the author the hook asked for: bf0b66e is authored by Marcel Arpogaus as the brief requires; GitHub shows it Unverified (no signature, not a noreply@anthropic.com committer).
+
+## Review xp r2 (PM, 15:20 UTC; tests only, PM not the builder)
+Diff 0113008b..bf0b66eb: wm.rs +3 (cfg(test) mod), wm/tests_moved.rs +1032; production code unchanged. 49 tests.
+- mt-1 MINOR: `a_node_asks_xp_for_an_update` (tests_moved.rs:211) asserts nothing; it only checks no error. Assert the reply or the recorded methods.
+- mt-2 MINOR: `a_missing_shared_script_is_told_in_a_balloon` (:761) asserts no balloon; the name claims one.
+- mt-3 MINOR: `the_desktop_fades_while_a_dialog_is_open` (:773) asserts only under `if wm.fade.is_some()`; vacuous when no fade starts. Assert the fade first.
+Verdict (computed): BLOCK 0, MAJOR 0, MINOR 3: MERGE-OK; mt-1..3 go to the moved-tests rest lane. Merges after integ (based on integ 0113008b).
