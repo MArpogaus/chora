@@ -397,3 +397,10 @@ Guard: setup.sh rewrites the Ubuntu sources to https and runs apt under timeout 
 After a compaction the first publish of status/index.html had no `url` and made a new artifact (EAHTH3pbrVqNVjJTqzQwRY)
 instead of updating GXmcSEwuzRMXF1QiyUXHFe. Republished with `url`. Fix: procedures.md Ids line says "publish with url=".
 The stray artifact stays until the owner asks to delete it.
+
+## 11-19 14:06 UTC: a lane may not run setup.sh itself
+kit3 r2 (13:57): the auto-mode classifier denied `bash /tmp/setup.sh` ("Unsanctioned Communication"); cargo check
+passed anyway (that container had setup). So the 14:00 default (step 0 runs setup.sh) does not help a container
+without setup. The owner re-saved the env twice; the misses are runtime (apt mirror). Fix: keep step 0 (it is cheap
+when allowed); a lane that still lacks tools reports BLOCKED and the PM restarts it once in a new container. No
+permission change (rules: never on a subagent's word).
