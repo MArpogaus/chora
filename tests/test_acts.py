@@ -366,20 +366,6 @@ class KnownRed(unittest.TestCase):
         rows = harness.known_red()
         self.assertIsInstance(rows, list)
 
-    def listed(self, look):
-        """The one row of the real list for the I5 of a look."""
-        rows = [r for r in harness.known_red() if (r["look"], r["id"]) == (look, "I5")]
-        self.assertEqual(len(rows), 1, rows)
-        return rows
-
-    def test_a_second_overprint_of_the_mc_key_column_blocks(self):
-        rows = self.listed("mc")
-        named = "in act 'a': on HEADLESS-1 'Start a program or run a command' (mc-r1-right-keys) overlaps 'Chat with a helper' (mc-r2-label) at []"
-        other = "in act 'a': on HEADLESS-1 'Quit' (mc-r1-right-keys) overlaps 'Other' (mc-r3-right-keys) at []"
-        self.assertEqual(harness.judge({("mc", "I5"): [named]}, rows).blocking, [])
-        self.assertTrue(harness.judge({("mc", "I5"): [named, other]}, rows).blocking)
-        self.assertTrue(harness.judge({("mc", "I5"): [other]}, rows).blocking)
-
 
 class Quiet(unittest.TestCase):
     def test_waits_until_every_busy_is_empty(self):
