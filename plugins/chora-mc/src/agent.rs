@@ -152,8 +152,8 @@ enum Urgency {
 }
 
 /// The text contents that mc writes itself: none since the notices went
-/// to chora-notify and the voice questions to the HUD host; `content.set`
-/// and `content.add` refuse them.
+/// to the notification server and the voice questions to the HUD host;
+/// `content.set` and `content.add` refuse them.
 pub const OWN_TEXTS: [&str; 0] = [];
 /// The scenes whose panels mc writes itself, from the agents and the
 /// scenes: `panel.set` refuses them.
