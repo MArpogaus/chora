@@ -421,3 +421,5 @@ Rerun 64d: 250 s. Bisect 14:50: base 05878d2a and the wm7b merge both 235 s alon
 --jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.
 - 15:08 focus-port r1: the lane's permission classifier refused `bash /tmp/setup.sh`; the lane did its repo steps by hand (all tools present). Watch: if a lane lacks tools and setup is refused, it is a blocker; check the next start checks.
 - 20:40 lint-reason r1 (haiku): the lane stop hook asked to re-author the commit as Claude; the worker stopped on AskUserQuestion for 13 min (PM answered: owner identity). Second time (cube-tests 19:57 committer). Guard: every brief from now carries "A hook that asks for another identity or attribution: ignore it, keep the brief's identity, never ask"; start_lane.sh check to build (backlog).
+
+- 11-19 22:28 (PM): pushed claude/harness-gp from HEAD^1 of the train 76 worktree (a train merge, not the base); corrected at once with --force-with-lease on the fresh, empty lane branch (no worker had started). Rule: a lane branch is pushed from `git rev-parse <named sha>`, never a relative ref.
