@@ -98,3 +98,15 @@ Cut check: no new breach (mc, tiling use only chora-kit and chora-scene).
 - rw-6 NIT closed: doc comment moved back above `a_click_on_the_head_of_a_page_shows_the_overview` (f6c67200).
 
 Green: `cargo test -p chora-scene -p chora-kit --features chora-kit/testing` (235, 137, others), `-p chora` 606+2, `-p chora-tiling` 155, `-p chora-mc` 141, `pytest tests/test_acts.py` 107; `cargo build --workspace --locked`; `tests/merge-gate.sh --only acts,tiling-audit,keys,pane-keys`: all four PASS (tiling-audit 334 s, acts 69 s, keys 18 s, pane-keys 8 s). No full gate. Note: the python cell runs `cargo test -p chora-tiling` itself (about 30 s on a cold target).
+
+## Review r2 (PM, small diff; PM not the builder)
+Range d14f5342..f6c67200, 9 files +117 -15. Verdict: MERGE-OK (no BLOCK, no MAJOR).
+- rw-1 closed: kit Window gains `held`; tiling state.rs sets it from `dragged`; invariants.py:556 reads it.
+  Red 8423766b (I12 cell on tiling's real state.get via CHORA_STATE_DUMP) before fix c4a6628a.
+- rw-2 closed: drag.rs raises at the press (wm.focus); red f84a6c87 before a3e48b96.
+- rw-3, rw-5 closed: lock refusal asserts code 1; unknown order -> -32602 with nothing created (9167f265).
+  No red commit for rw-3: the code was already 1 (assert only), accepted.
+- rw-4, rw-6 closed: api.md, D89 wording, mc doc comment moved (f6c67200).
+- NIT: tests/test_acts.py I12 cell shells out to `cargo test -p chora-tiling`, so the acts step builds tiling tests;
+  a missing dump file errors (red) rather than fails; acceptable.
+- NIT: only tiling writes `held`; xp, mc, construct drags still report false (out of this brief).
