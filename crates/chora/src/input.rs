@@ -2505,4 +2505,59 @@ mod tests {
             "in the test mode an injected key is a key of the person"
         );
     }
+
+    const Y: u32 = 21;
+
+    /// The `input.key` presses that a client got.
+    fn key_presses(client: &mut Client, core: &mut Core) -> Vec<Value> {
+        events(client, core)
+            .into_iter()
+            .filter(|e| e["event"] == "input.key" && e["state"] == "pressed")
+            .collect()
+    }
+
+    /// I11 (sh-24): the manager of a face bound Alt+y, and its window, a
+    /// probe client, has the keyboard; the pointer rests on the claim of
+    /// another manager. The key goes to the manager of the face, and the
+    /// probe gets Alt, no raw y.
+    #[test]
+    fn a_key_that_a_look_binds_skips_its_focused_probe_and_reaches_the_look() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        key_presses(&mut face, &mut core);
+        press(&mut core, ALT, true);
+        tap(&mut core, Y);
+        press(&mut core, ALT, false);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.key_serials().len(), 2, "the probe gets Alt only");
+        let got = key_presses(&mut face, &mut core);
+        assert_eq!(got.len(), 1, "the look gets Alt+y: {got:?}");
+    }
+
+    /// Keyboard after a stale pointer (sh-24): the manager of a face took
+    /// the keyboard for its node while the pointer rests on the claim of
+    /// another manager. Its key goes to it; the pointer is stale.
+    #[test]
+    fn the_keys_follow_the_keyboard_not_a_stale_pointer() {
+        let (mut core, mut face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        let menu = json!([{"create": {"id": "menu", "kind": "rect", "parent": "face",
+            "props": {"size": [10, 10], "color": [1, 1, 1, 1]}}}]);
+        apply(&mut face, &mut core, &menu);
+        apply(&mut face, &mut core, &focus_node(Some("menu")));
+        assert!(
+            matches!(
+                alt_y(&core, false),
+                Some(super::KeyAction::Grab(_, _, false))
+            ),
+            "the manager with the keyboard gets its key"
+        );
+    }
 }

@@ -117,4 +117,23 @@ mod tests {
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
         assert_eq!(x.state().unwrap()["helper"], "none");
     }
+
+    /// I3 (known red net2-a2): with no window in the scene mc gives the
+    /// keyboard to the node of its page; it holds the focus then, without
+    /// a surface, until a window of another look takes it.
+    #[test]
+    fn mc_holds_the_focus_of_its_page_node() {
+        let (mut mc, _model) = testing::mc("page-focus", [1280, 800]);
+        let commands = mc.keyboard_to("agenda", None);
+        let page = |c: &chora_scene::Command| {
+            matches!(c, chora_scene::Command::FocusNode { node: Some(_) })
+        };
+        assert!(commands.iter().any(page), "{commands:?}");
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+        mc.event(chora_scene::Event::FocusChanged {
+            surface: Some("other".into()),
+        })
+        .unwrap();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
 }
