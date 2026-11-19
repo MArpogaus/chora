@@ -2,8 +2,9 @@
 
 use super::{
     BLURS, BTreeMap, FONT_SIZES, LETTER_SPACINGS, LINE_HEIGHTS, MAX_EFFECTS, MAX_FEATURES,
-    MAX_LENGTH, MAX_MESH_CELLS, MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, PERSPECTIVES,
-    Props, PropsUpdate, SATURATIONS, SceneError, ShaderEffect, Uniform, WEIGHTS, apply_meta,
+    MAX_LENGTH, MAX_MESH_CELLS, MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, Order,
+    PERSPECTIVES, Props, PropsUpdate, SATURATIONS, SceneError, ShaderEffect, Uniform, WEIGHTS,
+    apply_meta,
 };
 
 pub(super) const MAX_PATH: usize = 4096;
@@ -49,6 +50,11 @@ pub(super) fn check_meta(
 pub(super) fn check_props(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), SceneError> {
     check_kinds(id, kind, props)?;
     check_numbers(id, props)?;
+    if props.order == Some(Order::Lock) {
+        return Err(SceneError::Invalid(format!(
+            "{id:?}: the lock order belongs to the core, so that no plugin draws above the lock"
+        )));
+    }
     if props
         .claim
         .flatten()
@@ -115,7 +121,7 @@ pub(super) fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Resu
     if kind != NodeKind::Shader && shader_only {
         return wrong("shader");
     }
-    if kind != NodeKind::Group && props.perspective.is_some() {
+    if kind != NodeKind::Group && (props.perspective.is_some() || props.order.is_some()) {
         return wrong("group");
     }
     if kind != NodeKind::Text

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Node, NodeKind, Transform};
+use crate::{Node, NodeKind, Order, Transform};
 
 /// Where a box sits in the stack of an output, bottom first: the layer
 /// surfaces below the scene, the scene, the overlay of the output, and
@@ -47,6 +47,9 @@ pub struct NodeBox {
     pub namespace: Option<String>,
     /// Where the box sits in the stack of the output.
     pub layer: Layer,
+    /// The order of the root group that holds a node of the scene (D89).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<Order>,
     /// `[x, y, w, h]`, as the `rects` of `scene.query` give it.
     pub rect: [f64; 4],
     /// Whether the node covers its box with opaque pixels, so that
