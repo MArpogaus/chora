@@ -205,7 +205,7 @@ default_steps() {
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
-gate-lib|tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh
+gate-lib|tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
