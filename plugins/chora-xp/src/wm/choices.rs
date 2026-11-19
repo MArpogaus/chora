@@ -241,6 +241,11 @@ impl Wm {
             session::run(command);
             return;
         }
+        self.cannot_do(script);
+    }
+
+    /// Says in a balloon that a shared script is not installed.
+    pub(super) fn cannot_do(&mut self, script: &str) {
         let body = format!("The file {script}.sh of the shared scripts is not installed.");
         let message = Message {
             icon: "",

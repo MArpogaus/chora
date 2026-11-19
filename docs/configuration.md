@@ -2234,6 +2234,7 @@ that the file leaves out takes its default:
 | `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `bindings` | the keys of xp, see below | a key and its action, as in the other looks: `terminal` is not one for xp, but `launcher`, `keys`, `chat`, `lock`, `power`, `screenshot`, `close`, `{volume: up\|down\|mute}`, `{volume: {set: N}}` and `{cube: left\|right}` are, and so are the actions of xp itself: `files`, `desktop`, `tap`, `start`, `{switch: next\|previous}`, `{carry: left\|right}` and `cube` (with a pointer button). A binding to `terminal`, `run`, `give`, `drag` or `desk` is dropped with a warning, and so is `cube` on a key that is no pointer button, or a pointer button with another action. `settings.set` merges the map and `null` removes a key; `settings.reload` and `settings.set` grab the new keys at once |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
 
@@ -2251,6 +2252,31 @@ what changes:
 choractl call xp settings.set \
   '{"wallpaper": {"picture": {"file": "/usr/share/backgrounds/a.png"}}}'
 ```
+
+The default `bindings` are the keys of chora-xp as they were before the key
+existed:
+
+| Key | Action |
+|-----|--------|
+| `Super` alone (`Super+Super_L`, `Super+Super_R`), `Ctrl+Escape` | `tap`, `start`: open or close the Start menu |
+| `Super+d` | `desktop`: show the desktop |
+| `Super+space` | `launcher` |
+| `Super+F1`, `Super+slash` | `keys`: Help and Support on the keyboard shortcuts |
+| `Super+Shift+Escape`, `Super+Shift+e`, `Super+Print` | `lock`, `power` (the Turn Off dialog), `screenshot` |
+| `Alt+F4` | `close` |
+| `Alt+Tab`, `Alt+Shift+Tab` | `{switch: next}`, `{switch: previous}` |
+| `Super+e` | `files`: the file manager |
+| `Super+a` | `chat` |
+| `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute` | `{volume: up}`, `{volume: down}`, `{volume: mute}` |
+| `Ctrl+Alt+Left`, `Ctrl+Alt+Right` | `{cube: left}`, `{cube: right}` |
+| `Ctrl+Alt+Shift+Left`, `Ctrl+Alt+Shift+Right` | `{carry: left}`, `{carry: right}` |
+| `Super+BTN_LEFT` | `cube`: the pointer turns the cube |
+
+When another client holds one of the four arrow keys of the cube, chora-xp binds
+`Super+Ctrl` with the same arrow instead; a key that `bindings` moves has no such
+stand-in. `Super+Alt+1` to `4` give the focused window to another window manager
+and are not in the list. The keys of the cube are grabbed only while xp has a
+desktop cube.
 
 To try the flavor from a source tree, start it nested:
 
