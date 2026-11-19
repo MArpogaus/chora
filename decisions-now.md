@@ -1,10 +1,9 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T05:59:00Z
+screened-through: 2026-11-19T06:04:00Z
+- 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone "Correct?" -> yes (F27 check at lane start); 06:01Z plan question -> answered
 - 11-19 05:59Z dialog: rc.4 tag "Keep local for now." -> no tag push; F27 "Yes, what do I have to do?" -> he re-saves (steps sent); D77 vs D95 "D95 holds, amends D77 (Recommended)" -> decision; release-rc4 "Yes, delete it (Recommended)" -> delete (proxy 403: owner deletes in GitHub)
 - 11-19 05:55Z "Reset. Continue and clarity open questions" -> reading: weekly reset done; order: continue (NET3, WM2 opus now); ask the open owner questions now
 - 11-19 03:42Z "Lift day cap+ fable should help getting most out of reset I think. We try to land as much as possible with dese tokes leveraging more opus and fable lanes but don't mindlessly burn tokens. Run your sonnet lanes now. I'll rechech in 1.5h to trigger rest" -> order: day cap lifted; opus and Fable lanes after the reset, no waste; sonnet lanes now; reset about 05:10
-- 11-19 03:38Z "Use up the last 2% then I'll trigger? Reschedule to use 100% until sat reset possible?" -> question; goal change asked (day cap)
-- 11-19 03:35Z "Another agent ate our tokes. 98 % now. Shall I trigger the reset?" -> 98 %; reset? PM: yes
 
 - 11-17 23:59Z "62%. Pace looks good. Most usage die to your fable Planung session. How is it going?" -> reading 62 %; pace fine (Fable plan was the cost); question: status
 - 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks

@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-19 05:56 UTC)
+## Now (2026-11-19 06:06 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); tokens.py 05:56: PM 0.5 % today. Day cap lifted (owner 03:41); opus lanes with a reason, no waste.
-models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
+budget: week reset 05:55 Thu (owner); tokens.py 06:06: PM 0.6 % today. Day cap lifted; use the week fully (owner 06:04), about 40 % a day, no waste.
+models: haiku tests; sonnet builds; opus reviews, hard causes.
 session branch: 4417ab86 (train 55: docs-f8); 23 greens (30b, 33-41, 43-55); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1, DOCS-F8 in.
-burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths, words) in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
+burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -24,17 +24,19 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | merged train 55 (4417ab86) |
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK (review r1, 3 MINOR); train 57 |
-| kit2b-r2.md (F2) | sonnet medium, claude/kit2b | review r1 FIX (rk-1 MAJOR: run/give new in construct); r2 session_016iS3kLM8gQdZfpG4r53S3j 05:43 |
+| kit2b-r2.md (F2) | sonnet medium, claude/kit2b | r1 FIX (rk-1 MAJOR); r2 session_016iS3kLM8gQdZfpG4r53S3j
 | mv3-r1.md (F4) | sonnet medium, claude/mv3 | 917df9d0 MERGE-OK; train 56 05:16 |
 | net3-r1.md (F7) | opus high, claude/net3 | session_016iS3kLZ9zKCda38a6cRs6a 05:56 |
 | wm2-r1.md (F3) | opus high, claude/wm2 | session_016iS3kMAkdWBVDyLsYxLUjZ 05:56 |
-| testwatch-r1.md (rc 3) | haiku low | idle |
+| wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | starting 06:1x |
+| kit6-r1.md (F2) | sonnet high, claude/kit6 | starting 06:1x |
+| cut2-r1.md (F6) | sonnet high, claude/cut2 | starting 06:1x |
 
-## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
-4. To Sat 03:59 (34 %): Thu trains 56-58 (mv3, wm1b, kit2b); WM1c construct, KIT2c tiling (sonnet). Fri: NET3, WM2 reviews and trains; WM1d, KIT2d xp (in turn); MV4 cube.rs, region.rs, chat.rs; WM3; docs F8b. Sat: recount, coverage, week report. Then P2 user test, tour v9 (F7).
-5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
+## Queue (cost in % of the week; 95 % to Sat 03:59, 5 % reserve)
+4. Use the week (owner 06:04): 6 build lanes always full; each handback an opus review, a clean head its train (serial, batched).
+5. Thu: trains 56-58; WM1c, KIT6, CUT2 now; then KIT2c, WM1d, KIT2d, MV4 (F2-F4). Fri: WM3, WM4, WM7a (opus, F3), KIT5, KIT3 (F2), WM6, NET4, docs F8b. Sat: recount, coverage, week report. Builds 30 %, reviews, r2 30 %.
+6. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
 - F27: setup re-saved by owner 11-19 06:01; verify fuzzel >= 1.11 at the next lane start. Delete claude/release-rc4 in GitHub (session push 403). rc.4 tag: kept local (owner).
