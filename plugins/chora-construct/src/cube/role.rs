@@ -8,17 +8,12 @@ use serde_json::{Value, json};
 use super::{ClientError, Construct, Health, Host, RpcError};
 
 impl Host {
-    /// The client name of the window manager of the faces.
-    pub(crate) fn manager(&self) -> String {
-        self.name.clone()
-    }
-
     /// The answer of `cube.list`.
     pub(crate) fn listing(&self) -> cube::Listing {
         let faces = (self.outputs.iter().enumerate())
             .map(|(i, output)| cube::Face {
                 output: output.clone(),
-                manager: self.name.clone(),
+                manager: super::MANAGER.to_owned(),
                 health: match self.health_of(i) {
                     Health::Starting => "starting",
                     Health::Up => "up",
