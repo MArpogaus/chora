@@ -522,6 +522,17 @@ mod tests {
         );
     }
 
+    /// The stand-in of a cube key shows only while the key keeps its
+    /// default action (rw-2): `Ctrl+Alt+Left: close` shows no stand-in.
+    #[test]
+    fn a_moved_cube_key_shows_no_stand_in() {
+        let mut bindings = defaults();
+        bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
+        let rows = rows(&bindings, |b| b == "Super+Ctrl+Left");
+        let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
+        assert!(!shown.iter().any(|k| k.contains("Left")), "{shown:?}");
+    }
+
     #[test]
     fn the_rows_follow_the_groups() {
         let rows = rows(&defaults(), all);

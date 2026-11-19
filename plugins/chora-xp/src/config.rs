@@ -483,6 +483,33 @@ mod tests {
         }
     }
 
+    /// A pointer button runs `cube` or no other action here, and `cube`
+    /// needs a pointer button (rw-1): the others are dropped with one
+    /// warning that names the key.
+    #[test]
+    fn a_button_and_the_cube_go_together_or_are_dropped() {
+        for (key, action) in [
+            ("Super+BTN_RIGHT", r#""close""#),
+            ("Super+BTN_MIDDLE", r#"{"switch":"next"}"#),
+            ("Super+x", r#""cube""#),
+        ] {
+            let mut config: Config = parse(DEFAULT).unwrap();
+            let action: KeyAction = serde_json::from_str(action).unwrap();
+            config.common.bindings.insert(key.into(), action);
+            let warnings = config.refuse();
+            assert_eq!(warnings.len(), 1, "{key}: {warnings:?}");
+            assert!(warnings[0].contains(key), "{key}: {warnings:?}");
+            assert_eq!(config.common.bindings.get(key), None, "{key}");
+            assert!(config.common.bindings.contains_key("Super+BTN_LEFT"));
+        }
+        let mut config: Config = parse(DEFAULT).unwrap();
+        config
+            .common
+            .bindings
+            .insert("Super+BTN_RIGHT".into(), KeyAction::Look(Look::Cube));
+        assert_eq!(config.refuse(), Vec::<String>::new(), "cube on a button");
+    }
+
     /// A change of the bindings moves a key: it is written as a map of the
     /// file, and reads back as the same bindings.
     #[test]

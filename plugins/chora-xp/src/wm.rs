@@ -937,6 +937,19 @@ mod tests {
         reason = "the test connects to its fake core"
     )]
     fn on_fake_core(tag: &str) -> (Runtime<KeyAction>, Arc<Mutex<Vec<String>>>) {
+        on_fake_core_refusing(tag, &[])
+    }
+
+    /// As [`on_fake_core`], with a core that refuses the grab of the
+    /// `refused` bindings, as when another client holds them.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn on_fake_core_refusing(
+        tag: &str,
+        refused: &'static [&'static str],
+    ) -> (Runtime<KeyAction>, Arc<Mutex<Vec<String>>>) {
         let dir = std::env::temp_dir().join(format!("chora-xp-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -956,11 +969,19 @@ mod tests {
                     "input.grab" => binding.clone(),
                     _ => Value::Null,
                 };
+                let held = method == "input.grab"
+                    && refused.contains(&binding.as_str().unwrap_or_default());
                 if method.starts_with("input.") {
                     let binding = binding.as_str().unwrap_or_default();
                     seen.lock().unwrap().push(format!("{method} {binding}"));
                 }
-                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                let answer = if held {
+                    json!({"jsonrpc": "2.0", "id": request["id"],
+                        "error": {"code": chora_scene::ipc::RpcError::REJECTED,
+                            "message": "held by another client"}})
+                } else {
+                    json!({"jsonrpc": "2.0", "id": request["id"], "result": result})
+                };
                 writeln!(writer, "{answer}").unwrap();
             }
         });
@@ -1087,6 +1108,62 @@ mod tests {
         assert_eq!(wm.cube_grab, None, "an injected press");
         wm.event(press(false)).unwrap();
         assert_eq!(wm.cube_grab, Some(100.0), "the press of the person");
+    }
+
+    /// A press of the binding `Super+BTN_RIGHT` that the user moved to
+    /// `close`: the focused window closes, and no cube turns (rw-1).
+    #[test]
+    fn a_button_bound_to_close_closes_and_turns_no_cube() {
+        let (mut wm, methods) = wm_on_fake_core("button-close");
+        wm.windows
+            .push(crate::window::Window::new("s1", None, Some("s1")));
+        wm.focused = Some("s1".into());
+        let binding: Binding = "Super+BTN_RIGHT".parse().unwrap();
+        wm.rt
+            .grab(binding, KeyAction::System(System::Close))
+            .unwrap();
+        let press = |state| {
+            wire(
+                json!({"event": "input.button", "binding": "Super+BTN_RIGHT",
+                "state": state, "position": [100.0, 100.0], "output": "X",
+                "local": [100.0, 100.0]}),
+            )
+        };
+        let seen = methods.lock().unwrap().len();
+        wm.event(press("pressed")).unwrap();
+        assert_eq!(wm.cube_grab, None, "no turn of the cube");
+        assert!(wm.effects.turn.is_none(), "no turn of the cube");
+        let sent = methods.lock().unwrap()[seen..].to_vec();
+        assert!(
+            sent.iter().any(|m| m.starts_with("scene.")),
+            "the close went out: {sent:?}"
+        );
+        wm.event(press("released")).unwrap();
+        assert!(wm.effects.turn.is_none(), "the release turns nothing");
+    }
+
+    /// A key that `bindings` moves to a stand-in-less action gets no
+    /// Super+Ctrl stand-in when the core refuses it (rw-2): the stand-in is
+    /// for the cube alone.
+    #[test]
+    fn a_moved_cube_key_has_no_stand_in() {
+        let (mut rt, calls) = on_fake_core_refusing("no-stand-in", &["Ctrl+Alt+Left"]);
+        let mut bindings = crate::config::defaults().common.bindings;
+        bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
+        grab_keys(&mut rt, &bindings, true).unwrap();
+        let calls = calls.lock().unwrap().clone();
+        assert!(
+            !calls.iter().any(|c| c.contains("Ctrl+Super+Left")),
+            "{calls:?}"
+        );
+        assert!(rt.action("Ctrl+Super+Left").is_none());
+        let (mut rt, _calls) = on_fake_core_refusing("stand-in", &["Ctrl+Alt+Left"]);
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, true).unwrap();
+        assert_eq!(
+            rt.action("Ctrl+Super+Left"),
+            Some(&KeyAction::System(System::Cube(Turn::Left)))
+        );
     }
 
     /// When the cube of xp goes, as on the faces of a cube of the
