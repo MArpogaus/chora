@@ -42,6 +42,7 @@ use chora_kit::{
     launch,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
+    wm::focus::Focus,
 };
 use chora_scene::{
     Command, Easing, Event, MAX_DURATION, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -352,8 +353,9 @@ struct Mc {
     /// The settings of the last build without the theme: a change of the
     /// theme alone fades the colors.
     shape: Option<Value>,
-    /// The surface that the plugin gave the keyboard last.
-    focused: Option<String>,
+    /// The keyboard focus that mc gave and the core moved
+    /// (`kit::wm::focus`).
+    focus: Focus,
     /// The surface that has the keyboard focus of the core, from
     /// `focus.changed`.
     core_focus: Option<String>,
@@ -523,7 +525,7 @@ impl Mc {
             fitting: HashMap::new(),
             shape: None,
             rendered: None,
-            focused: None,
+            focus: Focus::default(),
             core_focus: None,
             voiced_word: chora_kit::helper::Helpers::default(),
             dragged: None,
@@ -682,6 +684,7 @@ impl Plugin for Mc {
                 data,
             } => self.emitted(&event, &client, data),
             Event::FocusChanged { surface } => {
+                self.focus.moved(surface.as_deref());
                 self.core_focus = surface;
                 Ok(())
             }
@@ -975,6 +978,9 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
+        if open {
+            self.focus.lose();
+        }
         self.render()?;
         let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
         let mut ours = self.windows.values().chain(self.docks.values());
@@ -2020,7 +2026,7 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("chat-dock", [1280, 800]);
         mc.show("agenda", false).unwrap();
         mc.docks.insert("shell".into(), "dock1".into());
-        mc.focused = Some("dock1".into());
+        mc.focus.surface = Some("dock1".into());
         mc.event(chat_event("assistant", true, "test")).unwrap();
         mc.event(chat_event("assistant", false, "test")).unwrap();
         assert_eq!(
@@ -2328,7 +2334,7 @@ mod tests {
         };
         model.lock().unwrap().scene.apply("xp", &[claim]).unwrap();
         mc.windows.insert("agenda".into(), "s1".into());
-        mc.focused = Some("s1".into());
+        mc.focus.surface = Some("s1".into());
         let before = model.lock().unwrap().focuses.len();
         mc.give(Give {
             surface: "s1".into(),
@@ -2341,7 +2347,7 @@ mod tests {
             focuses.is_empty(),
             "mc sent a focus after the hand: {focuses:?}"
         );
-        assert_eq!(mc.focused, None);
+        assert_eq!(mc.focus.surface, None);
     }
 
     /// A client with `methods.call` alone rewrote the detail of a spoken

@@ -1507,8 +1507,9 @@ A plugin that implements `Plugin::state` also exports `state.get`, which
 answers what it shows and holds: its windows, the focus, what is open
 and what still moves (`busy`). `choractl state mc` prints it. All four
 looks answer it. `focus.holder` names the look only while the focus is
-on one of its windows (or, for the construct, on its space), else it is
-null. A field that a look does not fill is left out, never empty: mc
+on one of its windows or on one of its own nodes (the construct on its
+space, mc on its page), else it is null; `focus.surface` names the
+window. A field that a look does not fill is left out, never empty: mc
 has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
 the construct adds `views`, the panes of windows, plugin nodes and
 virtual outputs that it shows but does not own. tiling adds the
@@ -1522,7 +1523,11 @@ the group that carries the window and `rect` is where it showed, or
 null. Such a look applies a foreign `update` of opacity, effects and meta
 (D58) on its windows, on the groups that carry them and on its root
 group, without its own meta keys. It keeps its restart state in node
-meta under the keys `kept.1.*` and reads the keys of before.
+meta under the keys `kept.1.*` and reads the keys of before. Its focus
+comes from `chora_kit::wm::focus` (tiling, mc): after another window
+manager took the keyboard the look holds no focus and sends none until
+one of its windows takes it back, and the look's policy names the window
+that gets the keyboard after the focused one goes.
 
 ```console
 $ choractl state mc

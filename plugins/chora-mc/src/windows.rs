@@ -1,7 +1,18 @@
+use chora_kit::wm::{Why, focus::Policy};
+
 use super::{
     ClientError, Command, Easing, FIT_MS, Mc, NAME, NodeKind, PARKED, PropsUpdate, Query, Scene,
     Target, ToplevelState, Value, create, name_of, regions_on_top, scene_id, wait,
 };
+
+/// The focus after a window of mc goes: the window of the scene that
+/// shows, unless it went; else the page takes the keyboard.
+impl Policy for Mc {
+    fn focus_after(&self, gone: &str, _why: &Why) -> Option<String> {
+        let name = self.current.as_ref()?;
+        self.windows.get(name).filter(|w| *w != gone).cloned()
+    }
+}
 
 impl Mc {
     /// Takes a new window into the scene that started it, or into a new
@@ -172,9 +183,8 @@ impl Mc {
             {
                 self.toggled.insert(region, false);
             }
-            if self.focused.as_deref() == Some(surface) {
-                let window = self.windows.get(&name).cloned();
-                self.focus(window)?;
+            if let Some(next) = self.focus.after(surface, &Why::Destroyed, self) {
+                self.focus(next)?;
             }
             return self.render();
         }
