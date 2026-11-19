@@ -71,3 +71,11 @@ Left open on purpose:
 - crates/chora-kit/src/wm/stack.rs, plugins/chora-{mc,xp,construct} (M): only tiling uses `Rules`; give the three looks the same
   rules and add a copies.toml row for a hand-made held-on-top order.
 - docs/decisions.md D95 (S): set the status to "holds" with the owner date, as D77 now says.
+
+## Review r1 (PM, 17:50; builder: sonnet lane; docs only, 2 files +52 -1)
+Checks: each of D107-D114 names a merge that exists and matches it (05b50d26 wm2, 582620d8 wm3, 3781cb7e wm5,
+926bb214 kit5b, 3619ccb3 kit7, 4548feb3 net3, dd2a0aa3 wm7a, 136ca663 kit3); D77 carries the D95 status line with the
+owner's time; D115 maps the modules without a record; no code change; the lane's gate and pre-commit green.
+- MINOR rf-1: D95 row still says "proposed" although the owner accepted it 11-19 05:59 (wrong doc; next docs round).
+- MINOR rf-2: crates/chora-kit/src/wm/mod.rs doc says open "follows in later slices" (stale; next docs round).
+Verdict (computed): no open MAJOR -> MERGE-OK 65ef41a5. Joins train 68.
