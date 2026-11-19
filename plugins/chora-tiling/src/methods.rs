@@ -101,3 +101,6 @@ pub(super) fn window_methods() -> Vec<ExportMethod> {
         ),
     ]
 }
+
+#[cfg(test)]
+mod tests_moved;
