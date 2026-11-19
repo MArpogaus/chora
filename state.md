@@ -30,8 +30,8 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt (20:30) from 219d5afe |
 | kit-minors-r1.md (F2, F5) | sonnet high | MERGE-OK 88f441e4, train 73 |
 | minors-2-r1.md (F4, F5) | sonnet high | session_016iS3kQ6JaM7E3oq3XUE8gn (20:46) from 9db45f8a |
-| id-gate-r1.md (F6) | sonnet high | starting 219d5afe |
-| flake-i-r1.md (F5) | sonnet high | starting 219d5afe |
+| id-gate-r1.md (F6) | sonnet high | session_016iS3kPzqf25zVAmDLkSHnx (20:53) |
+| flake-i-r1.md (F5) | sonnet high | session_016iS3kPo5jVnFwva6MmkaoG (20:53) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 70 green 19:32. 71 green 20:12 (debt-down, D117). 72 running 20:36: cube-tests 03d0bcfd, mx1-m2 5197fa22, docs-f8d c8249e2c. 73: lint-reason 1f99a98f, kit-report, minor-sweep dfa8ddd8, flake-h, kit-minors 88f441e4.
