@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 14:19 UTC)
+## Now (2026-11-19 14:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 13:49 PM 4.6 %; 38 h left: 75 % at 2 %/h (10:39-13:5x ran 2.5 %/h); 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -26,8 +26,8 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | kit3-r2.md (F2) | sonnet high | session_016iS3kNpggngKGiK1zhQ6qQ (13:56; review r1 FIX: rk-1 MAJOR, 5 MINOR) |
 | integ-r1.md (F6) | sonnet high | session_016iS3kNXpgUxiE2BdHxpC8S (13:37) |
-| focus-port-r1.md (F2, F3, F7) | opus high | starting (audit rank 3; from integ 3619ccb3) |
-| moved-tests-xp-r1.md (F5) | haiku high | starting (audit rank 5, xp half) |
+| focus-port-r1.md (F2, F3, F7) | opus high | session_016iS3kQVDi6exe5ECXeDNUD (14:20; audit rank 3; from integ 3619ccb3) |
+| moved-tests-xp-r1.md (F5) | haiku high | session_016iS3kMyqpJ5ubK42xEfwSx (14:20; audit rank 5, xp half) |
 | flakes-g-r3.md (F5) | opus high | session_016iS3kLbyuHiuqm149tXExQ (13:58; step 0 setup.sh; adds pull flake) |
 
 ## Queue (% of week; 5 % reserve)
