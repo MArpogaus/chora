@@ -36,29 +36,37 @@ const NOTICES: usize = 32;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
-/// The ids of the notices that mc showed, for `notify.clear`.
+/// The ids of the notices that mc showed, for `notify.clear`: the last
+/// [`NOTICES`] normal ones, which expire by themselves anyway, and every
+/// critical one, which stays until a click or a clear.
 #[derive(Debug, Default)]
 pub struct Notices {
     ids: Vec<(u32, bool)>,
 }
 
 impl Notices {
-    /// Keeps the id of a notice that mc showed, critical or not.
+    /// Keeps the id of a notice that mc showed, critical or not; a
+    /// replaced id moves to the end.
     pub fn remember(&mut self, id: u32, critical: bool) {
+        self.ids.retain(|(kept, _)| *kept != id);
         self.ids.push((id, critical));
-        if self.ids.len() > NOTICES {
-            self.ids.remove(0);
+        let normal = self.ids.iter().filter(|(_, critical)| !critical).count();
+        if normal > NOTICES
+            && let Some(oldest) = self.ids.iter().position(|(_, critical)| !critical)
+        {
+            self.ids.remove(oldest);
         }
     }
 
-    /// Dismisses the notices with `dismiss`; the first failure is the
-    /// answer.
+    /// Dismisses the notices with `dismiss`, oldest first. On the first
+    /// failure the server is gone: the clear stops there, so that it waits
+    /// once, and keeps that id and the rest for the next clear.
     pub fn clear<E>(&mut self, mut dismiss: impl FnMut(u32) -> Result<(), E>) -> Result<(), E> {
-        let mut failed = Ok(());
-        for (id, _) in std::mem::take(&mut self.ids) {
-            failed = failed.and(dismiss(id));
+        while let Some(&(id, _)) = self.ids.first() {
+            dismiss(id)?;
+            self.ids.remove(0);
         }
-        failed
+        Ok(())
     }
 
     /// The ids that a clear would dismiss, oldest first.

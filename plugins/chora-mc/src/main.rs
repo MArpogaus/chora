@@ -2386,7 +2386,7 @@ mod tests {
     /// The notifications are the notification server's: `notify.push` of mc shows
     /// through `notify.show` as `chora_kit::notice` does, a critical one
     /// until the person closes it, and `notify.clear` closes what mc
-    /// showed.
+    /// showed, once per id (the fake server gives both the id 7).
     #[test]
     fn notify_push_shows_through_chora_notify_and_clear_closes_it() {
         use chora_kit::{runtime::Plugin as _, testing::FakeCore};
@@ -2412,7 +2412,6 @@ mod tests {
             [
                 (json!("notify.show"), show("Disk", "full", 0, "critical")),
                 (json!("notify.show"), show("Update", "", -1, "normal")),
-                (json!("notify.close"), json!({"id": 7})),
                 (json!("notify.close"), json!({"id": 7})),
             ]
         );
