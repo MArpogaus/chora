@@ -515,7 +515,6 @@ cell_mc_host_hud() {
     ask_notes
     waiting "$settle_s" node_exists hud-card || return 1
     sleep 1
-    ! node_exists mc-answers || return 1
     ! owner_says mc notes.txt || return 1
     [ "$(claims_now)" = "$before" ]
 }

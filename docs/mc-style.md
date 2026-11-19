@@ -130,11 +130,10 @@ change it there, not here.
     keyboard would draw their new windows to mc.
 17. **The word Mute.** Once the voice agent told its state, the first
     line of the column holds the word `Mute` in the style `margin`: at
-    the left edge beside the state word of the HUD host, flush right in
-    the line of the state word where mc draws it. A click of the person
-    mutes the microphone. While it is muted the badge of the host turns
-    it on; without the host the word is `Turn microphone on`. When the
-    agent does not switch, or the press was injected, the line says so.
+    the left edge beside the state word of the HUD host, right after a
+    state word of `hud.set`. A click of the person mutes the microphone.
+    While it is muted the badge of the host turns it on. When the agent
+    does not switch, or the press was injected, the line says so.
 18. **One focus mark.** What a click acts on shows a bar of 2 by 20
     pixels in `text`, 12 pixels left of it, while the pointer is over it:
     no underline, no fill and no change of color. A word flush right in a
