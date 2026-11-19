@@ -2192,6 +2192,34 @@ mod tests {
         assert!(note.lines().all(|l| l.chars().count() <= DROPPED_LINE + 6));
     }
 
+    /// Review security-b r1 (SB2): a spoken note that falls out of the
+    /// history stays as the words of the agent, not as a line of the user
+    /// that the mark of the note cuts short.
+    #[tokio::test]
+    async fn a_dropped_spoken_note_stays_as_a_line_of_the_agent() {
+        let config = Config {
+            history_tokens: 100,
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(Vec::new(), config).await;
+        let long = "Punkt eins bis zehn. ".repeat(50);
+        for i in 0..4 {
+            chat.history.extend([
+                json!({"role": "user", "content": format!("Bitte {i}.")}),
+                spoken("Der Build ist fertig."),
+                json!({"role": "assistant", "content": long}),
+            ]);
+        }
+        let (body, ..) = chat.request(false, false, u32::MAX);
+        let (_, note) = body["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .split_once(DROPPED_NOTE)
+            .unwrap();
+        assert!(note.contains("you: Der Build ist fertig.\n"), "{note}");
+        assert!(!note.contains("Note of the agent"), "{note}");
+    }
+
     #[tokio::test]
     async fn only_the_latest_picture_stays_in_the_history() {
         let (mut chat, _server) = chat(Vec::new(), Config::default()).await;
