@@ -4033,6 +4033,40 @@ mod tests {
         assert_eq!(events[0]["binding"], "Alt+Escape");
     }
 
+    /// A grab that ends with its connection is told as an explicit
+    /// release is (rd-7), and the key is free for the next to grab.
+    #[test]
+    fn a_grab_that_ends_with_its_connection_is_told() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        let grab = json!({"binding": "Alt+Escape"});
+        holder.ok(&mut core, "input.grab", grab.clone());
+        holder.ok(&mut core, "input.grab", json!({"binding": "Super+a"}));
+        holder.ok(
+            &mut core,
+            "input.grab",
+            json!({"binding": "Super+BTN_LEFT"}),
+        );
+        let (_, _) = waiting.fails(&mut core, "input.grab", grab.clone());
+        waiting.events_now(&mut core);
+        holder.shut_down_writes();
+        assert!(holder.closed(&mut core), "the holder is gone");
+        let mut told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .map(|e| e["binding"].as_str().unwrap_or_default().to_string())
+            .collect::<Vec<_>>();
+        told.sort();
+        assert_eq!(told, ["Alt+Escape", "Super+BTN_LEFT", "Super+a"]);
+        waiting.ok(&mut core, "input.grab", grab);
+    }
+
     #[test]
     fn a_grab_takes_its_key_with_exactly_its_modifiers() {
         let mut core = Core::new();

@@ -2055,6 +2055,33 @@ mod tests {
         );
     }
 
+    /// A revoke of `input.grab-any` ends its grabs as `input.ungrab` does:
+    /// the subscribers of `input.ungrabbed` are told (rd-7).
+    #[test]
+    fn a_revoke_of_grab_any_tells_the_ungrab() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        agent.ok(&mut core, "input.grab", json!({"binding": "Tab"}));
+        agent.ok(&mut core, "input.grab", json!({"binding": "Alt+Escape"}));
+        waiting.events_now(&mut core);
+        core.admin()
+            .ok(&mut core, "grants.revoke", json!({"client": "agent"}));
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .map(|e| e["binding"].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(told, [json!("Tab")], "only the grab that ended is told");
+    }
+
     /// tiling on the left half and xp on the right half, each with a
     /// claim, the button binding and `move`. tiling has the window s1 and
     /// drags it: Super is down and the left button went down on the
