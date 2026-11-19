@@ -918,7 +918,14 @@ modifier, as they type nothing: `XF86AudioRaiseVolume`,
 `XF86AudioPlay`, `XF86AudioNext`, `XF86AudioPrev`,
 `XF86MonBrightnessUp` and `XF86MonBrightnessDown`. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
-F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
+F12, belong to no client. A key binding has one owner at a time. A
+window manager whose claims all lie on virtual outputs, as one in a pane
+or on a face of a cube, gets its key only where the person is: the
+manager that a click on its empty claim chose, else the owner of the
+keyboard focus (of a node or a window), else the owner of the smallest
+claim under the pointer. Elsewhere the key goes to nobody, not to the
+focused window. The keyboard goes before the pointer, which may rest
+on another pane while the person types. A pointer button binding has one
 owner too, unless each client that grabs it holds a claim and is on the
 main socket (D55): then a
 press goes to the client of the smallest claim that contains the pointer,

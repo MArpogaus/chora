@@ -1,0 +1,87 @@
+//! The rule of key grabs between window managers: where the person is
+//! when a key goes down, and which grabs wait for that place. The safety
+//! layer (D23) is decided before this rule and stays above every plugin.
+
+use smithay::{
+    input::keyboard::{Keysym, ModifiersState},
+    utils::{Logical, Point},
+};
+
+use super::{KeyAction, State};
+
+/// The grab of a binding, unless the session is locked. A grab that waits
+/// for the manager of another place swallows the key: it must not reach
+/// the focused client as a raw key (sh-24). An injected key has no
+/// place, and goes to the grab, except in the test mode of
+/// `injected_press_is_real`, where it counts as a key of the person.
+pub(super) fn grab_action(
+    state: &State,
+    mods: &ModifiersState,
+    syms: &[Keysym],
+    injected: bool,
+) -> Option<KeyAction> {
+    if state.lock.is_some() {
+        return None;
+    }
+    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |_| true)?;
+    if injected && !state.injected_press_is_real {
+        return Some(KeyAction::Grab(conn, binding, true));
+    }
+    let place = key_place(state);
+    let held_back = |conn| {
+        place
+            .as_deref()
+            .is_some_and(|place| holds_other_claim(state, conn, place))
+    };
+    Some(
+        match state.ipc.grab_for_where(mods, syms, |c| !held_back(c)) {
+            Some((conn, binding)) => KeyAction::Grab(conn, binding, injected),
+            None => KeyAction::Swallow,
+        },
+    )
+}
+
+/// The window manager where the person is when a key goes down: the one
+/// that a click on its empty claim chose (D55), else the owner of the
+/// keyboard focus, of a node or of a window, else the one whose claim
+/// holds the pointer. The keyboard goes before the pointer, which may
+/// rest on any pane while the person types.
+fn key_place(state: &State) -> Option<String> {
+    if let Some(chosen) = state.chosen_manager() {
+        return Some(chosen.into());
+    }
+    let scene = &state.scene;
+    let focus_owner = (scene.focused_node_owner())
+        .or_else(|| scene.node(state.focused_surface()?)?.owner.as_deref())
+        .filter(|owner| state.ipc.live(owner) && scene.holds_claim(owner));
+    if let Some(owner) = focus_owner {
+        return Some(owner.into());
+    }
+    let spot = state.spot(state.pointer_layout)?;
+    let point = [spot.scene.x, spot.scene.y];
+    chora_scene::claimant_at(scene.nodes(), point, |n| state.ipc.live(n)).map(String::from)
+}
+
+/// Whether the client of `conn` is a window manager of virtual outputs,
+/// other than `place`, where the person is: its claims all lie on
+/// virtual outputs, as those of a manager in a pane or on a face of a
+/// cube do. A space that shows them on a screen is no such manager, and
+/// keeps its keys.
+pub(crate) fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
+    let Some(name) = state.ipc.name(conn).filter(|name| *name != place) else {
+        return false;
+    };
+    let virtuals: Vec<_> = (state.assets.virtuals.iter())
+        .map(|v| crate::output::output_area(v.output()).to_f64())
+        .collect();
+    let mut claims = (state.scene.nodes())
+        .filter(|n| n.owner.as_deref() == Some(name))
+        .filter_map(|n| n.props.claim)
+        .peekable();
+    claims.peek().is_some()
+        && claims.all(|[x, y, _, _]| {
+            virtuals
+                .iter()
+                .any(|area| area.contains(Point::<f64, Logical>::from((x, y))))
+        })
+}
