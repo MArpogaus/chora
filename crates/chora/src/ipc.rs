@@ -4080,6 +4080,47 @@ mod tests {
         assert!(told.is_empty(), "{told:?}");
     }
 
+    /// The `move` filter is one rule in one place, `tell_ungrabbed` (rd-9b):
+    /// whichever path ends a grab, a `move` binding is not told.
+    #[test]
+    fn tell_ungrabbed_does_not_tell_a_move_binding() {
+        let mut core = Core::new();
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        core.state.tell_ungrabbed(["move".parse().unwrap()]);
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .collect::<Vec<_>>();
+        assert!(told.is_empty(), "{told:?}");
+    }
+
+    /// A `move` grab that ends with its connection is not told (rd-9b).
+    #[test]
+    fn a_move_grab_that_ends_with_its_connection_is_not_told() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        holder.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        waiting.events_now(&mut core);
+        holder.shut_down_writes();
+        assert!(holder.closed(&mut core), "the holder is gone");
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .collect::<Vec<_>>();
+        assert!(told.is_empty(), "{told:?}");
+    }
+
     /// A grab that ends with its connection is told as an explicit
     /// release is (rd-7), and the key is free for the next to grab.
     #[test]
