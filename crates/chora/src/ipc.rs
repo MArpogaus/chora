@@ -2124,11 +2124,23 @@ mod tests {
         assert!(message.contains("only on the admin socket"), "{message}");
     }
 
-    struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+    type Lines = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
 
-    impl std::io::Write for Sink {
+    thread_local! {
+        static LINES: std::cell::RefCell<Option<Lines>> = const { std::cell::RefCell::new(None) };
+    }
+
+    /// The writer of the test-wide subscriber: a line goes to the sink of
+    /// the thread that logged it, and nowhere when the thread has none.
+    struct Route;
+
+    impl std::io::Write for Route {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.0.lock().unwrap().extend_from_slice(buf);
+            LINES.with(|lines| {
+                if let Some(sink) = lines.borrow().as_ref() {
+                    sink.lock().unwrap().extend_from_slice(buf);
+                }
+            });
             Ok(buf.len())
         }
 
@@ -2137,16 +2149,25 @@ mod tests {
         }
     }
 
-    /// The log lines of every level that `run` writes in this thread.
+    /// The log lines of every level that `run` writes in this thread. One
+    /// subscriber serves the whole test binary: a subscriber of one test
+    /// thread loses to the interest in a callsite that another thread
+    /// cached without one.
     fn logged(run: impl FnOnce()) -> String {
-        let lines = std::sync::Arc::default();
-        let sink = std::sync::Arc::clone(&lines);
-        let subscriber = tracing_subscriber::fmt()
-            .with_ansi(false)
-            .with_max_level(tracing::Level::TRACE)
-            .with_writer(move || Sink(std::sync::Arc::clone(&sink)))
-            .finish();
-        tracing::subscriber::with_default(subscriber, run);
+        static SUBSCRIBER: std::sync::Once = std::sync::Once::new();
+        SUBSCRIBER.call_once(|| {
+            let subscriber = tracing_subscriber::fmt()
+                .with_ansi(false)
+                .with_max_level(tracing::Level::TRACE)
+                .with_writer(|| Route)
+                .finish();
+            tracing::subscriber::set_global_default(subscriber)
+                .expect("no other subscriber of the test binary");
+        });
+        let lines = Lines::default();
+        LINES.with(|l| *l.borrow_mut() = Some(std::sync::Arc::clone(&lines)));
+        run();
+        LINES.with(|l| *l.borrow_mut() = None);
         String::from_utf8_lossy(&lines.lock().unwrap()).into_owned()
     }
 
