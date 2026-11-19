@@ -587,10 +587,11 @@ echo 'voice.confirm {"id": "51", "done": true}' >&5
 "$bin/choractl" call assistant chat.hide '{}' >/dev/null || fail "chat.hide failed"
 wait_for has_node_count 0 id:hud-chat
 
-step "17. a second chora-notify leaves the bus name to the first and ends cleanly"
+step "17. a second chora-notify says another chora-notify serves the session and ends cleanly"
 DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/notify" \
-    >"$out/notify2.log" 2>&1 || fail "the second chora-notify failed: $out/notify2.log"
-grep -q "another owner" "$out/notify2.log" || fail "no word of the owner: $out/notify2.log"
+    >"$out/notify2.log" 2>&1 || fail "the second chora-notify did not exit 0 within 20 s: $out/notify2.log"
+grep -q "another chora-notify serves the session" "$out/notify2.log" ||
+    fail "no word of the first chora-notify: $out/notify2.log"
 
 step "17b. a program that cannot start or is slow gets a message that names it"
 said() {
