@@ -51,6 +51,8 @@ pub struct Core {
     pub mints_tokens: bool,
     /// Whether `scene.query` answers every selector; else only `id:`.
     pub selects: bool,
+    /// The answers of `methods.call` by client and method; null without.
+    pub answers: Vec<((String, String), Value)>,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -100,6 +102,16 @@ impl FakeCore {
     /// it passes again.
     pub fn refuse_next(&self, method: &str) {
         self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Plants the answer of the method `method` of the client `client`
+    /// for `methods.call`, as the state of voice; null without.
+    pub fn answer_call(&self, client: &str, method: &str, answer: Value) {
+        self.model
+            .lock()
+            .unwrap()
+            .answers
+            .push(((client.to_owned(), method.to_owned()), answer));
     }
 
     /// Makes `activation.token` mint a new token on each call, as the
@@ -194,9 +206,14 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             let mut core = model.lock().unwrap();
-            core.calls.push(method);
+            core.calls.push(method.clone());
             core.called.push(params.clone());
-            Ok(Value::Null)
+            let client = params["client"].as_str().unwrap_or_default();
+            Ok(core
+                .answers
+                .iter()
+                .find(|((c, m), _)| c == client && *m == method)
+                .map_or(Value::Null, |(_, answer)| answer.clone()))
         }
         "output.list" => Ok(json!([])),
         "events.emit" => {

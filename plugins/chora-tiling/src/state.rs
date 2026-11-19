@@ -173,4 +173,37 @@ mod tests {
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
         assert_eq!(x.state().unwrap()["helper"], "no_helper");
     }
+
+    /// A look that hears voice connect asks voice for its state, and it
+    /// hears every event of the helper machine, so that it says what the
+    /// presenter says (rw-4).
+    #[test]
+    fn the_helper_is_seeded_from_voice_and_hears_every_event() {
+        assert_eq!(
+            chora_kit::helper::unheard(&crate::EVENTS),
+            Vec::<&str>::new()
+        );
+        let core = chora_kit::testing::FakeCore::start();
+        let dir = std::env::temp_dir().join(format!("chora-tiling-seed-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut x = crate::tests::tiling_on(core.connect(crate::NAME), &dir, &[]);
+        core.answer_call(
+            "voice",
+            "state",
+            json!({"state": "listening", "agents": [{"name": "coder", "state": "idle"}]}),
+        );
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        x.event(connected).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "listening");
+        let said = chora_scene::Event::Emitted {
+            event: "voice.say".into(),
+            client: "voice".into(),
+            data: json!({"state": "speaking", "text": "Hi"}),
+        };
+        x.event(said).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "answered");
+    }
 }

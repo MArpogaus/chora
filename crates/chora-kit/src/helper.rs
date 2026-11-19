@@ -3,10 +3,41 @@
 //! events of `voice` and read its state (the `helper` key of `state.get`)
 //! and the words of a helper door. How the state shows is costume.
 
+use std::time::Duration;
+
 use chora_scene::Event;
 use serde_json::{Value, json};
 
-use crate::words::{self, Language, Word};
+use crate::{
+    conn::Conn,
+    words::{self, Language, Word},
+};
+
+/// The events that the machine hears; a look subscribes them all, the
+/// voice events or `voice.*`, so that its state is the one of the
+/// presenter (rw-4).
+pub const EVENTS: [&str; 4] = [
+    "voice.state",
+    "voice.say",
+    "voice.remove",
+    "client.connected",
+];
+
+/// The events of [`EVENTS`] that a subscription misses; `voice.*` holds
+/// the voice events.
+#[must_use]
+pub fn unheard<'a>(subscribed: &[&str]) -> Vec<&'a str> {
+    EVENTS
+        .into_iter()
+        .filter(|event| {
+            let all_voice = event.starts_with("voice.") && subscribed.contains(&"voice.*");
+            !all_voice && !subscribed.contains(event)
+        })
+        .collect()
+}
+
+/// How long a look waits for the answer of `state` of voice.
+const ASK_WAIT: Duration = Duration::from_millis(500);
 
 /// The state of the helper door, the one rule that every look and the
 /// presenter `chora-assistant` read (KIT7): five states from the events of
@@ -117,6 +148,31 @@ impl Helper {
         if let Some(state) = answer["state"].as_str() {
             self.follow(&json!({"state": state, "muted": answer["muted"]}));
         }
+    }
+
+    /// Asks voice for its `state` and seeds the machine with the answer,
+    /// for a look that starts after voice or hears voice connect (rw-4).
+    /// Without an answer in time the machine stays. True when it seeded.
+    pub fn ask(&mut self, conn: &mut Conn) -> bool {
+        let call = json!({"client": "voice", "method": "state", "params": {}});
+        match conn.call_within::<_, Value>("methods.call", call, ASK_WAIT) {
+            Ok(answer) if answer["state"].is_string() => {
+                self.seed(&answer);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Hears an event as [`Self::hear`] does, and asks voice for its
+    /// state when voice connects. True when the machine changed.
+    pub fn hear_asking(&mut self, event: &Event, conn: &mut Conn) -> bool {
+        let was = self.clone();
+        self.hear(event);
+        if matches!(event, Event::ClientConnected { name } if name == "voice") {
+            self.ask(conn);
+        }
+        *self != was
     }
 
     /// Takes in the data of a `voice.remove`: the named helper is gone.
@@ -332,6 +388,40 @@ mod tests {
             json!({"state": "speaking", "text": "Fertig."}),
         ));
         assert_ne!(h.state(), State::Working, "the voice agent answered");
+    }
+
+    /// A look that starts after voice, or hears it connect, seeds its
+    /// machine from the answer of `state` of voice (rw-4); without an
+    /// answer the machine stays.
+    #[cfg(feature = "testing")]
+    #[test]
+    fn a_look_asks_voice_for_its_state_when_voice_connects() {
+        let core = crate::testing::FakeCore::start();
+        let mut conn = core.connect("look");
+        let mut h = Helper::default();
+        assert!(!h.ask(&mut conn), "voice says nothing");
+        assert_eq!(h.state(), State::NoHelper);
+        core.answer_call(
+            "voice",
+            "state",
+            json!({"state": "listening", "agents": [{"name": "coder", "state": "idle"}]}),
+        );
+        let connected = Event::ClientConnected {
+            name: "voice".into(),
+        };
+        assert!(h.hear_asking(&connected, &mut conn));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Listening, "coder · idle".into())
+        );
+        assert_eq!(
+            unheard(&["voice.*", "client.connected"]),
+            Vec::<&str>::new()
+        );
+        assert_eq!(
+            unheard(&["voice.state", "voice.remove"]),
+            ["voice.say", "client.connected"]
+        );
     }
 
     /// Only events of `voice` count; the microphone is its own report.
