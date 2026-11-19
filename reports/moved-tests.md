@@ -145,3 +145,8 @@ the_desktop_fades_while_a_dialog_is_open asserts the fade starts before its chec
 
 Lane notes: setup.sh was refused by the auto-mode classifier and was not run (all tools were
 present at step 0). Author Marcel Arpogaus, no attribution lines, as the brief says.
+
+## Review mk r1 (PM, 16:12)
+Own commit 31df2bb9: 4 files, +402 -14, production change only the `mod tests_moved;` line in mc acts.rs. Every `#[test]` in acts/tests_moved.rs and kit tests/moved_cells.rs asserts; no assert under an `if`; mt-1..3 fixed as named. Lane gate 41/41 on 31df2bb9.
+Done criterion short: lifecycle 60.5, hits 60.9, panels 40.7, pointer 61.1 below 70 %; lifecycle and hits "not analysed" is no reason. That is scope left, not a fault in the tests: r2 (haiku) takes the four.
+Counts: BLOCK 0, MAJOR 0, MINOR 0. Verdict: MERGE-OK (tests); F5 module coverage open until r2.
