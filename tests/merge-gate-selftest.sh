@@ -465,6 +465,44 @@ check "plugin runtime: an allowed item with a trailing comment covers only itsel
 check "plugin runtime: an allowed item with a trailing comment passes" \
     "$(runtime_case '#[allow(clippy::disallowed_methods)] // fake core\nfn a() {\n    conn::connect(p);\n}\n')" 0
 
+idr=$work/idr
+good="Good One <good@example.org>"
+mkdir -p "$idr/tests"
+cp "$gate" "$idr/tests/merge-gate.sh"
+cp "$repo/tests/gate-lock.sh" "$repo/tests/red-first.sh" "$idr/tests/"
+git -C "$idr" init -q -b main
+idcommit() {
+    GIT_AUTHOR_NAME=${1%% <*} GIT_AUTHOR_EMAIL=${1##*<} GIT_COMMITTER_NAME=${2%% <*} GIT_COMMITTER_EMAIL=${2##*<} \
+        git -C "$idr" commit -q --allow-empty -m "$3"
+}
+idcommit "Old One <old@example.org>" "Old One <old@example.org>" "chore: before the base"
+git -C "$idr" tag base
+ident() {
+    MERGE_GATE_IDENTITY="Good One <good@example.org>" "$idr/tests/merge-gate.sh" --identity-check --base base 2>&1
+}
+idcommit "$good" "$good" "chore: all good"
+check "identity: every commit with the expected identity is green" "$(ident >/dev/null; echo $?)" 0
+idcommit "$good" "Claude <noreply@anthropic.com>" "chore: bad committer"
+bad=$(git -C "$idr" rev-parse --short HEAD)
+check "identity: a bad committer is red" "$(ident >/dev/null; echo $?)" 1
+check "identity: the failure names the sha and the identity" \
+    "$(ident | grep -c "^FAIL: $bad committer is Claude <noreply@anthropic.com>")" 1
+git -C "$idr" reset -q --hard HEAD~1
+idcommit "Claude <noreply@anthropic.com>" "$good" "chore: bad author"
+check "identity: a bad author is red" "$(ident >/dev/null; echo $?)" 1
+check "identity: the failure says author" "$(ident | grep -c ' author is Claude <noreply@anthropic.com>')" 1
+git -C "$idr" reset -q --hard HEAD~1
+git -C "$idr" checkout -q -b side base
+idcommit "$good" "$good" "chore: on the side"
+git -C "$idr" checkout -q main
+GIT_COMMITTER_NAME=Claude GIT_COMMITTER_EMAIL=noreply@anthropic.com GIT_AUTHOR_NAME=Good\ One GIT_AUTHOR_EMAIL=good@example.org \
+    git -C "$idr" merge -q --no-ff side -m "Merge side"
+check "identity: a merge commit with a bad committer is red" "$(ident >/dev/null; echo $?)" 1
+git -C "$idr" reset -q --hard HEAD~1
+check "identity: a bad commit before the base does not count" "$(ident >/dev/null; echo $?)" 0
+check "identity: the step follows red-first in the step list" \
+    "$(grep -A1 '^red-first|' "$gate" | grep -c '^identity|')" 1
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1
