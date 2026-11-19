@@ -573,9 +573,21 @@ class Session:
         )
 
     def act(
-        self, name, cues=(), expect=None, opens=(), closes=(), disconnects=(), timeout=10, look=None
+        self,
+        name,
+        cues=(),
+        expect=None,
+        opens=(),
+        closes=(),
+        disconnects=(),
+        timeout=10,
+        look=None,
+        held=None,
     ):
-        """Run an act, record its result and those of the invariants."""
+        """Run an act, record its result and those of the invariants. With
+        `held` seconds the act reads the session that long after its cues
+        without waiting for quiet: a look that animates is read in the
+        middle of its motion, which the next act waits out."""
         act = Act(name, list(opens), list(closes), list(disconnects))
         look = look or self.label
         try:
@@ -584,8 +596,9 @@ class Session:
             self.mark_logs()
             for cue in cues:
                 cue(self)
-            time.sleep(SETTLE)
-            after = self.snapshot(wait_quiet(self.states, timeout), self.watch.drain())
+            time.sleep(SETTLE if held is None else held)
+            states = self.states() if held is not None else wait_quiet(self.states, timeout)
+            after = self.snapshot(states, self.watch.drain())
         except (NotQuiet, RuntimeError, OSError, queue.Empty) as err:
             self.record(look, f"act:{name}", [f"{type(err).__name__}: {err}"], name)
             return None

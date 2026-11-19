@@ -241,6 +241,15 @@ class WorkRect(unittest.TestCase):
         }
         self.assertEqual(harness.work_rect(output), [0, 0, 1280, 770])
 
+    def test_a_moved_camera_leaves_the_zone_where_it_is(self):
+        output = {
+            "position": [-262144, -262144],
+            "size": [1280, 800],
+            "work_area": [300, 200, 640, 385],
+            "default_work_area": [-262144, -262144, 1280, 770],
+        }
+        self.assertEqual(harness.work_rect(output), [0, 0, 1280, 770])
+
 
 class I8(unittest.TestCase):
     def states(self, helper):
@@ -346,6 +355,28 @@ class KnownRed(unittest.TestCase):
         rows = harness.known_red()
         self.assertIsInstance(rows, list)
 
+    def listed(self, look):
+        """The one row of the real list for the I5 of a look."""
+        rows = [r for r in harness.known_red() if (r["look"], r["id"]) == (look, "I5")]
+        self.assertEqual(len(rows), 1, rows)
+        return rows
+
+    def test_a_second_overprint_of_the_tiling_key_list_blocks(self):
+        rows = self.listed("tiling")
+        named = "in act 'a': on HEADLESS-1 'Run a program or a typed command' (tiling-keys-body) overlaps 'System' (tiling-keys-heading) at []"
+        other = "in act 'a': on HEADLESS-1 'Quit' (tiling-keys-body) overlaps 'Other' (tiling-keys-body) at []"
+        self.assertEqual(harness.judge({("tiling", "I5"): [named]}, rows).blocking, [])
+        self.assertTrue(harness.judge({("tiling", "I5"): [named, other]}, rows).blocking)
+        self.assertTrue(harness.judge({("tiling", "I5"): [other]}, rows).blocking)
+
+    def test_a_second_overprint_of_the_mc_key_column_blocks(self):
+        rows = self.listed("mc")
+        named = "in act 'a': on HEADLESS-1 'Start a program or run a command' (mc-r1-right-keys) overlaps 'Chat with a helper' (mc-r2-label) at []"
+        other = "in act 'a': on HEADLESS-1 'Quit' (mc-r1-right-keys) overlaps 'Other' (mc-r3-right-keys) at []"
+        self.assertEqual(harness.judge({("mc", "I5"): [named]}, rows).blocking, [])
+        self.assertTrue(harness.judge({("mc", "I5"): [named, other]}, rows).blocking)
+        self.assertTrue(harness.judge({("mc", "I5"): [other]}, rows).blocking)
+
 
 class Quiet(unittest.TestCase):
     def test_waits_until_every_busy_is_empty(self):
@@ -448,6 +479,10 @@ def with_texts(*runs, look="xp"):
     return snap().states | {look: snap().states[look] | {"texts": list(runs)}}
 
 
+def translate(x, y):
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, 0, 1]
+
+
 def run(node, text, rect, px=14):
     return {"node": node, "text": text, "rect": list(rect), "px": px, "fg": [0, 0, 0, 255]}
 
@@ -509,6 +544,23 @@ class I5(unittest.TestCase):
         states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14)))
         self.assertTrue(breaches("I5", snap(), snap(states=states, nodes=nodes)))
 
+    def scrolled(self, text_at):
+        """A menu image 200 px wide, scrolled 100 px to the left under a
+        clip 100 px wide: its box is the visible part, the run 'Lines'
+        sits at 20 to 70 of the screen."""
+        menu = panel("menu", (0, 0, 100, 40), size=(200, 40)) | {
+            "transform": {"matrix": translate(-100, 0)}
+        }
+        nodes = [menu, text_node("a", "other", text_at)]
+        states = with_texts(run("menu", "Lines", (120, 5, 50, 14)))
+        return snap(states=states, nodes=nodes)
+
+    def test_a_clipped_image_keeps_its_runs_unsqueezed(self):
+        self.assertEqual(breaches("I5", snap(), self.scrolled((70, 5, 30, 14))), [])
+
+    def test_a_clipped_image_still_overprints_where_its_run_lies(self):
+        self.assertTrue(breaches("I5", snap(), self.scrolled((20, 5, 30, 14))))
+
 
 class I6(unittest.TestCase):
     def test_sound(self):
@@ -529,10 +581,13 @@ class I6(unittest.TestCase):
         self.assertTrue(breaches("I6", snap(), snap(nodes=nodes)))
 
 
-def notify(*shown):
+def notify(*shown, accepted=None, waiting=(), closed=()):
     return {
         "notify": {
             "shown": [{"id": i, "summary": f"note {i}", "node": "notify-card"} for i in shown],
+            "accepted": list(shown if accepted is None else accepted),
+            "waiting": list(waiting),
+            "closed": list(closed),
             "texts": [],
             "busy": [],
         }
@@ -560,6 +615,25 @@ class I9(unittest.TestCase):
 
     def test_a_notice_from_before_the_act_is_not_checked(self):
         self.assertEqual(breaches("I9", snap(blocks=notify(1)), snap(blocks=notify(1))), [])
+
+    def cards(self):
+        return snap().nodes + [panel("notify-card", (900, 600, 300, 80), owner="notify")]
+
+    def test_an_accepted_notice_that_never_showed(self):
+        after = snap(nodes=self.cards(), blocks=notify(1, accepted=[1, 2]))
+        out = breaches("I9", snap(blocks=notify(1)), after)
+        self.assertTrue(any("2" in b and "never" in b for b in out), out)
+
+    def test_an_accepted_notice_that_waits_or_closed_is_no_breach(self):
+        after = snap(
+            nodes=self.cards(), blocks=notify(1, accepted=[1, 2, 3], waiting=[2], closed=[3])
+        )
+        self.assertEqual(breaches("I9", snap(blocks=notify(1)), after), [])
+
+    def test_an_accepted_notice_of_before_the_act_is_not_checked(self):
+        before = snap(blocks=notify(accepted=[5]))
+        after = snap(blocks=notify(accepted=[5]))
+        self.assertEqual(breaches("I9", before, after), [])
 
 
 class I10(unittest.TestCase):
@@ -603,6 +677,21 @@ class I12(unittest.TestCase):
         )
         self.assertTrue(breaches("I12", snap(), after))
 
+    def test_a_dialog_surface_above_its_fullscreen_parent_is_no_bar(self):
+        dialog = surface("s2", "xp", rect=(400, 300, 300, 200))
+        self.assertEqual(breaches("I12", snap(), self.fullscreen(dialog)), [])
+
+    def test_a_modal_node_of_the_look_above_its_fullscreen_parent_is_no_bar(self):
+        state = snap().states["xp"] | {
+            "windows": [window("s1") | {"fullscreen": True}],
+            "open": [{"id": "xp-dlg-run", "modal": True, "for": "s1"}],
+        }
+        nodes = [
+            surface("s1", "xp", focused=True, rect=(0, 0, 1280, 800)),
+            panel("xp-dlg-run", (400, 300, 300, 200)),
+        ]
+        self.assertEqual(breaches("I12", snap(), snap(states={"xp": state}, nodes=nodes)), [])
+
     def test_a_modal_below_its_parent(self):
         state = snap().states["xp"] | {"open": [{"id": "xp-dlg-run", "modal": True, "for": "s1"}]}
         nodes = [panel("xp-dlg-run", (100, 100, 300, 200)), surface("s1", "xp", focused=True)]
@@ -627,9 +716,35 @@ class I13(unittest.TestCase):
     FRONT = [[300, 200], [700, 220], [700, 580], [300, 600]]
 
     def test_sound(self):
-        side = [[700, 220], [820, 240], [820, 560], [700, 580]]
-        nodes = snap().nodes + [face(0, self.FRONT), face(1, side)]
-        self.assertEqual(breaches("I13", snap(), snap(nodes=nodes)), [])
+        self.assertEqual(breaches("I13", snap(), self.ring(0, 1, 2, 3)), [])
+
+    def ring(self, *ks, bare=()):
+        """The four faces of a cube turned a little: each meets the next."""
+        quads = {
+            0: self.FRONT,
+            1: [[700, 220], [820, 240], [820, 560], [700, 580]],
+            2: [[820, 240], [250, 228], [250, 572], [820, 560]],
+            3: [[250, 228], [300, 200], [300, 600], [250, 572]],
+        }
+        nodes = [face(k, quads[k]) for k in ks]
+        for node in nodes:
+            if int(node["id"].rsplit("-", 1)[1]) in bare:
+                del node["corners"]
+        return snap(nodes=snap().nodes + nodes)
+
+    def test_all_four_faces_meeting(self):
+        self.assertEqual(breaches("I13", snap(), self.ring(0, 1, 2, 3)), [])
+
+    def test_a_neighbour_of_a_shown_face_is_missing(self):
+        out = breaches("I13", snap(), self.ring(0, 1, 2))
+        self.assertTrue(any("construct-cube-face-3" in b and "missing" in b for b in out), out)
+
+    def test_a_neighbour_of_a_shown_face_has_no_corners(self):
+        out = breaches("I13", snap(), self.ring(0, 1, 2, 3, bare=(1,)))
+        self.assertTrue(any("construct-cube-face-1" in b and "corners" in b for b in out), out)
+
+    def test_no_face_shown_is_no_breach(self):
+        self.assertEqual(breaches("I13", snap(), snap()), [])
 
     def test_a_seam_open_by_a_few_pixels(self):
         side = [[705, 214], [830, 240], [830, 560], [705, 586]]
