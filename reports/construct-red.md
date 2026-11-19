@@ -59,3 +59,21 @@ Findings:
   by the PM after review) and "in mc ... a new window takes the keyboard" without mc's app.open exception (manage.rs:526); its cost
   omits the child-window case. Fix: mark it proposed until the PM accepts it at merge and name both cases.
 - rc-3 NIT tests/acts/looks/construct.py:86: the docstring of `tab_after_a_new_window` still says "(known red under WM2)". Fix: drop it.
+
+## r2
+Lane r2 (sonnet, high) on claude/construct-red from 28254eb6. Step 0: cargo, python3, jq present; `git fetch --unshallow`, build green.
+
+Commits: 6c065581 (rc-1 red), da68737d (rc-1 fix, rc-2, rc-3).
+- rc-1: **fixed**. `surface.created` had no xdg parent, so the event gets an optional `parent` (chora-scene `Event::SurfaceCreated`,
+  set in `crates/chora/src/handlers.rs` `announce` from `toplevel.parent()`; `kit::wm::Created.parent`; `testing::created_child`;
+  api.md names it). `lifecycle.rs` `keys_back_for` became `keys_for_new`: a new pane that is a child of the pressed window gets
+  `kit::wm::focus::give`; any other new pane keeps the r1 rule (keys to the walk); the guards (camera in a window, foreign,
+  launcher, hidden focus) are unchanged. Red cell `a_dialog_of_the_pressed_window_gets_the_keyboard_and_an_unrelated_window_does_not`
+  (fails on the red commit at the dialog assert, passes on the fix), guard cell `a_child_of_another_window_gives_the_keyboard_to_the_walk`.
+- rc-2: D107 is now **D116**, "Proposed (PM accepts at merge)", names the child-window rule and the mc app.open exception, and the
+  cost of the new `parent` field. The docs-f8c plan keeps D107-D115.
+- rc-3: the "known red under WM2" docstring of `tab_after_a_new_window` is gone.
+- `cargo test -p chora-construct -p chora-kit --features chora-kit/testing`: 208 + 274 + doc cells pass; clippy (construct, kit, scene,
+  chora, xp; all targets, -D warnings) clean. `BIN=target/debug tests/acts/run.py --no-selftest construct`: 53 pass, 0 known red.
+  Gate at da68737d, `tests/merge-gate.sh --jobs 3`, once: green, 41 steps PASS, no flake, no rerun.
+- Open: none. The event gained a field, so the PM should note it in the merge (api.md updated; clients that ignore it are unaffected).
