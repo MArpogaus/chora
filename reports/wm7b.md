@@ -82,3 +82,44 @@ Open / findings:
 - Backlog proposal (owner call): drop xp's own screen cube (xp/cube.rs + desktops turn, ~500 lines).
 - help.rs `flat_desks` text is now unreachable (Flat holds no turn key): remove in a refactor (S).
 - Refactor proposals of r1 stand (focus_away counting other clients' nodes, Manager type, click_box to harness).
+
+## Review r2
+Reviewer: opus high, cloud, read-only on claude/wm7b 31f04c07 (17 own commits over daf83391 + wm7a f4e4f4d9).
+Verdict: FIX (0 BLOCK, 1 MAJOR, 5 MINOR).
+
+Checks:
+1. Items: a1 closed (60a2334, known-red has no wm7a id); flat pager (dc208f8, face order; act pass per the lane's
+   gate log, not re-run); m4 sound for chora-* commands, brittle otherwise (rw-4); gate section 6 (ec29903) states
+   the new behaviour, 3 s bound = 12 x 0.25 s, same xp pid, cube.close ends the reopened xp; I1 act pass per gate
+   log (not re-run); docs done, one stale line (rw-5).
+2. Red first: 14dad42->60a2334, 6078eed->dc208f8, f7819fb->ae3b49d, b68e9e7->e973e15, 3579bc2->31f04c0, ec29903
+   test only; 6e79fb7's red cell is the restart act of 5322c586 (ok); e450d672 (core) has no red commit (rw-6).
+3. Extras are real fixes: 6e79fb7 reads the core focus on reopen; 31f04c0 keeps the host while faces go (xp ends
+   with the last face, unit test); e973e15 restores the pre-wm7b pane-host behaviour (no weakened check).
+4. Worker's MAJOR candidate confirmed, rated MINOR (rw-2).
+5. clippy --workspace --all-targets -D warnings clean; cut-check FAIL (rw-1, clean on base+wm7a); ci-check skipped.
+6. cargo test -p chora-construct -p chora-xp -p chora-kit --features chora-kit/testing: 699 pass, 0 fail;
+   size-ratchet ok (cube.rs 1617 counted, listed 1641: shrank; no new file over 1,500).
+
+Findings:
+- rw-1 MAJOR plugins/chora-construct/src/cube/start.rs:34 (+ cube/role.rs:128,134, names.rs:91,158,161): cut-check
+  FAILs new in wm7b: XDG_RUNTIME_DIR outside kit (KIT1 allows 0), construct names chora-xp 9/5 and chora-mc 19/17;
+  REPORT Command::Focus outside kit::wm 18->19 (modes.rs:749); the train's ci-check goes red. Fix: log dir via
+  chora_scene::paths::runtime_home(), neutral program names in tests and doc comments, and the focus via a kit::wm
+  helper or a reasoned row raise.
+- rw-2 MINOR crates/chora/src/ipc.rs:1191 (GRACE ipc.rs:71; kit conn.rs:43 resume; acts construct.py:282-291):
+  confirmed: a crashed construct's kept sky/look/face nodes cover the screen for up to 10 s while the windows are
+  already with a flat xp, unseen and unclickable; crash path only, transient, no window lost (RC bar holds), core
+  rule older than wm7b. Fix (backlog, core): hide a disconnected client's kept nodes during its grace, show on resume.
+- rw-3 MINOR plugins/chora-xp/src/wm/keys.rs:225: I3 covers only construct's look (modes.rs:749 sends focus null);
+  a focus_node of another client (chat, assistant) emits no focus.changed (crates/chora/src/state.rs:1035), so xp
+  still draws its window active. Fix: the core emits focus.changed {surface: null} when a node takes the keyboard.
+- rw-4 MINOR plugins/chora-construct/src/cube/start.rs:133 (names.rs:93): the face manager's client is guessed from
+  the command's program, not found by role; `env X=1 chora-xp` or `sh -c ...` gives "env"/"sh", so the runs-already
+  check and float.rs `{client}-win-` miss xp's windows silently. Fix: take the client that claims the face outputs
+  once it connects, the setting guess only before.
+- rw-5 MINOR docs/api.md:1619: "On virtual outputs without a host, a desk switch is flat" contradicts e973e15 (no
+  pager, no turn keys there); help.rs:139 flat_desks and panels.rs:113 are dead. Fix: say "no desk switch" and drop
+  the Flat key-sheet text.
+- rw-6 MINOR crates/chora/src/input.rs (e450d672): core fix and its test in one commit, no red commit first
+  (rules.md 8); 1ae3f243 also edits acts in a fix commit. Fix: none in code (no history rewrite); record it.
