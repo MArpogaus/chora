@@ -72,6 +72,10 @@ const GRACE: Duration = Duration::from_secs(10);
 const MAX_EMIT: usize = 64 << 10;
 /// The most events that one client name emits per `EMIT_WINDOW` (D65).
 const MAX_EMITS: u32 = 32;
+/// The events that every client may emit, whatever its name: the looks
+/// name their theme and their view to whoever draws for them. The core
+/// puts the emitter in `data.look`.
+const LOOK_EVENTS: &[&str] = &["look.theme", "look.view"];
 /// The most grabs of one connection.
 const MAX_GRABS: usize = 256;
 const EMIT_WINDOW: Duration = Duration::from_secs(1);
@@ -708,6 +712,19 @@ fn subscribable(name: &str) -> bool {
         && (name.split_once('.')).is_some_and(|(head, rest)| valid_name(head) && valid_name(rest))
 }
 
+/// The data of a shared event of the looks with the field `look` set to
+/// the emitter; the data is an object or null.
+fn stamped_look(mut data: Value, event: &str, client: &str) -> Result<Value, RpcError> {
+    if data.is_null() {
+        data = Value::Object(serde_json::Map::new());
+    }
+    let Some(fields) = data.as_object_mut() else {
+        return Err(rejected(format!("the data of {event} is an object")));
+    };
+    fields.insert("look".into(), Value::from(client));
+    Ok(data)
+}
+
 fn stamped(message: &Message, seq: u64) -> Vec<u8> {
     let mut message = message.clone();
     if let Some(Value::Object(params)) = message.params.as_mut() {
@@ -1035,7 +1052,8 @@ impl State {
     /// Sends an event of the client to the connections that subscribed to
     /// its name or a pattern of it (D65). The name starts with the client
     /// name and a dot, so no client sends a core event or one of another
-    /// name. The data has at most `MAX_EMIT` bytes, and a name emits at most
+    /// name; the exception is `LOOK_EVENTS`, whose data gets the field `look`
+    /// with the client name. The data has at most `MAX_EMIT` bytes, and a name emits at most
     /// `MAX_EMITS` events per second; the core refuses the rest with code 6.
     fn ipc_emit(&mut self, conn: u64, emit: Emit) -> Result<Value, RpcError> {
         let client = self
@@ -1049,9 +1067,11 @@ impl State {
                  emit as a client whose name starts otherwise"
             )));
         }
-        let own = (emit.event.strip_prefix(client.as_str()))
-            .and_then(|rest| rest.strip_prefix('.'))
-            .is_some_and(chora_scene::ipc::valid_name);
+        let shared = LOOK_EVENTS.contains(&emit.event.as_str());
+        let own = shared
+            || (emit.event.strip_prefix(client.as_str()))
+                .and_then(|rest| rest.strip_prefix('.'))
+                .is_some_and(chora_scene::ipc::valid_name);
         if !own {
             return Err(rejected(format!(
                 "an event of {client:?} is named {client}.NAME, with NAME in lowercase \
@@ -1059,7 +1079,12 @@ impl State {
                 emit.event
             )));
         }
-        let size = serde_json::to_vec(&emit.data).map_or(usize::MAX, |d| d.len());
+        let data = if shared {
+            stamped_look(emit.data, &emit.event, &client)?
+        } else {
+            emit.data
+        };
+        let size = serde_json::to_vec(&data).map_or(usize::MAX, |d| d.len());
         if size > MAX_EMIT {
             return Err(RpcError::new(
                 RpcError::LIMIT_REACHED,
@@ -1083,7 +1108,7 @@ impl State {
         let event = Event::Emitted {
             event: emit.event,
             client,
-            data: emit.data,
+            data,
         };
         self.ipc.send_subscribed(None, &event, |_| None);
         Ok(Value::Null)
@@ -2490,6 +2515,32 @@ mod tests {
             "{core_only:?}"
         );
         assert_eq!(other.event_names(&mut core), Vec::<String>::new());
+    }
+
+    /// The shared events of the looks: any client emits `look.theme` and
+    /// `look.view`, and the core names the emitter in `data.look`, so a
+    /// fifth look needs no change in whoever listens for `look.*`. No
+    /// other name of the namespace goes through.
+    #[test]
+    fn a_look_names_itself_with_the_shared_look_events() {
+        let mut core = Core::new();
+        let mut host = core.named("host");
+        host.ok(&mut core, "events.subscribe", json!({"events": ["look.*"]}));
+        let mut fifth = core.named("fifth");
+        let theme = json!({"event": "look.theme", "data": {"theme": "dark", "look": "mc"}});
+        fifth.ok(&mut core, "events.emit", theme);
+        let view = json!({"event": "look.view", "data": {"pane": true}});
+        fifth.ok(&mut core, "events.emit", view);
+        let got = host.events_now(&mut core);
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert_eq!(got[0]["params"]["event"], "look.theme");
+        assert_eq!(got[0]["params"]["client"], "fifth");
+        assert_eq!(got[0]["params"]["data"]["look"], "fifth", "no spoofed look");
+        assert_eq!(got[0]["params"]["data"]["theme"], "dark");
+        assert_eq!(got[1]["params"]["data"]["look"], "fifth");
+        assert_eq!(got[1]["params"]["data"]["pane"], true);
+        let (error_code, _) = fifth.fails(&mut core, "events.emit", json!({"event": "look.other"}));
+        assert_eq!(error_code, RpcError::REJECTED);
     }
 
     /// D65: the data has at most 64 KiB, and a name emits at most 32
