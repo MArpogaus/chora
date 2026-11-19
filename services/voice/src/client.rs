@@ -672,6 +672,16 @@ impl Client {
         Ok(())
     }
 
+    /// Changes the set of grabs to the push-to-talk key alone: the key
+    /// stays with the core between the old set and the new one (GR2), and
+    /// the confirm keys go.
+    fn regrab(&mut self) -> Result<(), ClientError> {
+        self.rt.start_grabs();
+        let grabbed = self.grab();
+        self.rt.end_grabs()?;
+        grabbed
+    }
+
     /// Grabs the keys of `confirm_keys` while a question waits for them
     /// (`physical`), and lets them go when a question ends.
     fn confirm_keys(&mut self, data: &Value) -> Result<(), ClientError> {
@@ -686,12 +696,7 @@ impl Client {
             }
         } else if data["done"] == true && self.confirming {
             self.confirming = false;
-            #[allow(
-                clippy::disallowed_methods,
-                reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
-            )]
-            self.rt.ungrab_all()?;
-            self.grab()?;
+            self.regrab()?;
         }
         Ok(())
     }
@@ -707,12 +712,7 @@ impl Client {
     /// Hands the settings to the core and grabs the key again.
     fn apply(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
-        #[allow(
-            clippy::disallowed_methods,
-            reason = "GR1 of voice is open: it lets its keys go and grabs them again (backlog GR2)"
-        )]
-        self.rt.ungrab_all().map_err(rejected)?;
-        self.grab().map_err(rejected)?;
+        self.regrab().map_err(rejected)?;
         let config = Box::new(self.settings.value.clone());
         let hidden = self.claims.keep(&self.settings.value.indicator_clients);
         let gone = |_| RpcError::new(RpcError::REJECTED, "the core does not answer");
