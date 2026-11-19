@@ -410,3 +410,8 @@ wm3 e15155da was MERGE-OK, yet two of its unit tests panic on the session head (
 gives through the book). Every wm3 commit from its merge of the head (582620d8) is red, so its last gate ran before
 that merge. Earliest gate: the lane's own merge-gate after its last head merge. Rule: a handback names the gate run
 of its final sha; the PM checks that sha before MERGE-OK (procedures, seeded review). audit-f found it first.
+
+## 11-19 14:24 UTC: a lane branch carried an unmerged branch (cubesplit on fa457b29 carries wm3)
+Train 64b went red on wm3's xp tests although wm3 was out of the train. Earliest check: the seeded
+review lists `git log <session head>..<sha> --merges`; a merge of an unmerged lane branch is named
+in the verdict and the sha waits for that branch. Applied in procedures by hand from now.
