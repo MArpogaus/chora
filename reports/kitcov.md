@@ -131,3 +131,9 @@ with an `injected` field in `runtime.rs`; those patterns name the field
 pre-commit PASS, build PASS (150 s), ci-check PASS (75 s). The gate's
 pre-commit step needs `origin/claude/autonomous-dev-session-3w-i33pg7` in the
 clone, which was fetched for the run. Full gate not run; the train runs it.
+
+## PM review r1 (13:46 UTC; PM not the builder)
+Diff dd2a0aa3...ea468e3: 5 files, +749 -0, all inside `#[cfg(test)]` modules (conn.rs fake_core is cfg(test)); no production line changed.
+Tests assert named behaviour (from_person, hears_pointer, plugin defaults, METHOD_NOT_FOUND, error cut at 511 chars), not line runs.
+Merges clean onto fa457b29 (train 64). Note: runtime.rs now 1446 lines, 54 under the F4 limit; the next production change there splits it (backlog).
+Verdict (computed): no BLOCK, no MAJOR -> MERGE-OK; joins train 64.
