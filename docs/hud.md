@@ -360,7 +360,7 @@ click on its entry or by its number typed after the text. After such a
 text only a click or a number picks: the name of a helper is text. A
 number that is no entry of the list is text too, and comes back with the
 same words. The text ends
-with the list: after Escape or a hide no helper gets it, and a chat that
+with the list: after Escape or a hide no helper gets it and the field is empty, and a chat that
 a question, `chat.show` or the only helper opens sends nothing.
 
 The empty-field hint of a plain chat is in the colour `name`. Its field

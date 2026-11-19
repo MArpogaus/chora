@@ -893,13 +893,18 @@ impl Session {
 
     /// Closes the view and the field. The field hears it also when it
     /// took its surface away itself, on Esc: a place that the host wrote
-    /// before it read that shows the field again, with no view.
+    /// before it read that shows the field again, with no view. The text
+    /// that a list gave back goes from the field: no helper gets it.
     pub fn hide(&mut self, out: &mut dyn Outside) {
         self.close_chat(out);
+        let held = matches!(self.mode, Mode::List(_, Some(_)));
         self.mode = Mode::Closed;
         self.keyboard = false;
         self.spoken = None;
         if let Some(link) = self.link.as_mut() {
+            if held {
+                link.clear();
+            }
             link.hide();
         }
     }
