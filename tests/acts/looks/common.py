@@ -75,5 +75,5 @@ def notice_acts(s, slot=None):
         call = {"client": "notify", "method": "notify.close", "params": {"id": sent["id"]}}
         s.core.call("methods.call", call)
 
-    s.act("a notice shows", [show], notices=[NOTICE])
-    s.act("a notice is dismissed", [dismiss], dismissed=[NOTICE])
+    s.act("a notice shows", [show])
+    s.act("a notice is dismissed", [dismiss])

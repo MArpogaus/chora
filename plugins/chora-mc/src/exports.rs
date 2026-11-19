@@ -169,7 +169,7 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
         runtime::method("agent.list", "Answers the agents.", json!({}), &[]),
         runtime::privileged(runtime::method(
             "notify.push",
-            "Shows a notice through chora-notify; a critical one stays until the person \
+            "Shows a notice through the notification server; a critical one stays until the person \
              closes it.",
             json!({
                 "title": {"type": "string"},

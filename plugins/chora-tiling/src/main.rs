@@ -234,7 +234,7 @@ fn main() -> ExitCode {
 }
 
 /// Shows why a program does not start as a critical notice of
-/// chora-notify; when the core or the server is gone, the line on stderr
+/// the notification server; when the core or the server is gone, the line on stderr
 /// is the only message.
 #[allow(
     clippy::disallowed_methods,
