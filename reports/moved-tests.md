@@ -260,3 +260,39 @@ wm/pointer.rs
 | 484-511 | start_program, start_named's notepad chain | GATE | spawns the program |
 | 515-520 | start_named | GATE | spawns the program |
 | 523-529 | check_launches, the loop with a change | 523-525 UT; 526-528 GATE | a change needs a started program |
+
+Step 2, the tests (branch claude/moved-tests-mk3, commit c00dcf3e; new files only:
+wm/panels/tests_moved.rs (35 tests), wm/pointer/tests_moved.rs (+19 tests), one `#[cfg(test)] mod`
+line in wm/panels.rs; no production code changed). The panels were written first. Pointer was
+over 70 % after its first batch, so the ranges left there are named, not written.
+
+| file | before | after | at 70 %? |
+|---|---|---|---|
+| wm/panels.rs | 40.68 % (312 missed) | 93.35 % (35 missed) | yes |
+| wm/pointer.rs | 63.30 % (167 missed) | 79.12 % (95 missed) | yes |
+
+Ranges left (after), with the reason for each:
+- panels 54: the Done arm of the second match in `tell`; unreachable, `tell` returns for Done above it.
+- panels 58: `launches.noted`; the note id is private launcher state, so only a real start reaches it.
+- panels 75-77, 618, 625-630, 632, 634-637, 640-642, 644-645, 427-430: gate only: each starts a program (start_program, start_named, xdg-open, the chat helper).
+- panels 84-85, 88-89: gate only: Lock and Screenshot run a shared script (session::run) when it is installed.
+- panels 386: gate only: the speaker sends a job to the volume backend.
+- panels 263, 296: unreachable: Apply comes from Display only; open_display_list is called from Display clicks only.
+- pointer 156-157, 484-511, 515-520, 527-528: gate only: start_program, start_named, check_launches with a finished start.
+- pointer 251, 306-308: gate only: a drop on an output that shows no part of the window needs a second output; the fake core lists one.
+- pointer 60-61, 185-190, 205, 237-241, 264, 273-277, 284-291, 328, 354-369, 380-392: unit test, not written (the file is over 70 %); the next lines to take, in this order: start_resize and the resize drag (60-61, 185-190), the context row and the dialog choice (237-241, 273-277), hand_over with a claim or a refused claim (380-392).
+
+The raise returns of open_date_dialog, open_display_dialog and open_effects (158, 172, 312) are covered: a test asserts the single Move command they return.
+
+Gates: `cargo clippy -p chora-xp --all-targets`: 0 warnings (clippy --fix on the three test files for `assert!(is_empty())`, and one reasoned allow on a cast). `cargo fmt -p chora-xp` applied. `cargo test -p chora-xp`: 301 passed (253 before). `tests/merge-gate.sh --jobs 3` on c00dcf3e: GATE-EXIT=0, 41 steps PASS, nothing pushed by the gate (log: the gate's run directory /tmp/merge-gate.TBhufP).
+
+Notes for the PM:
+- The branch merges origin/claude/autonomous-dev-session-3w-i33pg7 (85764974) as step 0 asked; that merge is in the branch, so the branch is ahead of 4904ef79 by the merge and the tests.
+- A commit hook (no inline comments) refused the first commit; the comment became a doc comment, no hook was skipped.
+- Commits carry no attribution lines, as the brief says.
+
+## Review mk r3 (PM, 18:03; builder haiku; c00dcf3e, own commit 3 files +989 -3)
+Checks: the own commit touches only `tests_moved.rs` files plus one `#[cfg(test)] mod tests_moved;` line in panels.rs (no production code);
+no sleep or #[ignore] added; lane gate on c00dcf3e GATE-EXIT=0 (41 steps); cargo test -p chora-xp 301 (253 before);
+coverage claims panels 93.35 %, pointer 79.12 % (both over the 70 % target; figures are the lane's llvm-cov run, the merge gate re-runs the tests).
+Verdict (computed): no open MAJOR -> MERGE-OK c00dcf3e. Train 69.

@@ -86,3 +86,25 @@ Left open: B2, B3, B4, B6, N1-N4 (known-red rows), N5. That is 9.
   (2) `Followed` in construct cube/start.rs and the reader of a log file in services/voice are the same follow
   loop (M). (3) about 24 `disallowed_methods` allows, most in tests, say "the test connects to its fake core": a
   kit `testing::connect` would remove them (S).
+
+## Review r1
+
+Reviewed claude/debt-down at c79a9d66 against base 85764974 (10 commits, 67 files). Brief: briefs/review-debt-down-r1.md.
+
+**Verdict: FIX** (one open MAJOR, rd-1).
+
+Checks:
+1. F4 counts, using the audit-f F4 commands on each tree: `#[allow]`/`#[expect]` total 395 -> 375 (RC 378). Without `reason`: 251 -> **192** (RC 238; the r1 table says 197). `eprintln!`: 147 -> 126 (RC 135). Workarounds by id: 13 -> 9 (B2, B3, B4, B6, N1-N5 open; RC 9). Hygiene by id: 16 -> 13 (H2-H7, H9, H11, H13, H14 and DB7-DB9 open; H12 is in dev-rules.md:83 on the log branch; RC 14). Every count is at or below RC. Wrapped reasons: the base already has 61 `#[allow(` lines whose `reason` is on a later line; the head has 75. So 14 new ones were wrapped, as the report says. The one-line grep counts all 75 as "without reason"; only 117 of the 192 really have no reason.
+2. Red first holds. 8a332fc0 fails on its own tree (tests_moved.rs:403) and passes on 6b918eee. 31a03afd fails ("waited 150.1 ms") and passes on 07eb024c. All tests of xp, construct and mc pass on the head (253, 204, 132).
+3. W7 design: see rd-1 and rd-2. With no holder, xp's first grab succeeds, so that case is fine.
+4. Every hunk in crates/chora/src, chora-scene and chora-draw was read. They only add a `reason`, wrap an attribute or remove an allow. No code changed (removed allows: input.rs:590, capture.rs:391, blur.rs:69, node.rs five field allows, theme.rs:1166).
+5. d3d70fcf: `report()` prints the same text as before ("chora-xp: {err}", "chora-mc: {what}: {message}", "chora-construct: {err}"). Every former call site still reports. Only the two watchdog lines were dropped. `cargo clippy --workspace --all-targets -- -D warnings` is clean on c79a9d66 (rc 0).
+6. Gates: mc-handover 820 ms still fails on a hang and is tighter than 1000 ms, so a slowdown shows. apps-click `until_ok ... 80` fails after 20 s. The pull step-back now asserts the stood-back state and fails after 10 s. A click before the rows are drawn would start the wrong program, which the gate catches as red, not as a false green.
+
+Findings:
+- rd-1, MAJOR, plugins/chora-xp/src/wm.rs:106 (dispatch.rs:71, docs/configuration.md:2186): xp now listens for the construct's own event `construct.escape_free`. That makes one look depend on another look's event name. Any other client that holds Alt+Escape and gives it up on `xp.switcher`, which is what the docs promise, now never gets it grabbed back, so Escape no longer cancels the switch. The old 4 × 15 ms retry worked for any holder. Fix: make the event generic, with no holder name. KISS form: the core emits `input.ungrabbed {binding}` on every ungrab, and xp grabs again on it. The holder then needs no event of its own, and this IPC addition gets its D entry under the H12 rule.
+- rd-2, MINOR, plugins/chora-xp/src/wm/keys.rs:419: while the construct holds Alt+Escape (its step-back binding), the first grab is refused on every Alt+Tab. That expected refusal goes to `crate::report`, so each switch now writes a "chora-xp: ..." error line that the retry used to hide. Fix: leave the refusal of this grab out of the report, since the free event retries it.
+- rd-3, MINOR, plugins/chora-construct/src/cube/start.rs:91: `settle` waits for `passes + 1`. A reader whose `read` returned 0 before the manager's last write, but which takes the lock only after `settle` set its target, finishes the pass too early, and `last()` returns the old line. Fix: count only passes that start after the ask, e.g. the reader clears `asked` before its read and `settle` waits for `passes + 2`.
+- rd-4, MINOR, reports/debt-down.md "## r1" table: the "without reason" count for the head is 192, not 197 (the 197 is from before 509b5b1f). Fix: correct the table, and note that 75 of the 192 have their reason on a wrapped line.
+- rd-5, MINOR, services/voice/src/client.rs:548, tools.rs:320, config.rs:903 (d3d70fcf): these copies-0 files were edited (one `reason` line each), but the r1 report lists them as "Not touched". Fix: list them in the report so copies-0 can expect a one-line conflict, or drop the three hunks.
+- rd-6, NIT, tests/gate-tiling-apps-click.sh:21: a 24th copy of `until_ok` in tests/*.sh. Fix: move `until_ok` into gate-lib.sh in a later hygiene lane.
