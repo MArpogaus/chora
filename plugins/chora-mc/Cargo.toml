@@ -8,6 +8,9 @@ serde-saphyr.workspace = true
 serde_json.workspace = true
 ttf-parser.workspace = true
 
+[dev-dependencies]
+chora-kit = { workspace = true, features = ["testing"] }
+
 [lints]
 workspace = true
 

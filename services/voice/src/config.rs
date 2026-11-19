@@ -1297,14 +1297,13 @@ mod tests {
         }
     }
 
-    /// A socket for the probe in `XDG_RUNTIME_DIR`, where the main socket
+    /// A socket for the probe in the runtime directory, where the main socket
     /// of chora lives; it goes also when the test panics.
     struct Probe(std::path::PathBuf);
 
     impl Probe {
         fn bind() -> Self {
-            let dir =
-                std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+            let dir = chora_scene::paths::runtime_home().unwrap_or_else(std::env::temp_dir);
             let path = dir.join(format!("chora-sandbox-probe-{}.sock", std::process::id()));
             let _ = std::fs::remove_file(&path);
             std::os::unix::net::UnixListener::bind(&path).unwrap();

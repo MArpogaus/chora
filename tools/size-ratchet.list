@@ -1,0 +1,4 @@
+# Files over 1,500 production lines (tools/size-ratchet). A count only falls.
+1641 plugins/chora-construct/src/cube.rs
+2271 plugins/chora-mc/src/region.rs
+1531 services/voice/src/chat.rs

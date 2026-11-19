@@ -1,18 +1,29 @@
-//! A fake core for the tests of the plugin: the scene model of the core
+//! A fake core for the tests of a plugin: the scene model of the core
 //! behind a socket, without a renderer and without layout.
+#![allow(
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    reason = "a fake core for tests: a failure is a failed test"
+)]
 
 use std::{
     io::{BufRead, BufReader, Write},
-    os::unix::net::UnixListener,
+    os::unix::net::{UnixListener, UnixStream},
     path::PathBuf,
-    sync::{Arc, Mutex, OnceLock},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
-use chora_kit::{conn::Conn, runtime::Runtime, settings};
-use chora_scene::{Command, OutputInfo, Transform, ipc::RpcError};
+use chora_scene::{Command, ipc::RpcError};
 use serde_json::{Value, json};
 
-use crate::{Mc, NAME, config};
+use crate::conn::Conn;
+
+mod script;
+
+pub use script::{Script, Subject, created, created_by, detach, output, owner, phases, surface};
 
 /// The scene model of the fake core, shared with the test.
 pub type Model = Arc<Mutex<Core>>;
@@ -20,6 +31,7 @@ pub type Model = Arc<Mutex<Core>>;
 /// What the fake core keeps of a connection.
 #[derive(Default)]
 pub struct Core {
+    /// The scene that the plugin built.
     pub scene: chora_scene::Scene,
     /// The focus commands that the plugin sent.
     pub focuses: Vec<Option<String>>,
@@ -31,39 +43,102 @@ pub struct Core {
     pub called: Vec<Value>,
     /// The events that the plugin emitted through `events.emit`.
     pub emits: Vec<Value>,
-    /// `methods.call` fails, as when the client of the method is gone.
-    pub refuse_calls: bool,
+    /// The methods whose next call fails, in the order that they were planted.
+    pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
+    /// What `methods.call` answers for a method, by its name; `null` for
+    /// the others.
+    pub answers: std::collections::HashMap<String, Value>,
 }
 
-/// The model of each connection, in the order of the connections.
-static MODELS: Mutex<Vec<Model>> = Mutex::new(Vec::new());
+/// A fake core on a socket of its own, with one model for the
+/// connections to it.
+pub struct FakeCore {
+    path: PathBuf,
+    model: Model,
+}
 
-/// Starts the fake core once; answers its socket.
-fn socket() -> &'static PathBuf {
-    static PATH: OnceLock<PathBuf> = OnceLock::new();
-    PATH.get_or_init(|| {
-        let path = std::env::temp_dir().join(format!("chora-mc-core-{}.sock", std::process::id()));
+impl FakeCore {
+    /// Starts a fake core that answers on a new socket.
+    ///
+    /// # Panics
+    ///
+    /// The socket cannot be bound.
+    #[must_use]
+    pub fn start() -> Self {
+        static COUNT: AtomicUsize = AtomicUsize::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "chora-fake-core-{}-{}.sock",
+            std::process::id(),
+            COUNT.fetch_add(1, Ordering::Relaxed)
+        ));
         let _ = std::fs::remove_file(&path);
         let listener = UnixListener::bind(&path).unwrap();
+        let model = Model::default();
+        let shared = model.clone();
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
-                let model = Model::default();
-                MODELS.lock().unwrap().push(model.clone());
+                let model = shared.clone();
                 std::thread::spawn(move || serve(&stream, &model));
             }
         });
-        path
-    })
+        Self { path, model }
+    }
+
+    /// Plants a refusal: the next call of `method` fails with
+    /// `REJECTED`, as when the client of a method is gone. The call after
+    /// it passes again.
+    pub fn refuse_next(&self, method: &str) {
+        self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Plants the answer that every call of `method` through
+    /// `methods.call` gets, as when the client that serves it is there.
+    pub fn answer_with(&self, method: &str, answer: Value) {
+        (self.model.lock().unwrap().answers).insert(method.to_owned(), answer);
+    }
+
+    /// The scene model, shared with the fake core.
+    #[must_use]
+    pub fn model(&self) -> Model {
+        self.model.clone()
+    }
+
+    /// Connects a plugin named `name`.
+    ///
+    /// # Panics
+    ///
+    /// The connection fails.
+    #[must_use]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    pub fn connect(&self, name: &str) -> Conn {
+        Conn::connect_at(name, &self.path).unwrap()
+    }
+}
+
+impl Drop for FakeCore {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
 }
 
 /// Answers the requests of one connection.
-fn serve(stream: &std::os::unix::net::UnixStream, model: &Model) {
+fn serve(stream: &UnixStream, model: &Model) {
     let mut writer = stream.try_clone().unwrap();
+    let mut owner = String::new();
     for line in BufReader::new(stream).lines().map_while(Result::ok) {
         let request: Value = serde_json::from_str(&line).unwrap();
-        let answer = match answer(model, &request) {
+        if request["method"] == "hello" {
+            request["params"]["name"]
+                .as_str()
+                .unwrap_or_default()
+                .clone_into(&mut owner);
+        }
+        let answer = match answer(model, &owner, &request) {
             Ok(result) => json!({"jsonrpc": "2.0", "id": request["id"], "result": result}),
             Err((code, message)) => json!({"jsonrpc": "2.0", "id": request["id"],
                 "error": {"code": code, "message": message}}),
@@ -72,9 +147,17 @@ fn serve(stream: &std::os::unix::net::UnixStream, model: &Model) {
     }
 }
 
-fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
+fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, String)> {
     let params = &request["params"];
-    match request["method"].as_str().unwrap_or_default() {
+    let method = request["method"].as_str().unwrap_or_default();
+    {
+        let mut core = model.lock().unwrap();
+        if let Some(at) = core.refusals.iter().position(|m| m == method) {
+            core.refusals.remove(at);
+            return Err((RpcError::REJECTED, format!("{method} is refused")));
+        }
+    }
+    match method {
         "hello" => Ok(json!({"version": chora_scene::ipc::VERSION})),
         "scene.apply" => {
             let commands: Vec<Command> =
@@ -84,7 +167,7 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
                 Command::Focus { surface } => Some(surface.clone()),
                 _ => None,
             }));
-            match core.scene.apply(NAME, &commands) {
+            match core.scene.apply(owner, &commands) {
                 Ok(_) => Ok(Value::Null),
                 Err(e) => Err((
                     RpcError::REJECTED,
@@ -101,13 +184,12 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             let mut core = model.lock().unwrap();
+            let answer = core.answers.get(&method).cloned().unwrap_or(Value::Null);
             core.calls.push(method);
             core.called.push(params.clone());
-            if core.refuse_calls {
-                return Err((RpcError::REJECTED, "no such client".to_owned()));
-            }
-            Ok(Value::Null)
+            Ok(answer)
         }
+        "output.list" => Ok(json!([])),
         "events.emit" => {
             model.lock().unwrap().emits.push(params.clone());
             Ok(Value::Null)
@@ -125,46 +207,6 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
         }
         _ => Ok(Value::Null),
     }
-}
-
-/// A plugin on the fake core with the default settings, no scene files,
-/// one output of `size` and its nodes built; and the model.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
-pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
-    // One connection at a time, so that the last model is this one.
-    static CONNECT: Mutex<()> = Mutex::new(());
-    let one = CONNECT.lock().unwrap();
-    let conn = Conn::connect_at(NAME, socket()).unwrap();
-    let mut rt = Runtime::with(conn, NAME, Vec::new());
-    rt.pin_accepts_injected(false);
-    let model = MODELS.lock().unwrap().last().unwrap().clone();
-    drop(one);
-    let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    let file = dir.join("chora-mc.yaml");
-    let settings = settings::File::load(file, config::DEFAULT).unwrap();
-    let mut mc = Mc::new(
-        rt,
-        settings,
-        dir.join("scenes"),
-        [dir.join("write.frag"), dir.join("blur.frag")],
-    );
-    mc.output = Some(OutputInfo {
-        name: "test".into(),
-        position: [0, 0],
-        size,
-        scale: 1.0,
-        camera: Transform::IDENTITY,
-        work_area: [0, 0, size[0], size[1]],
-        default_work_area: [0; 4],
-        is_virtual: None,
-        owner: None,
-    });
-    mc.build().unwrap();
-    (mc, model)
 }
 
 /// Whether the model has a node.

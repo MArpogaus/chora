@@ -168,6 +168,13 @@ const CURRENT_KEY: &str = "current";
 /// The prefix of a meta key of the group with the tags of an output.
 const TAGS_KEY: &str = "tags:";
 
+/// Whether a meta key is one that tiling wrote before the versioned key
+/// of `kit::wm::kept`: its restart reads them, and a foreign update does
+/// not change them.
+pub fn legacy_key(key: &str) -> bool {
+    key == WINDOW_KEY || key == CURRENT_KEY || key.starts_with(TAGS_KEY)
+}
+
 /// A tag in meta: the layout, the master width, the masters and the
 /// columns. Short, so that 16 tags fit into the 1 KiB of a meta value.
 type KeptTag = (Layout, f64, usize, usize);

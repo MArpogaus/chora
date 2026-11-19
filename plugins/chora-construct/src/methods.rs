@@ -192,6 +192,7 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             &["name"],
         ),
         give::method(),
+        runtime::state_method(),
         chora_kit::clock::method(),
         runtime::method(
             "camera.glide",

@@ -19,6 +19,7 @@ impl Plugin for Construct {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
+        self.voiced.hear(&event);
         let Some(event) = self.pulled(event)? else {
             return Ok(());
         };
@@ -36,6 +37,10 @@ impl Plugin for Construct {
                 self.created(&surface, &label, to.as_deref(), pid, token.as_deref())
             }
             Event::SurfaceDetached { surface } => self.detached(&surface),
+            Event::FocusChanged { surface } => {
+                self.core_focus = surface;
+                Ok(())
+            }
             Event::SurfaceDestroyed { surface }
                 if self.launcher_window.as_deref() == Some(&surface) =>
             {
@@ -78,6 +83,10 @@ impl Plugin for Construct {
             event if chat_closed(&event) => self.keyboard_back(),
             event => self.other(event),
         }
+    }
+
+    fn state(&self) -> Option<Value> {
+        Some(self.state_value())
     }
 
     #[allow(clippy::too_many_lines, reason = "one arm per method")]

@@ -9,6 +9,24 @@
 - In a repository with several contributors, each contributor works on
   `dev-NAME`. Pull requests from `dev-NAME` target a protected `main` (D47).
 
+## Where shared code lives
+
+A mechanism that two looks (mc, xp, tiling, construct) need lives in a shared crate, not in a look:
+
+- `crates/chora-scene`: the scene model, IPC types and client, and `paths` (every XDG and runtime directory, `private_dir`; D101).
+- `crates/chora-kit`: the plugin runtime, `actions` and `settings::Common` (D98), `ask` (D100), `words` and `Language` (D102), `wm` (`book`, `give`, `kept`, `state`; D99), `helper`, `runtime_file`, and `testing` with `FakeCore` (D96).
+- `crates/chora-draw`: drawing blocks.
+
+The decision records are in [docs/decisions.md](docs/decisions.md#decisions-of-the-shared-core); the layout is in [docs/project-structure.md](docs/project-structure.md).
+
+**A look uses the kit; it keeps no copy.** When a mechanism moves to the kit, a row in `tools/copies.toml` counts what remains of it in the looks. To add a row:
+
+1. Write the pattern as a regex of the line that marks the copy (for example `to != NAME`), and `allow` the crate prefixes that may hold it (usually `crates/chora-kit/`).
+2. Set `max` to the count that exists today and give the row a `name`; `paths` limits the scan (default: crates, plugins, services).
+3. Port the looks, and lower `max` with each port; at `max = 0` the row blocks, and `tools/cut-check` fails in `ci-check` and the merge gate when a copy comes back.
+
+A count only falls: `tools/cut-check` prints "lower max" when the real count is lower. Write the red test of the shared module first (D96 `FakeCore`), then the move, then the row.
+
 ## Hooks
 
 Install the hooks once in every fresh clone:
@@ -233,7 +251,10 @@ mako, swaybg, swayidle and kanshi.
 `tests/merge-gate.sh` decides whether a merge into the session branch may
 be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
 handover matrix, the HUD gate, the doors gate (`tests/gate-doors.sh`: the
-shared keys and one visible door per action in every look),
+shared keys and one visible door per action in every look), the act
+contracts (`tests/gate-acts.sh`: acts per look with the invariants of
+`tests/acts/invariants.py`, failures known today listed in
+`tests/acts/known-red.toml`),
 `tests/last-words.sh` and the cube gate
 of the construct, one log per step
 in a run directory. `tests/gate-watchdog-starved.sh` is not a step: it
@@ -277,6 +298,28 @@ the gate checks 6, 8 and 10. Two jobs on an Ubuntu runner run the gate checks th
 need root or podman. `vkms` starts chora on the tty backend, and
 `podman` runs a client in a container. A gate check that needs a user
 manager runs by hand on the reference machine.
+
+### Size and cut checks
+
+`tools/size-ratchet` lists the Rust files over 1,500 production lines (the
+lines before the `#[cfg(test)] mod` of a file; test files count 0) in
+`tools/size-ratchet.list`. A listed file may not have more lines than at
+the merge base (the lower of the list and the base counts holds, so a
+stale list entry after a split does not block), and a new file over the
+limit fails; run `tools/size-ratchet --update` after an extraction to
+lower the list. The list is sorted by path and `--update` edits only the
+changed lines, so parallel split branches merge cleanly. The test cut
+needs the rustfmt form: `#[cfg(test)]` on one line, then `mod x {` on the
+next; any other form counts the tests as production lines.
+
+`tools/cut-check` asks whether a plugin could be packaged and moved to
+another repository alone. A dependency of one crate under `plugins/` or
+`services/` on another blocks. Assets outside the crate, the names of
+other plugins, workspace dependencies beyond chora-kit, chora-scene and
+chora-draw, and the copy rows of `tools/copies.toml` are reported; a copy
+row at `max = 0` that still matches blocks. A dev-dependency of one
+plugin on another blocks too. Both run in `ci-check` of the
+merge gate and in CI, each with a self-test under `tests/`.
 
 ## Demo media
 

@@ -8,6 +8,7 @@
     clippy::print_stderr,
     reason = "a plugin logs to stderr, which the session keeps"
 )]
+pub mod actions;
 pub mod ask;
 pub mod chat;
 pub mod clock;
@@ -18,16 +19,20 @@ pub mod float;
 pub mod geometry;
 pub mod give;
 pub mod glass;
+pub mod helper;
 pub mod hud;
 pub mod icons;
 pub mod lamp;
 pub mod launcher;
 pub mod modes;
-pub mod notify;
+pub mod notice;
 pub mod runtime;
 pub mod settings;
 pub mod shared;
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
 pub mod volume;
+pub mod wm;
 pub mod wobbly;
 pub mod words;
 pub mod xdg;
@@ -121,6 +126,35 @@ pub fn write_file(path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
         let _ = std::fs::remove_file(&tmp);
     }
     done
+}
+
+/// Writes `text` to `DIR/NAME` in the runtime directory of the user when
+/// the file differs, and returns its path. The shared temporary
+/// directory never takes it: another local user could plant the file
+/// first.
+///
+/// # Errors
+///
+/// The runtime directory is not an absolute path, or the file cannot be
+/// written.
+pub fn runtime_file(dir: &str, name: &str, text: &str) -> std::io::Result<std::path::PathBuf> {
+    runtime_file_in(chora_scene::paths::runtime_home(), dir, name, text)
+}
+
+fn runtime_file_in(
+    runtime: Option<std::path::PathBuf>,
+    dir: &str,
+    name: &str,
+    text: &str,
+) -> std::io::Result<std::path::PathBuf> {
+    let runtime = runtime
+        .filter(|p| p.is_absolute())
+        .ok_or_else(|| std::io::Error::other("no absolute runtime directory"))?;
+    let path = runtime.join(dir).join(name);
+    if read_text(&path, MAX_TEXT).ok().as_deref() != Some(text) {
+        write_file(&path, text.as_bytes())?;
+    }
+    Ok(path)
 }
 
 /// Creates a temporary file of mode 0600 with a new name next to `path`;
@@ -230,6 +264,17 @@ pub fn check_file(path: &std::path::Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+
+    #[test]
+    fn a_runtime_file_needs_the_runtime_dir() {
+        let text = "void main() {}";
+        assert!(super::runtime_file_in(None, "d", "x.frag", text).is_err());
+        assert!(super::runtime_file_in(Some("rel".into()), "d", "x.frag", text).is_err());
+        let dir = std::env::temp_dir().join(format!("chora-kit-runtime-{}", std::process::id()));
+        let path = super::runtime_file_in(Some(dir.clone()), "d", "x.frag", text).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn the_token_of_a_run_goes_in_the_environment_not_the_arguments() {

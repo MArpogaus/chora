@@ -1057,16 +1057,15 @@ fn part(prefix: &str, name: &str) -> String {
 }
 
 /// The directory of the rendered files of a block: one per chora
-/// instance, `$XDG_RUNTIME_DIR/NAME/INSTANCE`, which the core can read.
+/// instance, `NAME/INSTANCE` in the runtime directory, which the core can
+/// read.
 ///
 /// # Errors
 ///
-/// `$XDG_RUNTIME_DIR` is not an absolute path.
+/// The runtime directory is not an absolute path.
 pub fn cache_dir(name: &str) -> Result<PathBuf, String> {
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .filter(|p| p.is_absolute())
-        .ok_or("no absolute $XDG_RUNTIME_DIR for the cache")?;
+    let runtime =
+        chora_scene::paths::runtime_home().ok_or("no absolute runtime directory for the cache")?;
     let instance = std::env::var_os(chora_scene::ipc::SOCKET_ENV)
         .map(PathBuf::from)
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))

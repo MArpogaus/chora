@@ -60,7 +60,6 @@ MINOR
 - ti-12: there is no focus-left/right key; Super+Right switches the tag and Super+l widens the master (by design, to be listed).
 - ti-14: the key list shows only keyboard chords, no mouse basics.
 - ti-25: stale or torn buffers after a re-tile; the launcher shows raw .desktop text; a floated window can land half off-screen.
-- ti-26: an empty LC_ALL="" masks LANG=de.
 - ti-8, ti-9, ti-10, ti-13 (verify): new windows do not take focus; key list is 692 px high; key list is translucent over seams; bar network shows the address.
 
 COSMETIC
@@ -120,14 +119,12 @@ MAJOR
 - sh-23 / sd-h1: xp and tiling in two panes: the tiling output stays black (no bar, no start door), and after a click into it Super+Return opens the xp Start menu in the other pane. Open.
 - sd-h2: the xp Start menu stays open through a drag and key gives and covers the window. Open.
 - sh-24: a grab gated by the pointer could fall through to the focused client as a raw key. Likely fixed (merge dbdfcce4 names it; 9c4f1301, 0a3224b8 carry the injected flag).
-- sh-26: a confirm question could show another command than the one that runs (bidi or hidden characters). Open in part: the text is cleaned in mc, construct and the voice service (agent.rs, hud.rs, voice mc.rs), and the voice service waits 400 ms before it takes a button answer; the mc and construct question cards have no wait of their own.
 
 MINOR
 - sh-12: the question card shows no time left; xp and mc add no transcript line after an answer.
 - sh-14: the mute state has no word in tiling and xp (a dot or red sign only).
 - sh-15: Esc differs between looks; the keys sheet is blocked while the chat is open.
 - sh-16: launcher wording differs ("Open:", "Apps", ">"; "Run a program" vs "Start a program"). Reported fixed earlier (review raa-3); the ledger lists it again.
-- sh-27: confirm buttons are hard-coded "Ja/Nein" in every language.
 - The spoken prompt of a sub-agent's tool title may still keep bidi or hidden characters (the shown text is cleaned).
 - sh-28: documentation is stale on mc telling an injected click, and on the icon fallback to the temp directory.
 - sh-13, sh-17 (verify): state word spelled three ways and helper surface counted twice; HUD colours per theme.

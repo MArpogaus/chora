@@ -87,7 +87,7 @@ class Launcher:
 
     def base_env(self):
         env = dict(os.environ)
-        env["PATH"] = f"{self.dir}/stub:{BIN}:{env['PATH']}"
+        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(env['PATH'])}"
         env["CHORA_TEST_ACCEPT_INJECTED_KEYS"] = "1"
         env["CHORA_FRAME_BUDGET_US"] = "500000"
         env.pop("DBUS_SESSION_BUS_ADDRESS", None)
@@ -101,6 +101,31 @@ class Launcher:
             env["LD_LIBRARY_PATH"] = f"{egl}/usr/lib64:{env.get('LD_LIBRARY_PATH', '')}"
             env["__EGL_VENDOR_LIBRARY_FILENAMES"] = f"{egl}/usr/share/glvnd/egl_vendor.d/50_mesa.json"
         return env
+
+    def path_without_writer(self, path):
+        """PATH without the writers: every PATH entry that resolves to /usr/bin (/bin is a link
+        to it) is replaced by one link farm that lacks lowriter and mousepad. This container has
+        LibreOffice, which opens no window in the headless session, so Notepad would try it first
+        and say nothing (tour v7 F-1: /bin was left in PATH and leaked it). Without a GUI editor
+        Notepad shows its honest notice. Asserts the leak is gone."""
+        farm = f"{self.dir}/usrbin"
+        if not os.path.isdir(farm):
+            os.makedirs(farm)
+            for name in os.listdir("/usr/bin"):
+                if name not in ("lowriter", "mousepad", "soffice", "libreoffice"):
+                    os.symlink(f"/usr/bin/{name}", f"{farm}/{name}")
+        real = os.path.realpath("/usr/bin")
+        out = []
+        for p in path.split(":"):
+            if p and os.path.isdir(p) and os.path.realpath(p) == real:
+                if farm not in out:
+                    out.append(farm)
+            else:
+                out.append(p)
+        joined = ":".join(out)
+        if shutil.which("lowriter", path=joined):
+            raise RuntimeError("harness: lowriter still on PATH: " + joined)
+        return joined
 
     def spawn(self, argv, env, log, **kw):
         out = open(os.path.join(self.dir, log), "w")
@@ -124,6 +149,7 @@ class Launcher:
             addr = f"unix:path={self.dir}/bus"
             self.spawn(["dbus-daemon", "--session", "--nofork", f"--address={addr}"], env, "dbus.log")
             env["DBUS_SESSION_BUS_ADDRESS"] = addr
+            env["CHORA_TEST_KEEP_BUS"] = "1"
             time.sleep(0.5)
         head = self.spawn([f"{REPO}/tests/headless-session.sh", outputs or self.size] + (["--", *startup] if startup else []), env, "headless.out")
         self.session_pid = head.pid

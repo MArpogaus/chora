@@ -2,10 +2,12 @@
 glam.workspace = true
 imbl.workspace = true
 libc = "0.2"
+rustix = { version = "1", features = ["process"] }
 schemars = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 
 [features]
 # JSON schemas of the commands and the input events, for choractl mcp.

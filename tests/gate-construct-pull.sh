@@ -198,46 +198,55 @@ until_ok 'grep -q "^key 45$" "$work/given-probe.log"' 20 ||
 ok "a key typed during the fly-in reaches the window"
 end_session
 
-CHORA_TEST_FLAGS=--test-injected-press-is-real pull behind
-until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
-inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
-    {\"button\": {\"state\": \"released\"}}]"
-sleep 1
-windows_before=$(window_count)
-inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
-sleep 3
-[ -z "${BEHIND_SHOT:-}" ] || ctl capture "$BEHIND_SHOT" >/dev/null
-pane_drawn() {
-    ctl query "id:construct-pane-$surface" | python3 -I -c '
+for how in super plain; do
+    if [ "$how" = super ]; then
+        mod_down='{"key": {"key": "Super_L", "state": "pressed"}},'
+        mod_up=',
+    {"key": {"key": "Super_L", "state": "released"}}'
+    else
+        mod_down=''
+        mod_up=''
+    fi
+    CHORA_TEST_FLAGS=--test-injected-press-is-real pull behind
+    until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
+    inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
+        {\"button\": {\"state\": \"released\"}}]"
+    sleep 1
+    windows_before=$(window_count)
+    inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
+    sleep 3
+    [ -z "${BEHIND_SHOT:-}" ] || ctl capture "$BEHIND_SHOT" >/dev/null
+    pane_drawn() {
+        ctl query "id:construct-pane-$surface" | python3 -I -c '
 import json, sys
 nodes = json.load(sys.stdin)
 print(bool(nodes and nodes[0].get("visible") and nodes[0]["rects"].get("HEADLESS-1")))'
-}
-[ "$(pane_drawn)" = True ] ||
-    fail "stepped back after the pull-out the pane is not drawn: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-900)"
-[ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the step back: $windows_before, then $(window_count)"
-[ "$(owner)" = construct ] || fail "the window is not the construct's after the step back: $(probe)"
-ok "stepped back after the pull-out the pane of the window exists and is drawn, and no window is lost"
-read -r px py <<<"$(pane_middle)"
-face=$(ctl query id:construct-cube-face-0 | python3 -I -c '
+    }
+    [ "$(pane_drawn)" = True ] ||
+        fail "stepped back after the pull-out the pane is not drawn: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-900)"
+    [ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the step back: $windows_before, then $(window_count)"
+    [ "$(owner)" = construct ] || fail "the window is not the construct's after the step back: $(probe)"
+    ok "stepped back after the pull-out the pane of the window exists and is drawn, and no window is lost"
+    read -r px py <<<"$(pane_middle)"
+    face=$(ctl query id:construct-cube-face-0 | python3 -I -c '
 import json, sys
 r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]
 print("%d %d" % (r[0] + r[2] * 0.4, r[1] + r[3] * 0.5))')
-inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
-    {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
-    {\"button\": {\"state\": \"pressed\", \"hold\": true}},
-    {\"pointer_move\": {\"position\": [$((px + 20)), $py]}},
-    {\"pointer_move\": {\"position\": [${face% *}, ${face#* }]}},
-    {\"button\": {\"state\": \"released\"}},
-    {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
-until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 ||
-    fail "the pane dragged back over a face stood back did not go to xp: $(probe), pane $(pane_of "$surface")"
-[ "$(pane_of "$surface")" = none ] || fail "the pane stays after the drag back over the face: $(pane_of "$surface")"
-[ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the drag back: $windows_before, then $(window_count)"
-until_ok 'test "$(task_on VIRTUAL-1)" = 1' 20 || fail "the window dragged back over a face has no task button on that face: $(task_on VIRTUAL-1)"
-[ "$(pane_drawn)" != True ] || fail "a pane is still drawn in front of the cube after the drag back: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
-ok "stood back, the pane dragged over a face is a window of xp again, on the taskbar of that face, with no pane drawn: $(probe)"
-end_session
+    inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
+        $mod_down
+        {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+        {\"pointer_move\": {\"position\": [$((px + 20)), $py]}},
+        {\"pointer_move\": {\"position\": [${face% *}, ${face#* }]}},
+        {\"button\": {\"state\": \"released\"}}$mod_up]"
+    until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 ||
+        fail "the pane dragged back ($how) over a face stood back did not go to xp: $(probe), pane $(pane_of "$surface")"
+    [ "$(pane_of "$surface")" = none ] || fail "the pane stays after the drag back over the face: $(pane_of "$surface")"
+    [ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the drag back: $windows_before, then $(window_count)"
+    until_ok 'test "$(task_on VIRTUAL-1)" = 1' 20 || fail "the window dragged back over a face has no task button on that face: $(task_on VIRTUAL-1)"
+    [ "$(pane_drawn)" != True ] || fail "a pane is still drawn in front of the cube after the drag back: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
+    ok "stood back, the pane dragged ($how) over a face is a window of xp again, on the taskbar of that face, with no pane drawn: $(probe)"
+    end_session
+done
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"

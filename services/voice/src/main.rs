@@ -693,8 +693,8 @@ fn projects(config: &Config) -> Vec<String> {
 
 /// A leading `~/` is the home directory.
 fn expand(path: &str) -> PathBuf {
-    match (path.strip_prefix("~/"), std::env::var_os("HOME")) {
-        (Some(rest), Some(home)) => Path::new(&home).join(rest),
+    match (path.strip_prefix("~/"), chora_scene::paths::home()) {
+        (Some(rest), Some(home)) => home.join(rest),
         _ => PathBuf::from(path),
     }
 }

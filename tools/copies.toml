@@ -1,0 +1,105 @@
+# Copies of mechanisms that moved to a shared part (tools/cut-check, check
+# "copies"). Per row: a regex, the path prefixes that may hold it, and the
+# count of matching lines allowed elsewhere. A count only falls; at 0 the
+# row blocks. `paths` limits the scan (default: crates, plugins, services).
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 1
+name = "surface-created filter"
+pattern = 'to != NAME'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 2
+name = "Event::SurfaceCreated outside kit"
+paths = ["plugins", "services"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+max = 0
+name = "tiling: surface-created filter (WM1)"
+paths = ["plugins/chora-tiling"]
+pattern = 'to != NAME'
+
+[[row]]
+max = 0
+name = "tiling: Event::SurfaceCreated (WM1)"
+paths = ["plugins/chora-tiling"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+max = 0
+name = "mc: Event::SurfaceCreated (WM1b)"
+paths = ["plugins/chora-mc"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 8
+name = "confirm.answer"
+pattern = '"confirm\.answer"'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "fn language"
+pattern = 'fn language\b'
+
+[[row]]
+allow = ["crates/chora-scene/", "crates/chora-kit/"]
+max = 0
+name = "XDG_RUNTIME_DIR (KIT1)"
+pattern = 'XDG_RUNTIME_DIR'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "LC_ALL (KIT1)"
+pattern = 'LC_ALL'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 6
+name = "UnixListener::bind in plugin tests"
+paths = ["plugins"]
+pattern = 'UnixListener::bind'
+
+[[row]]
+allow = ["crates/chora-kit/src/wm"]
+max = 20
+name = "Command::Focus outside kit::wm"
+pattern = 'Command::Focus\b'
+
+# kit4: kit::ask is the only question model; mc and construct draw its card.
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own question event model (Confirm, Keys)"
+paths = ["plugins"]
+pattern = '^\s*(pub )?struct (Confirm|Keys)\b'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "question buttons as literal Ja/Nein"
+paths = ["plugins"]
+pattern = '"(Ja|Nein)"'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own key cap of a question (cap, show_key copy)"
+pattern = 'fn cap\(key: &str\)'
+
+[[row]]
+allow = ["plugins/chora-notify/"]
+max = 0
+name = "notice: a client of org.freedesktop.Notifications outside chora-notify (KIT5)"
+pattern = 'org\.freedesktop\.Notifications'
+
+[[row]]
+max = 0
+name = "notice: zbus in chora-kit (KIT5)"
+paths = ["crates/chora-kit"]
+pattern = '\bzbus\b'

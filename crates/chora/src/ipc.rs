@@ -10,7 +10,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
-        fs::{DirBuilderExt, MetadataExt, PermissionsExt},
+        fs::PermissionsExt,
         net::{UnixListener, UnixStream},
     },
     path::{Path, PathBuf},
@@ -22,6 +22,7 @@ use chora_scene::{
     ipc::{
         Apply, Capability, Edges, Emit, Grab, Hello, Message, Query, Request, RpcError, Subscribe,
     },
+    paths::{self, private_dir},
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -46,6 +47,10 @@ use crate::{
 mod clients;
 
 pub use clients::window_client;
+
+mod grabs;
+mod hello;
+mod query;
 
 const MAX_CONNECTIONS: usize = 128;
 /// The most connections of one process, so that one client cannot take
@@ -200,11 +205,11 @@ struct Conn {
     reader: Option<RegistrationToken>,
 }
 
-/// Opens the socket in `$XDG_RUNTIME_DIR/chora/` and returns its path.
+/// Opens the socket in `chora/` of the runtime directory and returns its path.
 pub fn listen(state: &mut State) -> io::Result<PathBuf> {
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
-        .ok_or_else(|| io::Error::other("XDG_RUNTIME_DIR is not set"))?;
-    let dir = Path::new(&runtime).join("chora");
+    let runtime = paths::runtime_home()
+        .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
+    let dir = runtime.join("chora");
     private_dir(&dir)?;
     let mut path = dir.join(&state.socket_name);
     path.set_extension("sock");
@@ -250,24 +255,6 @@ fn bind(state: &State, path: &Path, socket: Socket) -> io::Result<RegistrationTo
             },
         )
         .map_err(|err| io::Error::other(err.to_string()))
-}
-
-/// Creates a directory with mode 0700, or sets that mode on an old one,
-/// and checks that it is a real directory of the owner of its parent.
-fn private_dir(dir: &Path) -> io::Result<()> {
-    let parent = dir.parent().ok_or_else(|| io::Error::other("no parent"))?;
-    std::fs::DirBuilder::new()
-        .mode(0o700)
-        .recursive(true)
-        .create(dir)?;
-    let meta = std::fs::symlink_metadata(dir)?;
-    if !meta.is_dir() || meta.uid() != std::fs::metadata(parent)?.uid() {
-        return Err(io::Error::other(format!(
-            "{} is no directory of the owner of its parent",
-            dir.display()
-        )));
-    }
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
 }
 
 impl Drop for Ipc {
@@ -1102,137 +1089,6 @@ impl State {
         Ok(Value::Null)
     }
 
-    /// The methods of grants and client sockets. Only the admin socket of
-    /// `choractl` changes them (D40); any connection lists the grants.
-    fn ipc_admin(&mut self, conn: u64, method: &str, params: Value) -> Result<Value, RpcError> {
-        if method != "grants.list" && !self.ipc.admin(conn) {
-            return Err(RpcError::new(
-                RpcError::ADMIN_SOCKET_ONLY,
-                format!("{method} works only on the admin socket of choractl"),
-            ));
-        }
-        if method == "clients.create" {
-            return params_of(params).and_then(|c| self.ipc_client_socket(&c));
-        }
-        if method == "camera.release" {
-            let output = params
-                .get("output")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rejected("camera.release wants {\"output\": NAME}"))?;
-            return match self.scene.release_camera(output) {
-                Some(owner) => {
-                    tracing::warn!(output, %owner, "the admin released the camera");
-                    Ok(serde_json::json!({"output": output, "was": owner}))
-                }
-                None => Err(rejected(format!("no client owns the camera of {output:?}"))),
-            };
-        }
-        self.ipc_grants(method, params)
-    }
-
-    /// Checks a `hello` of `conn` against the live connections of its
-    /// name: they share effective confinement (a connection on a client
-    /// socket is confined whatever its `hello` says), `keep_nodes` and
-    /// `resume`. Resume is for a name without a live connection: a second
-    /// instance must not take the nodes of a running one. Answers whether
-    /// the name is connected.
-    fn check_peers(&self, conn: u64, hello: &Hello) -> Result<bool, RpcError> {
-        let (peer_conn, peer) = self
-            .ipc
-            .conns
-            .iter()
-            .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
-            .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
-        let confined = hello.confined || self.ipc.fixed(conn).is_some();
-        if peer.is_some()
-            && self.ipc.fixed(conn).is_none()
-            && !self.ipc.same_program(conn, &hello.name)
-        {
-            return Err(name_taken(format!(
-                "{:?} is connected from another program",
-                hello.name
-            )));
-        }
-        if let Some(peer_confined) = peer_conn
-            .map(|id| self.ipc.confined(id))
-            .filter(|p| *p != confined)
-        {
-            return Err(name_taken(format!(
-                "{:?} is in use with confined {peer_confined}",
-                hello.name
-            )));
-        }
-        if let Some(peer) =
-            peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
-        {
-            return Err(name_taken(format!(
-                "{:?} is in use with keep_nodes {} and resume {}",
-                hello.name, peer.keep_nodes, peer.resume
-            )));
-        }
-        if hello.resume && peer.is_some() {
-            return Err(name_taken(format!(
-                "{:?} is connected; resume needs a name without a live connection",
-                hello.name
-            )));
-        }
-        Ok(peer.is_some())
-    }
-
-    /// Names a connection. All connections of a name share one
-    /// `keep_nodes` and one `resume` setting. With `resume`, a name in its
-    /// grace time gets its nodes back; without, they go first.
-    fn ipc_hello(&mut self, conn: u64, hello: Hello) -> Result<Value, RpcError> {
-        check_protocol(hello.protocol)?;
-        if self.ipc.name(conn).is_some() {
-            return Err(rejected("hello was sent already"));
-        }
-        if !crate::methods::valid_name(&hello.name) {
-            return Err(rejected(
-                "a client name has lowercase letters, digits, _, - and ., from a letter",
-            ));
-        }
-        // A client socket fixes the name (D33).
-        match self.ipc.fixed(conn) {
-            Some(fixed) if fixed != hello.name => {
-                return Err(socket_rule(format!("this socket belongs to {fixed:?}")));
-            }
-            None if self.ipc.clients.contains_key(&hello.name) => {
-                return Err(name_taken(format!(
-                    "{:?} has a client socket and connects only through it",
-                    hello.name
-                )));
-            }
-            _ => {}
-        }
-        let known = self.check_peers(conn, &hello)?;
-        if hello.resume {
-            self.ipc.graces.remove(&hello.name);
-        } else if self.ipc.graces.contains_key(&hello.name) {
-            self.drop_nodes(&hello.name);
-        }
-        if let Some(c) = self.ipc.conns.get_mut(&conn) {
-            c.name = Some(hello.name.clone());
-            (c.keep_nodes, c.resume) = (hello.keep_nodes, hello.resume);
-            c.confined = hello.confined;
-        }
-        self.ipc.greeted = true;
-        if !known {
-            self.emit(&Event::ClientConnected { name: hello.name });
-        }
-        let software = self
-            .backend
-            .as_mut()
-            .and_then(|b| b.with_gles(crate::gl::is_software).ok())
-            .unwrap_or(false);
-        Ok(serde_json::json!({
-            "version": chora_scene::ipc::VERSION,
-            "protocol": chora_scene::ipc::PROTOCOL,
-            "features": chora_scene::ipc::FEATURES,
-            "software": software,
-        }))
-    }
-
     /// Removes the nodes, the cameras and the assets of a client name, and
     /// ends its grace time.
     pub fn drop_nodes(&mut self, name: &str) {
@@ -1249,257 +1105,6 @@ impl State {
         for name in names {
             self.drop_nodes(&name);
         }
-    }
-
-    /// The nodes of a selector and a JSON filter (D32); for a client
-    /// socket only its own.
-    fn query(&self, conn: u64, query: &Query) -> Result<Value, RpcError> {
-        let selector: Selector = query
-            .selector
-            .parse()
-            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, format!("{e}")))?;
-        let fixed = self.ipc.fixed(conn);
-        let mut nodes = self.scene.query(&selector);
-        nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
-        // (D33): only the nodes that survived the filter can show a focus.
-        let focus = [self.scene.focused_surface(), self.scene.focused_node()];
-        if nodes.is_empty() {
-            return Ok(Value::Array(Vec::new()));
-        }
-        let matched: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
-        let rects = self.screen_rects(&matched);
-        if let Some(filter) = &query.filter {
-            nodes.retain(|n| {
-                filter.matches(
-                    n,
-                    focus.contains(&Some(n.id.as_str())),
-                    rects.get(n.id.as_str()).unwrap_or(&Value::Null),
-                )
-            });
-        }
-        let nodes: Vec<Value> = nodes
-            .into_iter()
-            .map(|n| {
-                let mut node = serde_json::json!(n);
-                if focus.contains(&Some(n.id.as_str())) {
-                    node["focused"] = Value::Bool(true);
-                }
-                node["rects"] = rects
-                    .get(n.id.as_str())
-                    .cloned()
-                    .unwrap_or_else(|| serde_json::json!({}));
-                node
-            })
-            .collect();
-        Ok(Value::Array(nodes))
-    }
-
-    /// The screen rectangles by node: the output name maps to
-    /// `[x, y, w, h]` in the logical pixels of that output, after the
-    /// parent transforms and the camera of the output. Outputs where the
-    /// node does not show are left out. Only the nodes `of` get a
-    /// rectangle: a box costs a text layout or a projection, which a
-    /// query for one node must not pay for the whole scene.
-    fn screen_rects(&self, of: &HashSet<&str>) -> HashMap<&str, Value> {
-        let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
-        for output in &self.all_outputs() {
-            let name = output.name();
-            let screen = Rectangle::from_size(output_area(output).size).to_f64();
-            // The overlay sits in the coordinates of its output, without
-            // its camera (D43).
-            let views = [
-                (Transform::IDENTITY, self.scene.overlay_draw_list(&name)),
-                (self.camera(output), self.scene.draw_list()),
-            ];
-            for (camera, list) in &views {
-                // The absolute transform by node, for the boxes of the
-                // layers in this list.
-                let at: HashMap<&str, Transform> = list
-                    .iter()
-                    .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
-                    .collect();
-                let wanted = list.iter().filter(|p| of.contains(p.node.id.as_str()));
-                let shown = wanted.filter_map(|placed| {
-                    Some((
-                        placed.node.id.as_str(),
-                        self.screen_rect(placed, &at, screen)?,
-                    ))
-                });
-                for (id, rect) in shown {
-                    let rect = [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h];
-                    found
-                        .entry(id)
-                        .or_default()
-                        .insert(name.clone(), serde_json::json!(rect));
-                }
-            }
-        }
-        found
-            .into_iter()
-            .map(|(id, rects)| (id, Value::Object(rects)))
-            .collect()
-    }
-
-    /// The rectangle of one placed node on an output, as the renderer
-    /// draws it there. A layer, and with a size also a shader, shows
-    /// through its mesh, so its box is the box of the projected shape.
-    /// Any other node draws as a plane when its transform is not a plain
-    /// translation with a positive scale, so its box is the box of its
-    /// projected corners; every ancestor layer or plane cuts the box like a
-    /// clip does. A quad that is edge on or collapsed shows nowhere, and in
-    /// a 3D context a quad shows only in front of its near plane. The mesh
-    /// of a layer does not move the boxes of descendants.
-    fn screen_rect(
-        &self,
-        placed: &Placed<'_>,
-        at: &HashMap<&str, Transform>,
-        screen: Rectangle<f64, Logical>,
-    ) -> Option<Rectangle<f64, Logical>> {
-        let node = placed.node;
-        let transform = at.get(node.id.as_str())?;
-        let (layers, near) = self.lineage(node, at)?;
-        if node.props.mesh.is_none() && !transform.is_plain() {
-            transform.plane_inverse()?;
-        }
-        let mut rect = if is_texture(node, transform) {
-            layer_box(node, transform, near)?
-        } else {
-            self.content_box(node, transform, near)?
-        };
-        // Every ancestor layer cuts the box like a clip does.
-        for ancestor in layers {
-            let ancestor_at = at.get(ancestor.id.as_str())?;
-            rect = intersect(rect, layer_box(ancestor, ancestor_at, near)?)?;
-        }
-        rect.overlaps(screen).then_some(rect)
-    }
-
-    /// Every ancestor layer or plane, and the near w of the node: 1/64 in
-    /// a 3D context. The node shows only inside every layer and plane: each
-    /// composes into a texture of its size. A clip makes a layer and cuts
-    /// through the same box.
-    fn lineage(&self, node: &Node, at: &HashMap<&str, Transform>) -> Option<(Vec<&Node>, f64)> {
-        let mut layers = Vec::new();
-        let mut near = crate::mesh::NEAR;
-        let mut parent = node.parent.as_deref();
-        while let Some(id) = parent {
-            let ancestor = self.scene.node(id)?;
-            if at.get(id).is_some_and(|t| is_texture(ancestor, t)) {
-                layers.push(ancestor);
-            }
-            if ancestor.is_context() {
-                near = crate::space::NEAR_W;
-            }
-            parent = ancestor.parent.as_deref();
-        }
-        Some((layers, near))
-    }
-
-    /// The box of a node that is not a layer or plane itself. A surface
-    /// has the box of its buffer, subsurfaces and decorations, and under a
-    /// plane the box of its geometry, which its texture holds.
-    fn content_box(
-        &self,
-        node: &Node,
-        transform: &Transform,
-        near: f64,
-    ) -> Option<Rectangle<f64, Logical>> {
-        let bounding_box = |transform, size| bounding_box_from(transform, size, near);
-        match node.kind {
-            NodeKind::Surface if !transform.is_plain() => {
-                let size = self.windows.get(node.id.as_str())?.geometry().size;
-                Some(bounding_box(
-                    transform,
-                    [f64::from(size.w), f64::from(size.h)],
-                ))
-            }
-            NodeKind::Surface => Some(window_rect(self.windows.get(node.id.as_str())?, transform)),
-            NodeKind::Rect => Some(bounding_box(transform, node.props.size?)),
-            NodeKind::Image => {
-                // Without the file the renderer draws nothing.
-                let image = self.assets.images.get(node.props.image.as_deref()?)?;
-                let [w, h] = node
-                    .props
-                    .size
-                    .unwrap_or([f64::from(image.size[0]), f64::from(image.size[1])]);
-                Some(bounding_box(transform, [w, h]))
-            }
-            NodeKind::Text => {
-                // A text node reports its layout size, like an image
-                // without a size.
-                let size = self.assets.texts.size(node)?;
-                Some(bounding_box(transform, size))
-            }
-            // A group without a layer of its own draws nothing, and
-            // so does a shader without a size.
-            NodeKind::Group | NodeKind::Shader => None,
-        }
-    }
-
-    /// Grabs a binding of a key or a pointer button for a named connection.
-    /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
-    /// work; `input.grab-any` lifts this (D45), and a media key of
-    /// [`MEDIA_KEYS`] needs none for an unconfined client with a claim. Ctrl+Alt with the keys of
-    /// the safety layer belongs to the safety layer either way. The result
-    /// is the binding in the normal form of `input.key`.
-    fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
-        let Some(name) = self.ipc.name(conn).map(str::to_owned) else {
-            return Err(rejected("send hello first"));
-        };
-        let m = binding.mods;
-        let trigger = trigger(&binding)?;
-        let window_manager = !self.ipc.confined(conn) && self.scene.holds_claim(&name);
-        let free = trigger == Trigger::Move
-            || (media_key(trigger) && window_manager)
-            || self.grants.allows(&name, Capability::GrabAny);
-        if !(m.ctrl || m.alt || m.logo || free) {
-            return Err(RpcError::new(
-                RpcError::MISSING_CAPABILITY,
-                format!("{binding} needs Ctrl, Alt or Super or the capability input.grab-any"),
-            ));
-        }
-        if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
-            return Err(rejected(format!("{binding} belongs to the safety layer")));
-        }
-        // A button binding may have several grabs while each client holds a
-        // claim; a press then goes by the claim under the pointer (D55).
-        // Only on the main socket: a confined client could claim a little
-        // less than an output and so take every press of the binding.
-        let claims = |c: u64| {
-            !self.ipc.confined(c) && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
-        };
-        // Each window manager gets the moves of its own windows.
-        let own = trigger == Trigger::Move;
-        let mut holders = (self.ipc.grabs.iter())
-            .filter(|(b, t, c)| b.mods == binding.mods && *t == trigger && (!own || *c == conn))
-            .map(|(_, _, c)| *c)
-            .peekable();
-        let shared = matches!(trigger, Trigger::Button(_)) && claims(conn);
-        if holders.peek().is_some() && !(shared && holders.all(|c| c != conn && claims(c))) {
-            return Err(rejected(format!("{binding} is grabbed already")));
-        }
-        if self.ipc.grabs.iter().filter(|(_, _, c)| *c == conn).count() >= MAX_GRABS {
-            return Err(RpcError::new(
-                RpcError::LIMIT_REACHED,
-                format!("a connection holds at most {MAX_GRABS} grabs"),
-            ));
-        }
-        let normal = binding.to_string();
-        self.ipc.grabs.push((binding, trigger, conn));
-        Ok(Value::String(normal))
-    }
-
-    /// Ends a grab of a connection (D45).
-    fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
-        let trigger = trigger(binding)?;
-        let before = self.ipc.grabs.len();
-        self.ipc
-            .grabs
-            .retain(|(b, t, c)| !(*c == conn && b.mods == binding.mods && *t == trigger));
-        if self.ipc.grabs.len() == before {
-            return Err(rejected(format!("{binding} is no grab of this connection")));
-        }
-        Ok(Value::Null)
     }
 
     /// Ends a connection for good with an error: the core reads no more
@@ -3945,13 +3550,10 @@ mod tests {
     fn a_client_socket_dir_is_private_and_fits_a_socket_path() {
         // A long directory, so that a long name passes no socket path.
         let (mut core, dir) = socket_dir("dirs-long");
-        let old = dir.join("clients/agent");
-        std::fs::create_dir_all(&old).unwrap();
-        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o777)).unwrap();
         let mut admin = core.admin();
         fixed(&mut core, &mut admin, "agent");
-        let mode = std::fs::metadata(&old).unwrap().permissions().mode() & 0o777;
-        assert_eq!(mode, 0o700);
+        let made = std::fs::metadata(dir.join("clients/agent")).unwrap();
+        assert_eq!(made.permissions().mode() & 0o777, 0o700);
         let long = "a".repeat(64);
         let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": long}));
         assert!(message.contains("too long"), "{message}");
@@ -3965,6 +3567,19 @@ mod tests {
         }
         let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "c64"}));
         assert!(message.contains("64 client sockets"), "{message}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_client_socket_dir_with_group_bits_is_refused() {
+        let (mut core, dir) = socket_dir("dirs-loose");
+        let old = dir.join("clients/agent");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o770)).unwrap();
+        let mut admin = core.admin();
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        assert!(message.contains("mode"), "{message}");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }

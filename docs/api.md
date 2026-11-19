@@ -457,6 +457,16 @@ outputs, so it tests a drop against the outputs themselves: a drop on an
 output of another window manager between two tiling outputs hands the
 window over.
 
+The actions that every look shares are one enum, `chora_kit::actions::System`
+(`run`, `terminal`, `launcher`, `keys`, `chat`, `lock`, `power`, `screenshot`,
+`volume`, `close`, `give`, `drag`, `desk`, `cube`), with one spelling in a
+binding. A look adds its own actions as a second enum and binds both with
+`chora_kit::actions::Action<Look>`; its settings take the shared keys
+`bindings` and `test_accept_injected_keys` from `chora_kit::settings::Common`
+through `#[serde(flatten)]`. A look refuses a `System` value that it has no
+act for, naming the binding. `desk` and `cube` are values only; no look acts
+on them yet. mc is the first look on it; the others follow.
+
 The key action `give` is the same on every window manager. A binding
 `give: NAME` gives the focused window to the window manager `NAME`.
 `chora_kit::give::focused(windows, to)` implements it: it queries the
@@ -1049,7 +1059,9 @@ privileged methods, `reserve_space` and `configure_output`, and
 
 A client socket fixes the name of its clients (D33). `clients.create`
 on the admin socket opens `clients/NAME/ipc.sock` below the directory of
-the main socket, which has mode 0700. `capabilities` says what a
+the main socket, which has mode 0700. The core refuses a directory that
+another user owns, that has group or other bits, or that is a symlink,
+and logs the reason. `capabilities` says what a
 connection through it may do; `clients.yaml` and `clients up` fill it
 in. `choractl clients create agent` prints its path:
 
@@ -1482,6 +1494,31 @@ capability `methods.privileged` besides `methods.call`.
 $ choractl call tiling settings.set '{"style": {"opacity": 0.9}}'
 $ choractl call tiling settings.set '{"bindings": {"MOD+u": null}}'
 $ choractl call tiling settings.reload
+```
+
+A plugin that implements `Plugin::state` also exports `state.get`, which
+answers what it shows and holds: its windows, the focus, what is open
+and what still moves (`busy`). `choractl state mc` prints it. All four
+looks answer it. `focus.holder` names the look only while the focus is
+on one of its windows (or, for the construct, on its space), else it is
+null. A field that a look does not fill is left out, never empty: mc
+has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
+the construct adds `views`, the panes of windows, plugin nodes and
+virtual outputs that it shows but does not own. tiling and mc add the
+`origin` of each window: `new`, `given` (another window manager gave it)
+or `kept` (over a restart).
+
+A look built on `chora_kit::wm` (tiling, mc) emits `<look>.window` with
+`{surface, node, phase, rect}` when a window becomes its own (`opened`),
+closes (`closed`) or goes to another window manager (`given`); `node` is
+the group that carries the window and `rect` is where it showed, or
+null (mc tells no rect). tiling applies a foreign `update` of opacity,
+effects and meta (D58) on its windows, on the groups that carry them and
+on its root group, without its own meta keys. It keeps its restart state
+in node meta under the keys `kept.1.*` and reads the keys of before.
+
+```console
+$ choractl state mc
 ```
 
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,

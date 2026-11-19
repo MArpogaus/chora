@@ -94,6 +94,11 @@ impl Queue {
         self.shown.as_ref().map(|(note, _)| note)
     }
 
+    /// The notification that shows, then the ones that wait.
+    pub fn all(&self) -> impl Iterator<Item = &Note> {
+        self.current().into_iter().chain(self.waiting.iter())
+    }
+
     /// When the notification that shows expires.
     pub fn due(&self) -> Option<Instant> {
         self.shown.as_ref().and_then(|(_, until)| *until)

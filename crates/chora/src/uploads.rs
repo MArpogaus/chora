@@ -1,7 +1,7 @@
 //! The assets that clients hand to the core with `assets.put`. A
 //! client in another mount namespace, for example an agent in a container,
 //! cannot name a file that the core sees. The core keeps its files in
-//! `$XDG_RUNTIME_DIR/chora/SOCKET.assets/CLIENT/`, with the client name in
+//! `chora/SOCKET.assets/CLIENT/` of the runtime directory, with the client name in
 //! hex, and answers with the absolute path for image nodes, shader nodes
 //! and effects. The files of a client go when its nodes go, and all files
 //! go when chora exits.
@@ -11,7 +11,7 @@ use std::{
     fmt::Write as _,
     fs,
     io::{self, Write},
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
 };
 
@@ -170,10 +170,7 @@ fn hex(name: &str) -> String {
 /// Writes a file through a temporary file and a rename, so that a reader
 /// sees the old file or the new one, never a part.
 fn write(dir: &Path, name: &str, data: &[u8]) -> io::Result<PathBuf> {
-    fs::DirBuilder::new()
-        .mode(0o700)
-        .recursive(true)
-        .create(dir)?;
+    chora_scene::paths::private_dir(dir)?;
     let part = dir.join(format!(".{name}.part"));
     let mut file = fs::OpenOptions::new()
         .write(true)

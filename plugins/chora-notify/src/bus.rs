@@ -5,7 +5,11 @@
 
 use std::{
     collections::HashMap,
-    sync::mpsc::{Receiver, Sender, channel},
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+        mpsc::{Receiver, Sender, channel},
+    },
 };
 
 use zbus::{
@@ -16,6 +20,22 @@ use zbus::{
 
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
+
+/// The next id of a notification: the calls of the bus and the methods of
+/// the live API draw from the same count.
+pub type Ids = Arc<AtomicU32>;
+
+/// The id for a call that replaces `replaces`, or the next free one.
+pub fn next_id(ids: &Ids, replaces: u32) -> u32 {
+    if replaces != 0 {
+        return replaces;
+    }
+    let mut id = ids.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
+    if id == 0 {
+        id = ids.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
+    }
+    id
+}
 
 /// A notification as the main loop gets it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,7 +108,7 @@ fn action_keys(actions: &[String]) -> Vec<String> {
 /// The object on the bus.
 struct Server {
     requests: Sender<Request>,
-    last: u32,
+    ids: Ids,
 }
 
 #[zbus::interface(name = "org.freedesktop.Notifications")]
@@ -110,12 +130,7 @@ impl Server {
         expire_timeout: i32,
     ) -> u32 {
         let _ = app_name;
-        let id = if replaces_id == 0 {
-            self.last = self.last.wrapping_add(1).max(1);
-            self.last
-        } else {
-            replaces_id
-        };
+        let id = next_id(&self.ids, replaces_id);
         let _ = self.requests.send(Request::Notify(Note {
             id,
             icon: icon(&app_icon, &hints),
@@ -176,8 +191,11 @@ impl Bus {
     /// # Errors
     ///
     /// The bus fails, or another server owns the name.
-    pub fn start() -> Result<Self, StartError> {
-        Self::on(Connection::session().map_err(|e| StartError::Failed(e.to_string()))?)
+    pub fn start(ids: Ids) -> Result<Self, StartError> {
+        Self::on(
+            Connection::session().map_err(|e| StartError::Failed(e.to_string()))?,
+            ids,
+        )
     }
 
     /// Takes the name on a connection, as [`Self::start`].
@@ -185,13 +203,10 @@ impl Bus {
     /// # Errors
     ///
     /// The bus fails, or another server owns the name.
-    pub fn on(conn: Connection) -> Result<Self, StartError> {
+    pub fn on(conn: Connection, ids: Ids) -> Result<Self, StartError> {
         let failed = |e: zbus::Error| StartError::Failed(e.to_string());
         let (tx, requests) = channel();
-        let server = Server {
-            requests: tx,
-            last: 0,
-        };
+        let server = Server { requests: tx, ids };
         conn.object_server().at(PATH, server).map_err(failed)?;
         match conn.request_name_with_flags(NAME, RequestNameFlags::DoNotQueue.into()) {
             Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => {
@@ -246,8 +261,11 @@ mod tests {
                 .build()
                 .unwrap()
         };
-        let first = Bus::on(connect()).expect("the name is free");
-        assert_eq!(Bus::on(connect()).err(), Some(StartError::Taken));
+        let first = Bus::on(connect(), Ids::default()).expect("the name is free");
+        assert_eq!(
+            Bus::on(connect(), Ids::default()).err(),
+            Some(StartError::Taken)
+        );
         drop(first);
     }
 
@@ -282,7 +300,7 @@ mod tests {
         let (tx, rx) = channel();
         let mut server = Server {
             requests: tx,
-            last: 0,
+            ids: Ids::default(),
         };
         let mut notify = |replaces| {
             server.notify(

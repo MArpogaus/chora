@@ -623,8 +623,8 @@ pub(crate) fn fonts_present() -> bool {
         .filter(|dir| !dir.is_empty())
         .map(std::path::PathBuf::from)
         .collect();
-    if let Some(home) = std::env::var_os("HOME") {
-        dirs.push(std::path::PathBuf::from(home).join(".local/share/fonts"));
+    if let Some(home) = chora_scene::paths::home() {
+        dirs.push(home.join(".local/share/fonts"));
     }
     dirs.extend(["/usr/share/fonts".into(), "/usr/local/share/fonts".into()]);
     dirs.iter().any(|dir| has_fonts(dir, 3))

@@ -157,17 +157,34 @@ impl Mc {
             .ok_or_else(|| {
                 RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
             })?;
-        let answer = self.rt.conn.give_dragged(&surface, &to, grab)?;
-        self.windows.remove(&name);
-        if self.focused.as_deref() == Some(surface.as_str()) {
+        self.book.give(&surface, &to);
+        let answer = match self.rt.conn.give_dragged(&surface, &to, grab) {
+            Ok(answer) => answer,
+            Err(err) => {
+                self.book.refused(&surface);
+                return Err(err);
+            }
+        };
+        let given = self.book.confirm(&surface);
+        self.settle(given, &crate::windows::Named::Ask)
+            .map_err(rejected)?;
+        self.gave(&name, &surface).map_err(rejected)?;
+        Ok(answer)
+    }
+
+    /// A window of a scene went to another window manager: the receiver
+    /// focuses it, so mc takes no keyboard; the scene of an app goes with
+    /// it.
+    fn gave(&mut self, name: &str, surface: &str) -> Result<(), ClientError> {
+        self.windows.remove(name);
+        if self.focused.as_deref() == Some(surface) {
             self.focused = None;
         }
-        // The receiver focuses the window; mc takes no keyboard.
-        self.leave(&name, false);
-        if self.transient.contains(&name) {
-            self.remove_scene(&name).map_err(rejected)?;
+        self.leave(name, false);
+        if self.transient.contains(name) {
+            self.remove_scene(name)?;
         }
-        Ok(answer)
+        Ok(())
     }
 
     /// Removes a scene whose app ended, with its nodes; the scenes after
@@ -195,7 +212,7 @@ impl Mc {
     /// `input.inject` does neither, unless the plugin accepts injected
     /// input.
     pub fn click(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.press_answer(node, injected) {
+        if self.press_answer(node, injected, std::time::Instant::now()) {
             return Ok(());
         }
         if injected && !self.rt.accepts_injected() {
