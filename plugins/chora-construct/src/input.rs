@@ -10,6 +10,7 @@ use super::{
     KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, WHEEL, cube,
     give, space, window_flown_into,
 };
+use chora_kit::wm::focus;
 
 /// The notice of a window manager that did not take a window, with the
 /// reason from the error.
@@ -297,9 +298,7 @@ impl Construct {
                 if injected && !self.rt.accepts_injected() {
                     return Ok(());
                 }
-                return self.rt.conn.apply(vec![Command::Focus {
-                    surface: Some(node),
-                }]);
+                return self.rt.conn.apply(vec![focus::give(node)]);
             }
             Event::PointerPressed {
                 node,

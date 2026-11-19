@@ -692,6 +692,9 @@ impl Tiling {
 
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
+        if self.focus.hear(&event).is_some() {
+            return Ok(());
+        }
         match event {
             event if Book::hears(&event) => return self.lifecycle(&event),
             Event::SurfaceChanged {
@@ -702,10 +705,6 @@ impl Tiling {
                 if !self.wm.set_size(&surface, size) {
                     return Ok(());
                 }
-            }
-            Event::FocusChanged { surface } => {
-                self.focus_changed(surface.as_deref());
-                return Ok(());
             }
             Event::InputKey {
                 binding,
@@ -1007,10 +1006,6 @@ impl Tiling {
         };
         let hit = |id: &&String| rect(id).is_some_and(|r| inside(r, [px, py]));
         self.order.iter().rev().find(hit).cloned()
-    }
-
-    fn focus_changed(&mut self, surface: Option<&str>) {
-        self.focus.moved(surface);
     }
 
     /// Focuses a window under the pointer. While another window manager

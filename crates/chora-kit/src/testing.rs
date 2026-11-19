@@ -265,6 +265,15 @@ fn query(model: &Model, selector: &str) -> Value {
     Value::Array(found)
 }
 
+/// The `focus.changed` of the core that focuses `surface`, or nothing,
+/// for the cells of a look (`kit::wm::focus` reads it).
+#[must_use]
+pub fn focus_changed(surface: Option<&str>) -> chora_scene::Event {
+    chora_scene::Event::FocusChanged {
+        surface: surface.map(String::from),
+    }
+}
+
 /// Whether the model has a node.
 pub fn has(model: &Model, id: &str) -> bool {
     model.lock().unwrap().scene.node(id).is_some()
