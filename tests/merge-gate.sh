@@ -6,7 +6,7 @@
 # One gate runs at a time: the gate and the gate scripts take the lock
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
-# Steps: red-first, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
+# Steps: red-first, identity, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
 # layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
@@ -23,6 +23,10 @@
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
 # beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-handover` runs the cells of a window that goes to mc. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
+# `identity` fails when any commit of BASE..HEAD, merges included, has an author or
+# a committer other than the identity in `expected_identity` below (a lane hook has
+# re-authored commits as another identity); it prints one FAIL line with the sha, the
+# role and the identity found for each.
 # `red-first` checks the range BASE..HEAD (commits that are not merges, oldest
 # first, in topological order): each `fix` or `feat` commit needs a commit
 # of the range that changes a test before it or in it, so a test may come in
@@ -53,6 +57,7 @@
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
 #                            [--base REF] [--jobs N] [--red-first-check]
+#                            [--identity-check] [--list]
 #   --only STEP,...  run only these steps; never pushes
 #   --worker STEP,...  the lane mode: build, test, clippy and the steps
 #                    named here (`--worker xp,hud`; `--worker ''` for none);
@@ -63,7 +68,10 @@
 #                    refuses when the work tree has uncommitted changes
 #   --jobs N         run up to N steps after 2d-guard at once (default 1)
 #   --red-first-check  run only the red-first check, without the lock
+#   --identity-check run only the identity check, without the lock
+#   --list           print the step names, one per line
 #   -h, --help       this text
+#   MERGE_GATE_IDENTITY  the expected identity, instead of expected_identity
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
 #                     steps above (the self-test uses it)
 #   MERGE_GATE_RUNS   directory for the run directories (default: /tmp)
@@ -71,6 +79,8 @@
 # Exit status: 0 all steps passed, 1 a step failed or the push was
 # refused, 2 a usage error.
 set -u
+
+expected_identity="Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>"
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 
@@ -86,6 +96,8 @@ worker_mode=""
 push_branch=""
 base=origin/claude/autonomous-dev-session-3w-i33pg7
 red_check=""
+id_check=""
+list_steps=""
 jobs_max=1
 while [ $# -gt 0 ]; do
     case $1 in
@@ -111,6 +123,14 @@ while [ $# -gt 0 ]; do
         ;;
     --red-first-check)
         red_check=1
+        shift
+        ;;
+    --identity-check)
+        id_check=1
+        shift
+        ;;
+    --list)
+        list_steps=1
         shift
         ;;
     --jobs)
@@ -147,14 +167,37 @@ red_first() {
     return "$missing"
 }
 
+identity() {
+    local want=${MERGE_GATE_IDENTITY:-$expected_identity} bad=0 sha author committer
+    git -C "$repo" rev-parse --verify -q "$base" >/dev/null || die "no base ref $base"
+    while IFS=$'\t' read -r sha author committer; do
+        [ -n "$sha" ] || continue
+        if [ "$author" != "$want" ]; then
+            echo "FAIL: $sha author is $author, want $want"
+            bad=1
+        fi
+        if [ "$committer" != "$want" ]; then
+            echo "FAIL: $sha committer is $committer, want $want"
+            bad=1
+        fi
+    done < <(git -C "$repo" log --format='%h%x09%an <%ae>%x09%cn <%ce>' "$base..HEAD")
+    [ "$bad" = 0 ] && echo "identity: every commit of $base..HEAD has the identity $want"
+    return "$bad"
+}
+
 if [ -n "$red_check" ]; then
     red_first
+    exit $?
+fi
+if [ -n "$id_check" ]; then
+    identity
     exit $?
 fi
 
 default_steps() {
     cat <<STEPS
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
+identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
 gate-lib|tests/gate-lib-selftest.sh && tests/under-load-selftest.sh
 build|cargo build --workspace --locked
@@ -211,6 +254,11 @@ while IFS='|' read -r name command; do
     step_names+=("$name")
     step_commands+=("$command")
 done <<<"$steps"
+
+if [ -n "$list_steps" ]; then
+    printf '%s\n' "${step_names[@]}"
+    exit 0
+fi
 
 selected() {
     [ -z "$only" ] && return 0
@@ -302,7 +350,7 @@ wait_step() {
     fi
 }
 
-serial_steps=",red-first,pre-commit,gate-lib,build,test,clippy,2d-guard,"
+serial_steps=",red-first,identity,pre-commit,gate-lib,build,test,clippy,2d-guard,"
 for i in "${!step_names[@]}"; do
     selected "${step_names[$i]}" || continue
     if [ "$jobs_max" = 1 ] || [[ $serial_steps == *",${step_names[$i]},"* ]]; then

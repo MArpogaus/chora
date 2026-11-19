@@ -293,7 +293,10 @@ with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 swaybg, swayidle and kanshi.
 
 `tests/merge-gate.sh` decides whether a merge into the session branch may
-be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
+be pushed. It runs `red-first`, `identity` (every commit of the range,
+merges included, has the author and the committer in `expected_identity`
+at the top of the script; each failure names the sha and the identity
+found; `--list` prints the step names), build, test, clippy, the 2D guard, `tests/xp.sh`, the
 handover matrix, the HUD gate, the doors gate (`tests/gate-doors.sh`: the
 shared keys and one visible door per action in every look), the act
 contracts (`tests/gate-acts.sh`: acts per look with the invariants of
