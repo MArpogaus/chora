@@ -8,14 +8,18 @@ The cells need no session; tests/acts/planted.py plants breaches in a real
 one. Usage: python3 -I tests/test_acts.py [-v]
 """
 
+import json
+import os
 import pathlib
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from unittest import mock
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "acts"))
 
 import harness  # noqa: E402
@@ -726,6 +730,29 @@ class I12(unittest.TestCase):
     def test_a_bar_in_the_overlay_order_over_the_held_window_is_no_breach(self):
         bar = panel("bar", (0, 0, 1280, 120), owner="tiling") | {"order": "overlay"}
         self.assertEqual(breaches("I12", snap(), self.held(bar)), [])
+
+    def real_state_of_a_drag(self):
+        """The state.get of tiling during the drag of a floating window
+        under another, from the cell of the plugin that dumps it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = pathlib.Path(tmp) / "state.json"
+            subprocess.run(
+                ["cargo", "test", "-p", "chora-tiling", "--locked", "--", "state_get_names"],
+                cwd=ROOT,
+                env={**os.environ, "CHORA_STATE_DUMP": str(dump)},
+                capture_output=True,
+                check=False,
+            )
+            return json.loads(dump.read_text())
+
+    def test_tiling_reports_the_dragged_window_as_held(self):
+        state = self.real_state_of_a_drag()
+        held = [w["surface"] for w in state["windows"] if w.get("held")]
+        self.assertEqual(held, ["s1"], state)
+        under = surface("s1", "tiling", rect=(100, 100, 400, 300))
+        over = surface("s2", "other", rect=(300, 200, 400, 300))
+        after = snap(states={"tiling": state}, nodes=[under, over])
+        self.assertTrue(breaches("I12", snap(), after))
 
     def test_the_frame_of_the_held_window_is_no_breach(self):
         title = panel("xp-title-s1", (100, 70, 400, 30))

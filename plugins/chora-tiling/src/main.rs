@@ -1537,6 +1537,32 @@ mod tests {
         );
     }
 
+    /// I12 (WM5 r2): `state.get` names the dragged window as `held`, as the
+    /// acts read it, with a floating window under another one. The state
+    /// goes to the file of `CHORA_STATE_DUMP` for the cell of the acts.
+    #[test]
+    fn state_get_names_the_dragged_window_as_held() {
+        let (mut tiling, _methods) = with_a_floating_window("held-state");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Action::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        press_and_move(&mut tiling, None);
+        tiling.relayout().unwrap();
+        let state = tiling.state_value();
+        if let Some(path) = std::env::var_os("CHORA_STATE_DUMP") {
+            std::fs::write(path, state.to_string()).unwrap();
+        }
+        let held: Vec<&str> = state["windows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|w| w["held"] == json!(true))
+            .filter_map(|w| w["surface"].as_str())
+            .collect();
+        assert_eq!(held, ["s1"], "{state}");
+    }
+
     /// E3: the press of `move` that comes with a window and its drag puts
     /// the named point of the window under the pointer, and the window
     /// wobbles on from the springs of the giver.
