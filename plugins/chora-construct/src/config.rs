@@ -601,6 +601,29 @@ pub fn log_warnings(config: &Config) {
 mod tests {
     use super::*;
 
+    /// The shipped config of head 29e2cd77 loads to the same table of keys
+    /// as before kit took the shared actions: the table
+    /// `tests/configs/29e2cd77/construct.table` was recorded on that
+    /// head, one key and its action as it spelled it then.
+    #[test]
+    fn the_config_of_29e2cd77_loads_to_the_same_table() {
+        use std::fmt::Write;
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs/29e2cd77");
+        let text = std::fs::read_to_string(dir.join("construct.yaml")).unwrap();
+        let config: Config = serde_saphyr::from_str(&text).unwrap();
+        config.check().unwrap();
+        let mut table = String::new();
+        for (key, action) in &config.keys {
+            writeln!(table, "{key}\t{}", serde_json::to_string(action).unwrap()).unwrap();
+        }
+        let golden = dir.join("construct.table");
+        if std::env::var_os("CHORA_BLESS").is_some() {
+            std::fs::write(&golden, &table).unwrap();
+        }
+        assert_eq!(table, std::fs::read_to_string(&golden).unwrap());
+    }
+
     #[test]
     fn the_default_file_is_valid() {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();

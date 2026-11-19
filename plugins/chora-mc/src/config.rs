@@ -682,6 +682,23 @@ mod tests {
         }
     }
 
+    /// One YAML binding gives one `System` action in every look: the file
+    /// `tests/configs/system-bindings.yaml` loads to its `.table` here and
+    /// in construct .
+    #[test]
+    fn one_binding_gives_the_same_system_action_in_every_look() {
+        use std::fmt::Write;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs");
+        let text = std::fs::read_to_string(dir.join("system-bindings.yaml")).unwrap();
+        let common: Common<Look> = serde_saphyr::from_str(&text).unwrap();
+        let mut table = String::new();
+        for (key, action) in &common.bindings {
+            writeln!(table, "{key}\t{}", serde_json::to_string(action).unwrap()).unwrap();
+        }
+        let golden = std::fs::read_to_string(dir.join("system-bindings.table")).unwrap();
+        assert_eq!(table, golden);
+    }
+
     /// A `settings.set` of a binding merges into the common settings that
     /// kit holds, is written as a map of the file, and reads back as the
     /// same action.
