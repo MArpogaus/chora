@@ -23,6 +23,9 @@ mod state;
 mod surfaces;
 mod windows;
 
+#[cfg(test)]
+mod tests_moved;
+
 use std::{
     collections::{BTreeMap, HashMap},
     path::Path,
