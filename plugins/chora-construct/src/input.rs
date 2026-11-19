@@ -104,12 +104,12 @@ impl Construct {
             Some(action) if Action::SHARED.contains(&action) => return self.shared_key(action),
             Some(Action::Close) => return self.close_ahead(),
             Some(Action::Windows) => return self.open_list(),
-            Some(Action::Cube) => return self.cube_key(),
+            Some(Action::Cube) => self.cube_key(),
             Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
                 self.stride_press(key, action);
             }
             Some(action) => self.act(action),
-            None if typed => return self.keys_walk(),
+            None if typed => self.keys_walk(),
             None => {}
         }
         Ok(())
@@ -117,18 +117,17 @@ impl Construct {
 
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
-    pub(crate) fn keys_walk(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn keys_walk(&mut self) {
         let now = Instant::now();
         if !keys_walk_due(self.keys_walked, now) {
-            return Ok(());
+            return;
         }
         self.keys_walked = Some(now);
         let help = (self.settings.value.keys.iter())
             .find(|(_, action)| **action == Action::Help)
             .map_or("Super+F1", |(key, _)| key.as_str());
         let words = say(Language::of_session(), Word::KeysWalk, &[("key", help)]);
-        self.voice.notice(&words, now);
-        self.draw_hud()
+        self.tell(&words);
     }
 
     /// A give key: gives the focused window, else the window of the pane
@@ -148,8 +147,8 @@ impl Construct {
                 eprintln!("chora-construct: give to {to}: {err}");
                 let language = Language::of_session();
                 let words = refusal(language, to, &err.to_string());
-                self.voice.notice(&words, Instant::now());
-                return self.draw_hud();
+                self.tell(&words);
+                return Ok(());
             }
             return Ok(());
         }
@@ -172,8 +171,8 @@ impl Construct {
                 }
             },
         };
-        self.voice.notice(&words, Instant::now());
-        self.draw_hud()
+        self.tell(&words);
+        Ok(())
     }
 
     /// The events of the voice agent and of the watchdog, then the input.
@@ -568,7 +567,7 @@ impl Construct {
                 match row_of(node).and_then(act) {
                     Some(Act::Terminal) => self.start_terminal(),
                     Some(Act::Programs) => self.start_launcher(),
-                    Some(Act::Cube) => self.cube_key()?,
+                    Some(Act::Cube) => self.cube_key(),
                     None => {}
                 }
                 Ok(true)
@@ -623,15 +622,13 @@ impl Construct {
 
     /// The key of the cube opens one while none is open; a refusal is a
     /// notice.
-    pub(crate) fn cube_key(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn cube_key(&mut self) {
         if self.cube.is_some() {
-            return Ok(());
+            return;
         }
         if let Err(err) = self.open_cube(cube::FACES) {
-            self.voice.notice(&err.to_string(), Instant::now());
-            return self.draw_hud();
+            self.tell(&err.to_string());
         }
-        Ok(())
     }
 
     /// The keys and the clicks of the open window list; whether it took

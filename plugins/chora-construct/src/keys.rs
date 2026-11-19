@@ -63,7 +63,7 @@ impl Construct {
             return Ok(());
         }
         let words = not_started(Language::of_session());
-        self.voice.notice(words, Instant::now());
-        self.draw_hud()
+        self.tell(words);
+        Ok(())
     }
 }

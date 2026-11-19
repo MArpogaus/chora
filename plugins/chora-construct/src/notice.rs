@@ -1,5 +1,27 @@
 //! The notices of the construct: it draws none, `chora-notify` does.
 
+use chora_kit::notice::{self, Notice, Urgency};
+
+use crate::{Construct, NAME, NOTICE_MS};
+
+impl Construct {
+    /// Tells the person `text` in a notice of `chora-notify`, in the place
+    /// of the notice of the construct that still shows. Without the
+    /// server the person gets none, and the construct goes on.
+    pub(crate) fn tell(&mut self, text: &str) {
+        let notice = Notice {
+            app: NAME,
+            icon: "",
+            summary: text,
+            body: "",
+            expire_ms: NOTICE_MS,
+            urgency: Urgency::Normal,
+        };
+        let shown = notice::show_or_log(&mut self.rt.conn, self.notice_id, &notice);
+        self.notice_id = shown.or(self.notice_id);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use chora_kit::notice;
@@ -50,8 +72,8 @@ mod tests {
     fn typed_text_that_does_nothing_gives_one_notice() {
         let (mut c, core) = construct("notice-walk", false);
         core.answer_with(notice::SHOW, json!({"id": 3}));
-        c.keys_walk().unwrap();
-        c.keys_walk().unwrap();
+        c.keys_walk();
+        c.keys_walk();
         assert_eq!(shown(&core).len(), 1);
     }
 
@@ -60,7 +82,7 @@ mod tests {
     fn a_notice_without_a_server_does_not_stop_the_construct() {
         let (mut c, core) = construct("notice-gone", false);
         core.refuse_next("methods.call");
-        c.keys_walk().unwrap();
+        c.keys_walk();
         c.shared_key(Action::Chat).unwrap();
     }
 }

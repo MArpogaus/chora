@@ -91,8 +91,6 @@ const GLOW_IN: f64 = 240.0;
 pub const FADE_OUT: f64 = 120.0;
 /// How long a spoken sentence stays after its end.
 pub const LINGER: Duration = Duration::from_secs(2);
-/// How long a notice shows.
-const NOTICE: Duration = Duration::from_secs(4);
 /// The most bytes of a text node (api.md).
 const CHUNK: usize = 4096;
 /// The most characters of a spoken sentence: two lines of 480.
@@ -1065,15 +1063,6 @@ impl Voice {
         }
     }
 
-    /// Shows a short notice in the text line for a few seconds, also
-    /// without the voice agent.
-    pub fn notice(&mut self, text: &str, now: Instant) {
-        self.say = Some(text.into());
-        self.say_until = None;
-        self.fade_at = Some(now + NOTICE);
-        self.drop_at = None;
-    }
-
     /// The next deadline of the sentence.
     #[must_use]
     pub fn deadline(&self) -> Option<Instant> {
@@ -1591,28 +1580,6 @@ mod tests {
             assert!(w <= out[0] - 8.0 * config.style.unit, "{out:?}: {w}");
             assert!(h <= 2.0 * pad + 16.0 + 48.0, "{out:?}: {h}");
         }
-    }
-
-    /// A notice is one calm line: the sentence alone, with no label above
-    /// it and no ring.
-    #[test]
-    fn a_notice_is_one_line_without_a_label() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let mut voice = Voice::default();
-        voice.notice("No room in view", Instant::now());
-        let hud = measured(&metrics, || {
-            voice.hud(&look, [1280.0, 720.0], false, 0.0, true)
-        });
-        assert_eq!(text_of(&hud, HUD_SAY), Some("No room in view"));
-        assert_eq!(text_of(&hud, HUD_STATE).map(str::trim), Some(""));
-        let glass = hud.iter().find_map(|c| match c {
-            Command::Update { id, props } if id == HUD_GLASS => props.size,
-            _ => None,
-        });
-        let pad = look.pad();
-        assert_eq!(glass.unwrap()[1], 2.0 * pad + Role::Text.size().1);
     }
 
     /// The question grows with its prompt as the core wraps it.
