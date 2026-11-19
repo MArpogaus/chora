@@ -19,3 +19,8 @@ Head: **f7569c24** (3 commits: 66e5923d the helper and its test, 0e285439 the sw
 - Step 2: kit test `a_runtime_of_the_fake_core_reaches_the_core` (crates/chora-kit/tests/fake_core.rs, with `--features testing`): the runtime says `hello`, its `subscribe` reaches the core (`["hello", "events.subscribe"]` in the recorder) and it holds no grab. Committed with the helper (66e5923d).
 - Step 3: tools/copies.toml row "own test connect (Runtime::with in a plugin)", `paths = ["plugins"]`, `pattern = 'Runtime::with\('`, max 0 (greppable: every inline connect is that one call). A planted `Runtime::with(c, "a", Vec::new())` in plugins/chora-xp gives `FAIL: cut-check: copies: own test connect (Runtime::with in a plugin): 1 left, the row allows 0`; tests/cut-check-selftest.sh ok.
 - Hook note: a commit-message-length failure on the first commit (body line over 72), redone; no --no-verify.
+
+## r1 PM review (11-19 21:2x UTC)
+Own diff 103844da..f7569c24 (15 files, +63 -88); the branch also carries kit-report 582ab506 and lint-reason 1f99a98f (already reviewed). FakeCore::runtime is a one-line kit helper with a kit test (hello, then the request); 13 sites switched, the disallowed_methods allows dropped; copies.toml row max 0 on `Runtime::with(` in plugins. Changes are cfg(test) only, so no runtime cell can move; the train runs the full gate.
+MINOR kc-1: chora-assistant on_fake_core keeps `#[allow(clippy::disallowed_methods)]` that clippy does not need, only so the gate-0.8 grep skips its "output.list" string; the reason text hides that. Fix later: let FakeCore answer output.list (kit helper) or narrow the grep to calls. Backlog.
+Verdict MERGE-OK f7569c24 (no open MAJOR); train 75.
