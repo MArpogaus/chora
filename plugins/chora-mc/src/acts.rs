@@ -123,3 +123,6 @@ impl Host for Mc {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests_moved;
