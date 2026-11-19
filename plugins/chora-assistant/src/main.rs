@@ -948,6 +948,10 @@ mod tests {
     }
 
     #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test answers the requests of its fake core"
+    )]
     fn on_fake_core(tag: &str, chats: bool) -> Agent {
         let dir =
             std::env::temp_dir().join(format!("chora-assistant-{tag}-{}", std::process::id()));
