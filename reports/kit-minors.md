@@ -40,3 +40,6 @@ Fixed tests/xp.sh step 17 (grep "another chora-notify serves the session", exit 
 Red (build,ci-check,xp) last lines: `== 17. a second chora-notify leaves the bus name to the first and ends cleanly FAIL: no word of the owner: /tmp/tmp.FGgzvyQg35/notify2.log exit 1 `
 
 Green (pre-commit,ci-check,build,test,xp,virtual) last lines: `build      PASS     1s /tmp/merge-gate.b8QM8e/build.log test       PASS   192s /tmp/merge-gate.b8QM8e/test.log ci-check   PASS    13s /tmp/merge-gate.b8QM8e/ci-check.log virtual    PASS    40s /tmp/merge-gate.b8QM8e/virtual.log xp         PASS    85s /tmp/merge-gate.b8QM8e/xp.log partial run: nothing is pushed exit 0 `
+
+## r2 PM review (11-19 21:3x UTC)
+88f441e4..e4208314, one test commit in tests/xp.sh step 17: greps the new line, the failure text names the 20 s timeout, step text renamed. The lane reproduced the red at 88f441e4 and ran xp and virtual green. No findings. Verdict MERGE-OK e4208314 (r1 88f441e4 plus this); train 75.
