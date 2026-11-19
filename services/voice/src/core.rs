@@ -350,6 +350,9 @@ pub struct Core {
     tts_failed: Option<u64>,
     /// The ACP agents by name: the parameters of `mc agent.set`.
     subs: BTreeMap<String, Value>,
+    /// The names of `subs` in the order of their latest reports, the
+    /// latest last.
+    reported: Vec<String>,
     /// The question of a sub-agent that waits for yes or no, and until
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
@@ -433,6 +436,7 @@ impl Core {
             notes: VecDeque::new(),
             tts_failed: None,
             subs: BTreeMap::new(),
+            reported: Vec::new(),
             sub_confirm: None,
             sub_until: now,
             sub_physical: false,
@@ -482,7 +486,7 @@ impl Core {
             "last_reply": self.last_reply,
             "queued": self.queue.len(),
             "coder": self.coder(),
-            "agents": self.subs.values().collect::<Vec<_>>(),
+            "agents": self.reported.iter().filter_map(|name| self.subs.get(name)).collect::<Vec<_>>(),
             "health": crate::health::record(),
         })
     }
@@ -725,10 +729,13 @@ impl Core {
         match event {
             agents::Event::State(record) => {
                 let name = record["name"].as_str().unwrap_or_default().to_owned();
+                self.reported.retain(|kept| *kept != name);
+                self.reported.push(name.clone());
                 self.subs.insert(name, record);
             }
             agents::Event::Gone(name) => {
                 self.subs.remove(&name);
+                self.reported.retain(|kept| *kept != name);
                 if self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name) {
                     self.sub_confirm = None;
                 }

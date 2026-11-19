@@ -146,7 +146,8 @@ impl Helper {
     }
 
     /// Takes in the answer of the method `state` of voice, for a reader
-    /// that starts after voice: its helpers (`agents`), then voice itself.
+    /// that starts after voice: its helpers (`agents`, in the order of
+    /// their reports, the latest last), then voice itself.
     pub fn seed(&mut self, answer: &Value) {
         *self = Self::default();
         for agent in answer["agents"].as_array().into_iter().flatten() {
@@ -269,6 +270,21 @@ mod tests {
         h.seed(&answer);
         assert_eq!((h.state(), h.mic_off()), (State::Listening, true));
         assert_eq!(h.door(Language::En, false), "coder · idle");
+    }
+
+    /// The seed keeps the order of `agents`, the latest report last, so
+    /// the door names the helper that reported last.
+    #[test]
+    fn a_late_reader_keeps_the_order_of_the_reports() {
+        let mut h = Helper::default();
+        let agents = |names: [&str; 2]| {
+            let agent = |name| json!({"name": name, "state": "idle"});
+            json!({"state": "listening", "agents": names.map(agent)})
+        };
+        h.seed(&agents(["atlas", "coder"]));
+        assert_eq!(h.door(Language::En, false), "coder · idle");
+        h.seed(&agents(["coder", "atlas"]));
+        assert_eq!(h.door(Language::En, false), "atlas · idle");
     }
 
     fn voice(event: &str, data: serde_json::Value) -> Event {
