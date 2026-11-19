@@ -983,6 +983,12 @@ impl Session {
         true
     }
 
+    /// A line the field sent. In a chat it goes to the helper. In the
+    /// list a number or a name picks, and a line that picks nobody is
+    /// held and given back to the field. A number after the held line
+    /// picks and sends it; so does a number alone, which the field sent
+    /// before it read the line given back (F28): the pick, as a click,
+    /// sends the held text to the helper.
     fn said(&mut self, out: &mut dyn Outside, text: &str, frame: &Frame) -> bool {
         match &mut self.mode {
             Mode::Chat(name) => {
@@ -1014,16 +1020,20 @@ impl Session {
                     .and_then(|held| text.strip_prefix(held))
                     .and_then(|rest| number(rest.trim()));
                 let alone = number(text).or_else(|| before.is_none().then(|| name(text))?);
-                let (index, kept) = match (alone, after) {
-                    (Some(index), _) => (Some(index), None),
-                    (None, Some(index)) => (Some(index), before),
-                    (None, None) => (None, Some(text.to_owned())),
+                let (index, kept, late) = match (alone, after) {
+                    (Some(index), _) => (Some(index), None, before),
+                    (None, Some(index)) => (Some(index), before, None),
+                    (None, None) => (None, Some(text.to_owned()), None),
                 };
                 if let (Some(kept), Some(link)) = (&kept, self.link.as_mut()) {
                     link.pick_first(kept);
                 }
                 *held = kept;
-                index.is_some_and(|index| self.pick(out, index, None, frame).is_ok())
+                let picked = index.is_some_and(|index| self.pick(out, index, None, frame).is_ok());
+                if let (true, Some(late)) = (picked && self.helper().is_some(), late) {
+                    self.said(out, &late, frame);
+                }
+                picked
             }
             Mode::Closed => false,
         }
