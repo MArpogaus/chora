@@ -80,18 +80,6 @@ fn a_handover_does_not_pull_the_user_out_of_a_window() {
     assert!(!takes_the_camera(Some("s1")));
 }
 
-/// A shader goes to the runtime directory only, never to the shared
-/// temporary directory.
-#[test]
-fn a_shader_needs_the_runtime_dir() {
-    assert!(shader_file(None, "d", "x.frag", "void main() {}").is_err());
-    assert!(shader_file(Some("rel".into()), "d", "x.frag", "void main() {}").is_err());
-    let dir = std::env::temp_dir().join(format!("chora-shader-test-{}", std::process::id()));
-    let path = shader_file(Some(dir.clone().into()), "d", "x.frag", "void main() {}").unwrap();
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), "void main() {}");
-    std::fs::remove_dir_all(dir).unwrap();
-}
-
 /// A pane keeps its pose in the file, and a construct file gives it
 /// back unchanged; a window that the construct did not start has no
 /// command and stays out.

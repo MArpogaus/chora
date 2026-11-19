@@ -389,7 +389,7 @@ impl Agent {
             look_cache,
             card_theme,
             card_family: HOST_FAMILY.to_owned(),
-            language: language(),
+            language: Language::of_session(),
             assistant: None,
             in_pane: false,
             voice: None,
@@ -511,15 +511,6 @@ fn forget_hover(hovered: &mut Option<String>, commands: &[Command]) {
     if removed {
         *hovered = None;
     }
-}
-
-/// The language of the words on the screen, from the locale variables.
-fn language() -> Language {
-    let tag = ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .into_iter()
-        .filter_map(|name| std::env::var(name).ok())
-        .find(|value| !value.is_empty());
-    tag.map_or(Language::En, |tag| Language::from_tag(&tag))
 }
 
 fn main() -> ExitCode {

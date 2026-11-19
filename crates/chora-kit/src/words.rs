@@ -25,12 +25,19 @@ impl Language {
     }
 
     /// The language of the session, from `LC_ALL`, `LC_MESSAGES` and
-    /// `LANG`, the first one set.
+    /// `LANG`, the first one set. An empty value is unset.
     #[must_use]
     pub fn of_session() -> Self {
+        Self::of_env(|name| std::env::var(name).ok())
+    }
+
+    /// The language of the variables that `get` reads: `LC_ALL`, then
+    /// `LC_MESSAGES`, then `LANG`; an empty value is unset.
+    #[must_use]
+    pub fn of_env(get: impl Fn(&str) -> Option<String>) -> Self {
         let tag = ["LC_ALL", "LC_MESSAGES", "LANG"]
             .into_iter()
-            .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()));
+            .find_map(|name| get(name).filter(|value| !value.is_empty()));
         tag.map_or(Self::En, |tag| Self::from_tag(&tag))
     }
 }
@@ -633,6 +640,36 @@ mod tests {
         assert_eq!(Language::from_tag("en_US.UTF-8"), Language::En);
         assert_eq!(Language::from_tag("fr"), Language::En);
         assert_eq!(Language::from_tag(""), Language::En);
+    }
+
+    fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        move |name| {
+            pairs
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_owned())
+        }
+    }
+
+    #[test]
+    fn an_empty_lc_all_does_not_mask_lang() {
+        let pairs = [("LC_ALL", ""), ("LANG", "de_DE.UTF-8")];
+        assert_eq!(Language::of_env(env(&pairs)), Language::De);
+    }
+
+    #[test]
+    fn an_empty_lc_messages_does_not_mask_lang() {
+        let pairs = [("LC_MESSAGES", ""), ("LANG", "de")];
+        assert_eq!(Language::of_env(env(&pairs)), Language::De);
+    }
+
+    #[test]
+    fn lc_all_wins_over_lc_messages_over_lang() {
+        let all = [("LC_ALL", "en_US"), ("LC_MESSAGES", "de"), ("LANG", "de")];
+        assert_eq!(Language::of_env(env(&all)), Language::En);
+        let messages = [("LC_MESSAGES", "de"), ("LANG", "en")];
+        assert_eq!(Language::of_env(env(&messages)), Language::De);
+        assert_eq!(Language::of_env(env(&[])), Language::En);
     }
 
     #[test]

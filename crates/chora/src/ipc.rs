@@ -10,7 +10,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
-        fs::{DirBuilderExt, MetadataExt, PermissionsExt},
+        fs::PermissionsExt,
         net::{UnixListener, UnixStream},
     },
     path::{Path, PathBuf},
@@ -22,6 +22,7 @@ use chora_scene::{
     ipc::{
         Apply, Capability, Edges, Emit, Grab, Hello, Message, Query, Request, RpcError, Subscribe,
     },
+    paths::{self, private_dir},
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -200,11 +201,11 @@ struct Conn {
     reader: Option<RegistrationToken>,
 }
 
-/// Opens the socket in `$XDG_RUNTIME_DIR/chora/` and returns its path.
+/// Opens the socket in `chora/` of the runtime directory and returns its path.
 pub fn listen(state: &mut State) -> io::Result<PathBuf> {
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
-        .ok_or_else(|| io::Error::other("XDG_RUNTIME_DIR is not set"))?;
-    let dir = Path::new(&runtime).join("chora");
+    let runtime = paths::runtime_home()
+        .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
+    let dir = runtime.join("chora");
     private_dir(&dir)?;
     let mut path = dir.join(&state.socket_name);
     path.set_extension("sock");
@@ -250,24 +251,6 @@ fn bind(state: &State, path: &Path, socket: Socket) -> io::Result<RegistrationTo
             },
         )
         .map_err(|err| io::Error::other(err.to_string()))
-}
-
-/// Creates a directory with mode 0700, or sets that mode on an old one,
-/// and checks that it is a real directory of the owner of its parent.
-fn private_dir(dir: &Path) -> io::Result<()> {
-    let parent = dir.parent().ok_or_else(|| io::Error::other("no parent"))?;
-    std::fs::DirBuilder::new()
-        .mode(0o700)
-        .recursive(true)
-        .create(dir)?;
-    let meta = std::fs::symlink_metadata(dir)?;
-    if !meta.is_dir() || meta.uid() != std::fs::metadata(parent)?.uid() {
-        return Err(io::Error::other(format!(
-            "{} is no directory of the owner of its parent",
-            dir.display()
-        )));
-    }
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
 }
 
 impl Drop for Ipc {
@@ -3945,13 +3928,10 @@ mod tests {
     fn a_client_socket_dir_is_private_and_fits_a_socket_path() {
         // A long directory, so that a long name passes no socket path.
         let (mut core, dir) = socket_dir("dirs-long");
-        let old = dir.join("clients/agent");
-        std::fs::create_dir_all(&old).unwrap();
-        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o777)).unwrap();
         let mut admin = core.admin();
         fixed(&mut core, &mut admin, "agent");
-        let mode = std::fs::metadata(&old).unwrap().permissions().mode() & 0o777;
-        assert_eq!(mode, 0o700);
+        let made = std::fs::metadata(dir.join("clients/agent")).unwrap();
+        assert_eq!(made.permissions().mode() & 0o777, 0o700);
         let long = "a".repeat(64);
         let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": long}));
         assert!(message.contains("too long"), "{message}");
@@ -3965,6 +3945,19 @@ mod tests {
         }
         let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "c64"}));
         assert!(message.contains("64 client sockets"), "{message}");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_client_socket_dir_with_group_bits_is_refused() {
+        let (mut core, dir) = socket_dir("dirs-loose");
+        let old = dir.join("clients/agent");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o770)).unwrap();
+        let mut admin = core.admin();
+        let (_, message) = admin.fails(&mut core, "clients.create", json!({"name": "agent"}));
+        assert!(message.contains("mode"), "{message}");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }

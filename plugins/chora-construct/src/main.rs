@@ -609,35 +609,10 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
-/// Writes a shader to `$XDG_RUNTIME_DIR/{dir}/{name}` when it differs,
-/// through a new file of mode 0600. Without an absolute runtime
-/// directory it refuses: the shared temporary directory would let another
-/// local user plant the shader first.
-fn shader_file(
-    runtime: Option<std::ffi::OsString>,
-    dir: &str,
-    name: &str,
-    text: &str,
-) -> std::io::Result<PathBuf> {
-    let runtime = (runtime.map(PathBuf::from))
-        .filter(|p| p.is_absolute())
-        .ok_or_else(|| std::io::Error::other("no absolute $XDG_RUNTIME_DIR for the shaders"))?;
-    let path = runtime.join(dir).join(name);
-    if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
-        .ok()
-        .as_deref()
-        != Some(text)
-    {
-        chora_kit::write_file(&path, text.as_bytes())?;
-    }
-    Ok(path)
-}
-
 /// Writes a shader of the plugin into the runtime directory and returns
 /// its path.
 fn shader(name: &str, text: &str) -> std::io::Result<String> {
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR");
-    shader_file(runtime, "chora-construct", name, text).map(|p| p.to_string_lossy().into_owned())
+    chora_kit::runtime_file("chora-construct", name, text).map(|p| p.to_string_lossy().into_owned())
 }
 
 impl Construct {

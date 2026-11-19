@@ -819,9 +819,14 @@ fn unit_env() -> Vec<String> {
         "--setenv=XDG_ACTIVATION_TOKEN".to_owned(),
         "--setenv=DESKTOP_STARTUP_ID".to_owned(),
     ];
-    for key in ["PATH", "XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "CHORA_SOCKET"]
-        .into_iter()
-        .chain(chora_scene::ipc::HOST_VARIABLES)
+    for key in [
+        "PATH",
+        chora_scene::paths::RUNTIME_ENV,
+        "WAYLAND_DISPLAY",
+        "CHORA_SOCKET",
+    ]
+    .into_iter()
+    .chain(chora_scene::ipc::HOST_VARIABLES)
     {
         options.push(if std::env::var_os(key).is_some() {
             format!("--setenv={key}")
@@ -1011,13 +1016,10 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         }
         Some(f) => std::fs::read_to_string(f)?,
         None => {
-            let path = clients_files(
-                std::env::var_os("XDG_CONFIG_HOME"),
-                std::env::var_os("HOME"),
-            )
-            .into_iter()
-            .find(|p| p.exists())
-            .ok_or_else(|| bad("no clients.yaml; give the file as argument".into()))?;
+            let path = chora_scene::paths::config_home()
+                .map(|dir| dir.join("chora/clients.yaml"))
+                .filter(|p| p.exists())
+                .ok_or_else(|| bad("no clients.yaml; give the file as argument".into()))?;
             std::fs::read_to_string(&path).map_err(|e| bad(format!("{}: {e}", path.display())))?
         }
     };
@@ -1053,21 +1055,6 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         }
     }
     Ok(())
-}
-
-/// The files that `clients up` reads without an argument: the first
-/// that exists counts. Only an absolute `$XDG_CONFIG_HOME` or `$HOME`
-/// gives one.
-fn clients_files(
-    xdg: Option<std::ffi::OsString>,
-    home: Option<std::ffi::OsString>,
-) -> Vec<std::path::PathBuf> {
-    let xdg = view::absolute(xdg);
-    let home = view::absolute(home).map(|h| h.join(".config"));
-    xdg.into_iter()
-        .chain(home)
-        .map(|d| d.join("chora/clients.yaml"))
-        .collect()
 }
 
 /// Makes the grants of a not yet opened name equal to the listed ones,
@@ -1234,24 +1221,6 @@ mod tests {
         Args, AssetCmd, Capability, ClientSpec, Cmd, grant_delta, print_line, taken_socket,
         wait_loop,
     };
-
-    /// An empty or relative `$XDG_CONFIG_HOME` or `$HOME` would read the
-    /// capabilities from the current directory.
-    #[test]
-    fn clients_up_reads_no_file_of_the_current_directory() {
-        let some = |s: &str| Some(std::ffi::OsString::from(s));
-        let files = |xdg, home| super::clients_files(xdg, home);
-        let home = std::path::Path::new("/h/.config/chora/clients.yaml");
-        assert_eq!(
-            files(some("/c"), some("/h")),
-            [std::path::Path::new("/c/chora/clients.yaml"), home]
-        );
-        assert_eq!(files(some(""), some("/h")), [home]);
-        assert_eq!(files(some("c"), some("/h")), [home]);
-        let none: [&std::path::Path; 0] = [];
-        assert_eq!(files(some(""), some("")), none);
-        assert_eq!(files(None, some("h")), none);
-    }
 
     /// A line of `run` is compact JSON, so that a script reads it at once.
     #[test]

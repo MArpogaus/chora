@@ -280,8 +280,7 @@ impl Wm {
             .next()
             .is_some_and(session::on_path);
         if installed {
-            let home =
-                std::env::var_os("HOME").map_or_else(|| "/".into(), std::path::PathBuf::from);
+            let home = chora_scene::paths::home().unwrap_or_else(|| "/".into());
             self.start_program(&desktop_icons::open_with(&manager, &home));
         } else {
             let message = Message {

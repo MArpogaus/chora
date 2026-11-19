@@ -548,8 +548,7 @@ pub fn apply(dir: &Path, colors: &Colors, scheme: Scheme) -> std::io::Result<()>
 /// [`apply`] writes and the pids of the panel.
 #[must_use]
 pub fn runtime_dir() -> Option<std::path::PathBuf> {
-    let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
-    runtime.is_absolute().then(|| runtime.join("chora-tiling"))
+    chora_scene::paths::runtime_home().map(|runtime| runtime.join("chora-tiling"))
 }
 
 /// The directory that [`apply`] writes by default: `chora-tiling/theme`
@@ -605,11 +604,7 @@ pub fn signal(pid: u32, name: &str) {
 #[must_use]
 pub fn config_dirs() -> Vec<std::path::PathBuf> {
     let mut dirs = Vec::new();
-    let config = std::env::var_os("XDG_CONFIG_HOME")
-        .filter(|v| !v.is_empty())
-        .map(std::path::PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".config")));
-    dirs.extend(config.map(|c| c.join("chora").join("tiling")));
+    dirs.extend(chora_scene::paths::config_home().map(|c| c.join("chora").join("tiling")));
     dirs.extend(default_dir());
     dirs.extend(flavor_dirs());
     dirs.extend(chora_kit::shared::dirs());
@@ -703,13 +698,11 @@ impl LaunchError {
     /// The title and the text of the notice for a person.
     #[must_use]
     pub fn notice(&self) -> (&'static str, &'static str) {
-        let german = matches!(
-            std::env::var("LC_ALL")
-                .or_else(|_| std::env::var("LC_MESSAGES"))
-                .or_else(|_| std::env::var("LANG"))
-                .as_deref(),
-            Ok(l) if l.starts_with("de")
-        );
+        self.notice_in(chora_kit::words::Language::of_session())
+    }
+
+    fn notice_in(&self, language: chora_kit::words::Language) -> (&'static str, &'static str) {
+        let german = language == chora_kit::words::Language::De;
         let Self::Missing { program, .. } = self;
         match (program.as_str(), german) {
             ("power", false) => (
@@ -822,6 +815,20 @@ pub fn written_scheme(dirs: &[std::path::PathBuf]) -> Scheme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_notice_of_a_missing_script_follows_the_language() {
+        use chora_kit::words::Language;
+        let missing = LaunchError::Missing {
+            program: "power".into(),
+            name: "power.sh".into(),
+            searched: Vec::new(),
+        };
+        let english = missing.notice_in(Language::En);
+        let german = missing.notice_in(Language::De);
+        assert_eq!(english.0, "Power menu not installed");
+        assert_eq!(german.0, "Ausschaltmenü nicht installiert");
+    }
 
     const LABELS: [(&str, &str); 4] = [
         ("text", "surface"),

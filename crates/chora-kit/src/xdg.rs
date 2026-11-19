@@ -31,22 +31,14 @@ fn assets_of(value: Option<OsString>) -> Option<PathBuf> {
 /// absolute one.
 #[must_use]
 pub fn data_home() -> Option<PathBuf> {
-    home_of(
-        std::env::var_os("XDG_DATA_HOME"),
-        std::env::var_os("HOME"),
-        ".local/share",
-    )
+    chora_scene::paths::data_home()
 }
 
 /// `$XDG_CONFIG_HOME`, else `$HOME/.config`; `None` without an absolute
 /// one.
 #[must_use]
 pub fn config_home() -> Option<PathBuf> {
-    home_of(
-        std::env::var_os("XDG_CONFIG_HOME"),
-        std::env::var_os("HOME"),
-        ".config",
-    )
+    chora_scene::paths::config_home()
 }
 
 /// The first of the XDG data directories that has a file, for example
@@ -57,16 +49,6 @@ pub fn data_file(file: &str) -> Option<PathBuf> {
         .into_iter()
         .map(|d| d.join(file))
         .find(|p| p.is_file())
-}
-
-fn home_of(xdg: Option<OsString>, home: Option<OsString>, below: &str) -> Option<PathBuf> {
-    xdg.map(PathBuf::from)
-        .filter(|p| p.is_absolute())
-        .or_else(|| {
-            home.map(PathBuf::from)
-                .filter(|p| p.is_absolute())
-                .map(|h| h.join(below))
-        })
 }
 
 fn dirs_of(value: Option<OsString>) -> Vec<PathBuf> {
@@ -88,20 +70,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn empty_and_relative_values_do_not_count() {
+    fn empty_and_relative_directories_do_not_count() {
         let some = |s: &str| Some(OsString::from(s));
-        let share = ".local/share";
-        assert_eq!(home_of(some("/d"), some("/h"), share), Some("/d".into()));
-        assert_eq!(
-            home_of(some(""), some("/h"), share),
-            Some("/h/.local/share".into())
-        );
-        assert_eq!(
-            home_of(some("d"), some("/h"), share),
-            Some("/h/.local/share".into())
-        );
-        assert_eq!(home_of(some(""), some(""), share), None);
-        assert_eq!(home_of(None, None, share), None);
         assert_eq!(
             dirs_of(some("/a::b:/c")),
             [PathBuf::from("/a"), "/c".into()]

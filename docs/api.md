@@ -1059,7 +1059,9 @@ privileged methods, `reserve_space` and `configure_output`, and
 
 A client socket fixes the name of its clients (D33). `clients.create`
 on the admin socket opens `clients/NAME/ipc.sock` below the directory of
-the main socket, which has mode 0700. `capabilities` says what a
+the main socket, which has mode 0700. The core refuses a directory that
+another user owns, that has group or other bits, or that is a symlink,
+and logs the reason. `capabilities` says what a
 connection through it may do; `clients.yaml` and `clients up` fill it
 in. `choractl clients create agent` prints its path:
 

@@ -8,7 +8,6 @@
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    ffi::OsString,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -96,31 +95,14 @@ fn is_default(props: &PropsUpdate) -> bool {
 }
 
 /// The directories of a kind of file, for example `views`: the one in
-/// `$XDG_CONFIG_HOME/chora/` first, then the one of the package.
+/// `chora/` of the config home first, then the one of the package.
 fn dirs(kind: &str) -> Vec<PathBuf> {
-    let config = config_home(
-        std::env::var_os("XDG_CONFIG_HOME"),
-        std::env::var_os("HOME"),
-    );
-    let mut dirs: Vec<PathBuf> = config
+    let mut dirs: Vec<PathBuf> = chora_scene::paths::config_home()
         .map(|c| c.join("chora").join(kind))
         .into_iter()
         .collect();
     dirs.push(Path::new("/usr/share/chora").join(kind));
     dirs
-}
-
-/// The configuration directory of the user: `$XDG_CONFIG_HOME`, else
-/// `$HOME/.config`; `None` without an absolute one.
-fn config_home(xdg: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
-    absolute(xdg).or_else(|| absolute(home).map(|h| h.join(".config")))
-}
-
-/// The directory of an environment variable, if it is an absolute path.
-/// Empty and relative values do not count, as the XDG specification
-/// says, so that no path resolves against the current directory.
-pub fn absolute(value: Option<OsString>) -> Option<PathBuf> {
-    value.map(PathBuf::from).filter(|p| p.is_absolute())
 }
 
 /// The file of a name: a path as it is, or `NAME.yaml` in the first
@@ -630,22 +612,6 @@ mod tests {
             "a path stays a path"
         );
         assert!(find("views", "..").is_err());
-    }
-
-    /// An empty or relative `$XDG_CONFIG_HOME` or `$HOME` would read
-    /// views and manifests from the current directory.
-    #[test]
-    fn empty_and_relative_directories_do_not_count() {
-        let some = |s: &str| Some(OsString::from(s));
-        assert_eq!(config_home(some("/c"), some("/h")), Some("/c".into()));
-        assert_eq!(config_home(None, some("/h")), Some("/h/.config".into()));
-        assert_eq!(config_home(some(""), some("/h")), Some("/h/.config".into()));
-        assert_eq!(
-            config_home(some("c"), some("/h")),
-            Some("/h/.config".into())
-        );
-        assert_eq!(config_home(some(""), some("")), None);
-        assert_eq!(config_home(None, some("h")), None);
     }
 
     const SAVED: &str = "name: work\nplugins:\n- name: tiling\nscene:\n- {id: old, kind: rect}\n";

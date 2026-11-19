@@ -9,7 +9,6 @@
 //! is not opened.
 
 use std::{
-    ffi::OsString,
     fs,
     io::{self, Write},
     os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
@@ -26,14 +25,7 @@ pub const KEEP: usize = 3;
 /// `$XDG_STATE_HOME` or `$HOME`.
 #[must_use]
 pub fn dir() -> Option<PathBuf> {
-    dir_of(std::env::var_os("XDG_STATE_HOME"), std::env::var_os("HOME"))
-}
-
-fn dir_of(state: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
-    let absolute = |v: Option<OsString>| v.map(PathBuf::from).filter(|p| p.is_absolute());
-    absolute(state)
-        .or_else(|| absolute(home).map(|h| h.join(".local/state")))
-        .map(|state| state.join("chora/logs"))
+    super::paths::state_home().map(|state| state.join("chora/logs"))
 }
 
 /// A log file that moves to its old files at [`MAX_BYTES`].
@@ -154,21 +146,6 @@ mod tests {
 
     fn read(path: PathBuf) -> String {
         fs::read_to_string(path).unwrap_or_default()
-    }
-
-    #[test]
-    fn the_folder_is_under_the_state_home() {
-        let state = |v: &str| Some(OsString::from(v));
-        assert_eq!(
-            dir_of(state("/s"), state("/h")),
-            Some(PathBuf::from("/s/chora/logs"))
-        );
-        assert_eq!(
-            dir_of(state("rel"), state("/h")),
-            Some(PathBuf::from("/h/.local/state/chora/logs")),
-            "a relative state home does not count"
-        );
-        assert_eq!(dir_of(None, state("")), None);
     }
 
     #[test]

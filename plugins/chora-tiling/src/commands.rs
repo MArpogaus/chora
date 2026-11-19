@@ -103,19 +103,9 @@ pub(super) fn frame_nodes(
 }
 
 /// A shader of the plugin, written into the runtime directory of the user;
-/// none when there is none, or it is no absolute path (the shared temporary
-/// directory would let another user plant it first).
+/// none when there is none.
 pub(super) fn runtime_shader(name: &str, text: &str) -> Option<String> {
-    let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
-    let path = runtime.join("chora-tiling").join(name);
-    runtime.is_absolute().then_some(())?;
-    if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
-        .ok()
-        .as_deref()
-        != Some(text)
-    {
-        chora_kit::write_file(&path, text.as_bytes()).ok()?;
-    }
+    let path = chora_kit::runtime_file("chora-tiling", name, text).ok()?;
     Some(path.to_string_lossy().into_owned())
 }
 
