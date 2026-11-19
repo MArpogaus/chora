@@ -119,6 +119,9 @@ impl Tiling {
                 self.effects.release(&old);
             }
             let grabbed = taken(asked, |id| self.wm.has(id), || self.window_at(point));
+            if let Some(id) = &grabbed {
+                self.wm.focus(id);
+            }
             self.dragged = grabbed.map(|id| {
                 let [x, y] = (self.sent.get(&id))
                     .and_then(|p| p.at)
