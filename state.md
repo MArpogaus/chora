@@ -33,10 +33,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | kc-fix-r1.md (F2) | sonnet low | MERGE-OK f666a025, train 75 |
 | temp-dirs-r2.md (F2, F5) | sonnet medium | session_016iS3kMvjHveBkn49PM1Z26 (22:11) |
 | flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH (21:43) |
+| f24-rest-r1.md (F5) | sonnet medium | starting 22:1x from a9e7084d |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 74 green 22:13. 75 running 22:16: kit-report, minors-2, flake-i, kit-connect, kit-minors, kc-fix (73b folded in; hud flake watch). 76: flake-h, flake-j, flake-k, ig-fix, temp-dirs as they pass.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-K 0.7 %, TEMP-DIRS r2 0.4 %, IG-FIX r2 0.2 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done 21-22 h: 8 lanes (reports/); AUDIT-F r3 sonnet 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-K 0.7 %, F24-REST 0.6 %, TEMP-DIRS r2 0.4 %, IG-FIX r2 0.2 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done 21-22 h: 8 lanes (reports/); AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
