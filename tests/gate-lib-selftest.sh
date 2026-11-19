@@ -3,7 +3,11 @@
 # with a failure, ends at once and leaves none of its programs behind,
 # also not one that it stopped with SIGSTOP to force a late answer. Its
 # lock: a gate script waits while another gate holds the lock, and says
-# so.
+# so. Its session_start with the env file of an earlier session of the
+# same name (gate-construct-pull.sh runs `pull behind` twice): with the
+# new session held 1 s before its redirect truncates the file, as on a
+# busy machine (F21), it takes the socket of the new session, not the
+# gone one of the old file.
 #
 # Usage: tests/gate-lib-selftest.sh
 # shellcheck disable=SC2016 # the inner gate expands its own arguments
@@ -156,5 +160,23 @@ if running "$stubborn"; then
     failures=$((failures + 1))
 fi
 kill -KILL "$stubborn" 2>/dev/null
+fake=$work/fake
+mkdir -p "$fake/tests"
+cp "$repo/tests/gate-lib.sh" "$repo/tests/gate-lock.sh" "$fake/tests/"
+printf '#!/bin/bash\necho XDG_RUNTIME_DIR=/new\necho WAYLAND_DISPLAY=/new/wayland-1\necho CHORA_SOCKET=/new/chora/wayland-1.sock\nexec sleep 5\n' \
+    >"$fake/tests/headless-session.sh"
+chmod +x "$fake/tests/headless-session.sh"
+printf 'CHORA_SOCKET=/old/chora/wayland-1.sock\n' >"$work/again.env"
+again=$(CHORA_GATE_LOCK=$work/again.lock timeout -k 1 30 bash -c '
+. "$1/tests/gate-lib.sh"
+set -T
+trap "case \$BASH_COMMAND in pids+=*) kill -STOP \$!; (command sleep 1; kill -CONT \$!) & ;; esac" DEBUG
+env_file=$2 session_start
+trap - DEBUG
+echo "$CHORA_SOCKET"' gate "$fake" "$work/again.env" 2>&1 | tail -n 1)
+if [ "$again" != /new/chora/wayland-1.sock ]; then
+    echo "FAIL: session_start took the socket ${again:-none} of an old env file, not the one of its new session"
+    failures=$((failures + 1))
+fi
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"
