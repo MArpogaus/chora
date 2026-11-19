@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 21:19 UTC)
+## Now (2026-11-19 21:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 20:26 PM 1.2 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; use the week.
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need
@@ -29,14 +29,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | kit-minors-r2.md (F2, F5) | sonnet medium | session_016iS3kLejbodHAtEu7ALMD9 (21:18); r1 broke xp 17 |
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 73 |
 | id-gate-r1.md (F6) | sonnet high | MERGE-OK a9fd91f3, own train 74 next |
-| flake-i-r1.md (F5) | sonnet high | MERGE-OK e5e44719, train 75 |
 | flake-j-r1.md (F5) | sonnet high | session_016iS3kMAsaXSn33qWo4iN2k (21:03) |
 | ig-fix-r1.md (F6) | sonnet medium | session_016iS3kPJ6TqYMFjmMcjoCCa (21:07) |
-| kit-connect-r1.md (F2) | sonnet high | MERGE-OK f7569c24, train 75 |
+| gate-pick-r1.md (F6) | sonnet medium | starting |
+| kc-fix-r1.md (F2) | sonnet low | starting |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 72 green 21:03. 73 red 21:17 (xp 17: kit-minors). 73b running 21:20 (f3709748): kit-report, minors-2. 74 (harness, alone): id-gate a9fd91f3. 75: flake-i e5e44719, kit-connect f7569c24, then flake-h, flake-j, kit-minors r2.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: KIT-MINORS r2 0.3 %, IG-FIX 0.3 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, LINT-REASON, MINOR-SWEEP, KIT-MINORS, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: GATE-PICK 0.5 %, KC-FIX 0.3 %, KIT-MINORS r2 0.3 %, IG-FIX 0.3 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, LINT-REASON, MINOR-SWEEP, KIT-MINORS, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
