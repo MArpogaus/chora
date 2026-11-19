@@ -32,10 +32,10 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | minor-sweep-r1.md (F5) | sonnet high | MERGE-OK dfa8ddd8, train 73 |
 | flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt (20:30) from 219d5afe |
 | kit-minors-r1.md (F2, F5) | sonnet high | session_016iS3kNnsoUoW6jkzVivj2i (20:30) from 219d5afe |
-| minors-2-r1.md (F4, F5) | sonnet high | starting 9db45f8a |
+| minors-2-r1.md (F4, F5) | sonnet high | session_016iS3kQ6JaM7E3oq3XUE8gn (20:46) from 9db45f8a |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 69 green 19:03; 70 green 19:32 (construct-red, known-red 0). 71 green 20:12 (debt-down, D117). 72 running 20:36: cube-tests, mx1-m2, docs-f8d. 73: lint-reason 1f99a98f, kit-report, minor-sweep dfa8ddd8, flake-h, kit-minors.
+4. Trains (F6): 70 green 19:32. 71 green 20:12 (debt-down, D117). 72 running 20:36: cube-tests, mx1-m2, docs-f8d. 73: lint-reason 1f99a98f, kit-report, minor-sweep dfa8ddd8, flake-h, kit-minors.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); CUBE-TESTS, MX1-M2, DOCS-F8d done; running: MINORS-2 0.6 %, FLAKE-H 1 %, KIT-MINORS 0.8 %, KIT-REPORT 0.8 %; LINT-REASON, MINOR-SWEEP done; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
