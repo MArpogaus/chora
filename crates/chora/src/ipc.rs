@@ -1789,6 +1789,35 @@ mod tests {
     }
 
     #[test]
+    fn the_lock_order_stays_above_every_plugin() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut mc = core.named("mc");
+        let mut bar = core.named("bar");
+        let (_, message) = mc.fails(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "mc", "kind": "group", "parent": "root",
+                "props": {"order": "lock"}}}]}),
+        );
+        assert!(message.contains("lock"), "{message}");
+        bar.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "bar", "kind": "group", "parent": "root",
+                "props": {"order": "overlay"}}}]}),
+        );
+        mc.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "mc", "kind": "group", "parent": "root",
+                "props": {"order": "background"}}}]}),
+        );
+        let root = mc.ok(&mut core, "scene.query", json!({"selector": "id:root"}));
+        assert_eq!(root[0]["children"], json!(["mc", "bar"]), "bottom first");
+    }
+
+    #[test]
     fn query_filters_by_owner_kind_app_id_and_focus() {
         let mut f = fixture();
         assert_eq!(

@@ -6,12 +6,14 @@
 //! This first slice (WM1) has the lifecycle: [`book`] (which windows are
 //! the look's), [`give`] (a window that goes to another window manager),
 //! [`kept`] (what a restart keeps in node meta) and [`state`] (the shape of
-//! `state.get`). Focus, open shell surfaces, desks and the stacking order
-//! follow in later slices.
+//! `state.get`). [`stack`] (WM5) holds the two stacking rules that every
+//! look shares. Focus, open shell surfaces and desks follow in later
+//! slices.
 
 pub mod book;
 pub mod give;
 pub mod kept;
+pub mod stack;
 pub mod state;
 
 pub use book::{Book, Change, Created, Origin, Phase, Why};

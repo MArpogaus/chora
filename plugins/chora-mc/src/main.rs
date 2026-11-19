@@ -1349,6 +1349,63 @@ mod tests {
     /// The head of a page opens the page list: it takes the pointer like
     /// every other item, and the overview itself has no such hit.
     #[test]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn the_root_of_mc_lies_in_the_background_order_below_every_other_root() {
+        let core = chora_kit::testing::FakeCore::start();
+        let mut xp = core.connect("xp");
+        xp.apply(vec![super::create(
+            "xp",
+            NodeKind::Group,
+            chora_scene::ROOT,
+            PropsUpdate::default(),
+        )])
+        .unwrap();
+        let mut mc = crate::testing::mc_on(&core, "background-order", [800, 600]);
+        let model = core.model();
+        let roots = || {
+            model
+                .lock()
+                .unwrap()
+                .scene
+                .node(chora_scene::ROOT)
+                .unwrap()
+                .children
+                .clone()
+        };
+        let order = model
+            .lock()
+            .unwrap()
+            .scene
+            .node(super::NAME)
+            .unwrap()
+            .props
+            .order;
+        assert_eq!(order, chora_scene::Order::Background);
+        xp.apply(vec![Command::Move {
+            id: "xp".into(),
+            parent: None,
+            index: Some(0),
+        }])
+        .unwrap();
+        assert_eq!(
+            roots().first().map(String::as_str),
+            Some(super::NAME),
+            "{:?}",
+            roots()
+        );
+        mc.build().unwrap();
+        assert_eq!(
+            roots().first().map(String::as_str),
+            Some(super::NAME),
+            "{:?}",
+            roots()
+        );
+    }
+
+    #[test]
     fn a_click_on_the_head_of_a_page_shows_the_overview() {
         let (mut mc, model) = crate::testing::mc("head-hit", [1280, 800]);
         mc.show("agenda", false).unwrap();
