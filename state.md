@@ -25,7 +25,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
-| integ-r1.md (F6) | sonnet high | starting 13:50 |
+| integ-r1.md (F6) | sonnet high | session_016iS3kNXpgUxiE2BdHxpC8S (13:37) |
 | kitcov-r1.md (F5) | haiku high | session_016iS3kQTAgVV1jfmvvvgmHY (13:24) |
 | flakes-g-r2.md (F5) | opus high | held: no setup x5 (13:18, 3 of 4 lanes since 13:00 had it); 14:00 UTC default |
 
