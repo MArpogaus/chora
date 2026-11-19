@@ -29,3 +29,21 @@ Lane cloud, branch `claude/cut2` from dc4bc46d, head 29b2fd25 (pushed). 6 commit
 5. `folders.rs` roots as strings with `{}`: a typed `Root` enum. S.
 6. cut-check: merge `copies.toml` and `cut-known.toml`; a Rust-aware arm scan for multi-line patterns. S.
 7. tiling `name_theme` test once tiling has a FakeCore (WM1). S.
+
+## Review r1
+
+Lane cloud, read-only on code, claude/cut2 head 29b2fd25 against dc4bc46d. Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 2 MINOR, 1 NIT, 1 pre-existing).
+
+Checks:
+1. Core exception: minimal and safe. Only the exact names `look.theme`, `look.view` pass; `data.look` is always overwritten with the emitter (a spoofed `look` in the cell is replaced); a non-object data is refused; emitters in a core namespace are still refused first; size is measured after stamping and the per-name rate applies. A confined connection stamps its own name, and `@look` needs that name to be the space or WM of the context and a folder of that name, so it cannot steer another look's costume (name squatting on the main socket is pre-existing, D33). `a_look_names_itself_with_the_shared_look_events` passes. docs/api.md matches except rw-1; docs/decisions.md D65 still says "the core refuses any other name" and needs the amendment line (PM).
+2. Red first holds: at 4643e772 cut-check-selftest has 15 FAIL lines over the 8 new cells, 3 assistant tests and the core test fail; selftest is green from 32a337ab; head: assistant 238 ok, kit 223+11 ok, core look cell ok.
+3. Cut gate: `tools/cut-check` on 29b2fd25 exit 0 (8 crates, 18 reported); `--base dc4bc46d` exit 0, no variant reported (the diff adds no kit-enum arm). Selftest covers packaging, includes, links, huds entries, names over cut-known.toml, `--base` arms. merge-gate.sh passes the merge base to `--base`; CI runs it without `--base` (reports only, fine).
+4. Behaviour: tests/hud-folders.sh lists neutral, construct, mc, tiling, xp; packaging-files.py 165 files 0 gaps, its selftest ok; PKGBUILD and Cargo.toml install plugins/chora-tiling/hud; tiling emits `tiling.theme` then `look.theme`.
+
+Findings:
+- rw-1, MINOR, crates/chora/src/ipc.rs:1071, a client named `look` takes the own-prefix branch, so it emits any `look.X` unstamped with its own `data.look`, against docs/api.md:705 ("No other `look.` name is accepted"); no consumer acts on it today; fix: refuse an event that starts with `look.` unless it is in LOOK_EVENTS, with a line in the core cell.
+- rw-2, MINOR, plugins/chora-assistant/src/main.rs:356, `look_event` trusts `data.look` for every `look.` event, not only the two stamped ones, so rw-1 becomes a spoof once a third `look.` name is handled; fix: take `data.look` only for `look.theme` and `look.view`.
+- rw-3, NIT, plugins/chora-assistant/src/context.rs:316, `themes` now gains a row for every client name that emits `look.theme` (main-socket names are free) and never drops one; fix: remove the row when the client leaves.
+- rw-4, PRE-EXISTING, crates/chora/src/ipc.rs:2179, `a_refused_request_logs_its_client_and_code_without_its_parameters` fails under `cargo test -p chora ipc::` at dc4bc46d and at the head, passes alone (tracing callsite cache across tests); fix: build the subscriber before any callsite registers, or rebuild interest (`tracing::callsite::rebuild_interest_cache`) in `logged`.
+
+Not run: merge gate (F21 known), gate-hud and tiling acts (covered by the lane's gate run).
