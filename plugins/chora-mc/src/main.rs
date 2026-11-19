@@ -1295,17 +1295,6 @@ fn needs_claim(action: &Action) -> bool {
 }
 
 /// Keeps the regions over a scene group that was just created.
-/// The root of mc below the roots of the other plugins, so that a window
-/// of another window manager that is dragged over the output shows above
-/// the opaque page and not behind it.
-fn under_other_plugins() -> Command {
-    Command::Move {
-        id: NAME.into(),
-        parent: None,
-        index: Some(0),
-    }
-}
-
 fn regions_on_top() -> Command {
     Command::Move {
         id: REGIONS.into(),
@@ -1349,6 +1338,63 @@ mod tests {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    #[test]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn the_root_of_mc_lies_in_the_background_order_below_every_other_root() {
+        let core = chora_kit::testing::FakeCore::start();
+        let mut xp = core.connect("xp");
+        xp.apply(vec![super::create(
+            "xp",
+            NodeKind::Group,
+            chora_scene::ROOT,
+            PropsUpdate::default(),
+        )])
+        .unwrap();
+        let mut mc = crate::testing::mc_on(&core, "background-order", [800, 600]);
+        let model = core.model();
+        let roots = || {
+            model
+                .lock()
+                .unwrap()
+                .scene
+                .node(chora_scene::ROOT)
+                .unwrap()
+                .children
+                .clone()
+        };
+        let order = model
+            .lock()
+            .unwrap()
+            .scene
+            .node(super::NAME)
+            .unwrap()
+            .props
+            .order;
+        assert_eq!(order, chora_scene::Order::Background);
+        xp.apply(vec![Command::Move {
+            id: "xp".into(),
+            parent: None,
+            index: Some(0),
+        }])
+        .unwrap();
+        assert_eq!(
+            roots().first().map(String::as_str),
+            Some(super::NAME),
+            "{:?}",
+            roots()
+        );
+        mc.build().unwrap();
+        assert_eq!(
+            roots().first().map(String::as_str),
+            Some(super::NAME),
+            "{:?}",
+            roots()
+        );
     }
 
     /// The head of a page opens the page list: it takes the pointer like

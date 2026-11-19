@@ -10,6 +10,17 @@ use serde_json::{Value, json};
 use crate::{NAME, Tiling};
 
 impl Tiling {
+    /// What still moves.
+    fn busy(&self) -> Vec<String> {
+        let running = [
+            (self.effects.animating(), "effects"),
+            (self.chip_until.is_some(), "chip"),
+        ];
+        (running.into_iter().filter(|(on, _)| *on))
+            .map(|(_, name)| name.to_owned())
+            .collect()
+    }
+
     /// The windows bottom first, the tags that show, the focus, the key
     /// list while it is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
@@ -31,6 +42,7 @@ impl Tiling {
                     maximized: w.maximized == (true, true),
                     fullscreen: w.fullscreen,
                     floating: w.floating,
+                    held: self.dragged.as_ref().is_some_and(|(id, _)| *id == w.id),
                     z: z(&w.id),
                     ..Window::default()
                 }
@@ -47,19 +59,12 @@ impl Tiling {
             focus.holder = Some(NAME.to_owned());
         }
         let open = self.open.state();
-        let running = [
-            (self.effects.animating(), "effects"),
-            (self.chip_until.is_some(), "chip"),
-        ];
-        let busy = (running.into_iter().filter(|(on, _)| *on))
-            .map(|(_, name)| name.to_owned())
-            .collect();
         State {
             windows,
             desks,
             focus,
             open,
-            busy,
+            busy: self.busy(),
             more: [("helper".to_owned(), json!(self.voiced.word()))]
                 .into_iter()
                 .collect(),

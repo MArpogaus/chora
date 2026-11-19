@@ -33,6 +33,7 @@ impl Wm {
                 maximized: w.maximized(),
                 fullscreen: false,
                 floating: self.floats.floats(&w.surface),
+                held: false,
                 z: Some(z),
             })
             .collect();

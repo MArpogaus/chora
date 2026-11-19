@@ -30,6 +30,42 @@ pub enum NodeKind {
     Text,
 }
 
+/// The order of a group under the root (D89): the core draws the root
+/// groups of one order above every group of a lower order, whatever their
+/// place among the children of the root; inside one order the clients
+/// order with `move`. The order of a deeper group has no effect.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum Order {
+    /// Below every other root, for example a full-screen page under the
+    /// windows of other window managers.
+    Background,
+    /// The roots of the window managers and their windows.
+    #[default]
+    Normal,
+    /// The window that a person holds in a drag, above every window.
+    Held,
+    /// Bars, menus and notices above the windows.
+    Overlay,
+    /// The lock screen and the safety layer of the core. No client takes
+    /// it, so no plugin draws above the lock.
+    Lock,
+}
+
+impl Order {
+    /// Every order, bottom first.
+    pub const ALL: [Self; 5] = [
+        Self::Background,
+        Self::Normal,
+        Self::Held,
+        Self::Overlay,
+        Self::Lock,
+    ];
+}
+
 /// How a node takes part in pointer input.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -399,6 +435,9 @@ pub struct Props {
     /// OpenType features of a text node by tag, for example `smcp: 1`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub features: BTreeMap<String, u32>,
+    /// The order of a group under the root (D89).
+    #[serde(default, skip_serializing_if = "is_normal")]
+    pub order: Order,
 }
 
 /// The style of a font.
@@ -410,6 +449,14 @@ pub enum FontStyle {
     Normal,
     /// Italic, or slanted when the family has no italic.
     Italic,
+}
+
+#[allow(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde passes a reference"
+)]
+fn is_normal(order: &Order) -> bool {
+    *order == Order::Normal
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
@@ -460,6 +507,7 @@ impl Default for Props {
             style: None,
             letter_spacing: None,
             features: BTreeMap::new(),
+            order: Order::Normal,
         }
     }
 }
@@ -596,6 +644,10 @@ pub struct PropsUpdate {
     /// OpenType features of a text node by tag; replaces all features.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub features: Option<BTreeMap<String, u32>>,
+    /// The order of a group under the root (D89); `lock` belongs to the
+    /// core.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<Order>,
 }
 
 /// Sets the keys of an update of `meta`; an empty value removes its key.
@@ -629,6 +681,9 @@ impl Props {
         }
         if let Some(claim) = update.claim {
             self.claim = claim;
+        }
+        if let Some(order) = update.order {
+            self.order = order;
         }
         self.apply_drawing(update);
         self.apply_text(update);

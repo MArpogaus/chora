@@ -1856,3 +1856,161 @@ fn the_watchdog_charges_a_backdrop_by_its_area() {
     );
     assert_eq!(load["panel"], 1 + 25 * 16, "each started 256x256 costs 25");
 }
+
+fn ordered(id: &str, order: crate::Order) -> Command {
+    Command::Create {
+        id: id.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            order: Some(order),
+            size: Some([10.0, 10.0]),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+fn root_children(scene: &Scene) -> Vec<String> {
+    scene.node(ROOT).unwrap().children.clone()
+}
+
+fn drawn_roots(scene: &Scene) -> Vec<String> {
+    let roots = root_children(scene);
+    scene
+        .draw_list()
+        .iter()
+        .map(|p| p.node.id.clone())
+        .filter(|id| roots.contains(id))
+        .collect()
+}
+
+#[test]
+fn the_orders_go_background_normal_held_overlay_lock() {
+    use crate::Order::{Background, Held, Lock, Normal, Overlay};
+    assert_eq!(crate::Order::ALL, [Background, Normal, Held, Overlay, Lock]);
+    assert!(crate::Order::ALL.windows(2).all(|w| w[0] < w[1]));
+    assert_eq!(crate::Order::default(), Normal);
+}
+
+#[test]
+fn the_core_draws_the_roots_by_order_whatever_the_order_of_creation() {
+    use crate::Order::{Background, Held, Normal, Overlay};
+    let mut scene = Scene::default();
+    scene.apply("bar", &[ordered("bar", Overlay)]).unwrap();
+    scene.apply("xp", &[ordered("xp", Normal)]).unwrap();
+    scene.apply("drag", &[ordered("drag", Held)]).unwrap();
+    scene.apply("mc", &[ordered("mc", Background)]).unwrap();
+    scene.apply("tiling", &[group("tiling", ROOT)]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "xp", "tiling", "drag", "bar"]);
+    assert_eq!(root_children(&scene), drawn_roots(&scene));
+}
+
+#[test]
+fn inside_an_order_the_client_orders_with_move() {
+    use crate::Order::{Background, Overlay};
+    let mut scene = Scene::default();
+    scene.apply("mc", &[ordered("mc", Background)]).unwrap();
+    scene.apply("xp", &[group("xp", ROOT)]).unwrap();
+    scene.apply("tiling", &[group("tiling", ROOT)]).unwrap();
+    scene.apply("bar", &[ordered("bar", Overlay)]).unwrap();
+    let to = |id: &str, index| Command::Move {
+        id: id.into(),
+        parent: None,
+        index,
+    };
+    scene.apply("tiling", &[to("tiling", Some(0))]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "tiling", "xp", "bar"]);
+    scene.apply("tiling", &[to("tiling", None)]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "xp", "tiling", "bar"]);
+    scene.apply("bar", &[to("bar", Some(0))]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "xp", "tiling", "bar"]);
+    scene.apply("mc", &[to("mc", None)]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "xp", "tiling", "bar"]);
+}
+
+#[test]
+fn a_new_order_puts_the_group_on_top_of_its_new_order() {
+    use crate::Order::{Background, Held};
+    let mut scene = Scene::default();
+    scene.apply("mc", &[ordered("mc", Background)]).unwrap();
+    scene
+        .apply("xp", &[group("xp", ROOT), group("xp-held", ROOT)])
+        .unwrap();
+    scene.apply("tiling", &[group("tiling", ROOT)]).unwrap();
+    let hold = |order| Command::Update {
+        id: "xp-held".into(),
+        props: PropsUpdate {
+            order: Some(order),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("xp", &[hold(Held)]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "xp", "tiling", "xp-held"]);
+    scene.apply("xp", &[hold(Background)]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "xp-held", "xp", "tiling"]);
+}
+
+#[test]
+fn a_surface_under_the_root_stays_in_the_normal_order() {
+    use crate::Order::{Background, Overlay};
+    let mut scene = scene_with_surface();
+    scene.apply("mc", &[ordered("mc", Background)]).unwrap();
+    scene.apply("bar", &[ordered("bar", Overlay)]).unwrap();
+    scene.apply("wm", &[attach("s1", ROOT)]).unwrap();
+    assert_eq!(drawn_roots(&scene), ["mc", "s1", "bar"]);
+}
+
+#[test]
+fn no_client_takes_the_lock_order() {
+    let mut scene = Scene::default();
+    let err = scene
+        .apply("evil", &[ordered("evil", crate::Order::Lock)])
+        .unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)), "{err:?}");
+    scene.apply("evil", &[group("evil", ROOT)]).unwrap();
+    let err = scene
+        .apply(
+            "evil",
+            &[Command::Update {
+                id: "evil".into(),
+                props: PropsUpdate {
+                    order: Some(crate::Order::Lock),
+                    ..PropsUpdate::default()
+                },
+            }],
+        )
+        .unwrap_err();
+    assert!(matches!(err.error, SceneError::Invalid(_)), "{err:?}");
+}
+
+#[test]
+fn only_a_group_has_an_order() {
+    let mut scene = Scene::default();
+    let err = scene
+        .apply(
+            "x",
+            &[Command::Create {
+                id: "r".into(),
+                kind: NodeKind::Rect,
+                parent: ROOT.into(),
+                props: PropsUpdate {
+                    order: Some(crate::Order::Overlay),
+                    ..PropsUpdate::default()
+                },
+            }],
+        )
+        .unwrap_err();
+    assert!(matches!(err.error, SceneError::WrongKind(..)), "{err:?}");
+}
+
+#[test]
+fn the_order_survives_a_round_trip_and_normal_is_left_out() {
+    let mut scene = Scene::default();
+    scene
+        .apply("mc", &[ordered("mc", crate::Order::Background)])
+        .unwrap();
+    let json = serde_json::to_value(&scene.node("mc").unwrap().props).unwrap();
+    assert_eq!(json["order"], "background");
+    let normal = serde_json::to_value(crate::Props::default()).unwrap();
+    assert!(normal.get("order").is_none());
+}

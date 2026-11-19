@@ -22,8 +22,8 @@ pub use command::{Command, Effect, GivenGrab, ToplevelState};
 pub use event::{Event, NAMES as EVENT_NAMES, OutputInfo, ScrollSource, SurfaceRequest};
 pub use node::{
     Backdrop, Border, Clip, Decoration, FontStyle, InputMode, MAX_EFFECTS, MAX_MESH_CELLS,
-    MAX_NODE_TEXTURES, MAX_UNIFORMS, Mesh, Node, NodeKind, NodeTexture, OutputTexture, Props,
-    PropsUpdate, ROOT, ShaderEffect, SurfaceInfo, Uniform,
+    MAX_NODE_TEXTURES, MAX_UNIFORMS, Mesh, Node, NodeKind, NodeTexture, Order, OutputTexture,
+    Props, PropsUpdate, ROOT, ShaderEffect, SurfaceInfo, Uniform,
 };
 pub use scene::{
     INJECTION, MARK_SIDE, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, NewToplevel, OVERLAY, Placed, Scene,

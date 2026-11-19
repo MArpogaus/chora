@@ -89,6 +89,7 @@ impl State {
             owner: node.owner.clone(),
             namespace: None,
             layer,
+            order: self.scene.root_order(&node.id),
             rect: [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h],
             opaque: boxes::opaque(node, placed.opacity),
             corners,
@@ -125,6 +126,7 @@ fn shell_boxes(output: &Output, layers: &[(wlr_layer::Layer, Layer)]) -> Vec<Nod
                 owner: None,
                 namespace: Some(surface.namespace().to_owned()),
                 layer: *layer,
+                order: None,
                 rect: [geo.loc.x, geo.loc.y, geo.size.w, geo.size.h],
                 opaque: false,
                 corners: None,
@@ -204,6 +206,42 @@ mod tests {
         let badge = of(&list, "badge");
         assert_eq!(badge["layer"], "overlay");
         assert_eq!(badge["rect"], json!([0.0, 0.0, 8.0, 8.0]), "no camera");
+    }
+
+    #[test]
+    fn a_box_names_the_order_of_its_root_group() {
+        let (mut core, mut wm) = floor_and_badge();
+        let mut bar = core.named("bar");
+        bar.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [
+                {"create": {"id": "bar", "kind": "group", "parent": "root",
+                    "props": {"order": "overlay"}}},
+                {"create": {"id": "pill", "kind": "rect", "parent": "bar",
+                    "props": {"size": [40, 10], "color": [0, 1, 0, 1]}}},
+            ]}),
+        );
+        wm.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "page", "kind": "group", "parent": "root",
+                "props": {"order": "background", "size": [800, 600], "clip": {}}}},
+                {"create": {"id": "paper", "kind": "rect", "parent": "page",
+                    "props": {"size": [800, 600], "color": [1, 1, 1, 1]}}}]}),
+        );
+        let list = boxes(&mut wm, &mut core, "out");
+        assert_eq!(
+            order(&list),
+            ["page", "paper", "floor", "glass", "faded", "pill", "badge"]
+        );
+        assert_eq!(of(&list, "paper")["order"], "background");
+        assert_eq!(of(&list, "pill")["order"], "overlay");
+        assert_eq!(of(&list, "floor")["order"], "normal");
+        assert!(
+            of(&list, "badge").get("order").is_none(),
+            "outside the root"
+        );
     }
 
     #[test]

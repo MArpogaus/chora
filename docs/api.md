@@ -40,6 +40,18 @@ with input, effects and ownership. The overlay root stays when its output
 goes, with its nodes, for the return of the output; the emergency reset
 empties it.
 
+The children of `root` draw by their `order` (D89), bottom first:
+`background`, `normal`, `held`, `overlay`, `lock`. A root group of a
+higher order draws above every root group of a lower order, whatever the
+order in which the plugins built them; a surface under `root` is
+`normal`. Inside one order, `create`, `attach` and `move` place a node as
+before, but only between the first and the last root of its order: an
+`index` outside that band goes to its nearest end. A new `order` puts the
+group on top of its new order. `lock` is reserved: no node holds
+it, the lock draws outside the scene, and a client that asks for it
+fails with code 1, so no plugin draws above the lock. The order of a
+group deeper in the tree has no effect.
+
 This table is the one list of node properties.
 
 | Property | Nodes | Meaning |
@@ -57,6 +69,7 @@ This table is the one list of node properties.
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
+| `order` | group | `background`, `normal` (the default, left out), `held`, `overlay`; for a group under `root`, the band it draws in (see above): background for a page under the windows of other window managers, held for the window a person drags, overlay for bars and menus; `lock` fails |
 | `perspective` | group | from 1 to 10^6 logical pixels, on a group with a `size`: the distance of the eye in front of the centre of the group, which makes it a 3D context (see below); `null` removes it |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
 | `color` | rect, text | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
@@ -669,6 +682,7 @@ the order the output stacks them:
 |-------|---------|
 | `node`, `kind`, `owner` | the node, its kind and the client name of its owner; a layer surface has `namespace` instead |
 | `layer` | `background` and `bottom` (layer surfaces below the scene), `scene` (the nodes below the root, through the camera), `overlay` (the nodes under `screen:NAME`), `top` and `shell_overlay` (layer surfaces above) |
+| `order` | for a node under `root`: the `order` of the root group that holds it |
 | `rect` | `[x, y, w, h]` in logical pixels of the output, the same box as the `rects` of `scene.query` |
 | `opaque` | `true` for a window, or a rect with an opaque fill, square corners and no backdrop, each at full opacity after its ancestors; images, text, shaders and layer surfaces are never opaque |
 | `corners` | for a node that draws as a plane, or a node in a 3D context: the corners of its size after its transforms, the camera and the perspective, top left, top right, bottom right, bottom left; left out when a corner lies at or behind the near plane |

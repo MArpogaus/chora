@@ -1554,6 +1554,78 @@ mod tests {
         assert!(tiling.dragged.is_none());
     }
 
+    /// I12 (WM5): the held window lies on top of the order of tiling while
+    /// the person drags it, also below a window that was raised later.
+    #[test]
+    fn the_held_window_lies_on_top_while_it_is_dragged() {
+        let (mut tiling, _methods) = with_a_floating_window("held-on-top");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Own::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.order.last().map(String::as_str), Some("s2"));
+        press_and_move(&mut tiling, None);
+        assert_eq!(
+            tiling.dragged.as_ref().map(|(id, _)| id.as_str()),
+            Some("s1")
+        );
+        tiling.relayout().unwrap();
+        assert_eq!(
+            tiling.order.last().map(String::as_str),
+            Some("s1"),
+            "{:?}",
+            tiling.order
+        );
+    }
+
+    /// I12 (WM5 r2): the press of a drag raises the window as a click does,
+    /// so it stays on top after the release, also over a window that was
+    /// raised later.
+    #[test]
+    fn a_dragged_window_stays_on_top_after_the_release() {
+        let (mut tiling, _methods) = with_a_floating_window("held-release");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Own::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.order.last().map(String::as_str), Some("s2"));
+        drag(&mut tiling, "s1", &[[190.0, 150.0], [230.0, 170.0]]);
+        tiling.relayout().unwrap();
+        assert!(tiling.dragged.is_none());
+        assert_eq!(
+            tiling.order.last().map(String::as_str),
+            Some("s1"),
+            "{:?}",
+            tiling.order
+        );
+    }
+
+    /// I12 (WM5 r2): `state.get` names the dragged window as `held`, as the
+    /// acts read it, with a floating window under another one. The state
+    /// goes to the file of `CHORA_STATE_DUMP` for the cell of the acts.
+    #[test]
+    fn state_get_names_the_dragged_window_as_held() {
+        let (mut tiling, _methods) = with_a_floating_window("held-state");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Own::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        press_and_move(&mut tiling, None);
+        tiling.relayout().unwrap();
+        let state = tiling.state_value();
+        if let Some(path) = std::env::var_os("CHORA_STATE_DUMP") {
+            std::fs::write(path, state.to_string()).unwrap();
+        }
+        let held: Vec<&str> = state["windows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|w| w["held"] == json!(true))
+            .filter_map(|w| w["surface"].as_str())
+            .collect();
+        assert_eq!(held, ["s1"], "{state}");
+    }
+
     /// E3: the press of `move` that comes with a window and its drag puts
     /// the named point of the window under the pointer, and the window
     /// wobbles on from the springs of the giver.

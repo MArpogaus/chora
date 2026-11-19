@@ -7,14 +7,16 @@
 //! the look's), [`give`] (a window that goes to another window manager),
 //! [`kept`] (what a restart keeps in node meta) and [`state`] (the shape of
 //! `state.get`). WM2 adds [`focus`] (who holds the keyboard, and the
-//! [`focus::Policy`] of the look for the focus after a window goes). Open
-//! shell surfaces, desks and the stacking order follow in later slices.
+//! [`focus::Policy`] of the look for the focus after a window goes). [`stack`]
+//! (WM5) holds the two stacking rules that every look shares. Open shell
+//! surfaces and desks follow in later slices.
 
 pub mod book;
 pub mod focus;
 pub mod give;
 pub mod kept;
 pub mod open;
+pub mod stack;
 pub mod state;
 
 pub use book::{Book, Change, Created, Origin, Phase, Why};
