@@ -21,8 +21,9 @@
 # stood still for 1 s), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
 # turn takes about 7 s; all 12 pairs run, and the whole matrix takes about
-# 150 s of the 240 s that it may take. The table can mark a cell `skip`,
-# which runs nothing; no cell is one now.
+# 215 to 230 s on a quiet box, and up to 250 s beside two other gates (about
+# 80 s of it the 12 voice turns, which run in real time). The table can mark
+# a cell `skip`, which runs nothing; no cell is one now.
 #
 # Two cells look at the panes of the construct after a drag from mc onto
 # its output: `leak` asks that the dragged window has its pane, and
@@ -34,7 +35,10 @@
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
 # is lost or the whole run, startup and last cell included, takes more
-# than 4 minutes. It prints the matrix and
+# than the cap. The cap is a guard against a hang, not a speed test: 315 s
+# is the slowest of five runs under `tests/merge-gate.sh --only
+# matrix,layout,doors --jobs 3` on 4 CPUs (226, 228, 234, 243 and 249 s)
+# plus 25 %. It prints the matrix and
 # one line per cell in $SHOTS/matrix.log, and a line `phase NAME Ns` for the
 # startup, the start of the voice and the panes cell, so that the run time
 # can be told by part. The start of the voice waits for the eof of the
@@ -49,7 +53,7 @@
 #   CHORA_TEST_ACCEPT_INJECTED_KEYS: 1 (default) lets the window managers
 #   take the keys of `input.inject`; 0 is production: the key cells of
 #   tiling, xp and mc expect gap, and no manager may serve a key
-#   CAP: the most seconds of the run (default 240)
+#   CAP: the most seconds of the run (default 315)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
 # shellcheck disable=SC2016
@@ -156,7 +160,7 @@ mkdir -p "$shots" "$work/chora"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-time_cap=${CAP:-240}
+time_cap=${CAP:-315}
 log=$shots/matrix.log
 : >"$log"
 
