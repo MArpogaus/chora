@@ -215,7 +215,7 @@ impl Notify {
         theme: Theme,
         values: Values,
         settings: settings::File<Config>,
-    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let ids = Ids::default();
         let bus = Bus::start(ids.clone());
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, Self::methods())?;
@@ -223,28 +223,31 @@ impl Notify {
     }
 
     /// The plugin on a connection, with the outcome of taking the bus
-    /// name. `None` when another server owns the name: the plugin has
-    /// nothing to do then, and ends without an error, so that no unit
-    /// restarts it.
+    /// name. Without the name, as when another server owns it or there is
+    /// no session bus, the plugin serves `notify.show` and `notify.close`
+    /// to the plugins all the same: their notices show as cards, while
+    /// the clients of the bus reach the other server.
     fn on(
         rt: Runtime<()>,
         bus: Result<Bus, StartError>,
         ids: Ids,
         (theme, values): (Theme, Values),
         settings: settings::File<Config>,
-    ) -> Option<Self> {
+    ) -> Self {
         let bus = match bus {
             Ok(bus) => Some(bus),
             Err(err @ StartError::Taken) => {
-                eprintln!("chora-notify: {err}, which stays its owner");
-                return None;
+                eprintln!(
+                    "chora-notify: {err}, which stays its owner; only the plugins are served"
+                );
+                None
             }
             Err(err) => {
                 eprintln!("chora-notify: no session bus ({err}); only the plugins are served");
                 None
             }
         };
-        Some(Self {
+        Self {
             rt,
             queue: Queue::new(settings.value),
             settings,
@@ -255,7 +258,7 @@ impl Notify {
             ids,
             pending: Vec::new(),
             card: None,
-        })
+        }
     }
 
     /// The methods of the settings, `state.get` and the live API.
@@ -438,9 +441,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         "plugins/chora-notify/assets",
     );
     let (theme, values) = load_assets(&dir, &theme::cache_dir("chora-notify")?)?;
-    let Some(mut notify) = Notify::start(theme, values, settings)? else {
-        return Ok(());
-    };
+    let mut notify = Notify::start(theme, values, settings)?;
     loop {
         let wait = notify
             .due(Instant::now())
@@ -530,7 +531,7 @@ mod tests {
         clippy::disallowed_methods,
         reason = "the test connects to its fake core"
     )]
-    fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Option<Notify> {
+    fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Notify {
         use std::io::{BufRead as _, BufReader, Write as _};
         let dir = cache(tag);
         let _ = std::fs::remove_dir_all(&dir);
@@ -568,7 +569,7 @@ mod tests {
         let ids = Ids::default();
         let bus = Bus::on(connect(&address), ids.clone());
         assert!(bus.is_ok(), "the name is free");
-        let notify = on_fake_core(tag, bus, ids).expect("notify serves");
+        let notify = on_fake_core(tag, bus, ids);
         Some((notify, daemon))
     }
 
@@ -584,7 +585,7 @@ mod tests {
         let ids = Ids::default();
         let taken = Bus::on(connect(&address), ids.clone());
         assert!(matches!(taken, Err(StartError::Taken)), "the name is taken");
-        let mut notify = on_fake_core("taken", taken, ids).expect("notify serves the plugins");
+        let mut notify = on_fake_core("taken", taken, ids);
         assert!(notify.bus.is_none(), "no bus");
         let shown = (notify.method(kit_notice::SHOW, json!({"summary": "Saved"})))
             .expect("notify.show answers");

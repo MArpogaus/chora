@@ -1352,9 +1352,11 @@ client between the shortest and the longest time, and never for a time
 of 0, until a click. A click on the close button dismisses the card; a
 click on the card invokes the action `default` of the notification, if
 it has one, and dismisses it too. If another server, such as GNOME
-Shell, owns the name on the bus, `chora-notify` logs the owner and ends
-with status 0, so that its unit does not restart it; it never takes the
-name from its owner.
+Shell or mako, owns the name on the bus, `chora-notify` logs the owner
+and never takes the name from it; it keeps serving `notify.show` and
+`notify.close`, so the notices of the plugins still show as cards, while
+the clients of the bus reach the other server. Without a session bus it
+does the same.
 
 The look of the card comes from the asset folder. A folder replaces the
 neutral one and does not merge with it. A missing or broken file stops the
