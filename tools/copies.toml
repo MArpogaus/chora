@@ -103,3 +103,17 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own key cap of a question (cap, show_key copy)"
 pattern = 'fn cap\(key: &str\)'
+
+# kit2d: xp takes its keys from `bindings` (kit::actions); no table of keys
+# and no enum of key actions of its own.
+[[row]]
+max = 0
+name = "xp: table of hard-coded keys (KIT2d)"
+paths = ["plugins/chora-xp"]
+pattern = 'const KEYS: \['
+
+[[row]]
+max = 0
+name = "xp: own enum of key actions (KIT2d)"
+paths = ["plugins/chora-xp"]
+pattern = 'pub enum Key \{'

@@ -8,6 +8,43 @@
 # For tests only: take the keys of input.inject as keys of the user. Off,
 # the bindings ignore injected keys; keep it off outside tests.
 test_accept_injected_keys: false
+# The keys: a binding and its action. An action is one of every look
+# (terminal, launcher, keys, chat, lock, power, screenshot, close,
+# {volume: up|down|mute|{set: N}}, {cube: left|right} for a quarter turn of
+# the cube) or one of xp: files (the file manager), desktop (show the
+# desktop), tap (a key pressed and released alone opens the Start menu),
+# start (opens the Start menu), {switch: next|previous} (Alt+Tab),
+# {carry: left|right} (moves the focused window along with a turn of the
+# cube) and cube (with a pointer button: the pointer turns the cube). A
+# binding to an action that xp does not have (terminal, run, give, drag,
+# desk) is dropped with a warning. When another client holds Ctrl+Alt+Left,
+# Ctrl+Alt+Right, Ctrl+Alt+Shift+Left or Ctrl+Alt+Shift+Right, xp binds
+# Super+Ctrl and the same arrow instead. The keys Super+Alt+1 to 4 give the
+# focused window to another window manager and are not in this list.
+bindings:
+  Super+Super_L: tap
+  Super+Super_R: tap
+  Ctrl+Escape: start
+  Super+d: desktop
+  Super+space: launcher
+  Super+F1: keys
+  Super+slash: keys
+  Super+Shift+Escape: lock
+  Super+Shift+e: power
+  Super+Print: screenshot
+  Super+BTN_LEFT: cube
+  Alt+F4: close
+  Alt+Tab: {switch: next}
+  Alt+Shift+Tab: {switch: previous}
+  Super+e: files
+  Super+a: chat
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
+  Ctrl+Alt+Left: {cube: left}
+  Ctrl+Alt+Right: {cube: right}
+  Ctrl+Alt+Shift+Left: {carry: left}
+  Ctrl+Alt+Shift+Right: {carry: right}
 terminal: foot
 # The shell command of Run and of Super+Space, and of All Programs when no
 # desktop file lists a program.
