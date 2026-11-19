@@ -30,12 +30,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, train 78 |
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
 | pw-r2.md (P2) | sonnet medium | MERGE-OK 5755b578, train 78 |
-| p2-r1-xp.md (RC2; TRI + R1 xp) | sonnet medium + haiku | starting |
+| p2-r1-xp.md (RC2) | sonnet+haiku | session_016iS3kLWRHMsHZaA6a9JGvK |
 | nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
 | block-v-r2.md (mc-38) | sonnet medium | MERGE-OK ce230288, train 78 |
 | mc-majors-r1.md (RC, mc-33-37) | sonnet high | session_016iS3kMSygrmeY6GnmekpAL |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
-| review-kit-sec-r1.md (F5; kit-sec cb2976c1 done) | opus high | session_016iS3kQ3zvBR5uTP72XiUtD |
+| review-kit-sec-r1.md (F5) | opus high | session_016iS3kQ3zvBR5uTP72XiUtD |
 | ti-majors-r1.md (RC, ti-22-24) | sonnet high | session_016iS3kN6CpA9ijuBr2jMwMF |
 
 ## Queue (% week; 5 % reserve)
