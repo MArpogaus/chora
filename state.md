@@ -25,7 +25,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
-| wm3-r2.md (F3) | sonnet high | starting |
+| wm3-r2.md (F3) | sonnet high | session_016iS3kNQwBx7TAFsVTz5juX (10:35) |
 | wm7a-r3.md (F3) | sonnet high | session_016iS3kMac5AnLJjVCvrZDUr (10:30) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm5-r1.md (F3) | opus high | session_016iS3kQkLYiWbxmLbvc4Li4 (09:42) |
