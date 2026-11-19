@@ -1,6 +1,6 @@
 # kit-sec r1 (F5, security hardening): the six KIT1 security MINORs
 
-Model: sonnet, effort high (security hardening with a fixed list; an opus review follows)
+Model: sonnet, effort high (security hardening with a fixed list)
 Lane: cloud, branch claude/kit-sec from the train 74 merge a9e7084d. One round, stop at 250 k. Cost about 1 %.
 Step 0: `command -v cargo sccache python3`; all present: skip setup; else run the setup below once. Then `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "kit-sec r1 BLOCKED: <MISSING line>" and stop.
 Setup: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`.
