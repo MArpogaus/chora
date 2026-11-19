@@ -2237,6 +2237,30 @@ mod tests {
         assert_eq!(log.borrow().sends, 1);
     }
 
+    /// F28: under load the field reads the keys of the number and its
+    /// Enter before the line of the host that gives the text back, so the
+    /// number comes alone and the field never held the text. The number
+    /// is a pick, as a click is, and the helper still gets the text.
+    #[test]
+    fn a_number_that_comes_before_the_text_is_given_back_sends_the_text() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut()
+            .events
+            .extend([FieldEvent::Say("moin".into()), FieldEvent::Say("1".into())]);
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        let said = calls(&log, "agent");
+        let moin = said.iter().filter(|p| **p == say_params("atlas", "moin"));
+        assert_eq!(
+            moin.count(),
+            1,
+            "the text typed before the pick did not reach the picked helper once: {said:?}"
+        );
+        assert_eq!(log.borrow().sends, 0, "no draft goes with it: {said:?}");
+    }
+
     #[test]
     fn a_pick_by_keyboard_keeps_the_field_and_clears_its_draft() {
         let (mut session, mut out, log) = setup();
