@@ -966,6 +966,10 @@ mod tests {
     ///
     /// The windows of these cells are not in the scene: the fake core takes
     /// the commands as they come, and the test reads them.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test answers the requests of its fake core"
+    )]
     pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
         let dir = std::env::temp_dir().join(format!("chora-xp-wm-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
