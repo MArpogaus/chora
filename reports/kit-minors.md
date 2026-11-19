@@ -32,3 +32,11 @@ Diff 219d5afe..88f441e4, 5 files, +165 -22; builder sonnet lane, reviewer PM. Id
 - NIT: test name the_critical_ids_are_capped_at_one_more reads oddly (it checks the cap of 64).
 - Open, not in scope: kit5 r2-3 (card over a very wide chat) stays in the backlog.
 Verdict (computed): no BLOCK or MAJOR -> MERGE-OK; 88f441e4 to train 73.
+
+## r2
+
+Fixed tests/xp.sh step 17 (grep "another chora-notify serves the session", exit 0 within 20 s, step text renamed). No other check of the old wording in tests/. Head: e4208314
+
+Red (build,ci-check,xp) last lines: `== 17. a second chora-notify leaves the bus name to the first and ends cleanly FAIL: no word of the owner: /tmp/tmp.FGgzvyQg35/notify2.log exit 1 `
+
+Green (pre-commit,ci-check,build,test,xp,virtual) last lines: `build      PASS     1s /tmp/merge-gate.b8QM8e/build.log test       PASS   192s /tmp/merge-gate.b8QM8e/test.log ci-check   PASS    13s /tmp/merge-gate.b8QM8e/ci-check.log virtual    PASS    40s /tmp/merge-gate.b8QM8e/virtual.log xp         PASS    85s /tmp/merge-gate.b8QM8e/xp.log partial run: nothing is pushed exit 0 `
