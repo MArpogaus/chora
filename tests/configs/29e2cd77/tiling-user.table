@@ -1,0 +1,12 @@
+MOD+1	{"view_tag":1}
+MOD+BTN_LEFT	"drag"
+MOD+Ctrl+r	"reload"
+MOD+F1	"show_keys"
+MOD+Return	{"run":"foot"}
+MOD+Shift+c	"close"
+MOD+g	{"give":"xp"}
+MOD+j	"focus_next"
+MOD+l	{"inc_master_width":0.1}
+XF86AudioMicMute	{"volume":{"set":30}}
+XF86AudioMute	{"volume":"mute"}
+XF86AudioRaiseVolume	{"volume":"up"}

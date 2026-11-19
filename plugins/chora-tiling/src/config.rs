@@ -653,4 +653,126 @@ mod tests {
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
         assert!(parse::<Config>(&modifier).is_err());
     }
+
+    /// The bindings of a loaded config as the head 29e2cd77 spelled them:
+    /// one key and its action as JSON, per line.
+    fn old_table(config: &Config) -> String {
+        use std::fmt::Write;
+        let bindings = serde_json::to_value(config).unwrap()["bindings"].clone();
+        let mut table = String::new();
+        for (key, action) in bindings.as_object().unwrap() {
+            let action = if action == "keys" {
+                "show_keys".into()
+            } else {
+                action.to_string()
+            };
+            writeln!(table, "{key}\t{action}").unwrap();
+        }
+        table
+    }
+
+    /// The shipped config of head 29e2cd77 and a user file that has only
+    /// bindings load to the same table of keys as before kit took the
+    /// shared actions (KIT2c): `tests/configs/29e2cd77/tiling*.table` were
+    /// recorded on that head, one key and its action as it spelled it
+    /// then.
+    #[test]
+    fn the_configs_of_29e2cd77_load_to_the_same_table() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs/29e2cd77");
+        for name in ["tiling", "tiling-user"] {
+            let file = chora_kit::settings::File::<Config>::load(
+                dir.join(format!("{name}.yaml")),
+                DEFAULT,
+            )
+            .unwrap();
+            assert_eq!(file.broken(), None, "{name} loads");
+            let table = old_table(&file.value);
+            let golden = dir.join(format!("{name}.table"));
+            if std::env::var_os("CHORA_BLESS").is_some() {
+                std::fs::write(&golden, &table).unwrap();
+            }
+            assert_eq!(table, std::fs::read_to_string(&golden).unwrap(), "{name}");
+        }
+    }
+
+    /// One YAML binding gives one `System` action in every look: the file
+    /// `tests/configs/system-bindings.yaml` loads to its `.table` here as
+    /// it does in mc and the construct. What tiling has no action for,
+    /// the terminal, the launcher, the chat, the locker, the power menu,
+    /// the screenshot, a step through the desks and a turn of the cube,
+    /// is dropped; the rest is the line of the table.
+    #[test]
+    fn one_binding_gives_the_same_system_action_in_every_look() {
+        use std::fmt::Write;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs");
+        let path =
+            std::env::temp_dir().join(format!("chora-tiling-system-{}.yaml", std::process::id()));
+        std::fs::copy(dir.join("system-bindings.yaml"), &path).unwrap();
+        let file = chora_kit::settings::File::<Config>::load(path.clone(), DEFAULT).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(file.broken(), None);
+        let golden = std::fs::read_to_string(dir.join("system-bindings.table")).unwrap();
+        let kept = [
+            "Super+BTN_LEFT",
+            "Super+F1",
+            "Super+F10",
+            "Super+F11",
+            "Super+F12",
+            "Super+g",
+            "Super+r",
+            "Super+slash",
+            "Super+x",
+            "XF86AudioLowerVolume",
+            "XF86AudioMute",
+            "XF86AudioRaiseVolume",
+        ];
+        let mut expected = String::new();
+        for line in golden.lines() {
+            if kept.contains(&line.split('\t').next().unwrap()) {
+                writeln!(expected, "{line}").unwrap();
+            }
+        }
+        let bindings = serde_json::to_value(&file.value).unwrap()["bindings"].clone();
+        let mut table = String::new();
+        for (key, action) in bindings.as_object().unwrap() {
+            writeln!(table, "{key}\t{action}").unwrap();
+        }
+        assert_eq!(table, expected);
+    }
+
+    /// A binding that tiling has no action for is dropped with one warning
+    /// that names the key, and the rest of the file loads: the terminal,
+    /// the launcher, the chat, the locker, the power menu, the screenshot,
+    /// a step through the desks and a turn of the cube.
+    #[test]
+    fn a_system_action_without_meaning_in_tiling_is_dropped_with_a_warning() {
+        use chora_kit::settings::Settings;
+        for unfit in [
+            "terminal",
+            "launcher",
+            "chat",
+            "lock",
+            "power",
+            "screenshot",
+            "{desk: next}",
+            "{cube: left}",
+        ] {
+            let text = DEFAULT.replace(
+                "  MOD+Shift+Escape: {run: loginctl lock-session}\n",
+                &format!("  MOD+Shift+Escape: {unfit}\n"),
+            );
+            assert_ne!(text, DEFAULT);
+            let mut config = parse::<Config>(&text).unwrap();
+            let warnings = config.refuse();
+            assert_eq!(warnings.len(), 1, "{unfit}: {warnings:?}");
+            assert!(
+                warnings[0].contains("MOD+Shift+Escape"),
+                "{unfit}: {warnings:?}"
+            );
+            let bindings = serde_json::to_value(&config).unwrap()["bindings"].clone();
+            assert_eq!(bindings.get("MOD+Shift+Escape"), None, "{unfit}");
+            assert!(bindings.get("MOD+j").is_some(), "{unfit}");
+        }
+    }
 }
