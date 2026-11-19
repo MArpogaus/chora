@@ -106,6 +106,21 @@ impl Conn {
         self.client.call_within(method, params, timeout)
     }
 
+    /// Sends all calls at once and waits for their answers in one round
+    /// trip, as a plugin does that asks the core several things in a row
+    /// (`output.add` for each face of a cube). Each answer stands in the
+    /// place of its call; an error answers that call alone.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails or closes.
+    pub fn call_all(
+        &mut self,
+        calls: &[(&str, Value)],
+    ) -> Result<Vec<Result<Value, RpcError>>, ClientError> {
+        self.client.call_all(calls)
+    }
+
     /// Answers a call of an exported method.
     ///
     /// # Errors
@@ -243,5 +258,33 @@ pub(crate) mod fake_core {
             methods
         });
         (path, thread)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+
+    use crate::testing::FakeCore;
+
+    /// The calls go out together and each answer stands in the place of its
+    /// call: a refused one fails alone, the others pass.
+    #[test]
+    fn call_all_answers_each_call_in_its_place() {
+        let core = FakeCore::start();
+        let mut conn = core.connect("test");
+        core.refuse_next("events.emit");
+        let calls: Vec<(&str, Value)> = vec![
+            ("input.grab", json!({"binding": 1})),
+            ("events.emit", json!({"name": "a"})),
+            ("input.grab", json!({"binding": 3})),
+        ];
+        let answers = conn.call_all(&calls).unwrap();
+        assert_eq!(answers.len(), 3);
+        assert_eq!(answers[0].as_ref().ok(), Some(&json!(1)));
+        assert!(answers[1].is_err(), "{answers:?}");
+        assert_eq!(answers[2].as_ref().ok(), Some(&json!(3)));
+        let after: Value = conn.call("input.grab", json!({"binding": 4})).unwrap();
+        assert_eq!(after, json!(4), "a call after them gets its own answer");
     }
 }

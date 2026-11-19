@@ -465,8 +465,11 @@ impl Construct {
         }
     }
 
-    /// Adds `faces` virtual outputs of `size` at the scale of the view;
-    /// none when one fails.
+    /// Adds `faces` virtual outputs of `size` at the scale of the view, in
+    /// one round trip ([`chora_kit::conn::Conn::call_all`]): under load each
+    /// round trip waits for a frame of the core, and four in a row put
+    /// `cube.open` past its 300 ms (docs/cube-modes.md). None when one
+    /// fails: the others go again.
     pub(crate) fn add_outputs(
         &mut self,
         faces: usize,
@@ -478,17 +481,22 @@ impl Construct {
             (size[0] * scale).round(),
             (size[1] * scale).round()
         );
+        let add = ("output.add", json!({"spec": spec, "virtual": true}));
+        let answers = self.rt.conn.call_all(&vec![add; faces])?;
         let mut outputs = Vec::new();
-        for _ in 0..faces {
-            let added: Result<OutputInfo, _> =
-                (self.rt.conn).call("output.add", json!({"spec": spec, "virtual": true}));
+        let mut failed = None;
+        for answer in answers {
+            let added = answer.map_err(ClientError::Rpc).and_then(|value| {
+                serde_json::from_value::<OutputInfo>(value).map_err(ClientError::from)
+            });
             match added {
                 Ok(output) => outputs.push(output.name),
-                Err(err) => {
-                    self.remove_outputs(&outputs);
-                    return Err(err);
-                }
+                Err(err) => failed = failed.or(Some(err)),
             }
+        }
+        if let Some(err) = failed {
+            self.remove_outputs(&outputs);
+            return Err(err);
         }
         Ok(outputs)
     }

@@ -604,6 +604,71 @@ mod tests {
         );
     }
 
+    /// The same backtrace into a full pipe with the alarm on the writing
+    /// thread itself: each alarm cuts the `write(2)` that waits for the
+    /// late reader, which returns short with `SA_RESTART`, and the rest
+    /// must follow (FF1 rw-2, the 63954-byte cut of F17). A process alarm
+    /// goes to the main thread of the test harness, which waits in join,
+    /// so a helper thread sends SIGALRM to the writing thread directly,
+    /// once the handler of the alarm is in place: the default action of
+    /// SIGALRM ends the process.
+    #[test]
+    fn a_backtrace_cut_by_the_alarm_of_its_own_thread_arrives_whole() {
+        use std::{io::Read as _, os::unix::process::ExitStatusExt as _};
+        const CHILD: &str = "CHORA_WORDS_SHORT_WRITE";
+        if std::env::var_os(CHILD).is_some() {
+            GIVE_UP_AFTER.store(5, Ordering::Relaxed);
+            install();
+            handle(&[libc::SIGALRM], stuck, libc::SA_RESTART);
+            let (tx, rx) = std::sync::mpsc::channel();
+            let faulting = std::thread::spawn(move || {
+                // SAFETY: pthread_self has no preconditions.
+                #[allow(unsafe_code, reason = "names the thread for pthread_kill")]
+                let me = unsafe { libc::pthread_self() };
+                tx.send(me).unwrap();
+                roomy_signal_stack();
+                overflow(0)
+            });
+            let target = rx.recv().unwrap();
+            std::thread::spawn(move || {
+                loop {
+                    // SAFETY: the thread lives until the fault ends the process.
+                    #[allow(unsafe_code, reason = "the alarm goes to the writing thread")]
+                    unsafe {
+                        libc::pthread_kill(target, libc::SIGALRM);
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            });
+            let _ = faulting.join();
+            return;
+        }
+        let test = "words::tests::a_backtrace_cut_by_the_alarm_of_its_own_thread_arrives_whole";
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", test, "--nocapture", "--test-threads=1"])
+            .env(CHILD, "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let mut words = String::new();
+        let mut stderr = child.stderr.take().unwrap();
+        let _ = stderr.read_to_string(&mut words);
+        let status = child.wait().unwrap();
+        assert!(
+            !words.contains("is stuck"),
+            "{}",
+            &words[words.len().saturating_sub(300)..]
+        );
+        assert_eq!(status.signal(), Some(libc::SIGSEGV), "{words}");
+        assert!(
+            words.contains("thread_start"),
+            "the backtrace is cut after {} bytes",
+            words.len()
+        );
+    }
+
     /// A handler that sleeps, as one that waits for the lock of malloc
     /// does, is stuck: the alarm says so, names the state of `/proc`
     /// that it found (F17: a cut backtrace then names its cause), and
