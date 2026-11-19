@@ -97,12 +97,12 @@ mod tests {
         assert_eq!(mc.state().unwrap()["focus"]["holder"], "mc");
     }
 
-    /// `helper` is `none` until voice reports, follows its latest
-    /// `voice.state`, and is `none` again when voice goes.
+    /// `helper` is the word of the kit machine: `no_helper` until a helper
+    /// exists, its state while it does, `no_helper` again when voice goes.
     #[test]
     fn the_helper_follows_voice() {
         let (mut x, _model) = testing::mc("state-helper", [1280, 800]);
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let said = |event: &str, data| chora_scene::Event::Emitted {
             event: event.into(),
             client: "voice".into(),
@@ -110,7 +110,7 @@ mod tests {
         };
         x.event(said("voice.state", json!({"state": "idle"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         x.event(said(
             "voice.state",
             json!({"name": "atlas", "state": "working"}),
@@ -119,9 +119,9 @@ mod tests {
         assert_eq!(x.state().unwrap()["helper"], "working");
         x.event(said("voice.remove", json!({"name": "atlas"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let gone = json!({"event": "client.disconnected", "name": "voice"});
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
     }
 }

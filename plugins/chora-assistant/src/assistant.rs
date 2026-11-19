@@ -27,7 +27,7 @@ const GROUP: &str = "hud";
 /// The group that moves: leans, wobbles and bounces.
 const BODY: &str = "hud-body";
 /// The image of the figure, which takes the clicks.
-const CLIP: &str = "hud-figure";
+pub const CLIP: &str = "hud-figure";
 /// The balloon of the spoken sentence.
 const SPEECH: &str = "hud-line";
 /// The node that names the state in words, for readers of the scene.

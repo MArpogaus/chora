@@ -1446,19 +1446,23 @@ impl Mc {
         items
     }
 
-    /// The state word of the helper door: the state of the first helper,
-    /// or that there is none.
+    /// The state word of the helper door: the state of the helper that the
+    /// helper machine of the kit names (KIT7), else of the first helper of
+    /// `agent.set`, or that there is none; the label is costume (mc.yaml).
     fn helper_state_word(&self) -> String {
-        let Some(agent) = self.agents.first() else {
+        let machine = &self.voiced_word;
+        let named = machine
+            .named()
+            .filter(|_| machine.state() != chora_kit::helper::State::NoHelper)
+            .map(|(_, raw, _)| raw);
+        let Some(raw) = named.or_else(|| self.agents.first().map(|a| a.state.as_str())) else {
             let language = chora_kit::words::Language::of_session();
             return chora_kit::words::Word::NoHelperDoor
                 .text(language)
                 .to_owned();
         };
-        let state = self.settings.value.states.get(&agent.state);
-        let words = state
-            .and_then(|s| s.label.as_deref())
-            .unwrap_or(&agent.state);
+        let state = self.settings.value.states.get(raw);
+        let words = state.and_then(|s| s.label.as_deref()).unwrap_or(raw);
         let mut letters = words.chars();
         letters
             .next()

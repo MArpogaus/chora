@@ -119,7 +119,7 @@ mod tests {
         let (wm, _methods) = wm_on_fake_core("state-empty");
         let state = wm.state().expect("xp has a state");
         let expected = json!({"windows": [], "focus": {"holder": "xp"}, "open": [],
-            "busy": [], "helper": "none", "desks": [{"output": "X", "shown": [1]}]});
+            "busy": [], "helper": "no_helper", "desks": [{"output": "X", "shown": [1]}]});
         assert_eq!(
             state.get("texts").map(serde_json::Value::is_array),
             Some(true)
@@ -228,12 +228,12 @@ mod tests {
         }
     }
 
-    /// `helper` is `none` until voice reports, follows its latest
-    /// `voice.state`, and is `none` again when voice goes.
+    /// `helper` is the word of the kit machine: `no_helper` until a helper
+    /// exists, its state while it does, `no_helper` again when voice goes.
     #[test]
     fn the_helper_follows_voice() {
         let (mut x, _methods) = wm_on_fake_core("state-helper");
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let said = |event: &str, data| chora_scene::Event::Emitted {
             event: event.into(),
             client: "voice".into(),
@@ -241,7 +241,7 @@ mod tests {
         };
         x.event(said("voice.state", json!({"state": "idle"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         x.event(said(
             "voice.state",
             json!({"name": "atlas", "state": "working"}),
@@ -250,9 +250,9 @@ mod tests {
         assert_eq!(x.state().unwrap()["helper"], "working");
         x.event(said("voice.remove", json!({"name": "atlas"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let gone = json!({"event": "client.disconnected", "name": "voice"});
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
     }
 }

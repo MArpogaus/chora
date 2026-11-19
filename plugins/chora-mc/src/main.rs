@@ -360,7 +360,7 @@ struct Mc {
     /// `focus.changed`.
     core_focus: Option<String>,
     /// The word of `state.get`; only reads.
-    voiced_word: chora_kit::helper::Helpers,
+    voiced_word: chora_kit::helper::Helper,
     /// The window that a `drag` binding holds since its press.
     dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
@@ -528,7 +528,7 @@ impl Mc {
             rendered: None,
             focused: None,
             core_focus: None,
-            voiced_word: chora_kit::helper::Helpers::default(),
+            voiced_word: chora_kit::helper::Helper::default(),
             dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,

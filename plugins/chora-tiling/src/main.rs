@@ -190,7 +190,7 @@ struct Tiling {
     /// Whether the key list shows, and holds the keyboard.
     keys_open: bool,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
     /// The colours of the look, and the scheme they come from.
@@ -344,7 +344,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bar_hidden: None,
         still: true,
         keys_open: false,
-        voiced: chora_kit::helper::Helpers::default(),
+        voiced: chora_kit::helper::Helper::default(),
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
@@ -1158,7 +1158,7 @@ mod tests {
             bar_hidden: None,
             still: true,
             keys_open: false,
-            voiced: chora_kit::helper::Helpers::default(),
+            voiced: chora_kit::helper::Helper::default(),
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,

@@ -21,7 +21,7 @@ mod state;
 mod windows;
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     path::Path,
     time::{Duration, Instant},
 };
@@ -34,7 +34,7 @@ use chora_kit::{
     settings::{self, Store},
     shared,
     volume::{self, Mixer, Reading},
-    words::{self, Language, Word},
+    words::{Language, Word},
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -289,45 +289,14 @@ fn add_help(entries: &mut Vec<switcher::Entry>, help: switcher::Entry, active: b
     entries.insert(at, help);
 }
 
-/// What voice announces about the helpers: the state and task of each
-/// by name, and whether the microphone is off.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct Helper {
-    agents: BTreeMap<String, (String, String)>,
-    mic_off: bool,
-}
-
-impl Helper {
-    /// Takes in a `voice.state`: of a named helper, or of voice itself.
-    fn follow(&mut self, data: &Value) {
-        let text = |key: &str| data[key].as_str().unwrap_or_default().to_owned();
-        match data["name"].as_str() {
-            Some(name) => {
-                self.agents
-                    .insert(name.to_owned(), (text("state"), text("task")));
-            }
-            None => self.mic_off = data["muted"]["mic"].as_bool().unwrap_or(false),
-        }
+/// The words of the tooltip of the helper door of the tray: "Voice off"
+/// while the microphone is off, else the door of the helper machine with
+/// the task of the helper.
+fn helper_tip(helper: &chora_kit::helper::Helper, language: Language) -> String {
+    if helper.mic_off() {
+        return Word::VoiceOff.text(language).to_owned();
     }
-
-    /// Takes in a `voice.remove`: the helper is gone.
-    fn forget(&mut self, data: &Value) {
-        if let Some(name) = data["name"].as_str() {
-            self.agents.remove(name);
-        }
-    }
-
-    /// The words of its tooltip: "Voice off" while the microphone is off,
-    /// else the row of the first helper, else "No helper".
-    fn tip(&self, language: Language) -> String {
-        if self.mic_off {
-            return Word::VoiceOff.text(language).to_owned();
-        }
-        match self.agents.iter().next() {
-            Some((name, (state, task))) => words::row(language, name, state, task),
-            None => Word::NoHelperDoor.text(language).to_owned(),
-        }
-    }
+    helper.door(language, true)
 }
 
 /// The state of the window manager.
@@ -423,9 +392,8 @@ pub struct Wm {
     /// The reading that the speaker of the taskbars shows; none before
     /// the first.
     volume: Option<Reading>,
-    helper: Helper,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// Runs wpctl off the main loop.
     mixer: Mixer,
     /// When the volume was last read.
@@ -1348,17 +1316,30 @@ mod tests {
 
     #[test]
     fn the_helper_tooltip_names_the_helper_and_says_no_helper_without_one() {
-        let mut helper = Helper::default();
-        let tip = |helper: &Helper| helper.tip(Language::En);
+        let mut helper = chora_kit::helper::Helper::default();
+        let said = |data| Event::Emitted {
+            event: "voice.state".into(),
+            client: "voice".into(),
+            data,
+        };
+        let tip = |helper: &chora_kit::helper::Helper| helper_tip(helper, Language::En);
         assert_eq!(tip(&helper), "No helper");
-        helper.follow(&json!({"state": "listening"}));
+        helper.hear(&said(json!({"state": "listening"})));
         assert_eq!(tip(&helper), "No helper");
-        helper.follow(&json!({"name": "coder", "state": "working", "task": "Write"}));
+        helper.hear(&said(
+            json!({"name": "coder", "state": "working", "task": "Write"}),
+        ));
         assert_eq!(tip(&helper), "coder · working · Write");
-        helper.follow(&json!({"state": "listening", "muted": {"mic": true}}));
+        helper.hear(&said(json!({"state": "listening", "muted": {"mic": true}})));
         assert_eq!(tip(&helper), "Voice off");
-        helper.follow(&json!({"state": "listening", "muted": {"mic": false}}));
-        helper.forget(&json!({"name": "coder"}));
+        helper.hear(&said(
+            json!({"state": "listening", "muted": {"mic": false}}),
+        ));
+        helper.hear(&Event::Emitted {
+            event: "voice.remove".into(),
+            client: "voice".into(),
+            data: json!({"name": "coder"}),
+        });
         assert_eq!(tip(&helper), "No helper");
     }
 

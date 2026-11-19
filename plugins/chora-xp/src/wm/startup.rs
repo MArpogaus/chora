@@ -2,10 +2,10 @@
 
 use super::{
     BARS, Bar, ClientError, Command, Config, DESKTOPS, DIALOGS, DesktopIcons, EVENTS, Effects,
-    ExportMethod, HashMap, Helper, Icons, Instant, Key, Launches, MENUS, METHODS, Menu, Mixer,
-    NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme,
-    Tooltip, WALLPAPERS, WINDOWS, Wm, apps, desk_id, desktop_icons, float, give, grab_keys,
-    max_scale, move_method, settings, wallpaper, window, without_reserve,
+    ExportMethod, HashMap, Icons, Instant, Key, Launches, MENUS, METHODS, Menu, Mixer, NAME,
+    NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip,
+    WALLPAPERS, WINDOWS, Wm, apps, desk_id, desktop_icons, float, give, grab_keys, max_scale,
+    move_method, settings, wallpaper, window, without_reserve,
 };
 
 impl Wm {
@@ -94,8 +94,7 @@ impl Wm {
             notepad,
             notifier: Notifier::new(),
             volume: None,
-            helper: Helper::default(),
-            voiced: chora_kit::helper::Helpers::default(),
+            voiced: chora_kit::helper::Helper::default(),
             mixer: Mixer::new(NAME),
             volume_read: Instant::now(),
         };

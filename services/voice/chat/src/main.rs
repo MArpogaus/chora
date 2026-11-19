@@ -42,8 +42,9 @@ struct Args {
     /// surface; the host starts it.
     #[arg(long, value_name = "NAME", conflicts_with = "name")]
     input: Option<String>,
-    /// Prints the word of a helper door, `No helper` or the name and the
-    /// state of a helper, and opens nothing.
+    /// Prints the word of a helper door as the presenter chora-assistant
+    /// says it, `No helper` or the name and the state of a helper, and
+    /// opens nothing.
     #[arg(long, conflicts_with_all = ["input", "name"])]
     door: bool,
     /// The helper to chat with; the person picks from the list without it.
@@ -55,10 +56,7 @@ fn main() -> ExitCode {
     let result = match &args.input {
         Some(_) => field(),
         None if args.door => {
-            println!(
-                "{}",
-                opener::door_word(Language::of_session(), &opener::helpers())
-            );
+            println!("{}", opener::door(Language::of_session()));
             Ok(())
         }
         None => opener::open(args.name.as_deref()).map_err(|e| e.to_string()),

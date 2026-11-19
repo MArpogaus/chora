@@ -598,7 +598,7 @@ struct Construct {
     /// only by `state.get`.
     core_focus: Option<String>,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// Which windows are the construct's, and where each came from
     /// (`kit::wm::book`).
     book: chora_kit::wm::Book,
@@ -699,7 +699,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             core_focus: None,
-            voiced: chora_kit::helper::Helpers::default(),
+            voiced: chora_kit::helper::Helper::default(),
             book: chora_kit::wm::Book::new(NAME, false),
         };
         construct.effects.set(&construct.settings.value.effects);
