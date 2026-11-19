@@ -26,20 +26,28 @@ impl Construct {
         let done = self.created(created, free);
         self.settle_plain(changes)?;
         done?;
-        self.keys_back_for(&created.surface)
+        self.keys_for_new(created)
     }
 
-    /// A new window came as a pane and the camera is in no window: a
-    /// window of a pane that a press gave the keyboard gives it back to
-    /// the walk, as a new window takes it in the other looks (D107). A
-    /// focus of another window manager, of the launcher or of a window
-    /// that the camera flies into stays.
-    fn keys_back_for(&mut self, surface: &str) -> Result<(), ClientError> {
+    /// A new window came as a pane and the camera is in no window, while
+    /// a window of a pane has the keyboard from a press. A child of that
+    /// window (a dialog, or the new window of the same app) gets the
+    /// keyboard, as a new window takes it in the other looks; any other
+    /// new pane gives it back to the walk (D116). A focus of another
+    /// window manager, of the launcher or of a window that the camera
+    /// flies into stays.
+    fn keys_for_new(&mut self, created: &Created) -> Result<(), ClientError> {
+        let surface = created.surface.as_str();
         let pane = (self.panes.iter()).any(|p| p.window() == Some(surface));
-        let pressed =
-            (self.core_focus.as_deref()).is_some_and(|f| f != surface && self.own_window(f));
-        if !pane || !pressed || self.inside().is_some() {
+        let pressed = (self.core_focus.as_deref()).filter(|f| *f != surface && self.own_window(f));
+        let Some(pressed) = pressed.filter(|_| pane && self.inside().is_none()) else {
             return Ok(());
+        };
+        if created.parent.as_deref() == Some(pressed) {
+            return self
+                .rt
+                .conn
+                .apply(vec![chora_kit::wm::focus::give(surface)]);
         }
         self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }
@@ -329,7 +337,7 @@ mod tests {
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
-    /// kit7-a2 (D107): a press on the window of a pane gives it the
+    /// kit7-a2 (D116): a press on the window of a pane gives it the
     /// keyboard; a new window that comes as a pane without a flight takes
     /// the keyboard back to the walk, as a new window takes it in the
     /// other looks, so that Tab opens the window list and no key goes to
