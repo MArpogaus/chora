@@ -24,7 +24,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-h-r2.md (F5; r1 FIX rw-1 no load proof) | sonnet medium | starting |
+| flake-h-r2.md (F5; r1 FIX rw-1 no load proof) | sonnet medium | session_016iS3kNLhgqk1W1n2yc2oRb |
 | temp-rest-r1.md (F2, F5) | sonnet medium | MERGE-OK 2e8e67f3, train 78 |
 | temp-dirs-r2.md (F2, F5) | sonnet medium | MERGE-OK 86f42d1f, train 78 |
 | flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, train 78 |
