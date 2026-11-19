@@ -16,6 +16,8 @@ the session overrides). Read it and the skills it names once per container.
   shell or Python): names explain the code. Doc comments (`///`, `//!`),
   usage headers and directives are allowed. Keep it simple: no
   over-engineering. Read CONTRIBUTING.md once.
+  Before you write shared code, read its section "Where shared code lives" in CONTRIBUTING.md: one line per module of
+  chora-kit/src and chora-kit/src/wm. Add the line of a new module in the commit that adds it.
 - **Docs.** Docs change in the same branch as the code. Plain technical
   English; no stories, anecdotes or decisions logs (the PM keeps those
   elsewhere). Keep the glossary and the mkdocs nav in sync.
