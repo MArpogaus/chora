@@ -292,8 +292,13 @@ the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 swaybg, swayidle and kanshi.
 
+A lane passes the output of `tests/cells-for.sh` to the `only` option of `tests/merge-gate.sh`: it prints the cells that the diff against the base touches (the cells that run a changed test script or a lib it sources, the cells that name the binary of a changed crate, every cell for a change to the core, the kit or the scene) and always holds `ci-check`, `pre-commit`, `build`, `test` and `clippy`. `tests/cells-for-selftest.sh` proves it from the `gate-lib` step.
+
 `tests/merge-gate.sh` decides whether a merge into the session branch may
-be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
+be pushed. It runs `red-first`, `identity` (every commit of the range,
+merges included, has the author and the committer in `expected_identity`
+at the top of the script; each failure names the sha and the identity
+found; `--list` prints the step names), build, test, clippy, the 2D guard, `tests/xp.sh`, the
 handover matrix, the HUD gate, the doors gate (`tests/gate-doors.sh`: the
 shared keys and one visible door per action in every look), the act
 contracts (`tests/gate-acts.sh`: acts per look with the invariants of
