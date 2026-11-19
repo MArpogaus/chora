@@ -28,14 +28,14 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK (review r1, 3 MINOR); train 57 |
 | kit2b-r2.md (F2) | sonnet medium, claude/kit2b | review r1 FIX (rk-1 MAJOR: run/give new in construct); r2 session_016iS3kLM8gQdZfpG4r53S3j 05:43 |
 | mv3-r1.md (F4) | sonnet medium, claude/mv3 | 917df9d0 MERGE-OK; train 56 05:16 |
-| net3-r1.md (F7) | opus high, claude/net3 | starting |
-| wm2-r1.md (F3) | opus high, claude/wm2 | starting |
+| net3-r1.md (F7) | opus high, claude/net3 | session_016iS3kLZ9zKCda38a6cRs6a 05:56 |
+| wm2-r1.md (F3) | opus high, claude/wm2 | session_016iS3kMAkdWBVDyLsYxLUjZ 05:56 |
 | testwatch-r1.md (rc 3) | haiku low | idle |
 
 ## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
 2. Done (F4, F6): MV1+CUT1, MV2 x3 (trains 44-47).
 3. (F6) Done: NET2 acts, known-red (trains 49, 50).
-4. Now (F2, F3, F4, F8, 6 %): docs-f8, wm1b, kit2b, mv3 (sonnet, 1.5 % each). After the reset: NET3 (opus, 4.5 %), WM2 (opus, 4 %), KIT2c-d, WM1c-d (sonnet). F5, F7, user test: next week.
+4. Now (F2-F4, F7, F8): kit2b r2; trains 56 mv3, 57 wm1b, 58 kit2b; NET3 (4.5 %), WM2 (4 %) opus. Next: KIT2c-d, WM1c-d (sonnet). F5, user test: next week.
 5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
