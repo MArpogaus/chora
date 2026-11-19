@@ -42,8 +42,12 @@ use crate::{
 };
 
 mod grabs;
+mod place;
 mod plane;
 
+use place::grab_action;
+#[cfg(test)]
+pub(crate) use place::holds_other_claim;
 pub use plane::PlaneGrab;
 pub(crate) use plane::anchor;
 use plane::{local_for, position_for, start_plane_grab};
@@ -465,70 +469,6 @@ fn press_action(
         }
     }
     grab_action(state, mods, syms, false)
-}
-
-/// The grab of a binding, unless the session is locked. A grab that waits
-/// for the manager under the pointer swallows the key: it must not reach
-/// the focused client as a raw key. An injected key has no pointer, and
-/// goes to the grab, except in the test mode of `injected_press_is_real`,
-/// where it counts as a key of the person.
-fn grab_action(
-    state: &State,
-    mods: &ModifiersState,
-    syms: &[Keysym],
-    injected: bool,
-) -> Option<KeyAction> {
-    if state.lock.is_some() {
-        return None;
-    }
-    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |_| true)?;
-    if injected && !state.injected_press_is_real {
-        return Some(KeyAction::Grab(conn, binding, true));
-    }
-    let place = key_place(state);
-    let held_back = |conn| {
-        place
-            .as_deref()
-            .is_some_and(|place| holds_other_claim(state, conn, place))
-    };
-    Some(
-        match state.ipc.grab_for_where(mods, syms, |c| !held_back(c)) {
-            Some((conn, binding)) => KeyAction::Grab(conn, binding, injected),
-            None => KeyAction::Swallow,
-        },
-    )
-}
-
-/// The window manager whose claim holds the pointer: where the person
-/// is when a key goes down.
-fn key_place(state: &State) -> Option<String> {
-    let spot = state.spot(state.pointer_layout)?;
-    let point = [spot.scene.x, spot.scene.y];
-    chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n)).map(String::from)
-}
-
-/// Whether the client of `conn` is a window manager of virtual outputs,
-/// other than `place`, the one under the pointer: its claims all lie on
-/// virtual outputs, as those of a manager in a pane or on a face of a
-/// cube do. A space that shows them on a screen is no such manager, and
-/// keeps its keys.
-pub(crate) fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
-    let Some(name) = state.ipc.name(conn).filter(|name| *name != place) else {
-        return false;
-    };
-    let virtuals: Vec<_> = (state.assets.virtuals.iter())
-        .map(|v| crate::output::output_area(v.output()).to_f64())
-        .collect();
-    let mut claims = (state.scene.nodes())
-        .filter(|n| n.owner.as_deref() == Some(name))
-        .filter_map(|n| n.props.claim)
-        .peekable();
-    claims.peek().is_some()
-        && claims.all(|[x, y, _, _]| {
-            virtuals
-                .iter()
-                .any(|area| area.contains(Point::<f64, Logical>::from((x, y))))
-        })
 }
 
 /// Relative motion, as from a mouse on real hardware. The pointer stays on
@@ -2541,6 +2481,101 @@ mod tests {
         assert!(
             matches!(alt_y(&core, true), Some(super::KeyAction::Swallow)),
             "in the test mode an injected key is a key of the person"
+        );
+    }
+
+    const Y: u32 = 21;
+
+    /// The `input.key` presses that a client got.
+    fn key_presses(client: &mut Client, core: &mut Core) -> Vec<Value> {
+        events(client, core)
+            .into_iter()
+            .filter(|e| e["event"] == "input.key" && e["state"] == "pressed")
+            .collect()
+    }
+
+    /// I11 (sh-24): the manager of a face bound Alt+y, and its window, a
+    /// probe client, has the keyboard; the pointer rests on the claim of
+    /// another manager. The key goes to the manager of the face, and the
+    /// probe gets Alt, no raw y.
+    #[test]
+    fn a_key_that_a_look_binds_skips_its_focused_probe_and_reaches_the_look() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        key_presses(&mut face, &mut core);
+        press(&mut core, ALT, true);
+        tap(&mut core, Y);
+        press(&mut core, ALT, false);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.key_serials().len(), 2, "the probe gets Alt only");
+        let got = key_presses(&mut face, &mut core);
+        assert_eq!(got.len(), 1, "the look gets Alt+y: {got:?}");
+    }
+
+    /// Keyboard after a stale pointer (sh-24): the manager of a face took
+    /// the keyboard for its node while the pointer rests on the claim of
+    /// another manager. Its key goes to it; the pointer is stale.
+    #[test]
+    fn the_keys_follow_the_keyboard_not_a_stale_pointer() {
+        let (mut core, mut face, _space) = manager_of_a_face_and_one_under_the_pointer();
+        let menu = json!([{"create": {"id": "menu", "kind": "rect", "parent": "face",
+            "props": {"size": [10, 10], "color": [1, 1, 1, 1]}}}]);
+        apply(&mut face, &mut core, &menu);
+        apply(&mut face, &mut core, &focus_node(Some("menu")));
+        assert!(
+            matches!(
+                alt_y(&core, false),
+                Some(super::KeyAction::Grab(_, _, false))
+            ),
+            "the manager with the keyboard gets its key"
+        );
+    }
+
+    /// rw-3: a clicked layer surface (the search field of a panel) has the
+    /// keyboard while the window of a manager of a face still is the
+    /// focus the core wants. The place is not that manager: the keys go
+    /// where the pointer is.
+    #[test]
+    fn the_key_place_is_not_the_window_owner_while_a_layer_has_the_keyboard() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        assert!(
+            matches!(
+                alt_y(&core, false),
+                Some(super::KeyAction::Grab(_, _, false))
+            ),
+            "the manager of the window that has the keyboard gets its key"
+        );
+        wayland.layer(
+            &mut core,
+            smithay::reexports::wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::Layer::Top,
+            smithay::reexports::wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
+        );
+        let field = core.state.all_outputs().iter().find_map(|output| {
+            let map = smithay::desktop::layer_map_for_output(output);
+            map.layers().next().map(|l| l.wl_surface().clone())
+        });
+        assert!(field.is_some(), "the layer is mapped");
+        core.state.set_layer_focus(field);
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "the layer has the keyboard: the key place is where the pointer is"
         );
     }
 }

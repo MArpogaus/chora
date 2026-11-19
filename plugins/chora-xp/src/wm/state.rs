@@ -1,13 +1,17 @@
-//! `state.get` (design 3.1): what chora-xp shows and holds, read from its
-//! model until xp uses `kit::wm`; the port deletes this adapter. Only
-//! reads, besides `core_focus`. Without a focused window xp holds the
+//! `state.get` (design 3.1): what chora-xp shows and holds, in the shape
+//! of `kit::wm::state`, read from its model and its book. Only reads,
+//! besides `core_focus`. Without a focused window xp holds the
 //! focus with its own nodes (the icons, a menu, a dialog) until a window
 //! of another window manager takes it: a node that takes the keyboard
 //! sends no `focus.changed`. Desktops count from 1, as the pager shows them. `views`
 //! stays out: xp shows no window of another look. `texts` are the runs
 //! of text that chora-draw reports for the image nodes of xp.
 
-use serde_json::{Value, json};
+use chora_kit::wm::{
+    Origin,
+    state::{Desks, Focus, Open, State, Window},
+};
+use serde_json::{Map, Value, json};
 
 use super::{NAME, Wm};
 
@@ -15,35 +19,66 @@ impl Wm {
     /// The client windows bottom first, the desktops, the focus, the open
     /// menus and dialogs, and the effects that still run.
     pub(super) fn state_value(&self) -> Value {
-        let windows: Vec<Value> = (self.windows.iter().enumerate())
-            .map(|(z, w)| {
-                json!({
-                    "surface": w.surface,
-                    "title": w.title,
-                    "app_id": w.app_id,
-                    "output": self.output_of(&w.surface),
-                    "desks": [w.desktop + 1],
-                    "rect": w.rect(),
-                    "shown": w.shown && !w.minimized && w.desktop == self.desktop,
-                    "minimized": w.minimized,
-                    "maximized": w.maximized(),
-                    "fullscreen": false,
-                    "floating": self.floats.floats(&w.surface),
-                    "z": z,
-                })
+        let windows = (self.windows.iter().enumerate())
+            .map(|(z, w)| Window {
+                surface: w.surface.clone(),
+                origin: self.book.origin(&w.surface).map(Origin::word),
+                title: Some(w.title.clone()),
+                app_id: w.app_id.clone(),
+                output: self.output_of(&w.surface).unwrap_or_default(),
+                desks: vec![w.desktop + 1],
+                rect: Some(w.rect().map(f64::from)),
+                shown: w.shown && !w.minimized && w.desktop == self.desktop,
+                minimized: w.minimized,
+                maximized: w.maximized(),
+                fullscreen: false,
+                floating: self.floats.floats(&w.surface),
+                z: Some(z),
             })
             .collect();
-        let desks: Vec<Value> = (self.bars.iter())
-            .map(|b| json!({"output": b.output, "shown": [self.desk_of(b) + 1]}))
+        let desks = (self.bars.iter())
+            .map(|b| Desks {
+                output: b.output.clone(),
+                shown: vec![self.desk_of(b) + 1],
+            })
             .collect();
         let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
-            Some(surface) => json!({"holder": NAME, "surface": surface}),
-            None if !self.focus_away() && !self.cube_off() => json!({"holder": NAME}),
-            None => json!({"holder": null}),
+            Some(surface) => Focus {
+                holder: Some(NAME.into()),
+                surface: Some(surface.into()),
+            },
+            None if !self.focus_away() && !self.cube_off() => Focus {
+                holder: Some(NAME.into()),
+                surface: None,
+            },
+            None => Focus::default(),
         };
-        json!({"windows": windows, "desks": desks, "focus": focus,
-            "open": self.open_value(), "busy": self.busy_value(),
-            "helper": self.voiced.word(), "texts": self.theme.texts()})
+        let mut more = Map::new();
+        more.insert("helper".into(), json!(self.voiced.word()));
+        let mut state = State {
+            windows,
+            desks,
+            focus,
+            open: self.open_value(),
+            busy: self.busy_value(),
+            texts: self.texts_value(),
+            more,
+        }
+        .value();
+        self.name_the_window_of_the_system_menu(&mut state);
+        state
+    }
+
+    /// The system menu of a window tells which window it is for.
+    fn name_the_window_of_the_system_menu(&self, state: &mut Value) {
+        let Some(surface) = &self.sys_window else {
+            return;
+        };
+        let menu = (state["open"].as_array_mut())
+            .and_then(|open| open.iter_mut().find(|o| o["id"] == "xp-ctx"));
+        if let Some(menu) = menu {
+            menu["for"] = json!(surface);
+        }
     }
 
     /// A window of another window manager took the focus last.
@@ -51,10 +86,20 @@ impl Wm {
         (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
     }
 
+    /// The runs of text that chora-draw reports for the image nodes of xp.
+    fn texts_value(&self) -> Vec<Value> {
+        (self.theme.texts().iter())
+            .filter_map(|run| serde_json::to_value(run).ok())
+            .collect()
+    }
+
     /// The menus and dialogs that show, in the order Escape shuts them.
-    fn open_value(&self) -> Vec<Value> {
-        let entry =
-            |id: &str, kind: &str, modal: bool| json!({"id": id, "kind": kind, "modal": modal});
+    fn open_value(&self) -> Vec<Open> {
+        let entry = |id: &str, kind: &str, modal: bool| Open {
+            id: id.into(),
+            kind: kind.into(),
+            modal,
+        };
         let mut open = Vec::new();
         if self.switcher.is_some() {
             open.push(entry("xp-switcher", "switcher", false));
@@ -63,11 +108,7 @@ impl Wm {
             open.push(entry("xp-session", "dialog", true));
         }
         if self.context.is_some() {
-            let mut menu = entry("xp-ctx", "menu", false);
-            if let Some(surface) = &self.sys_window {
-                menu["for"] = json!(surface);
-            }
-            open.push(menu);
+            open.push(entry("xp-ctx", "menu", false));
         }
         if self.menu.is_open() {
             open.push(entry("xp-menu", "menu", false));
@@ -79,7 +120,7 @@ impl Wm {
     }
 
     /// What still moves: quiet once this is empty.
-    fn busy_value(&self) -> Vec<&'static str> {
+    fn busy_value(&self) -> Vec<String> {
         let running = [
             (self.effects.driver.animating(), "effects"),
             (self.effects.turn.is_some(), "cube"),
@@ -90,7 +131,7 @@ impl Wm {
         running
             .into_iter()
             .filter(|(on, _)| *on)
-            .map(|(_, name)| name)
+            .map(|(_, name)| name.to_owned())
             .collect()
     }
 }
@@ -100,7 +141,7 @@ mod tests {
     use chora_kit::runtime::Plugin as _;
     use serde_json::json;
 
-    use super::super::tests::wm_on_fake_core;
+    use super::super::{Wm, tests::wm_on_fake_core};
     use crate::window::Window;
 
     /// A window with a size on a desktop.
@@ -129,6 +170,12 @@ mod tests {
         assert_eq!(state, expected);
     }
 
+    /// A window that xp holds, in its list and in its book.
+    fn add(wm: &mut Wm, surface: &str, desktop: usize) {
+        wm.windows.push(window(surface, desktop));
+        wm.book.keep(surface);
+    }
+
     /// The fields of a window that a test reads.
     fn read(state: &serde_json::Value, i: usize) -> serde_json::Value {
         let w = &state["windows"][i];
@@ -147,8 +194,8 @@ mod tests {
     #[test]
     fn the_state_lists_the_windows_bottom_first() {
         let (mut wm, _methods) = wm_on_fake_core("state-windows");
-        wm.windows.push(window("s1", 0));
-        wm.windows.push(window("s2", 1));
+        add(&mut wm, "s1", 0);
+        add(&mut wm, "s2", 1);
         let state = wm.state().unwrap();
         assert_eq!(read(&state, 0), json!(["s1", "X", 0, true, [1], false]));
         assert_eq!(read(&state, 1), json!(["s2", "X", 1, false, [2], false]));
@@ -165,7 +212,7 @@ mod tests {
     fn xp_holds_the_focus_until_another_window_takes_it() {
         let (mut wm, _methods) = wm_on_fake_core("state-focus");
         assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
-        wm.windows.push(window("s1", 0));
+        add(&mut wm, "s1", 0);
         wm.event(focus("s1")).unwrap();
         let focus_s1 = json!({"holder": "xp", "surface": "s1"});
         assert_eq!(wm.state().unwrap()["focus"], focus_s1);
@@ -180,7 +227,7 @@ mod tests {
     #[test]
     fn xp_holds_the_focus_after_its_focused_window_goes() {
         let (mut wm, _methods) = wm_on_fake_core("state-gone");
-        wm.windows.push(window("s1", 0));
+        add(&mut wm, "s1", 0);
         wm.event(focus("s1")).unwrap();
         let gone = json!({"event": "surface.destroyed", "surface": "s1"});
         wm.event(serde_json::from_value(gone).unwrap()).unwrap();

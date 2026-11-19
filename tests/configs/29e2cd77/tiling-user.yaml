@@ -1,0 +1,15 @@
+# A user file of tiling at head 29e2cd77: only the bindings, with the
+# actions that tiling shared with the other looks under their old spelling.
+bindings:
+  MOD+j: focus_next
+  MOD+Shift+c: close
+  MOD+BTN_LEFT: drag
+  MOD+g: {give: xp}
+  MOD+Return: {run: foot}
+  MOD+l: {inc_master_width: 0.1}
+  MOD+1: {view_tag: 1}
+  MOD+F1: show_keys
+  MOD+Ctrl+r: reload
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioMute: {volume: mute}
+  XF86AudioMicMute: {volume: {set: 30}}
