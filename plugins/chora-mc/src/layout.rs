@@ -319,10 +319,6 @@ impl Mc {
     /// One node per row, so that a row wraps and its note stays on
     /// its first line; `align` stacks the rows as the core lays
     /// them out, and moves the notes flush right to the margin.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "rustfmt splits the reasoned casts below over several lines"
-    )]
     pub(crate) fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
         let (Some([x, y, w, h]), Some(geo)) = (self.place(name, panel), self.geometry(name)) else {
             return Vec::new();
@@ -357,15 +353,9 @@ impl Mc {
         let body = self.ty("body", panel.style.as_ref());
         if let Some(rows) = panel.columns() {
             let note = self.ty("margin", panel.note_style.as_ref());
-            #[expect(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                reason = "a non-negative line count of the body"
-            )]
-            let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
+            let shown = lines_shown(h - top, body.line);
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
-                #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
-                let row = top + i as f64 * body.line;
+                let row = row_top(top, i, body.line);
                 let at = self.lift(y, row, &body);
                 let hit = ([indent, at, w, body.line], body.ink());
                 commands.extend(self.row_hit(name, &id, i, hit));
@@ -400,8 +390,7 @@ impl Mc {
     ) -> Vec<Command> {
         let ink = self.ty("body", panel.style.as_ref()).ink();
         let rows = (0..panel.lines.len()).map(|i| {
-            #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
-            let y = top + i as f64 * line;
+            let y = row_top(top, i, line);
             self.row_hit(name, id, i, ([x, y, w, line], ink))
         });
         rows.flatten().collect()
@@ -582,4 +571,22 @@ impl Mc {
             uniforms: [("radius".into(), Uniform::Float(radius))].into(),
         })
     }
+}
+
+/// How many lines of a height are shown, the last one cut off as well.
+fn lines_shown(height: f64, line: f64) -> usize {
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a non-negative line count of the body"
+    )]
+    let shown = (height / line).ceil().max(0.0) as usize;
+    shown
+}
+
+/// The top of row `i` of lines that are `line` high, from `top`.
+fn row_top(top: f64, i: usize, line: f64) -> f64 {
+    #[expect(clippy::cast_precision_loss, reason = "rows of one screen")]
+    let rows = i as f64;
+    top + rows * line
 }

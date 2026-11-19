@@ -878,10 +878,6 @@ impl Theme {
 
     /// Draws an SVG, PNG or JPEG file scaled to a rectangle; a `foreign`
     /// file is read and checked as a file of a HUD folder, and not kept.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "rustfmt splits the reasoned casts below over several lines"
-    )]
     fn draw_file(
         &self,
         path: &Path,
@@ -901,13 +897,8 @@ impl Theme {
                 );
                 return Ok(());
             }
-            let [w, h] = [size.width(), size.height()].map(f32::ceil);
-            #[expect(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                reason = "a rounded tile size, non-negative"
-            )]
-            let mut tile = Pixmap::new(w as u32, h as u32).ok_or_else(|| error(&"empty"))?;
+            let mut tile =
+                tile_pixmap([size.width(), size.height()]).ok_or_else(|| error(&"empty"))?;
             resvg::render(&tree, Transform::identity(), &mut tile.as_mut());
             tile
         } else {
@@ -918,11 +909,7 @@ impl Theme {
             };
             load_raster(source, path).map_err(|e| error(&e))?
         };
-        #[expect(
-            clippy::cast_precision_loss,
-            reason = "an image side in pixels, exact in f32"
-        )]
-        let size = [image.width() as f32, image.height() as f32];
+        let size = pixmap_size(&image);
         let transform = place(rect, size, fit);
         if let Fit::Tile(_) = fit {
             let paint = Paint {
@@ -935,11 +922,7 @@ impl Theme {
                 ),
                 ..Paint::default()
             };
-            #[expect(
-                clippy::cast_precision_loss,
-                reason = "pixel rect values, exact in f32"
-            )]
-            let [x, y, w, h] = rect.map(|n| n as f32);
+            let [x, y, w, h] = rect_f32(rect);
             if let Some(area) = tiny_skia::Rect::from_xywh(x, y, w, h) {
                 pixmap.fill_rect(area, &paint, base, None);
             }
@@ -995,6 +978,35 @@ fn header_size(path: &Path) -> Option<[i32; 2]> {
     std::io::Read::read_exact(&mut chora_kit::open_file(path).ok()?, &mut head).ok()?;
     let word = |at: usize| u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]]);
     Some([i32::try_from(word(16)).ok()?, i32::try_from(word(20)).ok()?])
+}
+
+/// An empty pixmap for a tile of an SVG size, rounded up to whole pixels.
+fn tile_pixmap(size: [f32; 2]) -> Option<Pixmap> {
+    let [w, h] = size.map(f32::ceil);
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a rounded tile size, non-negative"
+    )]
+    Pixmap::new(w as u32, h as u32)
+}
+
+/// The width and height of a pixmap in pixels.
+fn pixmap_size(image: &Pixmap) -> [f32; 2] {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "an image side in pixels, exact in f32"
+    )]
+    [image.width() as f32, image.height() as f32]
+}
+
+/// A rectangle of pixels as `f32` values.
+fn rect_f32(rect: Rect) -> [f32; 4] {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "pixel rect values, exact in f32"
+    )]
+    rect.map(|n| n as f32)
 }
 
 /// Whether a file is an SVG file, by its extension.
