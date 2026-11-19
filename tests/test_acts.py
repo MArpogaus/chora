@@ -897,5 +897,142 @@ class Teardown(unittest.TestCase):
         self.assertIsNotNone(proc.poll())
 
 
+sys.path.insert(0, str(ROOT / "tests" / "persona"))
+
+import check  # noqa: E402
+
+
+def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=()):
+    return check.Ctx(look, list(hist), list(calls), 0.0, probe, list(keys), list(entries))
+
+
+def seen(open_ids=(), helper="idle", keysheet=None, look="xp"):
+    return {
+        "t": 1.0,
+        "action": "a",
+        "open": list(open_ids),
+        "helper": {look: helper},
+        "keysheet": keysheet,
+    }
+
+
+def verdict(task, context, before, after):
+    expect = check.contracts(task, context, before)
+    return expect.check(before, after)
+
+
+class PersonaContracts(unittest.TestCase):
+    """The end-state contracts of tests/persona/check.py, each green on a
+    sound end state and red on the breach it exists for."""
+
+    def test_snapshot_round_trip(self):
+        before = snap()
+        self.assertEqual(check.restore(json.loads(check.dump(before))), before)
+
+    def test_t1_new_focused_window_of_the_look(self):
+        before = snap()
+        two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
+        after = snap(nodes=two, toplevels={"s1", "s2"})
+        self.assertEqual(verdict("T1", ctx(), before, after), [])
+        self.assertIn("no new focused window", verdict("T1", ctx(), before, snap())[0])
+
+    def test_t1_launcher_still_open(self):
+        before = snap()
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-menu"}], "busy": []}}
+        two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
+        after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
+        self.assertIn("expected open []", verdict("T1", ctx(), before, after)[0])
+
+    def test_t2_key_list_opened_spoke_and_shut(self):
+        hist = [seen(["xp-dlg-help"], keysheet=[]), seen()]
+        self.assertEqual(verdict("T2", ctx(hist=hist), snap(), snap()), [])
+        self.assertIn("never open", verdict("T2", ctx(hist=[seen()]), snap(), snap())[0])
+        wrong = [seen(["xp-dlg-help"], keysheet=["the key list does not say 'Mute'"]), seen()]
+        self.assertIn("does not say", verdict("T2", ctx(hist=wrong), snap(), snap())[0])
+
+    def test_t3_helper_worked_answered_and_focus_back(self):
+        hist = [seen(helper="idle"), seen(helper="working"), seen(helper="idle")]
+        entries = [{"role": "user"}, {"role": "agent"}]
+        self.assertEqual(verdict("T3", ctx(hist=hist, entries=entries), snap(), snap()), [])
+        never = verdict("T3", ctx(hist=[seen(), seen()], entries=entries), snap(), snap())
+        self.assertIn("never worked", never[0])
+        silent = verdict("T3", ctx(hist=hist, entries=[{"role": "user"}]), snap(), snap())
+        self.assertIn("no agent entry", silent[0])
+
+    def test_t4_each_part_reads_its_stand_in(self):
+        for part, line in (
+            ("volume", "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"),
+            ("screenshot", "grim /tmp/x.png"),
+            ("lock", "loginctl lock-session"),
+        ):
+            with self.subTest(part):
+                self.assertEqual(verdict(f"T4:{part}", ctx(calls=[line]), snap(), snap()), [])
+                self.assertIn("PERSONA_CALLS", verdict(f"T4:{part}", ctx(), snap(), snap())[0])
+
+    def test_t4_a_poll_is_no_action(self):
+        polls = ["wpctl get-volume @DEFAULT_AUDIO_SINK@", "systemctl --user is-system-running"]
+        self.assertIn("no call of", verdict("T4:volume", ctx(calls=polls), snap(), snap())[0])
+        self.assertEqual(verdict("T4:power", ctx(calls=polls), snap(), snap()), [])
+
+    def test_t4_power_cancelled_calls_no_systemctl(self):
+        self.assertEqual(verdict("T4:power", ctx(), snap(), snap()), [])
+        out = verdict("T4:power", ctx(calls=["systemctl poweroff"]), snap(), snap())
+        self.assertIn("systemctl was called", out[0])
+
+    def test_t4_clock_needs_a_clock_node(self):
+        clock = snap(nodes=[surface("s1", "xp"), {"id": "xp-clock", "kind": "text"}])
+        self.assertEqual(verdict("T4:clock", ctx(), snap(), clock), [])
+        self.assertIn("no clock", verdict("T4:clock", ctx(), snap(), snap())[0])
+
+    def test_t5_probe_got_no_key_of_a_super_chord(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".report") as report:
+            report.write("key 30\nkey 57\n")
+            report.flush()
+            quiet = ctx(probe=report.name, keys=[28])
+            self.assertEqual(verdict("T5", quiet, snap(), snap()), [])
+            stray = ctx(probe=report.name, keys=[57])
+            self.assertIn("key 57", verdict("T5", stray, snap(), snap())[0])
+        self.assertIn("--probe", verdict("T5", ctx(), snap(), snap())[0])
+
+    def test_t5_chords_become_codes(self):
+        actions = [
+            {"action": "key", "args": {"combo": "Super+Space"}},
+            {"action": "key", "args": {"combo": "Return"}},
+            {"action": "type", "args": {"text": "Super+a"}},
+        ]
+        self.assertEqual(check.parse_chords(actions), [57])
+
+    def test_t6_a_notice_or_no_helper(self):
+        say = snap(nodes=[surface("s1", "xp"), {"id": "t", "kind": "text", "text": "No helper"}])
+        self.assertEqual(verdict("T6", ctx(), snap(), say), [])
+        self.assertIn("neither", verdict("T6", ctx(), snap(), snap())[0])
+
+    def test_t7_no_window_lost(self):
+        self.assertEqual(verdict("T7", ctx(), snap(), snap()), [])
+        gone = snap(nodes=[], toplevels=set())
+        self.assertIn("windows lost ['s1']", verdict("T7", ctx(), snap(), gone)[0])
+
+    def test_x1_window_shown_again_with_the_focus(self):
+        hidden = {"xp": {"windows": [window("s1", shown=False)], "focus": {"holder": "xp"}}}
+        self.assertEqual(verdict("X1", ctx(), snap(), snap()), [])
+        self.assertIn("hidden windows ['s1']", verdict("X1", ctx(), snap(), snap(states=hidden))[0])
+
+    def test_m1_the_page_changed(self):
+        def page(scene):
+            return {"mc": {"windows": [{"surface": "s1", "scene": scene, "shown": True}]}}
+
+        before = snap(states=page("agenda"))
+        self.assertEqual(verdict("M1", ctx("mc"), before, snap(states=page("photos"))), [])
+        self.assertIn("nothing changed", verdict("M1", ctx("mc"), before, before)[0])
+
+    def test_c1_the_cube_answers(self):
+        self.assertEqual(verdict("C1", ctx("construct"), snap(), snap(cube={"faces": []})), [])
+        broken = snap(cube={"error": "no client exports cube.list"})
+        self.assertIn("no client exports", verdict("C1", ctx("construct"), snap(), broken)[0])
+
+    def test_no_contract_for_an_unknown_task(self):
+        self.assertIsNone(check.contracts("T99", ctx(), snap()))
+
+
 if __name__ == "__main__":
     unittest.main()

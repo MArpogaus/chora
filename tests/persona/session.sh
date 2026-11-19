@@ -22,8 +22,11 @@
 #   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX,
 #                which the script removes at the end; a directory that
 #                you give stays)
-#   PERSONA_KEEP a directory that gets a copy of shots/ and actions.jsonl
+#   PERSONA_KEEP a directory that gets a copy of shots/, actions.jsonl,
+#                breaches.jsonl, evidence/ and the stand-in calls.log
 #                when the session ends (default: nothing is kept)
+#   PERSONA_CHECK  1: act.py runs tests/persona/check.py after each action
+#                (written to the env file, so the driver need not export it)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
 #   CHORA_TEST_FLAGS  flags of the core, as tests/headless-session.sh
 #                takes them; --test-injected-press-is-real lets the
@@ -221,7 +224,8 @@ cleanup() {
     if [[ -n ${PERSONA_KEEP:-} ]]; then
         mkdir -p "$PERSONA_KEEP"
         cp -r "$dir/shots" "$PERSONA_KEEP/"
-        cp "$dir/actions.jsonl" "$PERSONA_KEEP/" 2>/dev/null || true
+        cp "$dir/actions.jsonl" "$dir/breaches.jsonl" "$fakes/calls.log" "$PERSONA_KEEP/" 2>/dev/null || true
+        cp -r "$dir/evidence" "$PERSONA_KEEP/" 2>/dev/null || true
     fi
     if [[ -n $created_dir ]]; then
         rm -rf "$created_dir"
@@ -313,6 +317,7 @@ done
     echo "PERSONA_CALLS=$marks"
     echo "PERSONA_VOICE=$dir/voice"
     echo "PERSONA_FLAVORS=$1"
+    [[ -z ${PERSONA_CHECK:-} ]] || echo "PERSONA_CHECK=$PERSONA_CHECK"
 } >"$env_file"
 echo "PERSONA_ENV=$env_file"
 
