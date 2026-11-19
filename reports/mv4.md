@@ -26,3 +26,19 @@ Gate (head 7e339880, base session branch; MERGE_GATE_RUNS under the scratchpad, 
 3. region.rs still has Mc::regions/update/prepare/switch/region/arrange/stack/line (about 600 lines) that could go to region/layout.rs, S.
 4. chat.rs Chat::request/learn/shrink/fit/save (history budget, about 300 lines) to chat/history.rs, S.
 5. Parent files re-export moved items (`pub use fit::...`); switch callers (audit.rs, layout.rs, agent.rs) to the child path, S.
+
+## Review r1
+
+Verdict: MERGE-OK (claude/mv4 head 7e339880, base a17e7858). 0 BLOCK, 0 MAJOR, 3 nit. No merge gate run.
+
+Checks:
+1. Moves (91714434, 17186311): every removed code line reappears in the new files unchanged (sorted multiset of trimmed lines; the only differences are `mod`/`use`/`pub use` lines, `pub(super)` on moved items, explicit import lists, `//` comments rewritten as `///` or `reason = "..."`). Moved `#[allow]` lists keep the same lints. No visibility wider than the old one (child `pub`/`pub(crate)` items kept, helpers `pub(super)`); no caller outside the crates names a moved path. `cargo test -p chora-mc`: 139 passed; `cargo test -p chora-voice chat::`: 50 passed (49 + the SB2 test); `cargo test -p chora-assistant`: 237 passed.
+2. Counts by tools/size-ratchet: region.rs 1,284 (as reported), items.rs 620, hits.rs 228, fit.rs 183; chat.rs 1,055, gate.rs 380, notes.rs 128. `tools/size-ratchet --base a17e7858` ok, list holds only cube.rs 1,641 (da60b6cf removed two lines, nothing else).
+3. Red first: SB2 `a_dropped_spoken_note_stays_as_a_line_of_the_agent` FAILS at 675be38 and passes at head. UX-D1 at 890d952: `..._with_a_hide` and `..._with_escape` FAIL, the control (list without a text) passes; all three pass at head. Fixes are 8 and 7 lines: SB2 strips the SPOKEN mark and writes a "you:" line; UX-D1 clears the field in `hide` only when the mode is a list holding a text. Both right and minimal; the Escape path goes through `hide`.
+4. construct-hud flake: no construct file in the diff (10 files: mc region, voice chat, assistant chat, docs/hud.md, size-ratchet.list). Not caused by this diff.
+Authors: all commits by the owner identity; no attribution lines.
+
+Findings:
+- rw-1, nit, reports/mv4.md and reports/debt-2026-11-19.md: counts are stale by the later commits: chat.rs is 1,055 (reported 1,049, before the SB2 fix added 6), items.rs 620 (618), hits.rs 228 (226); fix: correct the numbers in the next report, no code change.
+- rw-2, nit, docs/hud.md:363: the edited line is 95 characters where the paragraph wraps at 72; fix: rewrap the paragraph.
+- rw-3, nit, plugins/chora-mc/src/region/hits.rs:9, :69 and fit.rs:88: `mark_id`, `CLOSE`, `fit` are `pub` in a private module and not re-exported, so they are crate-private in effect; fix: `pub(super)` to say so.
