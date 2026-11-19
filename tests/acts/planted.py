@@ -1,5 +1,7 @@
 """The live selftest of the act harness: in a real session of mc, each
-invariant passes on a sound act and fails on a planted breach.
+invariant passes on a sound act and fails on a planted breach. I5 and I10
+read the text boxes of `scene.boxes`: two overlapping text nodes and a raw
+entry break them.
 
 I7, I3, I8 (two helper surfaces) and I14 are broken in the session: a
 black rect over the screen, the keyboard on a node of the harness, two
@@ -89,6 +91,32 @@ def two_helpers(s):
     )
 
 
+def text(nid, words, at):
+    """A text node of the harness under the overlay."""
+    return {
+        "create": {
+            "id": nid,
+            "kind": "text",
+            "parent": f"screen:{OUT}",
+            "props": {"text": words, "font_size": 16, "transform": {"translate": at}},
+        }
+    }
+
+
+def overprint(s):
+    """A cue: two lines of text on top of each other (j1-4)."""
+    apply(
+        s,
+        text("planted-text-1", "No helper", [400, 300]),
+        text("planted-text-2", "Volume 40%", [420, 304]),
+    )
+
+
+def raw_entry(s):
+    """A cue: a launcher entry shown raw."""
+    apply(s, text("planted-raw", "org.gnome.TextEditor.desktop", [400, 360]))
+
+
 def remove(s, *ids):
     """Remove nodes of the harness."""
     apply(s, *({"remove": {"id": i}} for i in ids))
@@ -124,7 +152,8 @@ def run(results):
             expect=Expect(new_window={"app_id": "chora-probe", "owner": "mc", "focused": True}),
         )
         sound = dict(s.results)
-        for key in ("I1", "I3", "I4", "I7", "I8", "I14", "act:a window opens"):
+        sound_keys = ("I1", "I2", "I3", "I4", "I5", "I6", "I7", "I8", "I10", "I12", "I14")
+        for key in (*sound_keys, "act:a window opens"):
             must(f"sound {key}", sound.get(("mc", key), []), fail=False)
 
         must("I7 black screen", cell(s, "black", "I7", [black_screen]), fail=True)
@@ -136,6 +165,10 @@ def run(results):
         remove(s, "planted-focus")
         must("I8 two helper surfaces", cell(s, "helpers", "I8", [two_helpers]), fail=True)
         remove(s, "planted-helper-1", "planted-helper-2")
+        must("I5 two texts overprint", cell(s, "overprint", "I5", [overprint]), fail=True)
+        remove(s, "planted-text-1", "planted-text-2")
+        must("I10 a raw entry shows", cell(s, "raw", "I10", [raw_entry]), fail=True)
+        remove(s, "planted-raw")
 
         planted = Core(s.env["CHORA_SOCKET"], name="planted")
         s.until(lambda: "planted" in s.clients(), 5, "planted client")

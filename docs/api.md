@@ -645,6 +645,37 @@ matches, then prints the matches as one JSON line and exits 0. `--gone`
 waits until nothing matches. `--timeout SECS` limits the wait, 10 seconds
 by default; a timeout exits 1 with the reason on stderr.
 
+## Boxes
+
+`scene.boxes` answers what each output shows, as boxes, for checks such
+as overlapping text or the seams of a cube. It is read-only, holds no
+policy and changes nothing. The answer maps each output name, virtual
+outputs too, to `size`, its logical size, and `boxes`, bottom first in
+the order the output stacks them:
+
+```json
+{"HEADLESS-1": {"size": [1280, 800], "boxes": [
+  {"node": "bar", "kind": "rect", "owner": "xp", "layer": "scene",
+   "rect": [0, 770, 1280, 30], "opaque": true},
+  {"node": "clock", "kind": "text", "owner": "mc", "layer": "overlay",
+   "rect": [1200, 776, 62, 19], "opaque": false, "text": "12:04",
+   "font_size": 16}]}}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `node`, `kind`, `owner` | the node, its kind and the client name of its owner; a layer surface has `namespace` instead |
+| `layer` | `background` and `bottom` (layer surfaces below the scene), `scene` (the nodes below the root, through the camera), `overlay` (the nodes under `screen:NAME`), `top` and `shell_overlay` (layer surfaces above) |
+| `rect` | `[x, y, w, h]` in logical pixels of the output, the same box as the `rects` of `scene.query` |
+| `opaque` | `true` for a window, or a rect with an opaque fill, square corners and no backdrop, each at full opacity after its ancestors; images, text, shaders and layer surfaces are never opaque |
+| `corners` | for a node that draws as a plane, or a node in a 3D context: the corners of its size after its transforms, the camera and the perspective, top left, top right, bottom right, bottom left; left out when a corner lies at or behind the near plane |
+| `text`, `font_size` | for a text node: its text and its font size in its own logical pixels |
+
+A node that is hidden, fully clear or outside the output has no box on
+it. A client socket gets only its own nodes and no layer surface, as with
+`scene.query`. Text that a plugin paints into an image is not a text
+node; a plugin reports such runs in the `texts` of its `state.get`.
+
 ## Events
 
 | Event | Data |
@@ -781,7 +812,7 @@ client goes. Later milestones add events for size limits.
 
 JSON-RPC 2.0, one message per line, on the socket in `CHORA_SOCKET`. A
 client sends `hello` first. A method that changes the session or needs a
-grant fails before `hello`. `scene.query`, `events.subscribe`,
+grant fails before `hello`. `scene.query`, `scene.boxes`, `events.subscribe`,
 `output.list`, `clients.list`, `clients.create`, `methods.list`, `camera.release`,
 `grants.set`, `grants.revoke` and `grants.list` also work before it,
 for tools.
@@ -809,6 +840,7 @@ answers every request.
 |--------|---------|
 | `hello(name, keep_nodes, resume, protocol, features, confined)` | name the client (lowercase letters, digits, `_`, `-` and `.`, from a letter, at most 64 bytes); `keep_nodes` keeps its nodes and cameras after the disconnect, `resume` keeps them for a grace time (see below); `protocol` and `features` say what the client speaks (see [Protocol versions](#protocol-versions)); `confined: true` gives this connection the capability rules of a client socket also on the main socket (see [Client sockets](#client-sockets)), and `choractl mcp` sends it; returns `{"version": ..., "protocol": ..., "features": [...], "software": ...}`, where `software` is `true` when the core renders in software, as on llvmpipe, so that a client can choose a cheaper look |
 | `scene.query(selector, filter)` | read nodes |
+| `scene.boxes` | read the boxes that each output shows, bottom first (see [Boxes](#boxes)) |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
 | `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name or `look.theme` or `look.view` (the core adds `look` to their data), with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
@@ -1513,7 +1545,13 @@ has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
 the construct adds `views`, the panes of windows, plugin nodes and
 virtual outputs that it shows but does not own. tiling, mc and the
 construct add the `origin` of each window: `new`, `given` (another window manager gave it)
-or `kept` (over a restart).
+or `kept` (over a restart). xp and chora-notify add `texts`, the runs
+of text that `chora_draw` painted into their image nodes: `node`,
+`text` (the line as drawn, with its ellipsis), `rect` (`[x, y, w, h]`
+of its ink in the logical pixels of the node at its own size), `px` (the
+font size) and `fg` (RGBA). chora-notify answers `shown`, the
+notifications on screen with `id`, `summary` and the `node` of the card,
+and `busy` while a card shows.
 
 A look built on `chora_kit::wm` (tiling, mc, the construct) emits
 `<look>.window` with

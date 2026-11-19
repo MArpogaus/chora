@@ -71,6 +71,20 @@ pub struct Queue {
     times: Config,
     shown: Option<(Note, Option<Instant>)>,
     waiting: VecDeque<Note>,
+    accepted: VecDeque<u32>,
+    closed: VecDeque<u32>,
+}
+
+/// How many ids of accepted and closed notifications the queue keeps for
+/// `state.get`.
+const HISTORY: usize = 64;
+
+fn remember(list: &mut VecDeque<u32>, id: u32) {
+    list.retain(|i| *i != id);
+    list.push_back(id);
+    if list.len() > HISTORY {
+        list.pop_front();
+    }
 }
 
 impl Queue {
@@ -80,7 +94,24 @@ impl Queue {
             times,
             shown: None,
             waiting: VecDeque::new(),
+            accepted: VecDeque::new(),
+            closed: VecDeque::new(),
         }
+    }
+
+    /// The ids of the notifications that waited their turn, oldest first.
+    pub fn waiting_ids(&self) -> Vec<u32> {
+        self.waiting.iter().map(|n| n.id).collect()
+    }
+
+    /// The ids of the last notifications that the server accepted.
+    pub fn accepted_ids(&self) -> Vec<u32> {
+        self.accepted.iter().copied().collect()
+    }
+
+    /// The ids of the last notifications that closed.
+    pub fn closed_ids(&self) -> Vec<u32> {
+        self.closed.iter().copied().collect()
     }
 
     /// Takes the times of changed settings for the notifications that show
@@ -102,6 +133,8 @@ impl Queue {
     /// A new notification shows at once or waits. One with the id of a
     /// known one takes its place, and its time starts again.
     pub fn push(&mut self, note: Note, now: Instant) {
+        remember(&mut self.accepted, note.id);
+        self.closed.retain(|i| *i != note.id);
         if self.current().is_some_and(|n| n.id == note.id) || self.shown.is_none() {
             self.show(note, now);
         } else if let Some(old) = self.waiting.iter_mut().find(|n| n.id == note.id) {
@@ -128,6 +161,7 @@ impl Queue {
         } else {
             return Vec::new();
         }
+        remember(&mut self.closed, id);
         vec![Signal::Closed(id, reason)]
     }
 
