@@ -1185,7 +1185,7 @@ fn add_display(display: Display<State>, loop_handle: &LoopHandle<'static, State>
             |_, display, state| {
                 // SAFETY: the display stays in this source and is never dropped
                 // while the event loop runs.
-                #[allow(unsafe_code)]
+                #[expect(unsafe_code, reason = "wayland-server marks dispatch_clients unsafe; it runs only from this event loop")]
                 unsafe {
                     display.get_mut().dispatch_clients(state)?;
                 }

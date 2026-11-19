@@ -207,7 +207,10 @@ pub struct Layout {
 /// The layout for a title and lines of text of some widths.
 pub fn layout(icon: bool, title: f64, lines: &[f64]) -> Layout {
     let ceil = |w: f64| {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a text width in pixels, capped at MAX_TEXT"
+        )]
         let w = w.min(MAX_TEXT).ceil() as i32;
         w
     };

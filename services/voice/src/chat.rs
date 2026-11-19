@@ -790,7 +790,10 @@ impl Chat {
     fn learn(&mut self, round: &Round, chars: usize, messages: &[Value]) {
         let picture = messages.iter().any(|m| m["content"].is_array());
         if let Some(tokens) = round.prompt_tokens.filter(|&t| t > 0 && !picture) {
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "character and token counts, exact in f64"
+            )]
             let ratio = chars as f64 / tokens as f64;
             self.chars_per_token = ratio.clamp(1.0, 8.0);
             crate::log::debug(&format!(
@@ -858,7 +861,10 @@ impl Chat {
         };
         loop {
             let history = size(&self.history);
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "a character count, exact in f64"
+            )]
             let tokens = (fixed + self.note().len() + history) as f64 / self.chars_per_token;
             if tokens <= f64::from(budget) && history <= limit {
                 return;

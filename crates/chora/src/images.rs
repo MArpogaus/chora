@@ -375,7 +375,10 @@ fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), Error> {
 
 /// The buffer of RGBA pixels; a side has at most `MAX_SIDE` pixels.
 fn memory(pixels: &[u8], size: [u32; 2]) -> MemoryBuffer {
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "an image side in pixels, far below i32::MAX"
+    )]
     let buffer_size = (size[0] as i32, size[1] as i32);
     MemoryBuffer::from_slice(pixels, Fourcc::Abgr8888, buffer_size)
 }
@@ -530,7 +533,10 @@ where
             (src.loc.x * factor(0), src.loc.y * factor(1)).into(),
             (src.size.w * factor(0), src.size.h * factor(1)).into(),
         );
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded logical side in pixels, far below i32::MAX"
+        )]
         let logical = |side: i32| ((f64::from(side) / at.output_scale).round() as i32).max(1);
         let element = MemoryRenderBufferRenderElement::from_buffer(
             renderer,
@@ -562,7 +568,10 @@ where
 fn cell_area(dst: &Edges, at: &Placement) -> Option<Rectangle<i32, Physical>> {
     let (sx, sy) = at.scale;
     let scale = at.output_scale;
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a rounded pixel coordinate, far below i32::MAX"
+    )]
     let round = |v: f64| v.round() as i32;
     let x = |edge: f64| round(at.origin.x + edge * sx * scale);
     let y = |edge: f64| round(at.origin.y + edge * sy * scale);
@@ -587,7 +596,11 @@ fn step_index(
     steps: usize,
 ) -> usize {
     let ratio = (f64::from(area.w) / src.size.w).min(f64::from(area.h) / src.size.h);
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "the ratio is below 1, so -log2 is positive and the step count is small"
+    )]
     let wanted = if ratio < 1.0 {
         (-ratio.log2()).floor() as usize
     } else {
@@ -599,7 +612,11 @@ fn step_index(
         (src.loc.y, file[1]),
         (src.loc.y + src.size.h, file[1]),
     ];
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "edges are whole, non-negative steps (checked by fract just above)"
+    )]
     let aligned = |k: usize| {
         edges.iter().all(|(edge, end)| {
             let at_end = (edge - f64::from(*end)).abs() < f64::EPSILON;
