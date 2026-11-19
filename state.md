@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 23:53 UTC)
+## Now (2026-11-19 23:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 %; 29 h left: 75 %, 2.6 %/h; 6 lanes
+budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
 session branch: 30727c82 (train 77); 40 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
 burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next wk.
@@ -37,7 +37,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r2.md (F5) | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, train 78b |
-| co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
+| co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq, running 23:57 |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 77 green 23:39 (harness-gp). 78 red 23:51 ci-check (pid temp, fix 9c6bf589); 78b running a2f50532, adds ti-majors.
