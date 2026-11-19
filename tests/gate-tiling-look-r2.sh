@@ -43,7 +43,7 @@ bus=$(dbus-daemon --session --print-address --fork 2>/dev/null | head -n 1 | cut
 [ -n "$bus" ] || fail "no session bus"
 export DBUS_SESSION_BUS_ADDRESS=$bus
 export CHORA_TEST_KEEP_BUS=1
-printf '#!/bin/sh\n[ -e "%s/stub/grim-fails" ] && exit 1\nexec %s "$@"\n' "$work" "$(command -v grim)" >"$work/stub/grim"
+printf '#!/bin/sh\n[ -e "%s/stub/grim-fails" ] && { echo "compositor refused the capture" >&2; exit 1; }\nexec %s "$@"\n' "$work" "$(command -v grim)" >"$work/stub/grim"
 chmod +x "$work/stub/grim"
 
 cell_runs() { [[ $1 =~ ^(${CELLS:-.*})$ ]]; }
@@ -213,6 +213,7 @@ cell_notice() {
     keys Super+Print
     listed=$(listed_after "Screenshot failed")
     grep -q "Screenshot failed" <<<"$listed" || fail "$theme notice: no notice \"Screenshot failed\" when grim fails: $listed"
+    grep -q "compositor refused the capture" <<<"$listed" || fail "$theme notice: the failure names no reason: $listed"
     shoot "$shot" || fail "$theme notice: the capture"
     changed=$(differing "$base" "$shot" 900 650 1250 735)
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-screenshot-failed-$theme.png"
