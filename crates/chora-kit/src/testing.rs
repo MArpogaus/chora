@@ -21,6 +21,10 @@ use serde_json::{Value, json};
 
 use crate::conn::Conn;
 
+mod script;
+
+pub use script::{Script, Subject, created, created_by, detach, output, owner, phases, surface};
+
 /// The scene model of the fake core, shared with the test.
 pub type Model = Arc<Mutex<Core>>;
 
@@ -175,6 +179,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
             core.called.push(params.clone());
             Ok(Value::Null)
         }
+        "output.list" => Ok(json!([])),
         "events.emit" => {
             model.lock().unwrap().emits.push(params.clone());
             Ok(Value::Null)
@@ -187,7 +192,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
             core.queries += 1;
             let found = id
                 .and_then(|id| core.scene.node(id))
-                .map(|n| json!({"id": n.id}));
+                .and_then(|n| serde_json::to_value(n).ok());
             Ok(found.into_iter().collect())
         }
         _ => Ok(Value::Null),

@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 enum Own {
     NextScene,
+    Cube,
     Scene(String),
 }
 
@@ -97,4 +98,51 @@ fn the_shared_scripts_run_lock_power_and_screenshot() {
     assert_eq!(System::Power.script(), Some(("power", &[][..])));
     assert_eq!(System::Screenshot.script(), Some(("screenshot", &[][..])));
     assert_eq!(System::Chat.script(), None);
+}
+
+/// The four spellings of construct before the port load for one release:
+/// `help` is the key list, the three volume keys are `volume: ...`.
+#[test]
+fn help_is_the_old_spelling_of_keys() {
+    assert_eq!(one("help"), Action::System(System::Keys));
+}
+
+#[test]
+fn volume_up_is_the_old_spelling_of_volume_up() {
+    assert_eq!(one("volume_up"), Action::System(System::Volume(Change::Up)));
+}
+
+#[test]
+fn volume_down_is_the_old_spelling_of_volume_down() {
+    assert_eq!(
+        one("volume_down"),
+        Action::System(System::Volume(Change::Down))
+    );
+}
+
+#[test]
+fn mute_is_the_old_spelling_of_volume_mute() {
+    assert_eq!(one("mute"), Action::System(System::Volume(Change::Mute)));
+}
+
+/// A bare `cube` is the cube action of a look, `{cube: left}` the turn
+/// of the system: the same word, told apart by its shape.
+#[test]
+fn a_bare_cube_goes_to_the_look_and_a_turn_to_the_system() {
+    assert_eq!(one("cube"), Action::Look(Own::Cube));
+    assert_eq!(
+        one("{cube: right}"),
+        Action::System(System::Cube(Turn::Right))
+    );
+}
+
+/// The old spellings are read, never written: a saved binding is the
+/// new spelling.
+#[test]
+fn an_old_spelling_is_saved_in_the_new_one() {
+    let action = one("volume_up");
+    assert_eq!(
+        serde_saphyr::to_string(&action).unwrap().trim(),
+        "volume: up"
+    );
 }

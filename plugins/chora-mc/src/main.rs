@@ -297,6 +297,8 @@ struct Mc {
     appeared: Vec<String>,
     /// The window of an app scene, by scene.
     windows: HashMap<String, String>,
+    /// Which surfaces are mc's, and where they came from (`kit::wm::book`).
+    book: chora_kit::wm::Book,
     /// The scenes that go when their app ends: those of `app.open` and of
     /// a window that no scene started.
     transient: BTreeSet<String>,
@@ -496,6 +498,7 @@ impl Mc {
             settings,
             dir,
             windows: HashMap::new(),
+            book: chora_kit::wm::Book::new(NAME, false),
             transient: BTreeSet::new(),
             pids: HashMap::new(),
             starting: HashMap::new(),
@@ -620,16 +623,10 @@ impl Plugin for Mc {
             return Ok(());
         }
         self.voiced_word.hear(&event);
+        if chora_kit::wm::Book::hears(&event) {
+            self.lifecycle(&event)?;
+        }
         match event {
-            Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
-            Event::SurfaceCreated {
-                surface,
-                app_id,
-                token,
-                ..
-            } => self.adopt(&surface, app_id.as_deref(), token.as_deref()),
-            Event::SurfaceDetached { surface } => self.reattach(&surface),
-            Event::SurfaceDestroyed { surface } => self.forget(&surface),
             Event::SurfaceChanged {
                 surface,
                 size: Some(size),
@@ -2530,6 +2527,15 @@ mod testing {
     )]
     pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         let core = FakeCore::start();
+        (mc_on(&core, dir, size), core.model())
+    }
+
+    /// As [`mc`], on a fake core of the test.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    pub fn mc_on(core: &FakeCore, dir: &str, size: [i32; 2]) -> Mc {
         let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
         rt.pin_accepts_injected(false);
         let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
@@ -2554,6 +2560,6 @@ mod testing {
             owner: None,
         });
         mc.build().unwrap();
-        (mc, core.model())
+        mc
     }
 }

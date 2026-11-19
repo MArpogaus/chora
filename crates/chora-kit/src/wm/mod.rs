@@ -16,4 +16,4 @@ pub mod give;
 pub mod kept;
 pub mod state;
 
-pub use book::{Book, Change, Origin, Phase, Why};
+pub use book::{Book, Change, Created, Origin, Phase, Why};

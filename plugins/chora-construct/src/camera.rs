@@ -3,8 +3,8 @@
 
 use super::{
     Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
-    LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value, json,
-    space, stride, update,
+    LOOK_RATE, Own, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, System, TURN, Transform,
+    Value, json, space, stride, update,
 };
 
 /// The surface that the camera is in or on its way into.
@@ -151,18 +151,18 @@ impl Construct {
         Ok(())
     }
 
-    pub(crate) fn act(&mut self, action: Action) {
+    pub(crate) fn act(&mut self, action: Own) {
         let mut t = self.target();
         match action {
-            Action::Forward => return self.walk(STEP, 0.0),
-            Action::Back => return self.walk(-STEP, 0.0),
-            Action::Left => return self.walk(0.0, -STEP),
-            Action::Right => return self.walk(0.0, STEP),
-            Action::TurnLeft => t.yaw -= TURN,
-            Action::TurnRight => t.yaw += TURN,
-            Action::LookUp => t.pitch = (t.pitch + TURN).min(1.2),
-            Action::LookDown => t.pitch = (t.pitch - TURN).max(-1.2),
-            Action::Home => {
+            Own::Forward => return self.walk(STEP, 0.0),
+            Own::Back => return self.walk(-STEP, 0.0),
+            Own::Left => return self.walk(0.0, -STEP),
+            Own::Right => return self.walk(0.0, STEP),
+            Own::TurnLeft => t.yaw -= TURN,
+            Own::TurnRight => t.yaw += TURN,
+            Own::LookUp => t.pitch = (t.pitch + TURN).min(1.2),
+            Own::LookDown => t.pitch = (t.pitch - TURN).max(-1.2),
+            Own::Home => {
                 let yaw = self.panes.first().map_or(0.0, |p| p.at[0].atan2(p.at[1]));
                 let home = Pose {
                     x: 0.0,
@@ -173,20 +173,8 @@ impl Construct {
                 self.stride = None;
                 return self.glide_to(home, FLY_MS, None);
             }
-            Action::Terminal
-            | Action::Launcher
-            | Action::Close
-            | Action::Windows
-            | Action::Help
-            | Action::Cube
-            | Action::Chat
-            | Action::Lock
-            | Action::Power
-            | Action::Screenshot
-            | Action::VolumeUp
-            | Action::VolumeDown
-            | Action::Mute => return,
-            Action::FlyIn => {
+            Own::Windows | Own::Cube => return,
+            Own::FlyIn => {
                 if let Some(i) = self.pane_ahead()
                     && let Err(err) = self.fly_in(i)
                 {
@@ -200,12 +188,12 @@ impl Construct {
 
     /// A walk key went down: one pane step in a tap, more while it is
     /// held. A repeat of the key that is down changes nothing.
-    pub(crate) fn stride_press(&mut self, key: &str, action: Action) {
+    pub(crate) fn stride_press(&mut self, key: &str, action: Own) {
         let (ahead, aside) = match action {
-            Action::Forward => (1.0, 0.0),
-            Action::Back => (-1.0, 0.0),
-            Action::Left => (0.0, -1.0),
-            Action::Right => (0.0, 1.0),
+            Own::Forward => (1.0, 0.0),
+            Own::Back => (-1.0, 0.0),
+            Own::Left => (0.0, -1.0),
+            Own::Right => (0.0, 1.0),
             _ => return,
         };
         if self.in_pane() {
@@ -466,7 +454,7 @@ impl Construct {
         };
         let serves = self.active && !self.overlay;
         self.rt
-            .accept_injected(self.settings.value.test_accept_injected_keys);
+            .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.start_grabs();
         if self.active && !self.overlay {
@@ -549,13 +537,17 @@ impl Construct {
     /// The keys that start a terminal or are keys of every look and carry
     /// a modifier, or are media keys: the keys that a program in the pane
     /// never gets, so that they work from use mode.
-    fn grab_keys(&self) -> Vec<(String, Action)> {
-        (self.settings.value.keys.iter())
-            .filter(|(key, action)| {
-                (**action == Action::Terminal || Action::SHARED.contains(action))
-                    && (key.contains('+') || key.starts_with("XF86"))
+    fn grab_keys(&self) -> Vec<(String, System)> {
+        (self.settings.value.common.bindings.iter())
+            .filter_map(|(key, action)| match action {
+                Action::System(system)
+                    if (*system == System::Terminal || system.in_every_look())
+                        && (key.contains('+') || key.starts_with("XF86")) =>
+                {
+                    Some((key.clone(), system.clone()))
+                }
+                _ => None,
             })
-            .map(|(key, action)| (key.clone(), *action))
             .collect()
     }
 

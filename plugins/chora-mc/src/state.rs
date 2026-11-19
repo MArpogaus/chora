@@ -15,6 +15,7 @@ impl Mc {
     pub(crate) fn state_value(&self) -> Value {
         let output = self.output.as_ref().map(|o| o.name.as_str());
         let shown = |scene: &str| self.current.as_deref() == Some(scene);
+        let origin = |surface: &str| self.book.origin(surface).map(chora_kit::wm::Origin::word);
         let mut windows: Vec<Value> = self
             .windows
             .iter()
@@ -26,6 +27,12 @@ impl Mc {
                 json!({"surface": surface, "dock": content, "output": output, "shown": true})
             }))
             .collect();
+        for window in &mut windows {
+            let word = window["surface"].as_str().and_then(origin);
+            if let Some(word) = word {
+                window["origin"] = json!(word);
+            }
+        }
         windows.sort_by_key(|w| w["surface"].as_str().map(str::to_owned));
         let mut busy: Vec<&str> = self.writing.keys().map(String::as_str).collect();
         busy.sort_unstable();

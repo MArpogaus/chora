@@ -1,3 +1,5 @@
+use crate::windows::Named;
+
 use super::{
     Action, CLOCK, ClientError, Command, EVENTS, ExportMethod, HUD, Mc, NAME, PARKED, PropsUpdate,
     Query, Shaders, TICK, VOLUME, VOLUME_AGAIN, Value, WAIT, needs_claim, panel_id, volume_wait,
@@ -150,12 +152,19 @@ impl Mc {
             .rt
             .conn
             .call("scene.query", Query::new("kind:surface"))?;
-        for node in free {
-            let ours = node["to"].is_null() || node["to"] == NAME;
-            if let (Some(id), true, true) = (node["id"].as_str(), node["owner"].is_null(), ours) {
-                let app_id = node["surface"]["app_id"].as_str();
-                self.adopt(id, app_id, None)?;
-            }
+        self.adopt_free(&free)
+    }
+
+    /// Adopts the free surfaces among `nodes`, and those that the core
+    /// reserved for mc, as after a restart.
+    pub(crate) fn adopt_free(&mut self, nodes: &[Value]) -> Result<(), ClientError> {
+        for node in nodes {
+            let Some(id) = node["id"].as_str().filter(|_| node["owner"].is_null()) else {
+                continue;
+            };
+            let named = Named::Is(node["surface"]["app_id"].as_str().map(str::to_owned));
+            let changes = self.book.claim(id, node["to"].as_str(), None);
+            self.settle(changes, &named)?;
         }
         Ok(())
     }
