@@ -24,7 +24,7 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-debt-down-r3.md (F4) | opus high | r3 done 19:09: 121c30aa (rd-7: ungrab on close and revoke); review r3 starting |
+| review-debt-down-r3.md (F4) | opus high | r3 done 19:09: 121c30aa (rd-7: ungrab on close and revoke); review r3 session_016iS3kPHkN5XTNDzKsqeXRy (19:10) |
 | construct-red-r2.md (F7, F3) | sonnet high | done 18:53: da68737d MERGE-OK (opus review r2 19:01; rc-4, rc-5 MINOR to backlog); train 70 running 19:06 (known-red empty, D116 accepted) |
 | audit-f-r2.md (F1-F8) | opus high | session_016iS3kQcod2xk7nH43H3Dac (19:03): re-measure F, slice the rest |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
