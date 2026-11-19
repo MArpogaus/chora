@@ -227,6 +227,13 @@ fn state_value(shown: Option<(&Note, [i32; 4])>, queue: &Queue, texts: &[theme::
     })
 }
 
+/// Whether the failed start of the client says that another chora-notify
+/// serves the session.
+fn another_serves(err: &ClientError, bus: &Result<Bus, StartError>) -> bool {
+    matches!(err, ClientError::Rpc(err) if err.code == RpcError::NAME_TAKEN)
+        && matches!(bus, Err(StartError::Taken))
+}
+
 impl Notify {
     /// Takes the name on the session bus, connects and exports the
     /// methods of the settings; see [`Self::on`]. `None` when another
@@ -242,12 +249,9 @@ impl Notify {
         let bus = Bus::start(ids.clone());
         let mut rt = match Runtime::start(NAME, Vec::new(), EVENTS, Self::methods()) {
             Ok(rt) => rt,
-            Err(ClientError::Rpc(err))
-                if err.code == RpcError::NAME_TAKEN && matches!(bus, Err(StartError::Taken)) =>
-            {
+            Err(err) if another_serves(&err, &bus) => {
                 eprintln!(
-                    "chora-notify: {}, and another chora-notify serves the session",
-                    StartError::Taken
+                    "chora-notify: the name {NAME} is taken, another chora-notify serves the session"
                 );
                 return Ok(None);
             }
@@ -645,6 +649,35 @@ mod tests {
         notify.step(Instant::now()).unwrap();
         assert_eq!(notify.queue.current(), None);
         drop(owner);
+    }
+
+    /// A second chora-notify finds the client name `notify` of the core
+    /// taken, whatever the bus says: with no session bus (the first one
+    /// serves the plugins only) it must end without an error, or its
+    /// unit restarts it every second.
+    #[test]
+    fn a_second_notify_ends_quietly_whatever_the_bus_says() {
+        let taken = || {
+            ClientError::Rpc(RpcError {
+                code: RpcError::NAME_TAKEN,
+                message: "name taken".into(),
+                data: None,
+            })
+        };
+        for (what, bus) in [
+            ("bus name taken", Err(StartError::Taken)),
+            (
+                "no session bus",
+                Err(StartError::Failed("no session bus".into())),
+            ),
+        ] {
+            assert!(another_serves(&taken(), &bus), "{what}: ends without error");
+        }
+        let other = ClientError::NoSocket;
+        assert!(
+            !another_serves(&other, &Err(StartError::Taken)),
+            "other error"
+        );
     }
 
     #[test]
