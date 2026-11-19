@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 18:00 UTC)
+## Now (2026-11-19 18:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 16:58 PM 5.8 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -28,7 +28,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | moved-tests-mk-r3.md (F5) | haiku high | done 18:00: c00dcf3e MERGE-OK (PM review 18:03); train 69 |
 | debt-down-r2.md (F4) | sonnet high | session_016iS3kL9NWEvkDk3CywjPVD (17:33; review r1 FIX: rd-1 MAJOR xp hears a construct event) |
 | mc-i5-r1.md (F7, F2) | sonnet high | session_016iS3kPmUV3tqFg95ggDRVk (17:25) |
-| construct-red-r1.md (F7, F3) | opus high | session_016iS3kPVR6nqwcuaf8UKMDX (17:25) |
+| construct-red-r1.md (F7, F3) | opus high | done 18:07: 28254eb6; opus review starting 18:08 (review-construct-red-r1.md) |
 | docs-f8c-r1.md (F8) | sonnet high | done 17:48: 65ef41a5 MERGE-OK (PM review 17:50); train 68 |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
