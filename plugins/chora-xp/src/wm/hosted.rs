@@ -59,7 +59,9 @@ impl Wm {
     }
 
     /// Looks for the host of the faces after the outputs changed, and
-    /// hears its event, which tells when it came back after it went.
+    /// hears its event, which tells when it came back after it went. A
+    /// host that removes its faces one by one stays the host until the
+    /// last one went.
     pub(super) fn find_host(&mut self) {
         let outputs: Vec<String> = self.bars.iter().map(|b| b.output.clone()).collect();
         let outputs: Vec<&str> = outputs.iter().map(String::as_str).collect();
@@ -69,7 +71,9 @@ impl Wm {
         } else {
             None
         };
-        if found.is_some() || self.left.is_none() {
+        let closing = found.is_none()
+            && (self.host.as_ref()).is_some_and(|h| outputs.iter().all(|o| h.face(o).is_some()));
+        if !closing && (found.is_some() || self.left.is_none()) {
             self.host = found;
         }
         let heard = self.host.as_ref().or(self.left.as_ref());
