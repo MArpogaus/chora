@@ -147,7 +147,6 @@ impl Mc {
         }
         self.autostart();
         self.take_free_keyboard()?;
-        self.claim_indicator(false);
         let free: Vec<Value> = self
             .rt
             .conn

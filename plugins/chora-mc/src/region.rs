@@ -718,11 +718,10 @@ impl Mc {
         text: &str,
     ) -> (String, Option<String>) {
         let content = &self.settings.value.contents[name];
-        let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
         if !text.is_empty() {
             return (text.to_owned(), None);
         }
-        if content.kind == Kind::State && !region.is_line() && host {
+        if content.kind == Kind::State && !region.is_line() {
             return (" ".to_owned(), None);
         }
         if name == NEXT && region.is_line() {
@@ -876,8 +875,7 @@ impl Mc {
         let config = &self.settings.value;
         let b = config.scale.baseline;
         let beside = column_width(config.regions.get(Region::Right).size, b, width) + 2.0 * b;
-        let host = config.voice_hud == crate::config::VoiceHud::Host;
-        [column || host, column].map(|ends| {
+        [true, column].map(|ends| {
             let end = if ends { beside } else { 0.0 };
             (2.0 * b, (width - 4.0 * b - end).max(b))
         })
@@ -999,18 +997,6 @@ impl Mc {
             .call::<_, serde_json::Value>("events.emit", emit)?;
         self.slot_sent = Some((output, rect));
         Ok(())
-    }
-
-    /// The box of the drawer of the current scene, while it shows.
-    pub fn drawer_box(&self) -> Option<[f64; 4]> {
-        let name = self.current.clone()?;
-        let items = self.items(&name);
-        let visible = self.visible(&items);
-        visible.contains(&Region::Drawer).then_some(())?;
-        self.boxes(&name, &visible)?
-            .regions
-            .get(&Region::Drawer)
-            .copied()
     }
 
     /// The regions with `items` that show in a scene.
@@ -2392,7 +2378,7 @@ mod tests {
         assert_eq!(
             names(&moved, Region::Left),
             [
-                "confirm", "next", "notes", "notify", "outline", "overlay", "prev", "urgent"
+                "next", "notes", "notify", "outline", "overlay", "prev", "urgent"
             ]
         );
         assert_eq!(

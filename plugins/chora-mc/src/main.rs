@@ -395,11 +395,6 @@ struct Mc {
     slot: Option<[f64; 4]>,
     /// The output and the box that the host was told last.
     slot_sent: Option<(String, Option<[f64; 4]>)>,
-    /// The spoken confirmation that shows, until its answer.
-    confirming: Option<agent::Confirming>,
-    /// Whether mc claims the state indicator of the voice agent at its
-    /// next event: after the start and after the agent connected.
-    claim_due: bool,
     /// How far the page of a scene scrolled down, by scene.
     scroll: BTreeMap<String, f64>,
 }
@@ -545,8 +540,6 @@ impl Mc {
             chat: Chat::Closed,
             slot: None,
             slot_sent: None,
-            confirming: None,
-            claim_due: true,
             scroll: BTreeMap::new(),
         };
         mc.keep_texts();
@@ -865,65 +858,33 @@ impl Mc {
         }
     }
 
-    /// An event of a client (D65): `NAME.state` sets the agent `NAME` as
-    /// `agent.set` does, or the sub-agent that `name` in the data names;
-    /// `NAME.remove` removes such a sub-agent; `NAME.say` shows a sentence
-    /// as `hud.say` does. Wrong data only logs, since the emitter gets no
-    /// answer; other events do nothing.
+    /// An event of the voice agent (D65). The HUD host `chora-assistant`
+    /// draws the state, the sentences and the questions of the agent, so
+    /// mc takes from its own state only the state of the microphone;
+    /// `voice.state` with a `name` sets that helper as `agent.set` does,
+    /// and `voice.remove` removes it. Wrong data only logs, since the
+    /// emitter gets no answer; other events do nothing.
     fn follow(&mut self, event: &str, client: &str, mut data: Value) -> Result<(), ClientError> {
-        if client == VOICE {
-            self.claim_indicator(true);
-        }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
-        let own_state = client == VOICE && kind == Some("state") && data.get("name").is_none();
-        if own_state && self.mic_follows(mic::Mic::of(&data)) {
+        let helper = data.get("name").is_some();
+        if kind == Some("state") && !helper && self.mic_follows(mic::Mic::of(&data)) {
             self.render()?;
         }
-        let host = client == VOICE && self.settings.value.voice_hud == config::VoiceHud::Host;
-        let hosts_it = match kind {
-            Some("confirm" | "say") => true,
-            Some("state") => data.get("name").is_none(),
-            _ => false,
-        };
-        if host && hosts_it {
-            return Ok(());
-        }
         let done = match kind {
-            Some("state") => {
+            Some("state") if helper => {
                 if let Some(object) = data.as_object_mut() {
-                    object.entry("name").or_insert_with(|| client.into());
                     object.retain(|key, _| agent::STATE_FIELDS.contains(&key.as_str()));
                 }
-                if client == VOICE {
-                    self.voiced(&data);
-                }
+                self.voiced(&data);
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
             Some("remove") => runtime::params(data).and_then(|r| self.remove_agent(&r)),
-            Some("confirm") => self.confirm(&data),
-            Some("say") => match runtime::params(data) {
-                Ok(say) => return self.say(say),
-                Err(e) => Err(e),
-            },
             _ => Ok(()),
         };
         if let Err(e) = done {
             eprintln!("chora-mc: {event}: {e}");
         }
         Ok(())
-    }
-
-    /// Asks the voice agent to hide its own state indicator, since mc
-    /// shows the state, while one is due. An error, such as no agent or
-    /// an agent without the method, only leaves it due; after an event
-    /// of the agent (`last`) it is no longer due.
-    fn claim_indicator(&mut self, last: bool) {
-        if !self.claim_due || self.settings.value.voice_hud == config::VoiceHud::Host {
-            return;
-        }
-        let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
-        let done = self.rt.conn.call::<_, Value>("methods.call", call).is_ok();
-        self.claim_due = !done && !last;
     }
 
     /// An event of a client (D65): of the voice agent, or `assistant.chat`
@@ -1010,11 +971,9 @@ impl Mc {
         }])
     }
 
-    /// The voice agent came or went: its indicator is due again, and the
-    /// state of its microphone is unknown until its next state.
+    /// The voice agent came or went: the state of its microphone is
+    /// unknown until its next state.
     fn voice_changed(&mut self) -> Result<(), ClientError> {
-        self.claim_due = true;
-        self.claim_indicator(false);
         if self.mic_follows(mic::Mic::Unknown) {
             self.render()?;
         }
@@ -1810,35 +1769,13 @@ mod tests {
         );
     }
 
-    /// The claim of the indicator of the voice agent goes out at the
-    /// start, again after the agent connected, and with its first event
-    /// after a failed claim; then no more.
+    /// The HUD host draws the voice HUD and the question: mc shows
+    /// neither the state nor the sentence of the voice agent nor its
+    /// question, and still shows its helpers.
     #[test]
-    fn mc_claims_the_indicator_of_voice_once_per_connection() {
-        let (mut mc, model) = crate::testing::mc("claim", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let claims = || model.lock().unwrap().calls.len();
-        mc.claim_indicator(false);
-        assert_eq!(claims(), 1);
-        mc.follow("voice.state", "voice", serde_json::json!({}))
-            .unwrap();
-        assert_eq!(claims(), 1, "claimed already");
-        let connected = chora_scene::Event::ClientConnected {
-            name: "voice".into(),
-        };
-        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
-        assert_eq!(claims(), 2);
-        assert!(!mc.claim_due);
-    }
-
-    /// With `voice_hud: host` the host draws the voice HUD and the
-    /// question: mc shows neither the state nor the sentence of the voice
-    /// agent nor its question, and still shows its helpers.
-    #[test]
-    fn voice_hud_host_draws_no_voice_status() {
+    fn the_host_draws_the_voice_status() {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("host-status", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
         mc.follow("voice.state", "voice", json!({"state": "listening"}))
             .unwrap();
         mc.follow(
@@ -1858,16 +1795,14 @@ mod tests {
         .unwrap();
         assert!(mc.hud.state.is_empty() && mc.hud.text.is_empty());
         assert!(!mc.agents.iter().any(|a| a.name == "voice"));
-        assert!(mc.confirming.is_none() && mc.solo.is_none());
+        assert!(mc.solo.is_none() && !mc.texts.contains_key("confirm"));
         assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
     }
 
-    /// With `voice_hud: host` mc never claims the indicator of voice.
+    /// mc never claims the indicator of voice: the HUD host does.
     #[test]
-    fn voice_hud_host_claims_no_indicator() {
+    fn mc_claims_no_indicator() {
         let (mut mc, model) = crate::testing::mc("host-claim", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
-        mc.claim_indicator(false);
         mc.follow("voice.state", "voice", serde_json::json!({}))
             .unwrap();
         let connected = chora_scene::Event::ClientConnected {
@@ -2341,25 +2276,21 @@ mod tests {
         assert_eq!(mc.focused, None);
     }
 
-    /// A client with `methods.call` alone rewrote the detail of a spoken
-    /// confirmation and the notifications through content.set and
-    /// content.add (review plugins r1, MC-02 and MC-03): the contents that
-    /// mc writes itself refuse both.
+    /// A client with `methods.call` alone rewrote the notifications
+    /// through content.set and content.add (review plugins r1, MC-02 and
+    /// MC-03): the contents that mc writes itself refuse both.
     #[test]
     fn the_contents_that_mc_writes_refuse_content_set_and_add() {
         use chora_kit::runtime::Plugin as _;
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("own-contents", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": 21, "prompt": "Run it?", "detail": "rm -r build"});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
         mc.method(
             "notify.push",
             json!({"title": "Disk is full", "urgency": "critical"}),
         )
         .unwrap();
         let before = mc.texts.clone();
-        for content in ["confirm", "notify", "urgent"] {
+        for content in ["notify", "urgent"] {
             let set = json!({"content": content, "title": "Run it?", "lines": ["ls"]});
             assert!(
                 mc.method("content.set", set).is_err(),
