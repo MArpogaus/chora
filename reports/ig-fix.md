@@ -13,3 +13,9 @@ Diff a9fd91f3..3a39659c, 2 files, red first 55774fe0. ig-1, ig-2 closed with sel
 - igr-1 MAJOR (merge): the gate-lib line conflicts with gate-pick 31cfe52d (train 74), which appends `&& tests/cells-for-selftest.sh` to the same line. r2: merge the session branch after train 74 and keep all four selftests in the step.
 - igr-2 MINOR: MERGE_GATE_NESTED is not in the usage text of merge-gate.sh (the env list names MERGE_GATE_IDENTITY, MERGE_GATE_STEPS).
 Verdict (computed): open MAJOR -> FIX. r2 after train 74 is green.
+
+## r2 (2026-11-19, build lane)
+Head b717a5f2 on claude/ig-fix; check commit f5950114 (red: the gate-lib line had no cells-for-selftest before the merge), merge b717a5f2.
+- igr-1 closed: merged gate-pick; the gate-lib step runs gate-lib-selftest, under-load-selftest and cells-for-selftest in one background group, merge-gate-selftest beside it, both exit codes checked, nested guard kept. Selftest greps cells-for-selftest.sh on the gate-lib line.
+- igr-2 closed: usage text names MERGE_GATE_NESTED.
+- Gate `--jobs 3 --only pre-commit,ci-check,red-first,identity,gate-lib`: green (gate-lib 65 s, ci-check 81 s).
