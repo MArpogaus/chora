@@ -83,7 +83,8 @@ fullscreen_state() {
            output: $o.size, work_area: $o.work_area}'
 }
 fullscreen_rests() {
-    for _ in $(seq 80); do
+    local end=$((SECONDS + 20))
+    while [ "$SECONDS" -lt "$end" ]; do
         fullscreen_state | jq -e '.window == [0, 0] + .output and .work_area[1] == 0' >/dev/null 2>&1 &&
             return 0
         sleep 0.25
