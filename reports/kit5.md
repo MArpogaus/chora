@@ -74,3 +74,62 @@ stacking; a card taller than title plus one line grows into the last page lines;
    `start_bus` for tiling-audit and tiling-look-r2.
 5. S: construct input.rs `give_key` builds words and calls `tell` in several places; one `refused_give`.
 6. S: plugins/chora-mc/notify/ holds copies of the two close icons of chora-notify (cut rule: no links out).
+
+## r2 (F2): kit5 on the session branch without the dev merge, gate proven
+
+Branch claude/kit5b, head 4e003748, from claude/autonomous-dev-session-3w-i33pg7 (4548feb3). 18 commits, no merge,
+no commit of dev (`git log origin/claude/autonomous-dev-session-3w-i33pg7..HEAD`).
+
+### Picks
+17 of the 18 kit5 commits of `git log --reverse --no-merges <session>..origin/claude/kit5 ^origin/dev`, in order:
+827ab5ab 7123479e 855445c4 4ac59ac7 f5ba85c2 c5bbaf54 34e08b31 9f957abf 4908c52a e0a70383 7589e533 57dccba8
+59399e78 7cdde49c 03a5e045 ef81d6a4 06c7ad6d. Skipped: 6aad3457 (release-file restore). No other commit was release only.
+
+### Conflicts (resolved to both sides, the kit5 merge af0dc379 as the model)
+- 7123479e, plugins/chora-notify/src/main.rs (+ card.rs): NET3's `state_value` with the kit5 `notify.show` and
+  `notify.close` methods, bus optional, `body` in `shown`, `node` is `card::BODY`; the duplicate `state()` of the pick
+  dropped. The file is kit5's.
+- 855445c4, tests/acts/{harness,invariants,looks/construct}.py and tests/test_acts.py: NET3's harness and I9 stay;
+  the pick's own I9, `notices` and `dismissed` arguments dropped; construct keeps the cube acts and adds `notice_acts`.
+- 9f957abf, plugins/chora-construct/src/{input,keys}.rs: the session branch moved the construct onto kit::actions
+  (`System`, `Own`); the construct tree of kit5 is taken (`tell`, `say_failed` returns nothing).
+
+### Own commit
+- 4e003748 fix: the picked kit5 cells follow the session branch. These changes were made inside the kit5 merge commit and
+  no pick has them: cut-check names/assets rule (mc and tiling say chora-notify in words no rule matches, the
+  mc notify slot holds copies of the two close icons, not links), and the notice acts of mc and common.py without the
+  `notices`/`dismissed` arguments. Red before: `python3 tools/cut-check` FAIL on 2 assets and 2 names rows.
+
+### Differs from claude/kit5
+`git diff origin/claude/kit5 HEAD`: only demo/tour/notes/v1-ch3.json and v2-ch3.json. Kit5 took them back to the rc.4
+text in 6aad3457 ("NOTES and NOTIFICATIONS"); here they keep the text of c5bbaf54 ("only the heading NOTES", since mc
+has no notifications column).
+
+### Done criteria
+- `cargo test -p chora-kit --features testing -p chora-notify -p chora-xp -p chora-mc -p chora-tiling -p chora-construct`: ok, exit 0.
+- kit `notice.rs` coverage (`cargo llvm-cov -p chora-kit --features chora-kit/testing`): 97.2 % lines, 87.5 % functions; crate 90.3 % lines.
+- `tests/merge-gate.sh` full run on 4e003748 in one run: all steps PASS (red-first to e2e, 41 steps), log dir
+  /tmp/merge-gate.eoD64e, stdout /tmp/gate-kit5b.log (the container is not durable). This closes the open item of r1.
+- Not run: shellcheck, desktop-file-validate (not installed, as in r1).
+
+## Review r1
+
+claude/kit5b 4e003748 over 4548feb3 (18 commits, no merge, no dev commit). Verdict: **FIX** (0 BLOCK, 3 MAJOR, 5 MINOR).
+
+Checks run: `cargo test -p chora-kit --features testing --test notice` 4/4 ok, `cargo test -p chora-notify` 19/19 ok;
+red first replayed in a worktree: 6853fa1 (827ab5ab) kit 4/4 red, 6ddd808 (4ac59ac7) mc red, 8117979 (7589e533)
+tiling palette test and 3 cut-check rows red, 6ae8a8f (34e08b31) construct does not compile on kit5b (stale
+`shared_key(Action::Chat)`), red 3/3 once that call is patched; `python3 tools/cut-check` ok (no FAIL);
+`cargo tree -p chora-kit` has no zbus; no file crosses 1,500 lines (mc main.rs, region.rs and tiling main.rs were over
+before and shrink). Conflict picks: invariants.py untouched (NET3 I9 kept), notify main.rs keeps NET3 `state_value`,
+construct input/keys keep the session `System`/`Own` actions with `tell`; nothing of the session side lost.
+4e003748: the cut-check part is a real fix (words, copied icons); the act part drops the only expectations (rw-4).
+
+- rw-1, MAJOR, plugins/chora-notify/src/main.rs:224, when another daemon owns org.freedesktop.Notifications (mako was a recommended package until this diff and its D-Bus activation file wins any early notify-send) chora-notify returns `Ok(None)` and exits 0, so `notify.show`/`notify.close` are unserved and every kit::notice of all four looks is lost (Restart=on-failure does not restart it); fix: on `Taken` keep serving the live API with `bus: None`, as for no bus.
+- rw-2, MAJOR, flavors/construct/chora-construct.target:7, the construct flavor starts no chora-notify, yet the construct now draws no notice and `Construct::tell` only logs without the server, so every refusal, dead key and "no room" notice of a construct session is lost (mc has no unit for its slot either); fix: add chora-construct-notify.service to the target (and a unit or documented start for the mc slot), packaged in RPM and PKGBUILD.
+- rw-3, MAJOR, flavors/tiling/chora-tiling-notify.service:7, the mako `[mode=chat]` margin (424) and the `assistant.chat` follow in chora-tiling are deleted with no replacement, so a tiling notice can cover the chat panel input (deviation 3 of r1), against the vision card (never covers work) and done criterion 5 (visible behaviour unchanged); fix: chora-notify steps aside of the chat panel on `assistant.chat` (the S-M proposal 2 of r1) before the merge.
+- rw-4, MINOR, tests/acts/looks/common.py:78, the notice acts (and mc.py push/clear) carry no expectation after 4e003748: I9 is vacuous when nothing is accepted and never checks a dismissal or `notify.clear`, and no commit on kit5b shows I9 red (its red was seen live only in the kit5 merge); fix: in the acts wait on `s.state("notify")` for the summary in `shown` after show/push and the id in `closed` after close/clear.
+- rw-5, MINOR, plugins/chora-mc/src/agent.rs:826, `notify.clear` closes only the last 32 ids, which expired ones fill too, so an older critical notice (stays until a click) survives a clear, and `mem::take` drops the remaining ids on the first `Gone` (each dismiss may wait 2 s); fix: keep only ids not yet closed (critical ones always) and keep the ids whose dismissal failed.
+- rw-6, MINOR, docs/api.md:1552, api.md documents neither `notify.show {app, replaces, icon, summary, body, expire_ms, urgency} -> {id}` nor `notify.close {id}`, the id shared with the bus, nor `body` in `shown` and `node` as the card picture; fix: add the two methods and the changed `shown` entry to api.md.
+- rw-7, MINOR, flavors/shared/screenshot.sh:42, with CHORA_NOTIFIER gone a session without a session bus no longer gets the own-bus daemon, and chora-notify serves no bus there, so the screenshot notice only reaches stderr; fix: fall back to `choractl` `notify.show` when notify-send fails, and drop the dead CHORA_NOTIFIER path (proposal 3 of r1).
+- rw-8, MINOR, crates/chora/Cargo.toml:47, the RPM assets lack `plugins/chora-mc/notify/*` while PKGBUILD installs it to /usr/share/chora/mc/notify and docs/configuration.md tells the person to start chora-notify from there; fix: add the asset row to the generate-rpm list and to dist/build-arch.sh checks.
