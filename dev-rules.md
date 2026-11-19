@@ -75,3 +75,12 @@ the session overrides). Read it and the skills it names once per container.
   the PM ranks them in backlog.md. Code gets leaner and tidier with every release.
   Check the cut (owner 11-17): a plugin uses only chora-kit, chora-scene, chora-draw and the API,
   ships only its own assets and could be packaged and moved to another repo alone; name each breach.
+
+- **Decision records (debt-down r1, H12).** A merge that touches the IPC
+  (a method, an event, a parameter, a refusal code, `docs/api.md`) or
+  security (grants, capabilities, the safety layer, injected input, the
+  agent sandbox, what a client may see or call) adds a `D` entry to
+  docs/decisions.md in the same branch, with the reason and its cost.
+  The report names the entry. Without one, the merge message has the
+  line `No D entry: <reason>`; the PM sends a merge back that has
+  neither.
