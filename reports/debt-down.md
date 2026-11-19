@@ -180,3 +180,50 @@ files with a one-line `reason` change are services/voice/src/client.rs, tools.rs
   `ipc/grabs.rs`, `event.rs` and `wm/tests_moved.rs`: `grep -rn D-ungrab`).
 - The event goes to every subscriber including a confined client; it carries only the binding string. If that is too wide,
   the core could send it to unconfined connections only.
+
+## Review r2
+
+Reviewed claude/debt-down at c8fe032b against r1 c79a9d66 (4 commits, 12 files). Brief: briefs/review-debt-down-r2.md.
+
+**Verdict: FIX** (one open MAJOR, rd-7).
+
+Checks:
+1. rd-1: the core emits `input.ungrabbed {binding}` on a successful `input.ungrab` only (grabs.rs:76). A grab that ends
+   when its connection closes (exit or crash, ipc.rs:1165) or when `input.grab-any` is revoked (ipc.rs:402) sends nothing,
+   and api.md and the D entry say so. That is narrower than the brief and the rd-1 fix ("on every ungrab"): see rd-7.
+   xp grabs Alt+Escape on the event for any holder, and with no holder its first grab succeeds (keys.rs:418-445,
+   dispatch.rs:71). `git grep escape_free` is empty. A confined subscriber learns only a binding string and no client
+   name; `xp.switcher` already tells the same timing, so nothing new leaks. Race: two waiters that grab again on the same
+   event get one success and one REJECTED "grabbed already" (grabs.rs:49). xp drops that refusal silently
+   (`held_by_a_client`), and after hello the only other REJECTED of `input.grab` is the safety layer, which needs Ctrl+Alt.
+   So rd-2 is closed. xp's own ungrab in `end_switch` comes before `xp.switcher false`, so the construct's grab-back is not
+   refused. A stale event from xp's own ungrab only causes one more silent refusal.
+2. Red first: 4f90c968 fails (`an_ungrab_is_told_to_the_subscribers`: "there is no event \"input.ungrabbed\"";
+   xp `alt_escape_is_grabbed_when_the_holder_gives_it_up` panics at tests_moved.rs:409, the `from_value` of the unknown
+   event). c8fe032b passes (chora 614, xp 254). 07fe4d03 fails at start.rs:268 ("the pass of before the ask settled it")
+   and 9346e83d passes (construct 205). Both rd-1 reds fail on an event that does not exist, not on its behaviour, and the
+   red ipc test had a wrong filter that the fix commit corrected (see rd-8). The red still shows that the behaviour was
+   missing; the green test checks its shape.
+3. rd-3: `settle` makes ask n and waits for `covered >= n`. The reader reads `begin_pass()` before each `read_line`, so
+   only a read that started after the ask counts. A pass that began earlier wakes at once on `asked` and starts a new pass.
+   There is no new fixed sleep in the code (the test's 50 ms only waits before a negative check). A hang still ends at
+   `SETTLE` and does not settle. Closed.
+4. Docs: api.md (event row :728, `input.ungrab` row), configuration.md Alt+Tab row and the D-ungrab entry (D116+ at the
+   merge) match the code, including "a grab that ends with its connection sends nothing". For a plugin author that
+   sentence is the surprise. They would expect a crashed holder's key to be told free too (rd-7).
+5. rd-4 re-run on c79a9d66 and c8fe032b: 375 attributes, 192 without `reason` on the line. Of those, 75 (base 61) have it on
+   a wrapped line, so 117 really have none. The report figure is right. Closed.
+6. `cargo clippy --workspace --all-targets -- -D warnings` on c8fe032b: clean (rc 0). `cargo check --workspace`: ok.
+
+Findings:
+- rd-7, MAJOR, crates/chora/src/ipc.rs:1165 (and :402, docs/api.md:728, decisions.md D-ungrab): a grab that ends with its
+  connection (holder exit or crash) or by a revoked `input.grab-any` sends no `input.ungrabbed`. A construct that exits,
+  crashes or restarts while xp's switcher shows therefore leaves that switch without Escape. Any other waiter must also watch
+  `client.disconnected` and guess, which the generic event was meant to spare, and the D entry fixes that gap as the
+  contract. Fix: in `ipc_close` and `drop_free_grabs`, emit `InputUngrabbed` for each dropped non-`move` grab after the
+  connection is gone, with a test, and drop the "sends nothing" clause from api.md and the D entry.
+- rd-8, NIT, crates/chora/src/ipc.rs:4016 (4f90c968): the red ipc test filtered `e["event"]` and could not have passed, and
+  the fix commit changed its body, so the committed red is not the test that went green (the lane noted this itself).
+  Fix: none here; in later lanes, the red commit holds the final test body.
+
+Known, not findings: rd-5 and rd-6 (deferred); the copies-0 and moved-tests conflicts in xp wm.rs and tests_moved.rs belong to the train.

@@ -57,19 +57,19 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-19T17:57:00Z",
+  updated: "2026-11-19T18:30:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 25,                      // % of the week used (owner's reading)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
-    ["F2", "Shared code in one kit, no copies", "risk", "half the slices in; 2 running"],
+    ["F2", "Shared code in one kit, no copies", "risk", "copies removed (merged 18:30); mc and construct fixes in review rounds"],
     ["F3", "Window-manager core, first slices", "track-ok", "core in; hosted cube started"],
     ["F4", "No file over 1,500 lines", "track-ok", "size limit enforced by the gate"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "flakes fix merged; more tests merged today, 4 modules still under target; 5-run series after the time-limit fix"],
-    ["F6", "Every change through the merge gate", "track-ok", "32 green merges (train 67, the test time-limit fix, green 17:57); train 68 running: 4 branches incl. docs"],
+    ["F6", "Every change through the merge gate", "track-ok", "33 green merges (train 68 green 18:30); train 69 running"],
     ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],
-    ["F8", "Docs and decision records", "track-ok", "last part merging today"]
+    ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; two small doc fixes in the backlog"]
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
