@@ -2397,6 +2397,41 @@ mod tests {
         mc.method("panel.set", lines).unwrap();
     }
 
+    /// The notifications are chora-notify's: `notify.push` of mc shows
+    /// through `notify.show` as `chora_kit::notice` does, a critical one
+    /// until the person closes it, and `notify.clear` closes what mc
+    /// showed.
+    #[test]
+    fn notify_push_shows_through_chora_notify_and_clear_closes_it() {
+        use chora_kit::{runtime::Plugin as _, testing::FakeCore};
+        use serde_json::json;
+        let core = FakeCore::start();
+        core.answer_with("notify.show", json!({"id": 7}));
+        let mut mc = crate::testing::mc_on(&core, "forward", [1280, 800]);
+        let push = json!({"title": "Disk", "body": "full", "urgency": "critical"});
+        mc.method("notify.push", push).unwrap();
+        mc.method("notify.push", json!({"title": "Update"}))
+            .unwrap();
+        mc.method("notify.clear", json!({})).unwrap();
+        let sent: Vec<_> = (core.model().lock().unwrap().called.iter())
+            .filter(|c| c["client"] == "notify")
+            .map(|c| (c["method"].clone(), c["params"].clone()))
+            .collect();
+        let show = |summary, body, expire_ms, urgency| {
+            json!({"app": "mc", "replaces": null, "icon": "", "summary": summary,
+                   "body": body, "expire_ms": expire_ms, "urgency": urgency})
+        };
+        assert_eq!(
+            sent,
+            [
+                (json!("notify.show"), show("Disk", "full", 0, "critical")),
+                (json!("notify.show"), show("Update", "", -1, "normal")),
+                (json!("notify.close"), json!({"id": 7})),
+                (json!("notify.close"), json!({"id": 7})),
+            ]
+        );
+    }
+
     /// A pointer press of `input.inject` on the urgent line cleared it,
     /// as a key row ran its binding (review plugins r1, MC-04): the hits
     /// and the agent columns ignore injected presses, as the bindings do.

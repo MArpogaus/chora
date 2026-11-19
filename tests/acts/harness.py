@@ -404,6 +404,7 @@ class Session:
                 "screen.capture",
                 "input.inject",
                 "methods.call",
+                "methods.privileged",
             ],
             env=self.env,
             check=True,

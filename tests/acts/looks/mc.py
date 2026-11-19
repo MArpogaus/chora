@@ -2,6 +2,8 @@
 
 from common import door_acts, notice_acts, window_acts
 
+PUSHED = "Pushed through mc"
+
 
 def run(s):
     """A window opens and closes; the key list opens and shuts by
@@ -10,3 +12,20 @@ def run(s):
     window_acts(s)
     door_acts(s, "mc-keys", "Super+F1")
     notice_acts(s)
+    s.act("notify.push of mc shows in chora-notify", [push], notices=[PUSHED])
+    s.act("notify.clear of mc dismisses it", [clear], dismissed=[PUSHED])
+
+
+def push(s):
+    """Call `notify.push` of mc, which other plugins call."""
+    call = {
+        "client": s.label,
+        "method": "notify.push",
+        "params": {"title": PUSHED, "body": "the text"},
+    }
+    s.core.call("methods.call", call)
+
+
+def clear(s):
+    """Call `notify.clear` of mc."""
+    s.core.call("methods.call", {"client": s.label, "method": "notify.clear", "params": {}})
