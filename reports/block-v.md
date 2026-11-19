@@ -11,3 +11,17 @@ Verdict: co-18, co-16 and mc-32 are gone on the head. No product fix; three guar
 
 Gate (`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,acts,mc-paths`): all seven PASS. `construct-pull` is no name of `--list` (the list has `pull`), so it was dropped and did not run. origin/claude/autonomous-dev-session-3w-i33pg7 was already merged into the base (merge: already up to date).
 Not covered: an act with a person's real pointer on hardware (risk 4 of p2-plan).
+
+## PM review r1 (23:15)
+
+Diff a9e7084d..cbdbc34f, 2 files, tests only (tests/acts/looks/construct.py, mc.py); gate cells pre-commit,
+ci-check, build, test, clippy, acts, mc-paths PASS (lane). construct-pull is not a gate cell (brief error by
+the PM; the cell is `pull`, which the merge gate runs).
+- co-16, co-18: the guard stood_back_whole checks the front face on screen, the chips' key caps and
+  windows_on_faces after three drags both ways. Accepted: closed with the act.
+- rw-1 MAJOR (mc-32 Home half): mc-32 named Right and Home. Right and Left hold. "Plain Home is no mc key"
+  is the fault, not its absence: a remote has no Super, so the remote path cannot reach the first page
+  but by repeated Left. Reopened as mc-38 (findings/mc.md); fix in r2.
+- rw-2 MINOR tests/acts/looks/mc.py remote_acts: sets theme dark and never sets it back; helper_acts then
+  run dark. Fix: restore the theme at the end of remote_acts.
+Verdict computed: rw-1 MAJOR open -> FIX. r2: briefs/block-v-r2.md.
