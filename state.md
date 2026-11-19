@@ -33,12 +33,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | temp-dirs-r2.md (F2, F5) | sonnet medium | MERGE-OK 86f42d1f (+kc-fix), train 77 |
 | flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH (21:43) |
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
-| p2-plan-r1.md (next week) | opus high | starting |
-| nits-3-r1.md (F5) | sonnet medium | starting |
+| p2-plan-r1.md (next week) | opus high | session_016iS3kMFBnLJ7gVEmgjpPBa (22:34) |
+| nits-3-r1.md (F5) | sonnet medium | session_016iS3kNnRm2jce7Mh1tANM6 (22:34) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 74 green 22:13. 75 red 22:18 (ci-check copies: kit-connect vs cube-tests). 76 rerun 22:30 (container restart): ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), f24-rest.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-K 0.7 %, TEMP-REST 0.5 %, P2-PLAN opus 1.5 %, NITS-3 0.4 %, FLAKE-H 1 %; done 21-22 h: 9 lanes (F29 closed) (reports/); AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 74 green 22:13. 75 red 22:18 (copies). 76 rerun 22:30 (container restart): ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), f24-rest.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-K 0.7 %, TEMP-REST 0.5 %, P2-PLAN opus 1.5 %, NITS-3 0.4 %, FLAKE-H 1 %; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
