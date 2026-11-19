@@ -6,7 +6,7 @@
 use std::{
     ffi::OsString,
     fs, io,
-    os::unix::fs::{DirBuilderExt, MetadataExt},
+    os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
 };
 
@@ -68,8 +68,10 @@ fn absolute(value: Option<OsString>) -> Option<PathBuf> {
     value.map(PathBuf::from).filter(|p| p.is_absolute())
 }
 
-/// Creates a directory with mode 0700, with its missing parents, and
-/// checks it with [`check_private`].
+/// Creates a directory with mode 0700, with its missing parents, makes
+/// an old one of the user that group and other cannot write (0755 of the
+/// last release) 0700 and checks it with [`check_private`]. A directory
+/// that group or other can write stays as it is and is refused.
 ///
 /// # Errors
 ///
@@ -79,7 +81,32 @@ pub fn private_dir(dir: &Path) -> io::Result<()> {
         .recursive(true)
         .mode(PRIVATE_MODE)
         .create(dir)?;
+    tighten(dir)?;
     check_private(dir)
+}
+
+/// Sets mode 0700 on a directory of the current user that is no symlink
+/// and that group and other can read but not write. The mode is set on the
+/// directory that was checked, not on what the path names a moment later.
+fn tighten(dir: &Path) -> io::Result<()> {
+    let meta = fs::symlink_metadata(dir)?;
+    let mode = meta.mode() & 0o7777;
+    let old = meta.is_dir()
+        && meta.uid() == rustix::process::geteuid().as_raw()
+        && mode & OTHERS != 0
+        && mode & WRITABLE == 0;
+    if !old {
+        return Ok(());
+    }
+    let opened = fs::File::open(dir)?;
+    let same = opened.metadata()?;
+    if same.dev() != meta.dev() || same.ino() != meta.ino() {
+        return Err(io::Error::other(format!(
+            "{} was replaced while it was checked",
+            dir.display()
+        )));
+    }
+    opened.set_permissions(fs::Permissions::from_mode(PRIVATE_MODE))
 }
 
 /// The runtime directory `chora/` or another name below it, made private

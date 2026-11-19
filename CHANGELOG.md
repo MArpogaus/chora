@@ -7,8 +7,11 @@ group or other can write: chora opens no socket and no plugin writes
 shaders, icon copies or caches there; the log names the path and the mode
 - **security**: make the shader, icon-copy and block cache directories
 private (mode 0700, checked) like the socket directory
-- **paths**: accept a private directory with setgid (02700) or a stricter
-mode such as 0500; refuse any group or other bit
+- **paths**: accept a private directory with setgid (02700); refuse any
+group or other bit
+- **paths**: make a directory of the user that the last release made 0755
+(below the runtime directory, for shaders, theme files and caches) 0700
+at the next start; one that group or other can write stays refused
 - **voice**: refuse to start without XDG_DATA_HOME or an absolute HOME,
 not a relative `~/.local/share` below the current directory
 
