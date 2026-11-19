@@ -135,3 +135,10 @@ Diff b2a77ff0..066ae80d (5 files, +64 -17) and merge b2a77ff0. Verdict: **MERGE-
   nothing" corrected to code reading.
 - r2-1 NIT (backlog wm7a-m4, WM7b): `MANAGER` is the constant "xp" while `cube_manager` is a setting; a non-xp manager
   is refused by pull and listed wrong (pre-existing at cube.rs:1152, 1251).
+## r3
+Merge of claude/autonomous-dev-session-3w-i33pg7 (4548feb3, train 61 head) into claude/wm7a: head f4e4f4d9 (merge of 066ae80d), pushed. Three conflicts, no other change.
+- tests/acts/harness.py: Snapshot keeps `cube` (wm7a), `boxes` and `blocks` (net3); snapshot() fills all three.
+- tests/acts/known-red.toml: 10 reds, none dropped (net3-t1, net3-m1, co-21 of net3; wm7a-a1, wm7a-a2 of wm7a; the others of both sides).
+- tests/acts/looks/construct.py: the cube opens once. wm7a's hosted acts run through `cube.list` (MANAGER "xp"), rw-1 mid-state asserts of the kill act kept as they were. net3's I13 acts follow the pull act and come before the kill act: "the cube stands back", "the cube is held halfway through a turn" (4 s turn, held 2 s), "the cube comes to rest", worded as in net3. Net3's act "the cube opens" is the open act of wm7a ("the cube opens with one xp on four faces"): it keeps net3's timeout 60 and net3's wait for four faces with xp on four desks (`faces_up`, called in `open_cube`). It is the only act of net3 that does not stand as its own act. The kill act now starts from a stood-back cube (mode navigate) instead of mode use; it passed.
+- Done: `cargo test -p chora-construct -p chora-kit --features chora-kit/testing` ok; `tests/merge-gate.sh --only build,acts,cube,pull,construct-hud,xp` PASS (build 153 s, xp 87, acts 88, cube 103, pull 65, construct-hud 242; logs in /tmp/merge-gate.exsyyp). `build` has to come with `--only`: without it xp fails at once (no binaries, first run in /tmp/merge-gate.F2BL88).
+- No full gate (the train runs it).
