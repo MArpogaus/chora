@@ -46,3 +46,32 @@ None. Backlog: none.
 - The audit's other rows (Focus 21, FocusChanged 9, ...) were already 0 on this head: focus-port is in.
 - Rank 4 of audit-f also named the four state.rs; the xp one is wm/state.rs. The "known-red" xp wm::state tests of audit section 0 pass on this head (also on 85764974).
 - Not done: nothing of the brief. The 18 remaining cut-check REPORT lines are names/assets/known rows, not copies rows.
+
+## Review r1
+
+Lane: cloud, sonnet, 11-19. Head ee53e09c against base 85764974 (28 files, +365 -337). Brief briefs/review-copies-0-r1.md. Read-only on code.
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 1 MINOR, 1 NIT).
+
+### Checks
+
+1. No behaviour change: holds. Each call site read old against new.
+   - UnixListener fakes: the old fakes answered `hello`, the planted answers, `input.grab` with its binding, null for the rest, and logged every request (hello included). FakeCore does the same: `admit` logs before the refusal check, `input.grab` echoes the binding, the default is null. The tiling, xp and construct cells that applied commands add a `scene.apply` -> null responder, as the old fakes answered it.
+   - xp `on_fake_core_refusing`: the old fake logged the refused grab, then failed it with REJECTED. `hold` logs, then fails with REJECTED.
+   - confirm.answer: `ANSWER_METHOD` is "confirm.answer" (kit ask.rs:17); `ask::answer_call` is the old json literal.
+   - open entry: `Surface::entry` is the old field list (id, kind word, modal, by); `Open::state` is the same map.
+   - on_path: the kit `desktop_entry::on_path` is the body of the removed xp and voice copies.
+   - mc acts.rs `to != NAME`: dead. `Conn::claimant_at` (kit give.rs:244, the only path) filters `|o| o != me` with `me = self.name()`, mc connects as `NAME`; `give_dragged` refuses `to == self.name()` too. The kit test `the_claimant_under_a_point_is_never_the_connection_itself` pins it with a smaller own claim over a larger other claim.
+2. Kit helpers small and tested: respond/record/hold in fake_core.rs (two tests), `Surface::entry` (shape test in open.rs). `cargo test -p chora-kit --features testing`: all green.
+3. Plugin tests keep their names and asserts: the diff touches no assert, only the fakes and the log type. `cargo test -p chora-construct -p chora-tiling -p chora-xp -p chora-notify -p chora-assistant -p chora-mc`: 243, 203, 178, 252, 22, 132 passed, 0 failed.
+4. xp wm.rs allow: a grep exemption, not a hidden production call (see rc-1).
+5. `tools/cut-check`: 18 reported (assets, names, known), no copies line. New `fn on_path` row: the one allowed copy is the kit launcher.rs test stub, its comment holds (a `matches!` over fixed names, reads no PATH).
+
+`cargo check --workspace` green on the head.
+
+### Findings
+
+- rc-1, MINOR, plugins/chora-xp/src/wm.rs:971, the `clippy::disallowed_methods` allow on `wm_on_fake_core` suppresses no clippy lint (no `Runtime::with` or `Conn::connect_at` in that function any more; `wm_on` has them) and its reason names no disallowed call; it only opens the gate-0.8 grep for the `"output.list"` responder. The use is the one the grep documents ("a test on a fake core") and the same reason string stands on three construct cells, so it is not a hidden production method (the item is `#[cfg(test)]`). Fix: say so in the reason ("the fake core answers output.list, which the plugin-runtime grep names") or give FakeCore an `outputs(&[OutputInfo])` helper so no plugin test names the method.
+- rc-2, NIT, crates/chora-kit/src/testing.rs:235, `admit` runs the recorders while it holds the model lock, so a recorder that locks `core.model()` deadlocks (the responders run after the unlock). Fix: one doc line on `record` ("the closure must not lock the model").
+
+Not findings: debt-down also edits xp wm.rs (the train's merge); the 18 cut-check lines are not copies rows.
