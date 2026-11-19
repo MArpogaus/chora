@@ -227,3 +227,40 @@ Findings:
   Fix: none here; in later lanes, the red commit holds the final test body.
 
 Known, not findings: rd-5 and rd-6 (deferred); the copies-0 and moved-tests conflicts in xp wm.rs and tests_moved.rs belong to the train.
+
+## r3
+
+Code: claude/debt-down at 121c30aa, 2 commits over r2 (c8fe032b): `git log c8fe032b..claude/debt-down`.
+Brief: briefs/debt-down-r3.md. Fixes rd-7 of "## Review r2"; rd-8 (NIT) needs nothing, history not rewritten.
+
+| item | state | proof |
+|------|-------|-------|
+| rd-7 MAJOR a grab that ends with its connection or by a revoke is not told | closed | red b41d2aab (two tests, both failed with an empty list), fix 121c30aa |
+
+### rd-7
+
+- Red b41d2aab: `ipc::tests::a_grab_that_ends_with_its_connection_is_told` (a holder with Alt+Escape, Super+a and Super+BTN_LEFT
+  closes; the subscriber gets `input.ungrabbed` for each and then grabs Alt+Escape) and
+  `input::tests::a_revoke_of_grab_any_tells_the_ungrab` (revoke of `input.grab-any` tells the free `Tab`, not the held-by-modifier
+  `Alt+Escape`). Both failed on the behaviour: left `[]`, right the bindings. The red commit holds the final test bodies (rd-8).
+- Fix 121c30aa: `IpcState::drop_free_grabs` and the new `drop_grabs` return the bindings of the dropped non-`move` grabs;
+  `ipc_close` and `revoke_free_grabs` pass them to the new `State::tell_ungrabbed`, which `ipc_ungrab` uses too, so the
+  three ways a grab ends say the same event. In `ipc_close` the event comes after the connection left `conns`, so the closing
+  connection hears nothing and a waiter can grab at once.
+- Docs: the clause "a grab that ends with its connection sends nothing" is gone from docs/api.md (event row, `input.ungrab`
+  row) and from the D-ungrab entry, which now names the three ends and that a refused ungrab and a `move` grab say nothing.
+  The doc comments of `event.rs` and `grabs.rs` follow. `D-ungrab` stays unnumbered, "Accepted, debt-down r3".
+- xp needed no change: it already grabs on the event for any holder.
+
+### Evidence
+
+- `cargo test --workspace`: 2,495 passed, 0 failed (r2: 2,493; +2 tests).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `tests/merge-gate.sh --jobs 3 --base 85764974` on 121c30aa: all steps passed, once, no flake (41 steps PASS, e2e 298 s).
+  Nothing was pushed by the gate.
+- Author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>, no attribution lines, no `--no-verify`.
+
+### Open for the PM
+
+- Number `D-ungrab` at the merge (`grep -rn D-ungrab`), as in r2.
+- A `Super+BTN_LEFT` style button grab is told like a key grab; `move` is not. If a subscriber should not hear buttons, say so.
