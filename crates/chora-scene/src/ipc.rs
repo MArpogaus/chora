@@ -1142,6 +1142,52 @@ impl Client {
         self.call_until(method, params, Some(Instant::now() + timeout))
     }
 
+    /// Sends all requests at once and then waits for their responses, in
+    /// one round trip: the core answers the lines of one wake together.
+    /// Each answer is in the place of its request, an error of the core
+    /// for that request alone; events that arrive in between wait in the
+    /// queue for [`Client::next_event`].
+    ///
+    /// # Errors
+    ///
+    /// The socket fails or closes.
+    pub fn call_all(
+        &mut self,
+        calls: &[(&str, Value)],
+    ) -> Result<Vec<Result<Value, RpcError>>, ClientError> {
+        let first = self.next_id;
+        let mut lines = String::new();
+        for (method, params) in calls {
+            let request = Request {
+                jsonrpc: "2.0".into(),
+                id: Some(self.next_id.into()),
+                method: (*method).into(),
+                params: params.clone(),
+            };
+            self.next_id += 1;
+            lines.push_str(&serde_json::to_string(&request)?);
+            lines.push('\n');
+        }
+        self.writer.write_all(lines.as_bytes())?;
+        let mut answers: Vec<Option<Result<Value, RpcError>>> = vec![None; calls.len()];
+        while answers.iter().any(Option::is_none) {
+            let message = self.read()?;
+            let slot = (message.id.as_ref().and_then(Value::as_u64))
+                .and_then(|id| id.checked_sub(first))
+                .and_then(|n| usize::try_from(n).ok())
+                .filter(|n| *n < calls.len());
+            let Some(slot) = slot else {
+                self.queue(message);
+                continue;
+            };
+            answers[slot] = Some(match message.error {
+                Some(error) => Err(error),
+                None => Ok(message.result.unwrap_or(Value::Null)),
+            });
+        }
+        Ok(answers.into_iter().flatten().collect())
+    }
+
     fn call_until<P: Serialize, R: DeserializeOwned>(
         &mut self,
         method: &str,

@@ -820,6 +820,15 @@ grant fails before `hello`. `scene.query`, `scene.boxes`, `events.subscribe`,
 `grants.set`, `grants.revoke` and `grants.list` also work before it,
 for tools.
 
+A client may send several requests before it reads their responses: the
+core handles every line that one wake of the connection brings, in order,
+so the requests cost one round trip and not one each. The responses keep
+the ids of the requests; an error answers its request alone. In a plugin,
+`chora_kit::conn::Conn::call_all(&[(method, params), ...])` sends them so
+and gives one answer per call, in the order of the calls; chora-construct
+adds the outputs of the faces of a cube with it, so that `cube.open`
+waits for one frame of the core and not for four.
+
 The core opens an admin socket next to the IPC socket, for example
 `wayland-1.admin.sock` next to `wayland-1.sock` (D40). It offers all
 methods. Only there do `grants.set`, `grants.revoke` and `clients.create`
