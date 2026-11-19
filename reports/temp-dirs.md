@@ -61,3 +61,9 @@ Base 219d5afe, head 5b0aa407, 71 files +555/-280. Red commit 9c61e13f: a stub wi
 - tdr-3 NIT: the copies.toml row then becomes allow = [chora-scene] with max 0 outside it.
 - Checked, no finding: `_dir` binding (no bare `_`), 13 `.keep()` sites for long-lived objects (as before), the "left with a reason" list.
 Verdict (computed): FIX (tdr-1 open MAJOR). r2: briefs/temp-dirs-r2.md.
+
+## r2 (head 86f42d1f)
+- kc-fix (f666a025) and autonomous-dev-session-3w-i33pg7 merged; on_fake_core conflict kept both (TempDir guards + `core.runtime(NAME)`); the autonomous merge brought one new `Runtime::with` (cube/tests_construct.rs), now `core.runtime`.
+- tdr-1: TempDir lives once, `chora_scene::testing` (feature `testing`; kit feature enables it, kit/choractl/chora dev-depend on it); kit re-exports `chora_kit::testing::TempDir`. Its test moved with it. Three copies deleted; `grep -rn "pub struct TempDir" crates plugins services` gives one line.
+- tdr-3: the copies.toml row allows only the chora-scene file. Deviation: max is 8, not 0: eight counted PNG/socket helpers outside it (guard, transaction, sampling x2, ipc, wayland, testing.rs, xp sheets) still match the pattern; max 0 fails cut-check. They may only fall.
+- Gate (pre-commit,ci-check,build,test,clippy): green.
