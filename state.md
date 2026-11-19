@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 03:53 UTC)
+## Now (2026-11-19 04:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 98 % at 03:35 Thu (owner); tokens.py 03:44: PM 0.3 % today. Day cap lifted (owner 03:41); sonnet lanes now; owner resets about 05:10; then opus and Fable lanes with a reason, no waste.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
@@ -24,7 +24,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | running session_016iS3kMRsiR4v7muvLbd2bf 03:38; checked 03:45 |
+| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | ba9dd020 PM review MERGE-OK; train 55 running 04:16; archived |
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | running session_016iS3kL9BbHEnV3xMurNpKH 03:44, checked 03:53 |
 | kit2b-r1.md (F2) | sonnet high, claude/kit2b | running session_016iS3kPbMHNnFH4xry3P2T5 03:44 |
 | mv3-r1.md (F4) | sonnet medium, claude/mv3 | running session_016iS3kMsyMCkCpM2VqW5X6N 03:44 |
