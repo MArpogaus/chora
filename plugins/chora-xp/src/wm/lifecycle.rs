@@ -1,3 +1,90 @@
+//! The life of a window of xp (WM1d): the windows that it owns come and
+//! go through `kit::wm::book`. The book decides which surfaces are free
+//! for xp (the claim filter) and keeps where each came from; xp attaches
+//! them with their frames and answers each proposal with `confirm` or
+//! `refused`. What a window does once it is xp's (the frame, the focus,
+//! the taskbar) stays in `windows.rs`.
+
+use chora_kit::wm::{Change, Created, Phase, Why};
+use chora_scene::{Event, ipc::ClientError};
+use serde_json::Value;
+
+use super::Wm;
+
+impl Wm {
+    /// A surface was created: the launch that waited for it is done, and
+    /// the book says whether the surface is free for xp.
+    pub(super) fn window_created(&mut self, created: &Created) -> Result<(), ClientError> {
+        if let Some(note) = self.launches.window(created.token.as_deref()) {
+            self.notifier.close(note);
+        }
+        let changes = self.book.claim(
+            &created.surface,
+            created.to.as_deref(),
+            created.token.clone(),
+        );
+        self.settle(changes, Some(created))
+    }
+
+    /// A surface lost its parent and owner, or closed: an own window
+    /// leaves xp, and a detached one comes back as a proposal, as the
+    /// core says that it is free again.
+    pub(super) fn window_left(&mut self, event: &Event) -> Result<(), ClientError> {
+        let changes = self.book.apply(event);
+        self.settle(changes, None)
+    }
+
+    /// Does what the book says, in order. `facts` are what the core said
+    /// of a created surface; a proposal without them asks the core.
+    pub(super) fn settle(
+        &mut self,
+        changes: Vec<Change>,
+        facts: Option<&Created>,
+    ) -> Result<(), ClientError> {
+        for change in changes {
+            match change {
+                Change::Adopt { id, .. } => {
+                    let (app_id, title) = facts
+                        .filter(|created| created.surface == id)
+                        .map_or((None, None), |c| (c.app_id.clone(), c.title.as_deref()));
+                    let next = match self.adopt(&id, app_id, title) {
+                        Ok(true) => self.book.confirm(&id),
+                        Ok(false) => self.book.refused(&id),
+                        Err(err) => {
+                            self.book.refused(&id);
+                            return Err(err);
+                        }
+                    };
+                    self.settle(next, facts)?;
+                }
+                Change::Forget {
+                    why: Why::Given(_), ..
+                }
+                | Change::Outputs => {}
+                Change::Forget { id, .. } => {
+                    let commands = self.forget(&id);
+                    self.apply(commands)?;
+                }
+                Change::Phase { id, phase } => self.tell_phase(&id, phase),
+                Change::Apply(commands) => self.apply(commands)?,
+            }
+        }
+        Ok(())
+    }
+
+    /// Emits `xp.window` for a phase, with the frame of the window while
+    /// it shows. A refused emit only logs.
+    pub(super) fn tell_phase(&mut self, surface: &str, phase: Phase) {
+        let rect = (self.index(surface))
+            .filter(|&i| self.windows[i].shown)
+            .map(|i| self.windows[i].rect().map(f64::from));
+        let emit = self.book.phase_event(surface, phase, rect);
+        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", emit) {
+            eprintln!("chora-xp: xp.window: {err}");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;

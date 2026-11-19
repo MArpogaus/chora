@@ -16,23 +16,23 @@ impl Tiling {
         let z = |id: &str| self.order.iter().position(|o| o == id);
         let windows = (self.wm.windows.iter())
             .map(|w| {
-                let placed = self.sent.get(&w.id);
-                let at = placed.and_then(|p| p.at);
-                let rect = at
-                    .zip(placed)
-                    .map(|([x, y], p)| [x, y, p.frame[0], p.frame[1]].map(f64::from));
+                let rect = self.sent.get(&w.id).and_then(|p| {
+                    let [x, y] = p.at?;
+                    Some([x, y, p.frame[0], p.frame[1]].map(f64::from))
+                });
                 Window {
                     surface: w.id.clone(),
                     origin: self.book.origin(&w.id).map(chora_kit::wm::Origin::word),
                     output: w.output.clone(),
                     desks: tags_of(w.tags),
                     rect,
-                    shown: at.is_some(),
+                    shown: rect.is_some(),
                     minimized: w.minimized,
                     maximized: w.maximized == (true, true),
                     fullscreen: w.fullscreen,
                     floating: w.floating,
                     z: z(&w.id),
+                    ..Window::default()
                 }
             })
             .collect();

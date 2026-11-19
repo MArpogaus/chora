@@ -38,6 +38,12 @@ pub struct Window {
     /// `kept`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin: Option<&'static str>,
+    /// Its title, when the look keeps it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Its application id, when the look keeps it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_id: Option<String>,
     /// The output that it is on.
     pub output: String,
     /// The desks that it is on, from 1.

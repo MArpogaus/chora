@@ -1502,18 +1502,21 @@ and what still moves (`busy`). `choractl state mc` prints it. All four
 looks answer it. `focus.holder` names the look only while the focus is
 on one of its windows (or, for the construct, on its space), else it is
 null. A field that a look does not fill is left out, never empty: mc
-has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
+has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`,
+xp also `title` and `app_id`;
 the construct adds `views`, the panes of windows, plugin nodes and
-virtual outputs that it shows but does not own. tiling, mc and the
-construct add the `origin` of each window: `new`, `given` (another window manager gave it)
+virtual outputs that it shows but does not own. Every look adds the
+`origin` of each window: `new`, `given` (another window manager gave it)
 or `kept` (over a restart).
 
-A look built on `chora_kit::wm` (tiling, mc, the construct) emits
-`<look>.window` with
-`{surface, node, phase, rect}` when a window becomes its own (`opened`),
-closes (`closed`) or goes to another window manager (`given`); `node` is
-the group that carries the window and `rect` is where it showed, or
-null (mc and the construct tell no rect: the panes lie in a space). tiling applies a foreign `update` of opacity,
+A look built on `chora_kit::wm` (tiling, mc, the construct, xp) emits
+`<look>.window` with `{surface, node, phase, rect}` when a window becomes
+its own (`opened`), closes (`closed`) or goes to another window manager
+(`given`). `node` is the group that carries the window, or the surface
+itself where a look has no groups (mc, the construct). `rect` is where
+the window showed, or null (mc and the construct tell no rect: their
+windows lie in a scene or a pane; xp tells none while the window has no
+size yet). tiling applies a foreign `update` of opacity,
 effects and meta (D58) on its windows, on the groups that carry them and
 on its root group, without its own meta keys. It keeps its restart state
 in node meta under the keys `kept.1.*` and reads the keys of before.

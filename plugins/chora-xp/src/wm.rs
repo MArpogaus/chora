@@ -417,6 +417,9 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
+    /// Which surfaces are xp's windows, and where they came from
+    /// (`kit::wm::book`).
+    book: chora_kit::wm::Book,
     /// The programs that started and show no window yet.
     launches: Launches,
     notepad: apps::Editors,
@@ -479,7 +482,7 @@ impl give::Windows for Wm {
     }
 
     fn has(&self, surface: &str) -> bool {
-        self.index(surface).is_some()
+        self.book.has(surface)
     }
 
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
@@ -584,12 +587,6 @@ fn without_reserve(reserved: &HashMap<String, i32>, mut output: OutputInfo) -> O
         }
     }
     output
-}
-
-/// Whether chora-xp takes a created surface: a free one, or one the core
-/// reserved for it. A surface of another window manager does nothing.
-fn takes(to: Option<&str>) -> bool {
-    to.is_none_or(is_own)
 }
 
 /// A call of a method that `chora-xp` exports.
@@ -1284,13 +1281,6 @@ mod tests {
         assert!(is_own("xp"));
         assert!(!is_own("tiling"));
         assert!(!is_own(""));
-    }
-
-    #[test]
-    fn a_surface_of_another_window_manager_is_nothing_to_do() {
-        assert!(takes(None));
-        assert!(takes(Some("xp")));
-        assert!(!takes(Some("tiling")));
     }
 
     #[test]
