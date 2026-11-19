@@ -31,5 +31,5 @@ no gate (cargo test -p only); <= 120 k, <= 0.5 %, <= 8 findings; computed verdic
 Sonnet high for ports; opus for core, design, security; a PM review for small diffs (PM not the builder).
 
 ## Ids
-Status page: status/index.html -> https://claude.ai/artifact/GXmcSEwuzRMXF1QiyUXHFe (republish same file).
+Status page: status/index.html -> publish with url=https://claude.ai/artifact/GXmcSEwuzRMXF1QiyUXHFe (always pass url).
 PM watchdog trig_011UMxwYQRqwjHmDdYnz6mQa (every 2 h). Transcript of the PM: /root/.claude/projects/-home-user/.

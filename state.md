@@ -24,16 +24,16 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-kit7-r2.md (F2) | sonnet high | session_016iS3kLpi8PGbFSSRgrnb1u (13:01; kit7 8321c16f) |
-| wm7b-r4.md (F3) | sonnet high | starting |
-| wm5-r3.md (F3) | sonnet high | starting |
-| wm3-r3.md (F3) | sonnet high | starting |
-| review-kit5-r2.md (F2) | sonnet high | session_016iS3kPeJ9Pd53BpYjd8YMH (13:00; kit5b 7b01dd5a) |
+| review-kit7-r2.md (F2) | sonnet high | session_016iS3kLpi8PGbFSSRgrnb1u (13:01) |
+| wm7b-r4.md (F3) | sonnet high | session_016iS3kNgz5Y2r1uhCZGXkY1 (13:04) |
+| wm5-r3.md (F3) | sonnet high | session_016iS3kMikERjA4gqYhoHDPA (13:04) |
+| wm3-r3.md (F3) | sonnet high | session_016iS3kNGShrVmhCQAGTmdRy (13:04) |
+| review-kit5-r2.md (F2) | sonnet high | session_016iS3kPeJ9Pd53BpYjd8YMH (13:00) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 62 green 13:0x (kit2d, wm7a; head dd2a0aa3). 63 = flakes-f 847f0964 gating. wm3, wm5, wm7b conflict with 62 (state::Open, bindings): merge rounds r3/r3/r4, then train 64 with kit5b, kit7 if MERGE-OK.
-5. (F2, F3) Next (sonnet unless complex): WM7b hosted (owner 10:52), opus 4 %, after wm7a r3; KIT6 in kit2c; KIT7 opus 5 % started 11:04. Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
+4. Trains (F6): 62 green 13:00 (kit2d, wm7a; head dd2a0aa3). 63 = flakes-f 847f0964 gating. wm3, wm5, wm7b conflict with 62 (state::Open, bindings): merge rounds r3/r3/r4, then train 64 with kit5b, kit7 if MERGE-OK.
+5. (F2, F3) After train 64: kit3 r1 review; Sat opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4.
 5b. (F5) flakes-g r2 held: no setup x4; 14:00 UTC: step 0 runs setup.sh.
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
