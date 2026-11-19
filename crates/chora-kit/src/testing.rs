@@ -49,6 +49,8 @@ pub struct Core {
     pub ungrabs: Vec<Value>,
     /// Whether `scene.query` answers every selector; else only `id:`.
     pub selects: bool,
+    /// Whether `activation.token` mints a token; without, it answers null.
+    pub mints_tokens: bool,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -98,6 +100,12 @@ impl FakeCore {
     /// it passes again.
     pub fn refuse_next(&self, method: &str) {
         self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Makes `activation.token` mint a new token on each call, as the
+    /// core does for a plugin that holds an act.
+    pub fn mint_tokens(&self) {
+        self.model.lock().unwrap().mints_tokens = true;
     }
 
     /// The scene model, shared with the fake core.
@@ -176,6 +184,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
                 )),
             }
         }
+        "activation.token" if model.lock().unwrap().mints_tokens => Ok(activation_token()),
         "input.grab" => Ok(params["binding"].clone()),
         "input.ungrab" => {
             let mut core = model.lock().unwrap();
@@ -220,6 +229,13 @@ fn query(model: &Model, selector: &str) -> Value {
             .collect()
     };
     Value::Array(found)
+}
+
+/// A new activation token, as the core mints one for a plugin.
+fn activation_token() -> Value {
+    static TOKENS: AtomicUsize = AtomicUsize::new(0);
+    let n = TOKENS.fetch_add(1, Ordering::Relaxed);
+    json!({"token": format!("fake-token-{}-{n}", std::process::id())})
 }
 
 /// Whether the model has a node.

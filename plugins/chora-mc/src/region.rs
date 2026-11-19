@@ -563,8 +563,7 @@ impl Mc {
             self.toggled.insert(region, true);
             // A docked app of the region waits hidden: the keyboard goes
             // back to the scene.
-            if user && (self.focused.as_ref()).is_some_and(|f| self.docks.values().any(|d| d == f))
-            {
+            if user && self.focused_dock().is_some() {
                 let name = self.current.clone().unwrap_or_default();
                 let window = self.windows.get(&name).cloned();
                 self.focus(window)?;
@@ -1748,7 +1747,7 @@ impl Mc {
             && shown.is_none()
             && visible
             && let Some(surface) = &surface
-            && self.focused.as_ref() != Some(surface)
+            && self.focus.surface.as_ref() != Some(surface)
         {
             self.focus(Some(surface.clone()))?;
             return Ok(true);
@@ -1767,7 +1766,7 @@ impl Mc {
                 }
             }
         }
-        if user && !new && surface.is_some() && self.focused == surface {
+        if user && !new && surface.is_some() && self.focus.surface == surface {
             let window = self.windows.get(&name).cloned();
             self.focus(window)?;
         }
@@ -1890,15 +1889,15 @@ impl Mc {
         let config = &self.settings.value;
         let command = command(&config.contents[app].command, config.colors());
         let mint = self.rt.conn.activation_token();
-        if let Some((token, _)) = crate::launch(&command, mint.as_deref()) {
+        if let Some((token, _)) = crate::launch::start(&command, mint.as_deref()) {
             self.starting.insert(token, crate::Target::Dock(app.into()));
         }
     }
 
     /// Gives the keyboard to a surface, or to none.
     pub fn focus(&mut self, surface: Option<String>) -> Result<(), ClientError> {
-        self.focused.clone_from(&surface);
-        self.apply(vec![Command::Focus { surface }])
+        let focus = self.focus.to(surface);
+        self.apply(vec![focus])
     }
 
     /// The clocks anew, and a tick at the next minute.

@@ -274,7 +274,7 @@ impl Construct {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
         let mint = self.rt.conn.activation_token();
-        let token = chora_kit::launch(&command, mint.as_deref()).map(|(t, _)| t);
+        let token = chora_kit::launch::start(&command, mint.as_deref()).map(|(t, _)| t);
         let pane = PaneFile {
             kind: Kind::Program,
             command: Some(command),
@@ -297,7 +297,7 @@ impl Construct {
     pub(crate) fn start_launcher(&mut self) {
         let mint = self.rt.conn.activation_token();
         let command = chora_kit::shared::launcher(&self.settings.value.launcher);
-        self.launcher = chora_kit::launch(&command, mint.as_deref());
+        self.launcher = chora_kit::launch::start(&command, mint.as_deref());
         self.launched = Some(Instant::now());
     }
 
