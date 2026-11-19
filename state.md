@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 20:28 UTC)
+## Now (2026-11-19 20:29 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 20:26 PM 1.2 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -24,15 +24,18 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| cube-tests-r1.md (F5) | haiku high | done 19:57: cube/construct.rs 38.5 to 96.7 %; PM review MERGE-OK; 03d0bcfd (committer fixed, claude/cube-tests-c) to train 72 |
-| mx1-m2-r1.md (F5) | sonnet high | done 20:23: cap from gate lock, 232 of 315 s; PM review MERGE-OK (1 MINOR); 5197fa22 to train 72 |
+| cube-tests-r1.md (F5) | haiku high | MERGE-OK 03d0bcfd, train 72 |
+| mx1-m2-r1.md (F5) | sonnet high | MERGE-OK 5197fa22, train 72 |
 | kit-report-r1.md (F2, F4) | sonnet high | session_016iS3kMTc9oNYxZLiK2tahV (20:13) from 6aa0bd37 |
-| docs-f8d-r1.md (F8) | sonnet high | done 20:28: rf-1, rf-2, rc-4, rc-5, rd-10 closed; PM review MERGE-OK; c8249e2c to train 72 (rc-6 test to backlog) |
+| docs-f8d-r1.md (F8) | sonnet high | MERGE-OK c8249e2c, train 72 |
 | lint-reason-r1.md (F4) | haiku high | session_016iS3kNum3AruGdhEDHT2iE (20:13) from 6aa0bd37 |
+| minor-sweep-r1.md (F5) | sonnet high | starting 20:4x from 219d5afe |
+| flake-h-r1.md (F5) | sonnet high | starting 20:4x from 219d5afe |
+| kit-minors-r1.md (F2, F5) | sonnet high | starting 20:4x from 219d5afe |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 69 green 19:03; 70 green 19:32 (construct-red, known-red 0). 71 green 20:12 (debt-down, D117). 72 Fri: cube-tests 03d0bcfd, mx1-m2 5197fa22, kit-report, docs-f8d c8249e2c, lint-reason.
-5. F work: DEBT-DOWN merged (F4: r3 recount); FLAKE-SERIES 5/5 green, kit 91.06 % (F5); AUDIT-F r2 done: CUBE-TESTS haiku 0.8 %, MX1-M2 done (2 cells on flake watch); DOCS-F8d done; running: KIT-REPORT 0.8 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 69 green 19:03; 70 green 19:32 (construct-red, known-red 0). 71 green 20:12 (debt-down, D117). 72 running 20:36: cube-tests, mx1-m2, docs-f8d. 73: kit-report, lint-reason, minor-sweep, flake-h, kit-minors.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); CUBE-TESTS, MX1-M2, DOCS-F8d done; running: MINOR-SWEEP 0.8 %, FLAKE-H 1 %, KIT-MINORS 0.8 %, KIT-REPORT 0.8 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
