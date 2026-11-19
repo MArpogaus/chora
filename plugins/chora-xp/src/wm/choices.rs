@@ -110,7 +110,7 @@ impl Wm {
         let [.., w, h] = bar.area();
         let suspend = (self.settings.value.session.stand_by.as_deref())
             .and_then(|c| c.split_whitespace().next())
-            .is_some_and(session::on_path);
+            .is_some_and(chora_kit::desktop_entry::on_path);
         let dialog = Dialog::new(mode, &bar.output, [w, h], suspend);
         let mut commands = dialog.create(&mut self.theme);
         self.dialog = Some(dialog);

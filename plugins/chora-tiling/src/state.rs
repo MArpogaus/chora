@@ -84,7 +84,10 @@ fn tags_of(bits: u16) -> Vec<usize> {
 
 #[cfg(test)]
 mod tests {
-    use chora_kit::runtime::Plugin as _;
+    use chora_kit::{
+        runtime::Plugin as _,
+        wm::open::{Kind, Surface},
+    };
     use serde_json::json;
 
     use crate::tests::on_fake_core;
@@ -134,12 +137,10 @@ mod tests {
     #[test]
     fn the_key_list_is_open_while_it_shows() {
         let (mut tiling, _) = on_fake_core("state-keys");
-        tiling.open.open(
-            chora_kit::wm::open::Surface::new(crate::keys::KEYS, chora_kit::wm::open::Kind::Sheet)
-                .modal(),
-        );
+        let keys = Surface::new(crate::keys::KEYS, Kind::Sheet).modal();
+        let open = json!([keys.entry()]);
+        tiling.open.open(keys);
         let state = tiling.state().unwrap();
-        let open = json!([{"id": "tiling-keys", "kind": "sheet", "modal": true}]);
         assert_eq!(state["open"], open);
         assert_eq!(state["focus"], json!({"holder": "tiling"}));
     }

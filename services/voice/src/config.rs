@@ -1284,7 +1284,7 @@ mod tests {
         assert_eq!(sandbox_reaches(&no_sandbox, &probe.0), "reached");
         let default = Config::default();
         let sandbox = &default.sandbox_cmd[0];
-        if !on_path(sandbox) {
+        if !chora_kit::desktop_entry::on_path(sandbox) {
             eprintln!("skip: {sandbox} not on PATH");
             assert!(
                 std::env::var_os("CI").is_none(),
@@ -1333,11 +1333,6 @@ mod tests {
             .unwrap();
         std::fs::remove_dir(&empty).unwrap();
         String::from_utf8_lossy(&out.stdout).trim().to_owned()
-    }
-
-    fn on_path(program: &str) -> bool {
-        std::env::var_os("PATH")
-            .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join(program).is_file()))
     }
 
     #[test]

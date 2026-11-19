@@ -4,8 +4,6 @@
 //! outputs. They run on the fake core of `wm.rs`, which answers every call
 //! with null and records the methods, so that a test sees what xp sent.
 
-use std::sync::{Arc, Mutex};
-
 use chora_kit::{
     give::Windows as _,
     volume::{Reading, Volume},
@@ -34,7 +32,7 @@ fn power_key() -> String {
 }
 
 /// The methods that the fake core saw since `from`.
-fn sent(methods: &Arc<Mutex<Vec<String>>>, from: usize) -> Vec<String> {
+fn sent(methods: &chora_kit::testing::Log, from: usize) -> Vec<String> {
     methods.lock().unwrap()[from..].to_vec()
 }
 

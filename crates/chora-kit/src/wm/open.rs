@@ -99,6 +99,17 @@ impl Surface {
         self
     }
 
+    /// The entry of the surface in `state.get`.
+    #[must_use]
+    pub fn entry(&self) -> state::Open {
+        state::Open {
+            id: self.id.clone(),
+            kind: self.kind.word().to_owned(),
+            modal: self.modal,
+            by: self.by.clone(),
+        }
+    }
+
     /// A drag or a give leaves the surface open.
     #[must_use]
     pub const fn staying(mut self) -> Self {
@@ -191,16 +202,7 @@ impl Open {
     /// The list as `state.get` tells it: Escape order, the newest first.
     #[must_use]
     pub fn state(&self) -> Vec<state::Open> {
-        self.list
-            .iter()
-            .rev()
-            .map(|s| state::Open {
-                id: s.id.clone(),
-                kind: s.kind.word().to_owned(),
-                modal: s.modal,
-                by: s.by.clone(),
-            })
-            .collect()
+        self.list.iter().rev().map(Surface::entry).collect()
     }
 }
 
@@ -210,6 +212,22 @@ mod tests {
 
     fn menu(id: &str) -> Surface {
         Surface::new(id, Kind::Menu)
+    }
+
+    /// The entry of `state.get`: the id, the kind and whether it is modal;
+    /// `by` only when a window opened it.
+    #[test]
+    fn an_entry_of_the_state_is_its_id_its_kind_and_its_modal() {
+        let sheet = serde_json::to_value(Surface::new("keys", Kind::Sheet).modal().entry());
+        assert_eq!(
+            sheet.unwrap(),
+            serde_json::json!({"id": "keys", "kind": "sheet", "modal": true})
+        );
+        let by = serde_json::to_value(menu("ctx").by("s1").entry()).unwrap();
+        assert_eq!(
+            by,
+            serde_json::json!({"id": "ctx", "kind": "menu", "modal": false, "by": "s1"})
+        );
     }
 
     #[test]

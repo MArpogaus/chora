@@ -2,14 +2,12 @@
 //! window manager (`reopen_left_cube`, `manager_runs`, `face_manager`),
 //! on a fake core that answers the requests they make.
 
-use std::{
-    io::{BufRead as _, BufReader, Write as _},
-    os::unix::net::UnixListener,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-use chora_kit::modes::Act;
+use chora_kit::{
+    modes::Act,
+    testing::{FakeCore, Log},
+};
 use chora_scene::{OutputInfo, Transform};
 use serde_json::{Value, json};
 
@@ -18,38 +16,25 @@ use crate::{Config, Construct, Flown, NAME, Pose, Runtime, config, settings};
 
 /// A construct on a fake core that answers each request with `answer`,
 /// which gets the method and the parameters; the methods that it saw.
+///
+/// These cells do not build the pane tree that the cube hangs on: the fake
+/// core takes the commands as they come, and the test reads them.
 #[allow(
     clippy::disallowed_methods,
     reason = "the test connects to its fake core"
 )]
-fn on_core(tag: &str, answer: fn(&str, &Value) -> Value) -> (Construct, Arc<Mutex<Vec<String>>>) {
+fn on_core(tag: &str, answer: fn(&str, &Value) -> Option<Value>) -> (Construct, Log) {
     let dir = std::env::temp_dir().join(format!(
         "chora-construct-moved-{tag}-{}",
         std::process::id()
     ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("core.sock");
-    let listener = UnixListener::bind(&path).unwrap();
-    let methods = Arc::new(Mutex::new(Vec::new()));
-    let seen = Arc::clone(&methods);
-    std::thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
-        let mut writer = stream.try_clone().unwrap();
-        for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-            let request: Value = serde_json::from_str(&line).unwrap();
-            let method = request["method"].as_str().unwrap_or_default().to_owned();
-            let result = match method.as_str() {
-                "hello" => json!({"version": chora_scene::ipc::VERSION}),
-                "scene.query" => json!([]),
-                other => answer(other, &request["params"]),
-            };
-            seen.lock().unwrap().push(method);
-            let reply = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-            writeln!(writer, "{reply}").unwrap();
-        }
-    });
-    let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
+    let core = FakeCore::start();
+    core.respond(answer);
+    core.respond(|method, _| (method == "scene.apply").then_some(Value::Null));
+    let methods = core.record(|method, _| Some(method.to_owned()));
+    let conn = core.connect(NAME);
     let mut rt = Runtime::with(conn, NAME, Vec::new());
     rt.pin_accepts_injected(false);
     let settings =
@@ -61,7 +46,7 @@ fn on_core(tag: &str, answer: fn(&str, &Value) -> Value) -> (Construct, Arc<Mute
 }
 
 /// How many requests of the method `method` the fake core saw.
-fn count(methods: &Arc<Mutex<Vec<String>>>, method: &str) -> usize {
+fn count(methods: &Log, method: &str) -> usize {
     methods
         .lock()
         .unwrap()
@@ -93,7 +78,7 @@ fn virtual_outputs(names: &[&str]) -> Value {
 /// cube; without a cube, or outside its use mode, the hand does nothing.
 #[test]
 fn the_hand_takes_a_cube_at_rest_in_use_mode() {
-    let (mut construct, _) = on_core("hand-take", |_, _| Value::Null);
+    let (mut construct, _) = on_core("hand-take", |_, _| None);
     assert!(!construct.hand_press([10.0, 10.0]), "no cube, no hand");
     construct.cube = Some(host_of(FACES));
     assert!(
@@ -103,7 +88,7 @@ fn the_hand_takes_a_cube_at_rest_in_use_mode() {
     let held = construct.cube.as_ref().expect("the cube");
     assert!(held.press.is_some(), "the cube holds the press");
 
-    let (mut construct, _) = on_core("hand-navigate", |_, _| Value::Null);
+    let (mut construct, _) = on_core("hand-navigate", |_, _| None);
     let mut navigate = host_of(FACES);
     navigate.view.act(Act::StepBack);
     construct.cube = Some(navigate);
@@ -112,7 +97,7 @@ fn the_hand_takes_a_cube_at_rest_in_use_mode() {
         "in navigate mode the hand waits"
     );
 
-    let (mut construct, _) = on_core("hand-turning", |_, _| Value::Null);
+    let (mut construct, _) = on_core("hand-turning", |_, _| None);
     let mut turning = host_of(FACES);
     turning.turn = Some(Turn::new(0.0, 1.0, Instant::now(), Duration::from_secs(1)));
     construct.cube = Some(turning);
@@ -126,7 +111,7 @@ fn the_hand_takes_a_cube_at_rest_in_use_mode() {
 /// window has the input, not the cube.
 #[test]
 fn the_hand_waits_while_the_camera_is_in_a_window() {
-    let (mut construct, _) = on_core("hand-window", |_, _| Value::Null);
+    let (mut construct, _) = on_core("hand-window", |_, _| None);
     construct.cube = Some(host_of(FACES));
     construct.flown = Some(Flown {
         surface: "s1".into(),
@@ -142,7 +127,7 @@ fn the_hand_waits_while_the_camera_is_in_a_window() {
 /// and releases nothing.
 #[test]
 fn the_held_cube_turns_with_the_hand() {
-    let (mut construct, _) = on_core("hand-drag", |_, _| Value::Null);
+    let (mut construct, _) = on_core("hand-drag", |_, _| None);
     assert!(
         !construct.hand_moved([0.0, 0.0]).unwrap(),
         "no cube, nothing moves"
@@ -173,7 +158,7 @@ fn the_held_cube_turns_with_the_hand() {
 /// release has no hand to let go.
 #[test]
 fn the_release_settles_the_held_cube() {
-    let (mut construct, _) = on_core("hand-release", |_, _| Value::Null);
+    let (mut construct, _) = on_core("hand-release", |_, _| None);
     construct.cube = Some(host_of(FACES));
     assert!(construct.hand_press([100.0, 100.0]));
     assert!(construct.hand_moved([400.0, 100.0]).unwrap());
@@ -192,15 +177,15 @@ fn the_release_settles_the_held_cube() {
 #[test]
 fn the_manager_runs_when_its_client_is_connected() {
     let (mut connected, _) = on_core("start-connected", |method, _| match method {
-        "clients.list" => json!([{"name": "other"}, {"name": "cube-test"}]),
-        _ => Value::Null,
+        "clients.list" => Some(json!([{"name": "other"}, {"name": "cube-test"}])),
+        _ => None,
     });
     connected.settings.value.cube_manager = "chora-cube-test --quiet".into();
     assert!(connected.manager_runs().unwrap());
 
     let (mut absent, _) = on_core("start-absent", |method, _| match method {
-        "clients.list" => json!([{"name": "other"}]),
-        _ => Value::Null,
+        "clients.list" => Some(json!([{"name": "other"}])),
+        _ => None,
     });
     absent.settings.value.cube_manager = "chora-cube-test".into();
     assert!(!absent.manager_runs().unwrap());
@@ -211,7 +196,7 @@ fn the_manager_runs_when_its_client_is_connected() {
 /// client of the cube's own program.
 #[test]
 fn the_face_manager_is_the_client_of_the_cube_or_of_the_setting() {
-    let (mut construct, _) = on_core("start-face", |_, _| Value::Null);
+    let (mut construct, _) = on_core("start-face", |_, _| None);
     construct.settings.value.cube_manager = "/usr/bin/chora-cube-test --x".into();
     assert_eq!(construct.face_manager(), "cube-test");
     let mut open = host_of(FACES);
@@ -233,11 +218,15 @@ fn the_face_manager_is_the_client_of_the_cube_or_of_the_setting() {
     reason = "the test answers the requests of its fake core"
 )]
 fn a_cube_left_by_a_running_manager_reopens_on_its_faces() {
-    let (mut construct, methods) = on_core("start-reopen", |method, params| match method {
-        "output.list" => virtual_outputs(&["VIRTUAL-1", "VIRTUAL-2", "VIRTUAL-3", "VIRTUAL-4"]),
-        "clients.list" => json!([{"name": "cube-test"}]),
-        "input.grab" => params["binding"].clone(),
-        _ => Value::Null,
+    let (mut construct, methods) = on_core("start-reopen", |method, _| match method {
+        "output.list" => Some(virtual_outputs(&[
+            "VIRTUAL-1",
+            "VIRTUAL-2",
+            "VIRTUAL-3",
+            "VIRTUAL-4",
+        ])),
+        "clients.list" => Some(json!([{"name": "cube-test"}])),
+        _ => None,
     });
     construct.settings.value.cube_manager = "chora-cube-test".into();
     construct.reopen_left_cube().unwrap();
@@ -263,9 +252,9 @@ fn a_cube_left_by_a_running_manager_reopens_on_its_faces() {
 )]
 fn left_outputs_go_when_their_manager_is_gone() {
     let (mut construct, methods) = on_core("start-gone", |method, _| match method {
-        "output.list" => virtual_outputs(&["VIRTUAL-1", "VIRTUAL-2"]),
-        "clients.list" => json!([]),
-        _ => Value::Null,
+        "output.list" => Some(virtual_outputs(&["VIRTUAL-1", "VIRTUAL-2"])),
+        "clients.list" => Some(json!([])),
+        _ => None,
     });
     construct.settings.value.cube_manager = "chora-cube-test".into();
     construct.reopen_left_cube().unwrap();
@@ -287,9 +276,9 @@ fn left_outputs_go_when_their_manager_is_gone() {
 )]
 fn outputs_reopen_only_as_a_cube_of_the_faces_and_not_as_an_overlay() {
     let (mut none, methods) = on_core("start-none", |method, _| match method {
-        "output.list" => json!([]),
-        "clients.list" => json!([{"name": "cube-test"}]),
-        _ => Value::Null,
+        "output.list" => Some(json!([])),
+        "clients.list" => Some(json!([{"name": "cube-test"}])),
+        _ => None,
     });
     none.settings.value.cube_manager = "chora-cube-test".into();
     none.reopen_left_cube().unwrap();
@@ -297,15 +286,15 @@ fn outputs_reopen_only_as_a_cube_of_the_faces_and_not_as_an_overlay() {
     assert_eq!(count(&methods, "output.remove"), 0);
 
     let (mut too_many, methods) = on_core("start-many", |method, _| match method {
-        "output.list" => virtual_outputs(&[
+        "output.list" => Some(virtual_outputs(&[
             "VIRTUAL-1",
             "VIRTUAL-2",
             "VIRTUAL-3",
             "VIRTUAL-4",
             "VIRTUAL-5",
-        ]),
-        "clients.list" => json!([{"name": "cube-test"}]),
-        _ => Value::Null,
+        ])),
+        "clients.list" => Some(json!([{"name": "cube-test"}])),
+        _ => None,
     });
     too_many.settings.value.cube_manager = "chora-cube-test".into();
     too_many.reopen_left_cube().unwrap();
@@ -313,9 +302,14 @@ fn outputs_reopen_only_as_a_cube_of_the_faces_and_not_as_an_overlay() {
     assert_eq!(count(&methods, "output.remove"), 5);
 
     let (mut overlay, methods) = on_core("start-overlay", |method, _| match method {
-        "output.list" => virtual_outputs(&["VIRTUAL-1", "VIRTUAL-2", "VIRTUAL-3", "VIRTUAL-4"]),
-        "clients.list" => json!([{"name": "cube-test"}]),
-        _ => Value::Null,
+        "output.list" => Some(virtual_outputs(&[
+            "VIRTUAL-1",
+            "VIRTUAL-2",
+            "VIRTUAL-3",
+            "VIRTUAL-4",
+        ])),
+        "clients.list" => Some(json!([{"name": "cube-test"}])),
+        _ => None,
     });
     overlay.overlay = true;
     overlay.settings.value.cube_manager = "chora-cube-test".into();

@@ -114,6 +114,7 @@ impl Construct {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use chora_kit::wm::open::{Kind, Surface};
     use chora_kit::{
         runtime::{Plugin as _, Runtime},
         settings,
@@ -237,7 +238,8 @@ pub(crate) mod tests {
     fn the_help_is_open_while_it_shows() {
         let (mut c, _core) = construct("state-help", false);
         c.help = true;
-        let open = json!([{"id": "construct-help", "kind": "sheet", "modal": true}]);
+        let help = Surface::new("construct-help", Kind::Sheet).modal();
+        let open = json!([help.entry()]);
         assert_eq!(c.state().unwrap()["open"], open);
     }
 

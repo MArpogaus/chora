@@ -598,33 +598,15 @@ mod tests {
         reason = "the test connects to its fake core"
     )]
     fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Notify {
-        use std::io::{BufRead as _, BufReader, Write as _};
         let dir = cache(tag);
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("core.sock");
-        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
-        std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut writer = stream.try_clone().unwrap();
-            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
-                let request: Value = serde_json::from_str(&line).unwrap();
-                let result = match request["method"].as_str().unwrap_or_default() {
-                    "hello" => serde_json::json!({"version": chora_scene::ipc::VERSION}),
-                    "output.list" => serde_json::json!([]),
-                    _ => Value::Null,
-                };
-                let answer =
-                    serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
-                writeln!(writer, "{answer}").unwrap();
-            }
-        });
+        let core = chora_kit::testing::FakeCore::start();
         let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
         let assets = load_assets(&assets, &dir.join("cache")).expect("the assets load");
         let settings =
             settings::File::<Config>::load(dir.join("chora-notify.yaml"), config::DEFAULT).unwrap();
-        let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
-        let mut rt = Runtime::with(conn, NAME, Vec::new());
+        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
         rt.pin_accepts_injected(false);
         Notify::on(rt, bus, ids, assets, settings)
     }

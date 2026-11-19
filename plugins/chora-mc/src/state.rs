@@ -63,7 +63,10 @@ impl Mc {
 
 #[cfg(test)]
 mod tests {
-    use chora_kit::runtime::Plugin;
+    use chora_kit::{
+        runtime::Plugin,
+        wm::open::{Kind, Surface},
+    };
     use serde_json::json;
 
     use crate::testing;
@@ -109,7 +112,8 @@ mod tests {
     fn the_key_list_is_open_while_it_shows_every_binding() {
         let (mut mc, _model) = testing::mc("open", [1280, 800]);
         mc.keys = crate::keys::List::All;
-        let open = json!([{"id": "mc-keys", "kind": "sheet", "modal": true}]);
+        let keys = Surface::new("mc-keys", Kind::Sheet).modal();
+        let open = json!([keys.entry()]);
         assert_eq!(mc.state().unwrap()["open"], open);
         mc.keys = crate::keys::List::Six;
         assert_eq!(mc.state().unwrap()["open"], json!([]));

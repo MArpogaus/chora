@@ -397,12 +397,6 @@ pub fn run(command: String) {
     ));
 }
 
-/// Whether a program is on `$PATH`.
-pub fn on_path(program: &str) -> bool {
-    std::env::var_os("PATH")
-        .is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join(program).is_file()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

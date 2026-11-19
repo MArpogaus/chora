@@ -1967,7 +1967,10 @@ mod tests {
             "only the entry of role question is a question"
         );
         assert_eq!(session.card_place(), None, "text of an agent asks no card");
-        assert_eq!(calls(&log, "confirm.answer"), Vec::<Value>::new());
+        assert_eq!(
+            calls(&log, chora_kit::ask::ANSWER_METHOD),
+            Vec::<Value>::new()
+        );
     }
 
     #[test]

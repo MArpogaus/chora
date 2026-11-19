@@ -2,7 +2,7 @@ use chora_kit::actions::System;
 use chora_kit::actions::perform::{Failure, Host};
 use std::convert::Infallible;
 
-use super::{Action, Mc, NAME, PressState};
+use super::{Action, Mc, PressState};
 use crate::config::Look;
 
 impl Mc {
@@ -30,12 +30,12 @@ impl Mc {
             return;
         };
         let given = match self.rt.conn.claimant_at(point) {
-            Ok(Some(to)) if to != NAME => self.give(chora_kit::give::Give {
+            Ok(Some(to)) => self.give(chora_kit::give::Give {
                 surface: surface.clone(),
                 to,
                 grab: None,
             }),
-            Ok(_) => return,
+            Ok(None) => return,
             Err(err) => Err(err),
         };
         if let Err(err) = given {

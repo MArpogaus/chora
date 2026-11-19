@@ -291,7 +291,7 @@ fn confirm_answer(
     params: Value,
 ) -> Result<Value, RpcError> {
     if !allowed || !claims.holds(conn, caller) {
-        return Err(not_allowed("confirm.answer"));
+        return Err(not_allowed(chora_kit::ask::ANSWER_METHOD));
     }
     let ButtonParams { id, yes } = runtime::params(params)?;
     let id = (id.parse()).map_err(|_| RpcError::new(RpcError::INVALID_PARAMS, "id: a number"))?;
@@ -420,7 +420,7 @@ fn serve(
                 params,
                 confined,
                 connection,
-            }) if method == "confirm.answer" => {
+            }) if method == chora_kit::ask::ANSWER_METHOD => {
                 let allowed = may_answer(&client.settings.value, &caller, confined);
                 let answer = confirm_answer(
                     &client.claims,
@@ -590,7 +590,7 @@ fn exported_methods() -> Vec<ExportMethod> {
         // Privileged, and only a claimer of the indicator: a yes runs
         // programs and changes security settings.
         runtime::privileged(runtime::method(
-            "confirm.answer",
+            chora_kit::ask::ANSWER_METHOD,
             "The Yes or No button of a HUD of indicator_clients that claimed the indicator on \
              this connection: answers the question of voice.confirm with this id, also one \
              that waits for a key.",
@@ -1293,7 +1293,7 @@ mod tests {
             [
                 "mute",
                 "confirm",
-                "confirm.answer",
+                chora_kit::ask::ANSWER_METHOD,
                 "talk",
                 "agent",
                 "agent.read",

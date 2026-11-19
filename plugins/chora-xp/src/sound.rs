@@ -4,7 +4,7 @@
 
 use std::process::Command;
 
-use crate::session::on_path;
+use chora_kit::desktop_entry::on_path;
 
 /// The players to try, with their arguments before the file.
 const PLAYERS: [&str; 3] = ["pw-play", "paplay", "canberra-gtk-play -f"];
