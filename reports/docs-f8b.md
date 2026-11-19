@@ -15,3 +15,7 @@ Branch claude/docs-f8b, commit 2d0d0da1 on a17e7858. Gate steps pre-commit and g
 - rw-2 NIT D104 leaves out "the status file stays" of the review wording; add it.
 - D65 amendment, CONTRIBUTING cut gate paragraph: match cut2 review and D103; ok.
 Verdict (computed): FIX (rw-1 MAJOR open).
+
+## r2
+
+D104 now states the form on claude/kit6 today (`{ }` wrapper, launch.rs:202, no status after exit N) and names kit6 rw-1 / KIT2c as open; "the status file stays" added. Commit 5f97b0eb. pre-commit and gate-lib green.
