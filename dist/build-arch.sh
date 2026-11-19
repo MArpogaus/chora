@@ -29,6 +29,7 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/share/chora/flavors/xp/chora-xp-notify.service \
     usr/share/chora/flavors/xp/chora-xp-assistant.service \
     usr/share/chora/flavors/tiling/chora-tiling-assistant.service \
+    usr/share/chora/flavors/tiling/chora-tiling-notify.service \
     usr/share/chora/flavors/construct/chora-construct-assistant.service \
     usr/share/chora/flavors/xp/assets/notify/values.yaml \
     usr/share/chora/flavors/xp/assets/notify/fonts \

@@ -25,7 +25,6 @@ optdepends=(
   'ttf-dejavu: the fallback faces of chora-assistant (DejaVu Sans, Serif, Sans Mono)'
   'ttf-jetbrains-mono: the font of foot in the tiling flavor'
   'waybar: the panel of the tiling flavor'
-  'mako: the notifications of the tiling flavor'
   'swaybg: the wallpaper of the tiling flavor'
   'swayidle: the idle lock of the tiling flavor'
   'swaylock: the lock screen of the tiling flavor'

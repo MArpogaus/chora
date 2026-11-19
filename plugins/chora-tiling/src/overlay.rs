@@ -62,14 +62,6 @@ impl Tiling {
                 None => user_unit("reload", PANEL_UNIT),
             }
         }
-        if reload && changed {
-            let _ = std::process::Command::new("makoctl")
-                .arg("reload")
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
-        }
         if reload && new_scheme {
             match theme::companion("wallpaper", "wallpaper.sh") {
                 Some(pid) => theme::signal(pid, "USR2"),
