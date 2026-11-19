@@ -508,6 +508,8 @@ check "identity: no override line without MERGE_GATE_IDENTITY" \
     "$(env -u MERGE_GATE_IDENTITY "$idr/tests/merge-gate.sh" --identity-check --base base 2>&1 | grep -c 'overrides the expected identity')" 0
 check "gate-lib: the step runs merge-gate-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
+check "gate-lib: the step runs cells-for-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
