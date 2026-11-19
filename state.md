@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-19 22:34 UTC)
+## Now (2026-11-19 22:40 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 % new Bangkok day (16:58: 5.8 %); 29 h left: 75 % at 2.6 %/h; use the week; 6 lanes full.
-models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need
-session branch: a9e7084d (train 74, 22:13); 38 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, DEBT-DOWN, CUBE-TESTS, MX1-M2, ID-GATE, GATE-PICK in.
-burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
+budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 % new Bangkok day (16:58: 5.8 %); 29 h left: 75 % at 2.6 %/h; use the week; 6 lanes.
+models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
+session branch: a9e7084d (train 74, 22:13); 38 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
+burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -35,10 +35,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
 | p2-plan-r1.md (next week) | opus high | session_016iS3kMFBnLJ7gVEmgjpPBa (22:34) |
 | nits-3-r1.md (F5) | sonnet medium | session_016iS3kNnRm2jce7Mh1tANM6 (22:34) |
+| flake-l-r1.md (F5) | sonnet high | starting |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 74 green 22:13. 75 red 22:18 (copies). 76 rerun 22:30 (container restart): ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), f24-rest.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-K 0.7 %, TEMP-REST 0.5 %, P2-PLAN opus 1.5 %, NITS-3 0.4 %, FLAKE-H 1 %; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 74 green 22:13. 75 red 22:18 (copies). 76 red 22:39 (xp rm-2 flake, 3rd), rerun: ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), f24-rest.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, FLAKE-K 0.7 %, TEMP-REST 0.5 %, P2-PLAN opus 1.5 %, NITS-3 0.4 %, FLAKE-H 1 %; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
