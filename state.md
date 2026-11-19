@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | matrix-cap-r1.md (F5, F6) | sonnet high | done 17:22: b71c5096 MERGE-OK (PM review 17:25); train 67 own |
 | moved-tests-mk-r3.md (F5) | haiku high | session_016iS3kQE68SuUq1P3CTXdcg (17:02; r2 4904ef79 MERGE-OK: mc met; xp panels, pointer open) |
-| review-debt-down-r1.md (F4) | opus high | starting (debt-down r1 c79a9d66 done 17:23) |
+| review-debt-down-r1.md (F4) | opus high | session_016iS3kMrCCidAhpfXvSvehE (17:26; debt-down r1 c79a9d66 done 17:23) |
 | mc-i5-r1.md (F7, F2) | sonnet high | session_016iS3kPmUV3tqFg95ggDRVk (17:25) |
 | construct-red-r1.md (F7, F3) | opus high | session_016iS3kPVR6nqwcuaf8UKMDX (17:25) |
 | docs-f8c-r1.md (F8) | sonnet high | session_016iS3kNDb4WhQZ6C9YeKVX9 (17:13; from ee53e09c) |
