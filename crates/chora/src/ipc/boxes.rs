@@ -2,6 +2,140 @@
 //! with layer, opacity and owner, and the projected corners of planes
 //! and of the nodes of a 3D context.
 
+use chora_scene::boxes::{self, Layer, NodeBox, OutputBoxes};
+use smithay::{desktop::layer_map_for_output, output::Output, wayland::shell::wlr_layer};
+
+use super::{
+    HashMap, Logical, NodeKind, Placed, Rectangle, State, Transform, Value, clients, output_area,
+};
+
+impl State {
+    /// The boxes of every output (`scene.boxes`); a client socket sees
+    /// only its own nodes and no layer surface, as in `scene.query`.
+    pub(super) fn boxes(&self, conn: u64) -> Value {
+        let fixed = self.ipc.fixed(conn);
+        let all: boxes::Boxes = self
+            .all_outputs()
+            .iter()
+            .map(|output| (output.name(), self.output_boxes(output, fixed)))
+            .collect();
+        serde_json::json!(all)
+    }
+
+    fn output_boxes(&self, output: &Output, fixed: Option<&str>) -> OutputBoxes {
+        let area = output_area(output);
+        let screen = Rectangle::from_size(area.size).to_f64();
+        let name = output.name();
+        let shell = |layers: &[(wlr_layer::Layer, Layer)]| {
+            if fixed.is_some() {
+                return Vec::new();
+            }
+            shell_boxes(output, layers)
+        };
+        let mut out = shell(&[
+            (wlr_layer::Layer::Background, Layer::Background),
+            (wlr_layer::Layer::Bottom, Layer::Bottom),
+        ]);
+        let views = [
+            (Layer::Scene, self.camera(output), self.scene.draw_list()),
+            (
+                Layer::Overlay,
+                Transform::IDENTITY,
+                self.scene.overlay_draw_list(&name),
+            ),
+        ];
+        for (layer, camera, list) in &views {
+            let at: HashMap<&str, Transform> = list
+                .iter()
+                .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
+                .collect();
+            let shown = list
+                .iter()
+                .filter(|p| p.opacity > 0.0)
+                .filter(|p| fixed.is_none_or(|f| clients::own_node(p.node, f)));
+            out.extend(shown.filter_map(|placed| self.node_box(placed, &at, screen, *layer)));
+        }
+        out.extend(shell(&[
+            (wlr_layer::Layer::Top, Layer::Top),
+            (wlr_layer::Layer::Overlay, Layer::ShellOverlay),
+        ]));
+        OutputBoxes {
+            size: [screen.size.w, screen.size.h],
+            boxes: out,
+        }
+    }
+
+    /// The box of one placed node, `None` where it does not show.
+    fn node_box(
+        &self,
+        placed: &Placed<'_>,
+        at: &HashMap<&str, Transform>,
+        screen: Rectangle<f64, Logical>,
+        layer: Layer,
+    ) -> Option<NodeBox> {
+        let node = placed.node;
+        let rect = self.screen_rect(placed, at, screen)?;
+        let transform = at.get(node.id.as_str())?;
+        let (_, near) = self.lineage(node, at)?;
+        let in_context = near > crate::mesh::NEAR;
+        let corners = (in_context || !transform.is_plain())
+            .then(|| self.quad_size(node))
+            .flatten()
+            .and_then(|size| boxes::corners(transform, size, near));
+        let text = node.kind == NodeKind::Text;
+        Some(NodeBox {
+            node: Some(node.id.clone()),
+            kind: Some(node.kind),
+            owner: node.owner.clone(),
+            namespace: None,
+            layer,
+            rect: [rect.loc.x, rect.loc.y, rect.size.w, rect.size.h],
+            opaque: boxes::opaque(node, placed.opacity),
+            corners,
+            text: node.props.text.clone().filter(|_| text),
+            font_size: text.then(|| node.props.font_size.unwrap_or(crate::text::FONT_SIZE)),
+        })
+    }
+
+    /// The size of the quad that a node draws as a plane: its size, or
+    /// the geometry of its window.
+    fn quad_size(&self, node: &chora_scene::Node) -> Option<[f64; 2]> {
+        if let Some(size) = node.props.size {
+            return Some(size);
+        }
+        let window = self.windows.get(node.id.as_str())?;
+        let size = window.geometry().size;
+        Some([f64::from(size.w), f64::from(size.h)])
+    }
+}
+
+/// The layer surfaces of an output on some layers, bottom first.
+fn shell_boxes(output: &Output, layers: &[(wlr_layer::Layer, Layer)]) -> Vec<NodeBox> {
+    let map = layer_map_for_output(output);
+    let mut out = Vec::new();
+    for (shell, layer) in layers {
+        for surface in map.layers_on(*shell) {
+            let Some(geo) = map.layer_geometry(surface) else {
+                continue;
+            };
+            let geo = geo.to_f64();
+            out.push(NodeBox {
+                node: None,
+                kind: None,
+                owner: None,
+                namespace: Some(surface.namespace().to_owned()),
+                layer: *layer,
+                rect: [geo.loc.x, geo.loc.y, geo.size.w, geo.size.h],
+                opaque: false,
+                corners: None,
+                text: None,
+                font_size: None,
+            });
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
@@ -100,9 +234,10 @@ mod tests {
         assert_eq!(of(&list, "half")["rect"], query[0]["rects"]["out"]);
     }
 
-    /// Two faces of a cube in a 3D context: the right edge of the front
-    /// face is the left edge of the side face, which turns away from the
-    /// eye, so their projected corners meet and the side face shrinks.
+    /// Two faces of a cube in a 3D context, the eye in front of the centre
+    /// of the front face: the right edge of the front face is the left
+    /// edge of the side face, which runs away from the eye, so their
+    /// projected corners meet and the far edge of the side face shrinks.
     #[test]
     fn the_faces_of_a_cube_report_projected_corners_that_meet() {
         let mut core = Core::new();
@@ -113,7 +248,7 @@ mod tests {
         ];
         let setup = json!({"commands": [
             {"create": {"id": "lens", "kind": "group", "parent": "root",
-                "props": {"size": [200, 100], "perspective": 400,
+                "props": {"size": [100, 100], "perspective": 400,
                           "transform": {"translate": [50, 50]}}}},
             {"create": {"id": "front", "kind": "rect", "parent": "lens",
                 "props": {"size": [100, 100], "color": [1, 0, 0, 1]}}},
@@ -185,7 +320,7 @@ mod tests {
         assert_eq!(layers, ["background", "scene", "top"], "{list:?}");
         assert_eq!(list[2]["namespace"], "test");
         assert!(list[2].get("node").is_none());
-        assert_eq!(list[2]["rect"][2], 100.0);
+        assert_eq!(list[2]["opaque"], false);
     }
 
     #[test]

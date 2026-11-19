@@ -901,6 +901,7 @@ impl State {
         Some(match request.method.as_str() {
             "hello" => params_of(params).and_then(|h| self.ipc_hello(conn, h)),
             "scene.query" => params_of::<Query>(params).and_then(|q| self.query(conn, &q)),
+            "scene.boxes" => Ok(self.boxes(conn)),
             "scene.apply" => {
                 let apply = match params_of::<Apply>(params) {
                     Ok(a) => a,
