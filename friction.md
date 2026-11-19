@@ -387,3 +387,4 @@ archive.ubuntu.com times out behind the proxy (curl 10 s, 0 bytes); https answer
 Guard: setup.sh rewrites the Ubuntu sources to https and runs apt under timeout with Acquire timeouts; a failure logs
 "FAILED apt" instead of hanging. Hung sessions recreated.
 - 11-19 train 60: pull F21 red (179 px for 200) under the full gate; flakes-f has F21 first. PM folded 60 into 61 (one gate) rather than rerun.
+- 11-19 train 62: gate started with a shell `&` died at 2d-guard when the PM shell was resumed (no EXIT line, no process). Fix: trains only with run_in_background (procedures.md Train 3 says so); rerun 12:02.
