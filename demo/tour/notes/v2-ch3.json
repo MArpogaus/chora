@@ -11,7 +11,7 @@
  "03-10-drawer": "Super+Return slides a terminal drawer into the lower half; it shows the same colors-dark errors.",
  "03-11-drawer-cat": "cat friday.md prints the Friday list in the drawer, below the errors.",
  "03-12-drawer-closed": "Super+Return again closes the drawer.",
- "03-13-right": "Super+n shows the right side: only the headings NOTES and NOTIFICATIONS, both empty.",
+ "03-13-right": "Super+n shows the right side: only the heading NOTES, empty.",
  "03-14-chat-drawer": "A click on the Chat ... pill opens the chat drawer in the lower part: Chat with a helper, Close, 1 Atlas working, a field with the caret; the pill and the helper row are hidden, Listening and a dot show at the top right.",
  "03-15-picked": "1 and Return pick Atlas: header Atlas working Tidy notes (1/2), Stop, Close, transcript.",
  "03-16-chat-closed": "Escape closes the drawer; the Chat ... pill and the row Atlas working Tidy notes (1/2) are back."
