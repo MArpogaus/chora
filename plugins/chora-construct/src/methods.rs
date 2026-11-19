@@ -41,15 +41,6 @@ fn four() -> usize {
     4
 }
 
-/// Parameters of `cube.turn`.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct TurnCube {
-    pub(crate) by: i32,
-    #[serde(default)]
-    pub(crate) ms: Option<u64>,
-}
-
 /// Parameters of `camera.glide`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -76,7 +67,7 @@ pub(crate) struct ResizePane {
 #[allow(clippy::too_many_lines, reason = "one entry per method")]
 pub(crate) fn exported_methods() -> Vec<ExportMethod> {
     let name = || json!({"name": {"type": "string"}});
-    vec![
+    let mut methods = vec![
         runtime::privileged(runtime::method(
             "construct.load",
             "Loads the construct NAME from ~/.config/chora/constructs/NAME.yaml and starts \
@@ -98,13 +89,6 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             json!({"faces": {"type": "integer", "minimum": 1, "maximum": 4}}),
             &[],
         )),
-        runtime::method(
-            "cube.turn",
-            "Turns the cube BY quarter turns, positive to the right, in MS milliseconds, \
-             500 a quarter by default; ignored while a turn runs.",
-            json!({"by": {"type": "integer"}, "ms": {"type": "integer", "minimum": 0}}),
-            &["by"],
-        ),
         runtime::method(
             "cube.close",
             "Closes the cube: its xp ends, and its outputs and faces go.",
@@ -221,5 +205,7 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             name(),
             &["name"],
         ),
-    ]
+    ];
+    methods.extend(chora_kit::cube::methods());
+    methods
 }

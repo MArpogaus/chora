@@ -139,7 +139,7 @@ const fn place(action: &KeyAction) -> (&'static str, u8) {
 /// another client holds shows its stand-in.
 pub fn rows(bindings: &BTreeMap<String, KeyAction>, held: impl Fn(&str) -> bool) -> Vec<Row> {
     let shown = bindings.iter().filter_map(|(binding, action)| {
-        let shown = [Some(binding.as_str()), fallback(binding)]
+        let shown = [Some(binding.as_str()), fallback(binding, action)]
             .into_iter()
             .flatten()
             .find(|b| held(b))?;
@@ -511,6 +511,17 @@ mod tests {
             rows.iter()
                 .all(|r| !r.keys.contains(&"Super+A".to_string()))
         );
+    }
+
+    /// The stand-in of a cube key shows only while the key keeps its
+    /// default action (rw-2): `Ctrl+Alt+Left: close` shows no stand-in.
+    #[test]
+    fn a_moved_cube_key_shows_no_stand_in() {
+        let mut bindings = defaults();
+        bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
+        let rows = rows(&bindings, |b| b == "Super+Ctrl+Left");
+        let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
+        assert!(!shown.iter().any(|k| k.contains("Left")), "{shown:?}");
     }
 
     #[test]

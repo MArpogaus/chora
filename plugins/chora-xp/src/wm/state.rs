@@ -62,6 +62,7 @@ impl Wm {
             focus,
             open: self.open_value(),
             busy: self.busy_value(),
+            texts: self.texts_value(),
             more,
         }
         .value();
@@ -84,6 +85,13 @@ impl Wm {
     /// A window of another window manager took the focus last.
     fn focus_away(&self) -> bool {
         (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
+    }
+
+    /// The runs of text that chora-draw reports for the image nodes of xp.
+    fn texts_value(&self) -> Vec<Value> {
+        (self.theme.texts().iter())
+            .filter_map(|run| serde_json::to_value(run).ok())
+            .collect()
     }
 
     /// The menus and dialogs that show, in the order Escape shuts them.

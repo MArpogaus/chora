@@ -137,6 +137,13 @@ pub const fn acts_in_xp(system: &System) -> bool {
     )
 }
 
+/// Whether the key of a binding is a pointer button, such as `BTN_LEFT`.
+fn is_button(binding: &str) -> bool {
+    binding
+        .parse::<chora_scene::Binding>()
+        .is_ok_and(|b| b.key.to_ascii_uppercase().starts_with("BTN_"))
+}
+
 /// The settings of the plugin.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -183,12 +190,18 @@ impl Settings for Config {
         let mut warnings = Vec::new();
         self.common.bindings.retain(|key, action| {
             let unfit = matches!(action, KeyAction::System(s) if !acts_in_xp(s));
+            let odd = is_button(key) != matches!(action, KeyAction::Look(Look::Cube));
             if unfit {
                 warnings.push(format!(
                     "chora-xp: the binding {key} is dropped: xp has no action for {action:?}"
                 ));
+            } else if odd {
+                warnings.push(format!(
+                    "chora-xp: the binding {key} is dropped: only a pointer button turns \
+                     the cube, and a pointer button does nothing else ({action:?})"
+                ));
             }
-            !unfit
+            !unfit && !odd
         });
         warnings
     }
@@ -481,6 +494,33 @@ mod tests {
             assert_eq!(config.common.bindings.get("Super+h"), None, "{unfit}");
             assert!(config.common.bindings.contains_key("Super+F1"), "the rest");
         }
+    }
+
+    /// A pointer button runs `cube` or no other action here, and `cube`
+    /// needs a pointer button (rw-1): the others are dropped with one
+    /// warning that names the key.
+    #[test]
+    fn a_button_and_the_cube_go_together_or_are_dropped() {
+        for (key, action) in [
+            ("Super+BTN_RIGHT", r#""close""#),
+            ("Super+BTN_MIDDLE", r#"{"switch":"next"}"#),
+            ("Super+x", r#""cube""#),
+        ] {
+            let mut config: Config = parse(DEFAULT).unwrap();
+            let action: KeyAction = serde_json::from_str(action).unwrap();
+            config.common.bindings.insert(key.into(), action);
+            let warnings = config.refuse();
+            assert_eq!(warnings.len(), 1, "{key}: {warnings:?}");
+            assert!(warnings[0].contains(key), "{key}: {warnings:?}");
+            assert_eq!(config.common.bindings.get(key), None, "{key}");
+            assert!(config.common.bindings.contains_key("Super+BTN_LEFT"));
+        }
+        let mut config: Config = parse(DEFAULT).unwrap();
+        config
+            .common
+            .bindings
+            .insert("Super+BTN_RIGHT".into(), KeyAction::Look(Look::Cube));
+        assert_eq!(config.refuse(), Vec::<String>::new(), "cube on a button");
     }
 
     /// A change of the bindings moves a key: it is written as a map of the

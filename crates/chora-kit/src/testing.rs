@@ -47,10 +47,10 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
-    /// Whether `scene.query` answers every selector; else only `id:`.
-    pub selects: bool,
     /// Whether `activation.token` mints a token; without, it answers null.
     pub mints_tokens: bool,
+    /// Whether `scene.query` answers every selector; else only `id:`.
+    pub selects: bool,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -211,6 +211,13 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
     }
 }
 
+/// A new activation token, as the core mints one for a plugin.
+fn activation_token() -> Value {
+    static TOKENS: AtomicUsize = AtomicUsize::new(0);
+    let n = TOKENS.fetch_add(1, Ordering::Relaxed);
+    json!({"token": format!("fake-token-{}-{n}", std::process::id())})
+}
+
 /// The nodes that a selector finds: every selector when the core selects,
 /// else only `id:`.
 fn query(model: &Model, selector: &str) -> Value {
@@ -229,13 +236,6 @@ fn query(model: &Model, selector: &str) -> Value {
             .collect()
     };
     Value::Array(found)
-}
-
-/// A new activation token, as the core mints one for a plugin.
-fn activation_token() -> Value {
-    static TOKENS: AtomicUsize = AtomicUsize::new(0);
-    let n = TOKENS.fetch_add(1, Ordering::Relaxed);
-    json!({"token": format!("fake-token-{}-{n}", std::process::id())})
 }
 
 /// Whether the model has a node.

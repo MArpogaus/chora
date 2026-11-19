@@ -85,6 +85,7 @@ impl Construct {
     /// of the fog; and on a change the focus glow, the look of the panes
     /// and which panes show their back.
     pub(crate) fn frame(&mut self) -> Result<(), ClientError> {
+        self.tell_cube();
         if self.output.is_none() || !self.active {
             return Ok(());
         }

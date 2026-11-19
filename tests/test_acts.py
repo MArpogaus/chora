@@ -452,6 +452,19 @@ class Expectations(unittest.TestCase):
         self.assertEqual(Expect(gone=1).check(self.after(), self.before()), [])
         self.assertTrue(Expect(gone=1).check(self.after(), self.after()))
 
+    def test_cube(self):
+        listing = {"faces": [{}, {}, {}, {}], "front": 1, "turning": False, "mode": "use"}
+        after = snap(cube=listing)
+        self.assertEqual(Expect(cube={"faces": 4, "front": 1}).check(snap(), after), [])
+        found = Expect(cube={"front": 2}).check(snap(), after)
+        self.assertEqual(found, ["the cube: front is 1, expected 2"])
+        missing = snap(cube={"error": "no client exports cube.list"})
+        self.assertTrue(Expect(cube={"front": 0}).check(snap(), missing))
+
+    def test_verify(self):
+        expect = Expect(verify=lambda after: ["shown"] if after.nodes else [])
+        self.assertEqual(expect.check(snap(), snap()), ["shown"])
+
 
 OUT = "HEADLESS-1"
 

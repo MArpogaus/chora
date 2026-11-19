@@ -207,6 +207,18 @@ impl Construct {
 
     /// Moves a pane to `to`, inside the leash (C4).
     pub(crate) fn move_pane(&mut self, i: usize, to: [f64; 2]) -> Result<(), ClientError> {
+        self.move_pane_facing(i, to, [self.pose.x, self.pose.z])
+    }
+
+    /// As [`Self::move_pane`], with the pane turned to an eye at `eye`
+    /// on the ground: the place where the camera stays at the end of a
+    /// glide.
+    pub(crate) fn move_pane_facing(
+        &mut self,
+        i: usize,
+        to: [f64; 2],
+        eye: [f64; 2],
+    ) -> Result<(), ClientError> {
         let len = to[0].hypot(to[1]);
         let r = self.radius();
         let to = if len > r {
@@ -214,7 +226,7 @@ impl Construct {
         } else {
             to
         };
-        self.panes[i].put(to, [self.pose.x, self.pose.z]);
+        self.panes[i].put(to, eye);
         self.rt.conn.apply(self.placed(&self.panes[i]))?;
         self.frame()
     }
