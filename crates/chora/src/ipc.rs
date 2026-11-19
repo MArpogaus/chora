@@ -2492,6 +2492,32 @@ mod tests {
         assert_eq!(other.event_names(&mut core), Vec::<String>::new());
     }
 
+    /// The shared events of the looks: any client emits `look.theme` and
+    /// `look.view`, and the core names the emitter in `data.look`, so a
+    /// fifth look needs no change in whoever listens for `look.*`. No
+    /// other name of the namespace goes through.
+    #[test]
+    fn a_look_names_itself_with_the_shared_look_events() {
+        let mut core = Core::new();
+        let mut host = core.named("host");
+        host.ok(&mut core, "events.subscribe", json!({"events": ["look.*"]}));
+        let mut fifth = core.named("fifth");
+        let theme = json!({"event": "look.theme", "data": {"theme": "dark", "look": "mc"}});
+        fifth.ok(&mut core, "events.emit", theme);
+        let view = json!({"event": "look.view", "data": {"pane": true}});
+        fifth.ok(&mut core, "events.emit", view);
+        let got = host.events_now(&mut core);
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert_eq!(got[0]["params"]["event"], "look.theme");
+        assert_eq!(got[0]["params"]["client"], "fifth");
+        assert_eq!(got[0]["params"]["data"]["look"], "fifth", "no spoofed look");
+        assert_eq!(got[0]["params"]["data"]["theme"], "dark");
+        assert_eq!(got[1]["params"]["data"]["look"], "fifth");
+        assert_eq!(got[1]["params"]["data"]["pane"], true);
+        let (error_code, _) = fifth.fails(&mut core, "events.emit", json!({"event": "look.other"}));
+        assert_eq!(error_code, RpcError::REJECTED);
+    }
+
     /// D65: the data has at most 64 KiB, and a name emits at most 32
     /// events per second; the rest is refused with code 6.
     #[test]

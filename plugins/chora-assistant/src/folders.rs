@@ -181,10 +181,48 @@ mod tests {
     }
 
     #[test]
-    fn the_source_tree_has_the_folder_of_each_look() {
+    fn the_assistant_ships_only_the_neutral_folder() {
         let own = Path::new(env!("CARGO_MANIFEST_DIR")).join("huds");
-        let names: Vec<String> = list(&[own]).into_iter().map(|(name, _)| name).collect();
+        let mut names: Vec<String> = std::fs::read_dir(own)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["neutral"], "a look ships the folder of its costume");
+    }
+
+    #[test]
+    fn the_source_tree_has_the_folder_of_each_look() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let exe = repo.join("target/debug/chora-assistant");
+        let found = roots(Some(&exe));
+        let names: Vec<String> = ["construct", "mc", "neutral", "tiling", "xp"]
+            .into_iter()
+            .filter(|name| find(&found, name).is_some())
+            .map(str::to_owned)
+            .collect();
         assert_eq!(names, ["construct", "mc", "neutral", "tiling", "xp"]);
+        let tiling = find(&found, "tiling").unwrap().canonicalize().unwrap();
+        assert!(
+            tiling.ends_with("plugins/chora-tiling/hud"),
+            "{}",
+            tiling.display()
+        );
+    }
+
+    #[test]
+    fn a_fifth_look_gets_a_costume_from_its_own_directory() {
+        let source = tree("fifth", &[]);
+        let own = source.join("plugins/chora-fifth/hud");
+        std::fs::create_dir_all(&own).unwrap();
+        std::fs::write(own.join("hud.yaml"), "hud: 1\n").unwrap();
+        let exe = source.join("target/debug/chora-assistant");
+        let found = roots(Some(&exe));
+        assert_eq!(
+            find(&found, "fifth").and_then(|dir| dir.canonicalize().ok()),
+            own.canonicalize().ok()
+        );
+        let _ = std::fs::remove_dir_all(source);
     }
 
     #[test]
