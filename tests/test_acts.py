@@ -691,7 +691,7 @@ class I12(unittest.TestCase):
     def test_a_modal_node_of_the_look_above_its_fullscreen_parent_is_no_bar(self):
         state = snap().states["xp"] | {
             "windows": [window("s1") | {"fullscreen": True}],
-            "open": [{"id": "xp-dlg-run", "modal": True, "for": "s1"}],
+            "open": [{"id": "xp-dlg-run", "modal": True, "by": "s1"}],
         }
         nodes = [
             surface("s1", "xp", focused=True, rect=(0, 0, 1280, 800)),
@@ -700,7 +700,7 @@ class I12(unittest.TestCase):
         self.assertEqual(breaches("I12", snap(), snap(states={"xp": state}, nodes=nodes)), [])
 
     def test_a_modal_below_its_parent(self):
-        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-run", "modal": True, "for": "s1"}]}
+        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-run", "modal": True, "by": "s1"}]}
         nodes = [panel("xp-dlg-run", (100, 100, 300, 200)), surface("s1", "xp", focused=True)]
         self.assertTrue(breaches("I12", snap(), snap(states={"xp": state}, nodes=nodes)))
 
