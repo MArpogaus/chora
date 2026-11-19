@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 10:32 UTC)
+## Now (2026-11-19 10:35 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 09:49 PM 2.6 % (lanes not counted, 0.4 %/h PM); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -25,15 +25,15 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
-| review-wm3-r1.md (F3) | sonnet high | session_016iS3kPvJoBbp9DFNFLTjnD (10:30) |
+| wm3-r2.md (F3) | sonnet high | starting |
 | wm7a-r3.md (F3) | sonnet high | session_016iS3kMac5AnLJjVCvrZDUr (10:30) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm5-r1.md (F3) | opus high | session_016iS3kQkLYiWbxmLbvc4Li4 (09:42) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 60 red pull (F21 flake). 61 = 60 + kit2c, docs-f8b, wm1d on daf83391 (PM resolved conflicts), running 10:33. 62: kit2d 188b642d MERGE-OK (PM r2), wm3, wm7a r3. Pace 1.5-2 %/h.
-5. Next (sonnet unless complex, owner 06:56): WM3 review 10:30; KIT3 starting 10:10 (F2). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
+4. Trains (F6): 60 red pull (F21 flake). 61 = 60 + kit2c, docs-f8b, wm1d on daf83391 (PM resolved conflicts), running 10:33. 62: kit2d 188b642d MERGE-OK (PM r2), wm7a r3; wm3 FIX (I12 key) to r2. Pace 1.5-2 %/h.
+5. Next (sonnet unless complex, owner 06:56): WM3 r2 10:40; KIT3 starting 10:10 (F2). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
