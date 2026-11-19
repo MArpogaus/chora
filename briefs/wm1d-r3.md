@@ -2,8 +2,8 @@
 
 Model: sonnet, effort high (a named merge of two reviewed parts; no new design)
 Lane: cloud, branch claude/wm1d at 679e7786 (continue it). One round, stop at 150 k. Cost about 0.7 %.
-Run `git fetch --unshallow` first. Start only once train 60 (mv4, wm2) is on the session branch:
-`git fetch origin claude/autonomous-dev-session-3w-i33pg7 && git merge FETCH_HEAD` (4548feb3 plus wm2 or later).
+Run `git fetch --unshallow` first. Train 60 (mv4, wm2) is in the gate: `git merge origin/claude/wm2` (8db02220)
+now; once train 60 lands, also `git merge origin/claude/autonomous-dev-session-3w-i33pg7`.
 1. Resolve plugins/chora-tiling/src/state.rs so it holds wm2's focus (`self.focus.state(NAME, |s| self.wm.has(s))`,
    holder set while `keys_open`, the keys sheet as `Open`) AND wm1d's `texts` via `..State::default()` and its
    `open_value` helper; one focus path, no hand-built `Focus` left. docs/api.md: keep both texts.

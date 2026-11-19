@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 09:32 UTC)
+## Now (2026-11-19 09:34 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 08:52 PM 2.2 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -28,11 +28,11 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | wm3-r1.md (F3) | sonnet high | session_016iS3kMQapsj8QueGbfqBuP (09:18) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm7a-r2.md (F3) | sonnet high | session_016iS3kN6hpfMtLbawkpssbH (09:17) |
-| kit2c-r2.md (F2) | sonnet high | session_016iS3kNz4FAJW7nH4GHrt8f (09:15) |
+| wm1d-r3.md (F3) | sonnet high | starting |
 | kit2d-r1.md (F2) | sonnet high | session_016iS3kM1JMwzfGGNbUurCv7 (08:50) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 59 green 09:27; 60 mv4 7e339880, wm2 8db02220 running 09:33 (size list takes mv4); wm1d conflicts wm2 (tiling state.rs): r3 brief, next free slot after 60; kit2c r2 merges wm2; docs-f8b 5f97b0eb with kit2c. Pace 1.5-2 %/h.
+4. Trains (F6): 59 green 09:27; 60 mv4 7e339880, wm2 8db02220 running 09:33 (size list takes mv4); 61: kit2c 8eabeda0 (r2 wm2 merged, PM checked), docs-f8b 5f97b0eb; wm1d r3 merges wm2 (tiling state.rs). Pace 1.5-2 %/h.
 5. Next (sonnet unless complex, owner 06:56): WM3 running 09:18; KIT3 (F2, after KIT2c-d). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
