@@ -86,3 +86,15 @@ Cut check: no new breach (mc, tiling use only chora-kit and chora-scene).
 - rw-4, NIT, docs/api.md:50: "the core, which draws the lock screen and the safety layer there"; no node takes the lock order, the core draws the lock surface instead of the scene (render.rs:340), as the report says. Fix: say `lock` is reserved and no node holds it; the lock draws outside the scene (also in D89 wording).
 - rw-5, NIT, crates/chora-scene/src/tests.rs: no cell shows that an unknown order value is refused and not defaulted (check 3). Fix: one parse cell for `"order": "top"`.
 - rw-6, NIT, plugins/chora-mc/src/main.rs:1338: the new test was inserted under the doc comment of `a_click_on_the_head_of_a_page_shows_the_overview`, which now documents the wrong test. Fix: move the comment back above its test.
+
+## r2
+2026-11-19. Lane: cloud, sonnet, claude/wm5; head f6c67200 (pushed), merge of the session branch was already up to date. Brief: briefs/wm5-r2.md.
+
+- rw-1 MAJOR closed: red 8423766b (`I12.test_tiling_reports_the_dragged_window_as_held` in tests/test_acts.py runs the real `state.get` of tiling during a drag, dumped by the tiling cell `state_get_names_the_dragged_window_as_held`; failed with `[] != ['s1']`), fix c4a6628a (`held: bool` on `kit::wm::state::Window`, set from `dragged` in tiling; `state_value` split once for the line limit). I12's `by`/`for` lines untouched.
+- rw-2 MINOR closed: red f84a6c87 (`a_dragged_window_stays_on_top_after_the_release` fails: s2 on top), fix a3e48b96 (`drag.rs`: the press calls `wm.focus`, as a click does).
+- rw-3 MINOR closed: 9167f265 cell `the_lock_order_stays_above_every_plugin` asserts code 1; api.md says code 1 (f6c67200). No red commit for it (a cell on an existing refusal that already gave code 1).
+- rw-4 NIT closed: api.md and D89 say `lock` is reserved, no node holds it, the lock draws outside the scene (f6c67200).
+- rw-5 NIT closed: 9167f265 cell `an_unknown_order_is_refused_at_the_parse_and_not_defaulted` (-32602, nothing created); a core cell, not in chora-scene, since the code is the core's.
+- rw-6 NIT closed: doc comment moved back above `a_click_on_the_head_of_a_page_shows_the_overview` (f6c67200).
+
+Green: `cargo test -p chora-scene -p chora-kit --features chora-kit/testing` (235, 137, others), `-p chora` 606+2, `-p chora-tiling` 155, `-p chora-mc` 141, `pytest tests/test_acts.py` 107; `cargo build --workspace --locked`; `tests/merge-gate.sh --only acts,tiling-audit,keys,pane-keys`: all four PASS (tiling-audit 334 s, acts 69 s, keys 18 s, pane-keys 8 s). No full gate. Note: the python cell runs `cargo test -p chora-tiling` itself (about 30 s on a cold target).

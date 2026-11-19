@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 11:19 UTC)
+## Now (2026-11-19 11:26 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 10:40 PM 2.8 %; 41 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
-session branch: 4548feb3 (train 59: cut2, net3); 27 greens; MV1-3, CUT1-2, NET1-3, KIT1-2, KIT2b, KIT4, WM1, WM1b-c, DOCS-F8 in.
+session branch: daf83391 (train 61: mv4, wm2, kit2c+kit6, wm1d, docs-f8b); 28 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
 
 ## RC (design/rc.md)
@@ -32,7 +32,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 60 red pull (F21 flake). 61 = 60 + kit2c, docs-f8b, wm1d on daf83391, running 10:33. 62: flakes-f 847f0964 (41/41) after review; kit2d 188b642d MERGE-OK (PM r2), wm7a f4e4f4d9 (r3 merge); wm3 9d55e300 MERGE-OK (PM r2); wm5 FIX (I12 held key) to r2. Pace 1.5-2 %/h.
+4. Trains (F6): 61 green 11:23 (pull passed). 62 = kit2d 188b642d + wm7a f4e4f4d9 on daf83391 (PM: copies.toml rows kept both), running 11:25. wm3 out: its kit::wm::open::Open clashes with wm7a's state::Open in 6 files; wm3 r3 merges head after 62. Next: flakes-f 847f0964 after review; wm5 r2.
 5. Next (sonnet unless complex): WM7b hosted (owner 10:52), opus 4 %, after wm7a r3; KIT6 in kit2c; KIT7 opus 5 % started 11:04. Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
