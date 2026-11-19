@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 15:33 UTC)
+## Now (2026-11-19 15:42 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 15:18 PM 5.4 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 15:42 PM 5.5 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: 05878d2a (train 63: flakes-f); 30 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -24,7 +24,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-integ-r2.md (F6) | opus high | starting (integ 2318d62c r2 done 15:32: ri-1 fixed e3905df3, 1:1 skip 74130f3b) |
+| review-integ-r2.md (F6) | opus high | session_016iS3kP2eGscyn1SqE8JyCQ (15:33; running 15:42; integ 2318d62c r2 done 15:32: ri-1 fixed e3905df3, 1:1 skip 74130f3b) |
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
 | moved-tests-ct.md (F5) | haiku high | session_016iS3kNhNeZEXEcnqxRbGLT (15:18) |
 | moved-tests-mk.md (F5) | haiku high | session_016iS3kMV2yFXEC9hCLYzXTF (15:18) |
@@ -32,7 +32,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 64-64d red. Bisect: base and wm7b both 235 s: cap too tight, lane matrix-cap. integ 2318d62c r2 in review; merge-65 lane joins cubesplit, kit3 04ea5851, flakes-g f075a20d (MERGE-OK), focus-port 3b418008 (MERGE-OK), moved-tests-xp bf0b66eb (MERGE-OK, PM).
-5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; moved-tests rest as ct and mk (haiku 1.4 %, 15:25); then DEBT-R (F4 0.8 %), COPIES-0 after focus-port (F2 2.5 %), FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %).
+5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; ct, mk (haiku 1.4 %); then DEBT-R (F4 0.8 %), COPIES-0 after focus-port (F2 2.5 %), FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %). 6th lane 15:42: none (wait merge-65).
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
