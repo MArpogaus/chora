@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 
 use super::{
     BTN_LEFT, ClientError, Construct, Event, FLY_MS, Moving, NAME, PressState, cube, give, space,
+    space::Pose,
 };
 
 /// How long the window manager of a face may take to place a window.
@@ -262,11 +263,11 @@ impl Construct {
         self.release(at, None)
     }
 
-    /// The depth of a pulled pane: a little in front of the front face of
-    /// the cube, so that the face never covers it, else at 1:1
-    /// ([`pull_depth`]).
-    fn pull_depth(&self) -> f64 {
-        let face = self.cube.as_ref().map(|c| c.front_depth(&self.pose));
+    /// The depth of a pulled pane for the eye at `pose`: a little in front
+    /// of the front face of the cube, so that the face never covers it,
+    /// else at 1:1 ([`pull_depth`]).
+    fn pull_depth(&self, pose: &Pose) -> f64 {
+        let face = self.cube.as_ref().map(|c| c.front_depth(pose));
         pull_depth(face, self.lens.focal)
     }
 
@@ -278,7 +279,10 @@ impl Construct {
     /// of a drag it turns back and stays where the user stands, and the
     /// keyboard stays where the flight left it. The pane
     /// comes under the pointer, with the point of the window that the
-    /// giver names there, in front of the front face of the cube, and the moves and the release of
+    /// giver names there, in front of the front face of the cube, both
+    /// for the pose where the camera stays: a drag that comes during the
+    /// flight places the pane for the end of the turn back, not for the
+    /// pose the flight passed (F21). The moves and the release of
     /// `move` drag and drop it as a drag with the modifier does. A pane
     /// of an own window wobbles on in 3D, from the springs of the giver
     /// when it sent some.
@@ -304,24 +308,13 @@ impl Construct {
             return Ok(());
         };
         self.pane_input()?;
+        let stays = self.target();
         let boxed = |construct: &Self| {
             let pane = &construct.panes[i];
-            space::screen_box(
-                &construct.lens,
-                &construct.pose,
-                pane.at,
-                pane.size,
-                pane.yaw,
-            )
+            space::screen_box(&construct.lens, &stays, pane.at, pane.size, pane.yaw)
         };
-        let d = self.pull_depth();
-        let to = space::under_pointer(
-            &self.lens,
-            &self.pose,
-            (at, grab.point),
-            self.panes[i].size,
-            d,
-        );
+        let d = self.pull_depth(&stays);
+        let to = space::under_pointer(&self.lens, &stays, (at, grab.point), self.panes[i].size, d);
         self.move_pane(i, to)?;
         if boxed(self).is_none() {
             return Ok(());
