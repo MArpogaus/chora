@@ -43,11 +43,14 @@ impl From<Own> for Action {
 }
 
 /// Whether the construct does the system action. A turn of the cube and a
-/// step through the desks have no meaning here, and a drag is a binding
-/// of the flavor.
+/// step through the desks have no meaning here, a drag is a binding of the
+/// flavor, and a run or a give is no feature of the construct (yet).
 #[must_use]
 pub const fn acts_in_construct(system: &System) -> bool {
-    !matches!(system, System::Desk(_) | System::Cube(_) | System::Drag)
+    !matches!(
+        system,
+        System::Desk(_) | System::Cube(_) | System::Drag | System::Run(_) | System::Give(_)
+    )
 }
 
 /// Light or dark.
@@ -311,6 +314,20 @@ impl Settings for Config {
         &[("keys", "bindings")]
     }
 
+    fn refuse(&mut self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        self.common.bindings.retain(|key, action| {
+            let unfit = matches!(action, Action::System(s) if !acts_in_construct(s));
+            if unfit {
+                warnings.push(format!(
+                    "chora-construct: the binding {key} is dropped: the construct has no action for {action:?}"
+                ));
+            }
+            !unfit
+        });
+        warnings
+    }
+
     fn check(&self) -> Result<(), String> {
         if !(self.radius.is_finite() && self.radius >= 100.0) {
             return Err(format!("radius: {} is below 100", self.radius));
@@ -334,13 +351,6 @@ impl Settings for Config {
         self.check_managers()?;
         if !self.start.is_empty() {
             crate::file::check_name(&self.start).map_err(|e| format!("start: {e}"))?;
-        }
-        for (key, action) in &self.common.bindings {
-            if let Action::System(unfit) = action
-                && !acts_in_construct(unfit)
-            {
-                return Err(format!("{key}: the construct has no action for {unfit:?}"));
-            }
         }
         self.fly_out
             .parse::<Binding>()
@@ -710,15 +720,29 @@ mod tests {
         assert_eq!(table, golden);
     }
 
-    /// A binding that the construct has no action for is refused with the
-    /// binding named: a step through the desks, a turn of the cube, a drag.
+    /// A binding that the construct has no action for is dropped with one
+    /// warning that names the key, and the rest of the file loads: a step
+    /// through the desks, a turn of the cube, a drag, a run and a give.
     #[test]
-    fn a_system_action_without_meaning_in_the_construct_is_refused() {
-        for unfit in ["{desk: next}", "{cube: left}", "drag"] {
+    fn a_system_action_without_meaning_in_the_construct_is_dropped_with_a_warning() {
+        for unfit in [
+            "{desk: next}",
+            "{cube: left}",
+            "drag",
+            "{run: foot}",
+            "{give: xp}",
+        ] {
             let text = DEFAULT.replace("  Super+c: cube\n", &format!("  Super+c: {unfit}\n"));
-            let config: Config = serde_saphyr::from_str(&text).unwrap();
-            let err = config.check().unwrap_err();
-            assert!(err.contains("Super+c"), "{unfit}: {err}");
+            let mut config: Config = serde_saphyr::from_str(&text).unwrap();
+            let warnings = config.refuse();
+            assert_eq!(warnings.len(), 1, "{unfit}: {warnings:?}");
+            assert!(warnings[0].contains("Super+c"), "{unfit}: {warnings:?}");
+            assert_eq!(config.common.bindings.get("Super+c"), None, "{unfit}");
+            assert!(
+                config.common.bindings.contains_key("Super+x"),
+                "the rest stays"
+            );
+            config.check().unwrap();
         }
     }
 
@@ -741,7 +765,7 @@ mod tests {
             file.value.common.bindings["XF86AudioMute"],
             Action::System(System::Volume(Change::Mute))
         );
-        file.set(serde_json::json!({"bindings": {"Super+r": {"run": "foot"}}}))
+        file.set(serde_json::json!({"bindings": {"Super+r": "lock"}}))
             .unwrap();
         file.save().unwrap();
         let saved = std::fs::read_to_string(&path).unwrap();
@@ -752,7 +776,7 @@ mod tests {
         let again = File::<Config>::load(path, DEFAULT).unwrap();
         assert_eq!(
             again.value.common.bindings["Super+r"],
-            Action::System(System::Run("foot".into()))
+            Action::System(System::Lock)
         );
         std::fs::remove_dir_all(dir).unwrap();
     }
