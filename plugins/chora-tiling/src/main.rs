@@ -13,7 +13,6 @@ mod commands;
 mod config;
 mod drag;
 mod dress;
-mod focus;
 mod keys;
 mod layout;
 mod lifecycle;
@@ -49,10 +48,11 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use chora_kit::wm::focus::Focus;
+
 use crate::{
     commands::{GROUP, answers, leaves_tiling, runtime_shader},
     config::{Action, Config, Own},
-    focus::ShownFocus,
     layout::Layout,
     methods::exported_methods,
     wm::{Effect, OutputTags, Placement, WINDOW_KEY, Wm},
@@ -150,7 +150,7 @@ struct Tiling {
     /// only.
     sent: HashMap<String, Placement>,
     order: Vec<String>,
-    focus: ShownFocus,
+    focus: Focus,
     /// The meta that the core has, by node: what a restart rebuilds from.
     saved: HashMap<String, BTreeMap<String, String>>,
     /// The claim that the core has (D55).
@@ -330,7 +330,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         ignore: args.ignore.clone(),
         sent: HashMap::new(),
         order: Vec::new(),
-        focus: ShownFocus::default(),
+        focus: Focus::default(),
         saved: HashMap::new(),
         claimed: None,
         dragged: None,
@@ -791,7 +791,7 @@ impl Tiling {
         if !commands.is_empty() {
             let applied = self.apply_report(commands)?;
             if leaves_tiling(applied, action, args) {
-                self.forget_window(node);
+                self.forget_window(node, &chora_kit::wm::Why::Detached);
             }
         }
         self.relayout()
@@ -1180,7 +1180,7 @@ mod tests {
             ignore: Vec::new(),
             sent: HashMap::new(),
             order: Vec::new(),
-            focus: ShownFocus::default(),
+            focus: Focus::default(),
             saved: HashMap::new(),
             claimed: None,
             dragged: None,
@@ -1654,7 +1654,7 @@ mod tests {
 
     #[test]
     fn a_relayout_takes_no_focus_from_another_window_manager() {
-        let mut shown = ShownFocus::default();
+        let mut shown = Focus::default();
         assert!(shown.sends(Some("s3")));
         shown.sent(Some("s3".into()));
         assert!(!shown.sends(Some("s3")));
@@ -1696,7 +1696,7 @@ mod tests {
 
     #[test]
     fn a_focus_emptied_by_a_closed_window_is_no_loss() {
-        let mut shown = ShownFocus::default();
+        let mut shown = Focus::default();
         shown.sent(Some("s3".into()));
         // The focused window of tiling exits: the core empties the focus.
         shown.moved(None);
@@ -1705,6 +1705,21 @@ mod tests {
         // Another window manager still takes it with its own window.
         shown.moved(Some("s9"));
         assert!(shown.lost && !shown.sends(Some("s4")));
+    }
+
+    /// The policy of tiling (`kit::wm::focus`): after the focused window
+    /// goes, the window focused before it gets the keyboard.
+    #[test]
+    fn the_window_focused_before_gets_the_keyboard_after_a_close() {
+        let (mut tiling, _) = on_fake_core("after");
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s2"));
+        tiling.forget_window("s2", &chora_kit::wm::Why::Destroyed);
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s1"));
+        assert!(tiling.focus.sends(Some("s1")), "the next relayout sends it");
     }
 
     /// A press on a window took the focus, and Escape hid the key list,

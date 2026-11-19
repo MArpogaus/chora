@@ -155,15 +155,14 @@ impl Mc {
     /// the node of a page, so that the plain keys of the page arrive. An
     /// open chat keeps the keyboard.
     pub(crate) fn keyboard_to(&mut self, name: &str, window: Option<String>) -> Vec<Command> {
-        self.focused.clone_from(&window);
         if self.chat == Chat::Open {
+            self.focus.surface.clone_from(&window);
             return Vec::new();
         }
         let plain = self.page_keys == keys::PageKeys::Plain;
-        let page = (plain && window.is_none()).then(|| Command::FocusNode {
-            node: Some(page_id(name)),
-        });
-        let focus = Command::Focus { surface: window };
+        let page = plain && window.is_none();
+        let focus = self.focus.to(window);
+        let page = page.then(|| self.focus.to_node(Some(page_id(name))));
         std::iter::once(focus).chain(page).collect()
     }
 
@@ -174,9 +173,14 @@ impl Mc {
         let Some(name) = self.current.clone() else {
             return Vec::new();
         };
-        let docked = (self.focused.clone()).filter(|f| self.docks.values().any(|d| d == f));
+        let docked = self.focused_dock().cloned();
         let window = docked.or_else(|| self.windows.get(&name).cloned());
         self.keyboard_to(&name, window)
+    }
+
+    /// The window of a docked app that mc gave the keyboard last.
+    pub(crate) fn focused_dock(&self) -> Option<&String> {
+        (self.focus.surface.as_ref()).filter(|f| self.docks.values().any(|d| d == *f))
     }
 
     /// Makes `name` the current scene and puts the one before on the trail.

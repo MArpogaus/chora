@@ -1,6 +1,6 @@
 //! Handing windows to other window managers and dragging windows with the pointer.
 
-use chora_kit::{actions::System, effects::Target, give::Give, runtime};
+use chora_kit::{actions::System, effects::Target, give::Give, runtime, wm::Why};
 use chora_scene::{
     GivenGrab,
     ipc::{ClientError, PressState, RpcError},
@@ -75,7 +75,7 @@ impl Tiling {
         let given = self.book.confirm(surface);
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         self.settle(given).map_err(rejected)?;
-        self.forget_window(surface);
+        self.forget_window(surface, &Why::Given(to.into()));
         self.relayout().map_err(rejected)?;
         Ok(answer)
     }
