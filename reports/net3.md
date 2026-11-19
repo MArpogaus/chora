@@ -90,3 +90,21 @@ Check 5: no change to looks; xp and notify only add `texts`/`state.get`.
 - rw-8 pre-existing crates/chora/src/ipc.rs:2156: `a_refused_request_logs_its_client_and_code_without_its_parameters` fails
   under `cargo test -p chora ipc::` on both dc4bc46d and bc54896a and passes alone. The thread-local subscriber loses to callsite
   interest that another test thread cached. Fix: log through a test-wide subscriber, or call `tracing::callsite::rebuild_interest_cache()` inside `logged`.
+
+## r2
+
+Branch claude/net3, bc54896a to dc00d33c (4 commits: red cells c716301d, notify dd827e9e, ipc test 2372edaa, fixes dc00d33c).
+Red first: 10 selftest cells failed on bc54896a (one cell each for rw-2, rw-3 x2, rw-4 x2, rw-5 x2, rw-6, rw-1 x2), then green. Live act
+"the cube is held halfway through a turn" (`cube.turn by 1, 4000 ms`, read 2 s in with the new `held` of `Session.act`).
+- rw-1: I13 now also fails, in a held act, when a ring neighbour of a shown face has no box or no corners. It went red on the head:
+  held, faces 1 and 2 show and 0 and 3 have no box. co-21 is listed (construct I13, match "is missing beside", slice WM6); the construct is untouched.
+  Caveat for WM6: at rest the same rule is red too (faces 2 and 3 have no box when 0 and 1 show, they look hidden, not broken), so the rule
+  runs only in held acts. A cube seen from outside hides its back faces, so "neighbour missing" may be right at 2 s; the pose maths decides.
+- rw-2: `work_rect` uses `default_work_area` (no camera). rw-3: surface boxes and the look's `open` entries for the window are no bars.
+- rw-4: runs go through the unclipped placement (ancestor matrices and the camera, plain scale and translation), cut to the box after;
+  anything else falls back to the old mapping. rw-5: `match` is the named line. rw-6: notify `state.get` has `accepted`, `waiting`,
+  `closed` (last 64 ids each); I9 needs a new accepted id in shown, waiting or closed.
+- rw-8: a test-wide subscriber that routes each line to the sink of its thread (`rebuild_interest_cache` alone still failed 1 run in 3).
+- rw-7 (NIT) not done: lazy `texts()` needs a RefCell in theme.rs, not small.
+Done: `cargo test -p chora ipc::` 134/134 six times; scene, draw, xp, notify pass; `tests/test_acts.py` 101 OK;
+`tests/merge-gate.sh --only acts,cube` acts PASS 63 s, cube PASS 102 s (first run FAIL only because pre-commit stashed the tree under it).
