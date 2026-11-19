@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 18:30 UTC)
+## Now (2026-11-19 18:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 16:58 PM 5.8 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -27,7 +27,7 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | moved-tests-mk-r3.md (F5) | haiku high | done 18:00: c00dcf3e MERGE-OK (PM review 18:03); train 69 |
 | debt-down-r3.md (F4) | sonnet high | r2 review FIX (rd-7 MAJOR: no ungrab on holder exit); r3 session_016iS3kNw5fSqkKfpSP1s3vT (18:26) |
 | mc-i5-r1.md (F7, F2) | sonnet high | done 18:11: f7a69761 MERGE-OK (PM review 18:14); train 69 |
-| construct-red-r2.md (F7, F3) | sonnet high | r1 review FIX (rc-1 MAJOR: app child window gets no keys); r2 session_016iS3kLATV1Do6n34Vo3soX (18:17) |
+| review-construct-red-r2.md (F7, F3) | opus high | r2 done 18:53: da68737d (rc-1 child gets keys; core event gains parent); review r2 starting |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
