@@ -1,6 +1,6 @@
 """The acts of construct. The door acts: the key list (tests/doors keys-key, keys-alias)."""
 
-from common import door_acts, window_acts
+from common import door_acts, notice_acts, window_acts
 
 
 def run(s):
@@ -8,3 +8,4 @@ def run(s):
     until a flight into the pane, so the act does not ask for the focus."""
     window_acts(s, focused=None)
     door_acts(s, "construct-help", "Escape")
+    notice_acts(s)

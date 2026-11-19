@@ -69,6 +69,7 @@ class Snapshot:
     events: list = dataclasses.field(default_factory=list)
     logs: dict = dataclasses.field(default_factory=dict)
     outputs: list = dataclasses.field(default_factory=list)
+    notify: dict | None = None
 
     def by_id(self):
         """The nodes by id."""
@@ -92,6 +93,8 @@ class Act:
     opens: list = dataclasses.field(default_factory=list)
     closes: list = dataclasses.field(default_factory=list)
     disconnects: list = dataclasses.field(default_factory=list)
+    notices: list = dataclasses.field(default_factory=list)
+    dismissed: list = dataclasses.field(default_factory=list)
 
 
 def app_id(node):
@@ -548,13 +551,26 @@ class Session:
             events=list(events),
             logs=self.new_log_text(),
             outputs=outputs,
+            notify=self.state("notify") if "notify" in self.clients() else None,
         )
 
     def act(
-        self, name, cues=(), expect=None, opens=(), closes=(), disconnects=(), timeout=10, look=None
+        self,
+        name,
+        cues=(),
+        expect=None,
+        opens=(),
+        closes=(),
+        disconnects=(),
+        timeout=10,
+        look=None,
+        notices=(),
+        dismissed=(),
     ):
         """Run an act, record its result and those of the invariants."""
-        act = Act(name, list(opens), list(closes), list(disconnects))
+        act = Act(
+            name, list(opens), list(closes), list(disconnects), list(notices), list(dismissed)
+        )
         look = look or self.label
         try:
             before = self.snapshot(wait_quiet(self.states, timeout))

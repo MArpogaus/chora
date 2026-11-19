@@ -66,6 +66,7 @@ def snap(states=None, nodes=None, **kw):
     return Snapshot(**fields)
 
 
+OUTPUT = {"name": "HEADLESS-1", "size": [1280, 800]}
 ACT = Act("plain")
 
 
@@ -256,6 +257,63 @@ class I8(unittest.TestCase):
             },
         ]
         self.assertTrue(breaches("I8", snap(), snap(nodes=nodes)))
+
+
+class I9(unittest.TestCase):
+    sent = Act("notice", notices=["Hello"])
+
+    def notify(self, shown=("Hello",), rects=None):
+        node = {
+            "id": "notify-card",
+            "kind": "group",
+            "owner": "notify",
+            "parent": "root",
+            "rects": {"HEADLESS-1": [900, 700, 360, 80]} if rects is None else rects,
+        }
+        state = {"shown": [{"id": 1, "summary": t} for t in shown], "card": "notify-card"}
+        return snap(nodes=snap().nodes + [node], notify=state, outputs=[OUTPUT])
+
+    def test_nothing_sent(self):
+        self.assertEqual(breaches("I9", snap(), snap()), [])
+
+    def test_sound(self):
+        self.assertEqual(breaches("I9", snap(), self.notify(), self.sent), [])
+
+    def test_no_server(self):
+        self.assertTrue(breaches("I9", snap(), snap(), self.sent))
+
+    def test_not_shown(self):
+        self.assertTrue(breaches("I9", snap(), self.notify(shown=()), self.sent))
+
+    def test_no_card(self):
+        after = self.notify()
+        after.nodes = snap().nodes
+        self.assertTrue(breaches("I9", snap(), after, self.sent))
+
+    def test_card_outside_the_output(self):
+        after = self.notify(rects={"HEADLESS-1": [1200, 700, 360, 80]})
+        self.assertTrue(breaches("I9", snap(), after, self.sent))
+
+    def test_card_over_the_chat(self):
+        after = self.notify()
+        after.nodes.append(
+            {
+                "id": "hud-chat",
+                "kind": "group",
+                "owner": "assistant",
+                "parent": "root",
+                "rects": {"HEADLESS-1": [800, 600, 400, 300]},
+            }
+        )
+        self.assertTrue(breaches("I9", snap(), after, self.sent))
+
+    def test_dismissed_and_gone(self):
+        gone = Act("dismiss", dismissed=["Hello"])
+        self.assertEqual(breaches("I9", snap(), self.notify(shown=()), gone), [])
+
+    def test_dismissed_and_still_shown(self):
+        gone = Act("dismiss", dismissed=["Hello"])
+        self.assertTrue(breaches("I9", snap(), self.notify(), gone))
 
 
 class I14(unittest.TestCase):

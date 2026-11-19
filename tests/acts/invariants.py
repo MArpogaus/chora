@@ -14,6 +14,9 @@ I7   the work area of an output whose look draws the wallpaper shows
      more than one colour
 I8   the helper is not `working` after its answer event; one helper
      surface per output
+I9   a notice the act sent is in `shown` of chora-notify and its card lies
+     inside the output, clear of the helper surfaces; one the act
+     dismissed is gone
 I14  during the act: no `effect.failed`, no panic line, no disconnect
      the act did not declare
 """
@@ -181,6 +184,70 @@ def i8(_before, after, _act):
     return out
 
 
+def inside(rect, size):
+    """Whether a rectangle x, y, w, h lies inside an output of `size`."""
+    x, y, w, h = rect
+    return x >= 0 and y >= 0 and w > 0 and h > 0 and x + w <= size[0] and y + h <= size[1]
+
+
+def overlap(a, b):
+    """Whether two rectangles x, y, w, h share area."""
+    return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+
+
+def card_boxes(snap, root):
+    """The box of the card on each output: the union of the rectangles of
+    the node `root` and of its descendants; None without the node."""
+    nodes = snap.by_id()
+    if root not in nodes:
+        return None
+    boxes = {}
+    pending = [root]
+    while pending:
+        node = nodes.get(pending.pop(), {})
+        pending += node.get("children") or []
+        for output, (x, y, w, h) in (node.get("rects") or {}).items():
+            x0, y0, x1, y1 = boxes.get(output, (x, y, x + w, y + h))
+            boxes[output] = (min(x0, x), min(y0, y), max(x1, x + w), max(y1, y + h))
+    return {o: [x0, y0, x1 - x0, y1 - y0] for o, (x0, y0, x1, y1) in boxes.items()}
+
+
+def i9(_before, after, act):
+    """The notices of the act show in a card inside the output and clear
+    of the helper; the dismissed ones are gone."""
+    if not act.notices and not act.dismissed:
+        return []
+    if after.notify is None:
+        return ["the act sent a notice and no chora-notify answers state.get"]
+    shown = {n.get("summary") for n in after.notify.get("shown") or []}
+    out = [
+        f"the notice {s!r} is not in the shown of chora-notify"
+        for s in act.notices
+        if s not in shown
+    ]
+    out += [
+        f"the notice {s!r} is still shown after its dismissal" for s in act.dismissed if s in shown
+    ]
+    if not act.notices or out:
+        return out
+    boxes = card_boxes(after, after.notify.get("card"))
+    if boxes is None:
+        return ["chora-notify shows the notice and draws no card"]
+    sizes = {o.get("name"): o.get("size") for o in after.outputs}
+    helpers = [n for n in after.nodes if n.get("visible") is not False and helper_surfaces(n)]
+    for output, rect in sorted(boxes.items()):
+        if not inside(rect, sizes.get(output) or [0, 0]):
+            out.append(f"the card lies outside {output}: {rect}")
+        out += [
+            f"the card {rect} lies over {h.get('id')} {h['rects'][output]}"
+            for h in helpers
+            if output in (h.get("rects") or {}) and overlap(rect, h["rects"][output])
+        ]
+    if not boxes:
+        out.append("the card of the notice has no box on any output")
+    return out
+
+
 def i14(before, after, act):
     """No failed effect, no panic line, no undeclared disconnect."""
     out = [
@@ -196,4 +263,4 @@ def i14(before, after, act):
     return out
 
 
-ALL = {"I1": i1, "I3": i3, "I4": i4, "I7": i7, "I8": i8, "I14": i14}
+ALL = {"I1": i1, "I3": i3, "I4": i4, "I7": i7, "I8": i8, "I9": i9, "I14": i14}
