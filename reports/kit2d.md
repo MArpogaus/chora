@@ -80,3 +80,17 @@ Findings:
 - rw-2, MINOR, plugins/chora-xp/src/wm.rs:815 (and help.rs:166): `fallback(text)` keys on the spelling of the binding, not on its action; `Ctrl+Alt+Left: close` also takes `Super+Ctrl+Left` when the core refuses the first, against docs/configuration.md ("a key that `bindings` moves has no such stand-in"). Fix: give a stand-in only while the action is the default one of that key (compare the action, or the pair).
 - rw-3, NIT, docs/configuration.md:2234: the `bindings` row of xp lists `{volume: up|down|mute}` but not `{volume: {set: N}}`, which xp.yaml names and the code accepts. Fix: add it.
 - rw-4, NIT, docs/api.md:468: the paragraph now says twice which looks are on `bindings` ("xp acts on `cube` ... mc, construct and xp are on it ...") and the lines are not rewrapped. Fix: one sentence per fact, wrapped as the rest.
+
+## r2
+
+Lane: build (sonnet, high), claude/kit2d. Head 188b642d. The session branch moved, so a7ba4daa merges it (conflicts in `plugins/chora-xp/src/wm/state.rs` and `docs/api.md`: kept the port's `kit::wm::state` shape and added `texts` from NET3).
+
+Red first: fb02ad6d adds four cells. Run at fb02ad6d, all four fail on an assertion, none on a build error: `a_button_bound_to_close_closes_and_turns_no_cube` (wm.rs), `a_button_and_the_cube_go_together_or_are_dropped` (config.rs), `a_moved_cube_key_has_no_stand_in` (wm.rs), `a_moved_cube_key_shows_no_stand_in` (help.rs).
+
+Closed in 188b642d (fix and docs in one commit, since a commit-message hook refused the first try):
+- rw-1: `Event::InputButton` goes to `Wm::button`, which acts on `self.rt.action(&binding)`: `cube` grabs at the press and releases at the release, another action runs `self.key` at the press. `Config::refuse` drops with one warning a `BTN_*` binding to anything but `cube`, and `cube` on a key that is no button.
+- rw-2: `fallback(binding, action)` gives the stand-in only while the action is the default one of that key (`default_of`); `grab_keys` and `help::rows` pass the action.
+- rw-3: docs/configuration.md names `{volume: {set: N}}`, and the new refusal of rw-1.
+- rw-4: docs/api.md: one sentence per fact, rewrapped.
+
+Checks: `cargo test -p chora-xp` 209 passed; `cargo test -p chora-kit --features testing` all green (224 lib). `tests/merge-gate.sh --only xp,keys,acts,hud,cube` (after `cargo build --workspace --locked`, which the subset does not do): xp PASS 90 s, hud PASS 69 s, acts PASS 66 s, cube PASS 107 s, keys PASS 18 s. A first run without the build failed in `xp` at "chora-xp starts nested" (no binary), not a code finding. No full gate.
