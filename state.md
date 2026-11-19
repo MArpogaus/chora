@@ -28,8 +28,8 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | wm3-r1.md (F3) | sonnet high | session_016iS3kMQapsj8QueGbfqBuP (09:18) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm5-r1.md (F3) | opus high | session_016iS3kQkLYiWbxmLbvc4Li4 (09:42) |
-| review-kit2d-r1.md (F2) | sonnet high | starting |
-| kit3-r1.md (F2) | sonnet high | starting |
+| review-kit2d-r1.md (F2) | sonnet high | session_016iS3kMZb4RLf7LsXTuFgbM (10:06) |
+| kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 59 green 09:27; 60 mv4 7e339880, wm2 8db02220 running 09:33 (size list takes mv4); 61: kit2c 8eabeda0 (r2 PM checked), docs-f8b 5f97b0eb, wm7a 066ae80d (r2 PM MERGE-OK), wm1d 3c84b2d1 (r3 PM MERGE-OK). Pace 1.5-2 %/h.
