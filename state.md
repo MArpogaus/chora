@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 23:49 UTC)
+## Now (2026-11-19 23:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 %; 29 h left: 75 %, 2.6 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -36,11 +36,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | mc-majors-r1.md (RC) | sonnet high | session_016iS3kMSygrmeY6GnmekpAL |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r2.md (F5) | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
-| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, train 79 |
+| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, train 78b |
 | co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): 77 green 23:39 (harness-gp). 78 running 050a85ca: temp-dirs, temp-rest, f24-rest, nits-3, flake-k, block-v, pw. 79: ti-majors c9ed1cfd.
+4. Trains (F6): 77 green 23:39 (harness-gp). 78 red 23:51 ci-check (pid temp, fix 9c6bf589); 78b running a2f50532, adds ti-majors.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, P2-R1-XP 1.1 %, KIT-SEC r2 0.8 %, MC-MAJORS 1 %, FLAKE-H r2 0.5 %, CO-MAJORS 1.5 %; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner

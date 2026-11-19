@@ -276,3 +276,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - F24R-1 NIT (11-19 22:33): tests/grab-gap-check.py misses a grab skipped on a branch in a callee (f24-rest r1).
 - H-mkdir (kit-sec r1 FIX 23:38): earliest gate none; a pre-commit check that flags `mkdir -p` without `-m 700` under $XDG_RUNTIME_DIR in flavors/ and plugins/ shell scripts. 0.2 %.
 - ENV (11-19 23:37): p2-r1-xp worker's auto-mode check refused `bash /tmp/setup.sh` (apt, downloads); r1b runs without it. Other lanes ran it. Owner decides: allow it, or keep all tools in the environment setup (Needs owner).
+- HARNESS (train 78 red 23:51): f24-rest added a pid temp file while temp-dirs r2 set the copies row to 0; each branch was green alone. Earliest gate: ci-check on the merged train; the PM could run tools/cut-check after merging, before the gate (1 min). Build: merge-gate.sh runs ci-check first.
