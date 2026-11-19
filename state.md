@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 12:49 UTC)
+## Now (2026-11-19 12:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:02 PM 3.4 %; 40 h left: about 2 %/h; 6 lanes; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:50 PM 3.9 %; 39 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: daf83391 (train 61: mv4, wm2, kit2c+kit6, wm1d, docs-f8b); 28 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -27,7 +27,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | kit7-r2.md (F2) | opus high | session_016iS3kPxdD4JTP78bWGsmpm (12:09; r1 FIX) |
 | kit5-r3.md (F2) | opus high | session_016iS3kQpnC7s85zVK2bBPmM (12:13; r1 FIX: 3 MAJOR) |
 | kit3-r1.md (F2) | sonnet high | session_016iS3kL6PAeoBoBoV5rR5f1 (10:06) |
-| flakes-g-r2.md (F5) | opus high | starting (env retry 12:5x UTC) |
+| flakes-g-r2.md (F5) | opus high | session_016iS3kL3XmcqL5T8WDajZBD (12:50; env retry) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 61 green 11:23 (pull passed). 62 = kit2d 188b642d + wm7a f4e4f4d9: gate died 11:4x (shell job), rerun 12:02. wm3 out: its kit::wm::open::Open clashes with wm7a state::Open (6 files); r3 merges head after 62. 63: wm5 f6c67200, flakes-f 847f0964, wm7b 3e193a91 (PM r3) MERGE-OK.
