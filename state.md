@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 19:10 UTC)
+## Now (2026-11-19 19:14 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 19:02 PM 0.7 % new Bangkok day (16:58: 5.8 %); 33 h left: 75 % at 2.3 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -26,12 +26,14 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 |---|---|---|
 | review-debt-down-r3.md (F4) | opus high | r3 done 19:09: 121c30aa (rd-7: ungrab on close and revoke); review r3 session_016iS3kPHkN5XTNDzKsqeXRy (19:10) |
 | construct-red-r2.md (F7, F3) | sonnet high | done 18:53: da68737d MERGE-OK (opus review r2 19:01; rc-4, rc-5 MINOR to backlog); train 70 running 19:06 (known-red empty, D116 accepted) |
-| audit-f-r2.md (F1-F8) | opus high | session_016iS3kQcod2xk7nH43H3Dac (19:03): re-measure F, slice the rest |
+| audit-f-r2.md (F1-F8) | opus high | done 19:13: 5/8 met on P (F4 with DD); kit 91.2 % (llvm-cov); 6 slices |
+| cube-tests-r1.md (F5) | haiku high | starting 19:15 from f2b7112a |
+| mx1-m2-r1.md (F5) | sonnet high | starting 19:15 from f2b7112a |
 | flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 68 green 18:30; 69 green 19:03 (mk r3, mc-i5). 70 running from 19:06: construct-red da68737d (known-red 0 rows). 71 = debt-down r3 when MERGE-OK.
-5. F work (12.3 %): DEBT-DOWN r3 (F4 1 %), CONSTRUCT-RED r2 (F7, F3 1.5 %), FLAKE-SERIES haiku (F5 1 %); NET3-M1 closed by mc-i5, kit coverage 94.6 % (kitcov), moved modules at 70 % (mk r3); AUDIT-F r2 opus 2 % slices the rest.
+5. F work: DEBT-DOWN r3 (F4 1 %), FLAKE-SERIES haiku (F5 1 %); AUDIT-F r2 done: CUBE-TESTS haiku 0.8 %, MX1-M2 sonnet 0.3 % now; after train 71: KIT-REPORT 0.8 %, DOCS-F8d 0.4 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
