@@ -39,7 +39,7 @@ impl Wm {
         let desks = (self.bars.iter())
             .map(|b| Desks {
                 output: b.output.clone(),
-                shown: vec![self.desktop + 1],
+                shown: vec![self.desk_of(b) + 1],
             })
             .collect();
         let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
@@ -47,7 +47,7 @@ impl Wm {
                 holder: Some(NAME.into()),
                 surface: Some(surface.into()),
             },
-            None if !self.focus_away() => Focus {
+            None if !self.focus_away() && !self.cube_off() => Focus {
                 holder: Some(NAME.into()),
                 surface: None,
             },
@@ -212,6 +212,23 @@ mod tests {
         let gone = json!({"event": "surface.destroyed", "surface": "s1"});
         wm.event(serde_json::from_value(gone).unwrap()).unwrap();
         assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
+    }
+
+    /// The core focuses no surface, as when the construct of a hosted cube
+    /// takes the keyboard with its own node: xp names no window and draws
+    /// none active.
+    #[test]
+    fn xp_names_no_window_when_the_core_focuses_none() {
+        let (mut wm, _methods) = wm_on_fake_core("state-none");
+        add(&mut wm, "s1", 0);
+        wm.event(focus("s1")).unwrap();
+        let none = json!({"event": "focus.changed", "surface": null});
+        wm.event(serde_json::from_value(none).unwrap()).unwrap();
+        assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
+        assert_eq!(wm.focused, None, "the window of s1 looks inactive");
+        wm.event(focus("s1")).unwrap();
+        let focus_s1 = json!({"holder": "xp", "surface": "s1"});
+        assert_eq!(wm.state().unwrap()["focus"], focus_s1);
     }
 
     /// A `focus.changed` of the core.

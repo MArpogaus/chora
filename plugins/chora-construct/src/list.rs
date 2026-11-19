@@ -98,12 +98,12 @@ impl Construct {
     pub(crate) fn pull(&mut self, surface: &str) -> Result<String, ClientError> {
         let refuse = |m: String| ClientError::Rpc(RpcError::new(RpcError::REJECTED, m));
         let manager = (self.cube.as_ref())
-            .map(|_| crate::cube::MANAGER)
+            .map(|host| host.client().to_owned())
             .ok_or_else(crate::modes::no_cube)?;
         let windows = self.windows()?;
         let entry = (windows.iter())
             .find(|e| e.surface == surface && e.pane == "none")
-            .filter(|e| e.owner.as_deref() == Some(manager))
+            .filter(|e| e.owner.as_deref() == Some(manager.as_str()))
             .ok_or_else(|| refuse(format!("no window {surface:?} on a face of the cube")))?;
         let i = self.pane_of(entry)?;
         Ok(self.panes[i].name.clone())

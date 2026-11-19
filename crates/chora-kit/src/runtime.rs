@@ -307,6 +307,13 @@ impl<A> Runtime<A> {
         self.outputs.is_empty() || self.outputs.iter().any(|o| o == output)
     }
 
+    /// Leaves the plugin these outputs from now on, as `--output` does;
+    /// all when empty. A window manager of the faces of a cube takes the
+    /// screens when the cube goes, and the faces again when it comes back.
+    pub fn set_outputs(&mut self, outputs: Vec<String>) {
+        self.outputs = outputs;
+    }
+
     /// Whether `--output` names outputs.
     #[must_use]
     pub fn filters(&self) -> bool {
@@ -694,6 +701,19 @@ mod tests {
     struct Faces {
         #[serde(default)]
         faces: usize,
+    }
+
+    #[test]
+    fn the_outputs_of_a_plugin_change_with_set_outputs() {
+        use crate::conn::fake_core::{self, Answer};
+        let (path, _core) = fake_core::serve(|_, _| Answer::Result(Value::Null));
+        let conn = Conn::connect_at("set-outputs", &path).unwrap();
+        let mut rt: Runtime<()> = Runtime::with(conn, "set-outputs", vec!["VIRTUAL-1".into()]);
+        assert!(rt.manages("VIRTUAL-1") && !rt.manages("HEADLESS-1"));
+        rt.set_outputs(vec!["HEADLESS-1".into()]);
+        assert!(!rt.manages("VIRTUAL-1") && rt.manages("HEADLESS-1"));
+        rt.set_outputs(Vec::new());
+        assert!(rt.manages("VIRTUAL-1") && !rt.filters());
     }
 
     /// A plugin that answers `state.get`, and one that does not.

@@ -310,10 +310,12 @@ impl Wm {
     /// of `chora-xp`, as one of another window manager, the window of
     /// `chora-xp` looks inactive and Alt+Space goes back to the clients.
     /// A window of `chora-xp` that gets the focus while none of them has
-    /// it looks active again and takes Alt+Space.
-    pub(super) fn focus_moved(&mut self, surface: &str) -> Vec<Command> {
-        self.core_focus = Some(surface.into());
-        if self.index(surface).is_some() {
+    /// it looks active again and takes Alt+Space. Without a focused
+    /// surface, as when a node of another client takes the keyboard, no
+    /// window of `chora-xp` has it either.
+    pub(super) fn focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
+        self.core_focus = surface.map(Into::into);
+        if let Some(surface) = surface.filter(|s| self.index(s).is_some()) {
             if self.focused.is_some() {
                 return Vec::new();
             }

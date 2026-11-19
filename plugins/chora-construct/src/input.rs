@@ -394,6 +394,9 @@ impl Construct {
     /// is fixed, and the cube must not leave it. The walk takes the keyboard.
     pub(crate) fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if held && self.hand_press(at) {
+            return Ok(());
+        }
         if self.flown.is_none() {
             self.rt.conn.apply(vec![Command::FocusNode {
                 node: Some(LOOK.into()),
@@ -465,6 +468,9 @@ impl Construct {
 
     pub(crate) fn moved(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if self.hand_moved(at)? {
+            return Ok(());
+        }
         if self.moving.is_some() {
             return self.drag_pane(at);
         }
@@ -476,6 +482,9 @@ impl Construct {
     /// nothing.
     pub(crate) fn release(&mut self, at: [f64; 2], pane: Option<usize>) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if self.hand_released()? {
+            return Ok(());
+        }
         if self.moving.is_some() && self.cube.is_some() {
             let screen = (self.output.as_ref())
                 .map(|o| o.name.clone())

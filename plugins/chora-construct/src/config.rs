@@ -243,7 +243,8 @@ pub struct Config {
     #[serde(default)]
     pub effects: Vec<chora_kit::effects::Kind>,
     /// The command of the window manager of the cube; `cube.open` adds
-    /// `--output NAME` for each face. It runs as the client `xp`.
+    /// `--output NAME` for each face. It runs as the client of its
+    /// program without the prefix `chora-`, such as `xp`.
     #[serde(default = "cube_manager")]
     pub cube_manager: String,
     /// The window managers of `pane.manager`: the client name of each,

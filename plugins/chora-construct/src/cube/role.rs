@@ -13,7 +13,7 @@ impl Host {
         let faces = (self.outputs.iter().enumerate())
             .map(|(i, output)| cube::Face {
                 output: output.clone(),
-                manager: super::MANAGER.to_owned(),
+                manager: self.client().to_owned(),
                 health: match self.health_of(i) {
                     Health::Starting => "starting",
                     Health::Up => "up",
@@ -48,7 +48,31 @@ impl Host {
     }
 }
 
+impl Host {
+    /// The last data of the event of the cube role when the cube goes: at
+    /// rest, unless that was told last.
+    pub(crate) fn last_word(&self) -> Option<cube::Turned> {
+        let rest = cube::Turned {
+            front: self.front,
+            turning: false,
+        };
+        (self.told.is_some() && self.told != Some(rest)).then_some(rest)
+    }
+}
+
 impl Construct {
+    /// Tells the end of a turn when the cube goes during one, so that a
+    /// look that follows the event does not wait for it.
+    pub(crate) fn tell_end(&mut self, host: &Host) {
+        let Some(rest) = host.last_word() else {
+            return;
+        };
+        let event = json!({"event": cube::event(crate::NAME), "data": rest});
+        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
+            eprintln!("chora-construct: {err}");
+        }
+    }
+
     /// `cube.turn` of the cube role: by quarter turns or to a face.
     pub(crate) fn turn_method(&mut self, turn: cube::Turn) -> Result<bool, RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
@@ -101,15 +125,19 @@ mod tests {
     fn the_role_lists_the_faces_with_their_manager_and_health() {
         let mut host = super::super::tests::host_of(4);
         host.name = "XP".into();
+        host.program = "chora-foo".into();
         host.health[3] = Health::Starting;
         let listing = host.listing();
         assert_eq!(listing.faces.len(), 4);
         assert_eq!(listing.faces[0].output, "VIRTUAL-1");
-        assert_eq!(listing.faces[0].manager, "xp");
+        assert_eq!(listing.faces[0].manager, "foo");
+        host.program = "chora-bar".into();
+        let listing = host.listing();
+        assert_eq!(listing.faces[0].manager, "bar", "the client of the setting");
         assert_eq!(listing.faces[3].health, "starting");
         assert_eq!((listing.front, listing.turning), (0, false));
         assert_eq!(listing.mode, "use");
-        let _ = host.child.wait();
+        let _ = host.child.as_mut().map(std::process::Child::wait);
     }
 
     #[test]
@@ -128,12 +156,25 @@ mod tests {
             turning: true,
         };
         assert_eq!(host.untold(), Some(turning), "a turn to face 3 goes left");
+        assert_eq!(
+            host.last_word(),
+            Some(cube::Turned {
+                front: 3,
+                turning: false
+            }),
+            "a cube that goes during a turn tells its end"
+        );
         host.turn = None;
         let done = cube::Turned {
             front: 3,
             turning: false,
         };
         assert_eq!(host.untold(), Some(done), "the end of the turn is told");
-        let _ = host.child.wait();
+        assert_eq!(
+            host.last_word(),
+            None,
+            "a cube at rest that goes tells nothing more"
+        );
+        let _ = host.child.as_mut().map(std::process::Child::wait);
     }
 }

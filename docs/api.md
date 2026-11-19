@@ -689,7 +689,7 @@ node; a plugin reports such runs in the `texts` of its `state.get`.
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
-| `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
+| `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; the press of a button binding of another client ends a binding of a lone modifier, such as `Super+Super_L`, without a `released`, so a drag with Super is no tap of Super; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move, and after a `give_grab` also `grab` with `point`, `velocity` and `wobble` as the giver sent them; only to the connection of the grab; `injected: true` (absent otherwise) when the press of the grab, or for `input.moved` the move, came from `input.inject`, which a window manager that takes a drag for the user must ignore |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked; `pointer.entered` has `injected: true` when the move of the pointer came from `input.inject`, which a client that takes a hover for the user, such as a window manager that focuses the window under the pointer, must ignore; `pointer.left` has no flag, as it only ends a hover |
@@ -1617,7 +1617,13 @@ $ choractl call construct cube.turn '{"to": 2}'
 `turn_to`, `window.move`, `windows.float` and `restart`, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and
 Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
-Its dialogs change the settings in the same way as `settings.set`. The
+Its dialogs change the settings in the same way as `settings.set`.
+On the virtual outputs of a cube host, `chora-xp` is hosted: it finds
+the host by the cube role, the pager of each face calls `cube.turn` with
+`to`, and the host holds the keys and the drag of the turn. When the host
+disconnects, `chora-xp` goes flat on the screens, with the windows of each
+face on the desktop of that face, and when the host lists the same faces
+again, the windows go back to them. On virtual outputs without a host, there is no desk switch. The
 method `restart` runs `chora-xp` again, which also reads the file again:
 
 ```console

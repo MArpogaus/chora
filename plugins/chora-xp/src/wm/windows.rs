@@ -349,16 +349,18 @@ impl Wm {
     /// Whether the plugin has no desktop cube: all its outputs are virtual
     /// ones, which a construct shows on a cube of its own.
     pub(crate) fn cube_off(&self) -> bool {
-        !self.bars.is_empty() && !self.bars.iter().any(Bar::has_pager)
+        !self.bars.is_empty() && self.bars.iter().all(Bar::is_virtual)
     }
 
     /// Grabs or lets go the bindings of the cube after the outputs
-    /// changed: the cube is off while all outputs are virtual ones.
+    /// changed: all with a screen, none on virtual outputs alone or on the
+    /// faces of a hosted cube.
     pub(super) fn sync_cube_keys(&mut self) {
-        if self.cube_keys != self.cube_off() {
+        self.find_host();
+        let cube = self.wanted_keys();
+        if self.cube_keys == cube {
             return;
         }
-        let cube = !self.cube_off();
         self.cube_keys = cube;
         let grabbed = change_keys(&mut self.rt, &self.settings.value.common.bindings, cube)
             .and_then(|()| self.rt.grab_give_keys());
@@ -504,15 +506,23 @@ impl Wm {
         commands
     }
 
-    /// The desktop buttons of every taskbar.
+    /// The desktop buttons of every taskbar: on a screen, and on the
+    /// faces of a hosted cube.
     pub(super) fn pagers(&mut self) -> Vec<Command> {
         let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
             Some(taskbar::Part::Pager(desktop)) => Some(desktop),
             _ => None,
         };
+        let hosted = self.host.is_some();
+        let desks: Vec<usize> = self.bars.iter().map(|b| self.desk_of(b)).collect();
         let mut commands = Vec::new();
-        for bar in &self.bars {
-            commands.extend(bar.pager(&mut self.theme, self.desktop, hovered));
+        let mut changed = false;
+        for (bar, desk) in self.bars.iter_mut().zip(desks) {
+            changed |= bar.show_pager(hosted);
+            commands.extend(bar.pager(&mut self.theme, desk, hovered));
+        }
+        if changed {
+            commands.extend(self.sync_tasks());
         }
         commands
     }
