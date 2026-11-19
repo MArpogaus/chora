@@ -488,7 +488,7 @@ def bars_over_fullscreen(after, look, window, state):
     window attached to it, such as a dialog, and the open entries of the
     look for the window are no bars."""
     looks = set(after.states)
-    own = {o.get("id") for o in state.get("open") or [] if o.get("for") == window.get("surface")}
+    own = {o.get("id") for o in state.get("open") or [] if o.get("by") == window.get("surface")}
     out = []
     for output, nodes in sorted(node_boxes(after).items()):
         i, box = nodes.get(window.get("surface"), (None, None))
@@ -509,7 +509,7 @@ def modals_below(after, look, state):
     """The open modals of a look that lie below the window they are for."""
     out = []
     for entry in state.get("open") or []:
-        parent = entry.get("for")
+        parent = entry.get("by")
         if not entry.get("modal") or not parent:
             continue
         for output, nodes in sorted(node_boxes(after).items()):
