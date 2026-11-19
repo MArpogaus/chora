@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 17:23 UTC)
+## Now (2026-11-19 17:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 16:58 PM 5.8 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -27,11 +27,13 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | matrix-cap-r1.md (F5, F6) | sonnet high | done 17:22: b71c5096 MERGE-OK (PM review 17:25); train 67 own |
 | moved-tests-mk-r3.md (F5) | haiku high | session_016iS3kQE68SuUq1P3CTXdcg (17:02; r2 4904ef79 MERGE-OK: mc met; xp panels, pointer open) |
 | debt-down-r1.md (F4) | sonnet high | session_016iS3kNwNGkLo2yS3ZYgvtV (16:14; F4 open, rows above RC) |
+| mc-i5-r1.md (F7, F2) | sonnet high | starting |
+| construct-red-r1.md (F7, F3) | opus high | starting |
 | docs-f8c-r1.md (F8) | sonnet high | session_016iS3kNDb4WhQZ6C9YeKVX9 (17:13; from ee53e09c) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 65 green 16:57 after one rerun. 66 red 17:14 on the matrix cap (MX1). 67 = matrix-cap b71c5096 alone (harness first), gate started 17:25. Then 68 = mk r1 31df2bb9, mk r2 4904ef79, copies-0 ee53e09c.
-5. audit-f (3 of 8 met; 12.3 %): DEBT-R done 16:13 (F4 open), DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES after matrix-cap merges (F5 1 %), DOCS-F8c started 17:14 (ranks 3, 4, KIT3 done; 1 %).
+5. audit-f (3 of 8 met; 12.3 %): DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES after matrix-cap merges (F5 1 %), DOCS-F8c started 17:14 (1 %); KNOWN-RED (F7 state part, 4 rows): MC-I5 (1 %) and CONSTRUCT-RED (opus 3 %) from ee53e09c.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
