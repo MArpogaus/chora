@@ -259,3 +259,6 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - NIT rd-10 (debt-down review r3): a shared button binding (D55) is told while another WM still holds it; docs note.
 - NIT cr-1 (cube-tests review): plugins/chora-construct/src/cube/tests_construct.rs ~314 split doc comment.
 - HARNESS (cube-tests r1): a lane stop hook set the committer to Claude <noreply@anthropic.com>; briefs should also set the committer (git -c user.name/-c user.email covers both); earliest gate: a pre-push or merge-gate check of committer identity.
+
+- (F5, 11-19 20:26) gate-lib-selftest queued-start check: accept gate_elapsed <= 1 (second boundary; mx1-m2 review m1). MINOR.
+- (F5, 11-19 20:26) flake watch: mx1-m2 gate runs 1-2 red on layout HUD audit and doors helper cells (not its files); check in train 72 and AUDIT-F r3.
