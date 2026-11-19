@@ -8,6 +8,16 @@ use chora_kit::wm::open::{Kind, Surface, Why};
 
 use super::{Command, Panel, Wm};
 
+/// What one Escape shuts: the newest of the open surfaces.
+pub(super) enum Escape {
+    /// The Turn Off or Log Off dialog.
+    Dialog,
+    /// The Help panel at this place of the panel list.
+    Help(usize),
+    /// A context menu or the Start menu, which close their cascades first.
+    Menu,
+}
+
 /// The node of the Start menu.
 pub(super) const MENU: &str = "xp-menu";
 /// The node of a context menu and of the system menu of a window.
@@ -56,6 +66,20 @@ impl Wm {
         let panel = self.panels.remove(i);
         self.open.shut(&panel.window_ref().group());
         panel
+    }
+
+    /// The surface that an Escape shuts, by the order of `state.open`: the
+    /// newest first. Other kinds of surface do not answer Escape here.
+    pub(super) fn escape_target(&self) -> Option<Escape> {
+        self.open.ids().into_iter().rev().find_map(|id| match id {
+            SESSION if self.dialog.is_some() => Some(Escape::Dialog),
+            CONTEXT | MENU => Some(Escape::Menu),
+            group => {
+                let help =
+                    |p: &&Panel| matches!(p, Panel::Help(_)) && p.window_ref().group() == group;
+                self.panels.iter().position(|p| help(&p)).map(Escape::Help)
+            }
+        })
     }
 
     /// A drag of a window began, or a window went to another window

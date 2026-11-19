@@ -1,5 +1,6 @@
 //! Presses on nodes: the context menus, window actions and arranging.
 
+use super::surfaces::Escape;
 use super::{
     Act, Action, Command, DesktopIcons, LEFT_BUTTON, MENU_KEY, MENUS, Menu, Message, Panel, Part,
     Plan, RIGHT_BUTTON, Rect, Wm, close, context, desktop_icons, desktop_plan, json, session,
@@ -167,8 +168,12 @@ impl Wm {
     /// A key while a node of the plugin has the keyboard: a context menu
     /// or the start menu.
     pub(super) fn node_key(&mut self, key: &str) -> Vec<Command> {
-        if key == "Escape" && self.dialog.is_some() {
-            return self.close_dialog();
+        if key == "Escape" {
+            match self.escape_target() {
+                Some(Escape::Dialog) => return self.close_dialog(),
+                Some(Escape::Help(i)) => return self.close_panel(i),
+                Some(Escape::Menu) | None => {}
+            }
         }
         if let Some((menu, area)) = &mut self.context {
             let area = *area;
@@ -177,11 +182,6 @@ impl Wm {
                 context::Key::Act(act) => self.close_and_act(act, area),
                 context::Key::Close => self.close_context(),
             };
-        }
-        if key == "Escape"
-            && let Some(i) = self.panels.iter().position(|p| matches!(p, Panel::Help(_)))
-        {
-            return self.close_panel(i);
         }
         if !self.menu.is_open() {
             return if key == MENU_KEY {
