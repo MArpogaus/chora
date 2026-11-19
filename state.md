@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 23:58 UTC)
+## Now (2026-11-19 23:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -24,24 +24,25 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-h-r2.md (F5) | sonnet medium | session_016iS3kNLhgqk1W1n2yc2oRb |
-| temp-rest-r1.md (F5) | sonnet medium | MERGE-OK 2e8e67f3, train 78 |
-| temp-dirs-r2.md (F5) | sonnet medium | MERGE-OK 86f42d1f, train 78 |
+| flake-h-r2.md (F5) | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
+| temp-rest-r1.md (F5) | sonnet med | MERGE-OK 2e8e67f3, train 78 |
+| temp-dirs-r2.md (F5) | sonnet med | MERGE-OK 86f42d1f, train 78 |
 | flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, train 78 |
-| f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
-| pw-r2.md (P2) | sonnet medium | MERGE-OK 5755b578, train 78 |
+| f24-rest-r1.md (F5) | sonnet med | MERGE-OK 7231b51a, train 78 |
+| pw-r2.md (P2) | sonnet med | MERGE-OK 5755b578, train 78 |
 | p2-r1-xp.md (RC2, r1b) | sonnet+haiku | session_016iS3kLP7F2X6bjVSt3KzWv |
-| nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
-| block-v-r2.md (mc-38) | sonnet medium | MERGE-OK ce230288, train 78 |
-| mc-majors-r1.md (RC) | sonnet high | session_016iS3kMSygrmeY6GnmekpAL |
+| nits-3-r1.md (F5) | sonnet med | MERGE-OK 0b5f8c34, train 78 |
+| block-v-r2.md (mc-38) | sonnet med | MERGE-OK ce230288, train 78 |
+| mc-majors-r1.md (RC) | sonnet high | MERGE-OK 92ecd30a, train 79 |
+| mc-answer-r1.md (RC) | sonnet high | starting |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r2.md (F5) | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, train 78b |
-| co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq, running 23:57 |
+| co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 77 green 23:39 (harness-gp). 78 red 23:51 ci-check (pid temp, fix 9c6bf589); 78b running a2f50532, adds ti-majors.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, P2-R1-XP 1.1 %, KIT-SEC r2 0.8 %, MC-MAJORS 1 %, FLAKE-H r2 0.5 %, CO-MAJORS 1.5 %; AUDIT-F r3 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, P2-R1-XP 1.1 %, KIT-SEC r2 0.8 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, CO-MAJORS 1.5 %; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

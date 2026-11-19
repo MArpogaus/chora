@@ -44,3 +44,7 @@ all PASS (mc-sofa added because I changed it). Light and dark of the sofa gate p
    not in the merge gate result; the sofa gate waits by `state.get` instead.
 3. The card of chora-notify in the mc slot has about 11 px text; it is a card, but the same
    sofa distance question as mc-34 applies to it.
+
+## PM review r1 (00:02)
+Diff 30727c82...92ecd30a: tests/gate-mc-sofa.sh only (+64/-4), cells pill, alarm, answer ink; helpers (png-contrast.py, notify slot, has_text, text_rect, rect_of) exist. mc-33..37 gone before with red and fix shas from 11-16, guards added. Lane gate green incl. mc-sofa; the train reruns it.
+Seen on the way: 1 -> mc-39, 3 -> mc-40 (findings/mc.md), 2 -> brief mc-answer-r1. No open MAJOR on the diff. Verdict MERGE-OK 92ecd30a (train 79).
