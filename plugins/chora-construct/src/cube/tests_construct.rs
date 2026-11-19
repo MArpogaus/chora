@@ -1,0 +1,573 @@
+//! Unit tests of the construct's side of the cube (`construct.rs`): the
+//! open, check, retry, turn and close of the cube, its nodes, its outputs
+//! and its edge, on a fake core that keeps the scene and records the
+//! requests with their parameters.
+
+use std::{
+    sync::atomic::{AtomicUsize, Ordering},
+    time::{Duration, Instant},
+};
+
+use chora_kit::{
+    geometry::Cube,
+    modes::Act,
+    testing::{FakeCore, Log, focus_changed, has},
+};
+use chora_scene::{Command, Event, InputMode, NodeKind, OutputInfo, PropsUpdate, ROOT, Transform};
+use serde_json::{Value, json};
+
+use super::tests::host_of;
+use super::{CUBE, EDGE, EDGE_GLOW, EDGE_WIDTH, FACES, Health, face_id, fill_id, mirror_id};
+use crate::{Config, Construct, MIRRORS, NAME, PANES, Runtime, config, settings};
+
+/// A manager that runs until the cube closes it.
+const RUNS: &str = "sh -c 'sleep 30' #";
+/// A manager that writes a line to its error output and exits at once.
+const EXITS: &str = "sh -c 'echo the manager broke >&2; exit 3' #";
+
+/// A construct on a fake core that answers with `answer`. The fake core
+/// keeps the scene, and each request is recorded as its method and its
+/// parameters, one line each. The plugin's groups of the panes and of the
+/// mirrors exist, as the plugin makes them at its start, and the virtual
+/// outputs `VIRTUAL-1` to `VIRTUAL-4` are owned by the plugin, as the
+/// core makes an output of `output.add`.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "the test connects to its fake core"
+)]
+fn on_core(
+    tag: &str,
+    answer: impl Fn(&str, &Value) -> Option<Value> + Send + Sync + 'static,
+) -> (Construct, FakeCore, Log) {
+    let dir =
+        std::env::temp_dir().join(format!("chora-construct-cube-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let core = FakeCore::start();
+    core.respond(answer);
+    let lines = core.record(|method, params| Some(format!("{method} {params}")));
+    let mut conn = core.connect(NAME);
+    let group = |id: &str| Command::Create {
+        id: id.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    conn.apply(vec![group(PANES), group(MIRRORS)]).unwrap();
+    for n in 1..=FACES {
+        core.model()
+            .lock()
+            .unwrap()
+            .scene
+            .set_output_owner(&format!("VIRTUAL-{n}"), Some(NAME));
+    }
+    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    rt.pin_accepts_injected(false);
+    let settings =
+        settings::File::<Config>::load(dir.join("chora-construct.yaml"), config::DEFAULT).unwrap();
+    let shaders = |name: &str, _: &str| Ok(format!("{}/{name}", dir.display()));
+    let mut construct = Construct::new(rt, settings, false, &shaders).unwrap();
+    construct.active = true;
+    (construct, core, lines)
+}
+
+/// The answers of a core that lists `clients` as connected and adds the
+/// virtual outputs `VIRTUAL-1`, `VIRTUAL-2`, ... as `output.add` asks.
+fn cube_core(clients: Value) -> impl Fn(&str, &Value) -> Option<Value> + Send + Sync + 'static {
+    let added = AtomicUsize::new(0);
+    move |method, _| match method {
+        "output.add" => {
+            let n = added.fetch_add(1, Ordering::SeqCst) + 1;
+            Some(json!(virtual_output(&format!("VIRTUAL-{n}"))))
+        }
+        "clients.list" => Some(clients.clone()),
+        _ => None,
+    }
+}
+
+/// A virtual output of this plugin, as the core answers `output.add`.
+fn virtual_output(name: &str) -> OutputInfo {
+    OutputInfo {
+        name: name.into(),
+        position: [0, 0],
+        size: [1280, 800],
+        scale: 1.0,
+        camera: Transform::default(),
+        work_area: [0, 0, 1280, 800],
+        default_work_area: [0; 4],
+        is_virtual: Some(true),
+        owner: Some(NAME.into()),
+    }
+}
+
+/// How many recorded requests of the method `method` there are.
+fn sees(lines: &Log, method: &str) -> usize {
+    let prefix = format!("{method} ");
+    (lines.lock().unwrap().iter())
+        .filter(|line| line.starts_with(&prefix))
+        .count()
+}
+
+/// The id of a command that names a node.
+fn id_of(command: &Command) -> Option<&str> {
+    match command {
+        Command::Create { id, .. } | Command::Update { id, .. } | Command::Animate { id, .. } => {
+            Some(id)
+        }
+        _ => None,
+    }
+}
+
+/// Whether some command of `commands` names the node `id`.
+fn names(commands: &[Command], id: &str) -> bool {
+    commands.iter().any(|c| id_of(c) == Some(id))
+}
+
+/// The created node `id` of `nodes`: its kind, its parent and its properties.
+fn created<'a>(nodes: &'a [Command], id: &str) -> Option<(&'a NodeKind, &'a str, &'a PropsUpdate)> {
+    nodes.iter().find_map(|c| match c {
+        Command::Create {
+            id: found,
+            kind,
+            parent,
+            props,
+        } if found == id => Some((kind, parent.as_str(), props)),
+        _ => None,
+    })
+}
+
+/// The ids of the cube group, its edge and its glow, and the mirror, the
+/// face and the fill of each of `faces` faces.
+fn cube_nodes(faces: usize) -> Vec<String> {
+    let mut ids = vec![CUBE.to_owned(), EDGE.to_owned(), EDGE_GLOW.to_owned()];
+    for i in 0..faces {
+        ids.extend([face_id(i), fill_id(i), mirror_id(i)]);
+    }
+    ids
+}
+
+/// Waits until the faces of the open cube stop starting: the manager has
+/// exited or failed to connect, or the test fails.
+fn settled(construct: &mut Construct) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        construct.check_cube().unwrap();
+        let starting = construct
+            .cube
+            .as_ref()
+            .is_some_and(|c| c.health.contains(&Health::Starting));
+        if !starting {
+            return;
+        }
+        assert!(Instant::now() < deadline, "the manager is still starting");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// A cube of two faces opened on a manager that runs.
+fn open_two(tag: &str) -> (Construct, FakeCore, Log) {
+    let (mut construct, core, lines) = on_core(tag, cube_core(json!([])));
+    construct.settings.value.cube_manager = RUNS.into();
+    construct.open_cube(2).unwrap();
+    (construct, core, lines)
+}
+
+/// A cube of two faces that stands back, so that the pointer lights an
+/// edge of it.
+fn standing_back(tag: &str) -> Construct {
+    let (mut construct, _core, _lines) = on_core(tag, cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    let stood = construct.cube.as_mut().unwrap().view.act(Act::StepBack);
+    assert!(stood, "the cube stands back: navigate mode");
+    construct
+}
+
+/// Opening refuses a face count out of range before it adds an output.
+#[test]
+fn open_refuses_a_face_count_out_of_range() {
+    let (mut construct, _core, lines) = on_core("open-faces", cube_core(json!([])));
+    construct.settings.value.cube_manager = RUNS.into();
+    for faces in [0, FACES + 1] {
+        let err = construct.open_cube(faces).unwrap_err().to_string();
+        assert!(
+            err.contains(&format!("faces: {faces} is not 1 to {FACES}")),
+            "{err}"
+        );
+    }
+    assert!(construct.cube.is_none());
+    assert_eq!(sees(&lines, "output.add"), 0, "no output is added");
+}
+
+/// Opening refuses while a cube is open, and while a client of its
+/// manager runs already: no output is added then either.
+#[test]
+fn open_refuses_while_a_cube_or_its_manager_runs() {
+    let (mut open, _core, lines) = on_core("open-twice", cube_core(json!([])));
+    open.cube = Some(host_of(2));
+    let err = open.open_cube(2).unwrap_err().to_string();
+    assert!(err.contains("a cube is open"), "{err}");
+    assert_eq!(sees(&lines, "output.add"), 0);
+
+    let (mut running, _core, lines) = on_core("open-running", cube_core(json!([{"name": "sh"}])));
+    running.settings.value.cube_manager = RUNS.into();
+    let err = running.open_cube(2).unwrap_err().to_string();
+    assert!(err.contains("a client sh runs already"), "{err}");
+    assert!(running.cube.is_none());
+    assert_eq!(sees(&lines, "output.add"), 0);
+}
+
+/// A cube opens with one virtual output and one face per output, and its
+/// manager starts on those outputs; the faces wait for it.
+#[test]
+fn open_adds_the_outputs_and_starts_the_manager_on_them() {
+    let (construct, _core, lines) = open_two("open-ok");
+    let host = construct.cube.as_ref().expect("the cube is open");
+    assert_eq!(host.outputs, ["VIRTUAL-1", "VIRTUAL-2"]);
+    assert_eq!(
+        host.client(),
+        "sh",
+        "the manager is the client of its program"
+    );
+    assert!(
+        host.command
+            .ends_with("--output VIRTUAL-1 --output VIRTUAL-2"),
+        "{}",
+        host.command
+    );
+    assert!(
+        host.health.iter().all(|h| matches!(h, Health::Starting)),
+        "the faces wait for their manager"
+    );
+    assert_eq!(sees(&lines, "output.add"), 2);
+}
+
+/// The nodes of an open cube are in the scene; closing the cube ends its
+/// manager, removes its outputs and takes its nodes away.
+#[test]
+fn the_cube_nodes_are_in_the_scene_until_the_cube_closes() {
+    let (mut construct, core, lines) = open_two("open-scene");
+    let model = core.model();
+    let ids = cube_nodes(2);
+    assert!(
+        ids.iter().all(|id| has(&model, id)),
+        "the cube, its edge and its faces are in the scene"
+    );
+
+    construct.close_cube().unwrap();
+    assert!(construct.cube.is_none());
+    assert_eq!(sees(&lines, "output.remove"), 2, "each output is removed");
+    assert!(!has(&model, CUBE), "the cube group goes");
+    assert!(!has(&model, &face_id(0)), "the faces go");
+}
+
+/// When the core refuses the nodes of the cube, the cube does not open:
+/// the outputs it added go again.
+#[test]
+fn open_undoes_the_outputs_when_the_core_refuses_the_nodes() {
+    let (mut construct, core, lines) = on_core("open-refused", cube_core(json!([])));
+    construct.settings.value.cube_manager = RUNS.into();
+    core.refuse_next("scene.apply");
+    assert!(construct.open_cube(2).is_err());
+    assert!(construct.cube.is_none());
+    assert_eq!(sees(&lines, "output.add"), 2);
+    assert_eq!(sees(&lines, "output.remove"), 2, "both outputs go");
+}
+
+/// A manager that exits fails its faces with a reason, and the cube stays.
+#[test]
+fn a_manager_that_exits_fails_its_faces_and_the_cube_stays() {
+    let (mut construct, _core, _lines) = on_core("check-exit", cube_core(json!([])));
+    construct.settings.value.cube_manager = EXITS.into();
+    construct.open_cube(2).unwrap();
+    settled(&mut construct);
+
+    let host = construct.cube.as_ref().expect("the cube stays open");
+    assert!(
+        matches!(&host.health[0], Health::Failed(reason) if reason.starts_with("sh ")),
+        "the reason names the manager: {:?}",
+        host.health
+    );
+    assert!(host.health.iter().all(|h| matches!(h, Health::Failed(_))));
+    construct.close_cube().unwrap();
+}
+
+/// A retry starts the manager again for the failed faces, with the same
+/// command.
+#[test]
+fn a_retry_starts_the_manager_of_the_failed_faces_again() {
+    let (mut construct, _core, _lines) = on_core("retry", cube_core(json!([])));
+    construct.settings.value.cube_manager = EXITS.into();
+    construct.open_cube(2).unwrap();
+    settled(&mut construct);
+    let command = construct.cube.as_ref().unwrap().command.clone();
+
+    construct.retry_cube().unwrap();
+    let host = construct.cube.as_ref().expect("the cube stays open");
+    assert!(
+        host.health.iter().all(|h| matches!(h, Health::Starting)),
+        "the retry starts the faces again"
+    );
+    assert_eq!(host.command, command, "the same command starts again");
+    construct.close_cube().unwrap();
+}
+
+/// A manager that does not connect within the limit fails its faces; one
+/// that has not yet had its time keeps them starting.
+#[test]
+fn a_manager_that_does_not_connect_in_time_fails_its_faces() {
+    let (mut construct, _core, _lines) = open_two("check-late");
+    construct.check_cube().unwrap();
+    let host = construct.cube.as_ref().expect("the cube is open");
+    assert!(
+        host.health.iter().all(|h| matches!(h, Health::Starting)),
+        "within its time the manager may still connect"
+    );
+
+    let late = crate::faces::LIMIT + Duration::from_secs(1);
+    let since = Instant::now()
+        .checked_sub(late)
+        .expect("the clock has run that long");
+    construct.cube.as_mut().unwrap().since = since;
+    construct.check_cube().unwrap();
+    let host = construct.cube.as_ref().expect("the cube stays open");
+    assert!(
+        host.health.iter().all(|h| matches!(h, Health::Failed(_))),
+        "the late manager fails its faces: {:?}",
+        host.health
+    );
+    construct.close_cube().unwrap();
+}
+
+/// A connected manager brings its faces up and stops the wait.
+#[test]
+fn a_connected_manager_brings_the_faces_up() {
+    let (mut construct, _core, _lines) = open_two("client-up");
+    assert!(
+        construct.cube_deadline().is_some(),
+        "the start is waited for"
+    );
+    construct.cube_client(&focus_changed(None)).unwrap();
+    let host = construct.cube.as_ref().expect("the cube is open");
+    assert!(host.health.iter().all(|h| matches!(h, Health::Up)));
+    assert!(construct.cube_deadline().is_none(), "nothing starts now");
+    construct.close_cube().unwrap();
+}
+
+/// The disconnect of the manager closes the cube, and its outputs go.
+#[test]
+fn the_disconnect_of_the_manager_closes_the_cube() {
+    let (mut construct, _core, lines) = open_two("client-gone");
+    construct
+        .cube_client(&Event::ClientDisconnected { name: "sh".into() })
+        .unwrap();
+    assert!(construct.cube.is_none(), "the manager went, the cube goes");
+    assert_eq!(sees(&lines, "output.remove"), 2);
+}
+
+/// Without a cube there is no turn, no face update and no mirror update;
+/// the steps, the retry and the close do nothing.
+#[test]
+fn without_a_cube_there_is_no_turn_and_no_face_update() {
+    let (mut construct, _core, _lines) = on_core("no-cube", cube_core(json!([])));
+    assert!(construct.turn_cube(1, None, false).is_err());
+    assert_eq!(construct.cube_faces().len(), 0);
+    let look = construct.current_look();
+    assert_eq!(construct.cube_mirror_looks(&look).len(), 0);
+    assert!(!construct.cube_turns());
+    assert!(construct.cube_deadline().is_none());
+    construct.step_cube().unwrap();
+    construct.retry_cube().unwrap();
+    construct.close_cube().unwrap();
+}
+
+/// A turn of zero milliseconds is taken, and the next step ends it on the
+/// next face.
+#[test]
+fn a_turn_ends_on_its_face_when_the_cube_steps() {
+    let (mut construct, _core, _lines) = open_two("turn-ends");
+    assert!(construct.turn_cube(1, Some(0), false).unwrap());
+    assert!(construct.cube_turns(), "the turn is running");
+    construct.step_cube().unwrap();
+    let host = construct.cube.as_ref().unwrap();
+    assert!(host.turn.is_none(), "the turn ended");
+    assert_eq!(host.front, 1, "the front is the next face");
+    assert!(
+        (host.angle - Cube::turn_of(1)).abs() < 1e-9,
+        "{}",
+        host.angle
+    );
+    assert!(!construct.cube_turns());
+    construct.close_cube().unwrap();
+}
+
+/// While a turn runs, a turn is ignored; a queued one goes on from the
+/// running turn, and only one waits behind it.
+#[test]
+fn a_turn_while_one_runs_is_ignored_or_queued_once() {
+    let (mut construct, _core, _lines) = open_two("turn-queue");
+    assert!(construct.turn_cube(1, Some(60_000), false).unwrap());
+    assert!(
+        !construct.turn_cube(1, None, false).unwrap(),
+        "a running turn is ignored"
+    );
+    assert!(
+        construct.turn_cube(1, None, true).unwrap(),
+        "a queued turn is taken"
+    );
+    assert!(construct.cube.as_ref().unwrap().queued);
+    assert!(
+        !construct.turn_cube(1, None, true).unwrap(),
+        "only one turn waits behind the running one"
+    );
+    construct.close_cube().unwrap();
+}
+
+/// The edge of the face under the pointer lights with its glow, and fades
+/// when the pointer leaves the face.
+#[test]
+fn the_edge_of_the_face_under_the_pointer_lights_and_fades() {
+    let mut construct = standing_back("edge-lit");
+    assert!(
+        !names(&construct.cube_faces(), EDGE),
+        "no pointer, no lit edge"
+    );
+
+    assert!(construct.cube.as_mut().unwrap().set_hover(Some(0)));
+    let lit = construct.cube_faces();
+    assert!(names(&lit, EDGE), "the edge of face 0 lights");
+    assert!(names(&lit, EDGE_GLOW), "the glow lights with it");
+    assert!(
+        lit.iter()
+            .any(|c| matches!(c, Command::Update { id, props, .. }
+            if id == EDGE
+                && props.border.as_ref().and_then(|b| b.as_ref()).is_some_and(|b| b.width > 0.0))),
+        "the lit edge has a border"
+    );
+
+    construct.cube.as_mut().unwrap().set_hover(None);
+    assert!(names(&construct.cube_faces(), EDGE), "the edge fades out");
+    assert!(
+        !names(&construct.cube_faces(), EDGE),
+        "and is gone once faded"
+    );
+}
+
+/// A turning cube hides the lit edge rather than fading it.
+#[test]
+fn a_turning_cube_hides_the_lit_edge() {
+    let mut construct = standing_back("edge-hide");
+    construct.cube.as_mut().unwrap().set_hover(Some(0));
+    construct.cube_faces();
+    construct.cube.as_mut().unwrap().set_hover(None);
+    assert!(construct.turn_cube(1, Some(60_000), false).unwrap());
+
+    assert!(
+        construct
+            .cube_faces()
+            .iter()
+            .any(|c| matches!(c, Command::Update { id, props, .. }
+            if id == EDGE && props.visible == Some(false))),
+        "a turning cube hides the edge"
+    );
+}
+
+/// The mirror image of each face takes the look of the panes.
+#[test]
+fn the_mirror_images_of_the_faces_follow_the_look() {
+    let (mut construct, _core, _lines) = on_core("mirror", cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    let look = construct.current_look();
+    let mirrors = construct.cube_mirror_looks(&look);
+    assert_eq!(mirrors.len(), 2, "one mirror a face");
+    assert!(names(&mirrors, &mirror_id(0)));
+    assert!(names(&mirrors, &mirror_id(1)));
+}
+
+/// The faces of a cube are a mirror, a shader and a fill per output, all
+/// hidden until the first frame; the fill passes the pointer on.
+#[test]
+fn the_face_nodes_are_hidden_and_the_fills_pass_the_pointer_on() {
+    let (construct, _core, _lines) = on_core("nodes-face", cube_core(json!([])));
+    let outputs = ["VIRTUAL-1".to_owned(), "VIRTUAL-2".to_owned()];
+    let cube = Cube {
+        size: [1280.0, 800.0],
+        caps: false,
+    };
+    let nodes = construct.face_nodes(&outputs, &cube);
+    assert_eq!(
+        nodes.len(),
+        3 * outputs.len(),
+        "a mirror, a face and a fill each"
+    );
+    for i in 0..outputs.len() {
+        assert_face_nodes(&nodes, i);
+    }
+}
+
+/// The shader of face `i` is hidden in the cube, its fill passes the
+/// pointer on, and its mirror is there.
+fn assert_face_nodes(nodes: &[Command], i: usize) {
+    let (kind, parent, props) = created(nodes, &face_id(i)).expect("the face node");
+    assert!(matches!(kind, NodeKind::Shader));
+    assert_eq!(parent, CUBE);
+    assert_eq!(props.visible, Some(false), "hidden until the first frame");
+    let (kind, _, props) = created(nodes, &fill_id(i)).expect("the fill node");
+    assert!(matches!(kind, NodeKind::Rect));
+    assert_eq!(
+        props.input,
+        Some(InputMode::Pass),
+        "the fill passes the pointer"
+    );
+    assert!(created(nodes, &mirror_id(i)).is_some(), "the mirror node");
+}
+
+/// The edge and its glow are hidden shaders and rects that pass the pointer
+/// on, and the edge has the width of the accent border.
+#[test]
+fn the_edge_nodes_are_hidden_and_pass_the_pointer_on() {
+    let (construct, _core, _lines) = on_core("nodes-edge", cube_core(json!([])));
+    let [glow, edge] = construct.edge_nodes();
+    assert!(
+        matches!(&glow, Command::Create { id, kind: NodeKind::Shader, parent, props }
+            if id == EDGE_GLOW && parent == CUBE && props.visible == Some(false)
+                && props.input == Some(InputMode::Pass)),
+        "the glow is hidden and passes the pointer"
+    );
+    assert!(
+        matches!(&edge, Command::Create { id, kind: NodeKind::Rect, props, .. }
+            if id == EDGE && props.visible == Some(false)
+                && props.border.as_ref().and_then(|b| b.as_ref()).is_some_and(|b| b.width == EDGE_WIDTH)),
+        "the edge is a hidden border of the set width"
+    );
+}
+
+/// The outputs of a cube are added in one round, each of the size of the
+/// view; a refused one takes the others back, and a refused removal does
+/// not stop the others.
+#[test]
+fn the_outputs_are_added_together_and_a_refusal_takes_back_the_others() {
+    let (mut construct, core, lines) = on_core("outputs", cube_core(json!([])));
+    let added = construct.add_outputs(2, [1280.0, 800.0]).unwrap();
+    assert_eq!(added, ["VIRTUAL-1", "VIRTUAL-2"]);
+    let specs = (lines.lock().unwrap().iter())
+        .filter(|l| l.starts_with("output.add") && l.contains("1280x800@1"))
+        .count();
+    assert_eq!(specs, 2, "each output is 1280x800 at scale 1");
+
+    let (mut refused, core2, lines2) = on_core("outputs-refused", cube_core(json!([])));
+    core2.refuse_next("output.add");
+    assert!(refused.add_outputs(2, [1280.0, 800.0]).is_err());
+    assert_eq!(
+        sees(&lines2, "output.remove"),
+        1,
+        "the output that was added goes again"
+    );
+
+    core.refuse_next("output.remove");
+    construct.remove_outputs(&["A".to_owned(), "B".to_owned()]);
+    assert_eq!(
+        sees(&lines, "output.remove"),
+        2,
+        "a refusal does not stop the others"
+    );
+}

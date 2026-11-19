@@ -38,3 +38,7 @@ required-features = ["testing"]
 [[test]]
 name = "wm_book"
 required-features = ["testing"]
+
+[[test]]
+name = "cube"
+required-features = ["testing"]

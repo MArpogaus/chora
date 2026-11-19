@@ -1810,3 +1810,6 @@ mod tests {
 
 #[cfg(test)]
 mod tests_moved;
+
+#[cfg(test)]
+mod tests_construct;
