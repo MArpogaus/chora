@@ -1335,8 +1335,6 @@ mod tests {
         )
     }
 
-    /// The head of a page opens the page list: it takes the pointer like
-    /// every other item, and the overview itself has no such hit.
     #[test]
     #[allow(
         clippy::disallowed_methods,
@@ -1394,6 +1392,8 @@ mod tests {
         );
     }
 
+    /// The head of a page opens the page list: it takes the pointer like
+    /// every other item, and the overview itself has no such hit.
     #[test]
     fn a_click_on_the_head_of_a_page_shows_the_overview() {
         let (mut mc, model) = crate::testing::mc("head-hit", [1280, 800]);

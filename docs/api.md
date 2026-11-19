@@ -47,9 +47,9 @@ order in which the plugins built them; a surface under `root` is
 `normal`. Inside one order, `create`, `attach` and `move` place a node as
 before, but only between the first and the last root of its order: an
 `index` outside that band goes to its nearest end. A new `order` puts the
-group on top of its new order. `lock` belongs to the core, which draws
-the lock screen and the safety layer there; a client that asks for it
-fails with code 6, so no plugin draws above the lock. The order of a
+group on top of its new order. `lock` is reserved: no node holds
+it, the lock draws outside the scene, and a client that asks for it
+fails with code 1, so no plugin draws above the lock. The order of a
 group deeper in the tree has no effect.
 
 This table is the one list of node properties.
