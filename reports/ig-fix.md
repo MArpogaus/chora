@@ -7,3 +7,9 @@ Head 3a39659c on claude/ig-fix (base a9fd91f3); 2 commits, 2 files.
 - Time of the gate-lib step: 66 s before, 66 s after (the selftest runs beside the other two).
 - Gate `--jobs 3 --only pre-commit,ci-check,red-first,identity,gate-lib`: green on 3a39659c.
 - A first try without the nested guard forked the gate recursively; killed, no residue.
+
+## PM review r1 (2026-11-19 21:40 UTC; PM, not the builder)
+Diff a9fd91f3..3a39659c, 2 files, red first 55774fe0. ig-1, ig-2 closed with selftest checks (read: the nested case sets MERGE_GATE_NESTED=1; the guard skips only the recursive call; both exit codes are checked).
+- igr-1 MAJOR (merge): the gate-lib line conflicts with gate-pick 31cfe52d (train 74), which appends `&& tests/cells-for-selftest.sh` to the same line. r2: merge the session branch after train 74 and keep all four selftests in the step.
+- igr-2 MINOR: MERGE_GATE_NESTED is not in the usage text of merge-gate.sh (the env list names MERGE_GATE_IDENTITY, MERGE_GATE_STEPS).
+Verdict (computed): open MAJOR -> FIX. r2 after train 74 is green.
