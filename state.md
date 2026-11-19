@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 19:14 UTC)
+## Now (2026-11-19 19:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 19:02 PM 0.7 % new Bangkok day (16:58: 5.8 %); 33 h left: 75 % at 2.3 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -24,7 +24,7 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-debt-down-r3.md (F4) | opus high | r3 done 19:09: 121c30aa (rd-7: ungrab on close and revoke); review r3 session_016iS3kPHkN5XTNDzKsqeXRy (19:10) |
+| review-debt-down-r3.md (F4) | opus high | 121c30aa MERGE-OK 19:18 (rd-9 MINOR, rd-10 NIT to backlog); train 71 after 70 (D-ungrab = D117) |
 | construct-red-r2.md (F7, F3) | sonnet high | done 18:53: da68737d MERGE-OK (opus review r2 19:01; rc-4, rc-5 MINOR to backlog); train 70 running 19:06 (known-red empty, D116 accepted) |
 | audit-f-r2.md (F1-F8) | opus high | done 19:13: 5/8 met on P (F4 with DD); kit 91.2 % (llvm-cov); 6 slices |
 | cube-tests-r1.md (F5) | haiku high | session_016iS3kLXCAumfbUY5Q6Dntk (19:14) from f2b7112a |
