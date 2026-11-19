@@ -215,7 +215,7 @@ impl Construct {
         let Some(output) = self.cube.as_ref().map(cube::Host::front_output) else {
             return Ok(self.lens.h);
         };
-        let selector = format!("id:{}-panel-{output}", cube::MANAGER);
+        let selector = format!("id:{}-panel-{output}", self.face_manager());
         let bars: Vec<Value> = (self.rt.conn).call("scene.query", Query::new(&selector))?;
         let top = bars
             .first()
@@ -232,7 +232,7 @@ impl Construct {
         else {
             return Ok(Vec::new());
         };
-        let selector = format!("owner:{} kind:image", cube::MANAGER);
+        let selector = format!("owner:{} kind:image", self.face_manager());
         let images: Vec<Value> = (self.rt.conn).call("scene.query", Query::new(&selector))?;
         let icon = |node: &Value| {
             let id = node["id"].as_str()?;
@@ -371,7 +371,7 @@ impl Construct {
         let Some(surface) = self.cube.as_mut().and_then(cube::Host::take_focus) else {
             return;
         };
-        let call = json!({"client": cube::MANAGER, "method": "activate",
+        let call = json!({"client": self.face_manager(), "method": "activate",
             "params": {"surface": surface}});
         let wait = super::float::ANSWER;
         let activated: Result<Value, _> = (self.rt.conn).call_within("methods.call", call, wait);
@@ -692,7 +692,7 @@ impl Construct {
         else {
             return None;
         };
-        if client != cube::MANAGER {
+        if *client != self.face_manager() {
             return None;
         }
         match event.as_str() {

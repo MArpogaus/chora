@@ -53,8 +53,6 @@ pub(crate) const EDGE_OUT: f64 = 120.0;
 /// How far the pointer moves at most between the press and the release
 /// of a click on a face.
 const CLICK: f64 = 8.0;
-/// The client name of the window manager of the cube.
-pub(crate) const MANAGER: &str = "xp";
 /// How long a quarter turn takes, by default.
 pub(crate) const TURN: Duration = Duration::from_millis(360);
 /// How long the cube takes to settle on a face after a drag.
@@ -396,6 +394,11 @@ fn cleared(window: &Floating, base: f64, width: f64, (left, right): (&[Lifted], 
 }
 
 impl Host {
+    /// The client name of the window manager of the faces.
+    pub(crate) fn client(&self) -> &str {
+        super::names::client_of(&self.program)
+    }
+
     /// Where the eye at `eye` on the ground is in the space of the cube.
     fn eye(&self, eye: [f64; 2]) -> [f64; 3] {
         let at = self.centre();
@@ -1133,8 +1136,9 @@ impl Construct {
         if !(1..=FACES).contains(&faces) {
             return refuse(format!("faces: {faces} is not 1 to {FACES}"));
         }
-        if self.has_manager(MANAGER) || self.manager_runs()? {
-            return refuse(format!("a client {MANAGER} runs already"));
+        let client = self.face_manager();
+        if self.has_manager(&client) || self.manager_runs()? {
+            return refuse(format!("a client {client} runs already"));
         }
         if self.inside().is_some() {
             self.leave_window()?;

@@ -13,7 +13,7 @@ impl Host {
         let faces = (self.outputs.iter().enumerate())
             .map(|(i, output)| cube::Face {
                 output: output.clone(),
-                manager: super::MANAGER.to_owned(),
+                manager: self.client().to_owned(),
                 health: match self.health_of(i) {
                     Health::Starting => "starting",
                     Health::Up => "up",

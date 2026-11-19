@@ -20,7 +20,7 @@ use std::{
 use chora_kit::geometry::Cube;
 use serde_json::Value;
 
-use super::{CUBE, ClientError, Construct, Health, MANAGER, NodeKind, PANES, PropsUpdate, create};
+use super::{CUBE, ClientError, Construct, Health, NodeKind, PANES, PropsUpdate, create};
 
 /// The last line that a window manager wrote to its error output.
 pub(super) type Tail = Arc<Mutex<String>>;
@@ -103,7 +103,10 @@ impl Construct {
         commands.extend(self.edge_nodes());
         commands.extend(host.faces([self.pose.x, self.pose.z], self.lens.ground));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
-            eprintln!("chora-construct: the cube of {MANAGER} again: {err}");
+            eprintln!(
+                "chora-construct: the cube of {} again: {err}",
+                self.face_manager()
+            );
             self.remove_outputs(&left);
             return Ok(());
         }
@@ -117,7 +120,18 @@ impl Construct {
     pub(super) fn manager_runs(&mut self) -> Result<bool, ClientError> {
         let clients: Value = self.rt.conn.call("clients.list", Value::Null)?;
         let list = clients.as_array().cloned().unwrap_or_default();
-        Ok(list.iter().any(|c| c["name"].as_str() == Some(MANAGER)))
+        let client = self.face_manager();
+        Ok(list
+            .iter()
+            .any(|c| c["name"].as_str() == Some(client.as_str())))
+    }
+
+    /// The client name of the window manager of the cube: of the open
+    /// cube, else of the setting `cube_manager`.
+    pub(crate) fn face_manager(&self) -> String {
+        let program = crate::names::program_of(&self.settings.value.cube_manager);
+        let from_setting = || crate::names::client_of(program).to_owned();
+        (self.cube.as_ref()).map_or_else(from_setting, |host| host.client().to_owned())
     }
 }
 
