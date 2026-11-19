@@ -345,9 +345,9 @@ impl State {
     /// the capability `input.grab-any` that allowed them.
     pub fn revoke_free_grabs(&mut self, name: &str) {
         let conns = self.ipc.conns_of(name);
-        for conn in &conns {
-            self.ipc.drop_free_grabs(*conn);
-        }
+        let dropped = (conns.iter())
+            .flat_map(|conn| self.ipc.drop_free_grabs(*conn))
+            .collect::<Vec<_>>();
         let (ends, keep) = std::mem::take(&mut self.held.grabs)
             .into_iter()
             .partition(|h| conns.contains(&h.conn) && free_binding(&h.binding));
@@ -361,6 +361,7 @@ impl State {
                 grab.injected,
             );
         }
+        self.tell_ungrabbed(dropped);
     }
 
     /// Sends the held key of a node again when its time came, as a client

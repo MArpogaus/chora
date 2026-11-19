@@ -397,11 +397,33 @@ impl Ipc {
     }
 
     /// Drops the registrations of a connection for bindings without Ctrl,
-    /// Alt or Super, as happens when `input.grab-any` is revoked.
-    pub fn drop_free_grabs(&mut self, conn: u64) {
+    /// Alt or Super, as happens when `input.grab-any` is revoked. Returns
+    /// the bindings of the dropped grabs, except `move`.
+    pub fn drop_free_grabs(&mut self, conn: u64) -> Vec<Binding> {
+        self.drop_grabs_where(|b, t, c| {
+            c == conn && t != Trigger::Move && crate::input::free_binding(b)
+        })
+    }
+
+    /// Drops all the registrations of a connection, as happens when it
+    /// closes. Returns the bindings of the dropped grabs, except `move`.
+    pub fn drop_grabs(&mut self, conn: u64) -> Vec<Binding> {
+        self.drop_grabs_where(|_, _, c| c == conn)
+    }
+
+    fn drop_grabs_where(
+        &mut self,
+        dropped: impl Fn(&Binding, Trigger, u64) -> bool,
+    ) -> Vec<Binding> {
+        let mut told = Vec::new();
         self.grabs.retain(|(b, t, c)| {
-            !(*c == conn && *t != Trigger::Move && crate::input::free_binding(b))
+            let gone = dropped(b, *t, *c);
+            if gone && *t != Trigger::Move {
+                told.push(b.clone());
+            }
+            !gone
         });
+        told
     }
 
     /// The connection that grabbed the pressed binding, and the binding.
@@ -1162,7 +1184,8 @@ impl State {
         if let Some(reader) = closed.reader {
             self.loop_handle.remove(reader);
         }
-        self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        let dropped = self.ipc.drop_grabs(conn);
+        self.tell_ungrabbed(dropped);
         if self.button_grab.take_if(|g| g.conn == conn).is_some() {
             self.refresh_pointer();
         }

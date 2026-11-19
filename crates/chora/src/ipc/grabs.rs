@@ -62,8 +62,7 @@ impl State {
     }
 
     /// Ends a grab of a connection (D45) and tells the subscribers of
-    /// `input.ungrabbed`, so that a client that was refused the binding
-    /// can ask again (D-ungrab).
+    /// `input.ungrabbed` (D-ungrab).
     pub(super) fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let trigger = trigger(binding)?;
         let before = self.ipc.grabs.len();
@@ -73,9 +72,19 @@ impl State {
         if self.ipc.grabs.len() == before {
             return Err(rejected(format!("{binding} is no grab of this connection")));
         }
-        self.emit(&Event::InputUngrabbed {
-            binding: binding.to_string(),
-        });
+        self.tell_ungrabbed([binding.clone()]);
         Ok(Value::Null)
+    }
+
+    /// Tells the subscribers of `input.ungrabbed` that grabs ended: by
+    /// `input.ungrab`, with their connection or with the revoke of
+    /// `input.grab-any`, so that a client that waits for the binding asks
+    /// again (D-ungrab).
+    pub(crate) fn tell_ungrabbed(&mut self, bindings: impl IntoIterator<Item = Binding>) {
+        for binding in bindings {
+            self.emit(&Event::InputUngrabbed {
+                binding: binding.to_string(),
+            });
+        }
     }
 }
