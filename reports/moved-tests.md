@@ -95,3 +95,53 @@ Base af5547c7..c4c4f5d5, 6 files, +789; production change only `#[cfg(test)] mod
 Checks: every `#[test]` fn has an assert (only helpers on_core, count, virtual_outputs, properties, required, calls, one_window, on_scene, drawn have none); no assert under an `if`; names match the asserts (spot check cube/tests_moved.rs: hand, release, manager_runs, face_manager, reopen); lane gate 41/41 on c4c4f5d5.
 Note: cube.rs may conflict with cubesplit 10cf04cf in train 65; resolve by moving the mod line to the split module.
 Counts: BLOCK 0, MAJOR 0, MINOR 0. Verdict: MERGE-OK.
+
+## moved-tests-mk r1
+
+Lane: moved-tests-mk (F5, rank 5 of reports/audit-f.md), branch claude/moved-tests-mk at
+31df2bb9 (base bf0b66eb + origin/claude/integ af5547c7). Production code unchanged.
+Tests: plugins/chora-mc/src/acts/tests_moved.rs (new, 16 tests, one `#[cfg(test)] mod
+tests_moved;` line in acts.rs); crates/chora-kit/tests/moved_cells.rs (new, 6 cells);
+plugins/chora-xp/src/wm/tests_moved.rs (mt-1..3 fixed).
+
+Line coverage, `env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-mc -p chora-kit -p chora-xp
+--features chora-kit/testing --summary-only` (before = integ tree before this lane's tests,
+after = 31df2bb9):
+
+| module | before | after | at 70 %? |
+|---|---|---|---|
+| mc acts.rs | 15.6 | 77.1 | yes |
+| mc lifecycle.rs | 60.5 | 60.5 | **no, not reached this round** |
+| mc region/hits.rs | 60.9 | 60.9 | **no, not reached this round** |
+| xp wm/panels.rs | 40.7 | 40.7 | **no, not reached this round** |
+| xp wm/pointer.rs | 61.1 | 61.1 | **no, not reached this round** |
+| kit cube.rs | 91.4 | 91.4 | yes (cell added, already covered) |
+| kit wm/focus.rs | 96.1 | 96.1 | yes (wm_focus.rs already a cell) |
+| kit wm/open.rs | 100.0 | 100.0 | yes (cell added) |
+| kit wm/give.rs | 100.0 | 100.0 | yes (cell added) |
+| kit wm/kept.rs | 97.3 | 97.3 | yes (cell added) |
+| xp wm/tests_moved.rs | 99.3 | 99.4 | yes |
+
+Total lines of the three crates: 88.95 %.
+
+Not at 70 %, and why this round stopped there: panels.rs needs the node geometry of each dialog
+page (Display Properties, Effects, Date, Help, tray and icon paths); pointer.rs needs pull_out
+(cube faces, virtual outputs with an owner) and the launch paths; lifecycle.rs and hits.rs were
+listed by the measure but their missing lines were not analysed. acts.rs leaves the claim
+hand-over of drag (release on another window manager's claim, lines 33-43) unreached: a claim
+node of another owner is not placeable through the fake core's public scene API.
+
+Kit cells are plain calls of the public API (no FakeCore): cube quarters, Book::give with
+refused and confirmed, pass_on, Open, kept::read. wm focus is not added: wm_focus.rs covers it.
+
+Tests: `cargo test -p chora-mc -p chora-kit -p chora-xp --features chora-kit/testing` all green.
+`cargo clippy -p chora-mc -p chora-kit -p chora-xp --all-targets --features chora-kit/testing`:
+0 warnings. `cargo fmt --check` clean. Red-first does not apply (tests of existing behaviour).
+merge-gate `tests/merge-gate.sh --jobs 3` on 31df2bb9: GATE-EXIT=0, 41 of 41 steps PASS.
+
+mt-1..3: a_node_asks_xp_for_an_update asserts the empty answer of requested_look for a window xp
+does not hold; a_missing_shared_script_is_told_in_a_balloon counts one methods.call (the notice);
+the_desktop_fades_while_a_dialog_is_open asserts the fade starts before its checks (no `if`).
+
+Lane notes: setup.sh was refused by the auto-mode classifier and was not run (all tools were
+present at step 0). Author Marcel Arpogaus, no attribution lines, as the brief says.
