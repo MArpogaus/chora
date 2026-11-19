@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use chora_kit::wm::kept;
+use chora_kit::wm::{kept, stack::Rules};
 use chora_scene::{Command, NodeKind, PropsUpdate, ipc::ClientError};
 
 use crate::{
@@ -76,6 +76,15 @@ impl Tiling {
         self.apply(vec![styled(&self.wm.config.style, surface)])
     }
 
+    /// The stacking order of the placements, bottom first, with the rules
+    /// of the kit: the held window on top.
+    fn stacked(&self, placements: &[Placement]) -> Vec<String> {
+        let look: Vec<String> = placements.iter().map(|p| p.id.clone()).collect();
+        let mut rules = Rules::new();
+        rules.hold(self.dragged.as_ref().map(|(id, _)| id.as_str()));
+        rules.order(&look)
+    }
+
     /// Sends what changed since the last transaction: sizes and states,
     /// positions, visibility, the stacking order and the focus.
     ///
@@ -88,7 +97,7 @@ impl Tiling {
         let placements = self.wm.arrange();
         let mut commands = Vec::new();
         commands.extend(self.window_changes(&placements));
-        let order: Vec<String> = placements.iter().map(|p| p.id.clone()).collect();
+        let order = self.stacked(&placements);
         if order != self.order {
             commands.extend(order.iter().enumerate().map(|(index, id)| Command::Move {
                 id: group_of(id),
