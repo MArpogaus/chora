@@ -397,6 +397,23 @@ mod tests {
     }
 
     #[test]
+    fn the_temp_fallback_dir_has_a_random_name_and_goes_with_the_icons() {
+        let predictable = std::env::temp_dir().join(format!("chora-icons-{}", std::process::id()));
+        let mut first = Icons::new(["none"]);
+        let mut second = Icons::new(["none"]);
+        let one = first.private_copy_in(None, b"png").expect("a copy");
+        let two = second.private_copy_in(None, b"png").expect("a copy");
+        let (one_dir, two_dir) = (one.parent().unwrap(), two.parent().unwrap());
+        assert_ne!(one_dir, predictable, "a name another user can guess");
+        assert_ne!(one_dir, two_dir, "one dir for each of the icons");
+        let name = one_dir.file_name().unwrap().to_string_lossy();
+        assert!(name.starts_with("chora-icons-"), "{name}");
+        drop(first);
+        drop(second);
+        assert!(!one_dir.exists() && !two_dir.exists(), "the dirs go too");
+    }
+
+    #[test]
     fn the_copies_are_removed_with_the_icons() {
         let path = file("gone.png", &png(8, 8, 0));
         let mut icons = Icons::new(["none"]);
