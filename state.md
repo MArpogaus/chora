@@ -10,14 +10,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); open findings to known issues |
+| 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | 30b, 33-40 green (9); F26 held, F28 holds; F17 open |
 | 4 | CI green | green on 29e2cd77 13:13 (train 41, PR #106, all 10 checks) |
-| 5 | Packaging smoke | arch, rpm, podman green on 29e2cd77 13:13 |
+| 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
 | 6 | Code review per area | 08:59, no HIGH; MEDIUM fixed or known issues |
 | 7 | deny, machete | clean (ci-rc) |
-| 8 | Docs, CHANGELOG, known issues | docs merged; decision records D78-D95 train 37; changelog by cz at the tag |
+| 8 | Docs, CHANGELOG, known issues | docs merged; D78-D95 train 37; cz changelog at the tag |
 | 9 | Logging audit, flakes | train 14, 17 |
 | 11 | Tour, UX loop | v7 MERGE-OK; no tour work (owner 11-17 14:20); new tour with checks after refactor and user test (next week) |
 
@@ -33,10 +33,10 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | ig-fix-r1.md (F6) | sonnet medium | session_016iS3kPJ6TqYMFjmMcjoCCa (21:07) |
 | gate-pick-r1.md (F6) | sonnet medium | MERGE-OK 31cfe52d, train 74 |
 | kc-fix-r1.md (F2) | sonnet low | session_016iS3kLSpF9Nq7D8JfRzSxz |
-| temp-dirs-r1.md (F5) | sonnet high | starting from 219d5afe |
+| temp-dirs-r1.md (F5) | sonnet high | session_016iS3kQayjpPhdEwcyCx7q9 (21:34) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 72 green 21:03. 73b red 21:31 (hud: 2 cells missing); rerun 21:38. 74 (harness): id-gate a9fd91f3, gate-pick 31cfe52d. 75: flake-i e5e44719, kit-connect f7569c24, kit-minors e4208314, then flake-h, flake-j.
+4. Trains (F6): 72 green 21:03. 73b red 21:31: hud flake (rerun green, backlog); reruns after 74. 74 running 21:36: id-gate, gate-pick (harness). 75: flake-i e5e44719, kit-connect f7569c24, kit-minors e4208314, then flake-h, flake-j.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: TEMP-DIRS 0.8 %, KC-FIX 0.3 %, IG-FIX 0.3 %, FLAKE-J 0.7 %, FLAKE-H 1 %; done: GATE-PICK, KIT-MINORS r2, FLAKE-I, KIT-CONNECT, ID-GATE, MINORS-2, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
