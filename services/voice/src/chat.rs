@@ -849,7 +849,8 @@ impl Chat {
     /// the history fits `history_tokens` (characters / 4); a turn starts
     /// at a user message, so a tool call keeps its results. The last turn
     /// stays (dump 2026-10-31: 220 messages of cut answers, and the LLM
-    /// copied them).
+    /// copied them). A spoken note drops as the words of the agent, without
+    /// its mark.
     fn fit(&mut self, budget: u32, fixed: usize) {
         let limit = match self.config.history_tokens {
             0 => usize::MAX,
@@ -876,6 +877,11 @@ impl Chat {
                     (Some("user"), _) => ("user", text_of(&m["content"])),
                     (Some("assistant"), true) => ("you", text_of(&m["content"])),
                     _ => continue,
+                };
+                let words = text.strip_prefix(SPOKEN).map(|w| w.trim_start().to_owned());
+                let (who, text) = match words {
+                    Some(words) => ("you", words),
+                    None => (who, text),
                 };
                 if !text.trim().is_empty() && text != NUDGE && text != STOPPED {
                     let line = format!("{who}: {}\n", short(text.trim(), DROPPED_LINE));
