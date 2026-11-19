@@ -70,10 +70,49 @@ def notice_acts(s, slot=None):
             "params": {"app": s.label, "summary": NOTICE, "body": "the text", "expire_ms": 0},
         }
         sent.update(s.core.call("methods.call", call))
+        sent["id"] = shown_id(s, NOTICE)
 
     def dismiss(s):
-        call = {"client": "notify", "method": "notify.close", "params": {"id": sent["id"]}}
+        notice = shown_before(sent)
+        call = {"client": "notify", "method": "notify.close", "params": {"id": notice}}
         s.core.call("methods.call", call)
+        closed(s, notice)
 
     s.act("a notice shows", [show])
     s.act("a notice is dismissed", [dismiss])
+
+
+def shown_id(s, summary):
+    """Wait until chora-notify shows a notice with the summary (`shown` of
+    its `state.get`) and answer its id; RuntimeError after 10 s."""
+    found = {}
+
+    def check():
+        notify = s.state("notify") or {}
+        ids = [n["id"] for n in notify.get("shown", []) if n.get("summary") == summary]
+        if ids:
+            found["id"] = ids[0]
+        return bool(ids)
+
+    s.until(check, 10, f"notice {summary!r} in shown of notify")
+    return found["id"]
+
+
+def closed(s, notice):
+    """Wait until chora-notify lists the id as closed and shows it no more;
+    RuntimeError after 10 s."""
+
+    def check():
+        notify = s.state("notify") or {}
+        shown = [n.get("id") for n in notify.get("shown", [])]
+        return notice in notify.get("closed", []) and notice not in shown
+
+    s.until(check, 10, f"notice {notice} in closed of notify")
+
+
+def shown_before(sent):
+    """The id of the notice that an earlier act showed; RuntimeError, which
+    fails only this act, when that act failed."""
+    if "id" not in sent:
+        raise RuntimeError("no notice shown by the act before")
+    return sent["id"]
