@@ -77,3 +77,38 @@ Commits: 6c065581 (rc-1 red), da68737d (rc-1 fix, rc-2, rc-3).
   chora, xp; all targets, -D warnings) clean. `BIN=target/debug tests/acts/run.py --no-selftest construct`: 53 pass, 0 known red.
   Gate at da68737d, `tests/merge-gate.sh --jobs 3`, once: green, 41 steps PASS, no flake, no rerun.
 - Open: none. The event gained a field, so the PM should note it in the merge (api.md updated; clients that ignore it are unaffected).
+
+## Review r2
+Review lane (opus, high) of claude/construct-red da68737d against 28254eb6; read-only on code, no gate run. Verdict: **MERGE-OK** (no BLOCK, no MAJOR).
+
+Checks:
+1) Red first: holds. `cargo test -p chora-construct --features chora-kit/testing` on 6c065581: 207 pass, 1 fail,
+   `a_dialog_of_the_pressed_window_gets_the_keyboard_and_an_unrelated_window_does_not` at the dialog assert (lifecycle.rs:389,
+   last focus `Some(None)`, wanted `Some(Some("s2"))`); on da68737d: 208 pass.
+2) rc-1: `keys_for_new` gives `focus::give` only when `created.parent` is the pressed window (core focus, an own window, camera in
+   no window); any other new pane keeps the walk. Nested child (dialog of a dialog): holds once `focus.changed` names the first dialog,
+   which is then the pressed own window. A child that maps after the press moved to another window: parent is not the focus, keys to
+   the walk (the D116 rule for an unrelated window). A child of a window on another cube face: the same rule, keyed on the focus, not
+   the face. An xdg_popup never reaches it: `new_popup` (handlers.rs:484) only tracks the popup, no window, no `surface.created`.
+   No path leaves the keys with no one: the child branch is one `focus` command; the walk branch is release + look focus in one apply.
+   Gap: a new window of the same app without an xdg parent (Ctrl+N) is not covered, though the docstring and D116 say so (rc-4).
+3) Core API: additive. `parent` is `#[serde(default, skip_serializing_if = "Option::is_none")]`, `Event` has no deny_unknown_fields,
+   api.md names it. A throwaway probe in `a_child_toplevel_goes_to_the_manager_of_its_parent` (ipc.rs:4402, reverted) saw
+   `surface.created` with `"parent": "s1"` for the dialog. A `set_parent` after the batch of the first commit is not reported (rc-5).
+4) Other looks: `cargo check --workspace` green (mc, tiling compile; neither builds a `Created` or `SurfaceCreated` literal);
+   `cargo test -p chora-kit --features testing` all pass (274 + integration + doc); `cargo test -p chora-xp` 252 pass.
+   xp startup.rs sets `parent: None` for nodes it adopts at start, which xp never reads.
+5) rc-2: D116 is "Proposed (PM accepts at merge)", names the child rule, the mc app.open exception and the `parent` field; rc-3: the
+   docstring in tests/acts/looks/construct.py:84 is clean.
+6) D-number clash: the PM's at merge.
+
+Findings:
+- rc-4 MINOR plugins/chora-construct/src/lifecycle.rs:34 and docs/decisions.md:156 (D116): both say a "new window of the same app"
+  counts as a child, but the code matches only the xdg `parent`; a Ctrl+N window (foot, GTK) has none and gives the keys to the walk.
+  Fix: drop "or a new window of the same app" from the docstring and D116 (or, if the PM wants Ctrl+N covered, also match the pid of
+  the pressed window).
+- rc-5 MINOR crates/chora/src/handlers.rs:194: `parent` is read once at `announce`; a later `xdg_toplevel.set_parent` sends no event
+  (no `parent_changed` handler), so such a dialog gets the r1 rule (keys to the walk); no look reads it after creation.
+  Fix: say in api.md that `parent` is the parent at the first commit, and leave a change event to a later need.
+- rc-6 NIT crates/chora/src/ipc.rs:4412: no core cell asserts the new field (the FakeCore cells script it). Fix: subscribe `a` to
+  `surface.created` in `a_child_toplevel_goes_to_the_manager_of_its_parent` and assert `"parent": "s1"`.
