@@ -52,3 +52,41 @@ hooks passed). The first run on 30fa671d failed only at acts: I5 found net3-m1 (
 5. output.list could carry the work area in output pixels; scripts crop captures by it (S).
 6. `Fonts::width` and `Fonts::run` parse an SVG per line; cache by (line, font) as Theme.widths does (S).
 Cut check: no new dependency; xp and notify use only chora-draw, kit and scene.
+
+## Review r1
+
+Seeded review of claude/net3 bc54896a against dc4bc46d (21 files). Verdict: **FIX** (1 MAJOR, 5 MINOR, 1 NIT, 1 pre-existing).
+Ran: `cargo test -p chora-scene -p chora-draw -p chora-xp -p chora-notify` pass (34+18+129+195); `cargo test -p chora ipc::`
+133/134: only rw-8, which fails the same way on dc4bc46d and passes alone. `tests/test_acts.py` 86 pass. Stubbed I2/I5/I6/I9/I10/I12/I13
+one at a time: 2/2/2/4/2/3/2 cells go red, as the report says. `tools/cut-check` ok, no new dependency (serde_json is a
+workspace dev-dependency of chora-draw). Check 1 holds: scene.boxes is read-only, a client socket boxes only `own_node` nodes and no
+layer surface, the main, plugin and confined sockets follow `ipc.fixed` exactly as scene.query does (the test covers both sockets).
+Check 2 holds: `Fonts::run` and `draw` share `placed` (fit, ellipsis, centring), and the font cells pass.
+Check 4: net3-t1 and net3-m1 each name a real overprint (see rw-5 for how wide they match). I13 not red: not accepted, see rw-1.
+Check 5: no change to looks; xp and notify only add `texts`/`state.get`.
+
+- rw-1 MAJOR tests/acts/invariants.py:493 + looks/construct.py:34: the slice row says I13 holds "at rest and at a held 45 degrees".
+  Only the rest pose is acted, and I13 checks only pairs where both faces show with corners. The lane's own probe found face 0 gone
+  2 s into a 4 s `cube.turn by 1`, which is the co-21 gap I13 cannot see. So "I13 not red" rests on the one pose that passes.
+  Fix: add a held-45° act (pause the turn halfway) and fail when a ring neighbour of a shown face is missing or has no corners, then list co-21 if it goes red.
+- rw-2 MINOR tests/acts/harness.py:177: `work_rect` subtracts `position` from `work_area`, but `work_area` is
+  `scene_area(camera, zone)` (output.rs:257). That is right for the default camera only, so the I7 crop moves once a look moves the
+  camera (construct step back, mc pan). Fix: use `default_work_area` minus `position`, which is the zone and does not depend on the camera.
+- rw-3 MINOR tests/acts/invariants.py:427: `bars_over_fullscreen` counts every box above the window that a look owns. Attached
+  surfaces are owned by the WM (tree.rs attach), so a modal dialog or popup correctly above its fullscreen parent is flagged as a bar.
+  That contradicts `modals_below`. Fix: skip `kind == "surface"` boxes and the look's `open` entries for that window.
+- rw-4 MINOR tests/acts/invariants.py:299: `screen_texts` maps runs through `box["rect"]`, which is the query rect already cut by
+  ancestor clips. For a partly clipped image node (sliding menu, scrolled list) the runs get squeezed into the visible part, which gives
+  false I5 overlaps or misses. Fix: map runs through the unclipped placement (node rect before the clip, or `corners`) and clip afterwards.
+- rw-5 MINOR tests/acts/known-red.toml:47,54: `match` is a node id, and harness.py:243 accepts it while every breach contains it.
+  So any further overprint inside the tiling key list or the mc key column stays hidden behind net3-t1 and net3-m1. Fix: match on the
+  named line ('Run a program or a typed command', 'Start a program or run a command').
+- rw-6 MINOR tests/acts/invariants.py:372: I9 checks only the notices already in `shown`. A notice chora-notify accepted and never
+  showed (the sh-18 shape, and the "accepted ... is in its shown" half of the row) passes. Fix: have notify report `accepted` ids for
+  the act (or have the cue keep the Notify reply id) and require each one in `shown`.
+- rw-7 NIT crates/chora-draw/src/theme.rs:559: `render` builds runs (one SVG parse per text layer) for every new picture in
+  production, though only `state.get` reads them. Also `runs.clear()` on eviction keeps `shown` paths, so texts vanish silently in a long
+  session. Fix: compute runs lazily in `texts()` (memoised per path) and drop `shown` entries whose path was evicted.
+- rw-8 pre-existing crates/chora/src/ipc.rs:2156: `a_refused_request_logs_its_client_and_code_without_its_parameters` fails
+  under `cargo test -p chora ipc::` on both dc4bc46d and bc54896a and passes alone. The thread-local subscriber loses to callsite
+  interest that another test thread cached. Fix: log through a test-wide subscriber, or call `tracing::callsite::rebuild_interest_cache()` inside `logged`.
