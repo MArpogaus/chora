@@ -11,3 +11,6 @@ Closed:
 - CONTRIBUTING.md:17 lists all seven wm parts and points to the per-module list for the rest.
 Checked, not redone: D116 accepted; `grep -rn D-ungrab` empty (D117).
 Not closed: rc-6 (a core cell in ipc.rs:4412 asserting the `parent` of surface.created) is a test, not a doc line, outside this brief.
+
+## r1 PM review (2026-11-19 20:30 UTC)
+Diff 6aa0bd37..c8249e2c, 5 files, +12 -12, docs and comments only; builder sonnet lane, reviewer PM. Each closed id checked against its line: D95 status matches decisions-now 11-19 05:59; wm/mod.rs and CONTRIBUTING.md name the seven modules of `pub mod`; api.md parent and ungrabbed lines match D116 and D55; ci-check (rustdoc links) green. No finding. Verdict (computed): MERGE-OK; c8249e2c to train 72. rc-6 (ipc.rs cell for `parent`) to backlog.

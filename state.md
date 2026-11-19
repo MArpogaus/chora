@@ -27,12 +27,12 @@ burn-down: F1, F8 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7 open; F6 partly;
 | cube-tests-r1.md (F5) | haiku high | done 19:57: cube/construct.rs 38.5 to 96.7 %; PM review MERGE-OK; 03d0bcfd (committer fixed, claude/cube-tests-c) to train 72 |
 | mx1-m2-r1.md (F5) | sonnet high | done 20:23: cap from gate lock, 232 of 315 s; PM review MERGE-OK (1 MINOR); 5197fa22 to train 72 |
 | kit-report-r1.md (F2, F4) | sonnet high | session_016iS3kMTc9oNYxZLiK2tahV (20:13) from 6aa0bd37 |
-| docs-f8d-r1.md (F8) | sonnet high | session_016iS3kM6mWp5jpNZ3b9TBmN (20:13) from 6aa0bd37 |
+| docs-f8d-r1.md (F8) | sonnet high | done 20:28: rf-1, rf-2, rc-4, rc-5, rd-10 closed; PM review MERGE-OK; c8249e2c to train 72 (rc-6 test to backlog) |
 | lint-reason-r1.md (F4) | haiku high | session_016iS3kNum3AruGdhEDHT2iE (20:13) from 6aa0bd37 |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 69 green 19:03; 70 green 19:32 (construct-red, known-red 0). 71 green 20:12 (debt-down, D117). 72 Fri: cube-tests 03d0bcfd, mx1-m2 5197fa22, kit-report, docs-f8d, lint-reason.
-5. F work: DEBT-DOWN merged (F4: r3 recount); FLAKE-SERIES 5/5 green, kit 91.06 % (F5); AUDIT-F r2 done: CUBE-TESTS haiku 0.8 %, MX1-M2 done (2 cells on flake watch); running: KIT-REPORT 0.8 %, DOCS-F8d 0.4 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 69 green 19:03; 70 green 19:32 (construct-red, known-red 0). 71 green 20:12 (debt-down, D117). 72 Fri: cube-tests 03d0bcfd, mx1-m2 5197fa22, kit-report, docs-f8d c8249e2c, lint-reason.
+5. F work: DEBT-DOWN merged (F4: r3 recount); FLAKE-SERIES 5/5 green, kit 91.06 % (F5); AUDIT-F r2 done: CUBE-TESTS haiku 0.8 %, MX1-M2 done (2 cells on flake watch); DOCS-F8d done; running: KIT-REPORT 0.8 %, LINT-REASON 0.6 %; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
