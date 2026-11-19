@@ -13,16 +13,19 @@ use crate::words::{self, Language, Word};
 /// voice. The figure, the chat and the doors are costume; this is the state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
-    /// No helper exists and the voice agent rests, or voice does not run.
+    /// No helper exists, or voice does not run. The voice agent alone is
+    /// no helper: its listening, thinking and speaking show in the figure.
     NoHelper,
-    /// A helper exists; the latest report rests.
+    /// A helper exists, none works, and the latest report rests.
     Idle,
-    /// A helper exists and the voice agent listens.
+    /// A helper exists, none works, and the voice agent listens.
     Listening,
-    /// The latest report thinks or works.
+    /// A named helper works: its latest report thinks or works, whoever
+    /// reported after it.
     Working,
-    /// The latest report is an answer: spoken, a question to the person,
-    /// done or blocked. Never `Working` after it until a new report works.
+    /// No helper works and the latest report is an answer: spoken, a
+    /// question to the person, done or blocked. Never `Working` after it
+    /// until a helper works again.
     Answered,
 }
 
@@ -124,28 +127,35 @@ impl Helper {
         }
     }
 
-    /// The latest report of a named helper: its name, raw state and task.
+    /// The helper of the door: the named helper that works and reported
+    /// last, else the named helper that reported last; its name, raw state
+    /// and task.
     #[must_use]
     pub fn named(&self) -> Option<(&str, &str, &str)> {
-        self.seen
-            .iter()
-            .rev()
-            .find(|(name, ..)| !name.is_empty())
+        let mut named = self.seen.iter().rev().filter(|(name, ..)| !name.is_empty());
+        named
+            .clone()
+            .find(|(_, raw, _)| State::of(raw) == State::Working)
+            .or_else(|| named.next())
             .map(|(name, state, task)| (name.as_str(), state.as_str(), task.as_str()))
     }
 
-    /// The state: the latest report, mapped; `NoHelper` while no named
-    /// helper exists and that report rests.
+    /// The state from all live reports: `NoHelper` without a named
+    /// helper, `Working` while any named helper works, else the latest
+    /// report that does not work (the voice agent thinking makes no
+    /// helper work).
     #[must_use]
     pub fn state(&self) -> State {
-        let Some((_, raw, _)) = self.seen.last() else {
-            return State::NoHelper;
-        };
-        let state = State::of(raw);
-        if self.named().is_none() && matches!(state, State::Idle | State::Listening) {
-            State::NoHelper
-        } else {
-            state
+        match self.named() {
+            None => State::NoHelper,
+            Some((_, raw, _)) if State::of(raw) == State::Working => State::Working,
+            Some(_) => self
+                .seen
+                .iter()
+                .rev()
+                .map(|(_, raw, _)| State::of(raw))
+                .find(|state| *state != State::Working)
+                .unwrap_or(State::Idle),
         }
     }
 
@@ -156,15 +166,16 @@ impl Helper {
     }
 
     /// The words of a helper door: `No helper`, else the name and the
-    /// state word of the helper that reported last, `coder · working`, and
-    /// its task when the costume of the door has room for it.
+    /// state word of the helper of [`Self::named`] (the working one first),
+    /// `coder · working`, and its task when the costume of the door has
+    /// room for it.
     #[must_use]
     pub fn door(&self, language: Language, task: bool) -> String {
         match self.named() {
-            Some((name, state, said)) if self.state() != State::NoHelper => {
+            Some((name, state, said)) => {
                 words::row(language, name, state, if task { said } else { "" })
             }
-            _ => Word::NoHelperDoor.text(language).to_owned(),
+            None => Word::NoHelperDoor.text(language).to_owned(),
         }
     }
 

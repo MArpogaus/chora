@@ -1564,12 +1564,15 @@ and `busy` while a card shows.
 
 Every look and the presenter chora-assistant answer `helper`, the state
 of the helper machine of the kit (`chora_kit::helper`, from the events
-of voice): `no_helper` (no helper exists and voice rests, or voice does
-not run), `idle`, `listening`, `working` or `answered` (the latest report
+of voice): `no_helper` (no helper exists, or voice does not run; the
+voice agent alone is no helper, and its thinking and speaking show only
+in the figure), `working` (a helper works, whoever reported after it),
+`idle`, `listening` or `answered` (no helper works and the latest report
 is an answer: spoken, a question, done or blocked; never `working` after
-it until a new report works). chora-assistant, the only presenter of the
-helper, adds `door`, the words of a helper door (`No helper`, or the name
-and state of the helper that reported last), which `chora-chat --door`
+it until a helper works again). chora-assistant, the only presenter of
+the helper, adds `door`, the words of a helper door (`No helper`, or the
+name and state of the helper that works and reported last, else of the
+helper that reported last), which `chora-chat --door`
 prints for a panel, and `shown`, the helper surfaces on screen
 (`hud-figure`, `hud-card`, `hud-chat`).
 
