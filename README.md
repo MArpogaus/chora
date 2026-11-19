@@ -198,6 +198,7 @@ See [CONTRIBUTING.md](https://github.com/MArpogaus/chora/blob/main/CONTRIBUTING.
 GPL-3.0-or-later. See
 [LICENSE](https://github.com/MArpogaus/chora/blob/main/LICENSE).
 
-## Use of LLM coding tools
+## Use of LLM Coding Tools
 
-This project uses LLM coding tools for design, code and documentation.
+This project was developed with the help of LLM coding assistants. The
+authors reviewed and take responsibility for all content.
