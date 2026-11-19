@@ -30,7 +30,8 @@ config=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar.json
 style=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar
 
 pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
-mkdir -p "$pids"
+# shellcheck disable=SC2174
+mkdir -p -m 700 "$pids"
 
 prepare() {
     mkdir -p "$style/icons"
