@@ -65,3 +65,17 @@ Head 2318d62 (claude/integ), on af5547c7. Gate `tests/merge-gate.sh --only build
 - ri-2 (MINOR): no red (refactor, no behaviour change); fix 4bd1e82 drops `OWN_TEXTS`, `set_client_text` and its doc; `content.set`/`content.add` call `set_text`. Cell: test (chora-mc 133 pass).
 - ri-3 (NIT): docs 598a3d0, testing.rs `answers`/`client_answers`: "by client first, then by method, else null". Cell: clippy, test.
 - ri-4 (NIT): test 2318d62, state.rs give cells use `add(&mut wm, "s1", 0)`. Cell: test.
+
+## Review r2
+
+Head 2318d62c (claude/integ). Reviewed: 541cf599 22320f82 e3905df3 74130f3b 4bd1e825 598a3d06 2318d62c. `cargo check --workspace` and `cargo clippy --workspace --all-targets -- -D warnings` green.
+1) Red first holds: 541cf599 and 22320f82 precede e3905df3. `cargo test -p chora-assistant` at 22320f82: 241 pass, 1 fail (`a_new_look_keeps_the_files_of_the_figure_on_the_screen_until_it_is_replaced`, the `ring.exists()` assert, main.rs:1089); at e3905df3: 242 pass.
+2) ri-1 cause: `restyle` (context.rs:549) now pushes the old look cache to `stale` instead of removing it; it goes after the apply in `evaluate` (context.rs:477-481, only without a card) and in `switch_step` (context.rs:452-455, the deferred rebuild). The act keeps voice and the presenter up through `cube_acts` (construct.py:117, 0113008b reverted, no presenter ended). Construct act rerun here at 2318d62c (`tests/gate-acts.sh --no-selftest construct`): green, no I14 `effect.failed`. No cell shows the removal (ri-5).
+3) 74130f3b: measured in the run, the skipped boxes at the 1:1 check are the island's four nodes only: hud-island-shadow [1003, -88, 365, 280], hud-island-glass and hud-figure [1123, 32, 125, 40], hud-island-ring [1131, 40, 24, 24]. Raw diff 8754 of 1024000 px, all inside them (0 after the skip). A ring.frag fault is still caught by I14, as 541cf599 was red for it. The filter is by owner, not by island node (ri-6).
+4) ri-2: `OWN_TEXTS` and `set_client_text` gone, no reference left, `content.set`/`content.add` call `set_text`. ri-3: testing.rs:222-227 looks up `client_answers`, then `answers`, else null, as both docs say. ri-4: the two give cells use `add(&mut wm, "s1", 0)` (state.rs:155).
+5) No new feature, key or wording; `restyle` became `pub` for the cell, as `evaluate` and `switch_step` are.
+
+- ri-5, MINOR, plugins/chora-assistant/src/main.rs:1079: the new cell only shows the old cache kept in `stale`; no cell shows `evaluate` or `switch_step` removing it after the apply, so a leak of a look-N directory on every context switch would stay green. Fix: a cell that runs `evaluate` across a folder switch on the fake core and asserts the old directory gone and `stale` empty.
+- ri-6, MINOR, tests/acts/looks/construct.py:206: the 1:1 skip takes every box owned by `assistant`; today that is exactly the island, but a card or chat of the host on the screen would be skipped whole, and the shadow box already masks 277 x 192 px of the top right. Fix: skip only the island's nodes (`hud-island-*`, `hud-figure`).
+
+Counts: BLOCK 0, MAJOR 0, MINOR 2, NIT 0. Verdict: MERGE-OK.
