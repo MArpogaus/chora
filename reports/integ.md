@@ -37,3 +37,20 @@ Merges: wm5 d74dd374, kit5b 7b01dd5a, kit7 8321c16, each `--no-ff`; check and te
 3. kit7 with wm7a: helper_acts left chora-assistant (HUD island, top right) running; "back at 1:1 no construct surface is left" saw 8754 differing pixels at [1117, 28, 1253, 105] and I14 saw an effect.failed of the presenter's ring.frag when construct ends. Added the act "the helper presenter ends before the cube" (construct.py), which ends voice and the presenter and declares voice, voice-mcp, assistant as disconnects. The helper is not shown over the cube; a look that wants both needs its own cell.
 4. ci-check: my comment in mc named chora-notify (cut-check names); reworded. size-ratchet list lowered (cube.rs 1641 to 1617).
 5. Lost in the merge, by design of kit5b and kit7 together: mc has no own text contents any more (`OWN_TEXTS` empty, its guard in content.rs stays, no cell left for it).
+
+## Review r1
+
+Head af5547c7 (claude/integ). Reviewed: the remerge diffs of 3781cb7e (wm5), 926bb214 (kit5b) and 3619ccb3 (kit7), and a7d671f2, fe985999, 0113008b.
+`cargo check --workspace` green; `cargo test -p chora-kit -p chora-mc -p chora-construct -p chora-xp --features chora-kit/testing` green (13 suites, 0 failed).
+1) Resolutions: each keeps both sides as the report says. testing.rs looks up by client, then by method, then null. hud.rs: since the base, the train side changed only the notice that kit5b removed, so taking kit7's file loses nothing. The removed `draw_hud`/`draw_notice` callers drew only the notice. `TurnCube` was already gone on the train (fec3a98), and `the cube opens` of kit7 is inside wm7a's `cube_acts`. Nothing lost silently.
+2) `OWN_TEXTS` is empty and mc writes no text content itself any more, so the guard has no job. No user doc claims it (ri-2).
+3) a7d671f2 fixes the test: a real window reaches the book through claim/confirm before any give, and `keep` is the test shortcut that the helper `add()` uses too (ri-4).
+4) 0113008b hides a fault (ri-1).
+5) docs/configuration.md matches the code: `voice_hud` of mc and construct (old values and warnings), the `content.*` rows, the Notices of the construct, and the mc notify slot.
+
+- ri-1, MAJOR, tests/acts/looks/construct.py:126: the act "the helper presenter ends before the cube" ends voice and chora-assistant before `cube_acts`. This hides the I14 `effect.failed` of the presenter's ring.frag at construct end, and the island diff at [1117, 28, 1253, 105]. Every flavor starts the HUD host (docs/configuration.md:947), so the shipping setup is the one that is no longer tested, and no cell is red for it. Suspect: `Theme::cache_file` (crates/chora-draw/src/theme.rs:469) rewrites ring.frag on each `Assistant::new`. Fix: keep the presenter up through `cube_acts`, or add an act "construct ends with the HUD host up: no effect.failed, the island as before", with a known-red row until the fault is fixed.
+- ri-2, MINOR, plugins/chora-mc/src/content.rs:33: the guard on the empty `OWN_TEXTS` is dead (`contains` on `[&str; 0]`), and its cell is gone. The doc comments at agent.rs:154 and content.rs:25 still say `content.set`/`content.add` refuse own texts. Fix: drop `OWN_TEXTS` and the check, and let `content.set`/`content.add` call `set_text` directly.
+- ri-3, NIT, crates/chora-kit/src/testing.rs:57: the docs of `client_answers` ("null without") and `answers` ("null for the others") no longer describe the lookup. Fix: say "by client first, then by method, else null" in both.
+- ri-4, NIT, plugins/chora-xp/src/wm/state.rs:268: the two give cells repeat the helper `add()` (state.rs:155) by hand. Fix: use `add(&mut wm, "s1", 0)`.
+
+Counts: BLOCK 0, MAJOR 1, MINOR 1, NIT 2. Verdict: FIX (ri-1).
