@@ -26,6 +26,9 @@
 #   CELLS   a regular expression of the cells that run (default all)
 #   SHOTS   a directory that keeps a capture and the nodes of each cell,
 #           and the logs of waybar and of the core of each round
+#   BAR_STALL  seconds that waybar stands stopped from the start of the
+#           fullscreen window: the reproducer of F29, a panel that hides
+#           late under load
 #   CHORA_FRAME_BUDGET_US  the frame budget of the watchdog of the core
 #           (default 500000): the audit checks the look, and a watchdog
 #           that drops the effects of a slow software renderer at
@@ -71,6 +74,22 @@ until_shows() {
     return 1
 }
 
+fullscreen_state() {
+    local outputs
+    outputs=$(ctl outputs) || return 1
+    ctl query kind:surface | jq -c --argjson outputs "$outputs" '
+        ($outputs[0]) as $o
+        | {window: ([.[] | select(.surface.title == "fullscreen") | .rects[$o.name]][0]),
+           output: $o.size, work_area: $o.work_area}'
+}
+fullscreen_rests() {
+    for _ in $(seq 80); do
+        fullscreen_state | jq -e '.window == [0, 0] + .output and .work_area[1] == 0' >/dev/null 2>&1 &&
+            return 0
+        sleep 0.25
+    done
+    return 1
+}
 audit() {
     local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall='' lead=${5:-1} ref=${6:-}
     [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
@@ -181,8 +200,16 @@ round() {
     echo '[{"shortcut": {"keys": "Escape"}}]' | ctl inject - >/dev/null
     [ -z "$launcher" ] || kill "$launcher" 2>/dev/null
     sleep 1
+    if [ -n "${BAR_STALL:-}" ]; then
+        stalled=$(cat "$XDG_RUNTIME_DIR/chora-tiling/waybar.pid")
+        kill -STOP "$stalled"
+        (sleep "$BAR_STALL" && kill -CONT "$stalled") &
+    fi
     ctl run "$bin/chora-tiling" --launch foot -F -T fullscreen sh -c 'printf "\\n\\n\\n\\n\\n\\n\\n\\n"; echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
-    sleep 3
+    if [[ fullscreen =~ ^(${CELLS:-.*})$ ]] && ! fullscreen_rests; then
+        echo "FAIL: fullscreen $tag: the bar does not hide over the fullscreen window within 20 s: $(fullscreen_state)"
+        failed=1
+    fi
     audit fullscreen "$tag" "$theme" "$scale"
     exec 3>&-
     for p in "${pids[@]}" "${run_pids[@]}"; do kill "$p" 2>/dev/null; done

@@ -745,7 +745,8 @@ impl Construct {
 
     /// A drag with the modifier moves a pane: sideways along its face,
     /// and up the screen away from the camera, at the pace of the
-    /// pointer at the pane's depth.
+    /// pointer at the pane's depth, turned to where the camera stays at
+    /// the end of a glide.
     pub(crate) fn drag_pane(&mut self, position: [f64; 2]) -> Result<(), ClientError> {
         let Some(moving) = &self.moving else {
             return Ok(());
@@ -763,7 +764,8 @@ impl Construct {
             at[1] + fz * ahead - fx * right,
         ];
         let (from, yaw) = (moving.at, moving.yaw);
-        self.move_pane(i, to)?;
+        let heads_to = self.target();
+        self.move_pane_facing(i, to, [heads_to.x, heads_to.z])?;
         let pane = &self.panes[i];
         let [dx, dz] = [pane.at[0] - from[0], pane.at[1] - from[1]];
         let (sin, cos) = yaw.sin_cos();
