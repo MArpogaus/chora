@@ -2018,6 +2018,43 @@ mod tests {
         assert!(model.lock().unwrap().focuses.len() > before);
     }
 
+    /// rw-1: a click on a window of mc after another look took the
+    /// keyboard gives it back (D55, "until one of its windows takes it
+    /// back"): mc sends the focus again, also for the window it sent last.
+    #[test]
+    fn a_click_on_its_window_after_another_look_took_the_keyboard_sends_the_focus() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("click-back", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.windows.insert("agenda".into(), "s1".into());
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let sent = model.lock().unwrap().focuses.len();
+        mc.event(chora_scene::Event::FocusChanged {
+            surface: Some("s9".into()),
+        })
+        .unwrap();
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let focuses = model.lock().unwrap().focuses.clone();
+        assert_eq!(focuses.len(), sent + 1, "{focuses:?}");
+        assert_eq!(focuses.last(), Some(&Some("s1".to_owned())));
+    }
+
+    /// rw-2: `take_free_keyboard` gives the keyboard to the page node, and
+    /// `state.get` tells that mc holds it.
+    #[test]
+    fn a_free_keyboard_taken_by_the_page_shows_in_the_state() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("free-keyboard", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        assert_eq!(model.lock().unwrap().scene.focused_node(), None);
+        mc.take_free_keyboard().unwrap();
+        assert!(model.lock().unwrap().scene.focused_node().is_some());
+        assert_eq!(
+            mc.state().unwrap()["focus"],
+            serde_json::json!({"holder": "mc"})
+        );
+    }
+
     /// A docked app that had the keyboard before the chat opened gets it
     /// back when the chat closes.
     #[test]

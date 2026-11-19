@@ -2500,4 +2500,44 @@ mod tests {
             "the manager with the keyboard gets its key"
         );
     }
+
+    /// rw-3: a clicked layer surface (the search field of a panel) has the
+    /// keyboard while the window of a manager of a face still is the
+    /// focus the core wants. The place is not that manager: the keys go
+    /// where the pointer is.
+    #[test]
+    fn the_key_place_is_not_the_window_owner_while_a_layer_has_the_keyboard() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        assert!(
+            matches!(
+                alt_y(&core, false),
+                Some(super::KeyAction::Grab(_, _, false))
+            ),
+            "the manager of the window that has the keyboard gets its key"
+        );
+        wayland.layer(
+            &mut core,
+            smithay::reexports::wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::Layer::Top,
+            smithay::reexports::wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
+        );
+        let field = core.state.all_outputs().iter().find_map(|output| {
+            let map = smithay::desktop::layer_map_for_output(output);
+            map.layers().next().map(|l| l.wl_surface().clone())
+        });
+        assert!(field.is_some(), "the layer is mapped");
+        core.state.set_layer_focus(field);
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "the layer has the keyboard: the key place is where the pointer is"
+        );
+    }
 }
