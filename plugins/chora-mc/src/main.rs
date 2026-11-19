@@ -403,6 +403,12 @@ struct Mc {
     scroll: BTreeMap<String, f64>,
 }
 
+/// One line on stderr for a page that could not be shown: the plugin keeps
+/// running and the log says which page and why.
+pub(crate) fn report(what: &str, message: &str) {
+    eprintln!("chora-mc: {what}: {message}");
+}
+
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
     let args = Args::parse();
@@ -471,7 +477,7 @@ fn spoofs_voice(event: &Event) -> Option<(u64, RpcError)> {
 impl Mc {
     /// The plugin before its start: no nodes, no scene shown. `effects`
     /// are the files of the shaders that write and that blur.
-    #[allow(clippy::too_many_lines)] // one line per field of the plugin
+    #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
     fn new(
         rt: Runtime<Action>,
         settings: settings::File<Config>,
@@ -1017,7 +1023,7 @@ impl Mc {
         if let Some(name) = back.or(first)
             && let Err(err) = self.show(&name, true)
         {
-            eprintln!("chora-mc: {name}: {}", err.message);
+            crate::report(&name, &err.message);
         }
         self.trail = trail;
     }
@@ -1048,7 +1054,7 @@ fn invalid(message: String) -> RpcError {
     RpcError::new(RpcError::INVALID_PARAMS, message)
 }
 
-#[allow(clippy::needless_pass_by_value)] // for map_err
+#[allow(clippy::needless_pass_by_value, reason = "for map_err")]
 fn rejected(err: ClientError) -> RpcError {
     RpcError::new(RpcError::REJECTED, err.to_string())
 }

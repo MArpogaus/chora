@@ -397,11 +397,33 @@ impl Ipc {
     }
 
     /// Drops the registrations of a connection for bindings without Ctrl,
-    /// Alt or Super, as happens when `input.grab-any` is revoked.
-    pub fn drop_free_grabs(&mut self, conn: u64) {
+    /// Alt or Super, as happens when `input.grab-any` is revoked. Returns
+    /// the bindings of the dropped grabs, except `move`.
+    pub fn drop_free_grabs(&mut self, conn: u64) -> Vec<Binding> {
+        self.drop_grabs_where(|b, t, c| {
+            c == conn && t != Trigger::Move && crate::input::free_binding(b)
+        })
+    }
+
+    /// Drops all the registrations of a connection, as happens when it
+    /// closes. Returns the bindings of the dropped grabs, except `move`.
+    pub fn drop_grabs(&mut self, conn: u64) -> Vec<Binding> {
+        self.drop_grabs_where(|_, _, c| c == conn)
+    }
+
+    fn drop_grabs_where(
+        &mut self,
+        dropped: impl Fn(&Binding, Trigger, u64) -> bool,
+    ) -> Vec<Binding> {
+        let mut told = Vec::new();
         self.grabs.retain(|(b, t, c)| {
-            !(*c == conn && *t != Trigger::Move && crate::input::free_binding(b))
+            let gone = dropped(b, *t, *c);
+            if gone && *t != Trigger::Move {
+                told.push(b.clone());
+            }
+            !gone
         });
+        told
     }
 
     /// The connection that grabbed the pressed binding, and the binding.
@@ -1162,7 +1184,8 @@ impl State {
         if let Some(reader) = closed.reader {
             self.loop_handle.remove(reader);
         }
-        self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        let dropped = self.ipc.drop_grabs(conn);
+        self.tell_ungrabbed(dropped);
         if self.button_grab.take_if(|g| g.conn == conn).is_some() {
             self.refresh_pointer();
         }
@@ -3994,6 +4017,77 @@ mod tests {
         second.ok(&mut core, "input.grab", grab.clone());
         second.ok(&mut core, "input.ungrab", grab.clone());
         second.ok(&mut core, "input.grab", grab);
+    }
+
+    /// A client that gave a grab up says so to the others, so that one that
+    /// was refused the key can ask again (D117). The core does not know
+    /// who waits: every subscriber hears it, and a refused ungrab says
+    /// nothing.
+    #[test]
+    fn an_ungrab_is_told_to_the_subscribers() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        let grab = json!({"binding": "Alt+Escape"});
+        holder.ok(&mut core, "input.grab", grab.clone());
+        let told = |waiting: &mut crate::testing::Client, core: &mut Core| {
+            (waiting.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
+                .filter(|e| e["event"] == "input.ungrabbed")
+                .collect::<Vec<_>>()
+        };
+        assert!(
+            told(&mut waiting, &mut core).is_empty(),
+            "a grab is not told"
+        );
+        let (_, _) = waiting.fails(&mut core, "input.ungrab", grab.clone());
+        assert!(
+            told(&mut waiting, &mut core).is_empty(),
+            "a refused ungrab is not told"
+        );
+        holder.ok(&mut core, "input.ungrab", grab);
+        let events = told(&mut waiting, &mut core);
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert_eq!(events[0]["binding"], "Alt+Escape");
+    }
+
+    /// A grab that ends with its connection is told as an explicit
+    /// release is (rd-7), and the key is free for the next to grab.
+    #[test]
+    fn a_grab_that_ends_with_its_connection_is_told() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        let grab = json!({"binding": "Alt+Escape"});
+        holder.ok(&mut core, "input.grab", grab.clone());
+        holder.ok(&mut core, "input.grab", json!({"binding": "Super+a"}));
+        holder.ok(
+            &mut core,
+            "input.grab",
+            json!({"binding": "Super+BTN_LEFT"}),
+        );
+        let (_, _) = waiting.fails(&mut core, "input.grab", grab.clone());
+        waiting.events_now(&mut core);
+        holder.shut_down_writes();
+        assert!(holder.closed(&mut core), "the holder is gone");
+        let mut told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .map(|e| e["binding"].as_str().unwrap_or_default().to_string())
+            .collect::<Vec<_>>();
+        told.sort();
+        assert_eq!(told, ["Alt+Escape", "Super+BTN_LEFT", "Super+a"]);
+        waiting.ok(&mut core, "input.grab", grab);
     }
 
     #[test]

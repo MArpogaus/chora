@@ -375,7 +375,7 @@ impl DisplayDialog {
         ))
     }
 
-    #[allow(clippy::many_single_char_names)] // coordinates and colors
+    #[allow(clippy::many_single_char_names, reason = "coordinates and colors")]
     fn appearance_tab(
         &self,
         theme: &mut Theme,
@@ -694,7 +694,7 @@ fn spectrum([x, y, w, h]: Rect) -> String {
 
 /// The color button: the push button with the color in a black frame, a
 /// line and the arrow of its palette.
-#[allow(clippy::many_single_char_names)] // sizes and colors
+#[allow(clippy::many_single_char_names, reason = "sizes and colors")]
 fn color_button([w, h]: [i32; 2], [r, g, b]: [u8; 3]) -> Picture {
     Picture::new(w, h).svg(dialog::push_face(w, h, true) + &format!(
         r##"<rect x="6.5" y="5.5" width="52" height="{}" fill="rgb({r},{g},{b})" stroke="#000"/><rect x="62" y="4" width="1" height="{}" fill="#ACA899"/><rect x="63" y="4" width="1" height="{}" fill="#fff"/><path d="M65 9h5l-2.5 3z" fill="#000"/>"##,

@@ -690,7 +690,6 @@ impl Tiling {
         }
     }
 
-    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
         if self.focus.hear(&event).is_some() {
             return Ok(());
@@ -964,7 +963,6 @@ impl Tiling {
     /// The watchdog of the core removed the meshes: the effects end.
     #[allow(clippy::unnecessary_wraps, reason = "an event handler")]
     fn effects_dropped(&mut self) -> Result<(), ClientError> {
-        eprintln!("chora-tiling: frames were slow, the core dropped the effects");
         self.effects.dropped();
         self.bent.clear();
         Ok(())

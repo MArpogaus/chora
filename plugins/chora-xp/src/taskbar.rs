@@ -79,12 +79,16 @@ const SLIDE_TIME: f64 = 0.15;
 const PAGER_BUTTON: i32 = 22;
 const PAGER_TOP: i32 = (HEIGHT - PAGER_BUTTON) / 2;
 const PAGER_GAP: i32 = 2;
-#[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // four
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "four"
+)]
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 
 /// The settings of Taskbar and Start Menu Properties.
-#[allow(clippy::struct_excessive_bools)] // independent check boxes
+#[allow(clippy::struct_excessive_bools, reason = "independent check boxes")]
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]

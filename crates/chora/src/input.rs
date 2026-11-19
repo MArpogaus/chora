@@ -345,9 +345,9 @@ impl State {
     /// the capability `input.grab-any` that allowed them.
     pub fn revoke_free_grabs(&mut self, name: &str) {
         let conns = self.ipc.conns_of(name);
-        for conn in &conns {
-            self.ipc.drop_free_grabs(*conn);
-        }
+        let dropped = (conns.iter())
+            .flat_map(|conn| self.ipc.drop_free_grabs(*conn))
+            .collect::<Vec<_>>();
         let (ends, keep) = std::mem::take(&mut self.held.grabs)
             .into_iter()
             .partition(|h| conns.contains(&h.conn) && free_binding(&h.binding));
@@ -361,6 +361,7 @@ impl State {
                 grab.injected,
             );
         }
+        self.tell_ungrabbed(dropped);
     }
 
     /// Sends the held key of a node again when its time came, as a client
@@ -587,7 +588,6 @@ fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
     };
     let position = position_for(&state.scene, &outputs, &grab.node, spot);
     let local = local_for(&state.scene, &outputs, &grab.node, spot).unwrap_or(grab.local);
-    #[allow(clippy::float_cmp, reason = "the same input gives the same numbers")]
     if (grab.position, grab.local) != (position, local) {
         grab.position = position;
         grab.local = local;
@@ -1105,7 +1105,10 @@ fn click_focus(state: &mut State) {
 /// Tells the owner of the node under the pointer about scrolling, unless
 /// the node is a surface, whose client gets it through Wayland.
 fn scroll_node(state: &mut State, delta: [f64; 2], discrete: [f64; 2], source: AxisSource) {
-    #[allow(clippy::float_cmp)] // the end of a scroll on a touchpad is exactly 0
+    #[allow(
+        clippy::float_cmp,
+        reason = "the end of a scroll on a touchpad is exactly 0"
+    )]
     if delta == [0.0; 2] && discrete == [0.0; 2] {
         return;
     }
@@ -2051,6 +2054,33 @@ mod tests {
             key_states(&mut agent, &mut core, "Tab"),
             Vec::<String>::new()
         );
+    }
+
+    /// A revoke of `input.grab-any` ends its grabs as `input.ungrab` does:
+    /// the subscribers of `input.ungrabbed` are told (rd-7).
+    #[test]
+    fn a_revoke_of_grab_any_tells_the_ungrab() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.grab-any"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        agent.ok(&mut core, "input.grab", json!({"binding": "Tab"}));
+        agent.ok(&mut core, "input.grab", json!({"binding": "Alt+Escape"}));
+        waiting.events_now(&mut core);
+        core.admin()
+            .ok(&mut core, "grants.revoke", json!({"client": "agent"}));
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .map(|e| e["binding"].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(told, [json!("Tab")], "only the grab that ended is told");
     }
 
     /// tiling on the left half and xp on the right half, each with a

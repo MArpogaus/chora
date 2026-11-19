@@ -214,7 +214,6 @@ fn width(role: Role, text: &str) -> f64 {
 }
 
 /// The lines of a text wrapped at `wrap`, estimated as [`width`] does.
-#[allow(clippy::cast_precision_loss, reason = "short texts")]
 fn lines(role: Role, text: &str, wrap: f64) -> f64 {
     text.split('\n')
         .map(|line| (width(role, line) / wrap).ceil().max(1.0))

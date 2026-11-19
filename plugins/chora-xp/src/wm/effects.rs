@@ -179,7 +179,6 @@ impl Wm {
     /// The watchdog of the core removed all meshes because frames were
     /// slow: every effect ends at once.
     pub(super) fn effects_dropped(&mut self) -> Vec<Command> {
-        eprintln!("chora-xp: frames were slow, the core dropped the effects");
         let mut commands = Vec::new();
         for surface in self.effects.driver.dropped() {
             commands.extend(self.end_lamp(&surface));

@@ -261,7 +261,7 @@ pub fn tab_page([x, y, w, h]: Rect) -> String {
 
 /// A group box: a rounded line around a rectangle with the caption in
 /// blue at its top left, which breaks the line.
-#[allow(clippy::many_single_char_names)] // coordinates
+#[allow(clippy::many_single_char_names, reason = "coordinates")]
 pub fn group_box(theme: &Theme, picture: Picture, [x, y, w, h]: Rect, caption: &str) -> Picture {
     #[allow(clippy::cast_possible_truncation)]
     let width = theme.text_width(caption, Font::Ui).ceil() as i32;
@@ -314,7 +314,7 @@ pub fn field([x, y, w, h]: Rect) -> String {
 
 /// The blue button of a drop-down list or of a spin box, in a
 /// rectangle: a down arrow, or arrows up and down.
-#[allow(clippy::many_single_char_names)] // coordinates
+#[allow(clippy::many_single_char_names, reason = "coordinates")]
 pub fn arrow_button([x, y, w, h]: Rect, spin: bool) -> String {
     let mut svg = format!(
         r##"<defs><linearGradient id="ab{x}{y}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D8E4FD"/><stop offset="1" stop-color="#B2C8FA"/></linearGradient></defs><rect x="{}" y="{}" width="{}" height="{}" rx="1.5" fill="url(#ab{x}{y})" stroke="#BACCF4"/>"##,
@@ -379,7 +379,7 @@ pub fn combo([w, h]: [i32; 2], text: &str, enabled: bool) -> Picture {
 
 /// A sunken frame around a rectangle, as around a sample picture: dark
 /// lines at the top and the left, light ones at the bottom and the right.
-#[allow(clippy::many_single_char_names)] // coordinates
+#[allow(clippy::many_single_char_names, reason = "coordinates")]
 pub fn sunken([x, y, w, h]: Rect) -> String {
     let [l, t] = [f64::from(x) + 0.5, f64::from(y) + 0.5];
     let [r, b] = [f64::from(x + w) - 0.5, f64::from(y + h) - 0.5];
@@ -510,7 +510,7 @@ fn box_face(y: i32, look: Look, round: bool) -> String {
 /// A tab: rounded at the top, white growing gray to the bottom; the
 /// selected one is white with XP's orange line on top, as is a tab under
 /// the pointer.
-#[allow(clippy::many_single_char_names)] // coordinates
+#[allow(clippy::many_single_char_names, reason = "coordinates")]
 fn tab_svg(w: i32, h: i32, selected: bool, hot: bool) -> String {
     let stops = if selected {
         "#FCFCFE:0,#FCFCFE:1"

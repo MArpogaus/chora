@@ -343,7 +343,7 @@ impl Wm {
     /// with a warning.
     pub(super) fn change(&mut self, changes: Value) -> Vec<Command> {
         if let Err(err) = self.settings.set(changes) {
-            eprintln!("chora-xp: {err}");
+            crate::report(&err);
             return Vec::new();
         }
         let commands = self.configure();

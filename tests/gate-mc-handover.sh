@@ -2,7 +2,9 @@
 # Gate of a window that goes to mc (rv5-2 of the tour review): a headless
 # session with xp, tiling and mc, each on its own output, and a foot with
 # a red background that xp shows. In each cell the window shows on the
-# page of mc within 1 s, and no window is lost:
+# page of mc within 820 ms, and no window is lost. The limit is the
+# slowest of five runs beside mc-paths and mc-sofa, as merge-gate.sh
+# --jobs 3 runs them (653 ms, the key cell), plus 25 %:
 #
 #   - give: `choractl give mc` of the focused window;
 #   - key: Super+Alt+3 of xp;
@@ -28,7 +30,7 @@ mkdir -p "$shots"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-within_ms=${WITHIN_MS:-1000}
+within_ms=${WITHIN_MS:-820}
 
 session_start 1280x800
 grant input.inject screen.capture methods.call

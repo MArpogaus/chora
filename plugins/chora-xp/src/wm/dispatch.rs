@@ -68,6 +68,7 @@ impl Wm {
             {
                 self.voice_state(heard)
             }
+            Event::InputUngrabbed { binding } => self.ungrabbed(&binding),
             Event::ClientConnected { name } if name == "voice" && heard => self.trays(),
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);

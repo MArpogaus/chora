@@ -54,8 +54,10 @@ the concrete runs are in `tests/battle/reviews/`.
   (`choraclient`), undocumented in the battle TODO.
 - `headless-session.sh` prints KEY=VALUES only once the socket is up; a
   failed start prints only to its log — a caller waiting on `hl.env` waits
-  blind. Minor: a timeout with `tail` of CHORA_LOG is the workaround
-  (done in `lib.sh`).
+  blind. *Fixed:* a start that ends before the socket is up prints the
+  whole log to stderr and exits 1, and a core that ends later prints its
+  last 20 log lines (`tests/headless-session.sh:82-86`, `:102-105`); no
+  workaround is left.
 
 ## Unexpected behaviour (battle, appended during runs)
 

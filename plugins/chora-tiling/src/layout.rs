@@ -89,7 +89,7 @@ fn tile_right(count: usize, [x, y, w, h]: Rect, params: Params) -> Vec<Rect> {
     let master_width = match (masters, stack) {
         (0, _) => 0,
         (_, 0) => w,
-        #[allow(clippy::cast_possible_truncation)] // a share of an i32
+        #[allow(clippy::cast_possible_truncation, reason = "a share of an i32")]
         _ => (f64::from(w) * params.master_width).round() as i32,
     };
     let mut cells = split(masters, [x, y, master_width, h], false);
@@ -156,7 +156,7 @@ fn magnifier(count: usize, area: Rect, focused: Option<usize>, share: f64) -> Ve
         return vec![area; count];
     };
     let [x, y, w, h] = area;
-    #[allow(clippy::cast_possible_truncation)] // a share of an i32
+    #[allow(clippy::cast_possible_truncation, reason = "a share of an i32")]
     let scale = |side: i32| (f64::from(side) * share.sqrt()).round() as i32;
     let (fw, fh) = (scale(w), scale(h));
     let mut cells = split(count - 1, area, false);

@@ -608,7 +608,6 @@ impl Construct {
     /// the event. Typed letters filter it, Backspace takes one back, Esc
     /// clears the search and then closes it. A press on the space closes
     /// the list and goes on.
-    #[allow(clippy::cognitive_complexity, reason = "one arm per key and event")]
     pub(crate) fn list_input(&mut self, event: &Event) -> Result<bool, ClientError> {
         let Some((sel, searching)) = self.list.as_ref().map(|l| (l.sel, !l.query.is_empty()))
         else {
@@ -677,7 +676,6 @@ impl Construct {
     /// every key: typed letters search, Backspace takes one back, the
     /// arrows move, Esc clears the search and then closes the help, and
     /// its own key closes it.
-    #[allow(clippy::cognitive_complexity, reason = "one arm per key")]
     pub(crate) fn help_input(&mut self, event: &Event) -> Result<bool, ClientError> {
         if !self.help {
             return Ok(false);

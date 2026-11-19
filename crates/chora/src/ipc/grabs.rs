@@ -1,5 +1,7 @@
 //! The `grab` and `ungrab` calls of a connection.
 
+use chora_scene::Event;
+
 use super::{
     Binding, Capability, MAX_GRABS, RpcError, State, Trigger, Value, is_safety_key, media_key,
     rejected, trigger,
@@ -59,7 +61,8 @@ impl State {
         Ok(Value::String(normal))
     }
 
-    /// Ends a grab of a connection (D45).
+    /// Ends a grab of a connection (D45) and tells the subscribers of
+    /// `input.ungrabbed` (D117).
     pub(super) fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let trigger = trigger(binding)?;
         let before = self.ipc.grabs.len();
@@ -69,6 +72,19 @@ impl State {
         if self.ipc.grabs.len() == before {
             return Err(rejected(format!("{binding} is no grab of this connection")));
         }
+        self.tell_ungrabbed([binding.clone()]);
         Ok(Value::Null)
+    }
+
+    /// Tells the subscribers of `input.ungrabbed` that grabs ended: by
+    /// `input.ungrab`, with their connection or with the revoke of
+    /// `input.grab-any`, so that a client that waits for the binding asks
+    /// again (D117).
+    pub(crate) fn tell_ungrabbed(&mut self, bindings: impl IntoIterator<Item = Binding>) {
+        for binding in bindings {
+            self.emit(&Event::InputUngrabbed {
+                binding: binding.to_string(),
+            });
+        }
     }
 }

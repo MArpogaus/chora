@@ -86,6 +86,9 @@ nodes = json.load(sys.stdin)
 r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
 print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
 }
+prop() { ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); print(n[0].get('$2', False) if n else 'gone')"; }
+width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
+stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
 window_count() {
     call window.list '{}' | python3 -I -c 'import json, sys; print(len(json.load(sys.stdin)["windows"]))'
 }
@@ -214,7 +217,7 @@ for how in super plain; do
     sleep 1
     windows_before=$(window_count)
     inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
-    sleep 3
+    until_ok "$stood_back" 40 || fail "Alt+Escape did not step back after the pull-out: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
     [ -z "${BEHIND_SHOT:-}" ] || ctl capture "$BEHIND_SHOT" >/dev/null
     pane_drawn() {
         ctl query "id:construct-pane-$surface" | python3 -I -c '

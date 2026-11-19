@@ -6,10 +6,19 @@ use chora_kit::actions::perform::{Failure, Host, perform};
 use chora_kit::actions::{Step, Turn};
 
 use super::{
-    Binding, Command, ESCAPE_TRIES, ESCAPE_WAIT, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY,
-    MENUS, Mode, NodeKind, PressState, PropsUpdate, SWITCHER, Switcher, Transform, Value, Window,
-    Wm, add_help, close, control, give, help, switcher, taskbar,
+    Binding, ClientError, Command, Event, Grab, HELP_TASK, KeyAction, Look, MENU_KEY, MENUS, Mode,
+    NodeKind, PressState, PropsUpdate, RpcError, SWITCHER, Switcher, Transform, Value, Window, Wm,
+    add_help, close, control, give, help, switcher, taskbar,
 };
+
+/// The key that cancels the switch, in the normal form of `input.key`.
+const ALT_ESCAPE: &str = "Alt+Escape";
+
+/// Whether the core refused a grab because another client holds the
+/// binding; xp asks again when that client gives it up.
+pub(super) fn held_by_a_client(err: &ClientError) -> bool {
+    matches!(err, ClientError::Rpc(rpc) if rpc.code == RpcError::REJECTED)
+}
 
 /// A turn of the cube in quarter turns: left is back.
 const fn quarter(turn: Turn) -> i32 {
@@ -347,7 +356,7 @@ impl Wm {
         let binding = match parsed {
             Ok(binding) => binding,
             Err(err) => {
-                eprintln!("chora-xp: {err}");
+                crate::report(&err);
                 return;
             }
         };
@@ -358,14 +367,14 @@ impl Wm {
                 .call::<_, String>("input.grab", Grab { binding })
             {
                 Ok(normal) => self.system_key = Some(normal),
-                Err(err) => eprintln!("chora-xp: {err}"),
+                Err(err) => crate::report(&err),
             }
         } else if let Err(err) = self
             .rt
             .conn
             .call::<_, Value>("input.ungrab", Grab { binding })
         {
-            eprintln!("chora-xp: {err}");
+            crate::report(&err);
         }
     }
 
@@ -401,33 +410,38 @@ impl Wm {
     }
 
     /// Takes Alt+Escape from the clients only while the switcher shows,
-    /// so that it cancels the switch.
+    /// so that it cancels the switch. A client that holds the key refuses
+    /// the grab until it has given the key up; xp does not wait for it but
+    /// grabs again on the core event `input.ungrabbed` (`ungrabbed`). That
+    /// refusal is expected and not reported, or each Alt+Tab would write
+    /// a line to the log.
     pub(super) fn grab_switch_escape(&mut self) {
-        let binding = match "Alt+Escape".parse() {
+        let binding = match ALT_ESCAPE.parse() {
             Ok(binding) => binding,
             Err(err) => {
-                eprintln!("chora-xp: {err}");
+                crate::report(&err);
                 return;
             }
         };
-        let mut grabbed = Err(String::new());
-        for attempt in 0..ESCAPE_TRIES {
-            if attempt > 0 {
-                std::thread::sleep(ESCAPE_WAIT);
-            }
-            let grab = Grab {
-                binding: Binding::clone(&binding),
-            };
-            grabbed =
-                (self.rt.conn.call::<_, String>("input.grab", grab)).map_err(|e| e.to_string());
-            if grabbed.is_ok() {
-                break;
-            }
-        }
-        match grabbed {
+        let grab = Grab { binding };
+        match self.rt.conn.call::<_, String>("input.grab", grab) {
             Ok(normal) => self.switch_escape = Some(normal),
-            Err(err) => eprintln!("chora-xp: {err}"),
+            Err(err) if held_by_a_client(&err) => {}
+            Err(err) => crate::report(&err),
         }
+    }
+
+    /// A client gave a grab up: if it was Alt+Escape and the switcher still
+    /// shows without the key, the grab that the holder refused is made
+    /// again. The holder may be any client (D117).
+    pub(super) fn ungrabbed(&mut self, binding: &str) -> Vec<Command> {
+        let ours = binding
+            .parse::<Binding>()
+            .is_ok_and(|b| b.to_string() == ALT_ESCAPE);
+        if ours && self.switcher.is_some() && self.switch_escape.is_none() {
+            self.grab_switch_escape();
+        }
+        Vec::new()
     }
 
     /// Tells the other clients that the switcher shows or went, with the
@@ -436,7 +450,7 @@ impl Wm {
     pub(super) fn tell_switcher(&mut self, shown: bool) {
         let event = serde_json::json!({"event": "xp.switcher", "data": {"shown": shown}});
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            eprintln!("chora-xp: {err}");
+            crate::report(&err);
         }
     }
 
@@ -452,7 +466,7 @@ impl Wm {
                         .map_err(|e| e.to_string())
                 });
             if let Err(err) = ungrab {
-                eprintln!("chora-xp: {err}");
+                crate::report(&err);
             }
         }
         let switcher = self.switcher.take();

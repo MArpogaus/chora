@@ -602,6 +602,12 @@ struct Construct {
     book: chora_kit::wm::Book,
 }
 
+/// One line on stderr for a request that failed and changes nothing else:
+/// the plugin keeps running, the log says what went wrong.
+pub(crate) fn report(err: &dyn std::fmt::Display) {
+    eprintln!("chora-construct: {err}");
+}
+
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
     let args = Args::parse();

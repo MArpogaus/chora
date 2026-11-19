@@ -196,7 +196,10 @@ pub struct Act {
 }
 
 /// The state of the compositor, passed to every callback of the event loop.
-#[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
+#[allow(
+    clippy::struct_field_names,
+    reason = "the names of Smithay's handler traits"
+)]
 pub struct State {
     pub start_time: Instant,
     /// The time to which the animations of the scene advanced.
@@ -382,7 +385,11 @@ fn new_assets(loop_handle: &LoopHandle<'static, State>) -> Assets {
 fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
     let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(dh, "seat0");
-    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // small
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_possible_wrap,
+        reason = "small"
+    )]
     let (delay, rate) = (REPEAT_DELAY as i32, REPEAT_RATE as i32);
     seat.add_keyboard(smithay::input::keyboard::XkbConfig::default(), delay, rate)
         .expect("the default keymap compiles");
@@ -394,7 +401,7 @@ fn new_seat(dh: &DisplayHandle) -> (SeatState<State>, Seat<State>) {
 }
 
 impl State {
-    #[allow(clippy::too_many_lines)] // one field after the other
+    #[allow(clippy::too_many_lines, reason = "one field after the other")]
     pub fn new(
         display: Display<State>,
         loop_handle: LoopHandle<'static, State>,

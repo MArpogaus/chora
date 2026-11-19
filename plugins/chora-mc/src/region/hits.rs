@@ -182,7 +182,7 @@ impl Mc {
     /// Shows the page list, as a click on the head of a page does.
     fn show_overview(&mut self) -> bool {
         if let Err(err) = self.show(crate::manage::OVERVIEW, true) {
-            eprintln!("chora-mc: {}: {}", crate::manage::OVERVIEW, err.message);
+            crate::report(crate::manage::OVERVIEW, &err.message);
         }
         true
     }
@@ -205,7 +205,7 @@ impl Mc {
             if let Some(target) = self.order().get(index).cloned()
                 && let Err(err) = self.show(&target, true)
             {
-                eprintln!("chora-mc: {target}: {}", err.message);
+                crate::report(&target, &err.message);
             }
             return true;
         }

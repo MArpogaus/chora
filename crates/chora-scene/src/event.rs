@@ -110,6 +110,15 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         injected: bool,
     },
+    /// A grab ended: by `input.ungrab`, with its connection or with the
+    /// revoke of `input.grab-any`. A client that the
+    /// core refused the binding can ask for it again; the core does not
+    /// know who waits, so every subscriber hears it (D117).
+    #[serde(rename = "input.ungrabbed")]
+    InputUngrabbed {
+        /// The binding as the client grabbed it.
+        binding: String,
+    },
     /// The button of a grabbed binding, such as `Super+BTN_LEFT`, went
     /// down or up. Only the connection of the grab gets it, subscribed or
     /// not; `input.moved` follows each move until the button goes up.
@@ -514,6 +523,7 @@ pub const NAMES: &[&str] = &[
     "surface.requested",
     "node.requested",
     "input.key",
+    "input.ungrabbed",
     "input.button",
     "input.moved",
     "node.key",

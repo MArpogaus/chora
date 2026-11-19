@@ -103,7 +103,11 @@ impl Wobble {
     #[must_use]
     pub fn new(size: [f64; 2], origin: [f64; 2], grab: [f64; 2]) -> Self {
         let cell = |axis: usize| size[axis] / (SIDE - 1) as f64;
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "clamped"
+        )]
         let index = |axis: usize| {
             ((grab[axis] - origin[axis]) / cell(axis))
                 .round()
@@ -436,7 +440,7 @@ fn neighbours(i: usize) -> Vec<usize> {
 fn smooth(data: &[[f64; 3]; COUNT]) -> [[f64; 3]; COUNT] {
     let mut out = [[0.0; 3]; COUNT];
     for (i, value) in out.iter_mut().enumerate() {
-        #[allow(clippy::cast_possible_wrap)] // a 4x4 grid
+        #[allow(clippy::cast_possible_wrap, reason = "a 4x4 grid")]
         let (col, row) = ((i % SIDE) as isize, (i / SIDE) as isize);
         let mut sum = [0.0; 3];
         let mut count = 0.0;
@@ -447,7 +451,7 @@ fn smooth(data: &[[f64; 3]; COUNT]) -> [[f64; 3]; COUNT] {
                 if (dr, dc) == (0, 0) || !(0..side).contains(&c) || !(0..side).contains(&r) {
                     continue;
                 }
-                #[allow(clippy::cast_sign_loss)] // checked above
+                #[allow(clippy::cast_sign_loss, reason = "checked above")]
                 let j = (r * side + c) as usize;
                 sum[0] += data[j][0];
                 sum[1] += data[j][1];

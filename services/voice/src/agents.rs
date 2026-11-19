@@ -1780,7 +1780,7 @@ exec cat >/dev/null"#;
     /// question with a yes, its answer in short; a stop ends its
     /// process.
     #[tokio::test(flavor = "multi_thread")]
-    #[allow(clippy::too_many_lines)] // one conversation, step by step
+    #[allow(clippy::too_many_lines, reason = "one conversation, step by step")]
     async fn an_agent_works_asks_answers_and_stops() {
         let data = std::env::temp_dir().join(format!("chora-voice-acp-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&data);

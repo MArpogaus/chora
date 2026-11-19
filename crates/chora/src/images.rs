@@ -705,7 +705,7 @@ where
 
 /// Blocks SIGUSR1 for the calling thread, so that the emergency reset
 /// reaches the signal source of the loop and not this thread.
-#[allow(unsafe_code)] // a pthread call, nothing else
+#[allow(unsafe_code, reason = "a pthread call, nothing else")]
 fn block_usr1() {
     let rc = unsafe {
         let mut set: libc::sigset_t = std::mem::zeroed();

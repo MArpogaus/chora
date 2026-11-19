@@ -241,7 +241,10 @@ fn props_key(node: &Node) -> Option<Key> {
 }
 
 /// The attributes cosmic-text shapes a key with.
-#[allow(clippy::cast_possible_truncation)] // a letter spacing within 1 em
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "a letter spacing within 1 em"
+)]
 fn attrs(key: &Key) -> Attrs<'_> {
     let mut features = FontFeatures::new();
     for (tag, value) in &key.features {

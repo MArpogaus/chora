@@ -33,7 +33,7 @@ const MAX_SOCKETS: usize = 64;
 /// The most connections of one client socket, as of one process.
 pub(super) const MAX_PER_SOCKET: usize = 16;
 /// The most Wayland clients of one client socket, as of its IPC socket.
-#[allow(clippy::cast_possible_truncation)] // 16
+#[allow(clippy::cast_possible_truncation, reason = "16")]
 const MAX_PER_SOCKET_U32: u32 = MAX_PER_SOCKET as u32;
 /// The connections that client sockets never take, so that the main
 /// socket keeps room.
@@ -389,7 +389,7 @@ pub(super) struct ClientSocket {
     wayland: RegistrationToken,
     /// The Wayland clients connected right now; the accept loop owns the
     /// other half of the counter.
-    #[allow(dead_code)] // the cap test reads it through the state
+    #[allow(dead_code, reason = "the cap test reads it through the state")]
     pub wayland_count: Arc<std::sync::atomic::AtomicU32>,
     dir: PathBuf,
     /// The Wayland clients that connected through it.

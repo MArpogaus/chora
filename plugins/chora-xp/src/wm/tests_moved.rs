@@ -385,6 +385,49 @@ mod keys {
         assert!(wm.switcher.is_none());
     }
 
+    /// A client that holds Alt+Escape refuses the grab until it has given
+    /// the key up. xp does not sleep and ask again: the loop stays free,
+    /// and the grab is made again on the core event `input.ungrabbed`, for
+    /// any holder, not only one that xp knows (W7, D117). Another key
+    /// given up is no reason to ask again.
+    #[test]
+    fn alt_escape_is_grabbed_when_the_holder_gives_it_up() {
+        let core = chora_kit::testing::FakeCore::start();
+        let mut wm = wm_on_kit_core(&core, "alt-escape-held");
+        own_window(&mut wm, "s1");
+        own_window(&mut wm, "s2");
+        core.refuse_next("input.grab");
+        wm.key("Alt+Tab");
+        assert!(wm.switcher.is_some(), "the switcher shows");
+        assert!(
+            wm.switch_escape.is_none(),
+            "the holder has the key, and xp does not wait for it by sleeping"
+        );
+        let other = json!({"event": "input.ungrabbed", "binding": "Super+a"});
+        wm.event(serde_json::from_value(other).unwrap()).unwrap();
+        assert!(wm.switch_escape.is_none(), "Super+a is not the key of xp");
+        let free = json!({"event": "input.ungrabbed", "binding": "Alt+Escape"});
+        wm.event(serde_json::from_value(free).unwrap()).unwrap();
+        assert!(wm.switch_escape.is_some(), "the event made the grab");
+        wm.key("Alt+Escape");
+        assert!(wm.switch_escape.is_none(), "and Alt+Escape is given back");
+    }
+
+    /// The refusal of the Alt+Escape grab by a holder is expected and not
+    /// reported on every Alt+Tab (rd-2); a failed socket still is.
+    #[test]
+    fn only_a_refusal_by_a_holder_is_expected() {
+        use chora_scene::ipc::{ClientError, RpcError};
+        let held = ClientError::Rpc(RpcError::new(
+            RpcError::REJECTED,
+            "Alt+Escape is grabbed already",
+        ));
+        assert!(super::super::keys::held_by_a_client(&held));
+        assert!(!super::super::keys::held_by_a_client(&ClientError::Closed));
+        let limit = ClientError::Rpc(RpcError::new(RpcError::LIMIT_REACHED, "too many"));
+        assert!(!super::super::keys::held_by_a_client(&limit));
+    }
+
     /// Alt+Escape cancels the switch: its key is grabbed while the
     /// switcher shows, and the window stays where it was.
     #[test]
