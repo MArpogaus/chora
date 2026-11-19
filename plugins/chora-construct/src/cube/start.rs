@@ -45,8 +45,11 @@ pub(super) struct Followed {
 struct Reading {
     /// The last line that was not empty.
     last: String,
-    /// How often the reader came to the end of the file.
-    passes: u64,
+    /// How many times somebody asked for a look.
+    asks: u64,
+    /// The newest ask that a finished pass began after: that pass read the
+    /// file to its end with the last write of the manager in it.
+    covered: u64,
     /// Somebody wants the reader to look at the file now.
     asked: bool,
     /// The reader stopped.
@@ -67,12 +70,17 @@ impl Followed {
         self.state().last = line;
     }
 
-    /// The reader came to the end of the file: tells it to those who wait,
-    /// and rests until the next look, which is at most `FOLLOW` away or
-    /// when somebody asks for it.
-    fn rest_at_the_end(&self) {
+    /// The reader starts a pass over the file: the number of asks so far.
+    fn begin_pass(&self) -> u64 {
+        self.state().asks
+    }
+
+    /// The reader came to the end of the file in a pass that began after
+    /// `began` asks: tells it to those who wait, and rests until the next
+    /// look, which is at most `FOLLOW` away or when somebody asks for it.
+    fn rest_at_the_end(&self, began: u64) {
         let mut state = self.state();
-        state.passes += 1;
+        state.covered = state.covered.max(began);
         self.moved.notify_all();
         let (mut state, _) = (self.moved)
             .wait_timeout_while(state, FOLLOW, |s| !s.asked)
@@ -85,16 +93,19 @@ impl Followed {
         self.moved.notify_all();
     }
 
-    /// Waits until the reader has read the file to its end once more, so
-    /// that the last line of a manager that has exited is in `last`. The
-    /// reader wakes at once; no fixed time stands in for its work.
+    /// Waits until the reader has read the file to its end in a pass that
+    /// began after this ask, so that the last line of a manager that has
+    /// exited is in `last`; a pass that began before it may have read the
+    /// end of the file before the last write. The reader wakes at once; no
+    /// fixed time stands in for its work.
     pub(super) fn settle(&self) {
         let mut state = self.state();
-        let target = state.passes + 1;
+        state.asks += 1;
+        let ask = state.asks;
         state.asked = true;
         self.moved.notify_all();
         let _ = (self.moved)
-            .wait_timeout_while(state, SETTLE, |s| s.passes < target && !s.closed)
+            .wait_timeout_while(state, SETTLE, |s| s.covered < ask && !s.closed)
             .unwrap_or_else(PoisonError::into_inner);
     }
 }
@@ -128,8 +139,9 @@ pub(super) fn launch(command: &str) -> std::io::Result<(Child, Tail)> {
         let mut reader = BufReader::new(reader);
         let mut line = String::new();
         while let Some(last) = kept.upgrade() {
+            let began = last.begin_pass();
             match reader.read_line(&mut line) {
-                Ok(0) => last.rest_at_the_end(),
+                Ok(0) => last.rest_at_the_end(began),
                 Ok(_) if line.ends_with('\n') => {
                     let text = line.trim_end().to_owned();
                     eprintln!("chora-construct: cube manager: {text}");
@@ -256,6 +268,7 @@ mod tests {
     #[test]
     fn a_pass_that_ended_after_the_ask_but_began_before_it_does_not_settle() {
         let followed = Arc::new(Followed::default());
+        let before = followed.begin_pass();
         let waiting = {
             let followed = Arc::clone(&followed);
             std::thread::spawn(move || followed.settle())
@@ -263,13 +276,14 @@ mod tests {
         while !followed.state().asked {
             std::thread::yield_now();
         }
-        followed.rest_at_the_end();
+        followed.rest_at_the_end(before);
         std::thread::sleep(Duration::from_millis(50));
         assert!(
             !waiting.is_finished(),
             "the pass of before the ask settled it"
         );
-        followed.rest_at_the_end();
+        let after = followed.begin_pass();
+        followed.rest_at_the_end(after);
         waiting.join().expect("settle");
     }
 }
