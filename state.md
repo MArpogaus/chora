@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 21:04 UTC)
+## Now (2026-11-19 21:06 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 20:26 PM 1.2 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; use the week.
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need
@@ -28,14 +28,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt (20:30) from 219d5afe |
 | kit-minors-r1.md (F2, F5) | sonnet high | MERGE-OK 88f441e4, train 73 |
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 73 (holds dfa8ddd8, 1f99a98f) |
-| id-gate-r1.md (F6) | sonnet high | session_016iS3kPzqf25zVAmDLkSHnx (20:53) |
+| id-gate-r1.md (F6) | sonnet high | MERGE-OK a9fd91f3, own train 74 next |
 | flake-i-r1.md (F5) | sonnet high | session_016iS3kPo5jVnFwva6MmkaoG (20:53) |
 | flake-j-r1.md (F5) | sonnet high | session_016iS3kMAsaXSn33qWo4iN2k (21:03) |
 | kit-connect-r1.md (F2) | sonnet high | session_016iS3kLJr2GhWMz7EpzMLch |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 71 green 20:12. 72 green 21:03. 73 running 21:05 (acfa9cae): kit-report, minors-2 (holds lint-reason, minor-sweep), kit-minors. 74: flake-h, flake-i, flake-j, kit-connect; id-gate own train.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-J 0.7 %, ID-GATE 0.5 %, FLAKE-I 0.8 %, KIT-CONNECT 0.8 %, FLAKE-H 1 %; done: MINORS-2, LINT-REASON, MINOR-SWEEP, KIT-MINORS, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 71 green 20:12. 72 green 21:03. 73 running 21:05 (acfa9cae): kit-report, minors-2 (holds lint-reason, minor-sweep), kit-minors. 74 (harness, alone): id-gate a9fd91f3. 75: flake-h, flake-i, flake-j, kit-connect.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-J 0.7 %, FLAKE-I 0.8 %, KIT-CONNECT 0.8 %, FLAKE-H 1 %; done: ID-GATE, MINORS-2, LINT-REASON, MINOR-SWEEP, KIT-MINORS, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
