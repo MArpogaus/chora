@@ -36,6 +36,7 @@ ci-check|tests/ci-a.sh
 xp|tests/xp.sh target/debug
 hud|BIN=x tests/gate-hud.sh
 chat|BIN=x tests/gate-chat.sh
+new|tests/gate-x.sh
 STEPS
 STUB
 chmod +x tests/merge-gate.sh tests/cells-for.sh
@@ -56,7 +57,7 @@ fixed=pre-commit,ci-check,build,test,clippy
 case_() {
     local name=$1 file=$2 want=$3 got
     git checkout -q -B work main
-    echo change >>"$file"
+    echo '# change' >>"$file"
     "${g[@]}" commit -qam "$name"
     got=$(tests/cells-for.sh --base main | tr ',' '\n' | sort | paste -sd,)
     want=$(tr ',' '\n' <<<"$want" | sort | paste -sd,)
@@ -70,6 +71,14 @@ case_ "xp plugin picks nothing extra" plugins/chora-xp/a.rs "$fixed"
 case_ "docs only" docs/a.md "$fixed"
 all=$(tests/merge-gate.sh --commands | cut -d'|' -f1 | paste -sd,)
 case_ "core picks all" crates/chora/a.rs "$all"
+
+case_ "merge-gate picks gate-lib" tests/merge-gate.sh "$fixed,red-first,identity,gate-lib"
+git checkout -q -B work main
+echo 'x' >tests/gate-x.sh
+got=$(tests/cells-for.sh --base main | tr ',' '\n' | sort | paste -sd,)
+want=$(tr ',' '\n' <<<"$fixed,new" | sort | paste -sd,)
+[ "$got" = "$want" ] || fail "untracked gate script: got $got, want $want"
+rm -f tests/gate-x.sh
 
 [ "$fails" = 0 ] && echo "cells-for-selftest: ok"
 exit "$fails"
