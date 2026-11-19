@@ -1513,6 +1513,30 @@ mod tests {
         assert!(tiling.dragged.is_none());
     }
 
+    /// I12 (WM5): the held window lies on top of the order of tiling while
+    /// the person drags it, also below a window that was raised later.
+    #[test]
+    fn the_held_window_lies_on_top_while_it_is_dragged() {
+        let (mut tiling, _methods) = with_a_floating_window("held-on-top");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Action::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.order.last().map(String::as_str), Some("s2"));
+        press_and_move(&mut tiling, None);
+        assert_eq!(
+            tiling.dragged.as_ref().map(|(id, _)| id.as_str()),
+            Some("s1")
+        );
+        tiling.relayout().unwrap();
+        assert_eq!(
+            tiling.order.last().map(String::as_str),
+            Some("s1"),
+            "{:?}",
+            tiling.order
+        );
+    }
+
     /// E3: the press of `move` that comes with a window and its drag puts
     /// the named point of the window under the pointer, and the window
     /// wobbles on from the springs of the giver.
