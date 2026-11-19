@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 22:53 UTC)
+## Now (2026-11-19 23:06 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 %; 29 h left: 75 %, 2.6 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
-session branch: a9e7084d (train 74); 38 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
+session branch: a61e8eaa (train 76); 39 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
 burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next wk.
 
 ## RC (design/rc.md)
@@ -24,11 +24,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| kit-report-r1.md (F2, F4) | sonnet high | MERGE-OK 582ab506, train 76 |
 | flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt |
-| kit-minors-r2.md (F2, F5) | sonnet medium | MERGE-OK e4208314, train 76 |
-| minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 76 |
-| ig-fix-r2.md (F6) | sonnet low | MERGE-OK b717a5f2, train 76 |
 | temp-rest-r1.md (F2, F5) | sonnet medium | MERGE-OK 2e8e67f3, train 78 |
 | temp-dirs-r2.md (F2, F5) | sonnet medium | MERGE-OK 86f42d1f, train 78 |
 | flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH |
@@ -40,7 +36,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | kit-sec-r1.md (F5) | sonnet high | session_016iS3kPTiu5i9QdTant26v4 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): 74 green 22:13. 76 rerun (rm-2 flake): ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), temp-rest 2e8e67f3, f24-rest, nits-3 0b5f8c34.
+4. Trains (F6): 76 green 23:06 (ig-fix, kit-report, minors-2, flake-i, kit-minors). 77 running: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), temp-rest 2e8e67f3, f24-rest, nits-3 0b5f8c34.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, FLAKE-K 0.7 %, PW 1.5 %, KIT-SEC 1 %, BLOCK-V 1.2 %, FLAKE-H 1 %; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
