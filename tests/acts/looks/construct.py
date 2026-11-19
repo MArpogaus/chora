@@ -5,6 +5,10 @@ hosts the cube, one xp manages its four faces, and the acts read the cube
 through the role `cube.list` (D71), never through construct's own state.
 The cube opens once; after the pull act it stands back and I13 reads the
 corners of its faces held halfway through a turn and at rest (co-21).
+A construct killed mid-turn leaves the windows with the xp of the faces,
+which goes flat on the screen within 3 s; a construct started again
+reopens the cube around that xp, and its windows go back to the faces.
+Without construct the pager of xp switches its desks itself.
 """
 
 import os
@@ -16,6 +20,7 @@ from harness import LOOKS, Expect, key, load_png_rows, program, wait
 
 MANAGER = "xp"
 HINT_GONE = 4.0
+FLAT_WITHIN = 3.0
 
 FACES = 4
 TURN_MS = 4000
@@ -89,6 +94,21 @@ def drag(x0, x1, y=400):
             {"pointer_move": {"position": [(x0 + x1) / 2, y]}},
             {"pointer_move": {"position": [x1, y]}},
             {"button": {"state": "released"}},
+        ]
+    )
+
+
+def modifier_drag(x0, x1, y=400):
+    """A cue: a drag of the left button from x0 to x1 with Super held."""
+    return lambda s: s.inject(
+        [
+            {"pointer_move": {"position": [x0, y]}},
+            {"key": {"key": "Super_L", "state": "pressed"}},
+            {"button": {"state": "pressed", "hold": True}},
+            {"pointer_move": {"position": [(x0 + x1) / 2, y]}},
+            {"pointer_move": {"position": [x1, y]}},
+            {"button": {"state": "released"}},
+            {"key": {"key": "Super_L", "state": "released"}},
         ]
     )
 
@@ -190,9 +210,9 @@ def owner_of(s, sid):
 
 
 def kill_construct_mid_turn(s):
-    """A cue: a slow turn, construct killed in its middle, then started
-    again as the flavor's unit would; the xp of the cube ends with it, and
-    its windows come back to a look after the reset of the core."""
+    """A cue: a slow turn, construct killed in its middle and not started
+    again; within 3 s the xp of the faces holds every window on the
+    screen, flat, and no window is without an owner."""
     pid = pid_of(s, "chora-construct")
     taken = s.call("construct", "cube.turn", {"by": 1, "ms": 3000})
     if taken is not True:
@@ -201,18 +221,89 @@ def kill_construct_mid_turn(s):
     if s.cube().get("turning") is not True:
         raise RuntimeError(f"the cube is not turning before the kill: {s.cube()!r}")
     os.kill(pid, signal.SIGKILL)
-    s.until(lambda: not {"construct", MANAGER} & s.clients(), 20, "construct and xp gone")
-    s.looks.remove(MANAGER)
+    s.until(lambda: "construct" not in s.clients(), 5, "construct gone")
+    s.until(lambda: flat_xp(s), FLAT_WITHIN, "every window with a flat xp on the screen")
+
+
+def screens(s):
+    """The names of the outputs that are not virtual."""
+    return {o["name"] for o in s.outputs() if not o.get("virtual")}
+
+
+def flat_xp(s):
+    """Whether xp runs on the screen alone and owns every toplevel there."""
+    state = s.state(MANAGER) or {}
+    desks = {d.get("output") for d in state.get("desks") or []}
+    surfaces = s.core.call("scene.query", {"selector": "kind:surface"}) or []
+    windows = {w["surface"]: w for w in state.get("windows") or []}
+    return (
+        desks == screens(s)
+        and bool(surfaces)
+        and all(n.get("owner") == MANAGER for n in surfaces)
+        and all(windows.get(n["id"], {}).get("output") in desks for n in surfaces)
+    )
+
+
+def restart_construct(s):
+    """A cue: construct started again, as the flavor's unit would; it
+    reopens the cube around the running xp, whose windows go back to the
+    faces, and its start card does not say that nothing is open."""
     command, extra = LOOKS["construct"]
     s.spawn([str(s.bin / command[0]), *command[1:]], "construct-again.log", **extra)
     s.until(lambda: s.state("construct") is not None, 30, "construct again")
-    s.until(lambda: all_with_a_look(s), 30, "every window back with a look")
+    s.until(lambda: len(s.cube().get("faces") or []) == FACES, 30, "the cube reopened")
+    s.until(lambda: windows_on_faces(s), 30, "every window back on a face of xp")
+    start = s.core.call("scene.query", {"selector": "id:construct-start"}) or []
+    panes = s.call("construct", "construct.list").get("panes") or []
+    if start and start[0].get("visible", True) and panes:
+        raise RuntimeError(f"the start card shows beside the panes {panes}")
 
 
-def all_with_a_look(s):
-    """Whether a look of the session owns every toplevel."""
+def windows_on_faces(s):
+    """Whether xp owns every toplevel and each lies on a face."""
+    faces = {f["output"] for f in s.cube().get("faces") or []}
+    state = s.state(MANAGER) or {}
+    windows = {w["surface"]: w for w in state.get("windows") or []}
     surfaces = s.core.call("scene.query", {"selector": "kind:surface"}) or []
-    return all(n.get("owner") in s.looks for n in surfaces)
+    return bool(surfaces) and all(
+        n.get("owner") == MANAGER and windows.get(n["id"], {}).get("output") in faces
+        for n in surfaces
+    )
+
+
+def stop_construct(s):
+    """A cue: construct ends for good; xp goes flat on the screen."""
+    os.kill(pid_of(s, "chora-construct"), signal.SIGKILL)
+    s.until(lambda: "construct" not in s.clients(), 5, "construct gone")
+    s.until(lambda: flat_xp(s), FLAT_WITHIN, "every window with a flat xp on the screen")
+
+
+def screen_pager(desk):
+    """A cue: a click on the button of `desk` in the pager of the xp
+    taskbar of the screen."""
+
+    def cue(s):
+        screen = sorted(screens(s))[0]
+        button = f"xp-pager-{desk}-{screen}"
+        nodes = s.core.call("scene.query", {"selector": f"id:{button}"}) or []
+        shown = [n for n in nodes if n.get("visible", True)]
+        if not shown:
+            raise RuntimeError(f"no pager button {button} on the screen")
+        x, y, w, h = shown[0]["rect"]
+        s.inject([{"pointer_move": {"position": [x + w / 2, y + h / 2]}}, {"click": {}}])
+
+    return cue
+
+
+def shown_desk(desk):
+    """A check: xp shows the desk `desk` (counted from 1) on the screen."""
+
+    def verify(after):
+        state = after.states.get(MANAGER) or {}
+        shown = [d.get("shown") for d in state.get("desks") or []]
+        return [] if shown and all(d == [desk] for d in shown) else [f"xp shows the desks {shown}"]
+
+    return verify
 
 
 def cube_acts(s):
@@ -250,6 +341,11 @@ def cube_acts(s):
         expect=Expect(cube={"front": 2, "turning": False, "mode": "use"}),
     )
     s.act(
+        "a drag with the modifier on the front face turns the cube",
+        [lambda s: s.call("construct", "cube.turn", {"to": 0}), wait(0.8), modifier_drag(780, 80)],
+        expect=Expect(cube={"front": 1, "turning": False, "mode": "use"}),
+    )
+    s.act(
         "the key of the step back stands back",
         [lambda s: s.call("construct", "cube.turn", {"to": 0}), wait(0.8), key("Alt+Escape")],
         expect=Expect(cube={"front": 0, "turning": False, "mode": "navigate"}),
@@ -278,8 +374,21 @@ def cube_acts(s):
     )
     s.act("the cube comes to rest", [], timeout=30)
     s.act(
-        "construct killed mid-turn loses no window",
+        "construct killed mid-turn leaves the windows with a flat xp within 3 s",
         [kill_construct_mid_turn],
-        disconnects=["construct", MANAGER],
+        disconnects=["construct"],
         expect=Expect(gone=0),
+    )
+    s.act(
+        "construct started again reopens the cube with the windows on its faces",
+        [restart_construct],
+        expect=Expect(gone=0, cube={"faces": 4, "turning": False}),
+        timeout=60,
+    )
+    s.act(
+        "without construct the pager of xp switches the desk",
+        [stop_construct, screen_pager(1)],
+        disconnects=["construct"],
+        expect=Expect(gone=0, verify=shown_desk(2)),
+        timeout=30,
     )
