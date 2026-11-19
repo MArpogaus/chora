@@ -639,3 +639,54 @@ fn an_injected_input_drives_the_construct_only_when_the_setting_takes_it() {
         assert!(acted(&construct), "{name} injected in a test");
     }
 }
+
+/// A window pulled out of a face while the camera is still on its way
+/// into it (the handover flies the camera in, the drag turns it back):
+/// the pane comes at 1:1 or nearer for the pose the camera turns back
+/// to, not for the pose it passed when the drag came. Under load the
+/// drag comes late in the flight, and the pane stood far behind 1:1
+/// (F21, gate-construct-pull.sh "168 px wide for 200").
+#[test]
+fn a_window_pulled_during_the_flight_into_it_comes_at_1_to_1_where_the_camera_stays() {
+    let (mut construct, _methods) = on_fake_core("pulled-in-flight");
+    construct.panes.push(Pane {
+        name: "probe".into(),
+        source: "s1".into(),
+        content: Content::Window { command: None },
+        at: [0.0, 2000.0],
+        yaw: 0.0,
+        size: [200.0, 200.0],
+        taken: true,
+        attached: false,
+        placed: true,
+    });
+    let back = Pose::default();
+    construct.pose = Pose { z: 700.0, ..back };
+    construct.glide = Some(Glide {
+        from: back,
+        to: Pose { z: 1100.0, ..back },
+        start: chora_kit::clock::now(),
+        ms: 380.0,
+        into: Some(Flown {
+            surface: "s1".into(),
+            back,
+            attached: false,
+            plugin: None,
+        }),
+        smooth: false,
+    });
+    let grab = chora_scene::GivenGrab {
+        point: [100.0, 20.0],
+        velocity: [0.0; 2],
+        wobble: None,
+    };
+    construct.take_pulled("s1", [640.0, 400.0], &grab).unwrap();
+    let rest = construct.target();
+    assert_eq!((rest.x, rest.z), (back.x, back.z), "the camera turns back");
+    let depth = space::depth(&rest, construct.panes[0].at);
+    assert!(
+        depth <= construct.lens.focal + 1e-6,
+        "the pane is {depth} deep where the camera stays, behind 1:1 at {}",
+        construct.lens.focal
+    );
+}
