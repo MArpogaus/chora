@@ -7,6 +7,7 @@
 #    name, so the libs they source), is a changed file;
 # 3. each cell whose command or such a file names the binary of a changed crate
 #    (plugins/chora-X -> chora-X, services/voice -> chora-voice);
+#    a change to tests/merge-gate.sh or tests/gate-lib* also picks gate-lib;
 # 4. a change to crates/chora, crates/chora-kit, crates/chora-scene, or to a
 #    Cargo.toml or Cargo.lock at the root picks every cell.
 # A cfg(test)-only Rust change picks cells like any other: correctness over speed.
@@ -14,7 +15,7 @@
 # Usage: tests/cells-for.sh [--base REF] [--head REF]
 #   --base REF  default origin/claude/autonomous-dev-session-3w-i33pg7
 #   --head REF  compare REF with the base; default: the work tree against
-#               the merge base of the base and HEAD
+#               the merge base of the base and HEAD, plus untracked files
 set -u
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -50,6 +51,7 @@ else
         exit 2
     }
     changed=$(git diff --name-only "$mb") || exit 2
+    changed+=$'\n'$(git ls-files --others --exclude-standard)
 fi
 
 cmds=$(tests/merge-gate.sh --commands --base "$base") || exit 2
@@ -128,6 +130,9 @@ while IFS='|' read -r name cmd; do
                 break
             fi
         done
+    fi
+    if [ "$hit" = 0 ] && [ "$name" = gate-lib ] && grep -Eq '^tests/(merge-gate\.sh|gate-lib)' <<<"$changed"; then
+        hit=1
     fi
     [ "$hit" = 1 ] && picked+=("$name")
 done <<<"$cmds"
