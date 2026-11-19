@@ -505,16 +505,23 @@ impl Wm {
         commands
     }
 
-    /// The desktop buttons of every taskbar.
+    /// The desktop buttons of every taskbar: on a screen, and on the
+    /// faces of a hosted cube.
     pub(super) fn pagers(&mut self) -> Vec<Command> {
         let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
             Some(taskbar::Part::Pager(desktop)) => Some(desktop),
             _ => None,
         };
+        let hosted = self.host.is_some();
+        let desks: Vec<usize> = self.bars.iter().map(|b| self.desk_of(b)).collect();
         let mut commands = Vec::new();
-        for bar in &self.bars {
-            let desk = self.desk_of(bar);
+        let mut changed = false;
+        for (bar, desk) in self.bars.iter_mut().zip(desks) {
+            changed |= bar.show_pager(hosted);
             commands.extend(bar.pager(&mut self.theme, desk, hovered));
+        }
+        if changed {
+            commands.extend(self.sync_tasks());
         }
         commands
     }

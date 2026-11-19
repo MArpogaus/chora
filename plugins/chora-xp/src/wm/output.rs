@@ -10,6 +10,7 @@ impl Wm {
             commands.extend(self.claim());
             self.sync_cube_keys();
             self.reserve_bars();
+            commands.extend(self.pagers());
             return commands;
         };
         let mine: Vec<usize> = (0..self.windows.len())

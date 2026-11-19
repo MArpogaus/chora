@@ -867,8 +867,10 @@ fn grab_keys(rt: &mut Runtime<Key>, cube: CubeKeys) -> Result<(), ClientError> {
     let held = |key: &Key| {
         !matches!(
             (cube, key),
-            (CubeKeys::Hosted, Key::Turn(_) | Key::Carry(_))
-                | (CubeKeys::Flat | CubeKeys::Hosted, Key::Cube)
+            (
+                CubeKeys::Flat | CubeKeys::Hosted,
+                Key::Turn(_) | Key::Carry(_) | Key::Cube
+            )
         )
     };
     for (binding, fallback, key) in KEYS.into_iter().filter(|k| held(&k.2)) {
