@@ -30,7 +30,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | mc-i5-r1.md (F7, F2) | sonnet high | session_016iS3kPmUV3tqFg95ggDRVk (17:25) |
 | construct-red-r1.md (F7, F3) | opus high | session_016iS3kPVR6nqwcuaf8UKMDX (17:25) |
 | docs-f8c-r1.md (F8) | sonnet high | done 17:48: 65ef41a5 MERGE-OK (PM review 17:50); train 68 |
-| flake-series-r1.md (F5) | haiku high | starting 18:00 |
+| flake-series-r1.md (F5) | haiku high | session_016iS3kMzD9HDCezM7N5L3aD (18:00) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 65 green 16:57 after one rerun. 66 red 17:14 (MX1); 67 green 17:57. 68 running from 17:57: mk r1 31df2bb9, mk r2 4904ef79, copies-0 ee53e09c, docs-f8c 65ef41a5 (F8 met at merge). 69 = mk r3 c00dcf3e + next MERGE-OK.
