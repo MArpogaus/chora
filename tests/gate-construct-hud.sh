@@ -115,6 +115,14 @@ round() {
     shot "$shots/construct-hud-$tag-label-pointer.png"
     ok "$tag: the label names the pane ahead, then the pane under the pointer"
 
+    call pane.fly '{"name": "black"}'
+    until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(c[\"z\"] == 0.0 and c[\"x\"] == 0.0)"' ||
+        fail "$tag: no flight into the black pane"
+    sleep 0.5
+    key Alt+Escape
+    until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(not (c[\"z\"] == 0.0 and c[\"x\"] == 0.0))"' ||
+        fail "$tag: no flight back out of the black pane"
+
     foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
     pids+=($!)
     until_ok "ctl call construct window.list | grep -q Donaudampf" || fail "$tag: no long window"
