@@ -502,6 +502,12 @@ git -C "$idr" reset -q --hard HEAD~1
 check "identity: a bad commit before the base does not count" "$(ident >/dev/null; echo $?)" 0
 check "identity: the step follows red-first in the step list" \
     "$(grep -A1 '^red-first|' "$gate" | grep -c '^identity|')" 1
+check "identity: the override is printed when MERGE_GATE_IDENTITY is set" \
+    "$(ident | grep -c "^identity: MERGE_GATE_IDENTITY overrides the expected identity: $good\$")" 1
+check "identity: no override line without MERGE_GATE_IDENTITY" \
+    "$(env -u MERGE_GATE_IDENTITY "$idr/tests/merge-gate.sh" --identity-check --base base 2>&1 | grep -c 'overrides the expected identity')" 0
+check "gate-lib: the step runs merge-gate-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
