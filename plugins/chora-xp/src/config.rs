@@ -313,4 +313,50 @@ mod tests {
         assert_eq!(session.log_off, None);
         std::fs::remove_dir_all(dir).unwrap();
     }
+
+    /// Every key that xp handles on 1d1aa5fd (its hard-coded `KEYS`), with
+    /// the action that the default `bindings` give it (F2). A key of a
+    /// `System` action has the same spelling as in every other look.
+    const HANDLED: [(&str, &str); 23] = [
+        ("Super+Super_L", r#""tap""#),
+        ("Super+Super_R", r#""tap""#),
+        ("Ctrl+Escape", r#""start""#),
+        ("Super+d", r#""desktop""#),
+        ("Super+space", r#""launcher""#),
+        ("Super+F1", r#""keys""#),
+        ("Super+slash", r#""keys""#),
+        ("Super+Shift+Escape", r#""lock""#),
+        ("Super+Shift+e", r#""power""#),
+        ("Super+Print", r#""screenshot""#),
+        ("Super+BTN_LEFT", r#""cube""#),
+        ("Alt+F4", r#""close""#),
+        ("Alt+Tab", r#"{"switch":"next"}"#),
+        ("Alt+Shift+Tab", r#"{"switch":"previous"}"#),
+        ("Super+e", r#""files""#),
+        ("Super+a", r#""chat""#),
+        ("XF86AudioRaiseVolume", r#"{"volume":"up"}"#),
+        ("XF86AudioLowerVolume", r#"{"volume":"down"}"#),
+        ("XF86AudioMute", r#"{"volume":"mute"}"#),
+        ("Ctrl+Alt+Left", r#"{"cube":"left"}"#),
+        ("Ctrl+Alt+Right", r#"{"cube":"right"}"#),
+        ("Ctrl+Alt+Shift+Left", r#"{"carry":"left"}"#),
+        ("Ctrl+Alt+Shift+Right", r#"{"carry":"right"}"#),
+    ];
+
+    /// The default file binds exactly the keys that xp handled before it
+    /// had `bindings`, each to the action of its hard-coded key.
+    #[test]
+    fn the_default_binds_every_key_that_xp_handled_on_1d1aa5fd() {
+        let file: serde_json::Value = serde_saphyr::from_str(DEFAULT).unwrap();
+        let table: std::collections::BTreeMap<String, String> = file
+            .get("bindings")
+            .and_then(|b| b.as_object())
+            .map(|b| b.iter().map(|(k, v)| (k.clone(), v.to_string())).collect())
+            .unwrap_or_default();
+        let want: std::collections::BTreeMap<String, String> = HANDLED
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        assert_eq!(table, want);
+    }
 }
