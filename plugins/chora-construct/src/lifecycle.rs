@@ -1,5 +1,162 @@
 //! The life of a window of the construct (WM1c): the windows that it
-//! owns come and go through `kit::wm::book`.
+//! owns come and go through `kit::wm::book`. The book decides which
+//! surfaces are free for the construct (the claim filter) and keeps where
+//! each came from; the construct attaches them as panes and answers each
+//! proposal with `confirm` or `refused`. What a pane does with its window
+//! (placing, the camera, the keyboard) stays in `adopt.rs` and `list.rs`.
+
+use chora_kit::wm::{Change, Created, Phase, Why};
+use chora_scene::Event;
+use serde_json::Value;
+
+use super::{ClientError, Command, Construct, LOOK};
+
+impl Construct {
+    /// A surface was created: the book says whether it is free for the
+    /// construct; the construct takes it as a pane, or only shows it as
+    /// a pane when it started the program (overlay), and answers the
+    /// proposal by whether the window is its own now.
+    pub(crate) fn window_created(&mut self, created: &Created) -> Result<(), ClientError> {
+        let changes = self.book.claim(
+            &created.surface,
+            created.to.as_deref(),
+            created.token.clone(),
+        );
+        let free = !changes.is_empty();
+        let done = self.created(created, free);
+        self.settle_plain(changes)?;
+        done
+    }
+
+    /// A surface lost its parent and owner: an own window leaves the
+    /// book and comes back as a proposal, as the core says that it is
+    /// free again or reserved for the construct, which attaches it anew.
+    pub(crate) fn window_detached(&mut self, surface: &str) -> Result<(), ClientError> {
+        self.take_free(surface, true)
+    }
+
+    /// The window of a surface that is free again, or comes with a drag
+    /// (`fly` off): the book forgets it and claims it with the
+    /// reservation that the core has for it; the construct attaches it.
+    pub(crate) fn take_free(&mut self, surface: &str, fly: bool) -> Result<(), ClientError> {
+        let node = self.rt.conn.query(&format!("id:{surface}"))?.pop();
+        let to = node.and_then(|n| n.to);
+        let was = self.book.forget(surface);
+        let changes = self.book.claim(surface, to.as_deref(), None);
+        let lost = was && changes.is_empty();
+        self.settle(changes, &mut |construct, id| {
+            construct.take_detached(id, fly)
+        })?;
+        if lost {
+            self.forget_window(surface)?;
+        }
+        Ok(())
+    }
+
+    /// A window closed or went: the book tells the phase and lets it
+    /// go; the pane of a window that the construct only shows goes too.
+    pub(crate) fn window_destroyed(
+        &mut self,
+        event: &Event,
+        surface: &str,
+    ) -> Result<(), ClientError> {
+        let owned = self.book.has(surface);
+        let changes = self.book.apply(event);
+        self.settle_plain(changes)?;
+        if owned {
+            Ok(())
+        } else {
+            self.forget_window(surface)
+        }
+    }
+
+    /// Does what the book says, in order. `take` attaches the window of
+    /// a proposal that has no pane yet; each proposal is answered by
+    /// whether the window is the construct's now.
+    pub(crate) fn settle(
+        &mut self,
+        changes: Vec<Change>,
+        take: &mut dyn FnMut(&mut Self, &str) -> Result<(), ClientError>,
+    ) -> Result<(), ClientError> {
+        for change in changes {
+            match change {
+                Change::Adopt { id, .. } => {
+                    let done = take(self, &id);
+                    let next = if self.owns(&id) {
+                        self.book.confirm(&id)
+                    } else {
+                        self.book.refused(&id)
+                    };
+                    self.settle_plain(next)?;
+                    done?;
+                }
+                Change::Forget {
+                    why: Why::Detached | Why::Given(_),
+                    ..
+                }
+                | Change::Outputs => {}
+                Change::Forget { id, .. } => self.forget_window(&id)?,
+                Change::Phase { id, phase } => self.tell_phase(&id, phase),
+                Change::Apply(commands) => self.rt.conn.apply(commands)?,
+            }
+        }
+        Ok(())
+    }
+
+    /// Settles changes of a window that is attached already.
+    pub(crate) fn settle_plain(&mut self, changes: Vec<Change>) -> Result<(), ClientError> {
+        self.settle(changes, &mut |_, _| Ok(()))
+    }
+
+    /// Whether the window is the construct's: an attached pane, a window
+    /// hidden under the space, or the window of the launcher.
+    pub(crate) fn owns(&self, surface: &str) -> bool {
+        self.panes
+            .iter()
+            .any(|p| p.attached && p.window() == Some(surface))
+            || self.hidden.iter().any(|h| h == surface)
+            || self.launcher_window.as_deref() == Some(surface)
+    }
+
+    /// The pane, the hidden window or the launcher window of a surface
+    /// that closed: its data goes; the keyboard goes back to the space
+    /// after the window of the launcher.
+    fn forget_window(&mut self, surface: &str) -> Result<(), ClientError> {
+        if self.launcher_window.as_deref() == Some(surface) {
+            self.launcher_window = None;
+            return self.rt.conn.apply(vec![Command::FocusNode {
+                node: Some(LOOK.into()),
+            }]);
+        }
+        self.hidden.retain(|s| s != surface);
+        self.forget(surface)
+    }
+
+    /// Emits `construct.window` for a phase. A refused emit only logs.
+    pub(crate) fn tell_phase(&mut self, surface: &str, phase: Phase) {
+        let emit = self.book.phase_event(surface, phase, None);
+        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", emit) {
+            eprintln!("chora-construct: construct.window: {err}");
+        }
+    }
+
+    /// The construct gives an own window to `to`: a proposal of the
+    /// book that the core settles. False when the window is not its own.
+    pub(crate) fn propose_give(&mut self, surface: &str, to: &str) -> bool {
+        self.book.give(surface, to)
+    }
+
+    /// The core took the give: the phase `given`, and the pane goes.
+    pub(crate) fn gave(&mut self, surface: &str) -> Result<(), ClientError> {
+        let next = self.book.confirm(surface);
+        self.settle_plain(next)
+    }
+
+    /// The core refused the give: the window stays.
+    pub(crate) fn give_refused(&mut self, surface: &str) {
+        self.book.refused(surface);
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -30,6 +187,7 @@ mod tests {
         core.model().lock().unwrap().scene.add_overlay("test");
         construct.output = Some(output("test"));
         construct.active = true;
+        construct.metrics.keep_estimates();
         construct.build().unwrap();
         construct
     }
@@ -119,6 +277,21 @@ mod tests {
         let phases = chora_kit::testing::phases(&core.model(), NAME);
         let opened: Vec<_> = phases.iter().map(|(s, _)| s.as_str()).collect();
         assert_eq!(opened, ["s1", "s2"], "each adopted window opens once");
+    }
+
+    /// Beside another flavor the construct takes no free window of its
+    /// own: the book proposes it, the construct refuses, and nothing
+    /// opens (F30).
+    #[test]
+    fn an_overlay_takes_no_free_window() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "overlay");
+        construct.overlay = true;
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        assert!(!Driven(&mut construct).has("s1"));
+        assert_eq!(owner(&core.model(), "s1"), None);
+        assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
     /// The views and the faces of the cube stay as they are while

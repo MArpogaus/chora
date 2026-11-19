@@ -100,7 +100,11 @@ impl Construct {
                 Some(NAME) => Hold::Own,
                 _ => Hold::Taken,
             };
-            self.adopt(&entry.surface, &entry.name, Some(&file), hold, true)?;
+            let claim = (hold == Hold::Own && entry.owner.is_none())
+                .then(|| self.book.claim(&entry.surface, None, None));
+            let done = self.adopt(&entry.surface, &entry.name, Some(&file), hold, true);
+            self.settle_plain(claim.unwrap_or_default())?;
+            done?;
         }
         let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(&entry.surface)) else {
             return Err(ClientError::Rpc(RpcError::new(
@@ -243,9 +247,17 @@ impl Construct {
                 pane.name
             ));
         }
-        let answer = (self.rt.conn)
-            .give_dragged(surface, to, grab)
-            .map_err(ClientError::Rpc)?;
+        if !self.propose_give(surface, to) {
+            return refuse(format!("{surface} is no window of the construct"));
+        }
+        let answer = match (self.rt.conn).give_dragged(surface, to, grab) {
+            Ok(answer) => answer,
+            Err(err) => {
+                self.give_refused(surface);
+                return Err(ClientError::Rpc(err));
+            }
+        };
+        self.gave(surface)?;
         self.forget_with(surface, false)?;
         Ok(answer)
     }
@@ -259,20 +271,17 @@ impl Construct {
     /// to the construct (D55). The flavor takes both; an overlay only a
     /// window given to it, so that it never takes a window on its own
     /// (F30). A window given always gets its pane, and the camera flies
-    /// to it, so that it has the keyboard, unless the user is in a
-    /// window already. It owns such a window, and its leave frees it again.
-    pub(crate) fn detached(&mut self, surface: &str) -> Result<(), ClientError> {
-        self.take_detached(surface, true)
-    }
-
-    /// As [`Self::detached`]; without `fly` the camera stays, for a
-    /// window that comes with a drag.
+    /// to it, so that it has the keyboard, unless the user is in a window
+    /// already (`fly`; off, the camera stays, for a window that comes with
+    /// a drag). It owns such a window, and its leave frees it again.
     pub(crate) fn take_detached(&mut self, surface: &str, fly: bool) -> Result<(), ClientError> {
         let node = self.rt.conn.query(&format!("id:{surface}"))?.pop();
         let Some(node) = node else {
             return Ok(());
         };
-        if (self.panes.iter()).any(|p| p.window() == Some(surface) && p.attached) {
+        let attached = node.parent.is_some()
+            && (self.panes.iter()).any(|p| p.window() == Some(surface) && p.attached);
+        if attached {
             return Ok(());
         }
         if self.overlay && node.to.as_deref() != Some(NAME) {

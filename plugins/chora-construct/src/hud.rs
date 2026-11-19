@@ -166,6 +166,10 @@ impl Probe {
 pub struct Metrics {
     sizes: RefCell<HashMap<Probe, [f64; 2]>>,
     misses: RefCell<Vec<Probe>>,
+    /// A fake core lays no text out: its tests keep the estimates and
+    /// ask no measure.
+    #[cfg(test)]
+    estimates: std::cell::Cell<bool>,
 }
 
 impl Metrics {
@@ -185,11 +189,21 @@ impl Metrics {
         let size = wrap.map_or([w, line], |wrap| {
             [w.min(wrap), lines(role, text, wrap) * line]
         });
+        #[cfg(test)]
+        if self.estimates.get() {
+            return size;
+        }
         let mut misses = self.misses.borrow_mut();
         if !misses.contains(&probe) {
             misses.push(probe);
         }
         size
+    }
+
+    /// Keeps the estimates: no text is measured (tests on a fake core).
+    #[cfg(test)]
+    pub(crate) fn keep_estimates(&self) {
+        self.estimates.set(true);
     }
 
     /// The texts to measure, once.

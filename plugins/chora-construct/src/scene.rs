@@ -53,12 +53,16 @@ impl Construct {
     /// construct, as panes of the flavor.
     pub(crate) fn adopt_free(&mut self, nodes: Vec<Node>) -> Result<(), ClientError> {
         for node in nodes {
-            let ours = node.to.as_deref().is_none_or(|t| t == NAME);
-            if node.owner.is_none() && ours {
-                let info = node.surface.unwrap_or_default();
-                let label = info.app_id.or(info.title).unwrap_or_default();
-                self.adopt(&node.id, &label, None, Hold::Own, false)?;
+            if node.owner.is_some() {
+                continue;
             }
+            let changes = self.book.claim(&node.id, node.to.as_deref(), None);
+            let info = node.surface.unwrap_or_default();
+            let label = info.app_id.or(info.title).unwrap_or_default();
+            let adopt = &mut |construct: &mut Self, id: &str| {
+                construct.adopt(id, &label, None, Hold::Own, false)
+            };
+            self.settle(changes, adopt)?;
         }
         Ok(())
     }
