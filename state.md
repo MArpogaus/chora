@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 13:48 UTC)
+## Now (2026-11-19 13:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 12:50 PM 3.9 %; 39 h left: about 2 %/h; 6 lanes; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 10:39: 17 % week (another agent included); tokens.py 13:49 PM 4.6 %; 39 h left: about 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: dd2a0aa3 (train 62: kit2d, wm7a); 29 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -24,7 +24,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-kit3-r1.md (F2) | sonnet high | starting (kit3 5b788c72 done 13:47, gate 41/41) |
+| review-kit3-r1.md (F2) | sonnet high | session_016iS3kNv1utSvhv7BgZ9rnK (13:49) |
 | cubesplit-r1.md (F4) | sonnet high | session_016iS3kPYxR1GkrNbgQFs8ib (13:45) |
 | integ-r1.md (F6) | sonnet high | session_016iS3kNXpgUxiE2BdHxpC8S (13:37) |
 | flakes-g-r2.md (F5) | opus high | held: no setup x5 (13:18, 3 of 4 lanes since 13:00 had it); 14:00 UTC default |
