@@ -24,16 +24,16 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | running session_016iS3kMRsiR4v7muvLbd2bf 03:38; start check 03:45 (owner: use the last 2 %) |
-| wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | starting 03:4x |
-| kit2b-r1.md (F2) | sonnet high, claude/kit2b | starting 03:4x |
-| mv3-r1.md (F4) | sonnet medium, claude/mv3 | starting 03:4x |
+| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | running session_016iS3kMRsiR4v7muvLbd2bf 03:38; start check 03:45 |
+| wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | running session_016iS3kL9BbHEnV3xMurNpKH 03:44 |
+| kit2b-r1.md (F2) | sonnet high, claude/kit2b | running session_016iS3kPbMHNnFH4xry3P2T5 03:44 |
+| mv3-r1.md (F4) | sonnet medium, claude/mv3 | running session_016iS3kMsyMCkCpM2VqW5X6N 03:44 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
-2. Done 20:35 (F4, F6): MV1+CUT1, MV2 x3 merged (trains 44-47); ratchet --update with the next lane.
+2. Done (F4, F6): MV1+CUT1, MV2 x3 (trains 44-47).
 3. (F6) Done 06:16: NET2 acts, I1 I3 I4 I7 I8 I14, known-red (trains 49, 50).
-4. Now (F2, F3, F4, F8, 6 %): docs-f8, wm1b, kit2b, mv3 (sonnet, 1.5 % each); trains one at a time. After the reset: NET3 (opus, 4.5 %), WM2 (opus, 4 %), KIT2c-d, WM1c-d (sonnet). F5, F7, user test: next week.
+4. Now (F2, F3, F4, F8, 6 %): docs-f8, wm1b, kit2b, mv3 (sonnet, 1.5 % each). After the reset: NET3 (opus, 4.5 %), WM2 (opus, 4 %), KIT2c-d, WM1c-d (sonnet). F5, F7, user test: next week.
 5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
