@@ -62,7 +62,8 @@ impl State {
     }
 
     /// Ends a grab of a connection (D45) and tells the subscribers of
-    /// `input.ungrabbed` (D117).
+    /// `input.ungrabbed` (D117), unless it is a `move` grab: nobody waits
+    /// for the own moves of a window manager (rd-9).
     pub(super) fn ipc_ungrab(&mut self, conn: u64, binding: &Binding) -> Result<Value, RpcError> {
         let trigger = trigger(binding)?;
         let before = self.ipc.grabs.len();
@@ -72,7 +73,9 @@ impl State {
         if self.ipc.grabs.len() == before {
             return Err(rejected(format!("{binding} is no grab of this connection")));
         }
-        self.tell_ungrabbed([binding.clone()]);
+        if trigger != Trigger::Move {
+            self.tell_ungrabbed([binding.clone()]);
+        }
         Ok(Value::Null)
     }
 
