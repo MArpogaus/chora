@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 05:16 UTC)
+## Now (2026-11-19 05:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: 98 % at 03:35 Thu (owner); tokens.py 03:44: PM 0.3 % today. Day cap lifted (owner 03:41); sonnet lanes now; owner resets about 05:10; then opus and Fable lanes with a reason, no waste.
+budget: 98 % at 03:35 Thu (owner); tokens.py 05:21: PM 0.5 % today. Day cap lifted (owner 03:41). 05:21: no reset yet (lanes allowed_warning, resets Sat); net3, wm2 briefs ready (opus, after train 56 and the reset).
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
 session branch: 4417ab86 (train 55: docs-f8); 23 greens (30b, 33-41, 43-55); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1, DOCS-F8 in.
 burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths, words) in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
