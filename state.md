@@ -31,7 +31,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | id-gate-r1.md (F6) | sonnet high | MERGE-OK a9fd91f3, own train 74 next |
 | flake-i-r1.md (F5) | sonnet high | session_016iS3kPo5jVnFwva6MmkaoG (20:53) |
 | flake-j-r1.md (F5) | sonnet high | session_016iS3kMAsaXSn33qWo4iN2k (21:03) |
-| ig-fix-r1.md (F6) | sonnet medium | from a9fd91f3 |
+| ig-fix-r1.md (F6) | sonnet medium | session_016iS3kPJ6TqYMFjmMcjoCCa (21:07) |
 | kit-connect-r1.md (F2) | sonnet high | session_016iS3kLJr2GhWMz7EpzMLch |
 
 ## Queue (% of week; 5 % reserve)
