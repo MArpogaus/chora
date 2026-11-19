@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T03:42:00Z
+screened-through: 2026-11-19T05:55:00Z
+- 11-19 05:55Z "Reset. Continue and clarity open questions" -> reading: weekly reset done; order: continue (NET3, WM2 opus now); ask the open owner questions now
 - 11-19 03:42Z "Lift day cap+ fable should help getting most out of reset I think. We try to land as much as possible with dese tokes leveraging more opus and fable lanes but don't mindlessly burn tokens. Run your sonnet lanes now. I'll rechech in 1.5h to trigger rest" -> order: day cap lifted; opus and Fable lanes after the reset, no waste; sonnet lanes now; reset about 05:10
 - 11-19 03:38Z "Use up the last 2% then I'll trigger? Reschedule to use 100% until sat reset possible?" -> question; goal change asked (day cap)
 - 11-19 03:35Z "Another agent ate our tokes. 98 % now. Shall I trigger the reset?" -> 98 %; reset? PM: yes
@@ -12,7 +13,6 @@ screened-through: 2026-11-19T03:42:00Z
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one..." -> rc now; one Fable plan lane (2 opus reviewers, 10:54), refactor sprint
 
 - 11-17 04:41Z "...decisions we took now shall be marked as suggestions... main target shall be to really deduplicate all plugins..." -> D1-D8 proposed, revisable; architect plan for sprint 1; sprint 1 goal: dedup into reusable plugins
-- 11-17 04:30Z "Fix review_due.py and update the decision log too. Instruct workers and reviewers to suggest long-term refactoring and code optimisations. You manage and priotrise those in the backlog. Code shall get clean lean an tidier with every release. Agree?" -> order: agreed; decisions r1; refactor proposals
 
 - 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)

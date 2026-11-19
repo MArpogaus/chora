@@ -423,3 +423,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 - 11-19 03:41Z "Lift day cap+ fable should help getting most out of reset I think. We try to land as much as possible with dese tokes leveraging more opus and fable lanes but don't mindlessly burn tokens. Run your sonnet lanes now. I'll rechech in 1.5h to trigger rest"
   -> order. Day cap lifted (rules.md 9 text at the next merge boundary). Started now: wm1b, kit2b, mv3 (sonnet, about 1.5 % each) beside docs-f8. After the reset: NET3 and WM2 as opus lanes, Fable for the WM7 cube design if worth it; each brief names its reason.
+- 2026-11-19 05:55 UTC owner: "Reset. Continue and clarity open questions" -> reading (reset done) and order. NET3 and WM2 opus lanes start now from dc4bc46d (train 56 head); open questions asked in one dialog: rc.4 tag push, F27 environment, D77 vs D95, delete claude/release-rc4. cost: none extra; no effect on the tag.

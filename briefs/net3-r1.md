@@ -2,7 +2,7 @@
 
 Model: opus, effort high (reason: a new core read API and text runs out of chora-draw; the core stays lean
 and safe, and wrong boxes would make every later invariant lie)
-Lane: cloud, branch claude/net3 from the session branch after train 56 (mv3 split scene.rs). One round,
+Lane: cloud, branch claude/net3 from dc4bc46d (the train 56 head: mv3 split scene.rs). One round,
 stop at 250 k. Cost about 4.5 %. Run `git fetch --unshallow` first.
 Read reports/arch-plan-fable.md 3.2 to 3.4 and slice row NET3, reports/net2-harness.md and
 reports/net2-adapters.md on claude/session-log.

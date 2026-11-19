@@ -2,7 +2,7 @@
 
 Model: opus, effort high (reason: a hard cause in the core input path; the pointer-gated grab at
 input.rs:461-519 before mv3, now in the input child modules, sends stray keys and splits the focus)
-Lane: cloud, branch claude/wm2 from the session branch after train 56 (mv3 split input.rs). One round,
+Lane: cloud, branch claude/wm2 from dc4bc46d (the train 56 head: mv3 split input.rs). One round,
 stop at 250 k. Cost about 4 %. Run `git fetch --unshallow` first.
 Read reports/arch-plan-fable.md 2.2, 3.3 and slice row WM2, reports/wm1.md (Policy at WM2) and
 reports/wm1b.md on claude/session-log.
