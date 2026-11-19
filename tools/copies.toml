@@ -111,3 +111,11 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own end-of-program tracking (pidfd, status file) (KIT6)"
 pattern = 'pidfd_open|chora-xp-exit|struct StatusFile'
+
+# kit2c: tiling binds the actions that every look has through kit::actions;
+# its own enum keeps the windows, the layouts and the tags.
+[[row]]
+max = 0
+name = "tiling: a shared action of its own (KIT2c)"
+paths = ["plugins/chora-tiling"]
+pattern = 'Action::(Run|Close|Give|Drag|Volume|ShowKeys)\b'

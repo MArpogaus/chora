@@ -4,7 +4,10 @@
 
 use std::{collections::BTreeMap, path::Path};
 
-use chora_kit::settings::Settings;
+use chora_kit::{
+    actions::System,
+    settings::{Common, Settings},
+};
 use chora_scene::{Binding, ShaderEffect};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -48,12 +51,12 @@ pub enum Focus {
     FollowMouse,
 }
 
-/// What a binding does.
+/// What a binding does in tiling and in no other look: the windows, the
+/// layouts and the tags. The rest, a command, a close, a give, a drag, the
+/// volume and the key list, is [`System`].
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub enum Action {
-    /// Runs a shell command as an app.
-    Run(String),
+pub enum Own {
     FocusNext,
     FocusPrevious,
     /// Focuses the window that had the focus before.
@@ -64,7 +67,6 @@ pub enum Action {
     SwapPrevious,
     /// Swaps the focused window with the master.
     MoveToMaster,
-    Close,
     ToggleFloating,
     ToggleFullscreen,
     ToggleMaximized,
@@ -100,21 +102,37 @@ pub enum Action {
     ViewBack,
     /// Reads the configuration file again.
     Reload,
-    /// Gives the focused window to the window manager of this name (D55),
-    /// whoever owns it.
-    Give(String),
-    /// On a pointer button: drags the window under the pointer. Dropped
-    /// in the claim of another window manager, it goes there (D55).
-    Drag,
-    /// Changes the volume of the default sound output and shows it for
-    /// a moment: `up`, `down`, `mute` or `{set: PERCENT}`.
-    Volume(chora_kit::volume::Change),
-    /// Shows the list of all keys, or hides it.
-    ShowKeys,
     /// Does nothing and keeps the key from the program: the action of
     /// every `MOD` chord that no binding uses. It is not a setting.
     #[serde(skip)]
     Swallow,
+}
+
+/// The action of a binding: one of every look, or one of tiling.
+pub type Action = chora_kit::actions::Action<Own>;
+
+impl From<Own> for Action {
+    fn from(own: Own) -> Self {
+        Self::Look(own)
+    }
+}
+
+/// Whether tiling does the system action: a command, a close, a give, a
+/// drag, the volume and the key list. The terminal, the launcher, the
+/// chat, the locker, the power menu and the screenshot are commands of
+/// its bindings (`run`), a step through the desks and a turn of the cube
+/// have no meaning here.
+#[must_use]
+pub const fn acts_in_tiling(system: &System) -> bool {
+    matches!(
+        system,
+        System::Run(_)
+            | System::Close
+            | System::Give(_)
+            | System::Drag
+            | System::Volume(_)
+            | System::Keys
+    )
 }
 
 /// The keys that `MOD` chords swallow when no binding uses them: letters,
@@ -358,10 +376,9 @@ pub const MAX_RADIUS: u16 = 64;
 pub struct Config {
     /// What `MOD` means in the bindings.
     pub modifier: String,
-    /// For tests only: take the keys of `input.inject` as keys of the
-    /// user. Off, the bindings ignore injected keys.
-    #[serde(default)]
-    pub test_accept_injected_keys: bool,
+    /// The bindings and the switch of the tests, as every look has them.
+    #[serde(flatten)]
+    pub common: Common<Own>,
     /// The gap of the old look, in logical pixels around each window: the
     /// edge gets it, two tiles get twice. It applies where `look` has
     /// `null` for a gap, and `set_layout` sets it.
@@ -386,8 +403,6 @@ pub struct Config {
     /// The window effects that tiling drives: `wobbly` and `lamp`.
     #[serde(default)]
     pub effects: Vec<chora_kit::effects::Kind>,
-    /// Binding with `MOD`, and its action.
-    pub bindings: BTreeMap<String, Action>,
     /// The words of a binding in the key list, by the binding as the file
     /// spells it; a binding without one gets the words of its action, and
     /// `run` its command.
@@ -396,6 +411,20 @@ pub struct Config {
 }
 
 impl Settings for Config {
+    fn refuse(&mut self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        self.common.bindings.retain(|key, action| {
+            let unfit = matches!(action, Action::System(s) if !acts_in_tiling(s));
+            if unfit {
+                warnings.push(format!(
+                    "chora-tiling: the binding {key} is dropped: tiling has no action for {action:?}"
+                ));
+            }
+            !unfit
+        });
+        warnings
+    }
+
     fn check(&self) -> Result<(), String> {
         if !(1..=MAX_TAGS).contains(&self.tags) {
             return Err(format!("tags: 1 to {MAX_TAGS}"));
@@ -426,30 +455,27 @@ impl Settings for Config {
                 .map_err(|e| format!("style.effects: no shader file {e}"))?;
         }
         let mut keys = BTreeMap::new();
-        for (binding, action) in &self.bindings {
+        for (binding, action) in &self.common.bindings {
             // Two spellings of one key would lose one grab at runtime.
             if let Some(other) = keys.insert(self.binding(binding)?.to_string(), binding) {
                 return Err(format!("{binding}: the same key as {other}"));
             }
-            if let Action::Run(command) = action
+            if let Action::System(System::Run(command)) = action
                 && command.trim().is_empty()
             {
                 return Err(format!("{binding}: run takes a command"));
             }
-            if let Action::Give(to) = action
+            if let Action::System(System::Give(to)) = action
                 && to.trim().is_empty()
             {
                 return Err(format!("{binding}: give takes a client name"));
             }
-            if let Action::IncMasterWidth(step) = action
-                && !step.is_finite()
-            {
-                return Err(format!("{binding}: inc_master_width takes a number"));
-            }
-            if let Action::ViewTag(n)
-            | Action::ToggleTagView(n)
-            | Action::MoveToTag(n)
-            | Action::ToggleWindowTag(n) = action
+            if let Action::Look(
+                Own::ViewTag(n)
+                | Own::ToggleTagView(n)
+                | Own::MoveToTag(n)
+                | Own::ToggleWindowTag(n),
+            ) = action
                 && !(1..=self.tags).contains(n)
             {
                 return Err(format!("{binding}: no tag {n}"));
@@ -525,11 +551,8 @@ mod tests {
             "MOD+l: {inc_master_width: .nan}",
         );
         assert_ne!(nan, DEFAULT);
-        assert!(
-            parse::<Config>(&nan)
-                .unwrap_err()
-                .contains("takes a number")
-        );
+        let err = parse::<Config>(&nan).unwrap_err();
+        assert!(err.contains("non-finite"), "{err}");
     }
 
     #[test]
@@ -570,7 +593,10 @@ mod tests {
             "MOD+g: {give: xp}\n  MOD+Ctrl+r: reload",
         );
         let config = parse::<Config>(&give).unwrap();
-        assert_eq!(config.bindings["MOD+g"], Action::Give("xp".into()));
+        assert_eq!(
+            config.common.bindings["MOD+g"],
+            Action::System(System::Give("xp".into()))
+        );
         let empty = give.replace("{give: xp}", "{give: ' '}");
         assert!(
             parse::<Config>(&empty)
@@ -585,8 +611,8 @@ mod tests {
         assert_eq!(config.tags, 9);
         assert_eq!(config.layouts[0], Layout::Tile);
         assert_eq!(
-            config.bindings["MOD+Return"],
-            Action::Run("chora-tiling --launch foot".into())
+            config.common.bindings["MOD+Return"],
+            Action::System(System::Run("chora-tiling --launch foot".into()))
         );
         assert_eq!(
             config.binding("MOD+Shift+1").unwrap().to_string(),
@@ -602,7 +628,10 @@ mod tests {
             ("XF86AudioLowerVolume", Change::Down),
             ("XF86AudioMute", Change::Mute),
         ] {
-            assert_eq!(config.bindings[key], Action::Volume(change));
+            assert_eq!(
+                config.common.bindings[key],
+                Action::System(System::Volume(change))
+            );
             assert_eq!(config.binding(key).unwrap().to_string(), key);
         }
     }
@@ -662,7 +691,7 @@ mod tests {
         let mut table = String::new();
         for (key, action) in bindings.as_object().unwrap() {
             let action = if action == "keys" {
-                "show_keys".into()
+                "\"show_keys\"".into()
             } else {
                 action.to_string()
             };

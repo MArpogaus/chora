@@ -8,7 +8,7 @@ use chora_scene::SurfaceRequest;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{Action, Config, Focus, NewWindow, SHARE},
+    config::{Config, Focus, NewWindow, Own, SHARE},
     layout::{self, Layout, Params, Rect},
 };
 
@@ -155,10 +155,7 @@ pub struct States {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Effect {
     Relayout,
-    Run(String),
-    Close(String),
     Reload,
-    Volume(chora_kit::volume::Change),
 }
 
 /// The meta key of a window node with its state, see [`Wm::window_meta`].
@@ -425,56 +422,52 @@ impl Wm {
     }
 
     /// Runs an action of a binding.
-    pub fn act(&mut self, action: &Action) -> Option<Effect> {
+    pub fn act(&mut self, action: &Own) -> Option<Effect> {
         match action {
-            Action::Run(command) => return Some(Effect::Run(command.clone())),
-            Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
-            Action::Reload => return Some(Effect::Reload),
-            Action::Volume(change) => return Some(Effect::Volume(*change)),
-            // The plugin handles the button events of a drag itself.
-            Action::Drag | Action::Give(_) | Action::Swallow | Action::ShowKeys => return None,
-            Action::FocusNext => self.focus_next(),
-            Action::FocusPrevious => self.focus_prev(),
-            Action::FocusBack => self.focus_back(),
-            Action::FocusUrgent => self.focus_urgent(),
-            Action::SwapNext => self.swap(1),
-            Action::SwapPrevious => self.swap(-1),
-            Action::MoveToMaster => {
+            Own::Reload => return Some(Effect::Reload),
+            Own::Swallow => return None,
+            Own::FocusNext => self.focus_next(),
+            Own::FocusPrevious => self.focus_prev(),
+            Own::FocusBack => self.focus_back(),
+            Own::FocusUrgent => self.focus_urgent(),
+            Own::SwapNext => self.swap(1),
+            Own::SwapPrevious => self.swap(-1),
+            Own::MoveToMaster => {
                 if let Some(id) = self.focused().map(String::from) {
                     self.swap_master(&id);
                 }
             }
-            Action::ToggleFloating => self.toggle(|w| &mut w.floating),
-            Action::ToggleFullscreen => self.toggle(|w| &mut w.fullscreen),
-            Action::ToggleMaximized => self.with_focused(toggle_maximized),
-            Action::ToggleMaximizedHorizontal => self.toggle(|w| &mut w.maximized.0),
-            Action::ToggleMaximizedVertical => self.toggle(|w| &mut w.maximized.1),
-            Action::ToggleOnTop => self.toggle(|w| &mut w.on_top),
-            Action::Minimize => self.with_focused(|w| w.minimized = true),
-            Action::RestoreMinimized => self.restore_minimized(),
-            Action::MoveToTag(n) => {
+            Own::ToggleFloating => self.toggle(|w| &mut w.floating),
+            Own::ToggleFullscreen => self.toggle(|w| &mut w.fullscreen),
+            Own::ToggleMaximized => self.with_focused(toggle_maximized),
+            Own::ToggleMaximizedHorizontal => self.toggle(|w| &mut w.maximized.0),
+            Own::ToggleMaximizedVertical => self.toggle(|w| &mut w.maximized.1),
+            Own::ToggleOnTop => self.toggle(|w| &mut w.on_top),
+            Own::Minimize => self.with_focused(|w| w.minimized = true),
+            Own::RestoreMinimized => self.restore_minimized(),
+            Own::MoveToTag(n) => {
                 if let Some(id) = self.focused().map(String::from) {
                     self.move_to_tag(&id, *n);
                 }
             }
-            Action::ToggleWindowTag(n) => self.with_focused(|w| toggle_tag(w, *n)),
-            Action::IncMasterWidth(d) => self.with_tag(|t, _| t.params.master_width = share(t, *d)),
-            Action::IncMasters(d) => {
+            Own::ToggleWindowTag(n) => self.with_focused(|w| toggle_tag(w, *n)),
+            Own::IncMasterWidth(d) => self.with_tag(|t, _| t.params.master_width = share(t, *d)),
+            Own::IncMasters(d) => {
                 self.with_tag(|t, _| t.params.masters = add(t.params.masters, *d, 0));
             }
-            Action::IncColumns(d) => {
+            Own::IncColumns(d) => {
                 self.with_tag(|t, _| t.params.columns = add(t.params.columns, *d, 1));
             }
-            Action::NextLayout => self.with_tag(|t, all| t.layout = cycle(all, t.layout, 1)),
-            Action::PreviousLayout => self.with_tag(|t, all| t.layout = cycle(all, t.layout, -1)),
-            Action::FocusNextOutput => self.focus_output(1),
-            Action::FocusPreviousOutput => self.focus_output(-1),
-            Action::MoveToNextOutput => self.move_to_next_output(),
-            Action::ViewTag(n) => self.view_tag(*n),
-            Action::ToggleTagView(n) => self.view(|tags, _| tags ^ bit(*n)),
-            Action::ViewNext => self.view(|tags, count| 1 << wrap(first_tag(tags), 1, count)),
-            Action::ViewPrevious => self.view(|tags, count| 1 << wrap(first_tag(tags), -1, count)),
-            Action::ViewBack => self.view_back(),
+            Own::NextLayout => self.with_tag(|t, all| t.layout = cycle(all, t.layout, 1)),
+            Own::PreviousLayout => self.with_tag(|t, all| t.layout = cycle(all, t.layout, -1)),
+            Own::FocusNextOutput => self.focus_output(1),
+            Own::FocusPreviousOutput => self.focus_output(-1),
+            Own::MoveToNextOutput => self.move_to_next_output(),
+            Own::ViewTag(n) => self.view_tag(*n),
+            Own::ToggleTagView(n) => self.view(|tags, _| tags ^ bit(*n)),
+            Own::ViewNext => self.view(|tags, count| 1 << wrap(first_tag(tags), 1, count)),
+            Own::ViewPrevious => self.view(|tags, count| 1 << wrap(first_tag(tags), -1, count)),
+            Own::ViewBack => self.view_back(),
         }
         Some(Effect::Relayout)
     }
@@ -1322,45 +1315,45 @@ mod tests {
     #[test]
     fn tags_hide_and_show_windows() {
         let mut wm = wm(&["a"]);
-        wm.act(&Action::MoveToTag(2));
+        wm.act(&Own::MoveToTag(2));
         assert_eq!(shown(&wm), [("a".into(), None)]);
         assert_eq!(wm.focused(), None);
-        wm.act(&Action::ToggleTagView(2));
+        wm.act(&Own::ToggleTagView(2));
         assert_eq!(wm.focused(), Some("a"));
         // The last shown tag stays shown.
-        wm.act(&Action::ToggleTagView(1));
-        wm.act(&Action::ToggleTagView(2));
+        wm.act(&Own::ToggleTagView(1));
+        wm.act(&Own::ToggleTagView(2));
         assert_eq!(wm.shown_windows(), ["a"]);
-        wm.act(&Action::ToggleTagView(1));
-        wm.act(&Action::ViewTag(3));
-        wm.act(&Action::ViewBack);
+        wm.act(&Own::ToggleTagView(1));
+        wm.act(&Own::ViewTag(3));
+        wm.act(&Own::ViewBack);
         assert_eq!(wm.shown_windows(), ["a"]);
         // From tags 1 and 2, the next tag is 2, then 3.
-        wm.act(&Action::ViewNext);
+        wm.act(&Own::ViewNext);
         assert_eq!(wm.shown_windows(), ["a"]);
-        wm.act(&Action::ViewNext);
+        wm.act(&Own::ViewNext);
         assert_eq!(wm.shown_windows(), Vec::<String>::new());
     }
 
     #[test]
     fn focus_moves_back_and_swaps() {
         let mut wm = wm(&["a", "b", "c"]);
-        wm.act(&Action::FocusNext);
+        wm.act(&Own::FocusNext);
         assert_eq!(wm.focused(), Some("b"));
-        wm.act(&Action::FocusBack);
+        wm.act(&Own::FocusBack);
         assert_eq!(wm.focused(), Some("c"));
-        wm.act(&Action::SwapNext);
+        wm.act(&Own::SwapNext);
         assert_eq!(wm.shown_windows(), ["b", "c", "a"]);
         // As in awesome, the focused window swaps with the master.
-        wm.act(&Action::FocusNext);
-        wm.act(&Action::MoveToMaster);
+        wm.act(&Own::FocusNext);
+        wm.act(&Own::MoveToMaster);
         assert_eq!(wm.shown_windows(), ["a", "c", "b"]);
     }
 
     #[test]
     fn view_tag_shows_only_that_tag_on_the_current_output() {
         let mut wm = wm(&["a"]);
-        wm.act(&Action::MoveToTag(2));
+        wm.act(&Own::MoveToTag(2));
         assert_eq!(wm.shown_windows(), Vec::<String>::new());
         wm.view_tag(2);
         assert_eq!(wm.shown_windows(), ["a"]);
@@ -1383,7 +1376,7 @@ mod tests {
         let mut wm = wm(&["a", "b"]);
         wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 80]);
         assert!(wm.move_to_tag("a", 2));
-        wm.act(&Action::Minimize); // b goes away, but stays on tag 1
+        wm.act(&Own::Minimize);
         wm.focus("b"); // b shows nowhere, so it gets the urgent mark
         let tags = wm.tags();
         let marks = |o: &OutputTags| -> Vec<_> {
@@ -1410,7 +1403,7 @@ mod tests {
     #[test]
     fn focus_focuses_and_raises_a_window() {
         let mut wm = wm(&["a", "f"]);
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         wm.focus("a");
         assert_eq!(wm.focused(), Some("a"));
         assert_eq!(wm.arrange().pop().unwrap().id, "a", "focus raises");
@@ -1419,7 +1412,7 @@ mod tests {
     #[test]
     fn focusing_a_window_that_shows_nowhere_marks_it_urgent() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::Minimize); // b, the focused window, goes away
+        wm.act(&Own::Minimize);
         assert_eq!(wm.focused(), Some("a"));
         wm.focus("b");
         assert_eq!(wm.focused(), Some("a"), "a hidden window gains no focus");
@@ -1444,14 +1437,14 @@ mod tests {
         assert!(!wm.swap_master("x"));
         assert!(wm.swap_master("b"));
         assert_eq!(wm.shown_windows(), ["b", "c", "a"]);
-        wm.act(&Action::MoveToTag(2));
+        wm.act(&Own::MoveToTag(2));
         assert!(!wm.swap_master("c"), "c shows nowhere");
     }
 
     #[test]
     fn states_take_a_window_out_of_the_tiles() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Own::ToggleFullscreen);
         let top = wm.arrange().pop().unwrap();
         assert_eq!(
             (top.id.as_str(), top.at, top.size),
@@ -1459,10 +1452,10 @@ mod tests {
         );
         assert!(top.states.fullscreen);
         assert_eq!(wm.arrange()[0].size, Some([100, 60]), "a tiles alone");
-        wm.act(&Action::ToggleFullscreen);
-        wm.act(&Action::Minimize);
+        wm.act(&Own::ToggleFullscreen);
+        wm.act(&Own::Minimize);
         assert_eq!(wm.focused(), Some("a"));
-        wm.act(&Action::RestoreMinimized);
+        wm.act(&Own::RestoreMinimized);
         assert_eq!(wm.focused(), Some("b"));
     }
 
@@ -1470,23 +1463,23 @@ mod tests {
     fn a_fullscreen_window_asks_the_panel_to_hide() {
         let mut wm = wm(&["a", "b"]);
         assert!(!wm.fullscreen_shown());
-        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Own::ToggleFullscreen);
         assert!(wm.fullscreen_shown());
-        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Own::ToggleFullscreen);
         assert!(!wm.fullscreen_shown());
     }
 
     #[test]
     fn layouts_and_parameters_belong_to_the_tag() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::NextLayout);
-        wm.act(&Action::IncMasterWidth(0.1));
+        wm.act(&Own::NextLayout);
+        wm.act(&Own::IncMasterWidth(0.1));
         assert_eq!(wm.current().unwrap().0, Layout::TileLeft);
-        wm.act(&Action::ViewTag(2));
+        wm.act(&Own::ViewTag(2));
         assert_eq!(wm.current().unwrap().0, Layout::Tile);
-        wm.act(&Action::PreviousLayout);
+        wm.act(&Own::PreviousLayout);
         assert_eq!(wm.current().unwrap().0, Layout::Floating);
-        wm.act(&Action::ViewTag(1));
+        wm.act(&Own::ViewTag(1));
         let (layout, params) = wm.current().unwrap();
         assert_eq!(layout, Layout::TileLeft);
         assert!((params.master_width - 0.6).abs() < 1e-9);
@@ -1495,13 +1488,13 @@ mod tests {
     #[test]
     fn urgent_windows_and_other_outputs() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::MoveToTag(2));
+        wm.act(&Own::MoveToTag(2));
         wm.focus("b");
         assert_eq!(wm.focused(), Some("a"));
-        wm.act(&Action::FocusUrgent);
+        wm.act(&Own::FocusUrgent);
         assert_eq!(wm.focused(), Some("b"));
         wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 60]);
-        wm.act(&Action::MoveToNextOutput);
+        wm.act(&Own::MoveToNextOutput);
         assert_eq!(wm.focused(), Some("b"));
         assert_eq!(wm.arrange().last().unwrap().at, Some([100, 0]));
         wm.remove_output("B");
@@ -1511,7 +1504,7 @@ mod tests {
     #[test]
     fn floating_windows_center_at_their_size() {
         let mut wm = wm(&["a"]);
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         assert!(wm.set_size("a", [40, 20]));
         let placed = wm.arrange().pop().unwrap();
         assert_eq!((placed.at, placed.size), (Some([30, 20]), None));
@@ -1522,7 +1515,7 @@ mod tests {
         let mut wm = wm(&["a"]);
         let pointer = [10.0, 10.0];
         assert!(!wm.place("a", [5, 6], pointer), "a tiles");
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         assert!(wm.place("a", [5, 6], pointer));
         assert!(!wm.place("a", [5, 6], pointer), "no change");
         assert_eq!(wm.arrange().pop().unwrap().at, Some([5, 6]));
@@ -1534,7 +1527,7 @@ mod tests {
     #[test]
     fn a_floating_window_never_ends_off_screen() {
         let mut wm = wm(&["a"]);
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         let at = |wm: &Wm| wm.arrange().pop().unwrap().at;
         // 50 x 30, half the work area: dragged past the right edge.
         wm.place("a", [500, 6], [99.0, 10.0]);
@@ -1555,8 +1548,8 @@ mod tests {
     #[test]
     fn a_fullscreen_window_covers_others_only_with_the_focus() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::ToggleFullscreen);
-        wm.act(&Action::FocusNext);
+        wm.act(&Own::ToggleFullscreen);
+        wm.act(&Own::FocusNext);
         assert_eq!(wm.focused(), Some("a"));
         assert_eq!(wm.arrange().pop().unwrap().id, "a");
     }
@@ -1575,7 +1568,7 @@ mod tests {
         let mut wm = wm(&[]);
         wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 60]);
         wm.set_output("C", [200, 0, 100, 60], [200, 0, 100, 60]);
-        wm.act(&Action::FocusNextOutput);
+        wm.act(&Own::FocusNextOutput);
         wm.add_window("b");
         wm.remove_output("A");
         assert_eq!(wm.focused(), Some("b"));
@@ -1584,22 +1577,22 @@ mod tests {
     #[test]
     fn the_shown_tag_again_keeps_the_history() {
         let mut wm = wm(&["a"]);
-        wm.act(&Action::ViewTag(2));
-        wm.act(&Action::ViewTag(1));
-        wm.act(&Action::ViewTag(1));
-        wm.act(&Action::ViewBack);
+        wm.act(&Own::ViewTag(2));
+        wm.act(&Own::ViewTag(1));
+        wm.act(&Own::ViewTag(1));
+        wm.act(&Own::ViewBack);
         assert_eq!(wm.shown_windows(), Vec::<String>::new());
-        wm.act(&Action::ViewBack);
-        wm.act(&Action::ToggleWindowTag(1));
+        wm.act(&Own::ViewBack);
+        wm.act(&Own::ToggleWindowTag(1));
         assert_eq!(wm.windows[0].tags, 1, "the last tag stays");
     }
 
     #[test]
     fn an_urgent_minimized_window_comes_back() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::Minimize);
+        wm.act(&Own::Minimize);
         wm.request("b", SurfaceRequest::Activate);
-        wm.act(&Action::FocusUrgent);
+        wm.act(&Own::FocusUrgent);
         assert_eq!(wm.focused(), Some("b"));
         assert_eq!(wm.shown_windows(), ["b", "a"]);
     }
@@ -1607,16 +1600,16 @@ mod tests {
     #[test]
     fn the_focused_window_covers_others_and_on_top_covers_all() {
         let mut wm = wm(&["a", "b"]);
-        wm.act(&Action::ToggleMaximized);
-        wm.act(&Action::FocusNext);
+        wm.act(&Own::ToggleMaximized);
+        wm.act(&Own::FocusNext);
         assert_eq!(
             wm.arrange().pop().unwrap().id,
             "a",
             "tiled a covers maximized b"
         );
-        wm.act(&Action::ToggleOnTop);
-        wm.act(&Action::FocusNext);
-        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Own::ToggleOnTop);
+        wm.act(&Own::FocusNext);
+        wm.act(&Own::ToggleFullscreen);
         assert_eq!(
             wm.arrange().pop().unwrap().id,
             "a",
@@ -1627,15 +1620,15 @@ mod tests {
     #[test]
     fn one_output_keeps_the_tags_of_a_moved_window() {
         let mut wm = wm(&["a"]);
-        wm.act(&Action::ToggleWindowTag(2));
-        wm.act(&Action::MoveToNextOutput);
+        wm.act(&Own::ToggleWindowTag(2));
+        wm.act(&Own::MoveToNextOutput);
         assert_eq!(wm.windows[0].tags, 0b11);
     }
 
     #[test]
     fn the_focus_that_follows_the_pointer_raises_nothing() {
         let mut wm = wm(&["a", "f"]);
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         wm.pointer_focus("a", false, true, false);
         assert_eq!(wm.focused(), Some("a"));
         assert_eq!(wm.arrange().pop().unwrap().id, "f");
@@ -1647,7 +1640,7 @@ mod tests {
     fn the_magnifier_shows_its_window_behind_a_floating_one() {
         let mut wm = wm(&["a", "b", "c"]);
         wm.set_layout(Layout::Magnifier);
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
         assert_eq!(
             ids,
@@ -1660,10 +1653,10 @@ mod tests {
     fn max_shows_the_last_raised_tiled_window() {
         let mut wm = wm(&["a", "b", "c"]);
         wm.set_layout(Layout::Max);
-        wm.act(&Action::FocusNext);
+        wm.act(&Own::FocusNext);
         assert_eq!(wm.focused(), Some("b"));
         wm.add_window("f");
-        wm.act(&Action::ToggleFloating);
+        wm.act(&Own::ToggleFloating);
         let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, ["c", "a", "b", "f"], "b stays behind the floating f");
     }
@@ -1671,9 +1664,9 @@ mod tests {
     #[test]
     fn a_fullscreen_window_rises_with_a_click_only() {
         let mut wm = wm(&["a", "b", "o"]);
-        wm.act(&Action::ToggleOnTop);
-        wm.act(&Action::FocusNext);
-        wm.act(&Action::ToggleFullscreen);
+        wm.act(&Own::ToggleOnTop);
+        wm.act(&Own::FocusNext);
+        wm.act(&Own::ToggleFullscreen);
         wm.pointer_focus("o", false, true, false);
         let ids: Vec<String> = wm.arrange().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, ["a", "b", "o"], "the fullscreen b stays over a");
@@ -1687,17 +1680,17 @@ mod tests {
     #[test]
     fn a_restart_rebuilds_the_model_from_meta() {
         let mut old = wm(&["a", "b", "c"]);
-        old.act(&Action::MoveToTag(2));
-        old.act(&Action::ViewTag(2));
-        old.act(&Action::NextLayout);
-        old.act(&Action::ToggleFloating);
-        old.act(&Action::ViewTag(1));
+        old.act(&Own::MoveToTag(2));
+        old.act(&Own::ViewTag(2));
+        old.act(&Own::NextLayout);
+        old.act(&Own::ToggleFloating);
+        old.act(&Own::ViewTag(1));
         let mut new = wm(&[]);
         new.restore(&old.group_meta(), &old.window_meta());
         assert_eq!(new.arrange(), old.arrange());
         assert_eq!(new.focused(), old.focused());
-        new.act(&Action::ViewTag(2));
-        old.act(&Action::ViewTag(2));
+        new.act(&Own::ViewTag(2));
+        old.act(&Own::ViewTag(2));
         assert_eq!(new.current(), old.current());
         assert_eq!(new.arrange(), old.arrange());
     }

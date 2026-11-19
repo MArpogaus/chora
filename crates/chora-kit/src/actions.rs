@@ -40,8 +40,8 @@ pub enum System {
     /// Starts the launcher of the look.
     Launcher,
     /// Shows all keys in the key list. `help` is the old spelling of the
-    /// construct, read for one release.
-    #[serde(alias = "help")]
+    /// construct and `show_keys` that of tiling, read for one release.
+    #[serde(alias = "help", alias = "show_keys")]
     Keys,
     /// Asks the HUD host to open the chat with a helper.
     Chat,
@@ -109,12 +109,13 @@ pub enum Action<L> {
 }
 
 /// The actions of the system that a binding spells as a plain name; `help`
-/// is the old spelling of `keys`.
-const NAMES: [&str; 10] = [
+/// and `show_keys` are old spellings of `keys`.
+const NAMES: [&str; 11] = [
     "terminal",
     "launcher",
     "keys",
     "help",
+    "show_keys",
     "chat",
     "lock",
     "power",

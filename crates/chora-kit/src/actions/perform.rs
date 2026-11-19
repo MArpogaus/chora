@@ -1,6 +1,6 @@
 //! Doing a [`System`] action (KIT2b): the part that is the same in every
 //! look is here, the part that needs the look's own state is a hook of
-//! [`Host`]. Two looks call it, mc and construct.
+//! [`Host`]. Three looks call it: mc, the construct and tiling.
 
 use crate::actions::{Step, System, Turn};
 use crate::give::{self, Windows};
@@ -102,6 +102,20 @@ pub trait Host: Windows {
         Ok(())
     }
 
+    /// Starts a shell command as an app, with the launcher of the look in
+    /// front of a `fuzzel`; a program that does not start is a
+    /// [`Failure::NotStarted`].
+    ///
+    /// # Errors
+    ///
+    /// The look's own.
+    fn run(&mut self, command: &str) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+    {
+        start(self, Some(shared::launcher(command)), command)
+    }
+
     /// Gives the focused window to the window manager `to`; a refusal is
     /// a [`Failure::NotGiven`].
     ///
@@ -145,7 +159,7 @@ pub fn perform<H: Host>(host: &mut H, system: &System) -> Result<(), H::Error> {
         };
     }
     match system {
-        System::Run(command) => start(host, Some(shared::launcher(command)), command),
+        System::Run(command) => host.run(command),
         System::Volume(change) => host.volume(*change),
         System::Keys => host.keys(),
         System::Chat => host.chat(),

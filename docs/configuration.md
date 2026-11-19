@@ -253,7 +253,7 @@ default map:
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
 | `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[wobbly]`; `[]` turns it off |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action of tiling at least once; the actions that every look has are spelled as in mc: `run: CMD` starts a shell command with `choractl run`, `close`, `give: NAME`, `drag` and `keys` (the key list; `show_keys` of earlier versions still loads for one release); tiling does not act on `terminal`, `launcher`, `chat`, `lock`, `power`, `screenshot`, `desk` or `cube` as a turn: such a binding is dropped with one warning that names its key, and the rest of the file loads, so that a command is a `run`; the same `bindings` and `test_accept_injected_keys` are the settings of every look; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -1615,7 +1615,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
   the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
   the word, in German with a German locale. Right island: **Keys**, which
-  shows the key list (`show_keys`), and the power icon, which opens the power
+  shows the key list (the method `show_keys`), and the power icon, which opens the power
   menu. Change the commands in `on-click` of `config.jsonc`.
   The bar follows the tags and the layout at once: after each event
   `chora-tiling` compares the tags and the layout with what it last
