@@ -870,6 +870,46 @@ mod tests {
     }
 
     #[test]
+    fn a_binding_without_mod_has_no_row_but_the_media_keys_do() {
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        config
+            .common
+            .bindings
+            .insert("Print".into(), Action::System(System::Screenshot));
+        config.common.bindings.insert(
+            "XF86AudioMute".into(),
+            Action::System(System::Volume(Change::Mute)),
+        );
+        let keys: Vec<String> = rows(&config, Language::En)
+            .into_iter()
+            .flat_map(|(_, rows)| rows.into_iter().map(|(keys, _)| keys))
+            .collect();
+        assert!(
+            !keys
+                .iter()
+                .any(|k| k.split(" / ").any(|key| key == "Print")),
+            "{keys:?}"
+        );
+        assert!(keys.iter().any(|k| k.contains("Mute")), "{keys:?}");
+    }
+
+    #[test]
+    fn an_arrow_keeps_the_thin_space_that_kit_spells_before_it() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        let keys: Vec<String> = rows(&config, Language::En)
+            .into_iter()
+            .flat_map(|(_, rows)| rows.into_iter().map(|(keys, _)| keys))
+            .filter(|k| k.contains(['←', '→', '↑', '↓']))
+            .collect();
+        assert!(!keys.is_empty(), "no arrow key in the list");
+        for key in keys {
+            for (at, c) in key.char_indices().filter(|(_, c)| "←→↑↓".contains(*c)) {
+                assert!(key[..at].ends_with("+\u{2009}"), "{key:?} at {c}");
+            }
+        }
+    }
+
+    #[test]
     fn no_two_lines_of_a_column_share_a_height() {
         for room in [1000.0, 696.0] {
             let plan = laid_out(room);

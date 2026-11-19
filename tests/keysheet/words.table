@@ -3,7 +3,8 @@
 # (crates/chora-kit/tests/keysheet.rs), the xp cell (plugins/chora-xp
 # help.rs) and the act `the key list of ...` (tests/acts/looks/common.py).
 # Lines: `words<TAB>action<TAB>English<TAB>German`, and
-# `cap<TAB>key<TAB>spelling`. An action with an argument is written as
+# `cap<TAB>key<TAB>spelling`, and `giverow<TAB>English<TAB>German`, the one
+# row of the give keys (no file binds them). An action with an argument is written as
 # the shipped keys bind it; `{}` stands for the argument.
 words	keys	All keys	Alle Tasten
 words	chat	Chat with a helper	Mit einem Helfer chatten
@@ -21,6 +22,7 @@ words	launcher	Start a program or run a command	Programm starten oder Befehl aus
 words	run:fuzzel	Start a program or run a command	Programm starten oder Befehl ausführen
 words	run	Run {}	{} ausführen
 words	give	Give window to {}	Fenster geben an {}
+giverow	Give window to a look	Fenster geben an einen Fenstermanager
 words	desk:next	Next desk	Nächster Desktop
 words	desk:previous	Previous desk	Voriger Desktop
 words	cube:left	Turn the cube to the left	Würfel nach links drehen

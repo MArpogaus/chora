@@ -161,10 +161,24 @@ fn the_give_keys_are_one_row_in_both_languages() {
             "Give window to a look".to_owned()
         )
     );
-    assert_eq!(
-        keysheet::give_row(Language::De).1,
-        "Fenster an einen Fenstermanager geben"
-    );
+    let wording = lines("giverow");
+    let (english, german) = (wording[0][0], wording[0][1]);
+    assert_eq!(keysheet::give_row(Language::En).1, english);
+    assert_eq!(keysheet::give_row(Language::De).1, german);
+}
+
+#[test]
+fn the_give_row_and_the_give_action_have_one_wording() {
+    for (language, noun) in [
+        (Language::En, "a look"),
+        (Language::De, "einen Fenstermanager"),
+    ] {
+        assert_eq!(
+            keysheet::words(&System::Give(noun.into()), language),
+            Some(keysheet::give_row(language).1),
+            "{language:?}"
+        );
+    }
 }
 
 #[test]
