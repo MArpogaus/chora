@@ -629,11 +629,14 @@ wait_for menu_visible true
 click_text "Run..."
 sleep 1
 grim "$out/run.png"
-printf '#!/bin/sh\nsleep 3\nexec foot\n' >"$out/slow-manager"
+release="$out/slow-manager.go"
+rm -f "$release"
+printf '#!/bin/sh\nuntil [ -e "%s" ]; do sleep 0.1; done\nexec foot\n' "$release" >"$out/slow-manager"
 chmod +x "$out/slow-manager"
 open_my_documents_with "$out/slow-manager"
 wait_for said Notify "Starting slow-manager"
 grim "$out/starting.png"
+touch "$release"
 wait_for closed
 "$bin/choractl" call xp settings.set "{\"file_manager\": \"$file_manager\"}" >/dev/null
 
