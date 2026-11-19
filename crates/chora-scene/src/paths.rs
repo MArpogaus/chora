@@ -412,6 +412,37 @@ mod tests {
     }
 
     #[test]
+    fn the_refusal_of_a_runtime_dir_names_the_remedy() {
+        let base = scratch("remedy");
+        let meta = fs::metadata(&base).expect("the metadata");
+        let other = meta.uid().wrapping_add(1);
+        let mut errors = vec![check_runtime_meta(&base, &meta, other).expect_err("owner")];
+        for mode in [0o777, 0o500] {
+            let dir = dir_with(&base, &format!("m{mode:o}"), mode);
+            errors.push(check_runtime_home(&dir).expect_err("mode"));
+        }
+        for error in errors {
+            let text = error.to_string();
+            let path = text.split(' ').next().expect("the path");
+            let remedy = format!("chmod 0700 {path}, or set XDG_RUNTIME_DIR to a dir of yours");
+            assert!(text.contains(&remedy), "{text}");
+        }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn the_refusal_of_a_private_dir_by_its_mode_names_the_remedy() {
+        let base = scratch("remedy-private");
+        let dir = dir_with(&base, "open", 0o777);
+        let text = private_dir(&dir).expect_err("refused").to_string();
+        assert!(
+            text.contains(&format!("chmod 0700 {}", dir.display())),
+            "{text}"
+        );
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
     fn a_runtime_dir_of_the_user_is_accepted() {
         let base = scratch("runtime-ok");
         for mode in [0o700, 0o755, 0o750] {

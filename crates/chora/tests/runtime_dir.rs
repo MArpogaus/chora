@@ -67,3 +67,20 @@ fn no_socket_is_made_in_a_runtime_dir_that_others_can_write() {
     fs::remove_dir_all(&dir).unwrap();
     let _ = fs::remove_dir_all(state(&dir));
 }
+
+#[test]
+fn the_refusal_is_printed_as_text_with_its_remedy() {
+    let dir = runtime("remedy", 0o777);
+    let output = run(&dir);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let last = stderr.lines().last().unwrap_or_default();
+    let remedy = format!(
+        "chmod 0700 {}, or set XDG_RUNTIME_DIR to a dir of yours",
+        dir.display()
+    );
+    assert!(last.starts_with("chora: "), "{last}");
+    assert!(last.contains(&remedy), "{last}");
+    assert!(!stderr.contains("Custom {"), "no Debug print: {stderr}");
+    fs::remove_dir_all(&dir).unwrap();
+    let _ = fs::remove_dir_all(state(&dir));
+}
