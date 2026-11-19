@@ -10,6 +10,7 @@
 # pointer moves three times, as a hand does.
 #
 # Usage: tests/gate-tiling-apps-click.sh   BIN: directory with the binaries
+# shellcheck disable=SC2016
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need foot
@@ -41,9 +42,10 @@ grant screen.capture input.inject
 
 row_x=600
 zebra_row_y=533
+ctl capture "$work/empty.png" >/dev/null || fail "capture of the empty desktop"
 started=$(ctl run "$bin/chora-tiling" --launch fuzzel) || fail "the run of the launcher"
 run_pid "$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")"
-until_ok 'ctl query "app_id:fuzzel kind:surface" | jq -e "length > 0" >/dev/null' 80 || fail "the launcher did not show"
+until_ok 'ctl capture "$work/launcher.png" >/dev/null && ! cmp -s "$work/empty.png" "$work/launcher.png"' 80 || fail "the launcher did not show"
 enter_y=$((zebra_row_y - 13))
 approach_y=$((zebra_row_y - 3))
 echo "[{\"pointer_move\": {\"position\": [$row_x, $enter_y]}}, {\"pointer_move\": {\"position\": [$row_x, $approach_y]}}, {\"pointer_move\": {\"position\": [$row_x, $zebra_row_y]}}, {\"click\": {\"button\": 272}}]" |
