@@ -563,10 +563,7 @@ impl Mc {
             self.toggled.insert(region, true);
             // A docked app of the region waits hidden: the keyboard goes
             // back to the scene.
-            if user
-                && (self.focus.surface.as_ref())
-                    .is_some_and(|f| self.docks.values().any(|d| d == f))
-            {
+            if user && self.focused_dock().is_some() {
                 let name = self.current.clone().unwrap_or_default();
                 let window = self.windows.get(&name).cloned();
                 self.focus(window)?;

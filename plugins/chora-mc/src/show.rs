@@ -173,9 +173,14 @@ impl Mc {
         let Some(name) = self.current.clone() else {
             return Vec::new();
         };
-        let docked = (self.focus.surface.clone()).filter(|f| self.docks.values().any(|d| d == f));
+        let docked = self.focused_dock().cloned();
         let window = docked.or_else(|| self.windows.get(&name).cloned());
         self.keyboard_to(&name, window)
+    }
+
+    /// The window of a docked app that mc gave the keyboard last.
+    pub(crate) fn focused_dock(&self) -> Option<&String> {
+        (self.focus.surface.as_ref()).filter(|f| self.docks.values().any(|d| d == *f))
     }
 
     /// Makes `name` the current scene and puts the one before on the trail.
