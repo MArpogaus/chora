@@ -21,8 +21,9 @@
 # stood still for 1 s), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
 # turn takes about 7 s; all 12 pairs run, and the whole matrix takes about
-# 150 s of the 240 s that it may take. The table can mark a cell `skip`,
-# which runs nothing; no cell is one now.
+# 215 to 230 s on a quiet box, and up to 250 s beside two other gates (about
+# 80 s of it the 12 voice turns, which run in real time). The table can mark
+# a cell `skip`, which runs nothing; no cell is one now.
 #
 # Two cells look at the panes of the construct after a drag from mc onto
 # its output: `leak` asks that the dragged window has its pane, and
@@ -34,8 +35,15 @@
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
 # is lost or the whole run, startup and last cell included, takes more
-# than 4 minutes. It prints the matrix and
-# one line per cell in $SHOTS/matrix.log.
+# than the cap. The cap is a guard against a hang, not a speed test: 315 s
+# is the slowest of five runs under `tests/merge-gate.sh --only
+# matrix,layout,doors --jobs 3` on 4 CPUs (226, 228, 234, 243 and 249 s)
+# plus 25 %. It prints the matrix and
+# one line per cell in $SHOTS/matrix.log, and a line `phase NAME Ns` for the
+# startup, the start of the voice and the panes cell, so that the run time
+# can be told by part. The start of the voice waits for the eof of the
+# playback log (the greeting played out), a filler waits for its pane to be
+# shown; neither waits a fixed time.
 #
 # Usage: tests/gate-handover-matrix.sh   BIN: directory with the binaries
 #   SHOTS: directory for the log (default: a temp dir)
@@ -45,7 +53,7 @@
 #   CHORA_TEST_ACCEPT_INJECTED_KEYS: 1 (default) lets the window managers
 #   take the keys of `input.inject`; 0 is production: the key cells of
 #   tiling, xp and mc expect gap, and no manager may serve a key
-#   CAP: the most seconds of the run (default 240)
+#   CAP: the most seconds of the run (default 315)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
 # shellcheck disable=SC2016
@@ -152,7 +160,7 @@ mkdir -p "$shots" "$work/chora"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-time_cap=${CAP:-240}
+time_cap=${CAP:-315}
 log=$shots/matrix.log
 : >"$log"
 
@@ -258,6 +266,7 @@ rects_stable() {
     done
 }
 
+phase() { echo "phase $1 $((SECONDS - $2))s" >>"$log"; }
 repairs=0
 repair() {
     repairs=$((repairs + 1))
@@ -347,6 +356,7 @@ construct_key() {
 vlog=$shots/voice.log
 voice_ready=0
 voice_start() {
+    local t0=$SECONDS
     python3 -I - "$repo/services/voice/tests/data/corpus/hallo-chora/mic.wav" "$work/speech.pcm" <<'EOF'
 import sys, wave
 with wave.open(sys.argv[1]) as w, open(sys.argv[2], "wb") as out:
@@ -388,8 +398,12 @@ EOF
         grep -q Ready "$work/tts.log" 2>/dev/null && break
         sleep 0.2
     done
-    sleep 2
+    for _ in $(seq 50); do
+        grep -q '"ev": "eof"' "$work/play.log" 2>/dev/null && break
+        sleep 0.2
+    done
     voice_ready=1
+    phase voice-start "$t0"
 }
 push() { curl -s -X POST --data-binary "$2" "http://127.0.0.1:$llm_port/$1" >/dev/null; }
 
@@ -492,7 +506,7 @@ leak_cell() {
 construct_windows() { ctl call construct window.list 2>/dev/null | jq -c '[.windows[] | {name, owner, pane}]'; }
 
 panes_cell() {
-    local want result=pass i first names lost
+    local want result=pass i first names lost t0=$SECONDS
     want=$(expected_of mc construct panes)
     [ -n "$want" ] || fail "no EXPECTED line for mc construct panes"
     for i in 1 2 3; do
@@ -510,7 +524,10 @@ panes_cell() {
         fi
         ctl wait "app_id:filler$i kind:surface owner:construct" --timeout 20 >/dev/null || fail "filler$i does not show in the construct"
         ctl call construct window.show "{\"name\": \"filler$i\"}" >/dev/null 2>&1 || fail "filler$i gets no pane"
-        sleep 1
+        for _ in $(seq 25); do
+            [ "$(construct_windows | jq -r --arg n "filler$i" '.[] | select(.name == $n) | .pane')" = shown ] && break
+            sleep 0.2
+        done
     done
     key Alt+Escape
     for i in 1 2 3; do
@@ -526,9 +543,11 @@ panes_cell() {
     ctl capture --output "${out_of[construct]}" "$shots/matrix-panes.png" >/dev/null 2>&1
     got["mc construct panes"]=$result
     echo "mc construct panes $result" >>"$log"
+    phase panes "$t0"
     [ "$result" = "$want" ] || mismatches+=("mc construct panes: measured $result, expected $want: $names")
 }
 
+phase startup 0
 pairs=()
 for s in tiling xp construct mc; do
     for d in tiling xp mc construct; do
