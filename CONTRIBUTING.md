@@ -9,6 +9,24 @@
 - In a repository with several contributors, each contributor works on
   `dev-NAME`. Pull requests from `dev-NAME` target a protected `main` (D47).
 
+## Where shared code lives
+
+A mechanism that two looks (mc, xp, tiling, construct) need lives in a shared crate, not in a look:
+
+- `crates/chora-scene`: the scene model, IPC types and client, and `paths` (every XDG and runtime directory, `private_dir`; D101).
+- `crates/chora-kit`: the plugin runtime, `actions` and `settings::Common` (D98), `ask` (D100), `words` and `Language` (D102), `wm` (`book`, `give`, `kept`, `state`; D99), `helper`, `runtime_file`, and `testing` with `FakeCore` (D96).
+- `crates/chora-draw`: drawing blocks.
+
+The decision records are in [docs/decisions.md](docs/decisions.md#decisions-of-the-shared-core); the layout is in [docs/project-structure.md](docs/project-structure.md).
+
+**A look uses the kit; it keeps no copy.** When a mechanism moves to the kit, a row in `tools/copies.toml` counts what remains of it in the looks. To add a row:
+
+1. Write the pattern as a regex of the line that marks the copy (for example `to != NAME`), and `allow` the crate prefixes that may hold it (usually `crates/chora-kit/`).
+2. Set `max` to the count that exists today and give the row a `name`; `paths` limits the scan (default: crates, plugins, services).
+3. Port the looks, and lower `max` with each port; at `max = 0` the row blocks, and `tools/cut-check` fails in `ci-check` and the merge gate when a copy comes back.
+
+A count only falls: `tools/cut-check` prints "lower max" when the real count is lower. Write the red test of the shared module first (D96 `FakeCore`), then the move, then the row.
+
 ## Hooks
 
 Install the hooks once in every fresh clone:
