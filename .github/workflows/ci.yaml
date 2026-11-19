@@ -70,6 +70,8 @@ jobs:
       run: tests/flavor-notify.py
     - name: the screenshot notice reaches chora-notify without a session bus
       run: tests/screenshot-notice.sh
+    - name: the tiling scripts make chora-tiling private
+      run: tests/tiling-scripts-selftest.sh
     - name: a file over 1,500 production lines does not grow
       run: tools/size-ratchet && tests/size-ratchet-selftest.sh
     - name: the cut holds, a plugin could be packaged alone
