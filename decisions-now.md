@@ -1,6 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T03:41:00Z
-- 11-19 03:41Z "Lift day cap+ fable should help getting most out of reset I think. We try to land as much as possible with dese tokes leveraging more opus and fable lanes but don't mindlessly burn tokens. Run your sonnet lanes now. I'll rechech in 1.5h to trigger rest" -> order: day cap lifted; opus and Fable lanes after the reset, no waste; sonnet lanes now; reset about 05:10
+screened-through: 2026-11-19T03:42:00Z
+- 11-19 03:42Z "Lift day cap+ fable should help getting most out of reset I think. We try to land as much as possible with dese tokes leveraging more opus and fable lanes but don't mindlessly burn tokens. Run your sonnet lanes now. I'll rechech in 1.5h to trigger rest" -> order: day cap lifted; opus and Fable lanes after the reset, no waste; sonnet lanes now; reset about 05:10
 - 11-19 03:38Z "Use up the last 2% then I'll trigger? Reschedule to use 100% until sat reset possible?" -> question; goal change asked (day cap)
 - 11-19 03:35Z "Another agent ate our tokes. 98 % now. Shall I trigger the reset?" -> 98 %; reset? PM: yes
 
