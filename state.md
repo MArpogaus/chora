@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 08:49 UTC)
+## Now (2026-11-19 08:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 07:50 PM 1.8 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -29,7 +29,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm7a-r1.md (F3) | opus high | session_016iS3kPRrXrPs57WvWHZBEU (07:40) |
 | kit2c-r1.md (F2) | sonnet high | session_016iS3kQWUsFuZNFkENAEJBT (07:51) |
-| kit2d-r1.md (F2) | sonnet high | starting |
+| kit2d-r1.md (F2) | sonnet high | session_016iS3kM1JMwzfGGNbUurCv7 (08:50) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 58 green; 59 cut2 29b2fd25, net3 dc00d33c running; 60: wm1d 18231aa1, mv4 7e339880 (MERGE-OK 08:37, 08:49); wm2 r3 merges the book (conflict); kit6 ad88ebaf, docs-f8b 5f97b0eb come in via kit2c (conflict with kit2b). Pace 1.5-2 %/h.
