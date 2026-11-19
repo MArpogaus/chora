@@ -116,6 +116,7 @@ impl Mc {
     /// After the removal: it detaches the kept windows, and those
     /// events would adopt them a second time.
     pub(crate) fn start(&mut self, methods: Vec<ExportMethod>) -> Result<(), ClientError> {
+        self.voiced_word.ask(&mut self.rt.conn);
         self.output = self.rt.outputs()?.into_iter().next();
         let kept: Vec<Value> = self
             .rt
@@ -147,7 +148,6 @@ impl Mc {
         }
         self.autostart();
         self.take_free_keyboard()?;
-        self.claim_indicator(false);
         let free: Vec<Value> = self
             .rt
             .conn

@@ -506,8 +506,7 @@ impl Mc {
         let config = &self.settings.value;
         let b = config.scale.baseline;
         let beside = column_width(config.regions.get(Region::Right).size, b, width) + 2.0 * b;
-        let host = config.voice_hud == crate::config::VoiceHud::Host;
-        [column || host, column].map(|ends| {
+        [true, column].map(|ends| {
             let end = if ends { beside } else { 0.0 };
             (2.0 * b, (width - 4.0 * b - end).max(b))
         })
@@ -629,18 +628,6 @@ impl Mc {
             .call::<_, serde_json::Value>("events.emit", emit)?;
         self.slot_sent = Some((output, rect));
         Ok(())
-    }
-
-    /// The box of the drawer of the current scene, while it shows.
-    pub fn drawer_box(&self) -> Option<[f64; 4]> {
-        let name = self.current.clone()?;
-        let items = self.items(&name);
-        let visible = self.visible(&items);
-        visible.contains(&Region::Drawer).then_some(())?;
-        self.boxes(&name, &visible)?
-            .regions
-            .get(&Region::Drawer)
-            .copied()
     }
 
     /// The regions with `items` that show in a scene.
@@ -1332,7 +1319,7 @@ mod tests {
         let moved = layout(&rules, &config.contents, "agenda", false);
         assert_eq!(
             names(&moved, Region::Left),
-            ["confirm", "next", "notes", "outline", "overlay", "prev"]
+            ["next", "notes", "outline", "overlay", "prev"]
         );
         assert_eq!(
             names(&moved, Region::Right),

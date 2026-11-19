@@ -244,21 +244,21 @@ until_ok '! shown_notices | grep -qx "Update ready"' 20 || fail "notify.clear le
 column_at 1280x720 888 336
 column_at 1920x1080 1416 448
 
-own_session() {
+alone_session() {
     kill "${pids[@]}" 2>/dev/null
     wait 2>/dev/null
     pids=()
-    printf 'theme: %s\ntest_accept_injected_keys: true\nvoice_hud: own\n' "$1" >"$XDG_CONFIG_HOME/chora/chora-mc.yaml"
+    printf 'theme: %s\ntest_accept_injected_keys: true\n' "$1" >"$XDG_CONFIG_HOME/chora/chora-mc.yaml"
     env_file=$(mktemp /tmp/gate-env.XXXXXX) session_start 1280x800
     grant screen.capture input.inject
-    "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc-own.log" 2>&1 &
+    "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc-alone.log" 2>&1 &
     pids+=($!)
     ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
     until_ok 'has_text "AGENDA"' || fail "no first screen"
 }
 text_y() { text_rect "$1" | jq -r '.[1]'; }
 text_x() { text_rect "$1" | jq -r '.[0]'; }
-own_session light
+alone_session light
 ctl call mc hud.set '{"state": "Listening", "text": ""}' >/dev/null
 for a in 'Atlas working "Tidy notes"' 'Vega thinking ""' 'Orion idle ""' 'Mira done ""' 'Juno idle ""' 'Kai idle ""'; do
     eval set -- "$a"

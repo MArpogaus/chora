@@ -74,9 +74,9 @@ impl Construct {
         }
     }
 
-    /// The window list, the help, a question of the voice agent and the
-    /// window of the launcher, in the order Escape shuts them: the one that
-    /// opened last first.
+    /// The window list, the help and the window of the launcher, in the
+    /// order Escape shuts them: the one that opened last first. The HUD host
+    /// shows the questions of the voice agent.
     fn open_value(&self) -> Value {
         let shown = [
             (
@@ -87,7 +87,6 @@ impl Construct {
             ),
             (self.help, hud::HELP, Kind::Sheet, true),
             (self.list.is_some(), hud::LIST, Kind::Popup, true),
-            (self.voice.ask.is_some(), hud::ASK, Kind::Dialog, true),
         ];
         let mut open = Open::default();
         for (_, id, kind, modal) in shown.into_iter().filter(|(on, ..)| *on) {
@@ -164,7 +163,7 @@ pub(crate) mod tests {
         let (mut flavor, _core) = construct("state-empty", false);
         let state = flavor.state().expect("the construct has a state");
         let expected = json!({"windows": [], "views": [], "focus": {"holder": null},
-            "open": [], "busy": [], "helper": "none"});
+            "open": [], "busy": [], "helper": "no_helper"});
         assert_eq!(state, expected);
         flavor.active = true;
         assert_eq!(
@@ -242,12 +241,12 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["open"], open);
     }
 
-    /// `helper` is `none` until voice reports, follows its latest
-    /// `voice.state`, and is `none` again when voice goes.
+    /// `helper` is the word of the kit machine: `no_helper` until a helper
+    /// exists, its state while it does, `no_helper` again when voice goes.
     #[test]
     fn the_helper_follows_voice() {
         let (mut x, _core) = construct("state-helper", false);
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let said = |event: &str, data| chora_scene::Event::Emitted {
             event: event.into(),
             client: "voice".into(),
@@ -255,7 +254,7 @@ pub(crate) mod tests {
         };
         x.event(said("voice.state", json!({"state": "idle"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         x.event(said(
             "voice.state",
             json!({"name": "atlas", "state": "working"}),
@@ -264,9 +263,38 @@ pub(crate) mod tests {
         assert_eq!(x.state().unwrap()["helper"], "working");
         x.event(said("voice.remove", json!({"name": "atlas"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let gone = json!({"event": "client.disconnected", "name": "voice"});
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
+    }
+
+    /// A look that hears voice connect asks voice for its state, and it
+    /// hears every event of the helper machine, so that it says what the
+    /// presenter says (rw-4).
+    #[test]
+    fn the_helper_is_seeded_from_voice_and_hears_every_event() {
+        assert_eq!(
+            chora_kit::helper::unheard(&crate::EVENTS),
+            Vec::<&str>::new()
+        );
+        let (mut x, core) = construct("state-seed", false);
+        core.answer_call(
+            "voice",
+            "state",
+            json!({"state": "listening", "agents": [{"name": "coder", "state": "idle"}]}),
+        );
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        x.event(connected).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "listening");
+        let said = chora_scene::Event::Emitted {
+            event: "voice.say".into(),
+            client: "voice".into(),
+            data: json!({"state": "speaking", "text": "Hi"}),
+        };
+        x.event(said).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "answered");
     }
 }

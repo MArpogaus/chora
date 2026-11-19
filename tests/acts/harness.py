@@ -116,7 +116,8 @@ class Expect:
     gone        the number of toplevels that went away
     focus       the look that says it holds the focus once quiet
     open        the ids that are open afterwards, in any look
-    helper      the `helper` word of every look that reports one
+    helper      the `helper` word of every look that reports one and of
+                the presenter chora-assistant while it runs
     cube        fields of the answer of the cube role `cube.list`; `faces`
                 is compared by its count
     verify      a function of the snapshot after the act that answers
@@ -156,6 +157,8 @@ class Expect:
             words = {
                 look: s.get("helper") for look, s in after.states.items() if s and "helper" in s
             }
+            if "assistant" in after.clients:
+                words["assistant"] = ((after.blocks or {}).get("assistant") or {}).get("helper")
             if not words or any(w != self.helper for w in words.values()):
                 out.append(f"expected the helper {self.helper}, got {words}")
         if self.cube is not None:
@@ -360,7 +363,7 @@ LOOKS = {
     ),
 }
 WALLPAPER = {"xp", "mc", "construct"}
-BLOCKS = ["notify"]
+BLOCKS = ["notify", "assistant"]
 
 
 class Session:

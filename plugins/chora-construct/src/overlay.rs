@@ -3,7 +3,7 @@
 
 use super::{
     BTreeMap, ClientError, Command, Construct, Duration, Instant, LIST, LIST_ROWS, Look, NAME,
-    NodeKind, PropsUpdate, Query, VOICE, Value, create, hud, json,
+    NodeKind, PropsUpdate, Query, Value, create, hud,
 };
 
 impl Construct {
@@ -254,7 +254,7 @@ impl Construct {
         if !self.active || self.output.is_none() {
             return Ok(());
         }
-        let mut commands: Vec<Command> = [hud::LABEL, hud::HUD, LIST]
+        let mut commands: Vec<Command> = [hud::LABEL, LIST]
             .map(|id| Command::Remove {
                 id: id.into(),
                 to: None,
@@ -273,8 +273,6 @@ impl Construct {
         self.face_card = None;
         self.face_place = None;
         self.doors.stale = true;
-        self.draw_hud()?;
-        self.draw_ask()?;
         if self.list.is_some() {
             self.draw_list(true)?;
         }
@@ -378,19 +376,6 @@ impl Construct {
             commands.push(hud::fade(hud::HELP, 1.0, hud::FADE_IN));
         }
         self.rt.conn.apply(commands)
-    }
-
-    /// Asks the voice agent to hide its dot while the HUD shows its
-    /// state, once per connection of the agent (docs/voice.md, 10).
-    pub(crate) fn claim_indicator(&mut self, last: bool) {
-        if !self.settings.value.draws_voice() || !self.active {
-            return;
-        }
-        let conn = &mut self.rt.conn;
-        self.claim.claim(last, || {
-            let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
-            conn.call::<_, Value>("methods.call", call).is_ok()
-        });
     }
 }
 

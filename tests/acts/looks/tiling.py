@@ -1,6 +1,6 @@
 """The acts of tiling. The door acts: the key list (tests/doors keys-key, keys-alias)."""
 
-from common import door_acts, notice_acts, window_acts
+from common import door_acts, helper_acts, notice_acts, window_acts
 
 
 def run(s):
@@ -8,3 +8,4 @@ def run(s):
     window_acts(s)
     door_acts(s, "tiling-keys", "Escape")
     notice_acts(s)
+    helper_acts(s)

@@ -178,6 +178,9 @@ struct Agent {
     stale: Vec<PathBuf>,
     /// What the agent last said of each helper that it named.
     helpers: BTreeMap<String, rows::Helper>,
+    /// The helper state machine of the kit: the one state of the helper,
+    /// which `state.get` reports and the figure word reads.
+    machine: chora_kit::helper::Helper,
     /// The box of the slot of the chat: the client that announced it, the
     /// output and the box.
     slot: Option<chat::Held>,
@@ -248,6 +251,7 @@ impl Plugin for Agent {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
+        self.machine.hear(&event);
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
@@ -324,6 +328,10 @@ impl Plugin for Agent {
         Some(&mut self.settings)
     }
 
+    fn state(&self) -> Option<Value> {
+        Some(self.presented())
+    }
+
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         self.claim_indicator(false);
         let rejected = |e: String| RpcError::new(RpcError::REJECTED, e);
@@ -381,6 +389,7 @@ impl Agent {
         source.loads = source.loads.max(1);
         let mut methods = chat::exported();
         methods.extend(settings::File::<Config>::methods());
+        methods.push(chora_kit::runtime::state_method());
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods).map_err(|e| e.to_string())?;
         let mut agent = Self {
             rt,
@@ -395,6 +404,7 @@ impl Agent {
             deferred: Vec::new(),
             stale: Vec::new(),
             helpers: BTreeMap::new(),
+            machine: chora_kit::helper::Helper::default(),
             slot: None,
             slot_client: None,
             look_cache,
@@ -998,6 +1008,7 @@ mod tests {
             deferred: Vec::new(),
             stale: Vec::new(),
             helpers: BTreeMap::new(),
+            machine: chora_kit::helper::Helper::default(),
             slot: None,
             slot_client: None,
             look_cache: cache,

@@ -400,7 +400,6 @@ impl Construct {
                 eprintln!("chora-construct: {plugin} pane.focus: {err}");
             }
             self.flown = Some(flown);
-            self.draw_hud()?;
             self.frame()?;
             return self.regrab();
         }
@@ -434,7 +433,6 @@ impl Construct {
         };
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);
-        self.draw_hud()?;
         self.frame()?;
         self.regrab()
     }
@@ -529,7 +527,6 @@ impl Construct {
             return Ok(());
         };
         self.unsnap(flown.attached.then_some(&flown.surface), true)?;
-        self.draw_hud()?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
     }

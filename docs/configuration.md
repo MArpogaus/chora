@@ -482,29 +482,17 @@ The methods marked privileged start programs: a caller on a client
 socket needs `methods.privileged` besides `methods.call`.
 
 mc also follows the events of the voice agent (D65); it subscribes to
-`voice.*`. `voice.state` sets the agent `voice` as `agent.set` does, or
-the sub-agent that the `name` of its data names, such as `coder` or an
-ACP agent of the voice agent; `voice.remove {name}` removes such a
-sub-agent.
-`voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
-`prompt` and its whole `detail` in mono alone in the drawer until the
-event with `done` and the same `id`. With `buttons`, the words Yes and No
-(Ja and Nein in a German session) stand flush right on its title line,
-each with a hairline under it; a click 400 ms or more after the question
-showed calls `voice.confirm.answer {id, yes}`. A question about a
-security key (`physical`) shows its `keys`, such as Alt+Y and Alt+N,
-before them. Only a pointer press on a word answers; no method of mc
-calls `confirm.answer`, but mc cannot tell an injected click
-(`input.inject`) from a real one. At its start and after the agent
-connects, mc calls the method `indicator.claim` of the agent, so that the
-agent hides its own state dot. Data that mc does not
+`voice.*`. `voice.state` with a `name` sets the sub-agent that it names,
+such as `coder` or an ACP agent of the voice agent, as `agent.set` does;
+`voice.remove {name}` removes such a sub-agent. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
-With the setting `voice_hud: host`, the default, the HUD host
-`chora-assistant` draws the voice HUD of mc with the folder
-`plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
-of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
+The HUD host `chora-assistant` draws the voice HUD of mc with the folder
+`plugins/chora-mc/hud` ([HUD folders](hud.md)): the state, the sentences
+and the questions of the voice agent, and it claims the indicator of the
+agent. mc takes no state of the agent itself but the state of its
+microphone, no `voice.say` and no `voice.confirm`, and claims no
 indicator; it still shows the helpers that `voice.state` names. A click
 on the column of a helper in the scene `agents`, or on its row in a
 region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
@@ -536,8 +524,8 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
-| `content.set` | `content`, `lines` and an optional `title` of a text content; not of `confirm`, which mc writes itself |
-| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines; not to `confirm` |
+| `content.set` | `content`, `lines` and an optional `title` of a text content |
+| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
 | `agent.set` | privileged. `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
@@ -657,10 +645,12 @@ with `settings.reload`:
   take the keys of `input.inject` as keys of the user, and the hits and
   the agent columns its pointer presses (see
   [Injected keys](#injected-keys)).
-- `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
-  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
-  The chat shows in the margin column of mc, in the box that mc announces
-  (see the HUD host above).
+- `voice_hud`: gone; the HUD host `chora-assistant` always draws the
+  voice HUD of mc with the folder `plugins/chora-mc/hud`, and the chat
+  shows in the margin column of mc, in the box that mc announces (see the
+  HUD host above). An old file with `voice_hud: host` or `voice_hud: own`
+  still loads for one release, both as `host`; `own`, the voice HUD that
+  mc drew itself, logs a warning that it is gone.
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -772,7 +762,7 @@ the words of the agent left and the next entry of the agenda right (the collecto
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
 with `content.add`, and
 the key list and the doors at its foot. The state of the voice agent and the helpers
-stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden with `voice_hud: host`, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
+stand at the top of that column, in the header only over an app. The first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.
@@ -954,7 +944,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it connects as the client of its program without the prefix `chora-`, `xp` for `chora-xp`; it outlives the construct: a construct that dies leaves it flat on the screens with every window, and a construct that starts again opens the cube around it again; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings, the keys of the window list and its pointer presses take the input of `input.inject` as the user's (see [Injected keys](#injected-keys)) |
-| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, and the construct claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
+| `voice_hud` | `host` | `host`, the only value: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, and the construct claims no indicator. The own voice HUD of the construct is gone: `own`, `true` and `false`, the values of earlier versions, load as `host` for one release, and `own` and `true` log a warning |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
@@ -1271,31 +1261,14 @@ a pane goes in any way.
 
 ### The voice HUD
 
-With `voice_hud: own` (the default is `host`), the construct shows the voice agent
-([voice](voice.md), section 10) at the bottom centre of the output, from its first
-`voice.state` on. A glass panel holds a ring in the accent and the state
-as a label: a thin, dim ring asleep, a full ring listening, a turning arc
-thinking and working, a pulse at a question, and five moving bars while
-a sentence plays. While thinking or working, the task shows under the
-label; a spoken sentence shows in two lines at most, keeps its end, and
-fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
-ring and the label at the bottom right. `voice.confirm` opens a question
-at the top centre with the prompt and the whole detail; the wheel
-scrolls a long one, and its `done` closes it. The answer is by voice.
-With `buttons`, the question has the glass buttons Yes and No (Ja and
-Nein in a German session) at its bottom; a click 400 ms or more after the
-question showed calls `voice.confirm.answer {id, yes}`. A question about
-a security key (`physical`) shows the key caps of its `keys`, such as
-Alt+Y and Alt+N, beside them, after an accent mark, and says that it
-needs a key press or a click. Only a pointer press on a button answers;
-no method of the construct calls `confirm.answer`, but the construct
-cannot tell an injected click (`input.inject`) from a real one.
-The construct claims the indicator of the agent (`indicator.claim`) at
-the start and on each connection of the agent, and hides the HUD while
-the agent is away.
+The HUD host `chora-assistant` is the only presenter of the voice agent
+([voice](voice.md), section 10) in the construct: it draws the voice HUD
+and the questions with the folder `plugins/chora-construct/hud` ([HUD
+folders](hud.md)). The construct draws neither and claims no indicator;
+an open question of the agent (`voice.confirm`) only hides its hints.
+The own voice HUD of earlier versions (`voice_hud: own`) is gone.
 
-The notices of the construct go to `chora-notify` with either value of
-`voice_hud`, for 4 s: a typed key that does nothing, a window with no
+The notices of the construct go to `chora-notify` for 4 s: a typed key that does nothing, a window with no
 room in view, a key that did not start its program, and a give key that
 gives nothing ("No window to give.", "xp did
 not take the window."). A give key gives the focused window, else the
@@ -1322,11 +1295,10 @@ press to its release, so the label does not follow a hover. That pane,
 or the pane flown into, is the focused pane: it shows clear, without the
 fog of its distance, with an accent hairline and a soft glow under it.
 
-The ring, the bars and the glow are one shader, `glass.frag`. When the
-watchdog takes the shaders (`effects.dropped`), the panels and their
-labels stay, without the ring, until the settings change.
-`tests/gate-construct-hud.sh` checks the HUD with a fake agent,
-`tests/fake-voice.py`, and captures each state in both themes.
+The glow of the panels is one shader, `glass.frag`. When the watchdog
+takes the shaders (`effects.dropped`), the panels and their labels stay,
+plain, until the settings change. `tests/gate-construct-hud.sh` checks
+the list, the labels, the notices and the help in both themes.
 
 ## chora-notify
 

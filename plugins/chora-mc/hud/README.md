@@ -17,9 +17,11 @@ The chat is a plain page in the colours of mc, set in TeX Gyre Pagella 18
 rule, its title and key line in Inter 500, its prompt in the serif of the
 chat and its path in a mono face.
 
-mc uses this folder with `voice_hud: host` in `chora-mc.yaml`: mc then
-draws no voice state, sentence or question of its own and claims no
-indicator; it keeps the first line of its column free for the state word.
+The host always draws the voice HUD of mc with this folder (the setting
+`voice_hud: own`, the HUD of mc itself, is gone and loads as `host` for
+one release): mc draws no voice state, sentence or question of its own
+and claims no indicator; it keeps the first line of its column free for
+the state word.
 mc also gives the host its theme, so that the chat and the card are dark
 in the dark theme even where no window manager claims the screen. While the host shows the chat on the output of mc, mc folds its
 notifications, hides its key list and emits the box of its margin column

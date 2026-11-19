@@ -6,7 +6,7 @@
 
 use chora_kit::{
     conn::Conn,
-    words::{self, Language, Word},
+    words::{Language, Word},
 };
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
@@ -44,40 +44,31 @@ pub fn open(name: Option<&str>) -> Result<(), ClientError> {
     conn.call::<_, Value>("methods.call", call).map(drop)
 }
 
-/// The client name of the voice agent.
-const VOICE: &str = "voice";
-
 /// The client name of the reader of the door word, which a panel runs
 /// again and again while an opener may run.
 const DOOR: &str = "chat-door";
 
-/// The word of a helper door: `No helper` without a helper, else the name
-/// and the state word of the first helper that is not idle, or of the
-/// first one: `coder · working`.
+/// The words of a helper door as the presenter says them in its
+/// `state.get` (the helper machine of the kit); `No helper` without an
+/// answer, as no helper can be presented then.
 #[must_use]
-pub fn door_word(language: Language, helpers: &[(String, String)]) -> String {
-    let busy = helpers.iter().find(|(_, state)| state != "idle");
-    match busy.or(helpers.first()) {
-        Some((name, state)) => words::row(language, name, state, ""),
-        None => Word::NoHelperDoor.text(language).to_owned(),
-    }
+pub fn door_of(language: Language, presented: Option<&Value>) -> String {
+    presented
+        .and_then(|state| state["door"].as_str())
+        .map_or_else(
+            || Word::NoHelperDoor.text(language).to_owned(),
+            str::to_owned,
+        )
 }
 
-/// The helpers that the voice agent names, each with its state; none
-/// when no session runs or the voice agent does not answer.
+/// The word of a helper door: asks the presenter for it.
 #[must_use]
-pub fn helpers() -> Vec<(String, String)> {
-    let call = json!({"client": VOICE, "method": "state", "params": {}});
-    let state = Conn::connect(DOOR)
+pub fn door(language: Language) -> String {
+    let call = json!({"client": HOST, "method": "state.get", "params": {}});
+    let presented = Conn::connect(DOOR)
         .and_then(|mut conn| conn.call::<_, Value>("methods.call", call))
-        .unwrap_or_default();
-    let word = |agent: &Value, key: &str| agent[key].as_str().map(str::to_owned);
-    state["agents"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|agent| Some((word(agent, "name")?, word(agent, "state")?)))
-        .collect()
+        .ok();
+    door_of(language, presented.as_ref())
 }
 
 #[cfg(test)]
@@ -85,15 +76,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_door_names_the_busy_helper_and_says_when_none_exists() {
-        let helper = |name: &str, state: &str| (name.to_owned(), state.to_owned());
-        assert_eq!(door_word(Language::En, &[]), "No helper");
-        assert_eq!(door_word(Language::De, &[]), "Kein Helfer");
-        let one = [helper("coder", "idle")];
-        assert_eq!(door_word(Language::En, &one), "coder · idle");
-        let two = [helper("atlas", "idle"), helper("coder", "working")];
-        assert_eq!(door_word(Language::En, &two), "coder · working");
-        assert_eq!(door_word(Language::De, &two), "coder · arbeitet");
+    fn the_door_says_the_words_of_the_presenter_and_no_helper_without_it() {
+        assert_eq!(door_of(Language::En, None), "No helper");
+        assert_eq!(door_of(Language::De, None), "Kein Helfer");
+        let presented = json!({"helper": "working", "door": "coder · working"});
+        assert_eq!(door_of(Language::En, Some(&presented)), "coder · working");
     }
 
     #[test]

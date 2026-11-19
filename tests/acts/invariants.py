@@ -178,7 +178,9 @@ def i8(_before, after, _act):
     said = [
         (e.get("data") or {}).get("state") for e in after.events if e.get("event") == "voice.state"
     ]
-    states = looks_with_state(after)
+    states = looks_with_state(after) | {
+        name: state for name, state in after.blocks.items() if state and "helper" in state
+    }
     if said and states and not any("helper" in s for s in states.values()):
         out += [
             f"{look} missing key helper: the helper answered and no look reports it"
@@ -187,7 +189,7 @@ def i8(_before, after, _act):
     if said and said[-1] != "working":
         out += [
             f"{look} says the helper works after its answer ({said[-1]})"
-            for look, s in looks_with_state(after).items()
+            for look, s in states.items()
             if s.get("helper") == "working"
         ]
     helpers = {n["id"] for n in after.nodes if helper_surfaces(n)}

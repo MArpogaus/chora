@@ -1588,6 +1588,24 @@ that it took, that wait for their turn and that went; `chat`, the box of
 the open chat of the HUD host that the card keeps clear, or null; and an
 empty `busy`, since a card shows and goes without an animation.
 
+Every look and the presenter chora-assistant answer `helper`, the state
+of the helper machine of the kit (`chora_kit::helper`, from the events
+of voice): `no_helper` (no helper exists, or voice does not run; the
+voice agent alone is no helper, and its thinking and speaking show only
+in the figure), `working` (a helper works, whoever reported after it),
+`answered` (no helper works and the latest report of a helper is an
+answer: spoken, a question, done or blocked; the voice agent listening
+again changes nothing, and it is never `working` after it until a helper
+works again), else `idle` or `listening`, by the latest report. chora-assistant, the only presenter of
+the helper, adds `door`, the words of a helper door (`No helper`, or the
+name and state of the helper that works and reported last, else of the
+helper that reported last), which `chora-chat --door`
+prints for a panel, and `shown`, the helper surfaces on screen
+(`hud-figure`, `hud-card`, `hud-chat`). Each of them hears `voice.state`,
+`voice.say` and `voice.remove`, and asks voice for its `state` when it
+starts and when voice connects, so that a look that starts after voice
+says what the presenter says.
+
 A look built on `chora_kit::wm` (tiling, mc, the construct, xp) emits
 `<look>.window` with `{surface, node, phase, rect}` when a window becomes
 its own (`opened`), closes (`closed`) or goes to another window manager

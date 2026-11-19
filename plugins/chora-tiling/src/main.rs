@@ -197,7 +197,7 @@ struct Tiling {
     /// keyboard.
     open: chora_kit::wm::open::Open,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
     /// The colours of the look, and the scheme they come from.
@@ -369,7 +369,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bar_hidden: None,
         still: true,
         open: chora_kit::wm::open::Open::default(),
-        voiced: chora_kit::helper::Helpers::default(),
+        voiced: chora_kit::helper::Helper::default(),
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
@@ -430,9 +430,11 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 17] = [
+const EVENTS: [&str; 19] = [
     "voice.state",
+    "voice.say",
     "voice.remove",
+    "client.connected",
     "client.disconnected",
     "assistant.ready",
     "surface.created",
@@ -562,6 +564,7 @@ impl Tiling {
     }
 
     fn start(&mut self) -> Result<(), ClientError> {
+        self.voiced.ask(&mut self.rt.conn);
         for output in self.rt.outputs()? {
             self.wm
                 .set_output(&output.name, output.layout_area(), full_area(&output));
@@ -676,7 +679,7 @@ impl Tiling {
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
-        self.voiced.hear(&event);
+        self.voiced.hear_asking(&event, &mut self.rt.conn);
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
             return self.name_theme();
@@ -1184,7 +1187,7 @@ mod tests {
             bar_hidden: None,
             still: true,
             open: chora_kit::wm::open::Open::default(),
-            voiced: chora_kit::helper::Helpers::default(),
+            voiced: chora_kit::helper::Helper::default(),
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,

@@ -1,25 +1,19 @@
 #!/bin/bash
-# Gate of step K3 of the construct track: the voice HUD (F28), the pane
-# label and the restyled window list (docs/construct-style.md). A fake
-# voice agent (tests/fake-voice.py) emits the events of the real one.
+# Gate of step K3 of the construct track: the pane label, the restyled
+# window list, the notices and the help of the construct
+# (docs/construct-style.md). The HUD host chora-assistant draws the voice
+# HUD (F28) and the questions; tests/gate-hud.sh checks that the
+# construct draws none.
 #
 # For each theme and for 1920x1080 and 1280x720, with the flag
-# --test-injected-press-is-real of the core, so that the injected click
-# on Ja counts as a click of the person:
-# 1. The construct claims the indicator of voice once.
-# 2. Each state shows its label in construct-hud-state.
-# 3. voice.say of 800 ms shows its sentence; 3.1 s later it is gone.
-# 4. A question with a detail of 6 KiB shows it whole; a done of another
-#    id keeps it, of its id closes it.
-# 5. A restart of the fake voice gets a second claim, and the HUD hides
-#    while voice is away.
-# 6. Flown into a pane, the HUD sits at the bottom right; flown out, at
-#    the bottom centre again.
-# 7. Long German words and a long command stay inside their panels: the
-#    spoken sentence (at most two lines), the question, the rows of the
-#    window list and the pane label.
-# Then, with CHORA_FRAME_BUDGET_US=1, the watchdog takes the shaders: the
-# HUD panel and its label stay, and the glow comes back with no shader.
+# --test-injected-press-is-real of the core, so that the injected drag
+# counts as a drag of the person:
+# 1. Tab opens the window list over a pane, and Escape closes it.
+# 2. The label names the pane ahead, then the pane under the pointer.
+# 3. Long German words stay inside their panels: the rows of the window
+#    list and the pane label.
+# Then, with CHORA_FRAME_BUDGET_US=1, the watchdog takes the shaders and
+# the space stays plain. The focused pane has its edge and glow.
 # Last, with a pane that fills the view, a new window waits in the window
 # list with a notice of chora-notify, and window.show makes its pane.
 # Then Super+F1 shows the help panel with the bindings; settings.set of the
@@ -36,7 +30,6 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-construct
 need foot
-need mkfifo
 temp_config
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work}
@@ -70,30 +63,6 @@ ok = t and g and t[0] >= g[0] - 0.5 and t[1] >= g[1] - 0.5 and t[0] + t[2] <= g[
 sys.exit(not ok and print(f'$1 {t} not inside $2 {g}', file=sys.stderr) is None)"
 }
 long=Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen
-# The fake voice agent reads its events from a fifo on fd 3.
-voice_start() {
-    rm -f "$work/voice.in" "$work/claims"
-    mkfifo "$work/voice.in"
-    python3 -I "$repo/tests/fake-voice.py" "$work/claims" <"$work/voice.in" &
-    voice_pid=$!
-    pids+=("$voice_pid")
-    exec 3>"$work/voice.in"
-}
-voice_stop() {
-    exec 3>&-
-    # The programs that the gate started hold the fifo too: no EOF.
-    kill "$voice_pid" 2>/dev/null
-    wait "$voice_pid" 2>/dev/null
-}
-emit() { echo "$1 $2" >&3; }
-claims() { cat "$work/claims" 2>/dev/null || echo 0; }
-state() {
-    emit voice.state "{\"state\": \"$1\", \"task\": \"Look up the train to Basel\", \"said\": \"\"}"
-}
-say() { emit voice.say "{\"state\": \"speaking\", \"text\": \"$1\", \"duration_ms\": $2}"; }
-label() { node id:construct-hud-state 'n[0]["text"]'; }
-# The left edge and the width of the HUD panel on the output.
-hud_x() { node id:construct-hud-glass 'round(list(n[0]["rects"].values())[0][0])'; }
 foot_pane() {
     foot -a "$1" -T "$4" -f "$font" -o "colors-dark.background=$2" -o "colors-dark.foreground=$3" \
         sh -c "printf '%s\n' '$4'; sleep 600" &
@@ -101,95 +70,22 @@ foot_pane() {
     until_ok "ctl call construct construct.list | grep -q '\"name\": \"$1\"'" ||
         fail "$1 became no pane"
 }
-sentence='The next train to Basel leaves at 14:32 from platform 7. It takes 54 minutes, and there is a dining car on board.'
-detail=$(python3 -I -c '
-for k in range(96):
-    print(f"{k:03}  rm -rf /home/user/projects/build-cache/artifact-{k:03}/objects/deps  # 4.2 MiB")' | head -c 6144)
 
 round() {
-    local theme=$1 size=$2 w
-    # shellcheck disable=SC2034 # until_ok reads it
-    w=${size%x*}
+    local theme=$1 size=$2
     local tag=$theme-$size
-    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: host\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_TEST_FLAGS=--test-injected-press-is-real \
         CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
     local session=${pids[-1]}
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
-    voice_start
-    until_ok 'test "$(claims)" = 1' || fail "$tag: no claim of the indicator"
-    for s in asleep listening thinking working question speaking dreaming; do
-        state "$s"
-        # shellcheck disable=SC2034 # until_ok reads it
-        want=${s^^}
-        until_ok 'test "$(label)" = "$want"' || fail "$tag: $s shows $(label)"
-        case $s in listening | thinking) sleep 0.4 && shot "$shots/construct-hud-$tag-$s.png" ;; esac
-    done
-    sleep 0.5
-    [ "$(claims)" = 1 ] || fail "$tag: $(claims) claims, not one"
-    ok "$tag: one claim, and each state names itself"
-
-    state speaking
-    say "$sentence" 800
-    until_ok 'test "$(node id:construct-hud-say "n[0][\"visible\"]")" = True' ||
-        fail "$tag: the sentence does not show"
-    shot "$shots/construct-hud-$tag-speaking.png"
-    sleep 3.1 # 0.8 s of sound, 2 s more, a fade of 0.12 s
-    gone=$(node id:construct-hud-say 'n[0]["opacity"] == 0 or not n[0]["visible"]')
-    [ "$gone" = True ] || fail "$tag: the sentence still shows 3.1 s after its start: $(node id:construct-hud-say "n[0][\"text\"], n[0][\"opacity\"], n[0][\"visible\"]")"
-    ok "$tag: the sentence showed and went"
-
     foot_pane white ffffff 14181e 'a white pane'
-    call pane.move '{"name": "white", "ahead": -1000}'
-    say "$sentence" 6000
-    sleep 0.6
-    shot "$shots/construct-hud-$tag-speaking-white.png"
     call pane.move '{"name": "white", "ahead": 1000, "right": 3000}'
     foot_pane black 000000 eceef2 'a black pane'
     call pane.move '{"name": "black", "ahead": -1000}'
-    say "$sentence" 6000
-    sleep 0.6
-    shot "$shots/construct-hud-$tag-speaking-black.png"
 
-    state question
-    emit voice.confirm "$(python3 -I -c 'import json, sys; print(json.dumps({"id": 41, "prompt": "Delete the build cache of 96 projects?", "detail": sys.argv[1]}))' "$detail")"
-    until_ok 'test -n "$(node id:construct-ask-hint "n[0][\"id\"]")"' || fail "$tag: no question"
-    joined=$(ctl query owner:construct | python3 -I -c '
-import json, sys
-nodes = {n["id"]: n["text"] for n in json.load(sys.stdin) if n["id"].startswith("construct-ask-detail-")}
-print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))')
-    [ "$joined" = "$detail" ] || fail "$tag: the detail lost bytes"
-    sleep 0.4
-    shot "$shots/construct-hud-$tag-question.png"
-    emit voice.confirm '{"id": 40, "done": true}'
-    sleep 0.5
-    [ -n "$(node id:construct-ask 'n[0]["id"]')" ] || fail "$tag: a done of another id closed the question"
-    emit voice.confirm '{"id": 41, "done": true}'
-    until_ok 'test -z "$(node id:construct-ask "n[0][\"id\"]")"' || fail "$tag: the done did not close it"
-    ok "$tag: the question showed its whole detail until its done"
-
-    # A question about a security key, with buttons: the caps of its
-    # keys beside Ja and Nein; a click on Ja calls confirm.answer.
-    rm -f "$work/claims.answers"
-    emit voice.confirm '{"id": "43", "prompt": "Set allow to [sh]?", "detail": "allow: [sh]", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}'
-    until_ok 'test -n "$(node id:construct-ask-yes "n[0][\"id\"]")"' || fail "$tag: no button Ja"
-    [ "$(node id:construct-ask-no-key-text 'n[0]["text"]')" = Alt+N ] || fail "$tag: no key cap Alt+N"
-    for t in construct-ask-yes construct-ask-no construct-ask-yes-key construct-ask-no-key; do
-        fits "$t" construct-ask-glass || fail "$tag: $t runs out of the question"
-    done
-    sleep 0.4
-    shot "$shots/construct-hud-$tag-confirm.png"
-    read -r bx by < <(node id:construct-ask-yes '"%d %d" % (lambda r: (r[0] + r[2] / 2, r[1] + r[3] / 2))(list(n[0]["rects"].values())[0])')
-    echo "[{\"pointer_move\": {\"position\": [$bx, $by]}}, {\"click\": {}}]" | ctl inject || fail "inject the click on Ja"
-    until_ok 'grep -qx "{\"id\": \"43\", \"yes\": true}" "$work/claims.answers"' ||
-        fail "$tag: the click on Ja gave $(cat "$work/claims.answers" 2>/dev/null)"
-    emit voice.confirm '{"id": "43", "done": true}'
-    until_ok 'test -z "$(node id:construct-ask "n[0][\"id\"]")"' || fail "$tag: the done did not close the buttons"
-    ok "$tag: a key question shows Ja and Nein with Alt+Y and Alt+N, and a click on Ja answers it"
-
-    state listening
     key Tab
     until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list"
     shot "$shots/construct-hud-$tag-list.png"
@@ -219,34 +115,15 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     shot "$shots/construct-hud-$tag-label-pointer.png"
     ok "$tag: the label names the pane ahead, then the pane under the pointer"
 
-    centre=$(hud_x)
     call pane.fly '{"name": "black"}'
-    say "Done. The cache is gone." 6000
-    until_ok 'test "$(hud_x)" -gt "$((w / 2))"' || fail "$tag: flown in, the HUD stays at $(hud_x)"
+    until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(c[\"z\"] == 0.0 and c[\"x\"] == 0.0)"' ||
+        fail "$tag: no flight into the black pane"
     sleep 0.5
-    shot "$shots/construct-hud-$tag-flown.png"
     key Alt+Escape
-    until_ok 'test "$(hud_x)" -lt "$((w / 2))"' || fail "$tag: flown out, the HUD stays at $(hud_x)"
-    ok "$tag: flown in, the HUD moved from $centre to the bottom right, and back"
+    until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(not (c[\"z\"] == 0.0 and c[\"x\"] == 0.0))"' ||
+        fail "$tag: no flight back out of the black pane"
+    ok "$tag: a flight in and out, which Tab needs after the press and a new window (kit7-a2, known red in the acts)"
 
-    state speaking
-    say "Ich habe die Datei $long-Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz.txt geöffnet, und jetzt starte ich den Build mit make -j8 install." 6000
-    sleep 0.6
-    fits construct-hud-say construct-hud-glass || fail "$tag: the sentence runs out of the HUD"
-    lines=$(node id:construct-hud-say 'round(list(n[0]["rects"].values())[0][3] / 24)')
-    [ "$lines" -le 2 ] || fail "$tag: the sentence shows $lines lines"
-    shot "$shots/construct-hud-overflow-$tag-say.png"
-    state question
-    emit voice.confirm "$(python3 -I -c 'import json, sys; print(json.dumps({"id": 42, "prompt": f"Soll ich die {sys.argv[1]} mit foot -e sh -c \"cd /home/user/projekte/{sys.argv[1]} && make -j8 install\" starten?", "detail": f"foot -e sh -c \"cd /home/user/projekte/{sys.argv[1]}/{sys.argv[1]} && make -j8 install\""}))' "$long")"
-    until_ok 'test -n "$(node id:construct-ask-hint "n[0][\"id\"]")"' || fail "$tag: no long question"
-    sleep 0.4
-    for t in construct-ask-prompt construct-ask-detail-0 construct-ask-hint; do
-        fits "$t" construct-ask-glass || fail "$tag: $t runs out of the question"
-    done
-    shot "$shots/construct-hud-overflow-$tag-question.png"
-    emit voice.confirm '{"id": 42, "done": true}'
-    until_ok 'test -z "$(node id:construct-ask "n[0][\"id\"]")"' || fail "$tag: the long question stays"
-    state listening
     foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
     pids+=($!)
     until_ok "ctl call construct window.list | grep -q Donaudampf" || fail "$tag: no long window"
@@ -266,14 +143,7 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     done
     shot "$shots/construct-hud-overflow-$tag-list.png"
     key Escape
-    ok "$tag: long words and commands stay inside the HUD, the question, the list and the label"
-
-    voice_stop
-    until_ok 'test "$(node id:construct-hud "n[0][\"visible\"]")" = False' || fail "$tag: the HUD stays without voice"
-    voice_start
-    until_ok 'test "$(claims)" = 1' || fail "$tag: no claim after the restart of voice"
-    ok "$tag: the restarted voice got its claim"
-    voice_stop
+    ok "$tag: long words stay inside the list and the label"
     kill "$session"
     wait "$session" 2>/dev/null
 }
@@ -286,23 +156,16 @@ done
 
 # The watchdog takes the shaders of a client that makes the frames slow.
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: host\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=1 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
-    voice_start
-    state thinking
     until_ok 'test "$(node id:construct-fog "n[0].get(\"shader\")")" = None' 80 ||
         fail "$theme: the watchdog took no shader"
-    state working
-    until_ok 'test "$(label)" = WORKING' || fail "$theme: plain, the label does not follow"
-    [ -n "$(node id:construct-hud-glass 'n[0]["rects"] or ""')" ] || fail "$theme: plain, no HUD panel"
-    [ "$(node id:construct-hud-glow 'n[0].get("shader")')" = None ] || fail "$theme: a glass.frag came back"
     sleep 0.5
     shot "$shots/construct-hud-$theme-1280x720-plain.png"
-    ok "$theme: after the watchdog, the HUD stays plain and names its state"
-    voice_stop
+    ok "$theme: after the watchdog, the space stays plain"
     kill "$session"
     wait "$session" 2>/dev/null
 done
@@ -310,7 +173,7 @@ done
 # The focused pane (rule 16 of the guide): the pane ahead shows clear,
 # with an accent hairline and a soft glow under it; two others beside.
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: host\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
@@ -341,7 +204,7 @@ done
 # No room in view (C7): a pane fills the view, so a new window becomes no
 # pane; it waits in the window list, the HUD says so, and window.show
 # makes its pane. No window gets lost.
-printf 'theme: light\nvoice_hud: own\n' >"$work/chora/chora-construct.yaml"
+printf 'theme: light\nvoice_hud: host\n' >"$work/chora/chora-construct.yaml"
 CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
 session=${pids[-1]}
 grant screen.capture input.inject
@@ -373,7 +236,7 @@ caps = sorted((i for i in nodes if row is not None and i.startswith(f"{body}{row
 print("+".join(nodes[i]["text"] for i in caps))' "$1"
 }
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: host\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject

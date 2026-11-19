@@ -1,6 +1,14 @@
 """The acts of mc. The door acts: the key list (tests/doors keys-key, keys-alias)."""
 
-from common import closed, door_acts, notice_acts, shown_before, shown_id, window_acts
+from common import (
+    closed,
+    door_acts,
+    helper_acts,
+    notice_acts,
+    shown_before,
+    shown_id,
+    window_acts,
+)
 from harness import REPO
 
 PUSHED = "Pushed through mc"
@@ -16,6 +24,7 @@ def run(s):
     pushed = {}
     s.act("notify.push of mc shows in chora-notify", [lambda s: push(s, pushed)])
     s.act("notify.clear of mc dismisses it", [lambda s: clear(s, pushed)])
+    helper_acts(s)
 
 
 def push(s, pushed):

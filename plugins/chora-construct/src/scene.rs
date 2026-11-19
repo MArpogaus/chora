@@ -18,6 +18,7 @@ impl Construct {
 
     /// Builds the space, then takes the events and the free windows.
     pub(crate) fn start(&mut self) -> Result<(), ClientError> {
+        self.voiced.ask(&mut self.rt.conn);
         if !self.rt.conn.query(&format!("id:{NAME}"))?.is_empty() {
             self.rt.conn.apply(vec![Command::Remove {
                 id: NAME.into(),
@@ -36,7 +37,6 @@ impl Construct {
         self.build()?;
         self.regrab()?;
         self.reopen_left_cube()?;
-        self.claim_indicator(false);
         let free = self.rt.conn.query("kind:surface")?;
         self.adopt_free(free)?;
         let start = self.settings.value.start.clone();
@@ -82,8 +82,7 @@ impl Construct {
             } else {
                 Duration::from_secs(3600)
             };
-            let wait = (self.voice.deadline().into_iter())
-                .chain(self.cube_deadline())
+            let wait = (self.cube_deadline().into_iter())
                 .chain(self.hints.until)
                 .chain(self.doors.deadline())
                 .fold(wait, |wait, t| {

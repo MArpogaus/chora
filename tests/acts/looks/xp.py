@@ -3,7 +3,7 @@ keys page), the Start menu by its button and the dialog Turn Off Computer
 by its key (tests/doors keys-key, keys-alias, power-key; the Start button
 is the door of launcher-door and power-door)."""
 
-from common import door_acts, notice_acts, window_acts
+from common import door_acts, helper_acts, notice_acts, window_acts
 from harness import Expect, click, drag_title, key, program
 
 HELP = "xp-dlg-help"
@@ -12,10 +12,13 @@ POWER = "xp-session"
 
 
 def run(s):
-    """A window opens and closes, then the doors open and shut."""
+    """A window opens and closes, then the doors open and shut. The
+    helper acts come before Turn Off Computer, which Escape does not shut
+    yet (known red), so that their click on the card closes no dialog."""
     window_acts(s)
     drag_acts(s)
     door_acts(s, HELP)
+    helper_acts(s)
     s.act(
         "the Start button opens the Start menu",
         [click(50, 785)],
