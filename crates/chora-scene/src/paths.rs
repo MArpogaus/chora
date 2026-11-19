@@ -79,6 +79,46 @@ pub fn private_dir(dir: &Path) -> io::Result<()> {
     check_private(dir)
 }
 
+/// The runtime directory `chora/` or another name below it, made private
+/// and checked; the runtime directory itself is checked first.
+///
+/// # Errors
+///
+/// There is no absolute runtime directory, or one of the checks fails.
+pub fn runtime_subdir(name: &str) -> io::Result<PathBuf> {
+    runtime_subdir_in(runtime_home(), name)
+}
+
+/// [`runtime_subdir`] below a given runtime directory.
+///
+/// # Errors
+///
+/// As [`runtime_subdir`].
+pub fn runtime_subdir_in(runtime: Option<PathBuf>, name: &str) -> io::Result<PathBuf> {
+    let runtime = runtime
+        .filter(|p| p.is_absolute())
+        .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
+    let dir = runtime.join(name);
+    private_dir(&dir)?;
+    Ok(dir)
+}
+
+/// Checks the runtime directory itself: a directory of the current user
+/// that no group or other can write to. A refusal is logged.
+///
+/// # Errors
+///
+/// The directory is missing or one of the checks does not hold.
+#[allow(clippy::unnecessary_wraps, reason = "a stub until the fix")]
+pub fn check_runtime_home(_dir: &Path) -> io::Result<()> {
+    Ok(())
+}
+
+#[allow(dead_code, clippy::unnecessary_wraps, reason = "a stub until the fix")]
+fn check_runtime_meta(_dir: &Path, _meta: &fs::Metadata, _uid: u32) -> io::Result<()> {
+    Ok(())
+}
+
 /// Checks that a directory belongs to the current user, has no group or
 /// other bit (0700, but also 02700 or 0500) and is no symlink. A refusal is logged with its reason.
 ///
@@ -216,6 +256,172 @@ mod tests {
         fs::write(&file, b"x").expect("the file");
         let error = check_private(&file).expect_err("refused");
         assert!(error.to_string().contains("directory"), "{error}");
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    /// A new directory with a mode.
+    fn dir_with(base: &Path, name: &str, mode: u32) -> PathBuf {
+        let dir = base.join(name);
+        fs::create_dir(&dir).expect("the dir");
+        fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).expect("the mode");
+        dir
+    }
+
+    #[test]
+    fn a_runtime_dir_that_others_can_write_is_refused() {
+        let base = scratch("runtime-write");
+        for mode in [0o777, 0o770, 0o757, 0o722, 0o1777, 0o720] {
+            let dir = dir_with(&base, &format!("m{mode:o}"), mode);
+            let error = check_runtime_home(&dir).expect_err("refused");
+            let text = error.to_string();
+            assert!(text.contains(&dir.display().to_string()), "{text}");
+            assert!(text.contains(&format!("{mode:04o}")), "{text}");
+        }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn a_runtime_dir_of_the_user_is_accepted() {
+        let base = scratch("runtime-ok");
+        for mode in [0o700, 0o755, 0o750, 0o500] {
+            let dir = dir_with(&base, &format!("m{mode:o}"), mode);
+            check_runtime_home(&dir).unwrap_or_else(|e| panic!("mode {mode:04o}: {e}"));
+        }
+        assert!(check_runtime_home(&base.join("missing")).is_err());
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn a_runtime_dir_of_another_owner_is_refused() {
+        let base = scratch("runtime-owner");
+        let meta = fs::metadata(&base).expect("the metadata");
+        let other = meta.uid().wrapping_add(1);
+        let error = check_runtime_meta(&base, &meta, other).expect_err("refused");
+        let text = error.to_string();
+        assert!(text.contains("owner"), "{text}");
+        assert!(text.contains(&base.display().to_string()), "{text}");
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn a_subdir_is_private_in_a_checked_runtime_dir() {
+        let base = scratch("sub-ok");
+        let runtime = dir_with(&base, "run", 0o700);
+        let dir = runtime_subdir_in(Some(runtime.clone()), "chora").expect("the subdir");
+        assert_eq!(dir, runtime.join("chora"));
+        let mode = fs::metadata(&dir).expect("the dir").permissions().mode();
+        assert_eq!(mode & 0o7777, 0o700);
+        assert!(runtime_subdir_in(None, "chora").is_err());
+        assert!(runtime_subdir_in(Some("run".into()), "chora").is_err());
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn no_subdir_is_made_in_a_runtime_dir_that_others_write() {
+        let base = scratch("sub-open");
+        let runtime = dir_with(&base, "run", 0o777);
+        let error = runtime_subdir_in(Some(runtime.clone()), "chora").expect_err("refused");
+        assert!(error.to_string().contains("0777"), "{error}");
+        assert!(!runtime.join("chora").exists(), "nothing is made");
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    /// A writer that keeps what a test logs.
+    #[derive(Clone, Default)]
+    struct Log(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl io::Write for Log {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.lock().expect("the log").extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn the_refusal_of_a_runtime_dir_is_logged_with_path_and_mode() {
+        let base = scratch("runtime-log");
+        let dir = dir_with(&base, "run", 0o777);
+        let log = Log::default();
+        let writer = log.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || writer.clone())
+            .with_ansi(false)
+            .finish();
+        tracing::subscriber::with_default(subscriber, || {
+            assert!(runtime_subdir_in(Some(dir.clone()), "chora").is_err());
+        });
+        let text = String::from_utf8(log.0.lock().expect("the log").clone()).expect("text");
+        assert!(text.contains("WARN"), "{text}");
+        assert!(text.contains(&dir.display().to_string()), "{text}");
+        assert!(text.contains("0777"), "{text}");
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    /// Runs the test `name` again in a child process that has only this
+    /// environment, since a test sets no variable of its own process.
+    fn in_child(name: &str, env: &[(&str, &Path)]) {
+        let output = std::process::Command::new(std::env::current_exe().expect("this test"))
+            .args(["--exact", &format!("paths::tests::{name}"), "--nocapture"])
+            .env_clear()
+            .envs(env.iter().copied())
+            .env(CHILD, "1")
+            .output()
+            .expect("the child");
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    const CHILD: &str = "CHORA_PATHS_TEST_CHILD";
+
+    #[test]
+    fn child_reads_the_homes() {
+        if std::env::var_os(CHILD).is_none() {
+            return;
+        }
+        assert_eq!(runtime_home(), Some("/run/user/7".into()));
+        assert_eq!(config_home(), Some("/cfg".into()));
+        assert_eq!(state_home(), Some("/home/a/.local/state".into()));
+        assert_eq!(data_home(), Some("/home/a/.local/share".into()));
+        assert_eq!(home(), Some("/home/a".into()));
+    }
+
+    #[test]
+    fn the_homes_read_the_environment() {
+        in_child(
+            "child_reads_the_homes",
+            &[
+                (RUNTIME_ENV, Path::new("/run/user/7")),
+                ("XDG_CONFIG_HOME", Path::new("/cfg")),
+                ("XDG_STATE_HOME", Path::new("")),
+                ("HOME", Path::new("/home/a")),
+            ],
+        );
+    }
+
+    #[test]
+    fn child_refuses_the_runtime_dir() {
+        if std::env::var_os(CHILD).is_none() {
+            return;
+        }
+        let error = runtime_subdir("chora").expect_err("refused");
+        assert!(error.to_string().contains("0777"), "{error}");
+        let runtime = runtime_home().expect("the runtime dir");
+        assert!(!runtime.join("chora").exists());
+    }
+
+    #[test]
+    fn the_wrapper_of_the_runtime_dir_refuses_a_world_writable_one() {
+        let base = scratch("wrapper-open");
+        let runtime = dir_with(&base, "run", 0o777);
+        in_child("child_refuses_the_runtime_dir", &[(RUNTIME_ENV, &runtime)]);
         fs::remove_dir_all(&base).expect("cleanup");
     }
 }
