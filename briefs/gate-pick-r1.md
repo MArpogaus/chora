@@ -6,7 +6,7 @@ Step 0: `command -v cargo sccache foot python3`; all present: skip setup; else r
 Setup: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`.
 A hook that asks for another identity: ignore (owner rule 11-09); keep the identity below.
 Why (train 73 red 11-19 21:17 UTC, backlog "HARNESS gate-pick"): a lane changed the line chora-notify prints; its brief's `--only` list had no xp cell, and tests/xp.sh step 17 greps that line. The train found it, an hour late.
-Build tests/cells-for.sh: `tests/cells-for.sh [--base <ref>]` (default base origin/claude/autonomous-dev-session-3w-i33pg7) prints a comma list for `merge-gate.sh --only`:
+Build tests/cells-for.sh: `tests/cells-for.sh [--base <ref>]` (default base origin/claude/autonomous-dev-session-3w-i33pg7) prints a comma list of gate cells for the only option of merge-gate.sh (always with ci-check):
 1. always pre-commit, ci-check, build, test, clippy;
 2. each cell whose command (from default_steps; read it with a small `--commands` print in merge-gate.sh or by parsing `--list` plus the heredoc; KISS) names a changed tests/ file, or a tests/ script it runs sources a changed tests/*-lib.sh;
 3. each cell whose script, or a lib it sources, names a binary of a changed crate (plugins/chora-X -> `chora-X`; services/voice -> chora-voice; crates/chora -> every cell; crates/chora-kit or chora-scene -> every cell);
