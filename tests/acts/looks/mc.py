@@ -74,9 +74,15 @@ def page_is(s, scene):
 
 def remote_acts(s):
     """mc-32: in dark mc the keys of a remote turn the page: Right and
-    Left alone turn it, the binding Super+Home goes to the first page. A
-    plain Home is no key of mc (mc.yaml: Right, Left and Escape alone)."""
-    s.act("mc turns dark", [lambda s: s.call("mc", "settings.set", {"theme": "dark"})])
+    Left alone turn it, and so do Home and XF86HomePage alone (mc-38: a
+    remote has no Super). The theme is set back at the end (rw-2)."""
+    was = {}
+
+    def dark(s):
+        was["theme"] = s.call("mc", "settings.get").get("theme", "light")
+        s.call("mc", "settings.set", {"theme": "dark"})
+
+    s.act("mc turns dark", [dark])
     s.act(
         "the page is the first one",
         [key("Super+Home")],
@@ -101,4 +107,19 @@ def remote_acts(s):
         "Super+Home of a remote goes to the first page",
         [key("Super+Home")],
         expect=Expect(verify=page_is(s, "agenda")),
+    )
+    s.act(
+        "Home of a remote goes to the first page",
+        [remote("Home")],
+        expect=Expect(verify=page_is(s, "agenda")),
+    )
+    s.act("a Right again", [remote("Right")], expect=Expect(verify=page_is(s, "morning")))
+    s.act(
+        "XF86HomePage of a remote goes to the first page",
+        [remote("XF86HomePage")],
+        expect=Expect(verify=page_is(s, "agenda")),
+    )
+    s.act(
+        "the theme is set back",
+        [lambda s: s.call("mc", "settings.set", {"theme": was["theme"]})],
     )
