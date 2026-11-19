@@ -25,3 +25,10 @@ Gate (head 917df9d0): one full run stopped at pull ("192 px wide for 200", the F
 2. gate-construct-pull.sh width read once after sleep (F21) and construct-hud indicator claim: two flakes seen in one run; until_ok fix, S.
 3. Parent files now re-export moved items (`pub use picking::...`): switch callers to the child path and drop the re-exports, S.
 4. render.rs context/plane element builders (context_elements .. plane, about 300 lines) to render/planes_build.rs, S.
+
+## PM review 04:33 (independent; builder was the lane)
+`git diff --color-moved=plain --color-moved-ws=allow-indentation-change 27bd60c7 917df9d0 -- '*.rs'`: the
+non-moved lines are only `mod`/`use`, `pub(super)` on moved items (Pin, Target, Hit, Found, check_*,
+command fns), `impl Scene {` wrappers and rustfmt reflows of signatures. 15 files, all in chora-scene and
+the core; voice untouched (its ratchet line 1535 to 1531 is a recount). Ratchet list drops four files.
+Verdict MERGE-OK (0 BLOCK, 0 MAJOR). Train 56 after train 55. F4 still open: cube.rs, region.rs, chat.rs.
