@@ -1229,7 +1229,7 @@ fn all_programs(theme: &Theme, picture: Picture, entry: &Entry, down: bool) -> P
     let arrow = theme
         .size(sheets::WINXP, "startmenu-allprograms-arrow")
         .unwrap_or([17, 22]);
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
     let label = theme.text_width(&entry.title, Font::UiBold).ceil() as i32;
     let x = (w - label - 18 - arrow[0]) / 2;
     let color = text_color(entry.kind, down);

@@ -362,6 +362,20 @@ class KnownRed(unittest.TestCase):
         other = harness.judge({("xp", "I1"): ["the toplevel s1 is detached"]}, rows)
         self.assertTrue(other.blocking)
 
+    def test_a_second_overlap_of_a_listed_row_blocks(self):
+        row = {
+            "look": "syn",
+            "id": "I5",
+            "finding": "syn-1",
+            "slice": "synthetic",
+            "match": "(syn-left)",
+        }
+        named = "in act 'a': on HEADLESS-1 'One' (syn-left) overlaps 'Two' (syn-label) at []"
+        other = "in act 'a': on HEADLESS-1 'Three' (syn-right) overlaps 'Four' (syn-right) at []"
+        self.assertEqual(harness.judge({("syn", "I5"): [named]}, [row]).blocking, [])
+        self.assertTrue(harness.judge({("syn", "I5"): [named, other]}, [row]).blocking)
+        self.assertTrue(harness.judge({("syn", "I5"): [other]}, [row]).blocking)
+
     def test_the_list_parses(self):
         rows = harness.known_red()
         self.assertIsInstance(rows, list)

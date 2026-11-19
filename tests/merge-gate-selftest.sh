@@ -120,7 +120,7 @@ printf 'one|timeout 5 bash -c %s\n' "'. tests/gate-lib.sh'" >"$work/steps"
 run_gate
 check "a gate script inside the gate does not wait for the lock of the gate" "$rc" 0
 
-env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock" \
+env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock" MERGE_GATE_NESTED=1 \
     MERGE_GATE_RUNS="$work/runs" "$gate" --only gate-lib >"$work/out" 2>&1
 check "the step gate-lib runs the self-test of tests/gate-lib.sh" "$?" 0
 
@@ -502,6 +502,14 @@ git -C "$idr" reset -q --hard HEAD~1
 check "identity: a bad commit before the base does not count" "$(ident >/dev/null; echo $?)" 0
 check "identity: the step follows red-first in the step list" \
     "$(grep -A1 '^red-first|' "$gate" | grep -c '^identity|')" 1
+check "identity: the override is printed when MERGE_GATE_IDENTITY is set" \
+    "$(ident | grep -c "^identity: MERGE_GATE_IDENTITY overrides the expected identity: $good\$")" 1
+check "identity: no override line without MERGE_GATE_IDENTITY" \
+    "$(env -u MERGE_GATE_IDENTITY "$idr/tests/merge-gate.sh" --identity-check --base base 2>&1 | grep -c 'overrides the expected identity')" 0
+check "gate-lib: the step runs merge-gate-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
+check "gate-lib: the step runs cells-for-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"

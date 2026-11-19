@@ -156,7 +156,10 @@ impl Scene {
     /// # Panics
     ///
     /// Never: the root always exists.
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a surface size in pixels, far below i32::MAX"
+    )]
     pub fn reset(&mut self, area: [f64; 4]) -> Vec<Effect> {
         let surfaces: Vec<String> = self
             .nodes

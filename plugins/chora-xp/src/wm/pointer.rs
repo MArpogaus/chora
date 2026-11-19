@@ -40,7 +40,10 @@ impl Wm {
             return commands;
         };
         if button == RIGHT_BUTTON && matches!(part, Part::Title(_)) {
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "a pointer position in pixels"
+            )]
             let point = position.map(|p| p.floor() as i32);
             commands.extend(self.open_system(surface, point));
             return commands;
@@ -192,7 +195,10 @@ impl Wm {
         let Some(drag) = &mut self.drag else {
             return Vec::new();
         };
-        #[allow(clippy::float_cmp)]
+        #[expect(
+            clippy::float_cmp,
+            reason = "a stored position is compared with the same value, not a computed one"
+        )]
         if drag.last == [px, py] {
             return Vec::new();
         }
@@ -207,7 +213,10 @@ impl Wm {
         let Some(i) = self.index(&surface) else {
             return Vec::new();
         };
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded pointer delta in pixels"
+        )]
         let pos = [
             origin[0] + (px - start[0]).round() as i32,
             origin[1] + (py - start[1]).round() as i32,
@@ -242,7 +251,10 @@ impl Wm {
         }
         if let Some(drag) = self.drag.take() {
             self.release_wobble(&drag.surface);
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "a pointer position in pixels"
+            )]
             let point = position.map(|p| p.floor() as i32);
             if !self.bars.iter().any(|b| b.contains(point)) {
                 return self.hand_over(&drag.surface, position);
@@ -300,7 +312,10 @@ impl Wm {
     ) -> Option<Vec<Command>> {
         let i = self.index(&drag.surface)?;
         let area = self.bars.iter().find(|b| b.contains(point))?.usable();
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a pointer offset in pixels, floored"
+        )]
         let grab = [0, 1].map(|axis| drag.start[axis].floor() as i32 - drag.origin[axis]);
         self.windows[i].pos = dropped_on(self.windows[i].rect(), area, point, grab)?;
         let mut commands = vec![self.windows[i].place()];
@@ -312,7 +327,10 @@ impl Wm {
     /// or on the Recycle Bin go back to their places, as XP shows "not
     /// allowed" there; else they go into their cells.
     pub(super) fn release_icons(&mut self, position: [f64; 2]) -> Vec<Command> {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a pointer position in pixels"
+        )]
         let [x, y] = position.map(|p| p.floor() as i32);
         let on_window = self
             .windows

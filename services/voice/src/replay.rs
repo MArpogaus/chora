@@ -269,7 +269,10 @@ impl Metrics {
     /// False barge-ins per minute of the agent's sound.
     #[must_use]
     pub fn false_barges_per_min(&self) -> f64 {
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "a count of false barge-ins, exact in f64"
+        )]
         let n = self.false_barges as f64;
         if self.played_s > 0.0 {
             n * 60.0 / self.played_s
@@ -282,7 +285,7 @@ impl Metrics {
 /// The mean of the absolute values, in ms; 0 for none.
 #[must_use]
 pub fn mean_abs_ms(values: &[f64]) -> f64 {
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "a sample count, exact in f64")]
     let n = values.len().max(1) as f64;
     values.iter().fold(0.0, |s, v| s + v.abs()) * 1000.0 / n
 }
@@ -330,7 +333,7 @@ pub fn run(config: &Config, dirs: &[&Path]) -> Result<(Vec<String>, Metrics), St
         let rec = Recording::load(dir)?;
         let found = detect(config, &rec)?;
         let played: usize = rec.plays.iter().map(|p| p.0.len()).sum();
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss, reason = "a sample count, exact in f64")]
         let played_s = played as f64 / f64::from(RATE);
         let m = Metrics::new(&rec.labels, &found, played_s);
         let at: Vec<String> = found.barges.iter().map(|t| format!("{t:.2}")).collect();
@@ -400,7 +403,10 @@ mod tests {
         let corpus = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/corpus");
         let turns = Recording::load(&corpus.join("turns-noise")).unwrap();
         let played = Recording::load(&corpus.join("echo-barge")).unwrap().played;
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "an i16 sample divided by 80, inside i16"
+        )]
         let quiet = |x: i16| (f64::from(x) / 80.0).round() as i16;
         let mut seed = 7u32;
         let mut mic: Vec<i16> = (0..60 * RATE)
@@ -411,7 +417,11 @@ mod tests {
             .collect();
         mic.extend(turns.mic.iter().copied().map(quiet));
         let rate = f64::from(RATE);
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a time in seconds turned into a sample index; `as usize` saturates negatives to 0"
+        )]
         let at = |s: f64| (s * rate) as usize;
         let (start, end) = turns.labels.turns[0];
         let speech = &turns.mic[at(start - 0.2)..at(end + 0.2)];
@@ -427,7 +437,7 @@ mod tests {
             played,
             labels: Marks::default(),
         };
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss, reason = "a sample count, exact in f64")]
         let barge_s = barge as f64 / rate + 0.2;
         let found = detect(&Config::default(), &rec).unwrap();
         let late: Vec<f64> = found.barges.iter().map(|b| b - barge_s).collect();

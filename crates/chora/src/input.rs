@@ -1160,7 +1160,10 @@ fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
         if amount != 0.0 {
             frame = frame.value(axis, amount);
             if let Some(d) = discrete {
-                #[allow(clippy::cast_possible_truncation)]
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "a scroll distance in wheel steps, far below i32::MAX"
+                )]
                 let d = d as i32;
                 frame = frame.v120(axis, d);
             }

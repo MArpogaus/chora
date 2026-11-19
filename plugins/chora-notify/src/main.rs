@@ -227,11 +227,20 @@ fn state_value(shown: Option<(&Note, [i32; 4])>, queue: &Queue, texts: &[theme::
     })
 }
 
+/// Whether the failed start of the client says that another chora-notify
+/// serves the session: it owns the client name `notify` of the core,
+/// whatever the bus says (it may run without a session bus, so the bus
+/// name is free for this one). Ending with an error would make the unit
+/// restart it every second.
+fn another_serves(err: &ClientError) -> bool {
+    matches!(err, ClientError::Rpc(err) if err.code == RpcError::NAME_TAKEN)
+}
+
 impl Notify {
     /// Takes the name on the session bus, connects and exports the
     /// methods of the settings; see [`Self::on`]. `None` when another
-    /// chora-notify serves this session: it owns the bus name and the
-    /// client name `notify` of the core. The plugin ends without an error
+    /// chora-notify serves this session: it owns the client name
+    /// `notify` of the core. The plugin ends without an error
     /// then, so that no unit restarts it.
     fn start(
         theme: Theme,
@@ -242,12 +251,9 @@ impl Notify {
         let bus = Bus::start(ids.clone());
         let mut rt = match Runtime::start(NAME, Vec::new(), EVENTS, Self::methods()) {
             Ok(rt) => rt,
-            Err(ClientError::Rpc(err))
-                if err.code == RpcError::NAME_TAKEN && matches!(bus, Err(StartError::Taken)) =>
-            {
+            Err(err) if another_serves(&err) => {
                 eprintln!(
-                    "chora-notify: {}, and another chora-notify serves the session",
-                    StartError::Taken
+                    "chora-notify: the name {NAME} is taken, another chora-notify serves the session"
                 );
                 return Ok(None);
             }
@@ -645,6 +651,24 @@ mod tests {
         notify.step(Instant::now()).unwrap();
         assert_eq!(notify.queue.current(), None);
         drop(owner);
+    }
+
+    /// A second chora-notify finds the client name `notify` of the core
+    /// taken, whatever the bus says: with no session bus (the first one
+    /// serves the plugins only) it must end without an error, or its
+    /// unit restarts it every second.
+    #[test]
+    fn a_second_notify_ends_quietly_on_the_core_name_alone() {
+        let taken = || {
+            ClientError::Rpc(RpcError {
+                code: RpcError::NAME_TAKEN,
+                message: "name taken".into(),
+                data: None,
+            })
+        };
+        assert!(another_serves(&taken()), "ends without error");
+        let other = ClientError::NoSocket;
+        assert!(!another_serves(&other), "other error");
     }
 
     #[test]

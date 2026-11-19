@@ -646,6 +646,13 @@ pub fn params<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
     read(if params.is_null() { json!({}) } else { params })
 }
 
+/// One line on stderr, `chora-NAME: ERR`, for a request that failed and
+/// changes nothing else: the plugin `name` keeps running, the log says
+/// what went wrong.
+pub fn report(name: &str, err: &dyn std::fmt::Display) {
+    eprintln!("chora-{name}: {err}");
+}
+
 /// Runs sessions of the plugin `name` until one ends without an error.
 /// The core may close the connection and stay: the emergency reset
 /// revokes grants and disconnects, and the scene survives it. Come back

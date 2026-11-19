@@ -342,7 +342,7 @@ impl DisplayDialog {
             } else if let Some(icon) = &self.art.picture {
                 picture = picture.file(icon, [5, y, 16, 16]);
             }
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
             let tw = theme.text_width(name, Font::Ui).ceil() as i32;
             let color = if i == chosen {
                 picture = picture.svg(format!(
@@ -670,7 +670,7 @@ fn spectrum([x, y, w, h]: Rect) -> String {
     ];
     let mut svg = r#"<defs><linearGradient id="spec" x1="0" y1="0" x2="1" y2="0">"#.to_string();
     for (i, s) in stops.iter().enumerate() {
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss, reason = "a stop index, exact in f64")]
         let offset = i as f64 / (stops.len() - 1) as f64;
         let _ = write!(svg, r#"<stop offset="{offset:.3}" stop-color="{s}"/>"#);
     }

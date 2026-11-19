@@ -4,7 +4,10 @@ use super::{ExportMethod, json, runtime};
 /// (D62), because a caller with `methods.call` alone must not run commands;
 /// so are those that write the words of the agent or a notification.
 /// One entry per method.
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one schema per exported method; the table stays in one place"
+)]
 pub(crate) fn exported_methods() -> Vec<ExportMethod> {
     let lines = json!({"type": "array", "items": {"type": "string"}});
     let panels = json!({"type": "array", "items": {"type": "object"}, "description":

@@ -326,7 +326,10 @@ impl Layers {
             self.steps.remove(&(self.view.clone(), node.to_owned()));
             return 1.0;
         };
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a log2 step count, clamped to a small range"
+        )]
         let wanted = (ratio.log2().ceil() as i32).clamp(-MAX_STEPS, 0);
         let key = (self.view.clone(), node.to_owned());
         let kept = self.steps.get(&key).copied();
@@ -756,7 +759,10 @@ fn project(mesh: &Mesh, at: &Placing<'_>) -> Option<Shape> {
 
 /// Adds the vertices of a convex polygon and the triangles of its fan.
 /// `None` when the vertices outgrow 16-bit indices.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the u16::try_from checks above bound every index"
+)]
 fn fan(polygon: &[Corner], vertices: &mut Vec<Vertex>, indices: &mut Vec<u16>) -> Option<()> {
     let first = u16::try_from(vertices.len()).ok()?;
     u16::try_from(vertices.len() + polygon.len()).ok()?;
@@ -797,7 +803,10 @@ impl Shape {
 /// a repeated corner, of points of the plane, which the texture of the
 /// plane covers from `(0, 0)` to the size. `None` when no part of it lies
 /// in front of the eye. The vertices are 32-bit floats, as GL takes them.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "corner points are narrowed to f32 for the shape"
+)]
 pub fn piece_shape(
     corners: &[[f64; 2]; 4],
     [w, h]: [f64; 2],
@@ -863,7 +872,10 @@ impl Bounds {
     /// The box in whole pixels, at least one pixel a side. A point close to
     /// the eye lands far away; the box stays in i32, so the casts are
     /// clamped.
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "clamped to +-FAR before the cast, so i32 cannot overflow"
+    )]
     fn pixels(&self) -> Rectangle<i32, Physical> {
         let clamp = |v: f64| v.clamp(-FAR, FAR) as i32;
         let loc = Point::from((clamp(self.min[0].floor()), clamp(self.min[1].floor())));
