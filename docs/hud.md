@@ -67,8 +67,10 @@ One setting names the folder: `hud: NAME` in
 looks for `NAME` in `$XDG_DATA_HOME/chora/huds`, then in `chora/huds` of
 each directory of `$XDG_DATA_DIRS` (`/usr/local/share` and `/usr/share`
 when the variable is empty), then, for a binary run from
-`target/<profile>/`, in its own `plugins/chora-assistant/huds` of the
-source tree, which links the folders of xp, mc and construct.
+`target/<profile>/`, in the source tree: `neutral` in
+`plugins/chora-assistant/huds` and the folder of each look in the
+directory of that look (`plugins/chora-NAME/hud`, or `flavors/NAME/assets/assistant`
+for xp).
 
 | Command | Does |
 |---|---|

@@ -1398,7 +1398,7 @@ which lists every option. The file and its changes work as for
 |--------|---------|---------|
 | `enabled` | `true` | the figure shows while the voice agent is connected |
 | `position` | `null` | the corner of the first output where the figure shows; `null`: the place of the voice panel of the folder |
-| `hud` | `neutral` | the name of the HUD folder when no rule of `huds` matches: `$XDG_DATA_HOME/chora/huds/NAME`, else `/usr/share/chora/huds/NAME`, else `plugins/chora-assistant/huds/NAME` of the source tree when the binary runs from `target/<profile>/` |
+| `hud` | `neutral` | the name of the HUD folder when no rule of `huds` matches: `$XDG_DATA_HOME/chora/huds/NAME`, else `/usr/share/chora/huds/NAME`, else `plugins/chora-assistant/huds/NAME`, `plugins/chora-NAME/hud` or `flavors/NAME/assets/assistant` of the source tree when the binary runs from `target/<profile>/` |
 | `huds` | `[]` | rules `{when: {...}, folder: NAME}`; the first whose `when` matches the context (`wm`, `space`, `app`, `state`, `agents`, `chat`, `output`) names the folder that draws; see `hud.md` |
 
 `chora-assistant` subscribes to `voice.*`. The figure shows a state of the
@@ -1444,7 +1444,7 @@ without one is an asset folder, which holds:
 
 `plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
 changes its color with the state, and the row "Chat ..." with a row for each
-helper. `plugins/chora-assistant/huds/tiling` is the folder of the tiling
+helper. `plugins/chora-tiling/hud` is the folder of the tiling
 flavor: the same dot, which opens the chat, and no row, since the helper word
 of the bar is the door.
 

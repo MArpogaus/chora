@@ -15,7 +15,7 @@ git show d7be70b9:dist/arch/PKGBUILD >"$work/PKGBUILD" || { echo "FAIL: d7be70b9
 if tests/packaging-files.py --pkgbuild "$work/PKGBUILD" >"$work/old.out" 2>&1; then
     echo "FAIL: packaging-files.py passes the PKGBUILD without the tiling HUD"
     failures=$((failures + 1))
-elif ! grep -q 'plugins/chora-assistant/huds/tiling/hud.yaml' "$work/old.out"; then
+elif ! grep -q 'plugins/chora-tiling/hud/hud.yaml' "$work/old.out"; then
     echo "FAIL: packaging-files.py does not name the tiling HUD: $(cat "$work/old.out")"
     failures=$((failures + 1))
 fi

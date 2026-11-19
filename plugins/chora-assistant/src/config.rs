@@ -851,7 +851,7 @@ mod tests {
 
     #[test]
     fn the_paperclip_of_xp_opens_the_chat() {
-        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("huds/xp");
+        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
         let hud = hud::load(&xp).unwrap();
         let values = Values::from_hud(&hud, &Context::default(), |_| Some([80, 116]));
         assert!(values.chats);
