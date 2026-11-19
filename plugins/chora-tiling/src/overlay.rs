@@ -310,3 +310,6 @@ impl Tiling {
         ])
     }
 }
+
+#[cfg(test)]
+mod tests_moved;

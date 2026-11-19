@@ -15,10 +15,12 @@ import os
 import signal
 import time
 
-from common import door_acts, helper_acts, notice_acts, window_acts
+from common import door_acts, helper_acts, keysheet_acts, notice_acts, window_acts
 from harness import LOOKS, Expect, key, load_png_rows, program, wait
+from invariants import boxes_on
 
 MANAGER = "xp"
+HUD_HOST = "assistant"
 HINT_GONE = 4.0
 FLAT_WITHIN = 3.0
 GRACE = 15.0
@@ -106,27 +108,15 @@ def tab_after_a_new_window(s):
     )
 
 
-def helper_down(s):
-    """A cue: voice and the presenter of the helper end, so that its HUD
-    does not stand over the screen when the cube is compared with it."""
-    for _ in range(2):
-        s.procs.pop().terminate()
-    s.until(lambda: not {"voice", "assistant"} & s.clients(), 20, "voice and the presenter gone")
-
-
 def run(s):
     """A window opens as a pane and closes. The keys stay with the walk
     until a flight into the pane, so the act does not ask for the focus.
     Then the cube opens and stands back."""
     window_acts(s, focused=None)
     door_acts(s, "construct-help", "Escape")
+    keysheet_acts(s, "construct-help", "Escape")
     tab_after_a_new_window(s)
     helper_acts(s)
-    s.act(
-        "the helper presenter ends before the cube",
-        [helper_down],
-        disconnects=["voice", "voice-mcp", "assistant"],
-    )
     cube_acts(s)
 
 
@@ -204,7 +194,9 @@ def plain(name):
 
 def one_to_one(s):
     """A check: the screen shows the output of the front face pixel for
-    pixel, so no construct node is left over the face."""
+    pixel, so no construct node is left over the face. The boxes of the HUD
+    host do not count: its voice island stays at the top right in a face
+    (docs/construct-style.md, rule 22)."""
 
     def verify(after):
         listing = after.cube or {}
@@ -212,6 +204,11 @@ def one_to_one(s):
             return [f"the cube role: {listing.get('error')}"]
         face = listing["faces"][listing["front"]]["output"]
         screen = s.outputs()[0]["name"]
+        hud = [b["rect"] for b in boxes_on(after).get(screen, []) if b.get("owner") == HUD_HOST]
+
+        def free(x, y):
+            return not any(r[0] <= x < r[0] + r[2] and r[1] <= y < r[1] + r[3] for r in hud)
+
         rows = load_png_rows()
         a = list(rows(s.capture(screen, 1280)[1]))
         b = list(rows(s.capture(face, 1280)[1]))
@@ -222,7 +219,7 @@ def one_to_one(s):
             (i // 4, y)
             for y, (ra, rb) in enumerate(zip(a, b, strict=True))
             for i in range(0, min(len(ra), len(rb)), 4)
-            if max(abs(ra[i + k] - rb[i + k]) for k in range(3)) > 8
+            if max(abs(ra[i + k] - rb[i + k]) for k in range(3)) > 8 and free(i // 4, y)
         ]
         if len(differ) > total // 1000:
             xs, ys = [x for x, _ in differ], [y for _, y in differ]

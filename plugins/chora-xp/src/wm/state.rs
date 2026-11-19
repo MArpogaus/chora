@@ -265,8 +265,7 @@ mod tests {
     #[test]
     fn a_give_shuts_the_start_menu() {
         let (mut wm, _methods) = wm_on_fake_core("state-give-menu");
-        wm.windows.push(window("s1", 0));
-        wm.book.keep("s1");
+        add(&mut wm, "s1", 0);
         wm.method("start_menu", json!({"open": true})).unwrap();
         assert_eq!(open_ids(&wm), ["xp-menu"]);
         wm.give("s1", "tiling")
@@ -278,8 +277,7 @@ mod tests {
     #[test]
     fn a_give_with_the_drag_shuts_the_start_menu() {
         let (mut wm, _methods) = wm_on_fake_core("state-drag-menu");
-        wm.windows.push(window("s1", 0));
-        wm.book.keep("s1");
+        add(&mut wm, "s1", 0);
         wm.method("start_menu", json!({"open": true})).unwrap();
         let grab = chora_scene::GivenGrab {
             point: [10.0, 10.0],

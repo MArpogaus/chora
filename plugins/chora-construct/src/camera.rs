@@ -6,6 +6,7 @@ use super::{
     LOOK_RATE, Own, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, System, TURN, Transform,
     Value, json, space, stride, update,
 };
+use chora_kit::wm::focus;
 
 /// The surface that the camera is in or on its way into.
 pub(crate) fn window_flown_into<'a>(
@@ -343,9 +344,7 @@ impl Construct {
         let window = matches!(pane.content, Content::Window { .. }).then(|| pane.source.clone());
         self.glide_to(to, FLY_MS, into);
         if let Some(surface) = window {
-            self.rt.conn.apply(vec![Command::Focus {
-                surface: Some(surface),
-            }])?;
+            self.rt.conn.apply(vec![focus::give(surface)])?;
         }
         self.regrab()
     }
@@ -422,14 +421,10 @@ impl Construct {
                         ..PropsUpdate::default()
                     },
                 ),
-                Command::Focus {
-                    surface: Some(surface.clone()),
-                },
+                focus::give(surface.clone()),
             ]
         } else {
-            vec![Command::Focus {
-                surface: Some(surface),
-            }]
+            vec![focus::give(surface)]
         };
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);

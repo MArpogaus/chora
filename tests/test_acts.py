@@ -372,14 +372,6 @@ class KnownRed(unittest.TestCase):
         self.assertEqual(len(rows), 1, rows)
         return rows
 
-    def test_a_second_overprint_of_the_tiling_key_list_blocks(self):
-        rows = self.listed("tiling")
-        named = "in act 'a': on HEADLESS-1 'Run a program or a typed command' (tiling-keys-body) overlaps 'System' (tiling-keys-heading) at []"
-        other = "in act 'a': on HEADLESS-1 'Quit' (tiling-keys-body) overlaps 'Other' (tiling-keys-body) at []"
-        self.assertEqual(harness.judge({("tiling", "I5"): [named]}, rows).blocking, [])
-        self.assertTrue(harness.judge({("tiling", "I5"): [named, other]}, rows).blocking)
-        self.assertTrue(harness.judge({("tiling", "I5"): [other]}, rows).blocking)
-
     def test_a_second_overprint_of_the_mc_key_column_blocks(self):
         rows = self.listed("mc")
         named = "in act 'a': on HEADLESS-1 'Start a program or run a command' (mc-r1-right-keys) overlaps 'Chat with a helper' (mc-r2-label) at []"

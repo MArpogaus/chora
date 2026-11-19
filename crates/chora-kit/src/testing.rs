@@ -47,14 +47,15 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
-    /// What `methods.call` answers for a method, by its name; `null` for
-    /// the others.
+    /// What `methods.call` answers for a method, by its name: looked up
+    /// by client first, then by method, else null.
     pub answers: std::collections::HashMap<String, Value>,
     /// Whether `activation.token` mints a token; without, it answers null.
     pub mints_tokens: bool,
     /// Whether `scene.query` answers every selector; else only `id:`.
     pub selects: bool,
-    /// The answers of `methods.call` by client and method; null without.
+    /// The answers of `methods.call` by client and method: looked up by
+    /// client first, then by method, else null.
     pub client_answers: Vec<((String, String), Value)>,
 }
 
@@ -263,6 +264,15 @@ fn query(model: &Model, selector: &str) -> Value {
             .collect()
     };
     Value::Array(found)
+}
+
+/// The `focus.changed` of the core that focuses `surface`, or nothing,
+/// for the cells of a look (`kit::wm::focus` reads it).
+#[must_use]
+pub fn focus_changed(surface: Option<&str>) -> chora_scene::Event {
+    chora_scene::Event::FocusChanged {
+        surface: surface.map(String::from),
+    }
 }
 
 /// Whether the model has a node.

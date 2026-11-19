@@ -3,7 +3,7 @@ keys page), the Start menu by its button and the dialog Turn Off Computer
 by its key (tests/doors keys-key, keys-alias, power-key; the Start button
 is the door of launcher-door and power-door)."""
 
-from common import door_acts, helper_acts, notice_acts, window_acts
+from common import door_acts, helper_acts, keysheet_acts, notice_acts, window_acts
 from harness import Expect, click, drag_title, key, program
 
 HELP = "xp-dlg-help"
@@ -18,6 +18,7 @@ def run(s):
     window_acts(s)
     drag_acts(s)
     door_acts(s, HELP)
+    keysheet_acts(s, HELP, drawn_in_state=True)
     helper_acts(s)
     s.act(
         "the Start button opens the Start menu",

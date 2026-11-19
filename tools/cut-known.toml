@@ -93,5 +93,5 @@ other = "chora-assistant"
 [[known]]
 check = "names"
 crate = "chora-xp"
-max = 6
+max = 4
 other = "chora-chat"

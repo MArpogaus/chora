@@ -252,6 +252,10 @@ impl Plugin for Agent {
             return Ok(());
         }
         self.machine.hear(&event);
+        if let Some(surface) = chora_kit::wm::focus::changed(&event) {
+            self.switcher.focus_changed(surface, Instant::now());
+            return self.apply(Vec::new());
+        }
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
@@ -264,11 +268,6 @@ impl Plugin for Agent {
                 } else {
                     self.replace_assistant()?
                 }
-            }
-            Event::FocusChanged { surface } => {
-                self.switcher
-                    .focus_changed(surface.as_deref(), Instant::now());
-                Vec::new()
             }
             Event::SurfaceChanged {
                 surface, app_id, ..
@@ -1073,6 +1072,30 @@ mod tests {
         assert!(!agent.chat.is_open(), "a program pressed the figure");
         agent.event(pressed("hud-figure", false)).unwrap();
         assert!(agent.chat.is_open(), "a person pressed the figure");
+    }
+
+    #[test]
+    fn a_new_look_keeps_the_files_of_the_figure_on_the_screen_until_it_is_replaced() {
+        let mut agent = on_fake_core("reload", false);
+        agent.folder = "before".into();
+        let old = agent.look_cache.clone();
+        let ring = agent
+            .theme
+            .cache_file("ring.frag", "void main() {}")
+            .unwrap();
+        let commands = agent.restyle(&Context::default()).unwrap();
+        assert_ne!(agent.look_cache, old, "the neutral folder loaded again");
+        assert!(
+            ring.exists(),
+            "the figure on the screen still draws with the shader of the old look"
+        );
+        assert!(
+            agent.stale.contains(&old),
+            "it goes once the new figure shows"
+        );
+        agent.apply(commands).unwrap();
+        let _ = std::fs::remove_dir_all(old);
+        let _ = std::fs::remove_dir_all(&agent.look_cache);
     }
 
     #[test]

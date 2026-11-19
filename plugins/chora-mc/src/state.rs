@@ -155,10 +155,8 @@ mod tests {
         };
         assert!(commands.iter().any(page), "{commands:?}");
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
-        mc.event(chora_scene::Event::FocusChanged {
-            surface: Some("other".into()),
-        })
-        .unwrap();
+        mc.event(chora_kit::testing::focus_changed(Some("other")))
+            .unwrap();
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
     }
 

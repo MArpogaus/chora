@@ -22,21 +22,8 @@ impl Mc {
             .collect();
     }
 
-    /// Changes a text content for `content.set` or `content.add`; the
-    /// contents that mc writes itself are refused.
-    pub(crate) fn set_client_text(
-        &mut self,
-        content: &str,
-        title: Option<String>,
-        change: impl FnOnce(Vec<String>) -> Vec<String>,
-    ) -> Result<(), RpcError> {
-        if agent::OWN_TEXTS.contains(&content) {
-            return Err(invalid(format!("{content} is written by mc alone")));
-        }
-        self.set_text(content, title, change)
-    }
-
-    /// Changes the lines of a text content, and its title.
+    /// Changes the lines of a text content, and its title, for
+    /// `content.set` and `content.add`.
     pub(crate) fn set_text(
         &mut self,
         content: &str,

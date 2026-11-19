@@ -6,6 +6,7 @@ use super::{
     close, context, decoration, desk_id, dropped_at, help, home_bar, restart, taskbar, window,
     window_icon,
 };
+use chora_kit::wm::focus;
 
 impl Wm {
     pub(super) fn index(&self, surface: &str) -> Option<usize> {
@@ -120,9 +121,7 @@ impl Wm {
                 commands.extend(self.restyle(surface));
             }
         }
-        commands.push(Command::Focus {
-            surface: target.map(String::from),
-        });
+        commands.push(target.map_or_else(focus::release, focus::give));
         commands.push(self.desktop_keys());
         commands
     }

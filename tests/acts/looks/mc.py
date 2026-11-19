@@ -4,6 +4,7 @@ from common import (
     closed,
     door_acts,
     helper_acts,
+    keysheet_acts,
     notice_acts,
     shown_before,
     shown_id,
@@ -20,6 +21,7 @@ def run(s):
     (WM3) gives."""
     window_acts(s)
     door_acts(s, "mc-keys", "Super+F1")
+    keysheet_acts(s, "mc-keys", "Super+F1")
     notice_acts(s, REPO / "plugins/chora-mc/notify")
     pushed = {}
     s.act("notify.push of mc shows in chora-notify", [lambda s: push(s, pushed)])

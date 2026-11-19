@@ -6,13 +6,6 @@
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
 [[red]]
-finding = "net3-t1: the key list of tiling: the long row 'Run a program or a typed command' runs into the heading 'System' of the next column"
-id = "I5"
-look = "tiling"
-match = "'Run a program or a typed command'"
-slice = "KIT3"
-
-[[red]]
 finding = "net3-m1: the key column of mc: the wrapped line of 'Start a program or run a command' overprints the next row 'Chat with a helper'"
 id = "I5"
 look = "mc"
@@ -27,21 +20,14 @@ match = "is missing beside"
 slice = "WM6"
 
 [[red]]
-finding = "kit7-a1: after chat.show of the helper in mc the core focuses the page node of mc, and mc does not say in state.get that it holds the focus"
-id = "I3"
-look = "mc"
-match = "in act 'the chat of the helper opens'"
-slice = "WM2"
-
-[[red]]
-finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back"
+finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back; old on v8 733967aa: the press gives the pane window the keyboard and Tab goes to it (reports/focus-port.md r1)"
 id = "act:Tab right after a new window opens the window list"
 look = "construct"
 match = "expected open ['construct-list'], got []"
 slice = "WM2"
 
 [[red]]
-finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back"
+finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back; old on v8 733967aa: the press gives the pane window the keyboard and Tab goes to it (reports/focus-port.md r1)"
 id = "I4"
 look = "construct"
 match = "in act 'Tab right after a new window opens the window list': construct-list was declared open and is not"

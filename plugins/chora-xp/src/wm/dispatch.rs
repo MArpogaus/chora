@@ -1,6 +1,6 @@
 //! The event loop methods: reading events, handling them, answering calls and the periodic tick.
 
-use chora_kit::wm::Created;
+use chora_kit::wm::{Created, focus};
 
 use super::{
     Bar, Call, ClientError, Command, Duration, Event, Instant, Language, MENUS, Panel, Reading,
@@ -20,6 +20,10 @@ impl Wm {
         let heard = self.voiced.hear_asking(&event, &mut self.rt.conn);
         if let Some(created) = Created::of(&event) {
             return self.window_created(&created);
+        }
+        if let Some(surface) = focus::changed(&event) {
+            let commands = self.focus_moved(surface);
+            return self.apply(commands);
         }
         let commands = match event {
             Event::SurfaceDetached { .. } => return self.window_left(&event),
@@ -81,7 +85,6 @@ impl Wm {
             Event::PointerEntered { node, .. } => self.hovered(&node, true), // injected: hears drops an injected event unless xp accepts them
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
-            Event::FocusChanged { surface } => self.focus_moved(surface.as_deref()),
             _ => Vec::new(),
         };
         self.apply(commands)
