@@ -1829,9 +1829,12 @@ a notification server it writes the same words to its log:
   unless a window of another start opened meanwhile: a launcher such as
   `xdg-open` or a browser may hand its work to a program that runs
   already, and exit. A program that opens in less than 2 seconds shows
-  no balloon. A program that ends at once gets no message of its own: it
-  shows "Starting NAME" and then "Cannot open NAME". The wait is checked once a second, so each message can
-  come up to a second late.
+  no balloon. A program that ends with an error before its window
+  shows gets "Cannot open NAME" at once; the same exception holds: a window
+  of another start that opened meanwhile explains the end. A program that
+  ends without an error may have handed its work to a running instance and
+  has the 30 seconds. The wait for the limit is checked once a second, so a
+  message of the limit can come up to a second late.
 - For a file of the desktop, NAME is the name of the file, not `xdg-open`.
 
 The balloon of the start needs `chora-notify`, which the unit

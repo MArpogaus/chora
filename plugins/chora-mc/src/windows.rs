@@ -280,7 +280,7 @@ impl Mc {
             return Ok(());
         }
         let pid = self.pids.get(&name).copied().flatten();
-        if pid.is_some_and(chora_kit::alive) {
+        if pid.is_some_and(chora_kit::launch::alive) {
             self.launched.push((name, pid));
             return self.apply(vec![wait()]);
         }

@@ -125,7 +125,7 @@ pub trait Host: Windows {
 /// Starts a command as an app with the activation token of the look.
 fn start<H: Host>(host: &mut H, command: Option<String>, name: &str) -> Result<(), H::Error> {
     let token = host.conn().activation_token();
-    match command.and_then(|command| launch(&command, token.as_deref())) {
+    match command.and_then(|command| launch::start(&command, token.as_deref())) {
         Some(_) => Ok(()),
         None => host.failed(Failure::NotStarted(name.to_owned())),
     }

@@ -1890,7 +1890,7 @@ impl Mc {
         let config = &self.settings.value;
         let command = command(&config.contents[app].command, config.colors());
         let mint = self.rt.conn.activation_token();
-        if let Some((token, _)) = crate::launch(&command, mint.as_deref()) {
+        if let Some((token, _)) = crate::launch::start(&command, mint.as_deref()) {
             self.starting.insert(token, crate::Target::Dock(app.into()));
         }
     }

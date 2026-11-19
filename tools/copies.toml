@@ -97,3 +97,17 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own key cap of a question (cap, show_key copy)"
 pattern = 'fn cap\(key: &str\)'
+
+# kit6: kit::launch owns the start of a program and its end (D104); a
+# plugin starts through it and keeps no token variable, pidfd or status file.
+[[row]]
+allow = ["crates/chora-kit/", "crates/choractl/"]
+max = 0
+name = "choractl run token variable (KIT6)"
+pattern = 'CHORA_RUN_TOKEN'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own end-of-program tracking (pidfd, status file) (KIT6)"
+pattern = 'pidfd_open|chora-xp-exit|struct StatusFile'
