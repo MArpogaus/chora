@@ -380,3 +380,9 @@ Also: tests/merge-gate.sh step header conflicts at every train that adds a step 
 - 11-17 19:36 train 46 run 1 killed at the 30 min default background limit (no timeout given). Fix: every merge-gate background run passes timeout 7200000. Resolved 11-18 12:5x: trains 47-53 all ran with timeout 7200000; none killed.
 
 - 11-18 12:56 Critic: F2 marked "done 01:40" and the status page said a merge "completes F3" without measure, command and independent check (owner 11-17 10:59); opus lanes started three times while over pace. Resolved 11-18 12:56: F2, F3, F5 stay open until a reviewer confirms; start_lane.sh refuses opus while the budget line says "No new opus" (3 tests). To build (backlog H-met): check_log refuses "done" on an F row without command and reviewer.
+
+## 11-19 07:38 setup apt hang (friction 41, 45 again; cause found)
+flakes-f (07:16) and wm1d (07:20) sat in setup.sh `apt-get update` with no output. Cause: plain http to
+archive.ubuntu.com times out behind the proxy (curl 10 s, 0 bytes); https answers (update 1m40 in the PM container).
+Guard: setup.sh rewrites the Ubuntu sources to https and runs apt under timeout with Acquire timeouts; a failure logs
+"FAILED apt" instead of hanging. Hung sessions recreated.

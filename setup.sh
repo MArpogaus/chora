@@ -13,10 +13,15 @@ for p in $build_pkgs $e2e_pkgs; do
 done
 if [ "${#need_apt[@]}" -gt 0 ]; then
     log "apt: ${need_apt[*]}"
-    apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${need_apt[@]}" >/dev/null ||
+    # Plain http to the Ubuntu mirrors hangs behind the proxy (11-19 07:35); https answers.
+    for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+        [ -f "$f" ] && sed -i -E 's#http://(archive|security)\.ubuntu\.com#https://\1.ubuntu.com#g' "$f"
+    done
+    apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+    timeout 600 apt-get "${apt_opts[@]}" update -qq || log "FAILED apt-get update"
+    DEBIAN_FRONTEND=noninteractive timeout 1200 apt-get "${apt_opts[@]}" install -y -qq "${need_apt[@]}" >/dev/null ||
         for p in "${need_apt[@]}"; do
-            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$p" >/dev/null || log "FAILED apt: $p"
+            DEBIAN_FRONTEND=noninteractive timeout 300 apt-get "${apt_opts[@]}" install -y -qq "$p" >/dev/null || log "FAILED apt: $p"
         done
 fi
 
