@@ -1538,7 +1538,13 @@ has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
 the construct adds `views`, the panes of windows, plugin nodes and
 virtual outputs that it shows but does not own. tiling adds the
 `origin` of each window: `new`, `given` (another window manager gave it)
-or `kept` (over a restart).
+or `kept` (over a restart). xp and chora-notify add `texts`, the runs
+of text that `chora_draw` painted into their image nodes: `node`,
+`text` (the line as drawn, with its ellipsis), `rect` (`[x, y, w, h]`
+of its ink in the logical pixels of the node at its own size), `px` (the
+font size) and `fg` (RGBA). chora-notify answers `shown`, the
+notifications on screen with `id`, `summary` and the `node` of the card,
+and `busy` while a card shows.
 
 A look built on `chora_kit::wm` (tiling) emits `<look>.window` with
 `{surface, node, phase, rect}` when a window becomes its own (`opened`),
