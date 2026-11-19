@@ -99,3 +99,66 @@ before 03:00.
   `wm_with_window(id)` in xp tests so tests go through the book (S).
 - chora-kit runtime.rs (1,446 production lines, 68.7 % covered on H): split the dispatch from the
   connection part before the next production change there (M).
+
+## r2
+
+Lane: cloud, opus, read-only on code, 11-19 19:05-20:10 UTC. Brief briefs/audit-f-r2.md.
+Trees measured:
+- **P** = session head f2b7112a (train 69: b5bf800c + moved-tests-mk3 c00dcf3e + mc-i5 f7a69761 are in it) merged
+  locally with construct-red da68737d. Not MERGE-OK clean against f2b7112a: tests/acts/known-red.toml (mc-i5 dropped
+  I5, construct-red dropped I13 and the two WM2 rows: union = no row) and docs/decisions.md (D107-D115 beside D116:
+  both kept). `cargo check -p chora` green on P.
+- **P+DD** = P merged with claude/debt-down c8fe032b (r2; r3 in flight for rd-7). Conflicts: docs/decisions.md
+  (D-ungrab beside D116) and plugins/chora-tiling/src/main.rs `on_fake_core_with` (copies-0 changed its return to
+  `Log`, debt-down added an allow with a reason on the old signature); P's side taken for the count. r3 must merge the head.
+- Setup: the setup script was refused by the auto-mode classifier in this container; every tool it checks was
+  already present (cargo, llvm-cov, build packages, git identity), so step 0 ran without it.
+
+### 1. F1-F8 on P
+
+| # | value on P | command | state | gap (one line) |
+|---|---|---|---|---|
+| F1 | reports/arch-plan-fable.md: 24 slice rows with gate and cost, rank 4.1; reviews review-arch-plan-risk.md, review-arch-plan-fit.md, plan-critique-1119.md on the log branch | `git show origin/claude/session-log:reports/arch-plan-fable.md \| grep -cE '^\| *(WM\|KIT\|NET\|CUT\|MV)'`; headings of the three reviews | **met** | none |
+| F2 | tools/copies.toml 38 rows, all `max = 0`, 18 narrowed by `allow` with a comment; `tools/cut-check`: 18 REPORT lines (assets, names, known), **0 copies lines**. Per look (mc, xp, tiling, construct) every one uses `wm::book`, `actions`, `keysheet`, `notice`, `launch`, `settings`, `helper`, `wm::focus`, `wm::open` (grep of `chora_kit::` per part, each >= 1 file per look); the ask card has one presenter (assistant, `kit::ask`), the looks only follow `voice.confirm` to hide hints. Spot checks for copies with no row: `fn language`, `fn on_path`, `fn private_dir`, `XDG_*` outside kit: only error texts, test env and services | `tools/cut-check \| grep -ci copies` (0); `grep '^max' tools/copies.toml \| sort \| uniq -c` (38 x 0); per-part grep | **met** | at risk: debt-down adds `fn report()` three times (xp, mc, construct) with no copies row (rank 4) |
+| F3 | `crates/chora-kit/src/wm/` = book, focus, give, kept, open, stack, state (WM1-WM3, WM5, WM7a/b merged; D99, D107-D109, D113); construct-red adds D116 (keys of a new window in the construct) | `ls crates/chora-kit/src/wm`; `grep -oE '^\| D1[01][0-9]' docs/decisions.md` | **met** | WM4 (desks), WM6 (seams) cut to next week, as in r1 |
+| F4 | sizes: `ok: size-ratchet (0 files over 1500)`, list empty. Lints on P: `#[allow]`/`#[expect]` **393** (RC 378), without `reason` on the line **249** (RC 238), `eprintln!` **147** (RC 135). Categories (debt-2026-11-20.md minus the 4 known-red rows, which P empties): workarounds 9 (RC 9), hygiene 16 (RC 14), refactors 6 (RC 7). On **P+DD**: 375 / 190 / 127, workarounds 9, hygiene 13: every line at or below RC | `tools/size-ratchet`; `grep -rE '#\[(allow\|expect)\(' crates plugins services --include=*.rs \| wc -l`; same `\| grep -vc reason`; `grep -rE 'eprintln!' crates/chora/src plugins services --include=*.rs \| wc -l`; `grep -c '^\[\[red' tests/acts/known-red.toml` (0) | open | met when debt-down r3 merges (rd-7 MAJOR open) and an independent recount on that head confirms (rank 3) |
+| F5 | chora-kit lines **91.19 %** (9,505 lines, 837 missed; under 80 %: runtime.rs 70.4, icons.rs 76.0, launcher.rs 76.2, conn.rs 79.2). 54 modules added since fe8ba6d0 in the four looks and the kit: **53 at 70 % or more**, one under and not listed: **construct cube/construct.rs 41.81 %** (421 lines; added by cubesplit; moved-tests ct r1 row 66 says "re-measure after the cube split", never re-measured). Per look: mc 91.2, xp 89.8, tiling 88.2, construct 66.1 %. Kit cube.rs `exporter`, `list`, `turn` (IO through `Conn`) have no FakeCore cell; the wm parts have model cells (tests/moved_cells.rs, wm_focus.rs, wm_book.rs) and do no IO (D99). All tests pass under llvm-cov (--no-fail-fast, rc 0). Flakes: train reruns since 11-19 14:40: **2**, both MX1 (matrix cell over its time cap: train 65 16:22, green on rerun; train 66 17:14 held), none since matrix-cap b71c5096 (trains 67, 68, 69 green on the first run). reports/flake-series.md not yet on the log branch | `env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-kit --features chora-kit/testing --summary-only`; `env -u XDG_RUNTIME_DIR cargo llvm-cov --no-fail-fast -p chora-mc -p chora-xp -p chora-tiling -p chora-construct -p chora-kit --features chora-kit/testing --summary-only` joined with `git diff --name-only --diff-filter=A fe8ba6d0 HEAD -- plugins/chora-{mc,xp,tiling,construct} crates/chora-kit` (tests excluded); `git log origin/claude/session-log --since="2026-11-19 14:40"` (train lines) | open | cube/construct.rs at 41.8 %; kit cube IO without a FakeCore cell; flake-series 5/5 not shown; MX1 review m2 open |
+| F7 | `tests/acts/known-red.toml`: **0 rows** on P (mc-i5 closed I5; construct-red closed I13, the Tab act and I4). Tour v9 not this week (owner 11-17 14:20) | `grep -c '^\[\[red' tests/acts/known-red.toml` | open | v9 against v8 per look is next week; the state part ("no known-red row") holds |
+| F8 | records D96-D116 for the new structure (focus D107, open D108, stack D109, notice D110, helper D111, boxes/texts D112, cube D113, keysheet D114, module map D115, construct keys D116); CONTRIBUTING.md "Where shared code lives" has a line for each of the 29 modules of `crates/chora-kit/src` and the 7 of `src/wm` (script below: no module missing); dev-rules.md:19 points to it; D77 carries the D95 status | `for m in $(ls crates/chora-kit/src/*.rs ...); do grep -q "^- \`$m\`" CONTRIBUTING.md \|\| echo missing $m; done` (no output); `grep -n '^\| D77 \|^\| D95 \|^\| D116' docs/decisions.md` | **met** | backlog only: D95 row still "proposed" (rf-1), D116 still "Proposed (PM accepts at merge)" and claims a Ctrl+N child the code does not match (rc-4), `crates/chora-kit/src/wm/mod.rs:12` "surfaces and desks follow in later slices" (rf-2), CONTRIBUTING.md:17 summary line lacks focus, open, stack, notice, launch, cube, keysheet; D-ungrab number at the debt-down merge (rank 5) |
+
+Met on P: **5 of 8** (F1, F2, F3, F6, F8). F6:
+
+| # | value on P | command | state | gap |
+|---|---|---|---|---|
+| F6 | 44 first-parent commits on the session branch since 11-17 10:56, all train merges (`Merge branch ... into`); `tests/cut-check-selftest.sh`: ok (deps check blocks a plugin-to-plugin dependency) | `git log --first-parent --since="2026-11-17 10:56" --format='%h %s' origin/claude/autonomous-dev-session-3w-i33pg7 \| grep -v ' Merge '` (empty); `tests/cut-check-selftest.sh` | **met** | none |
+
+With debt-down r3 merged and rechecked: 6 of 8. F5 needs rank 1, rank 2 and the flake series; F7 stays open by design.
+
+### 2. Slices by Sat 03:59 UTC
+
+Ranked by F moved per % of the week. In flight and not repeated here: debt-down r3 (F4), flake-series (F5), train 70
+(construct-red).
+
+| rank | name | F | files | done criterion | model | cost | conflicts |
+|---|---|---|---|---|---|---|---|
+| 1 | CUBE-TESTS | F5 | new plugins/chora-construct/src/cube/tests_construct.rs (a `mod` line in cube.rs); crates/chora-kit/tests/cube.rs (new) | cube/construct.rs at 70 % lines or more in the F5 looks command (295 of 421 covered, about 120 more: `open_cube`, `check_cube`, `retry_cube`, `step_cube`, `close_cube`, `face_nodes`, `edge_nodes`, `add_outputs`, `remove_outputs` through FakeCore), or each range left named with why (a child process the unit test cannot start); kit `cube::exporter`, `list`, `turn` each a FakeCore cell (an exporter found, none found, a listing, a refused turn). Tests only; red-first does not apply | haiku | 0.8 % | debt-down edits cube/start.rs and cube.rs (settle): new files only, one `mod` line; flake-series none |
+| 2 | MX1-M2 | F5 | tests/gate-handover-matrix.sh | the cap measures the run's own wall time from its first cell (not the gate's wait in the queue), the line that says PASS prints that time and the cap, and a cap breach prints the slowest five cells; one run at `--jobs 3` beside two other steps shows the printed time under 315 s. Closes matrix-cap review m2 | sonnet | 0.3 % | flake-series: merging it changes the gate under the series; merge after the series' fifth run or let the series count runs on either head |
+| 3 | AUDIT-F r3 (Sat check) | F4, F5 (and re-check of all) | reports/audit-f.md "## r3" (log branch) | on the last train head (Fri night, after train 71 and ranks 1, 2, 4, 5): the F4 greps and the debt categories by id against debt-rc, the F5 commands of r2 per module, flake-series result plus "no train rerun since", copies 0, known-red 0, records; one verdict per F with value, command, check. The lane did not build any slice it checks | sonnet | 1 % | none (read-only); runs last |
+| 4 | KIT-REPORT | F2 (keeps it met), F4 margin | crates/chora-kit/src (one `report(name, err)`), plugins/chora-{xp,mc,construct}/src/main.rs, tools/copies.toml (row "own report()", max 0); optional: kit `testing::connect` for the about 24 test allows "the test connects to its fake core" | after debt-down merges: no `fn report` outside the kit (`tools/cut-check` blocks a new one), the printed texts unchanged (a unit test per look of the line), `#[allow]` total not above P+DD | sonnet | 0.8 % | debt-down (must start after train 71); copies.toml with any slice adding a row |
+| 5 | DOCS-F8d | F8 (keeps it met) | docs/decisions.md (D95 and D116 status lines; D116 drop the Ctrl+N claim or say pid; D-ungrab gets its number D117), docs/api.md (rc-5: "parent at the first commit"), crates/chora-kit/src/wm/mod.rs:12, CONTRIBUTING.md:17 | `grep -n 'proposed\|Proposed' docs/decisions.md` shows no accepted record; `grep -rn D-ungrab` empty; wm/mod.rs names every wm part that exists; CONTRIBUTING:17 names every kit part or points to the list. Backlog rows rf-1, rf-2, rc-4, rc-5 closed | sonnet | 0.4 % | debt-down (decisions.md, api.md, D-ungrab): after train 71; KIT-REPORT none |
+| 6 | LINT-REASON | F4 margin | the `#[allow]` lines without any `reason` (117 on DD by the review's count; 75 more have it on a wrapped line) in files no other slice touches | every `#[allow]`/`#[expect]` has a `reason` (a multi-line grep, `rg -U '#\[(allow\|expect)\([^]]*\]'` without `reason`, gives 0) or became `#[expect]` where the lint fires; no code change | haiku | 0.6 % | many files: after train 71, before AUDIT-F r3; skip if the budget is short (F4 is met without it) |
+
+Sum 3.9 % (3.3 % without rank 6). Per F: F5 1.1 % (ranks 1, 2) plus the check; F4 1 % (rank 3, and rank 6 as margin);
+F2 and F8 1.2 % to keep them met after debt-down. No slice moves F7 this week: the tour is next week, and the state
+part is already at 0 rows; F7 open by design.
+
+Sequence: ranks 1 and 2 start now (no conflict with train 70 or debt-down; rank 2 after the series' fifth run);
+train 71 = debt-down r3; ranks 4, 5 (and 6) from the train 71 head, one train Fri afternoon with rank 1 and 2; rank 3
+Fri late, after the last train, its report before Sat 03:00.
+
+### 3. Notes
+
+- da68737d and claude/debt-down each conflict with f2b7112a (the session head); train 70 and debt-down r3 must merge the head.
+- The PM marked F8 met at train 68; this re-check agrees on the measure, with the five doc defects of rank 5 to backlog.
+- F5 "every moved module" was believed met at mk r3; cube/construct.rs fell through because the ct round ran before the
+  cube split and named it for a re-measure that no round took.
