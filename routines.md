@@ -3,17 +3,18 @@
 Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Bangkok.
 
 ## By time
-- Budget (owner 11-15 09:27, "your main job"): week resets Sat 03:59 UTC. At each reading and lane start check the pace line; over the day's share: no new opus that day. Model and effort in create_session.
+- Budget (owner 11-15, "your main job"): week resets at the owner's reset; check the pace line at each lane start; model and effort in create_session.
 - Every 2 h: watchdog (tools/triggers.md), prunes idle children (11-17); heartbeat checks the PM.
 - Daily 12:50 UTC (19:50 Bangkok), workday close (owner 11-15 09:35): self-check and main-duty
   questions, one independent opus critic, every open friction resolved, one workflow change;
   reflections/selfcheck-<date>.md.
 - Friday: reports/week-N.md (done, missed, burn-down, budget, PM decisions; no overselling);
   `review_due.py`; extraction check (chora-kit, duplication) to state.md or backlog.
-- Refactor proposals (owner 11-17): ranked in backlog.md at each handover; each release takes
-  the top ones; debt-<tag>.md counts must not grow; a sprint starts with an architect plan.
+- Refactor proposals (owner 11-17): ranked in backlog.md per handover; a release takes
+  the top ones; debt-<tag>.md counts never grow; a sprint starts with a plan.
 
 ## By event
+- Each handback, merge, train (11-19): realign Queue 4-5 (rank, F moved, unmerged <= 4, budget), same turn.
 - Review or train (friction 53): `df -h /`; under 20 G one build at a time, clear sccache.
 - A harness branch is MERGE-OK: its own train at once, before other trains; then tell the running
   lanes to merge the session branch. A new hook or check shows it never blocks a valid commit.
@@ -32,7 +33,7 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
 - Tour review: fresh-eyes pass per look first; the PM watches tour-all before a verdict.
 - A single-cell request names the build first; a records lane starts after answers.md.
 - Budget ledger (11-17): Queue lines and briefs name % cost; open lines <= % left - 5 %.
-- An owner message: classify (rules.md 2), record verbatim the same turn.
+- An owner message: classify (rules.md 2), record verbatim, same turn.
 - An architecture record (docs/decisions.md) changes: list it in the week report, the
   owner may veto (charter: A1-A22 were his; 11-14 17:17 delegated).
 

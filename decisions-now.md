@@ -1,11 +1,11 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T06:12:00Z
+screened-through: 2026-11-19T06:21:00Z
+- 11-19 06:21Z "Continuously realign and update plan as you proceed" -> order: at each handback, merge and train result the PM re-checks Queue 4-5 (rank, F moved, merge backlog, budget) and rewrites it; routines.md By event
 - 11-19 06:12Z "OK better, but use tokens wisely and don't burn on unseeded reviews. Use fable where beneficial prefer opus. Let opus reviewers the updated plan and priorities and check for resources waste or misalignment" -> order: reviews only seeded (diff, brief, criteria, known findings); opus default, Fable where it pays; two opus critics on Queue 4 now
 - 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone "Correct?" -> yes (F27 check at lane start); 06:01Z plan question -> answered
 - 11-19 05:59Z dialog: rc.4 tag "Keep local for now." -> no tag push; F27 "Yes, what do I have to do?" -> he re-saves (steps sent); D77 vs D95 "D95 holds, amends D77 (Recommended)" -> decision; release-rc4 "Yes, delete it (Recommended)" -> delete (proxy 403: owner deletes in GitHub)
 - 11-19 05:55Z "Reset. Continue and clarity open questions" -> reading: weekly reset done; order: continue (NET3, WM2 opus now); ask the open owner questions now
 
-- 11-17 23:59Z "62%. Pace looks good. Most usage die to your fable Planung session. How is it going?" -> reading 62 %; pace fine (Fable plan was the cost); question: status
 - 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor
 - 11-17 12:56Z "Not aiming towards 1.0 yet. We remain unstable until daily driving proves stability. Session keeps running in slower pace after 30.11. Try to land as much of our goals until then. Agree?" -> goal: no 1.0 date; 1.0 only after daily driving proves stability; land as much as possible by 11-30, then the session goes on at a slower pace
