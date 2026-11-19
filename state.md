@@ -28,11 +28,12 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | wm1d-r1.md (F2, F3) | sonnet high | session_016iS3kMFcpxEosCsyqBwCBk (07:37) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm7a-r1.md (F3) | opus high | session_016iS3kPRrXrPs57WvWHZBEU (07:40) |
+| kit2c-r1.md (F2) | sonnet high | starting |
 | mv4-r1.md (F4) | sonnet high | session_016iS3kMxQ13N2u6G3eiYh8H (07:40) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6; procedures.md): 57 green; 58 1d1aa5fd (kit2b 517ce830, wm1c 5e72e4f9; MERGE-OK 07:18) running; 59 after 58: cut2 29b2fd25, wm2 12305e5a, net3 dc00d33c, kit6 ad88ebaf, docs-f8b 5f97b0eb (MERGE-OK 07:18-07:52). Pace 1.5-2 %/h.
-5. Next (sonnet unless complex, owner 06:56): KIT2c (+kit6 rw-1, rw-2) after train 58 when a lane frees, KIT2d, KIT3 (F2). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
+5. Next (sonnet unless complex, owner 06:56): KIT2d, KIT3 (F2). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
