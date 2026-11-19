@@ -49,3 +49,55 @@ Findings:
 - rk-6, MINOR, plugins/chora-tiling/src/keys.rs `rows`: the old `binding.contains("MOD")` filter is gone, so a user binding without MOD, and an unlabeled Terminal/Lock/Power/Screenshot binding, now get a row (the shipped yaml is unaffected); not in the report. Fix: name it in the report and docs/configuration.md.
 - rk-7, NIT, plugins/chora-mc/src/keys.rs `all()`: the volume rank `3 + usize::from(*change != Change::Up)` ties Down, Mute and Set and relies on the stable sort and kit's order. Fix: rank by the position in the sheet, or comment it.
 - rk-8, NIT, tests/acts/looks/common.py `EVERY_LOOK`: the act checks nine English wordings; close, terminal, give and German are checked only in the kit cells. Fix: add the actions a look binds to the act, from the table.
+
+## r2
+
+Head 04ea5851 on claude/kit3. Gate (`tests/merge-gate.sh --jobs 3`, once, on the head): all steps passed.
+`tools/cut-check` REPORT lines 19 (was 20 on 5b788c72; 19 on afeebaf9): not grown.
+Red first: 7c44ceb5 (construct, xp, rk-2) and 838c3e35 (rk-4, rk-5, rk-6) fail before their fixes.
+
+- rk-1 done, b43e555b (xp) and 19f5e497 (construct). Both tables go: xp `LINES` and `about` are
+  replaced by `own_words` and `place` (the costume: group and order), construct `help_groups` takes
+  every bound row from `keysheet::rows` (its own actions named by `Own::words`; the four give rows are
+  fed as `Super+Alt+n` bindings of `System::Give`, so their words are kit's). Rows of the Walk group
+  still join several actions (W A S D), as before. Keys that no binding holds (move modifier,
+  `fly_out`, `Alt+y/n`, `Ctrl+period`, the cube keys, Escape) stay rows of the look. I dumped the rows
+  of the shipped config before and after in both looks (construct: 3 binding sets, cube on and off;
+  xp: all held, one key not held): identical, no lost row, no renamed key. A new side effect, named:
+  an action the shipped file does not bind (`volume: {set: N}`) now has a row in both looks.
+- rk-2 done, b43e555b: the xp give row shows while any give key is held.
+- rk-3 done, 8e7ded04: tools/cut-known.toml xp names chora-chat max 4.
+- rk-4 done, 8e7ded04: `give_row` speaks `System::Give` in both languages ("Give window to a look",
+  "Fenster geben an einen Fenstermanager"); the table has a `giverow` line, the kit cell checks it.
+- rk-5 done, 8e7ded04: tiling keeps the thin space (`spell` is gone); docs/api.md is true as written.
+- rk-6 done, 8e7ded04: tiling shows a binding only when it names `MOD`, or when it is a media key of
+  the volume, as before; no change to name.
+- rk-7 done, a642f7ae: mc ranks the volume rows by their place in the sheet. rk-8 not done (the act
+  checks the nine words every look binds; the other actions differ by look and need a per-look list).
+- docs/api.md names the four looks (eb549825).
+
+Merge: origin/claude/autonomous-dev-session-3w-i33pg7 merged (04ea5851). reports/integ.md does not
+exist on the log branch, so claude/integ is not merged; kit5b and kit7 stay for lane integ.
+Resolutions: crates/chora-kit/src/testing.rs (same change both sides, only reordered: theirs);
+plugins/chora-mc/src/region.rs (their split into region/ taken, my one line `keysheet::chord` for
+the chat key re-applied in region/items.rs); docs/api.md (their wording "Such a look applies");
+plugins/chora-xp/src/help.rs (my `rows`, their `fallback(binding, action)` signature);
+tests/acts/known-red.toml (their I3 and pager rows kept, tiling I5 net3-t1 stays gone, mc I5 stays);
+tests/acts/looks/construct.py (their `cube_acts` and helpers, my `keysheet_acts` call before them);
+tools/copies.toml (their move of the kit2d rows, my three KIT3 rows kept).
+
+## Review r2
+
+Review of the r2 fixes on claude/kit3 head 04ea5851 (F2, one round; commits 7c44ceb5 b43e555b 19f5e497 838c3e35 8e7ded04 a642f7ae eb549825). Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 1 MINOR, 2 NIT).
+
+Checks:
+1. Red first: 7c44ceb5 and 838c3e35 are older than their fixes (`git log --oneline 5b788c72..04ea5851`); run on their own commits the new cells fail (construct and xp row cells, xp give row, kit give wording x2, tiling MOD filter and thin space). OK.
+2. rk-1 closed: `LINES`, `about` and the hand rows are gone; xp `rows` and construct `help_groups` draw `keysheet::rows`. I dumped the rows of the shipped config on 5b788c72 and on 04ea5851 (xp: all keys held and Super+e not held; construct: cube off and on) with a throwaway test: both dumps identical (39 and 57 lines), no lost or renamed row. `cargo test -p chora-xp -p chora-construct -p chora-kit --features chora-kit/testing` green; `cargo test -p chora-mc -p chora-tiling --features chora-kit/testing` green.
+3. rk-2 (xp give row on any held key, cell), rk-3, rk-4 (one wording from `System::Give`, `giverow` line in the table), rk-5 (thin space kept, `spell` gone), rk-6 (MOD or media key of Up/Down/Mute, as before: same set as the old `volume_row`), rk-7 (rank by place; kit order Up, Down, Mute, Set) closed as the r2 report says. rk-8 open: the reason holds (the nine words are what every look binds; the other actions differ by look); not a finding.
+4. `tools/cut-check`: 19 REPORT lines, not grown (r1 head: 20); cut-known.toml xp names chora-chat max 4 = the 4 lines counted. With `--base 5b788c72` the new `variants` lines in construct (Change::Set, System::Volume in config.rs) are the named Set row, not a new variant.
+5. No new key, feature or System variant. Side effects named by the lane (xp and construct now show a row for `volume: {set: N}`, and xp for Run and Terminal, when a file binds them) are not in the shipped files.
+
+Findings:
+- rk-9, MINOR, plugins/chora-construct/src/config.rs:460 (`bound`): the row is found by `r.action == action`, but `keysheet::rows` merges bindings of one wording and keeps the action of the first binding, so with `run: fuzzel...` bound on a key that sorts before the `launcher` key the Launcher row has no keys in construct's help (the shipped file binds only `launcher`; before r2 `bound` matched every binding by its action). Fix: take the chords of the row whose `words` equal `keysheet::words(system)` (or of every row that contains a binding of the action) instead of matching the action of the first binding.
+- rk-10, NIT, plugins/chora-construct/src/config.rs:609: the Set rows use `chord(&r.binding)`, the first binding only; a second key for the same `volume: {set: N}` merges into the row's `chords` and is dropped. Fix: use `r.chords` as `bound` does.
+- rk-11, NIT, docs/api.md:490: the added sentence is appended to a wrapped line (144 characters; the paragraph wraps at about 88). Fix: rewrap the paragraph.

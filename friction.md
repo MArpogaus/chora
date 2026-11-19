@@ -417,5 +417,5 @@ review lists `git log <session head>..<sha> --merges`; a merge of an unmerged la
 in the verdict and the sha waits for that branch. Applied in procedures by hand from now.
 
 ## 11-19 14:34 UTC: train 64c red on the matrix time limit (255 s > 240 s, all cells pass, --jobs 3)
-A load flake, not a fault of wm7b or kitcov. Rerun once (64d). For FLAKE-SERIES: the matrix limit under
+Rerun 64d: 250 s. Bisect 14:50: base 05878d2a and the wm7b merge both 235 s alone: no branch at fault, the base drifted from 192 s to the cap. Rule: a time cap has headroom from measured data (slowest under --jobs 3 plus 25 %); lane matrix-cap. For FLAKE-SERIES: the matrix limit under
 --jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.
