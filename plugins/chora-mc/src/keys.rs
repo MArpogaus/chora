@@ -4,7 +4,6 @@
 
 use chora_kit::actions::{Action as Bound, System};
 use chora_kit::keysheet;
-use chora_kit::volume::Change;
 use chora_kit::words::Language;
 
 use crate::config::{Action, Config, Look};
@@ -141,7 +140,7 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
 pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
-    for row in sheet(config) {
+    for (place, row) in sheet(config).into_iter().enumerate() {
         let (rank, at) = match &row.action {
             Action::System(System::Keys) => (0, 0),
             Action::Look(Look::NextScene) => (1, 0),
@@ -157,7 +156,7 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             Action::System(System::Lock) => (9, 0),
             Action::System(System::Power) => (9, 1),
             Action::System(System::Screenshot) => (9, 2),
-            Action::System(System::Volume(change)) => (9, 3 + usize::from(*change != Change::Up)),
+            Action::System(System::Volume(_)) => (9, 3 + place),
             Action::Look(Look::PreviousScene)
             | Action::System(
                 System::Drag
