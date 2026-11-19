@@ -417,5 +417,5 @@ review lists `git log <session head>..<sha> --merges`; a merge of an unmerged la
 in the verdict and the sha waits for that branch. Applied in procedures by hand from now.
 
 ## 11-19 14:34 UTC: train 64c red on the matrix time limit (255 s > 240 s, all cells pass, --jobs 3)
-A load flake, not a fault of wm7b or kitcov. Rerun once (64d). For FLAKE-SERIES: the matrix limit under
+Rerun 64d: 250 s. Not a flake: 50 earlier runs 192-231 s; wm7b or kitcov slows the matrix ~35 s (bisect). For FLAKE-SERIES: the matrix limit under
 --jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.
