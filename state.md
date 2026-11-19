@@ -34,7 +34,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | gate-pick-r1.md (F6) | sonnet medium | MERGE-OK 31cfe52d, train 74 |
 | kc-fix-r1.md (F2) | sonnet low | MERGE-OK f666a025, train 75 |
 | temp-dirs-r1.md (F5) | sonnet high | session_016iS3kQayjpPhdEwcyCx7q9 (21:34) |
-| flake-k-r1.md (F5) | sonnet high | starting from 219d5afe |
+| flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH (21:43) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 72 green 21:03. 73b: hud flake, reruns after 74. 74 running 21:36: id-gate, gate-pick. 75: flake-i e5e44719, kit-connect f7569c24, kit-minors e4208314, kc-fix f666a025, then flake-h, flake-j.
