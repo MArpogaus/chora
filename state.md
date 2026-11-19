@@ -25,7 +25,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 | Lane | Model, branch | State |
 |---|---|---|
 | kit1-r1.md (F2) | sonnet high, claude/kit1 | merged train 54 01:48; opus security MERGE-OK 0 BLOCK/MAJOR, 6 MINOR to backlog |
-| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | starting 03:4x (owner: use the last 2 %) |
+| docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | running session_016iS3kMRsiR4v7muvLbd2bf 03:38; start check 03:45 (owner: use the last 2 %) |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
 
 ## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
