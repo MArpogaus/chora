@@ -28,3 +28,24 @@ Kit coverage (`XDG_RUNTIME_DIR=<0700 dir> RUSTC_WRAPPER= cargo llvm-cov -p chora
 3. mc, construct, xp pass `Language::En`; take the session language through one `Language::of_session` in each costume once their own words are translated (S).
 4. xp `LINES` has empty text slots for System lines; replace by `Option<&str>` (S).
 5. The three volume keys as one row in tiling is a costume rule; a `Row` merge hook in kit would let any look do it (S).
+
+## Review r1
+
+Review of claude/kit3 head 5b788c72 (F2, one round). Verdict: **FIX** (1 MAJOR, 5 MINOR, 2 NIT; no BLOCK).
+
+Checks:
+1. Red first: a7916c4 is older than b887205 (`git log --oneline afeebaf9..5b788c72`). OK.
+2. keysheet.rs builds rows from the bindings; one wording per System action (EN, DE), one chord spelling; no new feature, key or System variant. `cargo test -p chora-kit --features chora-kit/testing --test keysheet`: 7 pass (the name filter `keysheet` matches 0 tests, use `--test keysheet`). OK.
+3. mc `words()` and `volume_order` gone; no look keeps a System word table. But two looks keep their own row table, see rk-1. copies.toml KIT3 rows at 0; cut-check REPORT lines 19 on afeebaf9, 20 on head (the extra line is rk-3); the 7 `variants` lines with `--base afeebaf9` are moved match arms, not new variants.
+4. `cargo test -p chora-mc -p chora-tiling -p chora-xp -p chora-construct`: all green (199, 141, 156, 187). No renamed key or lost row in the shipped configs. The visible wording changes go beyond capitals/Esc/Return, but all are named in the report and follow from item 1 (one wording per action).
+5. known-red.toml: tiling I5 row and its selftest gone, mc I5 (net3-m1) stays; docs/api.md names the rows. OK.
+
+Findings:
+- rk-1, MAJOR, plugins/chora-construct/src/config.rs:498-620 and plugins/chora-xp/src/help.rs:92-108 (`LINES`, `rows`): construct and xp still keep their own row tables (hand rows, `LINES`) and take only `keysheet::words`/`chord`; `keysheet::rows` has two callers, mc and tiling (`grep -rn "keysheet::rows" plugins`). Brief items 2 and 3 ("every look's own row table goes", "only rows come from kit") are not met, and the report ("construct help (hand rows) gone") overstates it. Fix: port construct and xp to `keysheet::rows` with `named` for their own actions, or have the PM accept it and record the two tables as a follow-up (refactor proposal 2).
+- rk-2, MINOR, plugins/chora-xp/src/help.rs:170: the give row shows only when all four give keys are held (was: the span first..last of the held ones); with one key held by another client the row is lost. Fix: show the row when any is held, or say in docs/api.md that it needs all four.
+- rk-3, MINOR, tools/cut-known.toml (xp names chora-chat): the count fell from 6 to 4, so cut-check reports "lower max from 6"; the only REPORT line that grew. Fix: set max = 4.
+- rk-4, MINOR, crates/chora-kit/src/keysheet.rs:give_row: German give row "Fenster an einen Fenstermanager geben" is not in tests/keysheet/words.table and differs from `System::Give` "Fenster geben an {}". Fix: put both wordings in the table and the cell, one wording for both.
+- rk-5, MINOR, plugins/chora-tiling/src/keys.rs `spell`: it strips the thin space that `keysheet::chord` puts before an arrow, so tiling spells a chord differently from the other three looks, and docs/api.md says the thin space is universal; no cell sees it (the act splits on "+"). Fix: keep the thin space in tiling, or name it as a costume rule in docs/api.md.
+- rk-6, MINOR, plugins/chora-tiling/src/keys.rs `rows`: the old `binding.contains("MOD")` filter is gone, so a user binding without MOD, and an unlabeled Terminal/Lock/Power/Screenshot binding, now get a row (the shipped yaml is unaffected); not in the report. Fix: name it in the report and docs/configuration.md.
+- rk-7, NIT, plugins/chora-mc/src/keys.rs `all()`: the volume rank `3 + usize::from(*change != Change::Up)` ties Down, Mute and Set and relies on the stable sort and kit's order. Fix: rank by the position in the sheet, or comment it.
+- rk-8, NIT, tests/acts/looks/common.py `EVERY_LOOK`: the act checks nine English wordings; close, terminal, give and German are checked only in the kit cells. Fix: add the actions a look binds to the act, from the table.
