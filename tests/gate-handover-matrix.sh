@@ -38,7 +38,11 @@
 # than the cap. The cap is a guard against a hang, not a speed test: 315 s
 # is the slowest of five runs under `tests/merge-gate.sh --only
 # matrix,layout,doors --jobs 3` on 4 CPUs (226, 228, 234, 243 and 249 s)
-# plus 25 %. It prints the matrix and
+# plus 25 %. The run time is the script's own: from the moment it holds the
+# gate lock (gate_elapsed of tests/gate-lib.sh) to its end, so a wait in
+# the queue of the gate or for a lock is not in it, and the PASS line prints
+# that time and the cap. A breach prints the five slowest cells with their
+# times. It prints the matrix and
 # one line per cell in $SHOTS/matrix.log, and a line `phase NAME Ns` for the
 # startup, the start of the voice and the panes cell, so that the run time
 # can be told by part. The start of the voice waits for the eof of the
@@ -267,6 +271,12 @@ rects_stable() {
 }
 
 phase() { echo "phase $1 $((SECONDS - $2))s" >>"$log"; }
+slowest_fail() {
+    local cells
+    cells=$(awk '$1 != "phase" && $NF ~ /^[0-9]+s$/ {t = $NF; sub(/s$/, "", t); print t, $1, $2, $3}' "$log" |
+        sort -rn | head -n 5 | awk '{printf "%s %s %s %ss; ", $2, $3, $4, $1}')
+    fail "$1; the five slowest cells: ${cells:-none}"
+}
 repairs=0
 repair() {
     repairs=$((repairs + 1))
@@ -456,7 +466,7 @@ expected_of() { echo "$EXPECTED" | awk -v k="$1 $2 $3" '$1" "$2" "$3 == k {print
 
 cell() {
     local src=$1 dst=$2 path=$3 want result owner_s settle_s=1 t0=$SECONDS o
-    [ "$SECONDS" -le "$time_cap" ] || fail "the run takes more than $time_cap s at $src $dst $path"
+    [ "$(gate_elapsed)" -le "$time_cap" ] || slowest_fail "the run takes more than $time_cap s at $src $dst $path"
     want=$(expected_of "$src" "$dst" "$path")
     [ -n "$want" ] || fail "no EXPECTED line for $src $dst $path"
     if [ "$injected_keys" = 0 ] && [ "$path" = key ] && [ "$src" != construct ]; then
@@ -547,7 +557,7 @@ panes_cell() {
     [ "$result" = "$want" ] || mismatches+=("mc construct panes: measured $result, expected $want: $names")
 }
 
-phase startup 0
+phase startup "$gate_t0"
 pairs=()
 for s in tiling xp construct mc; do
     for d in tiling xp mc construct; do
@@ -596,10 +606,11 @@ if [ "$keys_ran" = 1 ] && [ "$injected_keys" != 0 ] && [ "$(served_by | tr '\n' 
 fi
 [ -z "${ONLY:-}" ] || echo "ONLY is set: the table is not fully checked"
 echo "repairs of the setup: $repairs (see $log)"
-echo "run time: ${SECONDS}s"
+run_s=$(gate_elapsed)
+echo "run time: ${run_s}s"
 if [ "${#mismatches[@]}" != 0 ]; then
     printf 'MISMATCH %s\n' "${mismatches[@]}" >&2
     fail "${#mismatches[@]} cells differ from EXPECTED; see $log"
 fi
-[ "$SECONDS" -le "$time_cap" ] || fail "the run took ${SECONDS}s, more than $time_cap s"
-ok "gate-handover-matrix: every cell as in EXPECTED${ONLY:+ that ran} in ${SECONDS}s"
+[ "$run_s" -le "$time_cap" ] || slowest_fail "the run took ${run_s}s, more than $time_cap s"
+ok "gate-handover-matrix: every cell as in EXPECTED${ONLY:+ that ran} in ${run_s}s of at most ${time_cap}s"

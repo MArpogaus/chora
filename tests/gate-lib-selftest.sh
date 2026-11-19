@@ -3,7 +3,8 @@
 # with a failure, ends at once and leaves none of its programs behind,
 # also not one that it stopped with SIGSTOP to force a late answer. Its
 # lock: a gate script waits while another gate holds the lock, and says
-# so. Its session_start with the env file of an earlier session of the
+# so; the time of a gate (gate_elapsed) starts when it has the lock, not
+# in the queue for it. Its session_start with the env file of an earlier session of the
 # same name (gate-construct-pull.sh runs `pull behind` twice): with the
 # new session held 1 s before its redirect truncates the file, as on a
 # busy machine (F21), it takes the socket of the new session, not the
@@ -70,6 +71,22 @@ if ! awk -v a="$(cat "$work/started")" -v b="$(cat "$work/released")" 'BEGIN { e
 fi
 if ! grep -q '^gate: waits for' "$work/out"; then
     echo "FAIL: a gate script that waits for the lock does not say so: $(cat "$work/out")"
+    failures=$((failures + 1))
+fi
+(
+    flock 9
+    touch "$work/held2"
+    sleep 3
+) 9>"$CHORA_GATE_LOCK" &
+for _ in $(seq 50); do
+    [ -e "$work/held2" ] && break
+    sleep 0.1
+done
+queued=$(timeout 15 bash -c '. "$1/tests/gate-lib.sh"; echo "$SECONDS $(gate_elapsed)"' gate "$repo" 2>/dev/null | tail -n 1)
+wait
+read -r queued_seconds queued_elapsed <<<"$queued"
+if [ "${queued_seconds:-0}" -lt 2 ] || [ "${queued_elapsed:-9}" != 0 ]; then
+    echo "FAIL: gate_elapsed counts the wait for the gate lock: shell time ${queued_seconds:-none} s, gate_elapsed ${queued_elapsed:-none} s (want 0 after a 3 s wait)"
     failures=$((failures + 1))
 fi
 mkdir "$work/own" "$work/other"

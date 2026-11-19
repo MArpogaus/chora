@@ -9,6 +9,8 @@
 # session_start OUTPUTS [-- STARTUP...] starts a headless session; its env
 # file (env_file, else a new one) is emptied first, so that a session of a
 # name used before never reads the socket of the old one (F21).
+# gate_elapsed prints the seconds since the gate has the lock: the wait in
+# the queue for the lock is not in it (SECONDS counts from the shell start).
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
 # software EGL for the headless renderer (CONTRIBUTING.md)
@@ -41,6 +43,8 @@ need_bins() {
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 . "$repo/tests/gate-lock.sh"
 gate_lock "$(basename "$0")" || fail "cannot take the gate lock"
+gate_t0=$SECONDS
+gate_elapsed() { echo $((SECONDS - gate_t0)); }
 pids=()
 tmp_dirs=()
 # gate_cleanup [STATUS]: the EXIT trap. It ends the session and the
