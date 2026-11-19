@@ -127,7 +127,8 @@ want_line '^FAIL: cut-check: copies: copied' "copies at 0"
 rm "$work/tools/copies.toml"
 sed -i '/copied/d' "$work/plugins/beta/src/main.rs"
 
-printf 'pub enum System { Quit, Zoom }\npub enum Local { Zoom }\n' >"$work/crates/chora-kit/src/lib.rs"
+printf 'pub enum System { Quit, Zoom }\n' >"$work/crates/chora-kit/src/lib.rs"
+printf 'enum Local { Zoom }\n' >>"$work/plugins/beta/src/main.rs"
 printf '/target\n' >"$work/.gitignore"
 git -C "$work" init -q
 git -C "$work" add -A

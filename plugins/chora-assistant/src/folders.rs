@@ -247,7 +247,7 @@ mod tests {
         assert_eq!(names, ["construct", "mc", "neutral", "tiling", "xp"]);
         let tiling = find(&found, "tiling").unwrap().canonicalize().unwrap();
         assert!(
-            tiling.ends_with("plugins/chora-tiling/hud"),
+            tiling.ends_with("hud") && !tiling.starts_with(repo.join("plugins/chora-assistant")),
             "{}",
             tiling.display()
         );

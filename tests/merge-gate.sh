@@ -36,7 +36,9 @@
 # range, with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/size-ratchet (a file over 1,500 production lines may not grow) and
-# tools/cut-check (a plugin may not depend on a plugin), each with its self-test.
+# tools/cut-check (blocking: a plugin depending on a plugin or an extra workspace crate, an asset or
+# link that leaves its crate, a name of another plugin beyond tools/cut-known.toml; it reports the
+# new match arms on a kit enum since the merge base), each with its self-test.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -158,7 +160,7 @@ gate-lib|tests/gate-lib-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
-ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/cut-check && tests/cut-check-selftest.sh
+ci-check|tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh
 2d-guard|tests/2d-guard.sh 8742dee
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
