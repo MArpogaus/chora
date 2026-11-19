@@ -8,9 +8,9 @@ can use it. The plugins move into repositories of their own with 1.0
 ```text
 chora/
 ├── crates/
-│   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
+│   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client, paths (D101); no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
-│   ├── chora-kit/     # building blocks for plugins: the plugin runtime, wobbly windows, magic lamp, XDG dirs, icons, desktop entries
+│   ├── chora-kit/     # building blocks for plugins: the plugin runtime, shared actions, questions, words, the window book (wm), FakeCore (testing), wobbly windows, magic lamp, icons, desktop entries (D96 to D102)
 │   ├── chora-draw/    # library of the blocks: asset folders, SVG and text rasterized into image nodes, bubbles (D73)
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
