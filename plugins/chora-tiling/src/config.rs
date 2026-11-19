@@ -4,7 +4,10 @@
 
 use std::{collections::BTreeMap, path::Path};
 
-use chora_kit::settings::Settings;
+use chora_kit::{
+    actions::System,
+    settings::{Common, Settings},
+};
 use chora_scene::{Binding, ShaderEffect};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -48,12 +51,12 @@ pub enum Focus {
     FollowMouse,
 }
 
-/// What a binding does.
+/// What a binding does in tiling and in no other look: the windows, the
+/// layouts and the tags. The rest, a command, a close, a give, a drag, the
+/// volume and the key list, is [`System`].
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub enum Action {
-    /// Runs a shell command as an app.
-    Run(String),
+pub enum Own {
     FocusNext,
     FocusPrevious,
     /// Focuses the window that had the focus before.
@@ -64,7 +67,6 @@ pub enum Action {
     SwapPrevious,
     /// Swaps the focused window with the master.
     MoveToMaster,
-    Close,
     ToggleFloating,
     ToggleFullscreen,
     ToggleMaximized,
@@ -100,21 +102,37 @@ pub enum Action {
     ViewBack,
     /// Reads the configuration file again.
     Reload,
-    /// Gives the focused window to the window manager of this name (D55),
-    /// whoever owns it.
-    Give(String),
-    /// On a pointer button: drags the window under the pointer. Dropped
-    /// in the claim of another window manager, it goes there (D55).
-    Drag,
-    /// Changes the volume of the default sound output and shows it for
-    /// a moment: `up`, `down`, `mute` or `{set: PERCENT}`.
-    Volume(chora_kit::volume::Change),
-    /// Shows the list of all keys, or hides it.
-    ShowKeys,
     /// Does nothing and keeps the key from the program: the action of
     /// every `MOD` chord that no binding uses. It is not a setting.
     #[serde(skip)]
     Swallow,
+}
+
+/// The action of a binding: one of every look, or one of tiling.
+pub type Action = chora_kit::actions::Action<Own>;
+
+impl From<Own> for Action {
+    fn from(own: Own) -> Self {
+        Self::Look(own)
+    }
+}
+
+/// Whether tiling does the system action: a command, a close, a give, a
+/// drag, the volume and the key list. The terminal, the launcher, the
+/// chat, the locker, the power menu and the screenshot are commands of
+/// its bindings (`run`), a step through the desks and a turn of the cube
+/// have no meaning here.
+#[must_use]
+pub const fn acts_in_tiling(system: &System) -> bool {
+    matches!(
+        system,
+        System::Run(_)
+            | System::Close
+            | System::Give(_)
+            | System::Drag
+            | System::Volume(_)
+            | System::Keys
+    )
 }
 
 /// The keys that `MOD` chords swallow when no binding uses them: letters,
@@ -358,10 +376,9 @@ pub const MAX_RADIUS: u16 = 64;
 pub struct Config {
     /// What `MOD` means in the bindings.
     pub modifier: String,
-    /// For tests only: take the keys of `input.inject` as keys of the
-    /// user. Off, the bindings ignore injected keys.
-    #[serde(default)]
-    pub test_accept_injected_keys: bool,
+    /// The bindings and the switch of the tests, as every look has them.
+    #[serde(flatten)]
+    pub common: Common<Own>,
     /// The gap of the old look, in logical pixels around each window: the
     /// edge gets it, two tiles get twice. It applies where `look` has
     /// `null` for a gap, and `set_layout` sets it.
@@ -386,8 +403,6 @@ pub struct Config {
     /// The window effects that tiling drives: `wobbly` and `lamp`.
     #[serde(default)]
     pub effects: Vec<chora_kit::effects::Kind>,
-    /// Binding with `MOD`, and its action.
-    pub bindings: BTreeMap<String, Action>,
     /// The words of a binding in the key list, by the binding as the file
     /// spells it; a binding without one gets the words of its action, and
     /// `run` its command.
@@ -396,6 +411,20 @@ pub struct Config {
 }
 
 impl Settings for Config {
+    fn refuse(&mut self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        self.common.bindings.retain(|key, action| {
+            let unfit = matches!(action, Action::System(s) if !acts_in_tiling(s));
+            if unfit {
+                warnings.push(format!(
+                    "chora-tiling: the binding {key} is dropped: tiling has no action for {action:?}"
+                ));
+            }
+            !unfit
+        });
+        warnings
+    }
+
     fn check(&self) -> Result<(), String> {
         if !(1..=MAX_TAGS).contains(&self.tags) {
             return Err(format!("tags: 1 to {MAX_TAGS}"));
@@ -426,30 +455,27 @@ impl Settings for Config {
                 .map_err(|e| format!("style.effects: no shader file {e}"))?;
         }
         let mut keys = BTreeMap::new();
-        for (binding, action) in &self.bindings {
+        for (binding, action) in &self.common.bindings {
             // Two spellings of one key would lose one grab at runtime.
             if let Some(other) = keys.insert(self.binding(binding)?.to_string(), binding) {
                 return Err(format!("{binding}: the same key as {other}"));
             }
-            if let Action::Run(command) = action
+            if let Action::System(System::Run(command)) = action
                 && command.trim().is_empty()
             {
                 return Err(format!("{binding}: run takes a command"));
             }
-            if let Action::Give(to) = action
+            if let Action::System(System::Give(to)) = action
                 && to.trim().is_empty()
             {
                 return Err(format!("{binding}: give takes a client name"));
             }
-            if let Action::IncMasterWidth(step) = action
-                && !step.is_finite()
-            {
-                return Err(format!("{binding}: inc_master_width takes a number"));
-            }
-            if let Action::ViewTag(n)
-            | Action::ToggleTagView(n)
-            | Action::MoveToTag(n)
-            | Action::ToggleWindowTag(n) = action
+            if let Action::Look(
+                Own::ViewTag(n)
+                | Own::ToggleTagView(n)
+                | Own::MoveToTag(n)
+                | Own::ToggleWindowTag(n),
+            ) = action
                 && !(1..=self.tags).contains(n)
             {
                 return Err(format!("{binding}: no tag {n}"));
@@ -525,11 +551,8 @@ mod tests {
             "MOD+l: {inc_master_width: .nan}",
         );
         assert_ne!(nan, DEFAULT);
-        assert!(
-            parse::<Config>(&nan)
-                .unwrap_err()
-                .contains("takes a number")
-        );
+        let err = parse::<Config>(&nan).unwrap_err();
+        assert!(err.contains("non-finite"), "{err}");
     }
 
     #[test]
@@ -570,7 +593,10 @@ mod tests {
             "MOD+g: {give: xp}\n  MOD+Ctrl+r: reload",
         );
         let config = parse::<Config>(&give).unwrap();
-        assert_eq!(config.bindings["MOD+g"], Action::Give("xp".into()));
+        assert_eq!(
+            config.common.bindings["MOD+g"],
+            Action::System(System::Give("xp".into()))
+        );
         let empty = give.replace("{give: xp}", "{give: ' '}");
         assert!(
             parse::<Config>(&empty)
@@ -585,8 +611,8 @@ mod tests {
         assert_eq!(config.tags, 9);
         assert_eq!(config.layouts[0], Layout::Tile);
         assert_eq!(
-            config.bindings["MOD+Return"],
-            Action::Run("chora-tiling --launch foot".into())
+            config.common.bindings["MOD+Return"],
+            Action::System(System::Run("chora-tiling --launch foot".into()))
         );
         assert_eq!(
             config.binding("MOD+Shift+1").unwrap().to_string(),
@@ -602,7 +628,10 @@ mod tests {
             ("XF86AudioLowerVolume", Change::Down),
             ("XF86AudioMute", Change::Mute),
         ] {
-            assert_eq!(config.bindings[key], Action::Volume(change));
+            assert_eq!(
+                config.common.bindings[key],
+                Action::System(System::Volume(change))
+            );
             assert_eq!(config.binding(key).unwrap().to_string(), key);
         }
     }
@@ -652,5 +681,127 @@ mod tests {
         assert!(err.contains("effects"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
         assert!(parse::<Config>(&modifier).is_err());
+    }
+
+    /// The bindings of a loaded config as the head 29e2cd77 spelled them:
+    /// one key and its action as JSON, per line.
+    fn old_table(config: &Config) -> String {
+        use std::fmt::Write;
+        let bindings = serde_json::to_value(config).unwrap()["bindings"].clone();
+        let mut table = String::new();
+        for (key, action) in bindings.as_object().unwrap() {
+            let action = if action == "keys" {
+                "\"show_keys\"".into()
+            } else {
+                action.to_string()
+            };
+            writeln!(table, "{key}\t{action}").unwrap();
+        }
+        table
+    }
+
+    /// The shipped config of head 29e2cd77 and a user file that has only
+    /// bindings load to the same table of keys as before kit took the
+    /// shared actions (KIT2c): `tests/configs/29e2cd77/tiling*.table` were
+    /// recorded on that head, one key and its action as it spelled it
+    /// then.
+    #[test]
+    fn the_configs_of_29e2cd77_load_to_the_same_table() {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs/29e2cd77");
+        for name in ["tiling", "tiling-user"] {
+            let file = chora_kit::settings::File::<Config>::load(
+                dir.join(format!("{name}.yaml")),
+                DEFAULT,
+            )
+            .unwrap();
+            assert_eq!(file.broken(), None, "{name} loads");
+            let table = old_table(&file.value);
+            let golden = dir.join(format!("{name}.table"));
+            if std::env::var_os("CHORA_BLESS").is_some() {
+                std::fs::write(&golden, &table).unwrap();
+            }
+            assert_eq!(table, std::fs::read_to_string(&golden).unwrap(), "{name}");
+        }
+    }
+
+    /// One YAML binding gives one `System` action in every look: the file
+    /// `tests/configs/system-bindings.yaml` loads to its `.table` here as
+    /// it does in mc and the construct. What tiling has no action for,
+    /// the terminal, the launcher, the chat, the locker, the power menu,
+    /// the screenshot, a step through the desks and a turn of the cube,
+    /// is dropped; the rest is the line of the table.
+    #[test]
+    fn one_binding_gives_the_same_system_action_in_every_look() {
+        use std::fmt::Write;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs");
+        let path =
+            std::env::temp_dir().join(format!("chora-tiling-system-{}.yaml", std::process::id()));
+        std::fs::copy(dir.join("system-bindings.yaml"), &path).unwrap();
+        let file = chora_kit::settings::File::<Config>::load(path.clone(), DEFAULT).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(file.broken(), None);
+        let golden = std::fs::read_to_string(dir.join("system-bindings.table")).unwrap();
+        let kept = [
+            "Super+BTN_LEFT",
+            "Super+F1",
+            "Super+F10",
+            "Super+F11",
+            "Super+F12",
+            "Super+g",
+            "Super+r",
+            "Super+slash",
+            "Super+x",
+            "XF86AudioLowerVolume",
+            "XF86AudioMute",
+            "XF86AudioRaiseVolume",
+        ];
+        let mut expected = String::new();
+        for line in golden.lines() {
+            if kept.contains(&line.split('\t').next().unwrap()) {
+                writeln!(expected, "{line}").unwrap();
+            }
+        }
+        let bindings = serde_json::to_value(&file.value).unwrap()["bindings"].clone();
+        let mut table = String::new();
+        for (key, action) in bindings.as_object().unwrap() {
+            writeln!(table, "{key}\t{action}").unwrap();
+        }
+        assert_eq!(table, expected);
+    }
+
+    /// A binding that tiling has no action for is dropped with one warning
+    /// that names the key, and the rest of the file loads: the terminal,
+    /// the launcher, the chat, the locker, the power menu, the screenshot,
+    /// a step through the desks and a turn of the cube.
+    #[test]
+    fn a_system_action_without_meaning_in_tiling_is_dropped_with_a_warning() {
+        use chora_kit::settings::Settings;
+        for unfit in [
+            "terminal",
+            "launcher",
+            "chat",
+            "lock",
+            "power",
+            "screenshot",
+            "{desk: next}",
+            "{cube: left}",
+        ] {
+            let text = DEFAULT.replace(
+                "  MOD+Shift+Escape: {run: loginctl lock-session}\n",
+                &format!("  MOD+Shift+Escape: {unfit}\n"),
+            );
+            assert_ne!(text, DEFAULT);
+            let mut config = parse::<Config>(&text).unwrap();
+            let warnings = config.refuse();
+            assert_eq!(warnings.len(), 1, "{unfit}: {warnings:?}");
+            assert!(
+                warnings[0].contains("MOD+Shift+Escape"),
+                "{unfit}: {warnings:?}"
+            );
+            let bindings = serde_json::to_value(&config).unwrap()["bindings"].clone();
+            assert_eq!(bindings.get("MOD+Shift+Escape"), None, "{unfit}");
+            assert!(bindings.get("MOD+j").is_some(), "{unfit}");
+        }
     }
 }

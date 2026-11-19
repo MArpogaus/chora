@@ -203,7 +203,7 @@ impl Mc {
             _ => command.into(),
         };
         let mint = self.rt.conn.activation_token();
-        let Some((token, pid)) = launch(&command, mint.as_deref()) else {
+        let Some((token, pid)) = launch::start(&command, mint.as_deref()) else {
             return Ok(());
         };
         self.starting.insert(token, Target::Scene(name.into()));
@@ -224,7 +224,7 @@ impl Mc {
             .retain(|(name, _)| !windows.contains_key(name));
         let (ended, running) = std::mem::take(&mut self.launched)
             .into_iter()
-            .partition(|(_, pid)| !pid.is_some_and(chora_kit::alive));
+            .partition(|(_, pid)| !pid.is_some_and(chora_kit::launch::alive));
         self.launched = running;
         let ended: Vec<(String, Option<u32>)> = ended;
         for (name, _) in ended {
