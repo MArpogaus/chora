@@ -680,13 +680,21 @@ fn a_window_pulled_during_the_flight_into_it_comes_at_1_to_1_where_the_camera_st
         velocity: [0.0; 2],
         wobble: None,
     };
-    construct.take_pulled("s1", [640.0, 400.0], &grab).unwrap();
+    construct.take_pulled("s1", [1480.0, 400.0], &grab).unwrap();
     let rest = construct.target();
     assert_eq!((rest.x, rest.z), (back.x, back.z), "the camera turns back");
-    let depth = space::depth(&rest, construct.panes[0].at);
+    let pane = &construct.panes[0];
+    let depth = space::depth(&rest, pane.at);
     assert!(
         depth <= construct.lens.focal + 1e-6,
         "the pane is {depth} deep where the camera stays, behind 1:1 at {}",
         construct.lens.focal
+    );
+    let faces = space::facing([rest.x, rest.z], pane.at);
+    assert!(
+        (pane.yaw - faces).abs() < 1e-9,
+        "the pane at the right edge turns to the pose of the flight, yaw {}, not to where the \
+         camera stays, yaw {faces}",
+        pane.yaw
     );
 }
