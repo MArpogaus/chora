@@ -536,8 +536,8 @@ fn load_assets(dir: &Path, cache: &Path) -> Result<(Theme, Values), String> {
 mod tests {
     use super::*;
 
-    fn cache(test: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("chora-notify-{test}-{}", std::process::id()))
+    fn cache(test: &str) -> chora_kit::testing::TempDir {
+        chora_kit::testing::TempDir::new(&format!("chora-notify-{test}"))
     }
 
     #[test]
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     fn a_missing_picture_names_its_file() {
-        let dir = std::env::temp_dir().join(format!("chora-notify-empty-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-notify-empty");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("values.yaml"), "{}\n").unwrap();
         let err = load_assets(&dir, &cache("empty")).err().expect("an error");

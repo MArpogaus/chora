@@ -204,9 +204,7 @@ mod tests {
     fn flavor(core: &FakeCore, tag: &str) -> Construct {
         let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
         rt.pin_accepts_injected(false);
-        let dir =
-            std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-construct-{tag}")).keep();
         let file = dir.join("chora-construct.yaml");
         let settings = settings::File::load(file, config::DEFAULT).unwrap();
         let shaders = |name: &str, _: &str| Ok(dir.join(name).to_string_lossy().into_owned());

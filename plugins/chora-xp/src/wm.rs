@@ -942,8 +942,7 @@ mod tests {
         tag: &str,
         refused: &'static [&'static str],
     ) -> (Runtime<KeyAction>, Log) {
-        let dir = std::env::temp_dir().join(format!("chora-xp-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-xp-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let core = FakeCore::start();
         for binding in refused {
@@ -968,8 +967,7 @@ mod tests {
         reason = "the test answers the requests of its fake core"
     )]
     pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
-        let dir = std::env::temp_dir().join(format!("chora-xp-wm-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-xp-wm-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let output = chora_scene::OutputInfo {
             name: "X".into(),
@@ -1020,8 +1018,7 @@ mod tests {
     /// keeps the scene model that the script of the life of a window
     /// reads.
     pub(super) fn wm_on_kit_core(core: &chora_kit::testing::FakeCore, tag: &str) -> Wm {
-        let dir = std::env::temp_dir().join(format!("chora-xp-kit-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-xp-kit-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         wm_on(core.connect(NAME), &dir)
     }

@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn fuzzel_takes_the_look_of_xp() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-themed-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-xp-themed");
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("fuzzel.ini");
         std::fs::write(&file, "[main]\n").unwrap();

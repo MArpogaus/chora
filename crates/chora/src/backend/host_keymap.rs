@@ -116,7 +116,8 @@ mod tests {
 
     #[test]
     fn a_keymap_ends_at_its_nul() {
-        let path = std::env::temp_dir().join(format!("chora-keymap-{}", std::process::id()));
+        let dir = crate::testing::TempDir::new("chora-keymap");
+        let path = dir.join("keymap");
         File::create(&path)
             .unwrap()
             .write_all(b"xkb_keymap {};\0")

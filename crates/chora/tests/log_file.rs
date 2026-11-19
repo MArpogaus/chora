@@ -4,6 +4,9 @@
 
 #![allow(clippy::unwrap_used, reason = "a test: a failed step fails it")]
 
+#[path = "../src/testing/temp_dir.rs"]
+mod temp_dir;
+
 use std::{
     fs,
     path::Path,
@@ -39,9 +42,7 @@ fn headless(work: &Path, runtime: &str, stderr: &Path) -> Child {
 
 #[test]
 fn a_second_chora_leaves_the_log_of_the_first() {
-    let work = std::env::temp_dir().join(format!("chora-log-second-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&work);
-    fs::create_dir_all(&work).unwrap();
+    let work = temp_dir::TempDir::new("chora-log-second");
     let log = work.join("state/chora/logs/chora.log");
     let mut first = headless(&work, "first", &work.join("first.log"));
     let first_log = wait_for(&log, "chora runs");
@@ -69,8 +70,7 @@ fn a_second_chora_leaves_the_log_of_the_first() {
 
 #[test]
 fn the_log_file_has_the_start_and_the_last_words_of_a_panic() {
-    let work = std::env::temp_dir().join(format!("chora-log-file-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&work);
+    let work = temp_dir::TempDir::unmade("chora-log-file");
     let runtime = work.join("runtime");
     fs::create_dir_all(&runtime).unwrap();
     let stderr = work.join("stderr.log");

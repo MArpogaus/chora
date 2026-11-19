@@ -14,6 +14,8 @@ mod events;
 mod mcp;
 mod record;
 mod schema;
+#[cfg(test)]
+mod temp_dir;
 mod view;
 
 use std::{
@@ -1359,8 +1361,8 @@ mod tests {
     #[test]
     fn the_fallback_starts_the_program_with_the_token() {
         let token = format!("tok-{}", std::process::id());
-        let out = std::env::temp_dir().join(format!("chora-run-{}.txt", std::process::id()));
-        let _ = std::fs::remove_file(&out);
+        let dir = crate::temp_dir::TempDir::new("chora-run");
+        let out = dir.join("out.txt");
         let script = format!("printf %s \"$XDG_ACTIVATION_TOKEN\" > {}", out.display());
         let program = ["sh".into(), "-c".into(), script];
         let pid = super::start_child(&program, &token).expect("the program starts");
@@ -1412,7 +1414,7 @@ mod tests {
     /// the socket itself name the same unit.
     #[test]
     fn a_symlink_to_the_socket_names_the_same_unit() {
-        let dir = std::env::temp_dir().join(format!("choractl-unit-{}", std::process::id()));
+        let dir = crate::temp_dir::TempDir::unmade("choractl-unit");
         std::fs::create_dir_all(&dir).unwrap();
         let socket = dir.join("ipc.sock");
         std::fs::write(&socket, "").unwrap();

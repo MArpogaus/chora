@@ -216,14 +216,8 @@ pub fn list(dir: &Path) -> Vec<String> {
 mod tests {
     use super::*;
 
-    fn temp_dir() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "chora-construct-test-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        drop(std::fs::remove_dir_all(&dir));
-        dir
+    fn temp_dir() -> chora_kit::testing::TempDir {
+        chora_kit::testing::TempDir::unmade("chora-construct-test")
     }
 
     /// Save and load give the same construct back, to the last bit of

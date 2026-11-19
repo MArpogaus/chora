@@ -138,10 +138,8 @@ mod tests {
 
     use super::*;
 
-    fn temp(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-logs-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        dir
+    fn temp(name: &str) -> crate::temp_dir::TempDir {
+        crate::temp_dir::TempDir::unmade(&format!("chora-logs-{name}"))
     }
 
     fn read(path: PathBuf) -> String {

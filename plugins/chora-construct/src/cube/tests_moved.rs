@@ -37,11 +37,7 @@ fn on_fake_core(
     tag: &str,
     answer: fn(&str, &Value) -> Option<Value>,
 ) -> (Construct, Log, FakeCore) {
-    let dir = std::env::temp_dir().join(format!(
-        "chora-construct-moved-{tag}-{}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = chora_kit::testing::TempDir::new(&format!("chora-construct-moved-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = FakeCore::start();
     core.respond(answer);

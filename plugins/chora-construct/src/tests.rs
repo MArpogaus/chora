@@ -547,8 +547,7 @@ fn an_injected_pointer_does_not_drive_the_look() {
     reason = "the test connects to its fake core"
 )]
 fn on_fake_core(tag: &str) -> (Construct, chora_kit::testing::Log) {
-    let dir = std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = chora_kit::testing::TempDir::new(&format!("chora-construct-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = chora_kit::testing::FakeCore::start();
     let methods = core.record(|method, _| Some(method.to_owned()));

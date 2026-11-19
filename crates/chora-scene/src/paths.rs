@@ -117,11 +117,8 @@ mod tests {
 
     use super::*;
 
-    fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-paths-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).expect("a scratch directory");
-        dir
+    fn scratch(name: &str) -> crate::temp_dir::TempDir {
+        crate::temp_dir::TempDir::new(&format!("chora-paths-{name}"))
     }
 
     #[test]

@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn the_old_assistant_key_is_named_with_the_way_out() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-old-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-xp-old");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("chora-xp.yaml");
         std::fs::write(&path, "terminal: kitty\nassistant:\n  enabled: false\n").unwrap();
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn set_saves_a_wallpaper_that_the_next_start_reads() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-config-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::unmade("chora-xp-config");
         let path = dir.join("chora-xp.yaml");
         let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();
         let red = json!({"picture": {"file": "/tmp/red.jpg"}, "position": "center", "color": [255, 0, 0]});
@@ -384,7 +384,7 @@ mod tests {
     /// `log_off: null` keeps the fallback of chora-xp.
     #[test]
     fn a_file_with_a_few_keys_takes_the_defaults() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-partial-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-xp-partial");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("chora-xp.yaml");
         std::fs::write(&path, "terminal: kitty\nsession:\n  log_off: null\n").unwrap();
@@ -527,7 +527,7 @@ mod tests {
     /// file, and reads back as the same bindings.
     #[test]
     fn set_moves_a_key_and_the_next_start_reads_it() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-bindings-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::unmade("chora-xp-bindings");
         let path = dir.join("chora-xp.yaml");
         let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();
         file.set(

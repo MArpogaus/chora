@@ -132,9 +132,7 @@ pub(crate) mod tests {
     pub(crate) fn construct(tag: &str, overlay: bool) -> (Construct, FakeCore) {
         let core = FakeCore::start();
         let rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
-        let dir =
-            std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-construct-{tag}")).keep();
         let file = dir.join("chora-construct.yaml");
         let settings = settings::File::load(file, config::DEFAULT).unwrap();
         let shaders = |name: &str, _: &str| Ok(name.to_owned());

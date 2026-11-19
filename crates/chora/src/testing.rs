@@ -15,7 +15,10 @@ use smithay::{
 
 use crate::state::State;
 
+mod temp_dir;
 pub mod wayland;
+
+pub use temp_dir::TempDir;
 
 /// The event loop and the state of a core without a backend.
 pub struct Core {
@@ -25,6 +28,9 @@ pub struct Core {
 
 /// A new, empty directory in the temporary directory for one test: no
 /// other test uses it, and what an earlier run left there is gone.
+///
+/// Already counted (name, pid and a counter); it hands out a `PathBuf` that
+/// about 25 tests pass on, so it keeps no guard. New tests use [`TempDir`].
 pub fn scratch_dir(name: &str) -> std::path::PathBuf {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

@@ -142,10 +142,8 @@ pub fn list(roots: &[PathBuf]) -> Vec<(String, PathBuf)> {
 mod tests {
     use super::*;
 
-    fn tree(test: &str, names: &[(&str, &str)]) -> PathBuf {
-        let root =
-            std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+    fn tree(test: &str, names: &[(&str, &str)]) -> chora_kit::testing::TempDir {
+        let root = chora_kit::testing::TempDir::unmade(&format!("chora-assistant-{test}"));
         for (dir, name) in names {
             std::fs::create_dir_all(root.join(dir).join(name)).unwrap();
             std::fs::write(root.join(dir).join(name).join("hud.yaml"), "hud: 1\n").unwrap();

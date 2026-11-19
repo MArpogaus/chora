@@ -995,16 +995,16 @@ mod tests {
     }
 
     /// A core on a socket that grants every grab but `Super+k`.
-    fn fake_core() -> PathBuf {
-        let path = std::env::temp_dir().join(format!("choractl-test-{}.sock", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+    fn fake_core() -> (crate::temp_dir::TempDir, PathBuf) {
+        let dir = crate::temp_dir::TempDir::new("choractl-test");
+        let path = dir.join("core.sock");
         let listener = std::os::unix::net::UnixListener::bind(&path).expect("bind");
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
                 std::thread::spawn(move || serve_fake(stream));
             }
         });
-        path
+        (dir, path)
     }
 
     fn serve_fake(stream: std::os::unix::net::UnixStream) {
@@ -1025,9 +1025,10 @@ mod tests {
 
     #[test]
     fn a_failed_subscription_keeps_the_old_one() {
+        let (_dir, socket) = fake_core();
         let mcp = Mcp {
             name: "agent".into(),
-            socket: fake_core(),
+            socket,
             core: Mutex::new(Core {
                 name: "agent".into(),
                 client: None,

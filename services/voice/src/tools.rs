@@ -1198,9 +1198,8 @@ pub mod tests {
     /// A project `proj` with `a.txt`, `sub/`, `bin`, `latin1`, `big.txt`
     /// and a link `link` to the folder `outside` next to it, which has
     /// `secret.txt`.
-    fn read_fixture(name: &str) -> (PathBuf, BTreeMap<String, PathBuf>) {
-        let data = std::env::temp_dir().join(format!("chora-voice-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+    fn read_fixture(name: &str) -> (chora_kit::testing::TempDir, BTreeMap<String, PathBuf>) {
+        let data = chora_kit::testing::TempDir::unmade(&format!("chora-voice-{name}"));
         let (proj, outside) = (data.join("proj"), data.join("outside"));
         std::fs::create_dir_all(proj.join("sub")).unwrap();
         std::fs::create_dir_all(&outside).unwrap();
@@ -1216,7 +1215,7 @@ pub mod tests {
 
     #[test]
     fn read_lists_folders_and_reads_text() {
-        let (_, roots) = read_fixture("read");
+        let (_dir, roots) = read_fixture("read");
         let read = |path: &str| read(&roots, &json!({ "path": path }));
         assert_eq!(read(""), "proj/");
         assert_eq!(read("Proj/"), "a.txt\nbig.txt\nbin\nlatin1\nlink/\nsub/");
@@ -1228,7 +1227,7 @@ pub mod tests {
 
     #[test]
     fn read_refuses_dot_dot_out_of_a_project() {
-        let (_, roots) = read_fixture("dotdot");
+        let (_dir, roots) = read_fixture("dotdot");
         let answer = read(&roots, &json!({"path": "proj/../outside/secret.txt"}));
         assert!(answer.contains("outside the project folders"), "{answer}");
         let answer = read(&roots, &json!({"path": "proj/.."}));
@@ -1237,7 +1236,7 @@ pub mod tests {
 
     #[test]
     fn read_refuses_a_symbolic_link_out_of_a_project() {
-        let (_, roots) = read_fixture("link");
+        let (_dir, roots) = read_fixture("link");
         for path in ["proj/link/secret.txt", "proj/link"] {
             let answer = read(&roots, &json!({ "path": path }));
             assert!(answer.contains("outside the project folders"), "{answer}");
@@ -1257,7 +1256,7 @@ pub mod tests {
 
     #[test]
     fn read_cuts_a_large_file_and_reads_on_from_a_line() {
-        let (_, roots) = read_fixture("large");
+        let (_dir, roots) = read_fixture("large");
         let answer = read(&roots, &json!({"path": "proj/big.txt"}));
         assert!(answer.len() < READ_BYTES + 100, "{}", answer.len());
         assert!(answer.ends_with("read on with line 656]"), "{answer}");

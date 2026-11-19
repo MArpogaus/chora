@@ -615,11 +615,11 @@ mod tests {
 
     const SAVED: &str = "name: work\nplugins:\n- name: tiling\nscene:\n- {id: old, kind: rect}\n";
 
-    fn saved(name: &str, text: &str) -> PathBuf {
-        let path =
-            std::env::temp_dir().join(format!("choractl-{name}-{}.yaml", std::process::id()));
+    fn saved(name: &str, text: &str) -> (crate::temp_dir::TempDir, PathBuf) {
+        let dir = crate::temp_dir::TempDir::new(&format!("choractl-{name}"));
+        let path = dir.join("saved.yaml");
         std::fs::write(&path, text).unwrap();
-        path
+        (dir, path)
     }
 
     fn owned_node() -> Node {
@@ -640,7 +640,7 @@ mod tests {
     /// the saved one.
     #[test]
     fn a_save_of_an_unloaded_view_keeps_the_saved_scene() {
-        let path = saved("unloaded", SAVED);
+        let (_dir, path) = saved("unloaded", SAVED);
         let view = to_save("work", Some(&path), &[owned_node()]).unwrap();
         assert_eq!(view.plugins[0].name, "tiling");
         assert_eq!(view.scene[0].id, "bar");
@@ -654,7 +654,7 @@ mod tests {
     /// would drop its plugins and its input.
     #[test]
     fn a_save_over_a_broken_file_is_an_error() {
-        let path = saved("broken", &format!("{SAVED}color: red\n"));
+        let (_dir, path) = saved("broken", &format!("{SAVED}color: red\n"));
         let err = to_save("work", Some(&path), &[owned_node()]).unwrap_err();
         assert!(err.contains("choractl-broken-"), "{err}");
         std::fs::remove_file(path).unwrap();

@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn the_margins_come_from_the_theme() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
-        let cache = std::env::temp_dir().join(format!("chora-xp-margins-{}", std::process::id()));
+        let cache = chora_kit::testing::TempDir::unmade("chora-xp-margins");
         let theme =
             Theme::load(&dir, &cache, &sheets::ALL, sheets::FAMILY).expect("the theme loads");
         assert_eq!(Margins::of(&theme), MARGINS);

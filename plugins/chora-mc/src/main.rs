@@ -2468,8 +2468,7 @@ mod testing {
     pub fn mc_on(core: &FakeCore, dir: &str, size: [i32; 2]) -> Mc {
         let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
         rt.pin_accepts_injected(false);
-        let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-mc-{dir}")).keep();
         let file = dir.join("chora-mc.yaml");
         let settings = settings::File::load(file, config::DEFAULT).unwrap();
         let mut mc = Mc::new(

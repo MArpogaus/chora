@@ -33,4 +33,6 @@ pub use selector::{Selector, SelectorError};
 pub use transform::{Decomposed, Transform};
 
 #[cfg(test)]
+mod temp_dir;
+#[cfg(test)]
 mod tests;

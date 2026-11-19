@@ -210,8 +210,8 @@ mod tests {
         let text = "void main() {}";
         assert!(super::runtime_file_in(None, "d", "x.frag", text).is_err());
         assert!(super::runtime_file_in(Some("rel".into()), "d", "x.frag", text).is_err());
-        let dir = std::env::temp_dir().join(format!("chora-kit-runtime-{}", std::process::id()));
-        let path = super::runtime_file_in(Some(dir.clone()), "d", "x.frag", text).unwrap();
+        let dir = crate::testing::TempDir::unmade("chora-kit-runtime");
+        let path = super::runtime_file_in(Some(dir.to_path_buf()), "d", "x.frag", text).unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn fifos_are_refused_and_files_are_capped() {
-        let dir = std::env::temp_dir().join(format!("chora-kit-read-{}", std::process::id()));
+        let dir = crate::testing::TempDir::new("chora-kit-read");
         std::fs::create_dir_all(&dir).unwrap();
         let fifo = dir.join("fifo");
         let made = std::process::Command::new("mkfifo").arg(&fifo).status();

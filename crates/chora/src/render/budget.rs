@@ -123,8 +123,7 @@ fn a_plane_left_out_on_another_output_takes_input_on_this_one() {
 
 #[test]
 fn a_window_whose_mirror_does_not_fit_takes_input() {
-    let dir = std::env::temp_dir().join(format!("chora-mirror-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::TempDir::new("chora-mirror");
     let shader = dir.join("mirror.frag");
     std::fs::write(
         &shader,
@@ -168,8 +167,7 @@ fn a_window_whose_mirror_does_not_fit_takes_input() {
 
 #[test]
 fn a_shader_and_a_layer_that_drew_take_input_when_a_source_does_not_fit() {
-    let dir = std::env::temp_dir().join(format!("chora-nested-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::TempDir::new("chora-nested");
     let shader = dir.join("mirror.frag");
     std::fs::write(
         &shader,

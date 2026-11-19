@@ -39,9 +39,7 @@ fn on_core(
     tag: &str,
     answer: impl Fn(&str, &Value) -> Option<Value> + Send + Sync + 'static,
 ) -> (Construct, FakeCore, Log) {
-    let dir =
-        std::env::temp_dir().join(format!("chora-construct-cube-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = chora_kit::testing::TempDir::new(&format!("chora-construct-cube-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = FakeCore::start();
     core.respond(answer);

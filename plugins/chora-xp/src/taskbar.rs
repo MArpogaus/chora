@@ -935,7 +935,7 @@ mod tests {
     #[test]
     fn the_start_button_draws_no_flag() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
-        let cache = std::env::temp_dir().join(format!("chora-xp-start-{}", std::process::id()));
+        let cache = chora_kit::testing::TempDir::unmade("chora-xp-start");
         let theme =
             Theme::load(&dir, &cache, &sheets::ALL, sheets::FAMILY).expect("the theme loads");
         for look in ["normal", "hover", "pressed"] {

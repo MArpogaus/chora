@@ -400,13 +400,12 @@ mod tests {
 
     /// A stand-in of `wpctl` in a directory of its own: `code` runs for
     /// every call.
-    fn fake_wpctl(name: &str, code: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-wpctl-{name}-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("a directory");
+    fn fake_wpctl(name: &str, code: &str) -> (crate::testing::TempDir, PathBuf) {
+        let dir = crate::testing::TempDir::new(&format!("chora-wpctl-{name}"));
         let path = dir.join("wpctl");
         std::fs::write(&path, format!("#!/bin/sh\n{code}\n")).expect("a stand-in");
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("mode");
-        path
+        (dir, path)
     }
 
     fn next(mixer: &Mixer) -> Option<Reading> {
@@ -423,7 +422,7 @@ mod tests {
     #[test]
     fn the_mixer_reads_off_the_main_loop_and_names_each_failure() {
         let wait = Duration::from_millis(300);
-        let ok = fake_wpctl(
+        let (_ok_dir, ok) = fake_wpctl(
             "ok",
             r#"case "$1" in get-volume) echo 'Volume: 0.30' ;; esac"#,
         );
@@ -440,18 +439,18 @@ mod tests {
         };
         assert_eq!(next(&mixer), Some(Reading::Level(thirty)));
         assert_eq!(mixer.take(), None, "a reading comes once");
-        let none = fake_wpctl("none", "echo 'Translate ID error' >&2; exit 1");
+        let (_none_dir, none) = fake_wpctl("none", "echo 'Translate ID error' >&2; exit 1");
         let mixer = Mixer::with(none, "test", wait);
         mixer.refresh();
         assert_eq!(next(&mixer), Some(Reading::NoOutput));
-        let refused = fake_wpctl(
+        let (_refused_dir, refused) = fake_wpctl(
             "refused",
             r#"case "$1" in get-volume) echo 'Volume: 0.30' ;; *) exit 1 ;; esac"#,
         );
         let mixer = Mixer::with(refused, "test", wait);
         mixer.change(Change::Up, false);
         assert_eq!(next(&mixer), Some(Reading::Failed));
-        let hung = fake_wpctl("hung", "sleep 5");
+        let (_hung_dir, hung) = fake_wpctl("hung", "sleep 5");
         let mixer = Mixer::with(hung, "test", wait);
         mixer.refresh();
         assert_eq!(next(&mixer), Some(Reading::Failed));

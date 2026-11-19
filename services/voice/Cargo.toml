@@ -22,6 +22,9 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tract-onnx = "0.22"
 
+[dev-dependencies]
+chora-kit = { workspace = true, features = ["testing"] }
+
 [lints]
 workspace = true
 

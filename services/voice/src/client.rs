@@ -1097,7 +1097,8 @@ mod tests {
     #[test]
     fn a_security_change_by_a_method_asks_for_a_key() {
         let config = Config::default();
-        let file = std::env::temp_dir().join(format!("voice-sec-{}.yaml", std::process::id()));
+        let temp = chora_kit::testing::TempDir::new("voice-sec");
+        let file = temp.join("sec.yaml");
         let evil = json!({"indicator_clients": ["evil"]});
         assert_eq!(
             security_patch(&config, "settings.set", &evil, &file),
