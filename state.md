@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 15:19 UTC)
+## Now (2026-11-19 15:27 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 15:18 PM 5.4 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -28,7 +28,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
 | moved-tests-ct.md (F5) | haiku high | session_016iS3kNhNeZEXEcnqxRbGLT (15:18) |
 | moved-tests-mk.md (F5) | haiku high | session_016iS3kMV2yFXEC9hCLYzXTF (15:18) |
-| merge-65.md (F6) | sonnet high | starting (6 merges, act conflicts kit3 vs focus-port) |
+| merge-65.md (F6) | sonnet high | session_016iS3kP76ucTfhEMqwRVMk2 (15:19; 6 merges, act conflicts kit3 vs focus-port) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 64-64d red. Bisect: base and wm7b both 235 s: cap too tight, lane matrix-cap. integ af5547c7 r1 FIX (ri-1), r2 running; merge-65 lane joins cubesplit, kit3 04ea5851, flakes-g f075a20d (MERGE-OK), focus-port 3b418008 (MERGE-OK), moved-tests-xp bf0b66eb (MERGE-OK, PM).
