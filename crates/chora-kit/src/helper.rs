@@ -224,8 +224,8 @@ mod tests {
         };
         let turn = [
             (state("", "listening"), NoHelper, "No helper"),
-            (state("", "thinking"), Working, "No helper"),
-            (say, Answered, "No helper"),
+            (state("", "thinking"), NoHelper, "No helper"),
+            (say, NoHelper, "No helper"),
             (state("", "listening"), NoHelper, "No helper"),
             (state("coder", "idle"), Idle, "coder · idle"),
             (state("", "listening"), Listening, "coder · idle"),
@@ -256,6 +256,48 @@ mod tests {
         assert_eq!(
             [NoHelper, Idle, Listening, Working, Answered].map(State::word),
             ["no_helper", "idle", "listening", "working", "answered"]
+        );
+    }
+
+    /// Working wins while any helper works, whoever reported last, and the
+    /// door names the working helper (rw-2); the voice agent alone is no
+    /// helper and never makes the machine work (rw-3).
+    #[test]
+    fn working_wins_while_any_helper_works() {
+        let mut h = Helper::default();
+        h.hear(&state("coder", "working"));
+        h.hear(&state("", "listening"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Working, "coder · working".into()),
+            "coder working, then voice listening"
+        );
+        let mut h = Helper::default();
+        h.hear(&state("atlas", "working"));
+        h.hear(&state("coder", "idle"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Working, "atlas · working".into()),
+            "atlas working, then coder idle"
+        );
+        h.hear(&state("atlas", "done"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Answered, "atlas · done".into()),
+            "atlas done, coder idle"
+        );
+        h.hear(&state("", "thinking"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Answered, "atlas · done".into()),
+            "the voice agent thinks, no helper works"
+        );
+        let mut h = Helper::default();
+        h.hear(&state("", "thinking"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::NoHelper, "No helper".into()),
+            "the voice agent thinks without a helper"
         );
     }
 
