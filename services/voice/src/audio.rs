@@ -78,7 +78,10 @@ impl Analyzer {
         self.peak = (self.peak * PEAK_DECAY)
             .max(pcm::rms(&samples))
             .max(VAD_MIN_PEAK);
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a gain ratio of at least 1, narrowed to f32"
+        )]
         let gain = (VAD_PEAK / self.peak).max(1.0) as f32;
         let low: [f32; vad::FRAME] = (self.down.push(&samples).into_iter())
             .map(|x| (x * gain).clamp(-1.0, 1.0))

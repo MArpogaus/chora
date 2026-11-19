@@ -311,7 +311,11 @@ pub(super) fn backdrop_units(node: &Node) -> u64 {
     let Some([w, h]) = node.props.size.filter(|_| node.props.backdrop.is_some()) else {
         return 0;
     };
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a unit count, at least 1"
+    )]
     let units = (w * h / UNIT).ceil().max(1.0) as u64;
     units
 }

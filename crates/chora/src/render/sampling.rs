@@ -80,7 +80,7 @@ fn region(core: &mut Core, wm: &mut Client, from: [usize; 2], side: usize) -> (f
         .flat_map(|y| (from[0]..from[0] + side).map(move |x| (x, y)))
         .map(|(x, y)| f64::from(rgba[(y * width + x) * 4]))
         .collect();
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "a sample count, exact in f64")]
     let count = values.len() as f64;
     let mean = values.iter().sum::<f64>() / count;
     let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / count;

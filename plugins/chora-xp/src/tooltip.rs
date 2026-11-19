@@ -110,7 +110,7 @@ impl Tooltip {
 
 /// The picture of a tooltip and its size.
 pub fn picture(theme: &Theme, text: &str) -> (Picture, [i32; 2]) {
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
     let width = theme.text_width(text, Font::Ui).ceil() as i32 + 2 * PAD_X;
     let svg = format!(
         r#"<rect width="{width}" height="{HEIGHT}" fill="{FILL}"/><rect x="0.5" y="0.5" width="{}" height="{}" fill="none" stroke="{BORDER}"/>"#,
