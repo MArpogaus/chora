@@ -21,3 +21,10 @@ Changes:
 
 Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy` on 1f99a98f:
 pre-commit PASS, build PASS, test PASS, clippy PASS, ci-check PASS.
+
+## r1 PM review (2026-11-19 20:41 UTC)
+Diff 6aa0bd37..1f99a98f, 55 files, +416 -127, attributes and rustfmt wraps only; builder haiku lane, reviewer PM. Identity ok.
+- OK: 117 to 0 attributes without a reason; 15 sampled reasons are true for their line (pixel sizes, sample counts, opacity); clippy -D warnings clean; gate green on the lane.
+- MINOR rl-1: two new `#[expect(clippy::too_many_lines)]` (chora-draw theme.rs draw_file, chora-mc layout.rs panel) only because rustfmt wrapped the reasoned casts; this weakens the complexity guard (F4). Fix: move the casts into small helpers so both functions are under the limit again, and drop the two expects. Backlog.
+- NIT: the brief's count command counts lines, not attributes (PM's brief); the lane's per-attribute count is the measure.
+Verdict (computed): no BLOCK or MAJOR -> MERGE-OK; 1f99a98f to train 73.
