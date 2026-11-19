@@ -51,3 +51,10 @@ Findings:
 - r1-1, NIT, crates/chora-kit/src/launch.rs:636, in the polling fallback a failing `systemctl` (unit_main_pid gives None) counts as "unit names another main process", so the program is "gone" at the first look; the pidfd path has the same rule, but it asks once, the poll asks every second. Harmless with the non-zero-status rule of Exited; fix: in `gone_by_polling` take `main_pid(unit)` as "other" only when it is `Some(p)` with p != pid, and treat None as not gone.
 - r1-2, NIT, crates/chora-kit/src/actions/perform.rs:112 (override plugins/chora-tiling/src/main.rs:527), the doc of `Host::run` promises the launcher in front of `fuzzel` and a `Failure::NotStarted`, tiling's override does neither (same as before the port: raw command through `launch::run`, no failure). Fix: one doc sentence "a look may start the command its own way, as tiling does so that its event loop does not wait for choractl".
 Known, not findings: the real pidfd_open failure and unit-active-without-pid are tested only through the seam (`becomes`, `gone_by_polling`); xp `bindings` is KIT2d; `settings.set` of an unfit binding answers Ok (rk2-1).
+
+## r2
+
+Head 8eabeda0 on claude/kit2c (merge of claude/wm2 8db02220 into c29a3e9c; pushed). Train 60 had not landed (wm2 is not in claude/autonomous-dev-session-3w-i33pg7), so that second merge is still to do.
+- drag.rs: both import lists kept: `actions::System` (kit2c) and `give::Give`, `wm::Why` (wm2); `give::self` dropped as unused after the merge.
+- main.rs: `config::{Action, Config, Own}` (kit2c's `Own` kept, wm2's `focus::ShownFocus` gone; `wm::focus::Focus` stays). No other cell broke; no other change.
+- Green: `cargo test -p chora-tiling` (156), `-p chora-kit --features testing`, `-p chora input::` (47); merge-gate `--only keys,pane-keys,wm-pane,acts,tiling-audit,walk` all PASS (needed `cargo build --workspace --bins` first, tiling-audit wants choractl).
