@@ -1538,10 +1538,11 @@ The package installs the tiling flavor (D51):
 
 ```text
 /usr/share/chora/flavors/tiling/
-├── chora-tiling.target               # wants the units below and mako.service
+├── chora-tiling.target               # wants the units below, with the notifications
 ├── chora-tiling.service              # chora-tiling
 ├── chora-tiling-assistant.service    # chora-assistant: the voice HUD and the chat
 ├── chora-tiling-xwayland.service     # xwayland-satellite
+├── chora-tiling-notify.service       # chora-notify: the notifications, in the neutral card
 ├── chora-tiling-waybar.service       # the panel
 ├── chora-tiling-swaybg.service       # the wallpaper
 ├── wallpaper.png                     # Ink with two glows
@@ -1565,10 +1566,13 @@ The package installs the tiling flavor (D51):
 ```
 
 Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, mako, swaybg, swayidle,
+recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, swaybg, swayidle,
 swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
-`xdg-desktop-portal-gtk`. mako starts from the unit of
-its own package and needs no configuration. The helpers of the scripts
+`xdg-desktop-portal-gtk`. `chora-tiling-notify.service` starts
+`chora-notify`, the only notification server of the flavor: it shows the
+notices of the plugins and serves `notify-send` for other programs, in the
+neutral asset folder (`chora-notify.yaml` changes its times and corner).
+The helpers of the scripts
 are recommended too: grim and slurp (screenshots), wl-clipboard
 (`wl-copy`) and libnotify (`notify-send`). The fonts are Inter (Arch
 `inter-font`, Fedora `rsms-inter-fonts`), JetBrains Mono (`ttf-jetbrains-mono`,
@@ -1690,12 +1694,12 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   prompt "Power" and five words: Lock, Log out, Restart, Shut down and Screenshot, the way to a screenshot for a person with a mouse (swaylock in the palette, with a notice when it does not start,
   `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
   that is not set, `systemctl reboot`, `systemctl poweroff`).
-  A session with no session bus gets a bus of its own for 7 s with mako and the notice.
+  A session with no session bus shows no notice: the line goes to stderr.
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
   area that slurp lets you select: `screenshot.sh` writes it to
   `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else
   `$XDG_PICTURES_DIR`, else `~/Pictures`), copies it with `wl-copy` when that is there and
-  names the file in a notice (`notify-send`, shown by mako). grim is needed,
+  names the file in a notice (`notify-send`, shown by `chora-notify`). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config
   files, `chora/tiling/` of the config directory first, then the flavor, and
@@ -1703,8 +1707,9 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   (`/usr/share/chora/flavors/shared`, or `$CHORA_SHARED_DIR`), which every
   look uses: it holds `power.sh`, `screenshot.sh` and `applications/` with
   the entries Chat with a helper, Screenshot and Screenshot of an area.
-  A script that is in none of them is an error on stderr and a notice
-  ("Power menu not installed", "Screenshot not installed"), never a key
+  A script that is in none of them is an error on stderr and a notice of
+  `chora-notify` ("Power menu not installed", "Screenshot not installed";
+  the stderr line alone when `chora-notify` is not running), never a key
   that does nothing.
 - **The lock**: swayidle runs `chora-tiling --launch swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`

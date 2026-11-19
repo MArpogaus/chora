@@ -62,12 +62,12 @@ sudo pacman -U ./chora-*.pkg.tar.zst    # Arch Linux
 
 The login screen then shows the session "chora", with the tiling flavor,
 and "chora (uwsm)" when [uwsm](https://github.com/Vladimir-csp/uwsm) is
-installed. The tiling flavor uses waybar, fuzzel, mako, swaybg, swaylock,
+installed. The tiling flavor uses waybar, fuzzel, swaybg, swaylock,
 swayidle and kanshi. The RPM recommends them; on Arch Linux, install them
 with the optional dependencies:
 
 ```bash
-sudo pacman -S --asdeps uwsm foot fuzzel waybar mako swaybg swayidle swaylock kanshi
+sudo pacman -S --asdeps uwsm foot fuzzel waybar swaybg swayidle swaylock kanshi
 ```
 
 [Flavors](https://marpogaus.github.io/chora/configuration/#flavors)
