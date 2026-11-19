@@ -5,11 +5,22 @@
 //! `views` and `texts` stay out.
 
 use chora_kit::wm::state::{Desks, Focus, Open, State, Window};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use crate::{NAME, Tiling, keys};
 
 impl Tiling {
+    /// The key list, while it is open.
+    fn open_value(&self) -> Vec<Open> {
+        (self.keys_open.then(|| Open {
+            id: keys::KEYS.into(),
+            kind: "sheet".into(),
+            modal: true,
+        }))
+        .into_iter()
+        .collect()
+    }
+
     /// The windows bottom first, the tags that show, the focus, the key
     /// list while it is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
@@ -48,13 +59,6 @@ impl Tiling {
             holder: (held.is_some() || self.keys_open).then(|| NAME.to_owned()),
             surface: held.map(str::to_owned),
         };
-        let open = (self.keys_open.then(|| Open {
-            id: keys::KEYS.into(),
-            kind: "sheet".into(),
-            modal: true,
-        }))
-        .into_iter()
-        .collect();
         let running = [
             (self.effects.animating(), "effects"),
             (self.chip_until.is_some(), "chip"),
@@ -62,15 +66,16 @@ impl Tiling {
         let busy = (running.into_iter().filter(|(on, _)| *on))
             .map(|(_, name)| name.to_owned())
             .collect();
-        let mut more = Map::new();
-        more.insert("helper".into(), json!(self.voiced.word()));
         State {
             windows,
             desks,
             focus,
-            open,
+            open: self.open_value(),
             busy,
-            more,
+            more: [("helper".to_owned(), json!(self.voiced.word()))]
+                .into_iter()
+                .collect(),
+            ..State::default()
         }
         .value()
     }

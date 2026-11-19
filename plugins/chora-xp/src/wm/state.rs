@@ -3,9 +3,9 @@
 //! besides `core_focus`. Without a focused window xp holds the
 //! focus with its own nodes (the icons, a menu, a dialog) until a window
 //! of another window manager takes it: a node that takes the keyboard
-//! sends no `focus.changed`. Desktops count from 1, as the pager shows them. `views` and
-//! `texts` stay out: xp shows no window of another look, and its drawn
-//! text runs come with NET3.
+//! sends no `focus.changed`. Desktops count from 1, as the pager shows them. `views`
+//! stays out: xp shows no window of another look. `texts` are the runs
+//! of text that chora-draw reports for the image nodes of xp.
 
 use chora_kit::wm::{
     Origin,
@@ -61,6 +61,7 @@ impl Wm {
             focus,
             open: self.open_value(),
             busy: self.busy_value(),
+            texts: self.texts_value(),
             more,
         }
         .value();
@@ -83,6 +84,13 @@ impl Wm {
     /// A window of another window manager took the focus last.
     fn focus_away(&self) -> bool {
         (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
+    }
+
+    /// The runs of text that chora-draw reports for the image nodes of xp.
+    fn texts_value(&self) -> Vec<Value> {
+        (self.theme.texts().iter())
+            .filter_map(|run| serde_json::to_value(run).ok())
+            .collect()
     }
 
     /// The menus and dialogs that show, in the order Escape shuts them.
@@ -153,6 +161,12 @@ mod tests {
         let state = wm.state().expect("xp has a state");
         let expected = json!({"windows": [], "focus": {"holder": "xp"}, "open": [],
             "busy": [], "helper": "none", "desks": [{"output": "X", "shown": [1]}]});
+        assert_eq!(
+            state.get("texts").map(serde_json::Value::is_array),
+            Some(true)
+        );
+        let mut state = state;
+        state.as_object_mut().unwrap().remove("texts");
         assert_eq!(state, expected);
     }
 
@@ -238,6 +252,27 @@ mod tests {
         );
         wm.method("start_menu", json!({"open": false})).unwrap();
         assert_eq!(wm.state().unwrap()["open"], json!([]));
+    }
+
+    /// `texts` holds the runs of text that xp painted into the image
+    /// nodes it shows, each with its node, line, rect and font size.
+    #[test]
+    fn the_texts_are_the_runs_xp_painted() {
+        let (mut wm, _methods) = wm_on_fake_core("state-texts");
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let state = wm.state().unwrap();
+        let texts = state["texts"].as_array().expect("texts");
+        assert!(
+            texts
+                .iter()
+                .any(|t| t["node"].as_str().is_some_and(|n| n.starts_with("xp-menu"))),
+            "the open Start menu has runs: {texts:?}"
+        );
+        for run in texts {
+            assert!(run["text"].as_str().is_some_and(|t| !t.is_empty()), "{run}");
+            assert_eq!(run["rect"].as_array().map(Vec::len), Some(4), "{run}");
+            assert!(run["px"].as_u64().is_some_and(|px| px > 0), "{run}");
+        }
     }
 
     /// `helper` is `none` until voice reports, follows its latest

@@ -1,5 +1,5 @@
 #!/bin/bash
-# The act contracts (NET2, design 3.2 of the arch plan): the selftest of
+# The act contracts (NET2, NET3, design 3.2 of the arch plan): the selftest of
 # the harness without a session (tests/test_acts.py), then
 # tests/acts/run.py: the live selftest, which plants a breach of each
 # invariant in a session of mc and must see it fail, and the acts of every
