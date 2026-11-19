@@ -948,10 +948,6 @@ mod tests {
     }
 
     #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn on_fake_core(tag: &str, chats: bool) -> Agent {
         let dir =
             std::env::temp_dir().join(format!("chora-assistant-{tag}-{}", std::process::id()));
@@ -967,7 +963,6 @@ mod tests {
                 }])
             })
         });
-        let conn = core.connect(NAME);
         let (theme, mut values, cache) = loaded(tag);
         values.chats = chats;
         let settings =
@@ -975,7 +970,7 @@ mod tests {
                 .unwrap();
         let card_theme = card::theme(&cache, HOST_FAMILY).unwrap();
         Agent {
-            rt: Runtime::with(conn, NAME, Vec::new()),
+            rt: core.runtime(NAME),
             settings,
             source: Source {
                 assets: None,

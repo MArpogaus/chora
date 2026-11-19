@@ -1088,10 +1088,7 @@ mod tests {
     };
     use std::path::Path;
 
-    use chora_kit::{
-        conn::Conn,
-        testing::{FakeCore, Log},
-    };
+    use chora_kit::testing::{FakeCore, Log};
 
     use super::*;
 
@@ -1111,17 +1108,12 @@ mod tests {
         let core = FakeCore::start();
         core.respond(|method, _| (method == "scene.apply").then_some(Value::Null));
         let methods = core.record(|method, params| Some(format!("{method} {params}")));
-        let conn = core.connect(NAME);
-        (tiling_on(conn, &dir, effects), methods)
+        (tiling_on(core.runtime(NAME), &dir, effects), methods)
     }
 
-    /// A tiling on the connection `conn`, with its settings file in `dir`.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
+    /// A tiling on the runtime `rt`, with its settings file in `dir`.
     pub(crate) fn tiling_on(
-        conn: Conn,
+        rt: Runtime<Action>,
         dir: &Path,
         effects: &[chora_kit::effects::Kind],
     ) -> Tiling {
@@ -1129,7 +1121,7 @@ mod tests {
         let mut settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
         settings.value.effects = effects.to_vec();
         Tiling {
-            rt: Runtime::with(conn, NAME, Vec::new()),
+            rt,
             wm: Wm::new(settings.value.clone()),
             book: crate::lifecycle::book(false),
             settings,

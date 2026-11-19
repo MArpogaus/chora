@@ -918,7 +918,6 @@ mod tests {
     }
 
     use chora_kit::{
-        conn::Conn,
         testing::{FakeCore, Log},
         volume::Change,
     };
@@ -934,10 +933,6 @@ mod tests {
 
     /// As [`on_fake_core`], with a core that refuses the grab of the
     /// `refused` bindings, as when another client holds them.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn on_fake_core_refusing(
         tag: &str,
         refused: &'static [&'static str],
@@ -955,7 +950,7 @@ mod tests {
                 .starts_with("input.")
                 .then(|| format!("{method} {binding}"))
         });
-        (Runtime::with(core.connect(NAME), NAME, Vec::new()), calls)
+        (core.runtime(NAME), calls)
     }
 
     /// A window manager on a fake core that answers `scene.query` with no
@@ -989,18 +984,12 @@ mod tests {
             _ => None,
         });
         let methods = core.record(|method, _| Some(method.to_owned()));
-        let conn = core.connect(NAME);
-        (wm_on(conn, &dir), methods)
+        (wm_on(core.runtime(NAME), &dir), methods)
     }
 
-    /// A window manager on `conn`, with the theme and the settings of a
+    /// A window manager on the runtime `rt`, with the theme and the settings of a
     /// start in `dir`.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
-    fn wm_on(conn: Conn, dir: &Path) -> Wm {
-        let mut rt = Runtime::with(conn, NAME, Vec::new());
+    fn wm_on(mut rt: Runtime<KeyAction>, dir: &Path) -> Wm {
         rt.pin_accepts_injected(false);
         let theme_dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
@@ -1023,7 +1012,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("chora-xp-kit-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        wm_on(core.connect(NAME), &dir)
+        wm_on(core.runtime(NAME), &dir)
     }
 
     /// An event as the core sends it.

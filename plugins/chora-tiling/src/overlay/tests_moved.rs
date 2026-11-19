@@ -198,7 +198,7 @@ fn on_scene(tag: &str, answer: fn(&str) -> Value) -> Tiling {
     core.respond(move |method, params| {
         (method == "scene.query").then(|| answer(params["selector"].as_str().unwrap_or_default()))
     });
-    crate::tests::tiling_on(core.connect(NAME), &dir, &[])
+    crate::tests::tiling_on(core.runtime(NAME), &dir, &[])
 }
 
 /// The renderer's answer to the scene queries of the key list and of the

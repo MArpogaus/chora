@@ -542,18 +542,13 @@ fn an_injected_pointer_does_not_drive_the_look() {
 
 /// A construct on a fake core that answers every request with null, and
 /// the methods that it saw.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
 fn on_fake_core(tag: &str) -> (Construct, chora_kit::testing::Log) {
     let dir = std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let core = chora_kit::testing::FakeCore::start();
     let methods = core.record(|method, _| Some(method.to_owned()));
-    let conn = core.connect(NAME);
-    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    let mut rt = core.runtime(NAME);
     rt.pin_accepts_injected(false);
     let settings =
         settings::File::<Config>::load(dir.join("chora-construct.yaml"), config::DEFAULT).unwrap();

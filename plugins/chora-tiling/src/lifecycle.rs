@@ -92,7 +92,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let mut tiling = tiling_on(core.connect(NAME), &dir, &[]);
+        let mut tiling = tiling_on(core.runtime(NAME), &dir, &[]);
         let group = Command::Create {
             id: NAME.into(),
             kind: NodeKind::Group,

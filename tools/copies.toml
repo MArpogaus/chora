@@ -274,3 +274,11 @@ max = 0
 name = "own report()"
 paths = ["plugins"]
 pattern = 'fn report\b'
+
+# One way for a test to connect: `FakeCore::runtime` (kit testing). The
+# inline `Runtime::with(core.connect(..), ..)` needed an allow per test.
+[[row]]
+max = 0
+name = "own test connect (Runtime::with in a plugin)"
+paths = ["plugins"]
+pattern = 'Runtime::with\('
