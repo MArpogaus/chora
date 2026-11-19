@@ -1,6 +1,6 @@
 # review integ r1 (F6, F2): seeded review of the conflict resolutions on claude/integ before train 65
 
-Model: opus, effort high (because: 25-file merge resolution across kit testing, mc, construct HUD; removed code and a removed test must be judged against both branches' intent)
+Model: opus, effort high, because 25-file merge resolution across kit testing, mc, construct HUD; removed code and a removed test must be judged against both branches intent
 Lane: cloud, read-only on code: claude/integ head af5547c7 (on top of train head fa457b29: wm3, wm7b).
 Own work of integ, all to review, nothing else:
 - resolutions: `git show --remerge-diff 3781cb7e` (wm5), `926bb214` (kit5b), `3619ccb3` (kit7, ~1800 lines; the main part);
