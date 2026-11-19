@@ -1725,7 +1725,8 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   area that slurp lets you select: `screenshot.sh` writes it to
   `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else
   `$XDG_PICTURES_DIR`, else `~/Pictures`), copies it with `wl-copy` when that is there and
-  names the file in a notice (`notify-send`, shown by `chora-notify`). grim is needed,
+  names the file in a notice (`notify-send`, shown by `chora-notify`; without a session
+  bus, `choractl call notify notify.show`). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config
   files, `chora/tiling/` of the config directory first, then the flavor, and

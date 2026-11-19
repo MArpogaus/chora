@@ -4,55 +4,29 @@
 # pictures folder (`xdg-user-dir PICTURES` when that is installed, else
 # XDG_PICTURES_DIR, else ~/Pictures), a copy goes to the clipboard when wl-copy is there, and
 # a notice names the file. German with a German locale. grim is needed,
-# and slurp for an area. When no notification daemon answers and
-# CHORA_NOTIFIER names one (a command), the script starts it and sends the
-# notice, so that the person always sees the result in the colours of the
-# look and not in those of a daemon that the bus starts by itself. A session with
-# no session bus at all gets a bus of its own for 7 s, with the daemon and
-# the notice on it; without a way to show it, the result goes to stderr.
-# Environment:
-#   CHORA_NOTIFIER  the command that starts a notification daemon
+# and slurp for an area. The notice goes through notify-send to the
+# notification server of the session bus; when that fails, as in a
+# session without a session bus, through `choractl call notify
+# notify.show` to chora-notify on the live API. Without either, the
+# result goes to stderr.
 # Usage: sh screenshot.sh [full|area]
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
 de*) saved="Bildschirmfoto gespeichert" failed="Bildschirmfoto fehlgeschlagen" ;;
 *) saved="Screenshot saved" failed="Screenshot failed" ;;
 esac
-notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2" 2>/dev/null
-}
-has_bus() {
-    [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" ]
-}
-say_on_own_bus() {
-    # shellcheck disable=SC2016
-    setsid dbus-run-session -- sh -c '
-        sh -c "$CHORA_NOTIFIER" >/dev/null 2>&1 &
-        for _ in 1 2 3 4 5 6 7 8 9 10; do
-            sleep 0.3
-            notify-send -a Screenshot "$1" "$2" 2>/dev/null && break
-        done
-        sleep 6' sh "$1" "$2" >/dev/null 2>&1 &
-}
-daemon_runs() {
-    command -v dbus-send >/dev/null 2>&1 || return 0
-    dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus \
-        org.freedesktop.DBus.NameHasOwner string:org.freedesktop.Notifications 2>/dev/null | grep -q true
+json() {
+    printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
 }
 say() {
-    if [ -n "${CHORA_NOTIFIER:-}" ]; then
-        if ! has_bus && command -v dbus-run-session >/dev/null 2>&1; then
-            say_on_own_bus "$1" "$2"
-            return 0
-        fi
-        if ! daemon_runs; then
-            setsid sh -c "$CHORA_NOTIFIER" >/dev/null 2>&1 &
-            for _ in 1 2 3 4 5 6 7 8 9 10; do
-                sleep 0.3
-                daemon_runs && break
-            done
-        fi
+    if command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2" 2>/dev/null; then
+        return 0
     fi
-    notify "$1" "$2" && return 0
+    if command -v choractl >/dev/null 2>&1 &&
+        choractl call notify notify.show \
+            "{\"app\": \"Screenshot\", \"summary\": $(json "$1"), \"body\": $(json "$2")}" \
+            >/dev/null 2>&1; then
+        return 0
+    fi
     echo "screenshot.sh: $1 $2" >&2
     return 0
 }
