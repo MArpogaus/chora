@@ -233,6 +233,31 @@ mod tests {
         assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the press");
     }
 
+    /// Escape shuts what opened last: a Help panel, then the Start menu on
+    /// top of it. The first Escape shuts the menu, the second the panel,
+    /// the order `state.open` lists them in.
+    #[test]
+    fn escape_shuts_the_newest_surface_first() {
+        let (mut wm, _methods) = wm_on_fake_core("state-escape-order");
+        let commands = wm.open_help(0);
+        wm.apply(commands).unwrap();
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let ids = open_ids(&wm);
+        assert_eq!(ids.len(), 2, "open: {ids:?}");
+        assert_eq!(ids[0], "xp-menu", "the menu is the newest: {ids:?}");
+        let panel = ids[1].clone();
+        let commands = wm.node_key("Escape");
+        wm.apply(commands).unwrap();
+        assert_eq!(
+            open_ids(&wm),
+            std::slice::from_ref(&panel),
+            "the first Escape"
+        );
+        let commands = wm.node_key("Escape");
+        wm.apply(commands).unwrap();
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "the second Escape");
+    }
+
     /// `texts` holds the runs of text that xp painted into the image
     /// nodes it shows, each with its node, line, rect and font size.
     #[test]
