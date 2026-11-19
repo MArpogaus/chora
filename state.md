@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 07:49 UTC)
+## Now (2026-11-19 07:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 07:50 PM 1.8 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: a17e7858 (train 57: wm1b); 25 greens; MV1-3, CUT1, NET1-2, KIT1-2, KIT4, WM1, WM1b, DOCS-F8 in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
