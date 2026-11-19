@@ -42,3 +42,10 @@ imports left in `cube.rs` were removed.
   does not exist in this clone, so the gate needs `--base fa457b29` here.
 - First commit subject was 76 characters; the commit-message-length hook
   (limit 68) refused it, so the subject is shorter. No `--no-verify`.
+
+## PM review r1 (14:00 UTC)
+10cf04c on fa457b29: 3 files, +509 -489. Moved lines compared line by line (indent ignored): the only changes are
+`super::` to `crate::` paths, `pub(super)` on helpers and the two import blocks; no logic change. cube.rs 1133
+production lines, size-ratchet.list empty (F4 on this file). Gate steps build, clippy, ci-check, pre-commit, cube pass.
+Note: a cloud clone lacks origin/claude/autonomous-dev-session-3w-i33pg7; briefs name `--base` (done here).
+Verdict: MERGE-OK; joins train 64.
