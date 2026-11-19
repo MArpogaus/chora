@@ -28,5 +28,9 @@ name = "fake_core"
 required-features = ["testing"]
 
 [[test]]
+name = "notice"
+required-features = ["testing"]
+
+[[test]]
 name = "wm_book"
 required-features = ["testing"]

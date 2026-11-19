@@ -25,6 +25,7 @@ pub mod icons;
 pub mod lamp;
 pub mod launcher;
 pub mod modes;
+pub mod notice;
 pub mod notify;
 pub mod runtime;
 pub mod settings;
