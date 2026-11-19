@@ -1,6 +1,6 @@
 ## r1
 
-Lane: cloud, sonnet, branch claude/docs-f8d from train 71 head 6aa0bd37, head 6aa0bd3794a280d3a9c08f91721e3580c6e4d09e.
+Lane: cloud, sonnet, branch claude/docs-f8d from train 71 head 6aa0bd37, head c8249e2c.
 Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test` green (pre-commit 50 s, build 202 s, test 210 s, ci-check 85 s).
 Closed:
 - rf-1: D95 status line is "accepted (owner, 2026-11-19 05:59; amends D77)"; `grep -n 'proposed\|Proposed' docs/decisions.md` leaves only the intro lines 126 and 141, no record.
