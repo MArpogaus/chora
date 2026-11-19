@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn a_dir_without_group_or_other_bits_is_accepted() {
         let base = scratch("strict");
-        for mode in [0o700, 0o2700, 0o500, 0o1700] {
+        for mode in [0o700, 0o2700, 0o1700] {
             let dir = base.join(format!("m{mode:o}"));
             fs::create_dir(&dir).expect("the dir");
             fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).expect("the mode");
@@ -237,15 +237,43 @@ mod tests {
     }
 
     #[test]
-    fn a_dir_with_group_or_other_bits_is_refused() {
+    fn a_dir_that_group_or_other_can_write_is_refused() {
         let base = scratch("bits");
-        for mode in [0o770, 0o750, 0o707, 0o755] {
+        for mode in [0o770, 0o707, 0o775, 0o757, 0o777] {
             let dir = base.join(format!("m{mode:o}"));
             fs::create_dir(&dir).expect("the dir");
             fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).expect("the mode");
             let error = private_dir(&dir).expect_err("refused");
             assert!(error.to_string().contains("mode"), "{error}");
+            let kept = fs::metadata(&dir).expect("the dir").permissions().mode();
+            assert_eq!(kept & 0o7777, mode, "a refused dir keeps its mode");
         }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn an_old_dir_without_write_bits_of_others_is_tightened_to_0700() {
+        let base = scratch("tighten");
+        for mode in [0o755, 0o750, 0o705, 0o751, 0o754, 0o2755] {
+            let dir = base.join(format!("m{mode:o}"));
+            fs::create_dir(&dir).expect("the dir");
+            fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).expect("the mode");
+            private_dir(&dir).unwrap_or_else(|e| panic!("mode {mode:04o} is tightened: {e}"));
+            let now = fs::metadata(&dir).expect("the dir").permissions().mode();
+            assert_eq!(now & 0o7777, 0o700, "from {mode:04o}");
+        }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn a_symlink_is_not_tightened() {
+        let base = scratch("tighten-link");
+        let real = dir_with(&base, "real", 0o755);
+        let link = base.join("link");
+        symlink(&real, &link).expect("the link");
+        assert!(private_dir(&link).is_err());
+        let kept = fs::metadata(&real).expect("the dir").permissions().mode();
+        assert_eq!(kept & 0o7777, 0o755, "the target of a link keeps its mode");
         fs::remove_dir_all(&base).expect("cleanup");
     }
 
@@ -306,7 +334,7 @@ mod tests {
     #[test]
     fn a_runtime_dir_of_the_user_is_accepted() {
         let base = scratch("runtime-ok");
-        for mode in [0o700, 0o755, 0o750, 0o500] {
+        for mode in [0o700, 0o755, 0o750] {
             let dir = dir_with(&base, &format!("m{mode:o}"), mode);
             check_runtime_home(&dir).unwrap_or_else(|e| panic!("mode {mode:04o}: {e}"));
         }
