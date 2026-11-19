@@ -395,6 +395,34 @@ mod tests {
     }
 
     #[test]
+    fn a_symlinked_runtime_dir_is_resolved_once_and_used_below_its_target() {
+        let base = scratch("sub-link");
+        let real = dir_with(&base, "real", 0o700);
+        let link = base.join("link");
+        symlink(&real, &link).expect("the link");
+        let dir = runtime_subdir_in(Some(link.clone()), "chora").expect("the subdir");
+        let target = fs::canonicalize(&real).expect("the target");
+        assert_eq!(dir, target.join("chora"), "the path runs below the target");
+        assert!(!dir.starts_with(&link), "no part of the path is the link");
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
+    fn a_link_to_a_runtime_dir_that_others_write_is_refused_by_its_target() {
+        let base = scratch("sub-link-open");
+        let open = dir_with(&base, "open", 0o777);
+        let link = base.join("link");
+        symlink(&open, &link).expect("the link");
+        let error = runtime_subdir_in(Some(link), "chora").expect_err("refused");
+        let target = fs::canonicalize(&open).expect("the target");
+        let text = error.to_string();
+        assert!(text.contains(&target.display().to_string()), "{text}");
+        assert!(text.contains("0777"), "{text}");
+        assert!(!open.join("chora").exists(), "nothing is made");
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
     fn no_subdir_is_made_in_a_runtime_dir_that_others_write() {
         let base = scratch("sub-open");
         let runtime = dir_with(&base, "run", 0o777);
