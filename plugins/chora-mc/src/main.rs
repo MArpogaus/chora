@@ -861,7 +861,7 @@ impl Mc {
         }
     }
 
-    /// An event of the voice agent (D65). The HUD host `chora-assistant`
+    /// An event of the voice agent (D65). The HUD host
     /// draws the state, the sentences and the questions of the agent, so
     /// mc takes from its own state only the state of the microphone;
     /// `voice.state` with a `name` sets that helper as `agent.set` does,

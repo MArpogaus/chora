@@ -1,6 +1,6 @@
 //! Voice glue: the questions of the voice agent, which hide the hints,
 //! the tick of the notices, and the pane labels. The HUD host
-//! `chora-assistant` draws the voice HUD and the questions.
+//! draws the voice HUD and the questions.
 
 use chora_kit::modes::Mode;
 

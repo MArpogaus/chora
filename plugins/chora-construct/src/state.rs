@@ -74,7 +74,7 @@ impl Construct {
     }
 
     /// The window list, the help and the window of the launcher, in the
-    /// order Escape shuts them. The HUD host `chora-assistant` shows the
+    /// order Escape shuts them. The HUD host shows the
     /// questions of the voice agent.
     fn open_value(&self) -> Vec<Value> {
         let shown = [

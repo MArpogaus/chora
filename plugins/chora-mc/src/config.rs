@@ -319,7 +319,7 @@ pub struct Write {
     pub duration_ms: f64,
 }
 
-/// Who draws the voice HUD in mc: the HUD host `chora-assistant` with the
+/// Who draws the voice HUD in mc: the HUD host with the
 /// folder of mc, which draws the state, the sentence and the question of
 /// the voice agent; mc shows only the helpers and claims nothing. The
 /// setting chose before; `own`, the HUD of mc itself, is gone (KIT7) and
@@ -338,8 +338,8 @@ impl<'de> Deserialize<'de> for VoiceHud {
             "host" => Ok(Self::Host),
             "own" => {
                 eprintln!(
-                    "chora-mc: voice_hud: own is gone; the HUD host chora-assistant draws the \
-                     voice HUD of mc (read as host)"
+                    "chora-mc: voice_hud: own is gone; the HUD host draws the voice \
+                     HUD of mc (read as host)"
                 );
                 Ok(Self::Host)
             }

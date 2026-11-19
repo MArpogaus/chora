@@ -236,8 +236,7 @@ pub struct Config {
     /// resizes it.
     pub modifier: String,
     /// Who draws the voice HUD (F28) and the questions: only the HUD
-    /// host `chora-assistant`, with the folder `hud`. Kept to read old
-    /// files.
+    /// host, with the folder `hud`. Kept to read old files.
     pub voice_hud: VoiceHud,
     /// The effects of the panes of own windows: `wobbly` bends a pane in
     /// 3D while the modifier drags it.
@@ -255,13 +254,13 @@ pub struct Config {
 }
 
 /// Who draws the voice HUD and the questions of the voice agent: the HUD
-/// host `chora-assistant`, the only presenter. The values `own`, `true`
+/// host, the only presenter. The values `own`, `true`
 /// and `false` of earlier versions read as `host` for one release (D93);
 /// `own` and `true` warn that the own HUD is gone.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoiceHud {
-    /// The HUD host `chora-assistant` draws them; the construct claims
+    /// The HUD host draws them; the construct claims
     /// nothing.
     #[default]
     Host,
@@ -288,7 +287,7 @@ impl<'de> Deserialize<'de> for VoiceHud {
         if own {
             eprintln!(
                 "chora-construct: voice_hud: the own voice HUD is gone; \
-                 chora-assistant draws it (read as host)"
+                 the HUD host draws it (read as host)"
             );
         }
         Ok(Self::Host)

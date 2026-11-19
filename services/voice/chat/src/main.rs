@@ -42,7 +42,7 @@ struct Args {
     /// surface; the host starts it.
     #[arg(long, value_name = "NAME", conflicts_with = "name")]
     input: Option<String>,
-    /// Prints the word of a helper door as the presenter chora-assistant
+    /// Prints the word of a helper door as the HUD host (the presenter)
     /// says it, `No helper` or the name and the state of a helper, and
     /// opens nothing.
     #[arg(long, conflicts_with_all = ["input", "name"])]

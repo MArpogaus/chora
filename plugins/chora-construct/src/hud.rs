@@ -1,6 +1,6 @@
 //! The elements over the space (F28, docs/construct-style.md): the
 //! notices, the pane label and the glass of the window list; the HUD host
-//! `chora-assistant` draws the voice HUD and the questions. Pure builders
+//! draws the voice HUD and the questions. Pure builders
 //! of commands, without a connection; `main.rs` sends them.
 #![allow(
     clippy::cognitive_complexity,
