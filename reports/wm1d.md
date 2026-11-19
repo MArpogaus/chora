@@ -75,3 +75,12 @@ Head `679e7786` on claude/wm1d (merge of net3 dc00d33c, train 59 not landed yet,
 - rw-1 not touched (the merge did not touch those lines).
 - Green: `cargo test -p chora-xp` (198), `-p chora-kit --features testing` (225+), `-p chora-notify` (18), `-p chora-tiling` (152); clippy workspace `-D warnings`; `tests/merge-gate.sh --only xp,xp-fields,xp-question,xp-notepad,hud,acts` all PASS. No full gate.
 - Note for the lane: `--only` skips the `build` step, so run `cargo build --workspace` first (the first `xp` run failed only for missing binaries).
+
+## r3
+
+Head `3c84b2d1` on claude/wm1d (merge of claude/wm2 8db02220 into 679e7786; pushed). Train 60 had not landed (wm2 is not in claude/autonomous-dev-session-3w-i33pg7), so the second merge of the session branch is still to do.
+- plugins/chora-tiling/src/state.rs: conflict resolved to one focus path: `let mut focus = self.focus.state(NAME, |s| self.wm.has(s));` with the holder set while `keys_open`; the hand-built `Focus` and its import are gone. The keys sheet stays the `Open` of wm1d's `open_value` helper (wm2's inline copy dropped); `texts` stay through `..State::default()`; `Map` import dropped (wm1d's `more` literal).
+- docs/api.md: two conflicts, both texts kept: wm2's holder sentence (own nodes, `focus.surface`) plus wm1d's `title`/`app_id` for xp; wm1d's `<look>.window` paragraph (xp in the list, node is the surface, xp tells no rect yet) with wm2's "Such a look applies a foreign update".
+- tools/copies.toml, tests/acts/known-red.toml: auto-merged. No cell broke in the merge.
+- Green: `cargo build --workspace`; `cargo test -p chora-tiling` (153), `-p chora-xp` (198), `-p chora-kit --features testing` (225+), `-p chora input::` (47); `tests/merge-gate.sh --only keys,pane-keys,wm-pane,acts,xp,hud,tiling-audit` all PASS (run dir /tmp/merge-gate.uxvYko). No full gate.
+- Note for the lane: the local `claude/wm1d` of a fresh clone is stale (18231aa1, before the net3 merge); a first merge onto it built fine but state.rs did not conflict, which showed the wrong base. Reset to origin/claude/wm1d first (I did, and redid the merge; the stale merge was never pushed).
