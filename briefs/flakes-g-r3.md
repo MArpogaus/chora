@@ -5,9 +5,8 @@ Model: opus, effort high, because the causes are timing races across core round 
 Lane: cloud, branch claude/flakes-g from c227d433 (r1: rw-4 red 8d555fc5 fix f0c9e640; rw-1 c227d433 done). One round, stop at 250 k.
 Cost about 3.5 %. Run `git fetch --unshallow` first; merge origin/claude/autonomous-dev-session-3w-i33pg7 at start
 and again before the gate (resolve to the session side's types).
-Step 0: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh &&
-bash /tmp/setup.sh` (PM default 14:00, owner told 12:32; up to 25 min). Then `cargo check -p chora` and
-`command -v foot fuzzel waybar`; if either still fails, send_message the PM "flakes-g r3 BLOCKED: <setup's MISSING line>" and stop.
+Step 0: setup (below), then `cargo check -p chora` and `command -v foot fuzzel waybar`; if either still fails, send_message the PM "flakes-g r3 BLOCKED: <setup's MISSING line>" and stop.
+Setup: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh` (up to 25 min).
 Open from r1: items 1, 2, 3, 5 and rw-2; rw-1 and rw-4 are done (append to reports/flakes-g.md).
 Seeds (read these, not the whole repo): reports/flakes-f.md ("Found, not fixed" and "Review r1"), backlog.md
 F26 (line 164), F28 (173), FF1 (last line) on claude/session-log. Load: tests/under-load.sh (4 busy loops).

@@ -2,8 +2,8 @@
 
 Model: sonnet, effort high (a port on fixed types: two more looks onto `keysheet::rows`)
 Lane: cloud, branch claude/kit3 from 5b788c72. One round, stop at 250 k. Cost about 2 %.
-Step 0: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`;
-then `git fetch --unshallow` and `cargo check -p chora`; a MISSING line: send_message the PM "kit3 r2 BLOCKED: <line>" and stop.
+Step 0: setup (below), then `git fetch --unshallow` and `cargo check -p chora`; a failure: send_message the PM "kit3 r2 BLOCKED: <MISSING line>" and stop.
+Setup: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`.
 Read reports/kit3.md "## Review r1" (rk-1 to rk-8) and briefs/kit3-r1.md on claude/session-log.
 1. rk-1 MAJOR first: construct (config.rs:498-620 hand rows) and xp (help.rs `LINES`, `rows`) take their rows from
    `keysheet::rows` with `named` for look-only actions; both tables go. Red first: a kit or look cell that fails while a
