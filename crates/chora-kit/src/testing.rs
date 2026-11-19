@@ -19,7 +19,7 @@ use std::{
 use chora_scene::{Command, ipc::RpcError};
 use serde_json::{Value, json};
 
-use crate::conn::Conn;
+use crate::{conn::Conn, runtime::Runtime};
 
 mod script;
 
@@ -200,6 +200,19 @@ impl FakeCore {
     )]
     pub fn connect(&self, name: &str) -> Conn {
         Conn::connect_at(name, &self.path).unwrap()
+    }
+
+    /// A runtime of a plugin named `name`, on a connection to this fake
+    /// core, with no outputs of its own: the one place where a test of a
+    /// plugin connects (`plugins/clippy.toml` bans `Runtime::with` outside
+    /// the kit).
+    ///
+    /// # Panics
+    ///
+    /// The connection fails.
+    #[must_use]
+    pub fn runtime<A>(&self, name: &str) -> Runtime<A> {
+        Runtime::with(self.connect(name), name, Vec::new())
     }
 }
 

@@ -107,3 +107,19 @@ fn the_claimant_under_a_point_is_never_the_connection_itself() {
         "outside every claim of the others"
     );
 }
+
+/// The runtime of the helper is a plugin on a connection to the fake core:
+/// its requests reach the core, and it holds no grab of its own.
+#[test]
+fn a_runtime_of_the_fake_core_reaches_the_core() {
+    let core = FakeCore::start();
+    let methods = core.record(|method, _| Some(method.to_owned()));
+    let mut rt: chora_kit::runtime::Runtime<()> = core.runtime("probe");
+    assert!(!rt.holds("Super+x"), "no grab of its own");
+    rt.subscribe(&["window.opened"]).unwrap();
+    assert_eq!(
+        *methods.lock().unwrap(),
+        ["hello", "events.subscribe"],
+        "the connect says hello, then the request follows"
+    );
+}
