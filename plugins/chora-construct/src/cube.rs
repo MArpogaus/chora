@@ -7,6 +7,8 @@
 //! the window manager ends, or does not connect in time, the outputs and
 //! the cube go.
 
+mod role;
+
 use std::{
     collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
@@ -17,7 +19,6 @@ use std::{
 };
 
 use chora_kit::{
-    cube,
     float::{self, Floating},
     geometry::{Cube, Matrix, Turn},
     modes::{Act, View},
@@ -152,7 +153,7 @@ pub(crate) struct Host {
     denied: BTreeSet<usize>,
     /// The front face and the turning that the event of the cube role
     /// told last.
-    told: Option<cube::Turned>,
+    told: Option<chora_kit::cube::Turned>,
 }
 
 /// The face of the geometry of the kit that shows face `i`: the four sides
@@ -1129,51 +1130,7 @@ impl Host {
 
     /// The quarter turns from the front face to `face`, the short way.
     pub(crate) fn turns_to(&self, face: usize) -> i32 {
-        cube::quarters_to(self.front, face, self.outputs.len())
-    }
-
-    /// The client name of the window manager of the faces.
-    pub(crate) fn manager(&self) -> String {
-        self.name.clone()
-    }
-
-    /// The answer of `cube.list`.
-    pub(crate) fn listing(&self) -> cube::Listing {
-        let faces = (self.outputs.iter().enumerate())
-            .map(|(i, output)| cube::Face {
-                output: output.clone(),
-                manager: self.name.clone(),
-                health: match self.health_of(i) {
-                    Health::Starting => "starting",
-                    Health::Up => "up",
-                    Health::Failed(_) => "failed",
-                }
-                .into(),
-            })
-            .collect();
-        cube::Listing {
-            faces,
-            front: self.front,
-            turning: self.turning(),
-            mode: match self.view.mode() {
-                chora_kit::modes::Mode::Use => "use",
-                chora_kit::modes::Mode::Navigate => "navigate",
-            }
-            .into(),
-        }
-    }
-
-    /// The data of the event of the cube role when the front face or
-    /// the turning changed since it was told last.
-    fn untold(&mut self) -> Option<cube::Turned> {
-        let now = cube::Turned {
-            front: self.front,
-            turning: self.turning(),
-        };
-        (self.told != Some(now)).then(|| {
-            self.told = Some(now);
-            now
-        })
+        chora_kit::cube::quarters_to(self.front, face, self.outputs.len())
     }
 }
 
@@ -1362,45 +1319,6 @@ impl Construct {
             self.draw_modes()?;
         }
         Ok(taken)
-    }
-
-    /// `cube.turn` of the cube role: by quarter turns or to a face.
-    pub(crate) fn turn_method(&mut self, turn: cube::Turn) -> Result<bool, RpcError> {
-        let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
-        let Some(host) = &self.cube else {
-            return Err(rejected(super::modes::no_cube()));
-        };
-        let (front, faces) = host.front_face();
-        let by = (turn.quarters(front, faces))
-            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?;
-        let taken = self.turn_cube(by, turn.ms, false).map_err(rejected)?;
-        self.tell_cube();
-        Ok(taken)
-    }
-
-    /// `cube.list` of the cube role; no faces while no cube is open.
-    pub(crate) fn cube_listing(&self) -> cube::Listing {
-        self.cube.as_ref().map_or_else(
-            || cube::Listing {
-                faces: Vec::new(),
-                front: 0,
-                turning: false,
-                mode: "use".into(),
-            },
-            Host::listing,
-        )
-    }
-
-    /// Emits the event of the cube role when the front face or the
-    /// turning changed; a refusal of the core reaches the log only.
-    pub(crate) fn tell_cube(&mut self) {
-        let Some(turned) = self.cube.as_mut().and_then(Host::untold) else {
-            return;
-        };
-        let event = json!({"event": cube::event(super::NAME), "data": turned});
-        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            eprintln!("chora-construct: {err}");
-        }
     }
 
     /// One step of the turn of the cube, then the frame.
@@ -1814,7 +1732,7 @@ mod tests {
         host_of(1)
     }
 
-    fn host_of(faces: usize) -> Host {
+    pub(super) fn host_of(faces: usize) -> Host {
         let child = std::process::Command::new("true").spawn().expect("true");
         let cube = Cube {
             size: [1280.0, 800.0],
@@ -1859,46 +1777,6 @@ mod tests {
             denied: BTreeSet::new(),
             told: None,
         }
-    }
-
-    #[test]
-    fn the_role_lists_the_faces_with_their_manager_and_health() {
-        let mut host = host_of(4);
-        host.name = "xp".into();
-        host.health[3] = Health::Starting;
-        let listing = host.listing();
-        assert_eq!(listing.faces.len(), 4);
-        assert_eq!(listing.faces[0].output, "VIRTUAL-1");
-        assert_eq!(listing.faces[0].manager, "xp");
-        assert_eq!(listing.faces[3].health, "starting");
-        assert_eq!((listing.front, listing.turning), (0, false));
-        assert_eq!(listing.mode, "use");
-        let _ = host.child.wait();
-    }
-
-    #[test]
-    fn the_role_tells_each_change_of_the_front_and_the_turning_once() {
-        let mut host = host_of(4);
-        let rest = cube::Turned {
-            front: 0,
-            turning: false,
-        };
-        assert_eq!(host.untold(), Some(rest), "the first state is told");
-        assert_eq!(host.untold(), None, "an unchanged state is not");
-        let now = Instant::now();
-        assert!(host.start_turn(host.turns_to(3), TURN, false, now));
-        let turning = cube::Turned {
-            front: 3,
-            turning: true,
-        };
-        assert_eq!(host.untold(), Some(turning), "a turn to face 3 goes left");
-        host.turn = None;
-        let done = cube::Turned {
-            front: 3,
-            turning: false,
-        };
-        assert_eq!(host.untold(), Some(done), "the end of the turn is told");
-        let _ = host.child.wait();
     }
 
     #[test]
