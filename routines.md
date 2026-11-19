@@ -15,7 +15,8 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
 
 ## By event
 - Each handback, merge, train (11-19): realign Queue 4-5 (rank, F moved, unmerged <= 4, budget), same turn.
-- Review or train (friction 53): `df -h /`; under 20 G one build at a time, clear sccache.
+- Train (owner 11-19 07:01): all MERGE-OK branches in one train; red: bisect; --jobs 3 after flakes-f 10/10.
+  `df -h /`; under 20 G one build at a time, clear sccache (friction 53).
 - A harness branch is MERGE-OK: its own train at once, before other trains; then tell the running
   lanes to merge the session branch. A new hook or check shows it never blocks a valid commit.
 - A FIX verdict or a CI-only failure: name the earliest gate that could have caught it; if none
@@ -28,10 +29,8 @@ Time: `date -u`; logs in UTC; owner-facing times (chat, status page) also in Ban
   check refuses, leave it idle and note it).
 - A merge: status page matches state.md (reviewed captures name their build); remove the
   lane worktree and its target/.
-- A persona round ends: `triage.py` on feedback/, findings ranked by severity.
 - A rule broken twice: a friction entry and a guard before the next lane start.
 - Tour review: fresh-eyes pass per look first; the PM watches tour-all before a verdict.
-- A single-cell request names the build first; a records lane starts after answers.md.
 - Budget ledger (11-17): Queue lines and briefs name % cost; open lines <= % left - 5 %.
 - An owner message: classify (rules.md 2), record verbatim, same turn.
 - An architecture record (docs/decisions.md) changes: list it in the week report, the

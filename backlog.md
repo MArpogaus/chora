@@ -222,3 +222,4 @@ wm1 r1 review (07:30, MERGE-OK) MINORs: tiling relayouts on every foreign NodeRe
 - (kit2b review r1 FIX 11-19 05:43) earliest gate: none; harness item: cut-check report mode lists new config variants a look starts to act on (a new match arm on a shared enum) so a port that adds a feature shows before review.
 - (owner 11-19 05:59) records: D95 amends D77 (one plugin repository until a split is needed); next docs lane edits docs/decisions.md D77 status.
 - kit2b rk2-1 (MINOR): settings.set drops an unfit construct binding with Ok; refuse it with INVALID_PARAMS (reports/kit2b.md PM review r2).
+- construct-hud flake (wm1c 11-19): "no claim after the restart of voice" failed 1 of 2 (10 s until_ok); claim timing after voice_start. Next flakes round.

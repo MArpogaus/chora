@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-19 06:56 UTC)
+## Now (2026-11-19 06:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %; use the week (06:04); 1 train per 3 h.
+budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: dc4bc46d (train 56: mv3); 24 greens; MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1, DOCS-F8, MV3 in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
@@ -27,15 +27,15 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every 
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 MERGE-OK; train 57 06:16 |
 | kit2b-r2.md (F2) | sonnet medium, claude/kit2b | 517ce830 MERGE-OK (PM r2); train 58
 | net3-r1.md (F7) | opus high, claude/net3 | session_016iS3kLZ9zKCda38a6cRs6a |
-| wm2-r1.md (F3) | opus high, claude/wm2 | 751dfbcb green; review-wm2-r1.md opus |
+| wm2-r1.md (F3) | opus high, claude/wm2 | 751dfbcb green; review session_016iS3kQkbSJYNkfqYdUHypC |
 | flakes-f-r1.md (F5) | opus high, claude/flakes-f | session_016iS3kPLuNxC9L4qF4UPzzP |
-| wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | session_016iS3kPjrW3RH4BYJ8KZtJc |
+| wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | 5e72e4f9; review-wm1c-r1.md sonnet |
 | kit6-r1.md (F2) | sonnet high, claude/kit6 | session_016iS3kQVP9HrenFDKnEYDaa |
 | cut2-r1.md (F6) | sonnet high, claude/cut2 | session_016iS3kNdkNBFAYBgQRp7tcg |
 
 ## Queue (% of week; 5 % reserve)
-4. Use the week (owner 06:04), critics 06:16: F2 ports first; <= 4 unmerged; reviews seeded, no gate run (sonnet ports, opus NET3, WM2, WM7a).
-5. Next lanes: KIT2c, WM1d, KIT2d, KIT3, KIT5 (F2); MV4 region.rs, chat.rs (F4); WM7a (F3); docs F8b (F8). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4. F7 open (tour next week).
+4. Trains: all MERGE-OK per train, bisect red; --jobs 3 after flakes-f 10/10. F2 ports first; <= 4 unmerged; reviews seeded.
+5. Next (sonnet unless complex, owner 06:56): KIT2c after train 58, WM1d, KIT2d, KIT3, KIT5 (F2); MV4 region.rs, chat.rs (F4); WM7a (F3); docs F8b (F8). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4.
 6. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
