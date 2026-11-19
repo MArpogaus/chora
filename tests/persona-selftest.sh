@@ -72,6 +72,15 @@ PATH=$session_path grim "$dir/shot.png"
 grep -qx "grim $dir/shot.png" "$calls" || fail "grim did not reach PERSONA_CALLS: $(cat "$calls")"
 ok "wpctl answers and logs, grim writes its file and logs"
 
+mapfile -d '' core_env <"/proc/$(env_value CHORA_CORE_PID)/environ"
+host_before=$(find "$HOME" -path '*Screenshots/*.png' 2>/dev/null | sort)
+env "${core_env[@]}" sh "$repo/flavors/shared/screenshot.sh" >/dev/null 2>&1
+shot=$(find "$dir" -path '*Screenshots/*.png' | head -n1)
+host_new=$(find "$HOME" -path '*Screenshots/*.png' 2>/dev/null | sort | comm -13 <(echo "$host_before") - | head -n1)
+[ -n "$shot" ] || fail "screenshot.sh wrote no file under $dir (new on the host: ${host_new:-none})"
+[ -z "$host_new" ] || fail "screenshot.sh wrote $host_new on the host"
+ok "screenshot.sh in the environment of the core writes under the session directory"
+
 grants=$(admin grants)
 for method in screen.capture methods.call; do
     echo "$grants" | jq -e --arg m "$method" '.["persona-check"] // [] | index($m)' >/dev/null ||
