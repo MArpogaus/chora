@@ -20,7 +20,7 @@ impl Rules {
 
     /// The window that a person holds in a drag, or none.
     pub fn hold(&mut self, id: Option<&str>) {
-        let _ = id;
+        self.held = id.map(str::to_owned);
     }
 
     /// The held window.
@@ -29,22 +29,60 @@ impl Rules {
         self.held.as_deref()
     }
 
-    /// `id` is a modal of `parent`: it stays above it.
+    /// `id` is a modal of `parent`: it stays above it. A new parent
+    /// replaces the old one.
     pub fn modal(&mut self, id: &str, parent: &str) {
-        let _ = (id, parent);
+        self.modals.retain(|(m, _)| m != id);
+        self.modals.push((id.into(), parent.into()));
     }
 
     /// Forgets a window that went: as the held window, as a modal and as
     /// a parent.
     pub fn forget(&mut self, id: &str) {
-        let _ = id;
+        self.held.take_if(|h| h == id);
+        self.modals.retain(|(m, p)| m != id && p != id);
     }
 
-    /// The order of the look, bottom first, with the two rules applied.
+    /// The order of the look, bottom first, with the two rules applied:
+    /// the held window goes on top, then each modal goes right above its
+    /// parent where it lies below it. A cycle of modals ends after one
+    /// pass per window.
     #[must_use]
     pub fn order(&self, look: &[String]) -> Vec<String> {
-        look.to_vec()
+        let mut order = look.to_vec();
+        if let Some(i) = self.held.as_ref().and_then(|h| at(&order, h)) {
+            let held = order.remove(i);
+            order.push(held);
+        }
+        for _ in 0..order.len() {
+            if !self.lift_modals(&mut order) {
+                break;
+            }
+        }
+        order
     }
+
+    /// Moves each modal that lies below its parent right above it;
+    /// whether one moved.
+    fn lift_modals(&self, order: &mut Vec<String>) -> bool {
+        let mut moved = false;
+        for (modal, parent) in &self.modals {
+            let (Some(m), Some(p)) = (at(order, modal), at(order, parent)) else {
+                continue;
+            };
+            if m < p {
+                let id = order.remove(m);
+                order.insert(p, id);
+                moved = true;
+            }
+        }
+        moved
+    }
+}
+
+/// The place of an id in an order.
+fn at(order: &[String], id: &str) -> Option<usize> {
+    order.iter().position(|o| o == id)
 }
 
 #[cfg(test)]
