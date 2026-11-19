@@ -410,3 +410,12 @@ wm3 e15155da was MERGE-OK, yet two of its unit tests panic on the session head (
 gives through the book). Every wm3 commit from its merge of the head (582620d8) is red, so its last gate ran before
 that merge. Earliest gate: the lane's own merge-gate after its last head merge. Rule: a handback names the gate run
 of its final sha; the PM checks that sha before MERGE-OK (procedures, seeded review). audit-f found it first.
+
+## 11-19 14:24 UTC: a lane branch carried an unmerged branch (cubesplit on fa457b29 carries wm3)
+Train 64b went red on wm3's xp tests although wm3 was out of the train. Earliest check: the seeded
+review lists `git log <session head>..<sha> --merges`; a merge of an unmerged lane branch is named
+in the verdict and the sha waits for that branch. Applied in procedures by hand from now.
+
+## 11-19 14:34 UTC: train 64c red on the matrix time limit (255 s > 240 s, all cells pass, --jobs 3)
+Rerun 64d: 250 s. Bisect 14:50: base 05878d2a and the wm7b merge both 235 s alone: no branch at fault, the base drifted from 192 s to the cap. Rule: a time cap has headroom from measured data (slowest under --jobs 3 plus 25 %); lane matrix-cap. For FLAKE-SERIES: the matrix limit under
+--jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.
