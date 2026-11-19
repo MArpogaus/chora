@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 16:16 UTC)
+## Now (2026-11-19 16:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 15:42 PM 5.5 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -30,7 +30,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | copies-0-r1.md (F2) | sonnet high | session_016iS3kQamLkh1Q8PUD3djE6 (16:06; from 85764974) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 65 gate 16:08 (85764974 = merge-65 e667b3d0 + integ 2318d62c + moved-tests-ct c4c4f5d5; xp 16c flaked once in merge-65). Next train: moved-tests-mk 31df2bb9 (MERGE-OK), matrix-cap when MERGE-OK (own train first).
+4. Trains (F6): 65 red 16:22 only on the matrix 240 s cap (248 s, what matrix-cap fixes); rerun 16:24 (85764974 = merge-65 e667b3d0 + integ 2318d62c + moved-tests-ct c4c4f5d5; xp 16c flaked once in merge-65). Next train: moved-tests-mk 31df2bb9 (MERGE-OK), matrix-cap when MERGE-OK (own train first).
 5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; ct, mk (haiku 1.4 %); DEBT-R done 16:13 (F4 open), DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %).
 
 ## Needs owner
