@@ -188,7 +188,9 @@ impl Construct {
     /// A new window: the launcher's own window, a pane of the construct,
     /// the program of the launcher, or, for the flavor, a free window.
     /// `free` is the claim of the book: no other window manager has the
-    /// surface reserved.
+    /// surface reserved and the construct has not claimed it yet; the
+    /// construct adopts no window without it, so that every pane is a
+    /// window of the book.
     pub(crate) fn created(
         &mut self,
         window: &chora_kit::wm::Created,
@@ -203,6 +205,9 @@ impl Construct {
             self.launcher = None;
             if !launchers_own(pid, launcher_pid) {
                 self.launched = None;
+                if !free {
+                    return Ok(());
+                }
                 self.adopt(surface, label, None, self.started(), true)?;
                 return self.fly_into_window(surface);
             }
@@ -218,7 +223,7 @@ impl Construct {
         let launched =
             pane.is_none() && (self.launched.take()).is_some_and(|t| t.elapsed() < LAUNCHED);
         let force = pane.is_some() || launched;
-        if pane.is_some() || launched || (free && !self.overlay) {
+        if free && (pane.is_some() || launched || !self.overlay) {
             self.adopt(surface, label, pane.as_ref(), self.started(), force)?;
             if by_key || launched {
                 return self.fly_into_window(surface);
@@ -269,7 +274,7 @@ impl Construct {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
         let mint = self.rt.conn.activation_token();
-        let token = chora_kit::launch(&command, mint.as_deref()).map(|(t, _)| t);
+        let token = chora_kit::launch::start(&command, mint.as_deref()).map(|(t, _)| t);
         let pane = PaneFile {
             kind: Kind::Program,
             command: Some(command),
@@ -292,7 +297,7 @@ impl Construct {
     pub(crate) fn start_launcher(&mut self) {
         let mint = self.rt.conn.activation_token();
         let command = chora_kit::shared::launcher(&self.settings.value.launcher);
-        self.launcher = chora_kit::launch(&command, mint.as_deref());
+        self.launcher = chora_kit::launch::start(&command, mint.as_deref());
         self.launched = Some(Instant::now());
     }
 

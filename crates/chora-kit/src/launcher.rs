@@ -182,7 +182,7 @@ pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
     let entries = desktop_entry::applications_in(&dirs);
     let apps = apps(entries, terminal, desktop_entry::on_path);
     if let Some(command) = choose(fuzzel, &apps) {
-        crate::run(&command, None);
+        crate::launch::run(&command, None);
     }
 }
 

@@ -893,13 +893,18 @@ impl Session {
 
     /// Closes the view and the field. The field hears it also when it
     /// took its surface away itself, on Esc: a place that the host wrote
-    /// before it read that shows the field again, with no view.
+    /// before it read that shows the field again, with no view. The text
+    /// that a list gave back goes from the field: no helper gets it.
     pub fn hide(&mut self, out: &mut dyn Outside) {
         self.close_chat(out);
+        let held = matches!(self.mode, Mode::List(_, Some(_)));
         self.mode = Mode::Closed;
         self.keyboard = false;
         self.spoken = None;
         if let Some(link) = self.link.as_mut() {
+            if held {
+                link.clear();
+            }
             link.hide();
         }
     }
@@ -2134,6 +2139,36 @@ mod tests {
             .show(&mut out, Some("notes"), Some("act"), &frame)
             .unwrap();
         assert_eq!(log.borrow().sends, 0, "a chat.show call picks nobody");
+    }
+
+    /// Review ux r2 (UX-D1): the text that a list gave back does not stay
+    /// in the field after a hide or Escape, where the next helper would
+    /// show it as its draft and a question balloon would add to it.
+    #[test]
+    fn a_text_of_a_list_leaves_the_field_with_a_hide() {
+        let (mut session, mut out, log, _frame) = list_with_a_text_given_back("moin");
+        let before = log.borrow().clears;
+        session.hide(&mut out);
+        assert_eq!(log.borrow().clears, before + 1, "the field is cleared");
+    }
+
+    #[test]
+    fn a_text_of_a_list_leaves_the_field_with_escape() {
+        let (mut session, mut out, log, frame) = list_with_a_text_given_back("moin");
+        let before = log.borrow().clears;
+        log.borrow_mut().events.push(FieldEvent::Closed);
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().clears, before + 1, "the field is cleared");
+    }
+
+    #[test]
+    fn a_list_without_a_text_leaves_the_field_alone_with_a_hide() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        let before = log.borrow().clears;
+        session.hide(&mut out);
+        assert_eq!(log.borrow().clears, before);
     }
 
     #[test]

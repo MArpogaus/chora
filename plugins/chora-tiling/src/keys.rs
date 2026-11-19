@@ -4,11 +4,11 @@
 
 use std::collections::BTreeMap;
 
-use chora_kit::{volume::Change, words::Language};
+use chora_kit::{actions::System, volume::Change, words::Language};
 use chora_scene::{Backdrop, Border, Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
-    config::{Action, Config},
+    config::{Action, Config, Own},
     layout::Layout,
     theme::{Colors, channels},
 };
@@ -91,10 +91,10 @@ pub fn layout_word(layout: Layout, lang: Language) -> &'static str {
 /// a `{}` stands for the number of a tag.
 fn words(action: &Action, de: bool) -> Option<(usize, String)> {
     let pick = |en: &str, german: &str| (if de { german } else { en }).to_owned();
-    if let Action::Run(command) = action {
+    if let Action::System(System::Run(command)) = action {
         return Some((3, command.clone()));
     }
-    if let Action::Give(to) = action {
+    if let Action::System(System::Give(to)) = action {
         return Some((
             4,
             format!("{} {to}", pick("Give window to", "Fenster geben an")),
@@ -112,64 +112,70 @@ type Words = [&'static str; 2];
 
 fn window_words(action: &Action) -> Option<Words> {
     Some(match action {
-        Action::FocusNext => ["Next window", "Nächstes Fenster"],
-        Action::FocusPrevious => ["Previous window", "Voriges Fenster"],
-        Action::FocusBack => ["Window before", "Fenster davor"],
-        Action::FocusUrgent => ["Window that asks", "Fenster, das ruft"],
-        Action::SwapNext => ["Move window down", "Fenster nach hinten"],
-        Action::SwapPrevious => ["Move window up", "Fenster nach vorn"],
-        Action::MoveToMaster => ["Make window main", "Fenster zum Hauptfenster"],
-        Action::Close => ["Close window", "Fenster schließen"],
-        Action::ToggleFloating => ["Float window", "Fenster schweben lassen"],
-        Action::ToggleFullscreen => ["Full screen", "Vollbild"],
-        Action::ToggleMaximized => ["Maximize", "Maximieren"],
-        Action::ToggleMaximizedHorizontal => ["Maximize wide", "Breit maximieren"],
-        Action::ToggleMaximizedVertical => ["Maximize tall", "Hoch maximieren"],
-        Action::ToggleOnTop => ["Keep on top", "Immer oben"],
-        Action::Minimize => ["Hide window", "Fenster verstecken"],
-        Action::RestoreMinimized => ["Bring back window", "Fenster zurückholen"],
-        Action::Drag => ["Drag window", "Fenster ziehen"],
+        Action::Look(Own::FocusNext) => ["Next window", "Nächstes Fenster"],
+        Action::Look(Own::FocusPrevious) => ["Previous window", "Voriges Fenster"],
+        Action::Look(Own::FocusBack) => ["Window before", "Fenster davor"],
+        Action::Look(Own::FocusUrgent) => ["Window that asks", "Fenster, das ruft"],
+        Action::Look(Own::SwapNext) => ["Move window down", "Fenster nach hinten"],
+        Action::Look(Own::SwapPrevious) => ["Move window up", "Fenster nach vorn"],
+        Action::Look(Own::MoveToMaster) => ["Make window main", "Fenster zum Hauptfenster"],
+        Action::System(System::Close) => ["Close window", "Fenster schließen"],
+        Action::Look(Own::ToggleFloating) => ["Float window", "Fenster schweben lassen"],
+        Action::Look(Own::ToggleFullscreen) => ["Full screen", "Vollbild"],
+        Action::Look(Own::ToggleMaximized) => ["Maximize", "Maximieren"],
+        Action::Look(Own::ToggleMaximizedHorizontal) => ["Maximize wide", "Breit maximieren"],
+        Action::Look(Own::ToggleMaximizedVertical) => ["Maximize tall", "Hoch maximieren"],
+        Action::Look(Own::ToggleOnTop) => ["Keep on top", "Immer oben"],
+        Action::Look(Own::Minimize) => ["Hide window", "Fenster verstecken"],
+        Action::Look(Own::RestoreMinimized) => ["Bring back window", "Fenster zurückholen"],
+        Action::System(System::Drag) => ["Drag window", "Fenster ziehen"],
         _ => return None,
     })
 }
 
 fn layout_words(action: &Action) -> Option<Words> {
     Some(match action {
-        Action::IncMasterWidth(s) if *s >= 0.0 => ["Wider main area", "Hauptbereich breiter"],
-        Action::IncMasterWidth(_) => ["Narrower main area", "Hauptbereich schmaler"],
-        Action::IncMasters(s) if *s >= 0 => ["More main windows", "Mehr Hauptfenster"],
-        Action::IncMasters(_) => ["Fewer main windows", "Weniger Hauptfenster"],
-        Action::IncColumns(s) if *s >= 0 => ["More columns", "Mehr Spalten"],
-        Action::IncColumns(_) => ["Fewer columns", "Weniger Spalten"],
-        Action::NextLayout => ["Next layout", "Nächste Anordnung"],
-        Action::PreviousLayout => ["Previous layout", "Vorige Anordnung"],
-        Action::FocusNextOutput => ["Next screen", "Nächster Bildschirm"],
-        Action::FocusPreviousOutput => ["Previous screen", "Voriger Bildschirm"],
-        Action::MoveToNextOutput => ["Window to next screen", "Fenster auf nächsten Bildschirm"],
+        Action::Look(Own::IncMasterWidth(s)) if *s >= 0.0 => {
+            ["Wider main area", "Hauptbereich breiter"]
+        }
+        Action::Look(Own::IncMasterWidth(_)) => ["Narrower main area", "Hauptbereich schmaler"],
+        Action::Look(Own::IncMasters(s)) if *s >= 0 => ["More main windows", "Mehr Hauptfenster"],
+        Action::Look(Own::IncMasters(_)) => ["Fewer main windows", "Weniger Hauptfenster"],
+        Action::Look(Own::IncColumns(s)) if *s >= 0 => ["More columns", "Mehr Spalten"],
+        Action::Look(Own::IncColumns(_)) => ["Fewer columns", "Weniger Spalten"],
+        Action::Look(Own::NextLayout) => ["Next layout", "Nächste Anordnung"],
+        Action::Look(Own::PreviousLayout) => ["Previous layout", "Vorige Anordnung"],
+        Action::Look(Own::FocusNextOutput) => ["Next screen", "Nächster Bildschirm"],
+        Action::Look(Own::FocusPreviousOutput) => ["Previous screen", "Voriger Bildschirm"],
+        Action::Look(Own::MoveToNextOutput) => {
+            ["Window to next screen", "Fenster auf nächsten Bildschirm"]
+        }
         _ => return None,
     })
 }
 
 fn tag_words(action: &Action) -> Option<Words> {
     Some(match action {
-        Action::ViewTag(_) => ["Show tag {}", "Tag {} zeigen"],
-        Action::ToggleTagView(_) => ["Add or remove tag {}", "Tag {} dazu oder weg"],
-        Action::MoveToTag(_) => ["Window to tag {}", "Fenster auf Tag {}"],
-        Action::ToggleWindowTag(_) => ["Window also on tag {}", "Fenster auch auf Tag {}"],
-        Action::ViewNext => ["Next tag", "Nächster Tag"],
-        Action::ViewPrevious => ["Previous tag", "Voriger Tag"],
-        Action::ViewBack => ["Tag before", "Tag davor"],
+        Action::Look(Own::ViewTag(_)) => ["Show tag {}", "Tag {} zeigen"],
+        Action::Look(Own::ToggleTagView(_)) => ["Add or remove tag {}", "Tag {} dazu oder weg"],
+        Action::Look(Own::MoveToTag(_)) => ["Window to tag {}", "Fenster auf Tag {}"],
+        Action::Look(Own::ToggleWindowTag(_)) => {
+            ["Window also on tag {}", "Fenster auch auf Tag {}"]
+        }
+        Action::Look(Own::ViewNext) => ["Next tag", "Nächster Tag"],
+        Action::Look(Own::ViewPrevious) => ["Previous tag", "Voriger Tag"],
+        Action::Look(Own::ViewBack) => ["Tag before", "Tag davor"],
         _ => return None,
     })
 }
 
 fn system_words(action: &Action) -> Option<Words> {
     Some(match action {
-        Action::Reload => ["Read the settings again", "Einstellungen neu lesen"],
-        Action::Volume(Change::Up) => ["Volume up", "Lauter"],
-        Action::Volume(Change::Down) => ["Volume down", "Leiser"],
-        Action::Volume(Change::Mute) => ["Mute", "Stumm"],
-        Action::ShowKeys => ["Show this list", "Diese Liste zeigen"],
+        Action::Look(Own::Reload) => ["Read the settings again", "Einstellungen neu lesen"],
+        Action::System(System::Volume(Change::Up)) => ["Volume up", "Lauter"],
+        Action::System(System::Volume(Change::Down)) => ["Volume down", "Leiser"],
+        Action::System(System::Volume(Change::Mute)) => ["Mute", "Stumm"],
+        Action::System(System::Keys) => ["Show this list", "Diese Liste zeigen"],
         _ => return None,
     })
 }
@@ -189,10 +195,9 @@ fn title(group: usize, de: bool) -> &'static str {
 /// The number at the end of a key, as `view_tag` binds it.
 fn number(action: &Action) -> Option<usize> {
     match action {
-        Action::ViewTag(n)
-        | Action::ToggleTagView(n)
-        | Action::MoveToTag(n)
-        | Action::ToggleWindowTag(n) => Some(*n),
+        Action::Look(
+            Own::ViewTag(n) | Own::ToggleTagView(n) | Own::MoveToTag(n) | Own::ToggleWindowTag(n),
+        ) => Some(*n),
         _ => None,
     }
 }
@@ -271,10 +276,10 @@ fn spell(keys: &str) -> String {
 /// `Vol+ / Vol- / Mute` and their words in that order, in one row as the
 /// tags 1 to 9 take one.
 fn volume_row(config: &Config, de: bool) -> Option<(usize, Entry)> {
-    let mut parts: Vec<(usize, String, String, String)> = (config.bindings.iter())
+    let mut parts: Vec<(usize, String, String, String)> = (config.common.bindings.iter())
         .filter(|(binding, _)| !binding.contains("MOD"))
         .filter_map(|(binding, action)| {
-            let Action::Volume(change) = action else {
+            let Action::System(System::Volume(change)) = action else {
                 return None;
             };
             let order = [Change::Up, Change::Down, Change::Mute]
@@ -286,7 +291,7 @@ fn volume_row(config: &Config, de: bool) -> Option<(usize, Entry)> {
         })
         .collect();
     parts.sort();
-    let (group, _) = words(&Action::Volume(Change::Up), de)?;
+    let (group, _) = words(&Action::System(System::Volume(Change::Up)), de)?;
     let join = |part: fn(&(usize, String, String, String)) -> &str| {
         parts.iter().map(part).collect::<Vec<_>>().join(" / ")
     };
@@ -300,7 +305,7 @@ fn volume_row(config: &Config, de: bool) -> Option<(usize, Entry)> {
 fn give_row(de: bool) -> Option<(usize, Entry)> {
     let (keys, names) = chora_kit::give::keys_row("-");
     let (last, others) = names.split_last()?;
-    let (group, lead) = words(&Action::Give(others.join(", ")), de)?;
+    let (group, lead) = words(&Action::System(System::Give(others.join(", "))), de)?;
     let or = if de { "oder" } else { "or" };
     Some((group, (ORDER.len(), keys, format!("{lead} {or} {last}"))))
 }
@@ -315,7 +320,7 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
     let de = lang == Language::De;
     let mut groups: Vec<Vec<Entry>> = vec![Vec::new(); 5];
     let mut spans: BTreeMap<(usize, usize, String, String), (usize, usize)> = BTreeMap::new();
-    for (binding, action) in &config.bindings {
+    for (binding, action) in &config.common.bindings {
         let Some((group, label)) = words(action, de) else {
             continue;
         };
