@@ -3,8 +3,8 @@
 use super::{
     Bar, ClientError, Command, DESKTOPS, Decoration, Dialog, HELP_TASK, Instant, MENUS, Menu, NAME,
     Panel, Part, PropsUpdate, Rect, RpcError, SurfaceRequest, Task, Value, Window, Wm, change_keys,
-    close, context, decoration, desk_id, dropped_at, help, home_bar, restart, takes, taskbar,
-    window, window_icon,
+    close, context, decoration, desk_id, dropped_at, help, home_bar, restart, taskbar, window,
+    window_icon,
 };
 
 impl Wm {
@@ -16,18 +16,15 @@ impl Wm {
         self.focused.as_deref() == Some(surface)
     }
 
-    /// Takes a surface without an owner into a hidden group with its
-    /// decoration and focuses it. It shows once it has a size.
+    /// Takes a surface that the book proposes into a hidden group with
+    /// its decoration and focuses it. It shows once it has a size. True
+    /// when the window is xp's now; false when the core refused it.
     pub(super) fn adopt(
         &mut self,
         surface: &str,
         app_id: Option<String>,
         title: Option<&str>,
-        to: Option<&str>,
-    ) -> Result<(), ClientError> {
-        if !takes(to) || self.index(surface).is_some() {
-            return Ok(());
-        }
+    ) -> Result<bool, ClientError> {
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
         window.icon = window_icon(&mut self.icons, window.app_id.as_deref());
@@ -54,10 +51,10 @@ impl Wm {
             self.windows.retain(|w| w.surface != surface);
             self.opened.retain(|s| s != surface);
             self.focused = previous;
-            return Ok(());
+            return Ok(false);
         }
         let Some(node) = self.rt.conn.query(&format!("id:{surface}"))?.pop() else {
-            return Ok(());
+            return Ok(true);
         };
         let info = node.surface.unwrap_or_default();
         let mut commands = self.redecorate(surface, info.decoration);
@@ -65,7 +62,8 @@ impl Wm {
         if let Some(size) = info.size.filter(|[w, h]| *w > 0 && *h > 0) {
             commands.extend(self.resized(surface, size));
         }
-        self.apply(commands)
+        self.apply(commands)?;
+        Ok(true)
     }
 
     /// The commands for a new client size: a new window shows, and the
@@ -362,7 +360,8 @@ impl Wm {
         }
         let cube = !self.cube_off();
         self.cube_keys = cube;
-        let grabbed = change_keys(&mut self.rt, cube).and_then(|()| self.rt.grab_give_keys());
+        let grabbed = change_keys(&mut self.rt, &self.settings.value.common.bindings, cube)
+            .and_then(|()| self.rt.grab_give_keys());
         if let Err(err) = grabbed {
             eprintln!("chora-xp: {err}");
         }

@@ -1,11 +1,13 @@
 //! Starting the window manager: connecting, adopting the windows, creating the scene and the outputs.
 
+use chora_kit::wm::Created;
+
 use super::{
     BARS, Bar, ClientError, Command, Config, DESKTOPS, DIALOGS, DesktopIcons, EVENTS, Effects,
-    ExportMethod, HashMap, Helper, Icons, Instant, Key, Launches, MENUS, METHODS, Menu, Mixer,
-    NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme,
-    Tooltip, WALLPAPERS, WINDOWS, Wm, apps, desk_id, desktop_icons, float, give, grab_keys,
-    max_scale, move_method, settings, wallpaper, window, without_reserve,
+    ExportMethod, HashMap, Helper, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
+    Mixer, NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound,
+    Theme, Tooltip, WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give,
+    grab_keys, max_scale, move_method, settings, wallpaper, window, without_reserve,
 };
 
 impl Wm {
@@ -23,7 +25,7 @@ impl Wm {
     /// As [`Self::start`], on a runtime that is connected already.
     #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
     pub(super) fn start_on(
-        rt: Runtime<Key>,
+        rt: Runtime<KeyAction>,
         theme: Theme,
         settings: settings::File<Config>,
         slow: f64,
@@ -90,6 +92,7 @@ impl Wm {
             hidden: Vec::new(),
             cube_grab: None,
             kept: HashMap::new(),
+            book: chora_kit::wm::Book::new(NAME, false).with_groups(decoration::GROUP),
             launches: Launches::new(),
             notepad,
             notifier: Notifier::new(),
@@ -140,11 +143,22 @@ impl Wm {
         nodes.sort_by_key(|n| self.kept.get(&n.id).map_or(usize::MAX, |k| k.z));
         let mut opened = Vec::new();
         for node in nodes {
-            if let Some(k) = self.kept.get(&node.id) {
-                opened.push((k.opened, node.id.clone()));
+            let kept_at = self.kept.get(&node.id).map(|k| k.opened);
+            let info = node.surface.clone().unwrap_or_default();
+            let facts = Created {
+                surface: node.id.clone(),
+                app_id: info.app_id,
+                title: info.title,
+                to: node.to.clone(),
+                pid: None,
+                token: None,
+            };
+            let changes = self.book.claim(&node.id, node.to.as_deref(), None);
+            self.settle(changes, Some(&facts))?;
+            if let Some(place) = kept_at.filter(|_| self.book.has(&node.id)) {
+                self.book.keep(&node.id);
+                opened.push((place, node.id));
             }
-            let info = node.surface.unwrap_or_default();
-            self.adopt(&node.id, info.app_id, info.title.as_deref(), None)?;
         }
         opened.sort_by_key(|(place, _)| *place);
         let kept: Vec<String> = opened.into_iter().map(|(_, id)| id).collect();
@@ -246,10 +260,12 @@ impl Wm {
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
         let cube = !self.cube_off();
         self.cube_keys = cube;
-        grab_keys(&mut self.rt, cube)?;
+        grab_keys(&mut self.rt, &self.settings.value.common.bindings, cube)?;
         self.rt
-            .accept_injected(self.settings.value.test_accept_injected_keys);
-        self.rt.give_keys(Some(Key::Give));
+            .accept_injected(self.settings.value.common.test_accept_injected_keys);
+        self.rt.give_keys(Some(|to| {
+            KeyAction::System(chora_kit::actions::System::Give(to.into()))
+        }));
         self.rt.grab_give_keys()
     }
 

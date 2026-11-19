@@ -63,7 +63,7 @@ impl Conn {
         &self.name
     }
 
-    /// An activation token of the plugin for [`crate::run`] and
+    /// An activation token of the plugin for [`crate::launch::run`] and
     /// [`crate::launch`]. It carries the act of the person when the act
     /// went to this plugin: a key or button it grabbed, a key to its node
     /// or a press on its node. `None` when the core refuses one, and while

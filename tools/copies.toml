@@ -11,7 +11,7 @@ pattern = 'to != NAME'
 
 [[row]]
 allow = ["crates/chora-kit/"]
-max = 1
+max = 0
 name = "Event::SurfaceCreated outside kit"
 paths = ["plugins", "services"]
 pattern = 'Event::SurfaceCreated\b'
@@ -38,6 +38,12 @@ pattern = 'Event::SurfaceCreated\b'
 max = 0
 name = "construct: Event::SurfaceCreated (WM1c)"
 paths = ["plugins/chora-construct"]
+pattern = 'Event::SurfaceCreated\b'
+
+[[row]]
+max = 0
+name = "xp: Event::SurfaceCreated (WM1d)"
+paths = ["plugins/chora-xp"]
 pattern = 'Event::SurfaceCreated\b'
 
 [[row]]
@@ -72,10 +78,36 @@ paths = ["plugins"]
 pattern = 'UnixListener::bind'
 
 [[row]]
-allow = ["crates/chora-kit/src/wm"]
-max = 20
+allow = ["crates/chora-kit/src/wm", "crates/chora-kit/tests/wm_"]
+max = 18
 name = "Command::Focus outside kit::wm"
 pattern = 'Command::Focus\b'
+
+# WM2: kit::wm::focus holds the focus of a look; tiling and mc moved.
+[[row]]
+max = 0
+name = "own focus model (ShownFocus, WM2)"
+paths = ["plugins"]
+pattern = '\bShownFocus\b'
+
+[[row]]
+max = 2
+name = "mc: Command::Focus (WM2)"
+paths = ["plugins/chora-mc"]
+pattern = 'Command::Focus\b'
+
+[[row]]
+max = 1
+name = "tiling: Command::Focus (WM2)"
+paths = ["plugins/chora-tiling"]
+pattern = 'Command::Focus\b'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 8
+name = "Event::FocusChanged outside kit"
+paths = ["plugins", "services"]
+pattern = 'Event::FocusChanged\b'
 
 # kit4: kit::ask is the only question model; mc and construct draw its card.
 [[row]]
@@ -105,3 +137,39 @@ max = 0
 name = "root moved below the other roots by hand (D83)"
 paths = ["plugins", "services"]
 pattern = 'fn under_other_plugins|Order::Lock'
+
+# kit6: kit::launch owns the start of a program and its end (D104); a
+# plugin starts through it and keeps no token variable, pidfd or status file.
+[[row]]
+allow = ["crates/chora-kit/", "crates/choractl/"]
+max = 0
+name = "choractl run token variable (KIT6)"
+pattern = 'CHORA_RUN_TOKEN'
+
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own end-of-program tracking (pidfd, status file) (KIT6)"
+pattern = 'pidfd_open|chora-xp-exit|chora-launch-exit|struct StatusFile'
+
+# kit2c: tiling binds the actions that every look has through kit::actions;
+# its own enum keeps the windows, the layouts and the tags.
+[[row]]
+max = 0
+name = "tiling: a shared action of its own (KIT2c)"
+paths = ["plugins/chora-tiling"]
+pattern = 'Action::(Run|Close|Give|Drag|Volume|ShowKeys)\b'
+
+# kit2d: xp takes its keys from `bindings` (kit::actions); no table of keys
+# and no enum of key actions of its own.
+[[row]]
+max = 0
+name = "xp: table of hard-coded keys (KIT2d)"
+paths = ["plugins/chora-xp"]
+pattern = 'const KEYS: \['
+
+[[row]]
+max = 0
+name = "xp: own enum of key actions (KIT2d)"
+paths = ["plugins/chora-xp"]
+pattern = 'pub enum Key \{'

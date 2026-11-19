@@ -71,7 +71,7 @@ impl Host for Construct {
 
     fn chat(&mut self) -> Result<(), ClientError> {
         let mint = self.rt.conn.activation_token();
-        if chora_kit::launch("chora-chat", mint.as_deref()).is_some() {
+        if chora_kit::launch::start("chora-chat", mint.as_deref()).is_some() {
             return Ok(());
         }
         self.say_failed(Failure::NotStarted("chora-chat".into()))

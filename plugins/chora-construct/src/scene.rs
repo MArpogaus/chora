@@ -152,7 +152,7 @@ impl Construct {
                 Kind::Program => {
                     let mint = self.rt.conn.activation_token();
                     let command = pane.command.as_deref().unwrap_or_default();
-                    let token = chora_kit::launch(command, mint.as_deref()).map(|(t, _)| t);
+                    let token = chora_kit::launch::start(command, mint.as_deref()).map(|(t, _)| t);
                     self.waiting.push(Waiting::new(token, pane));
                 }
                 Kind::Plugin => {

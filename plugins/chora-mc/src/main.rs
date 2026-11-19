@@ -42,6 +42,7 @@ use chora_kit::{
     launch,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
+    wm::focus::Focus,
 };
 use chora_scene::{
     Command, Easing, Event, MAX_DURATION, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -354,8 +355,9 @@ struct Mc {
     /// The settings of the last build without the theme: a change of the
     /// theme alone fades the colors.
     shape: Option<Value>,
-    /// The surface that the plugin gave the keyboard last.
-    focused: Option<String>,
+    /// The keyboard focus that mc gave and the core moved
+    /// (`kit::wm::focus`).
+    focus: Focus,
     /// The surface that has the keyboard focus of the core, from
     /// `focus.changed`.
     core_focus: Option<String>,
@@ -526,7 +528,7 @@ impl Mc {
             fitting: HashMap::new(),
             shape: None,
             rendered: None,
-            focused: None,
+            focus: Focus::default(),
             core_focus: None,
             voiced_word: chora_kit::helper::Helpers::default(),
             dragged: None,
@@ -679,6 +681,7 @@ impl Plugin for Mc {
                 data,
             } => self.emitted(&event, &client, data),
             Event::FocusChanged { surface } => {
+                self.focus.moved(surface.as_deref());
                 self.core_focus = surface;
                 Ok(())
             }
@@ -972,6 +975,9 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
+        if open {
+            self.focus.lose();
+        }
         self.render()?;
         let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
         let mut ours = self.windows.values().chain(self.docks.values());
@@ -1005,9 +1011,8 @@ impl Mc {
         if !focused.is_empty() {
             return Ok(());
         }
-        self.apply(vec![Command::FocusNode {
-            node: Some(page_id(&name)),
-        }])
+        let focus = self.focus.to_node(Some(page_id(&name)));
+        self.apply(vec![focus])
     }
 
     /// The voice agent came or went: its indicator is due again, and the
@@ -2055,6 +2060,43 @@ mod tests {
         assert!(model.lock().unwrap().focuses.len() > before);
     }
 
+    /// rw-1: a click on a window of mc after another look took the
+    /// keyboard gives it back (D55, "until one of its windows takes it
+    /// back"): mc sends the focus again, also for the window it sent last.
+    #[test]
+    fn a_click_on_its_window_after_another_look_took_the_keyboard_sends_the_focus() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("click-back", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.windows.insert("agenda".into(), "s1".into());
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let sent = model.lock().unwrap().focuses.len();
+        mc.event(chora_scene::Event::FocusChanged {
+            surface: Some("s9".into()),
+        })
+        .unwrap();
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let focuses = model.lock().unwrap().focuses.clone();
+        assert_eq!(focuses.len(), sent + 1, "{focuses:?}");
+        assert_eq!(focuses.last(), Some(&Some("s1".to_owned())));
+    }
+
+    /// rw-2: `take_free_keyboard` gives the keyboard to the page node, and
+    /// `state.get` tells that mc holds it.
+    #[test]
+    fn a_free_keyboard_taken_by_the_page_shows_in_the_state() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("free-keyboard", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        assert_eq!(model.lock().unwrap().scene.focused_node(), None);
+        mc.take_free_keyboard().unwrap();
+        assert!(model.lock().unwrap().scene.focused_node().is_some());
+        assert_eq!(
+            mc.state().unwrap()["focus"],
+            serde_json::json!({"holder": "mc"})
+        );
+    }
+
     /// A docked app that had the keyboard before the chat opened gets it
     /// back when the chat closes.
     #[test]
@@ -2063,7 +2105,7 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("chat-dock", [1280, 800]);
         mc.show("agenda", false).unwrap();
         mc.docks.insert("shell".into(), "dock1".into());
-        mc.focused = Some("dock1".into());
+        mc.focus.surface = Some("dock1".into());
         mc.event(chat_event("assistant", true, "test")).unwrap();
         mc.event(chat_event("assistant", false, "test")).unwrap();
         assert_eq!(
@@ -2371,7 +2413,7 @@ mod tests {
         };
         model.lock().unwrap().scene.apply("xp", &[claim]).unwrap();
         mc.windows.insert("agenda".into(), "s1".into());
-        mc.focused = Some("s1".into());
+        mc.focus.surface = Some("s1".into());
         let before = model.lock().unwrap().focuses.len();
         mc.give(Give {
             surface: "s1".into(),
@@ -2384,7 +2426,7 @@ mod tests {
             focuses.is_empty(),
             "mc sent a focus after the hand: {focuses:?}"
         );
-        assert_eq!(mc.focused, None);
+        assert_eq!(mc.focus.surface, None);
     }
 
     /// A client with `methods.call` alone rewrote the detail of a spoken
