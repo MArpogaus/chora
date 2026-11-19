@@ -22,3 +22,13 @@ reviewer allows leaving it for a 400 px chat panel. Also open: kit7 "no voice-al
 per look" (not in the brief).
 Note: thinking of the voice agent alone keeps an answer (the existing cell says so); only
 the person's own utterance (recording, transcribing) clears it.
+
+## r1 PM review (2026-11-19 20:54 UTC)
+Diff 219d5afe..88f441e4, 5 files, +165 -22; builder sonnet lane, reviewer PM. Identity ok; each fix has its red test commit first (4 pairs).
+- OK kit5 r2-1: notify ends 0 on NAME_TAKEN alone (another_serves), no restart loop.
+- OK kit5 r2-2: mc critical notice ids capped at 64, oldest first; test fills 65.
+- OK kit7: recording or transcribing clears an answered helper; a working helper still wins; thinking alone keeps it (cell a_new_utterance_clears_the_answer_of_a_helper). POLS: the person speaking again ends the old answer.
+- OK kit7: seed keeps report order in voice core, so the door names the last reporter.
+- NIT: test name the_critical_ids_are_capped_at_one_more reads oddly (it checks the cap of 64).
+- Open, not in scope: kit5 r2-3 (card over a very wide chat) stays in the backlog.
+Verdict (computed): no BLOCK or MAJOR -> MERGE-OK; 88f441e4 to train 73.
