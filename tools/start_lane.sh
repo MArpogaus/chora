@@ -23,6 +23,12 @@ case "$model" in
 esac
 # Waiting rule (friction 11-17 15:07, second time 11-18): a lane polls its gate in the same turn.
 grep -qE 'same turn|never end a turn to wait' "$root/$rel" || die "$rel lacks 'poll it in the same turn' or 'never end a turn to wait' (a worker that ends its turn to wait stalls)"
+# Setup check (friction 11-19 12:24, flakes-g x3): step 0 fails fast in a container without setup.
+grep -qE '^Step 0.*cargo check' "$root/$rel" || die "$rel lacks a 'Step 0 ... cargo check' setup check (a container without setup must report BLOCKED at once)"
+# ci-check (friction 11-19 kit7 r1 rw-1): a lane's --only gate list carries ci-check.
+if grep -qE 'merge-gate\.sh --only' "$root/$rel"; then
+  grep -E 'merge-gate\.sh --only' "$root/$rel" | grep -vq 'ci-check' && die "$rel: a merge-gate.sh --only list lacks ci-check (the earliest gate for cut-check)"
+fi
 # Opus gate (critic 11-18: opus started three times while over pace): the budget line decides.
 case "$model" in
   *opus*|*Fable*) grep -m1 '^budget:' "$root/state.md" | grep -qiE 'no new opus' && die "state.md budget line says no new opus today (rules.md 9)" ;;

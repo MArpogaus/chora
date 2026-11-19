@@ -15,7 +15,7 @@ Procedures (train, lane start, seeded review, ids): procedures.md. Time: `date -
 
 ## By event
 - Each handback, merge, train (11-19): realign Queue 4-5 (rank, F moved, unmerged <= 4, budget), same turn.
-- Train (owner 11-19 07:01): all MERGE-OK branches in one train; red: bisect; --jobs 3 after flakes-f 10/10.
+- Train (11-19 07:01): each MERGE-OK sha joins the next unstarted train; red: bisect; --jobs 3 after flakes-f.
   `df -h /`; under 20 G one build at a time, clear sccache (friction 53).
 - A harness branch is MERGE-OK: its own train at once, before other trains; then tell the running
   lanes to merge the session branch. A new hook or check shows it never blocks a valid commit.

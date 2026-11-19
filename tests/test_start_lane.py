@@ -20,8 +20,8 @@ class StartLane(unittest.TestCase):
         git(self.d, "init", "-q")
         (self.d / "briefs").mkdir()
         (self.d / "state.md").write_text(STATE)
-        (self.d / "briefs" / "tiling-r1.md").write_text("brief\nModel: sonnet, effort medium\npoll it in the same turn\n")
-        (self.d / "briefs" / "xp-r1.md").write_text("brief\nModel: sonnet, effort medium\npoll it in the same turn\n")
+        (self.d / "briefs" / "tiling-r1.md").write_text("brief\nModel: sonnet, effort medium\npoll it in the same turn\nStep 0: cargo check -p chora\n")
+        (self.d / "briefs" / "xp-r1.md").write_text("brief\nModel: sonnet, effort medium\npoll it in the same turn\nStep 0: cargo check -p chora\n")
         git(self.d, "add", "state.md", "briefs/tiling-r1.md")
         git(self.d, "commit", "-q", "-m", "x")
 
@@ -76,13 +76,28 @@ class StartLane(unittest.TestCase):
 
     def test_opus_refused_when_budget_says_no(self):
         (self.d / "state.md").write_text("budget: 70 %, 9 % over. No new opus today.\n" + STATE)
-        code, _, err = self.commit_brief("b\nModel: opus, effort high because a hard root cause\nsame turn\n")
+        code, _, err = self.commit_brief("b\nModel: opus, effort high because a hard root cause\nsame turn\nStep 0: cargo check -p chora\n")
         self.assertEqual(code, 1)
         self.assertIn("no new opus", err)
 
     def test_opus_allowed_on_pace(self):
         (self.d / "state.md").write_text("budget: 60 %, on pace.\n" + STATE)
-        self.assertEqual(self.commit_brief("b\nModel: opus, effort high because a hard root cause\nsame turn\n")[0], 0)
+        self.assertEqual(self.commit_brief("b\nModel: opus, effort high because a hard root cause\nsame turn\nStep 0: cargo check -p chora\n")[0], 0)
+
+    def test_no_setup_step(self):
+        code, _, err = self.commit_brief("brief\nModel: sonnet, effort medium\nsame turn\n")
+        self.assertNotEqual(code, 0)
+        self.assertIn("Step 0", err)
+
+    def test_only_without_ci_check(self):
+        code, _, err = self.commit_brief("brief\nModel: sonnet, effort medium\nsame turn\nStep 0: cargo check -p chora\n"
+                                         "`tests/merge-gate.sh --only build,acts` green\n")
+        self.assertNotEqual(code, 0)
+        self.assertIn("ci-check", err)
+
+    def test_only_with_ci_check(self):
+        self.assertEqual(self.commit_brief("brief\nModel: sonnet, effort medium\nsame turn\nStep 0: cargo check -p chora\n"
+                                           "`tests/merge-gate.sh --only build,ci-check,acts` green\n")[0], 0)
 
     def test_no_argument(self):
         self.assertEqual(self.run_it("")[0], 1)
