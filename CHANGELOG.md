@@ -1,3 +1,17 @@
+## Unreleased
+
+### Fix
+
+- **security**: refuse an XDG_RUNTIME_DIR that another user owns or that
+group or other can write: chora opens no socket and no plugin writes
+shaders, icon copies or caches there; the log names the path and the mode
+- **security**: make the shader, icon-copy and block cache directories
+private (mode 0700, checked) like the socket directory
+- **paths**: accept a private directory with setgid (02700) or a stricter
+mode such as 0500; refuse any group or other bit
+- **voice**: refuse to start without XDG_DATA_HOME or an absolute HOME,
+not a relative `~/.local/share` below the current directory
+
 ## v0.9.0-rc.3 (2026-11-01)
 
 ### BREAKING CHANGE
