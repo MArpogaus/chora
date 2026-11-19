@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 23:12 UTC)
+## Now (2026-11-19 23:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 %; 29 h left: 75 %, 2.6 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -31,7 +31,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
 | pw-r1.md (P2) | sonnet high | done 3ba07d9b; review session_016iS3kNpLMJS4eYC1sAGaip |
 | nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
-| block-v-r2.md (RC1, mc-38) | sonnet medium | starting (r1 FIX: Home) |
+| block-v-r2.md (RC1, mc-38) | sonnet medium | session_016iS3kQmymuHisQ92V8khSe |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r1.md (F5) | sonnet high | session_016iS3kPTiu5i9QdTant26v4 |
 
