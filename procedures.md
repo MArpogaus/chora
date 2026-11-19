@@ -23,7 +23,7 @@ Brief (Model line `^Model: (haiku|sonnet|opus|Fable)`, opus/Fable "because <reas
 claude-opus-5-5 | claude-haiku-5-5, effort, tags ["chora-lane"], prompt "You are a build lane of the chora session.
 Read your brief with `git fetch origin claude/session-log && git show origin/claude/session-log:briefs/X.md` and
 follow it exactly, in this same turn, until done or blocked. The PM session is <pm id>.") -> send_later 6-7 min
-start check -> session id into Lanes. Handback: archive the worker.
+start check -> session id into Lanes. Every brief: step 0 runs setup.sh from claude/session-log (owner 11-19: env saved twice). Handback: archive the worker.
 
 ## Seeded review (owner 06:12)
 Base..head and diffstat; the brief's done criteria as checks; known findings by id; a command and files per check;
