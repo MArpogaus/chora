@@ -17,6 +17,48 @@ A mechanism that two looks (mc, xp, tiling, construct) need lives in a shared cr
 - `crates/chora-kit`: the plugin runtime, `actions` and `settings::Common` (D98), `ask` (D100), `words` and `Language` (D102), `wm` (`book`, `give`, `kept`, `state`; D99), `helper`, `runtime_file`, and `testing` with `FakeCore` (D96).
 - `crates/chora-draw`: drawing blocks.
 
+One line per module of `crates/chora-kit/src`: what lives there, and when to use it. A new module adds its line in the commit that adds it.
+
+- `actions`: the actions every look shares (`System`), `Action<L>` for a look's own, and `actions/perform.rs` that performs them; use it for a key binding.
+- `ask`: the question card model of `voice.confirm`; use it for any yes or no question to the person.
+- `chat`: the transcript of a helper, the text sanitizer and the wrap into lines; use it where a host draws a chat.
+- `clock`: the monotonic or stepped clock of animations; a recording steps its time.
+- `conn`: the connection skeleton (`hello`, calls, node queries, tolerant transactions); the runtime owns the connection.
+- `cube`: the cube role (`cube.list`, `cube.turn`, `cube.pull`, `NAME.cube`) and `exporter`; use it to host a cube or to reach one (D113).
+- `desktop_entry`: the applications of the XDG desktop files; use it for a menu or launcher.
+- `effects`: the driver of wobbly windows and the magic lamp for a window manager.
+- `float`: floating windows off a face of a shape, the method `windows.float`.
+- `geometry`: the slots of panes in a 3D context, the cube and its faces (D76).
+- `give`: the claim under a point and the method `window.give` that every window manager exports (D55).
+- `glass`: the tokens of the construct HUD (material, type, space) that the construct and `chora-assistant` share.
+- `helper`: the state machine of the helper from the events of voice; use it for the word and the door of a helper (D111).
+- `hud`: the model of a HUD folder (version 1) that `chora-assistant` draws.
+- `icons`: the icons of the installed icon themes, by name.
+- `keysheet`: the rows of a key list from the bindings; use it, not words and caps of your own (D114).
+- `lamp`: the frames of the magic lamp of minimize and restore.
+- `launch`: start a program and follow it until its window shows (D104); never track a child by hand.
+- `launcher`: the rows of `fuzzel --dmenu` for the installed programs, and what a typed text runs.
+- `modes`: the use and navigate modes of a view on a shape of panes, such as the cube.
+- `notice`: show, replace and dismiss a message through `chora-notify`; never draw a notice or call D-Bus yourself (D110).
+- `runtime`: the plugin runtime: connect, subscribe, export methods, grab bindings, `settings.*`, reconnect; also `runtime_file`.
+- `settings`: the typed YAML settings of a plugin and `settings::Common` (D62, D98).
+- `shared`: the files every look shares in the folder `shared` (`power.sh`, `screenshot.sh`, launcher entries).
+- `testing`: `FakeCore` and the script of a test over it (D96); use it in every plugin test.
+- `volume`: the volume of the default output through `wpctl`, on a thread of its own.
+- `wobbly`: the model of wobbly windows, a spring grid.
+- `words`: the word tables and `Language` (D102, D105); use them for every word on the screen.
+- `xdg`: the XDG base directories, where empty and relative values do not count; the runtime and cache directories are `chora_scene::paths` (D101).
+
+One line per module of `crates/chora-kit/src/wm`, the window-management core without IO (D99):
+
+- `book`: which windows are the look's: the claim filter, adopt and forget as proposals, outputs, phase events.
+- `focus`: the keyboard focus of a look and its `Policy` for the next focus (D107).
+- `give`: a window that goes to another window manager, and the pass-on of a reserved surface.
+- `kept`: what a restart keeps in node meta under the versioned key `kept.1`.
+- `open`: the list of open menus, popups, dialogs, sheets and launchers; use it for Escape and for what a drag shuts (D108).
+- `stack`: the two stacking rules: a modal above its parent, the held window on top (D109).
+- `state`: the typed answer of `state.get`; every look answers the same keys.
+
 The decision records are in [docs/decisions.md](docs/decisions.md#decisions-of-the-shared-core); the layout is in [docs/project-structure.md](docs/project-structure.md).
 
 **A look uses the kit; it keeps no copy.** When a mechanism moves to the kit, a row in `tools/copies.toml` counts what remains of it in the looks. To add a row:
