@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | matrix-cap-r1.md (F5, F6) | sonnet high | merged train 67 (17:57) |
 | moved-tests-mk-r3.md (F5) | haiku high | done 18:00: c00dcf3e MERGE-OK (PM review 18:03); train 69 |
-| debt-down-r3.md (F4) | sonnet high | r2 review FIX (rd-7 MAJOR: no ungrab on holder exit); r3 starting |
+| debt-down-r3.md (F4) | sonnet high | r2 review FIX (rd-7 MAJOR: no ungrab on holder exit); r3 session_016iS3kNw5fSqkKfpSP1s3vT (18:26) |
 | mc-i5-r1.md (F7, F2) | sonnet high | done 18:11: f7a69761 MERGE-OK (PM review 18:14); train 69 |
 | construct-red-r2.md (F7, F3) | sonnet high | r1 review FIX (rc-1 MAJOR: app child window gets no keys); r2 session_016iS3kLATV1Do6n34Vo3soX (18:17) |
 | docs-f8c-r1.md (F8) | sonnet high | done 17:48: 65ef41a5 MERGE-OK (PM review 17:50); train 68 |
