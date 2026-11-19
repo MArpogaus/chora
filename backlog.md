@@ -250,3 +250,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - flake (11-19 13:32, wm5 r3): pull gate-construct-pull.sh:163 pane 169 px for 200 under load, passed alone x2; for flakes-g.
 - cut-check REPORT (wm3 r3, wm5 r3): Event::FocusChanged outside kit 9 > max 8; a kit focus slice brings it back (F2).
 - runtime.rs of chora-kit at 1446 lines (kitcov r1 tests): split before the next production change there (F4).
+- MX1 (train 65 16:22): gate matrix cell 248 s over its 240 s cap on the PM host; green on rerun (322 s reported as PASS: check which time the cap measures). matrix-cap r1 owns it.
