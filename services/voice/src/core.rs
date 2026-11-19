@@ -1540,6 +1540,32 @@ mod tests {
         core
     }
 
+    /// The `agents` of the state come in the order of their reports, the
+    /// latest last, not by name, so that a reader that starts late (the
+    /// helper machine of the kit seeds from it) picks the latest helper.
+    #[test]
+    fn the_agents_of_the_record_keep_the_order_of_their_reports() {
+        let mut core = Core::new(Config::default());
+        for (name, state) in [("coder", "idle"), ("atlas", "idle"), ("coder", "done")] {
+            let record = json!({"name": name, "state": state});
+            core.handle(Input::Agent(agents::Event::State(record)));
+        }
+        let names = |core: &Core| -> Vec<String> {
+            let agents = core.record()["agents"].clone();
+            let names = agents.as_array().unwrap().iter();
+            names
+                .map(|a| a["name"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        assert_eq!(names(&core), ["atlas", "coder"], "coder reported last");
+        core.handle(Input::Agent(agents::Event::State(
+            json!({"name": "atlas", "state": "working"}),
+        )));
+        assert_eq!(names(&core), ["coder", "atlas"], "atlas reported last");
+        core.handle(Input::Agent(agents::Event::Gone("coder".into())));
+        assert_eq!(names(&core), ["atlas"]);
+    }
+
     /// An ACP agent: its state shows, its question is spoken in its voice
     /// when the user is done and waits for yes or no.
     #[test]
