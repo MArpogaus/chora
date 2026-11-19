@@ -14,8 +14,11 @@ use std::{
 /// that sets it.
 pub const RUNTIME_ENV: &str = "XDG_RUNTIME_DIR";
 
-/// The mode of a private directory.
+/// The mode of a new private directory.
 const PRIVATE_MODE: u32 = 0o700;
+
+/// The group and other bits, which a private directory has none of.
+const OTHERS: u32 = 0o077;
 
 /// `$XDG_RUNTIME_DIR`; `None` unless it is an absolute path.
 #[must_use]
@@ -76,8 +79,8 @@ pub fn private_dir(dir: &Path) -> io::Result<()> {
     check_private(dir)
 }
 
-/// Checks that a directory belongs to the current user, has mode 0700
-/// and is no symlink. A refusal is logged with its reason.
+/// Checks that a directory belongs to the current user, has no group or
+/// other bit (0700, but also 02700 or 0500) and is no symlink. A refusal is logged with its reason.
 ///
 /// # Errors
 ///
@@ -105,8 +108,10 @@ fn check_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
         return refuse(&format!("its owner is user {}, not user {uid}", meta.uid()));
     }
     let mode = meta.mode() & 0o7777;
-    if mode != PRIVATE_MODE {
-        return refuse(&format!("its mode is {mode:04o}, not {PRIVATE_MODE:04o}"));
+    if mode & OTHERS != 0 {
+        return refuse(&format!(
+            "its mode is {mode:04o}, it has group or other bits"
+        ));
     }
     Ok(())
 }
