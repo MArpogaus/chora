@@ -180,15 +180,17 @@ pub fn rows<'a, L: Clone + 'a>(
 }
 
 /// The keys that give a window to a look, as one row: the span of the
-/// keys and the words. No file binds them.
+/// keys and the words of [`System::Give`] with the look unnamed. No file
+/// binds them.
 #[must_use]
 pub fn give_row(language: Language) -> (String, String) {
     let (keys, _) = crate::give::keys_row("-");
-    let words = match language {
-        Language::En => "Give window to a look",
-        Language::De => "Fenster an einen Fenstermanager geben",
+    let any = match language {
+        Language::En => "a look",
+        Language::De => "einen Fenstermanager",
     };
-    (keys, words.to_owned())
+    let words = words(&System::Give(any.to_owned()), language).unwrap_or_default();
+    (keys, words)
 }
 
 impl<L> Row<L> {

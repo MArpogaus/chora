@@ -278,12 +278,6 @@ const ORDER: [&str; 47] = [
     "All keys",
 ];
 
-/// The keys of a row as a person says them: the caps of kit, and a thin
-/// space between the plus and an arrow left out in the monospace face.
-fn spell(chord: &str) -> String {
-    chord.replace('\u{2009}', "")
-}
-
 /// The keys of the rows of the tags: the bindings of one stem with their
 /// digits as a span, `Super+1-9`, one span per stem.
 fn spans(chords: &[String]) -> String {
@@ -322,7 +316,7 @@ fn entry(config: &Config, row: &keysheet::Row<Own>) -> Entry {
         .position(|w| *w == english)
         .unwrap_or(ORDER.len());
     if number(&row.action).is_none() {
-        let keys = row.chords.iter().map(|c| spell(c)).collect::<Vec<_>>();
+        let keys = row.chords.clone();
         return (rank, keys.join(" / "), row.words.clone());
     }
     let keys = spans(&row.chords);
@@ -339,7 +333,14 @@ fn entry(config: &Config, row: &keysheet::Row<Own>) -> Entry {
 #[must_use]
 pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, String)>)> {
     let de = lang == Language::De;
+    let media = |action: &Action| {
+        matches!(
+            action,
+            Action::System(System::Volume(Change::Up | Change::Down | Change::Mute))
+        )
+    };
     let resolved = (config.common.bindings.iter())
+        .filter(|(binding, action)| binding.contains("MOD") || media(action))
         .map(|(binding, action)| (binding.replace("MOD", &config.modifier), action));
     let sheet = keysheet::rows(resolved, lang, |binding, action| {
         named(config, binding, action, de)
