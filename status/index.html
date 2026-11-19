@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-19T20:27:00Z",
+  updated: "2026-11-19T21:03:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 25,                      // % of the week used (owner's reading)
@@ -66,10 +66,10 @@ const S = {
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "track-ok", "0 files over; debt-down merged (train 71, 20:12); independent recount Friday"],
-    ["F5", "No flaky tests, coverage over 80 %", "risk", "5 of 5 gate runs green (20:05); kit 91.06 %; cube tests to 96.7 % and matrix cap fix reviewed (merge Fri); two cells under flake watch"],
-    ["F6", "Every change through the merge gate", "done", "36 green merges (train 71 green 20:12); train 72 Friday"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "5 of 5 gate runs green (20:05); kit 91.06 %; cube tests 96.7 % and matrix cap fix merged (train 72); three flake lanes running; two cells under flake watch"],
+    ["F6", "Every change through the merge gate", "done", "37 green merges (train 72 green 21:03); train 73 next; identity check in the gate in progress"],
     ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],
-    ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; two small doc fixes in the backlog"]
+    ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
