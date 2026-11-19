@@ -72,6 +72,7 @@ use std::{
 };
 
 use chora_kit::{
+    actions::System,
     effects,
     give::{self, Give},
     runtime::{self, Plugin, Runtime},
@@ -89,7 +90,7 @@ use serde_json::{Value, json};
 
 use crate::{
     camera::{moved, takes_the_camera, window_flown_into},
-    config::{Action, Config},
+    config::{Action, Config, Own},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_ROWS, Look, Metrics, Voice},
     methods::{
@@ -426,13 +427,13 @@ impl Waiting {
 /// The grabbed bindings: the drag with the modifier, which the flavor
 /// grabs so that it shares it with the window managers of other outputs
 /// (D55), and the fly-out.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Grab {
     Drag,
     FlyOut,
     /// A key that starts a terminal or is a key of every look, grabbed
     /// while the camera is in a pane.
-    Key(Action),
+    Key(System),
     Give(&'static str),
     /// With a cube: the step back from its face, and a turn of it.
     StepBack,

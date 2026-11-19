@@ -56,6 +56,14 @@ pub trait Settings: Serialize + DeserializeOwned + schemars::JsonSchema {
     ///
     /// A value is wrong; the message names it.
     fn check(&self) -> Result<(), String>;
+
+    /// The old names of keys of the top level, as `(old, new)`: a file or
+    /// a change that has the old name and not the new one is read as if it
+    /// had the new one, for one release.
+    #[must_use]
+    fn renamed() -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
 }
 
 /// The settings of a plugin and their file.
@@ -333,6 +341,15 @@ fn schema<S: Settings>() -> Value {
 fn complete<S: Settings>(mut value: Value, default: &str) -> Result<S, String> {
     let default = serde_json::to_value(parse::<S>(default)?).map_err(|e| e.to_string())?;
     let schema = schema::<S>();
+    if let Value::Object(map) = &mut value {
+        for (old, new) in S::renamed() {
+            if !map.contains_key(*new)
+                && let Some(kept) = map.remove(*old)
+            {
+                map.insert((*new).to_owned(), kept);
+            }
+        }
+    }
     fill(&mut value, &default, &schema, &schema);
     let value: S = serde_json::from_value(value).map_err(|e| e.to_string())?;
     value.check()?;
