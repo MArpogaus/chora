@@ -88,3 +88,51 @@ merge order puts wm7b's fix first), then this head gets the gate again.
 
 Commits on claude/flakes-g (r3): 9bc22c94 (merge), 8d953291 (rw-2 test), eb5a23c7 (F28 red), 28df6308 (F28 fix),
 74157504, a463d753 (merges, cubesplit), f075a20d (item 1).
+
+## Review r1
+
+Lane: cloud, opus, read-only on claude/flakes-g f075a20d (own commits 8d555fc5 f0c9e640 c227d433 8d953291 eb5a23c7
+28df6308 f075a20d; merges not in scope). `cargo check --workspace` ok.
+
+Checks:
+1) Red first: order holds (8d555fc5 < f0c9e640, eb5a23c7 < 28df6308). Red on parent reproduced: under-load-selftest at
+   8d555fc5 fails "unknown argument --timeout"; the F28 cell with chat.rs of eb5a23c7 fails "did not reach the picked
+   helper once: [agent_list]".
+2) F28: a number alone picks with held=None (no send_draft), then said() in Chat sends the held text once; the host's
+   clear after the pick follows the late pick_first on the same link, so the field ends empty; no double send.
+   `cargo test -p chora-assistant` 242/242. One behaviour change, rf-1.
+3) call_all: answers placed by id (id - first), events queued; scratch cell (reversed answers, event between, error in
+   the middle, a call after) green. Real core buffers its output (ipc.rs respond, MAX_OUTPUT 8 MiB) and reads 64 KiB
+   per wake, so no deadlock against it; a scratch fake core with blocking writes deadlocks at 2000 x 1 KB (rf-3).
+   docs/api.md matches. `cargo test -p chora-kit -p chora-construct --features chora-kit/testing` green incl.
+   call_all_answers_each_call_in_its_place.
+4) 8d953291: mutant (write_all returns after one write) fails "the backtrace is cut after 61691 bytes"; real code 5/5.
+   pthread_kill every 1 ms counts 5 ms per alarm, GIVE_UP_AT_LAST 60 s, so >= 12 s before a false "stuck": not
+   flaky-red. Weakness rf-5.
+5) under-load.sh: timeout(1) signals its process group; gates' gate_cleanup EXIT trap runs on TERM (checked: bash runs
+   EXIT trap under timeout), so setsid children of gates end too. Selftest green (2 s). Gap rf-4.
+6) c227d433: loop to a SECONDS deadline over fullscreen_state, sleep 0.25 per round: a real wait on a state.
+
+Findings:
+- rf-1 MINOR plugins/chora-assistant/src/chat.rs:1033: a number alone now sends the held text also when the user erased
+  the given-back text in the field and then typed the number (the host cannot tell this from the F28 race), so text the
+  user dropped reaches the helper; fix: the field tags each Say with whether it had applied the last pick_first, and
+  the host sends the late text only when it had not.
+- rf-2 NIT crates/chora-scene/src/ipc.rs:1180: an error without id (core parse error) is queued and dropped, so
+  call_all waits forever where call_until takes it as its own; fix: return that error for the batch as call_until does.
+- rf-3 NIT docs/api.md:823: pipelining has no stated bound; the client writes all before reading, so answers past the
+  socket buffer plus the core's 8 MiB output become LIMIT_REACHED, and a core with blocking writes deadlocks; fix: name
+  the bound in docs/api.md (or read while writing in call_all).
+- rf-4 NIT tests/under-load-selftest.sh:17: the hung case checks the time and the line but not that the children of a
+  timed-out run die; fix: hang with `sh -c 'sleep 60 & wait'` under setsid and pgrep the session after.
+- rf-5 NIT crates/chora/src/words.rs:654: when the child is slower than 300 ms to its first write (load), the reader is
+  already draining, no write is cut and the cell passes on the mutant too (false green, not false red); fix: read one
+  byte first, then sleep 300 ms before draining.
+- rf-6 NIT crates/chora-kit/src/conn.rs (cell call_all_answers_each_call_in_its_place): FakeCore answers in order, so
+  the cell does not prove the out-of-order or event-between case of the brief; fix: add the scratch cell above to
+  chora-scene ipc tests.
+
+Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 5. Known, not findings: xp a_give_shuts_the_start_menu (fa457b29, integ
+a7d671f2); pull and F26 not reproduced.
+
+Verdict: MERGE-OK.

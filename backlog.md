@@ -30,6 +30,9 @@ A7 | 11-09 | rc | Dependabot: #105, #104, #103, #95, #88, #86, #94, #93, #92, #2
 
 ## UX and looks (rc 1)
 - rk-9 (MINOR, kit3 r2 14:53): construct config.rs:460 `bound` matches the merged row by first action; launcher keys vanish when `run: fuzzel` sorts first (custom config only). rk-10, rk-11 NIT (reports/kit3.md).
+- rf-1 (MINOR, flakes-g review 15:12): chat.rs:1033 a number alone also sends held text the user had erased (host cannot tell it from the F28 race). NITs: call_all hangs on an id-less error; pipelining bound in docs/api.md; selftest skips children of a timed-out run; 300 ms words cell false-green under load (reports/flakes-g.md).
+- ri-5, ri-6 (MINOR, integ r2 review 15:45): no cell shows evaluate/switch_step removing the stale look dir (assistant main.rs:1079); construct.py:206 1:1 skip filters by owner, not island nodes (reports/integ.md r2).
+- rp-2, rp-3 (MINOR, focus-port review 15:16): mc main.rs:897 `{on:false}` ignored, no cell for on:true -> close; main.rs:1235 pane.focus records holder at once, no cell. rp-1 report attribution; rp-4 Focus::core() unused; rp-5 kit cells for give/changed (reports/focus-port.md).
 S5 | 11-11 | rc | showcase findings still open after the re-record on 67f93a9: mc Agents scene empty; OPEN CUBE black for 16 frames and the SUNSET pill on the face; injected Alt+Y and "No" give no feedback; question card white in the dark chat, covers the transcript, hint cut; xp chat without a helper covers the taskbar; OPEN CUBE overlaps the chat and moves at 2x; pulled pane cut at the right edge. Recheck on train 4.
 U2 | 11-11 | rc | HUD colours per theme: a folder may carry a `dark:` block, the manager emits `<wm>.theme`; partly fixed by the theme merge (S5 update): confirm in the pixel pass; xp chat field over the taskbar.
 U3 | 11-11 | rc | one surface per helper conversation in every look: while the chat is open the sentence and the question live inside it, no second balloon (construct, mc); confirm after train 4.
@@ -247,3 +250,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - flake (11-19 13:32, wm5 r3): pull gate-construct-pull.sh:163 pane 169 px for 200 under load, passed alone x2; for flakes-g.
 - cut-check REPORT (wm3 r3, wm5 r3): Event::FocusChanged outside kit 9 > max 8; a kit focus slice brings it back (F2).
 - runtime.rs of chora-kit at 1446 lines (kitcov r1 tests): split before the next production change there (F4).
+- MX1 (train 65 16:22): gate matrix cell 248 s over its 240 s cap on the PM host; green on rerun (322 s reported as PASS: check which time the cap measures). matrix-cap r1 owns it.; again train 66 17:14 (242 s, all cells pass).
+- rc-1, rc-2 (MINOR, NIT; review copies-0 r1 17:12): xp wm.rs:971 allow on wm_on_fake_core suppresses no lint, only opens the gate-0.8 grep (reason text or a FakeCore outputs helper); kit testing.rs:235 recorders run under the model lock, document it.
