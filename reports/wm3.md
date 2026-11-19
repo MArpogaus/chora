@@ -95,3 +95,15 @@ Checks: `cargo test -p chora-kit --features testing` 229+ green, `-p chora-xp` 1
   escape_shuts_the_newest_surface_first (red cb1ff7d0). OK.
 - rw-5, rw-6: api.md sentence; `Why` dropped from `shut_at`, the kit test still covers drag and give alike. OK.
 - NIT (no fix): a help panel whose group is not in `open` is no longer shut by Escape; today every panel opens through `open`.
+
+## r3 (merge)
+2026-11-19. claude/wm3 9d55e300 + origin/claude/autonomous-dev-session-3w-i33pg7 dd2a0aa3 (up to date at the gate) = merge commit e15155da, pushed. One merge commit, no rebase, no force.
+Auto-merged without conflict: kit::wm (state, focus, open, mod), chora-xp wm/*, chora-tiling main, chora-mc windows, tests/acts harness. wm3's `by` on state::Open sits beside the session's `id`, `kind`, `modal`.
+Conflicts (6), each to the session's types and names, wm3's behaviour kept:
+- plugins/chora-xp/src/wm/state.rs: `open_value` returns `Vec<state::Open>` (session type) from wm3's `self.open.state()`; the session's hand-built list dropped (kit::wm::open is the one list). `texts_value` of the session kept.
+- plugins/chora-tiling/src/state.rs: session's `Focus::state(NAME, ..)` and `state::{Desks, State, Window}`; wm3's `self.open.state()` and `keys_open()`; the session's `open_value` (a `keys_open` flag) dropped, as wm3's copies row forbids it. The key list still makes tiling the holder.
+- plugins/chora-mc/src/state.rs: session's `self.focus.state(NAME, own)` (kit Focus, mc's page holds the focus); wm3's `open()` (key list as a modal sheet) kept. mc's `core_focus` stays for the taken-focus check.
+- docs/api.md: both texts joined: session's focus sentence (window or own node, `focus.surface`), wm3's `open` sentence (every look fills it, newest first, `by`), `title`/`app_id` of xp, `origin` on every look.
+- tests/acts/known-red.toml: the session's WM7b rows kept; its four WM3 rows dropped (xp Escape, mc `open` x3) since this branch turns them green and a listed pass blocks `acts`; the mc I3 WM2 row stays gone (session fixed it).
+- tools/copies.toml: both sides' rows kept (wm3's open-entry and `keys_open` rows; the session's KIT6, KIT2c, KIT2d rows).
+Gate: `tests/merge-gate.sh --only build,ci-check,acts,xp,xp-faces,keys,cube` PASS: build 181 s, ci-check 81 s, xp 90 s, xp-faces 15 s, acts 100 s, cube 110 s, keys 19 s (run dir /tmp/merge-gate.1sPByl). `cargo clippy --workspace --all-targets` clean; `python3 tools/cut-check` exit 0 (REPORT lines only; note `Event::FocusChanged outside kit: grew to 9, max 8` and `chora-xp names chora-chat: 4, lower max from 6`, neither fails). No full gate. Not re-merged: the session branch had not moved.
