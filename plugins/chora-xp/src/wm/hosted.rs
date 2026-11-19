@@ -4,7 +4,7 @@
 //! client holds the keys and the drag of the turn. When the host goes,
 //! `chora-xp` goes flat on the screens with the windows of face `i` on
 //! desktop `i`; when the host lists the same faces again, the windows go
-//! back to their faces. Without a host, a desk switch is flat.
+//! back to their faces. Without a host there is no desk switch.
 
 use chora_kit::cube;
 use chora_scene::{Command, OutputInfo};
@@ -21,8 +21,8 @@ pub(crate) struct Host {
 }
 
 /// The bindings of the cube that `chora-xp` holds: all with its own cube
-/// on a screen, the turn keys as flat desk switches without a cube, none
-/// when a host turns the cube.
+/// on a screen, none on virtual outputs without a host and none when a
+/// host turns the cube.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CubeKeys {
     Own,

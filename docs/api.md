@@ -1615,8 +1615,7 @@ the host by the cube role, the pager of each face calls `cube.turn` with
 `to`, and the host holds the keys and the drag of the turn. When the host
 disconnects, `chora-xp` goes flat on the screens, with the windows of each
 face on the desktop of that face, and when the host lists the same faces
-again, the windows go back to them. On virtual outputs without a host, a
-desk switch is flat, without a cube. The
+again, the windows go back to them. On virtual outputs without a host, there is no desk switch. The
 method `restart` runs `chora-xp` again, which also reads the file again:
 
 ```console

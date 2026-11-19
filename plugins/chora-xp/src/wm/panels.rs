@@ -110,8 +110,7 @@ impl Wm {
             );
         } else {
             let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
-            let flat = self.wanted_keys() == super::CubeKeys::Flat;
-            let rows = help::rows(|binding| self.rt.holds(binding), flat);
+            let rows = help::rows(|binding| self.rt.holds(binding));
             let mut panel = HelpDialog::new(topic, rows, area);
             let page = panel.page(&self.theme);
             commands.extend(panel.dialog.create(&mut self.theme, DIALOGS, page));

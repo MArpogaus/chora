@@ -353,8 +353,8 @@ impl Wm {
     }
 
     /// Grabs or lets go the bindings of the cube after the outputs
-    /// changed: all with a screen, the turn keys as flat desk switches on
-    /// virtual outputs alone, none on the faces of a hosted cube.
+    /// changed: all with a screen, none on virtual outputs alone or on the
+    /// faces of a hosted cube.
     pub(super) fn sync_cube_keys(&mut self) {
         self.find_host();
         let cube = self.wanted_keys();
