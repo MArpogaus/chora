@@ -154,3 +154,12 @@ Open:
 - Backlog unchanged: rw-2, rw-3, rw-4, rw-6.
 - Local note: `git reset --hard` was denied in this lane, so I worked on a new local branch from
   origin/claude/wm7b and pushed HEAD:claude/wm7b; no force, nothing lost.
+
+## Review r3 (PM, small diff; builder sonnet lane)
+Diff 31f04c07..3e193a91 (2 commits, 11 files, +33 -60). Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR).
+- rw-1 closed: start.rs uses chora_scene::paths::runtime_home() (a relative XDG_RUNTIME_DIR now falls back to temp_dir: ok);
+  neutral names in role.rs, names.rs, hand.rs tests and comments; kit::wm::focus::release() is a documented kit helper, modes.rs
+  uses it. Red: cut-check FAIL on 31f04c07 per the lane's report; gate ci-check PASS on 3e193a91 (lane log).
+- rw-5 closed: api.md and hosted.rs/windows.rs say "no desk switch"; help::rows drops flat_desks; only held bindings make rows,
+  so no cube text shows without a host.
+- MINOR p-1: CubeKeys::Flat now equals Hosted (dead variant). MINOR p-2: Event::FocusChanged outside kit 9/8 (REPORT, rw-3). Backlog.
