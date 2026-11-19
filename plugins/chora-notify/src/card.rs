@@ -258,7 +258,9 @@ pub fn aside(
     size: [i32; 2],
     chat: Option<[i32; 4]>,
     (margin, right): (i32, bool),
+    out: [i32; 2],
 ) -> [i32; 2] {
+    let _ = out;
     let Some([cx, cy, cw, ch]) = chat else {
         return origin;
     };
@@ -312,6 +314,7 @@ impl Card {
             [w, height],
             chat,
             (values.margin[0], corner.right()),
+            output.size,
         );
         let mut picture =
             Picture::new(w, height).svg(style.shape(layout.size, style.tail_x(w, corner)));
@@ -452,20 +455,33 @@ mod tests {
     /// The chat panel of tiling stands at the right edge, 400 pixels
     /// wide: a card in a right corner steps to its left, one that does
     /// not touch it stays, and one in a left corner beside a panel at the
-    /// left steps to its right.
+    /// left steps to its right. A chat wider than the room beside it: the
+    /// card steps above it from a bottom corner, below it from a top
+    /// corner, never over it.
     #[test]
     fn the_card_steps_aside_of_the_chat_panel() {
         let size = [300, 80];
+        let out = [1280, 800];
         let corner = |right| (16, right);
         let panel = Some([856, 24, 400, 752]);
-        assert_eq!(aside([964, 704], size, panel, corner(true)), [540, 704]);
-        assert_eq!(aside([964, 704], size, None, corner(true)), [964, 704]);
+        assert_eq!(
+            aside([964, 704], size, panel, corner(true), out),
+            [540, 704]
+        );
+        assert_eq!(aside([964, 704], size, None, corner(true), out), [964, 704]);
         let high = Some([856, 24, 400, 300]);
-        assert_eq!(aside([964, 704], size, high, corner(true)), [964, 704]);
+        assert_eq!(aside([964, 704], size, high, corner(true), out), [964, 704]);
         let left = Some([24, 24, 400, 752]);
-        assert_eq!(aside([16, 704], size, left, corner(false)), [440, 704]);
+        assert_eq!(aside([16, 704], size, left, corner(false), out), [440, 704]);
         let wide = Some([100, 0, 1180, 800]);
-        assert_eq!(aside([964, 704], size, wide, corner(true)), [0, 704]);
+        assert_eq!(aside([964, 704], size, wide, corner(true), out), [0, 704]);
+        let broad = Some([100, 300, 1180, 450]);
+        assert_eq!(
+            aside([964, 704], size, broad, corner(true), out),
+            [964, 204]
+        );
+        let low = Some([100, 100, 1180, 450]);
+        assert_eq!(aside([964, 16], size, low, corner(true), out), [964, 566]);
     }
 
     #[test]

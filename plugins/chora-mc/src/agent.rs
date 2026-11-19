@@ -670,7 +670,7 @@ mod tests {
     /// The critical ids are capped too, oldest first, so that notices
     /// that nobody clears do not grow the list without end.
     #[test]
-    fn the_critical_ids_are_capped_at_one_more() {
+    fn the_critical_ids_are_capped_at_64() {
         let mut notices = super::Notices::default();
         for id in 1..=65 {
             notices.remember(id, true);
