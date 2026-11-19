@@ -1429,6 +1429,73 @@ mod tests {
         assert!(!crate::testing::has(&model, PROBE));
     }
 
+    /// How a core that wraps lays out a text: its width, its lines and the
+    /// height of a line. A letter is 0.6 em wide, a line 1.2 em high.
+    fn wrapped(props: &chora_scene::Props) -> (f64, f64, f64) {
+        let size = props.font_size.unwrap_or(16.0);
+        let letters = f64::from(u16::try_from(props.text.as_deref().map_or(0, str::len)).unwrap());
+        let natural = letters * 0.6 * size;
+        let room = props.max_width.unwrap_or(natural).max(1.0);
+        let line = size * props.line_height.unwrap_or(1.2);
+        (natural.min(room), (natural / room).ceil().max(1.0), line)
+    }
+
+    /// Live at 1280 x 800 (net3-m1): the words of a row of the key column
+    /// that wrap ("Start a program or run a command") ran over the row
+    /// below, when the items only changed their texts. The probe that
+    /// measures the new texts must wrap where the item itself wraps.
+    #[test]
+    fn a_wrapped_row_of_the_key_column_leaves_room_for_the_next_row() {
+        let core = chora_kit::testing::FakeCore::start();
+        let seen = core.model();
+        core.respond(move |method, params| {
+            let id = params["selector"].as_str()?.strip_prefix("id:")?;
+            let model = seen.lock().unwrap();
+            let (width, lines, line) = wrapped(&model.scene.node(id)?.props);
+            let rect = [0.0, 0.0, width, lines * line];
+            (method == "scene.query").then(|| serde_json::json!([{"rects": {"test": rect}}]))
+        });
+        let mut mc = crate::testing::mc_on(&core, "wrapped-keys", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        let moves = mc.regions().unwrap();
+        let id =
+            |row: usize, part: &str| format!("{}-keys-{row}-{part}", mc.region_id(Region::Right));
+        let top = |id: &str| {
+            moves.iter().find_map(|command| match command {
+                Command::Update { id: at, props } if at == id => {
+                    (props.transform.as_ref()).map(|t| t.translation_2d().1)
+                }
+                _ => None,
+            })
+        };
+        let model = core.model();
+        let mut wraps = 0;
+        for row in 0..5 {
+            let words = id(row, "words");
+            let props = model
+                .lock()
+                .unwrap()
+                .scene
+                .node(&words)
+                .unwrap()
+                .props
+                .clone();
+            let (_, lines, line) = wrapped(&props);
+            wraps += usize::from(lines > 1.0);
+            let (this, next) = (top(&words).unwrap(), top(&id(row + 1, "key")).unwrap());
+            assert!(
+                this + lines * line <= next,
+                "row {row} ({:?}, {lines} lines) ends at {} over the next row at {next}",
+                props.text,
+                this + lines * line
+            );
+        }
+        assert!(
+            wraps > 0,
+            "no row of the key column wraps: the test sees nothing"
+        );
+    }
+
     #[test]
     fn colors_go_into_the_command() {
         let colors = [("background".to_owned(), [1.0, 0.5, 0.0, 1.0])].into();
