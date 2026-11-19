@@ -19,3 +19,8 @@ Verdict (computed): FIX (rw-1 MAJOR open).
 ## r2
 
 D104 now states the form on claude/kit6 today (`{ }` wrapper, launch.rs:202, no status after exit N) and names kit6 rw-1 / KIT2c as open; "the status file stays" added. Commit 5f97b0eb. pre-commit and gate-lib green.
+
+## PM check r2 (2026-11-19)
+- rw-1 closed: D104 states the `{ }` wrapper (launch.rs:202 on claude/kit6) and names kit6 rw-1 / KIT2c as open (5f97b0eb).
+- rw-2 closed: "The status file stays."
+Verdict (computed): MERGE-OK 5f97b0eb. Train 59.
