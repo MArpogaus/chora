@@ -27,7 +27,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
 | moved-tests-mk-r3.md (F5) | haiku high | session_016iS3kQE68SuUq1P3CTXdcg (17:02; r2 4904ef79 MERGE-OK: mc met; xp panels, pointer open) |
 | debt-down-r1.md (F4) | sonnet high | session_016iS3kNwNGkLo2yS3ZYgvtV (16:14; F4 open, rows above RC) |
-| review-copies-0-r1.md (F2) | sonnet high | starting (copies-0 r1 done 17:04 ee53e09c: cut-check clean, gate 41/41) |
+| review-copies-0-r1.md (F2) | sonnet high | session_016iS3kLPkCYLHDPZTSEoJrD (17:04; copies-0 ee53e09c: cut-check clean, gate 41/41) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 65 green 16:57 after one rerun (first run: matrix 248 s over its 240 s cap). 66 gate 16:58: 85764974 + moved-tests-mk 31df2bb9. Next: matrix-cap when MERGE-OK (own train first), then mk r2 4904ef79 (MERGE-OK), debt-down, copies-0.
