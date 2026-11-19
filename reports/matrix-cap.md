@@ -58,3 +58,33 @@ fixed sleeps became polled conditions; cap 240 -> 315 s from five runs under --j
 - MINOR m2: MX1 asked which time the cap measures (a rerun printed 322 s as PASS); the report does
   not answer it. Stays open in backlog MX1.
 Verdict (computed): no open MAJOR -> MERGE-OK b71c5096. Harness branch: its own train 67 first.
+
+## mx1-m2 r1
+
+Branch claude/mx1-m2, base f2b7112a (train 69), head 5197fa22, two commits: 8003f052 (red: gate-lib-selftest cell), 5197fa22 (fix). Files: tests/gate-lib.sh, tests/gate-handover-matrix.sh, tests/gate-lib-selftest.sh.
+
+### Which time the cap measured (review m2, closed)
+
+The cap compared bash `SECONDS` with 315 s. `SECONDS` counts from the start of the script's shell, and `gate-lib.sh` takes the gate lock when it is sourced, so a matrix that waited in the queue for another gate had that wait in its run time (the 322 s line of train 65 and the 242 s of train 66 on the PM host). Under `tests/merge-gate.sh` the gate holds the lock and sets CHORA_GATE_LOCK_HELD, so the sub-gates never waited there: the old and new numbers agree for a matrix run inside the merge gate.
+
+### Change
+
+- `gate-lib.sh`: `gate_t0=$SECONDS` right after `gate_lock`, and `gate_elapsed` (seconds since the gate has the lock).
+- `gate-handover-matrix.sh`: the cap check at each cell, the final check, the `run time:` line and the startup phase use `gate_elapsed`/`gate_t0`, not `SECONDS`. The start of the measure is the matrix's own start (lock held, before the session starts), the same point as the five runs that set the 315 s cap, so the cap value is unchanged. The PASS line is now `ok: gate-handover-matrix: every cell as in EXPECTED in 232s of at most 315s`. A breach (at a cell or at the end) fails with `...; the five slowest cells: SRC DST PATH Ns; ...`, taken from the cell lines of matrix.log (phase lines left out).
+- Not done: a measure from the first cell instead of the start (the startup of 5 s would drop out of the cap; the cap would then need a re-fit from runs). Say so if wanted.
+
+### Red first
+
+`tests/gate-lib-selftest.sh` holds the lock for 3 s in another shell, starts a gate that sources gate-lib.sh, and asks for `$SECONDS` (at least 2) and `gate_elapsed` (0). 8003f052: FAIL ("gate_elapsed counts the wait for the gate lock: shell time 3 s, gate_elapsed none s"); 5197fa22: `ok: gate-lib-selftest`. The step `gate-lib` of the merge gate runs it.
+
+### Merge gate on 5197fa22
+
+`tests/merge-gate.sh --jobs 3`, with two looping `cargo build -p chora-kit --tests -j1` jobs beside it (own target dirs), 4 CPUs. Printed matrix script time: 223 s, 237 s, 232 s (cap 315 s).
+- run 1: layout FAIL (construct HUD layout audit, dark-1280x720: no third terminal in the walk, hint bar, window list; the known construct-hud flake under jobs 3 of matrix-cap r1). Matrix step PASS.
+- run 2: doors FAIL ("2 cells or checks are not pass": the helper-key and helper-door cells of the tiling column "missing"). Matrix step PASS.
+- run 3: all 41 steps PASS, exit 0. Matrix 232 s; the merge-gate step lines read 316 s, because the step also runs the other gates of its group.
+Neither red is in a file of this change. The step time of the matrix line is not the matrix script's time; read the `ok: gate-handover-matrix ... in Ns of at most 315s` line for it.
+
+### Review m2
+
+Closed by this change: the cap measures the matrix's own wall time from the moment it holds the gate lock, the queue is not in it, and the PASS line says which time and which cap. m1 (silent fall-through of the two polls) is not touched.
