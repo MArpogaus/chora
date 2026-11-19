@@ -44,3 +44,17 @@ The brief names `until_ok` of the gate lib: tests/gate-lib.sh has none (the only
 - A voice.say during a question is not shown by the figure, so it is no barrier; the state change is.
 - The 6 KiB card layout takes 3 s under load in a debug build: not looked at in a release build; no finding raised.
 - Other `sleep 0.5` in host_long_words (before the rect checks) stay; 0 of 30 red after.
+
+## PM review r1 (23:16)
+
+Diff (three dot, base 219d5afe) tests/gate-hud.sh only, +18 -4; head 9dde8523. Lane cells: gate --jobs 3
+--only pre-commit,ci-check,build,test,gate-lib,hud green, hud twice more under load green; under load 20
+construct-host-hud and chat-long-task 0 of 30 red each (was 11 of 30). The cause (the card of 51 taken for
+the card of 41) and the fix (wait on the card of 41, a Thinking/Question state barrier in place of sleep 0.5,
+run_cell closes 41 and 42) match the diff.
+- rw-1 MINOR tests/gate-hud.sh run_cell: `waiting ... not_node hud-card` ignores its result; a card that
+  stays leaks into the next cell with that cell's message. Fix: log "card left open after <id>" on failure.
+- rw-2 NIT card_of_detail_question tells 41 from 51 by the absence of "notes.txt"; reading the id of the
+  card (if the host shows it) would be firmer.
+- Base 219d5afe is older than the session head; the train's full gate covers the merge.
+Verdict computed: no BLOCK or MAJOR -> MERGE-OK, train 78.
