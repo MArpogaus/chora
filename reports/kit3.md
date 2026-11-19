@@ -49,3 +49,39 @@ Findings:
 - rk-6, MINOR, plugins/chora-tiling/src/keys.rs `rows`: the old `binding.contains("MOD")` filter is gone, so a user binding without MOD, and an unlabeled Terminal/Lock/Power/Screenshot binding, now get a row (the shipped yaml is unaffected); not in the report. Fix: name it in the report and docs/configuration.md.
 - rk-7, NIT, plugins/chora-mc/src/keys.rs `all()`: the volume rank `3 + usize::from(*change != Change::Up)` ties Down, Mute and Set and relies on the stable sort and kit's order. Fix: rank by the position in the sheet, or comment it.
 - rk-8, NIT, tests/acts/looks/common.py `EVERY_LOOK`: the act checks nine English wordings; close, terminal, give and German are checked only in the kit cells. Fix: add the actions a look binds to the act, from the table.
+
+## r2
+
+Head 04ea5851 on claude/kit3. Gate (`tests/merge-gate.sh --jobs 3`, once, on the head): all steps passed.
+`tools/cut-check` REPORT lines 19 (was 20 on 5b788c72; 19 on afeebaf9): not grown.
+Red first: 7c44ceb5 (construct, xp, rk-2) and 838c3e35 (rk-4, rk-5, rk-6) fail before their fixes.
+
+- rk-1 done, b43e555b (xp) and 19f5e497 (construct). Both tables go: xp `LINES` and `about` are
+  replaced by `own_words` and `place` (the costume: group and order), construct `help_groups` takes
+  every bound row from `keysheet::rows` (its own actions named by `Own::words`; the four give rows are
+  fed as `Super+Alt+n` bindings of `System::Give`, so their words are kit's). Rows of the Walk group
+  still join several actions (W A S D), as before. Keys that no binding holds (move modifier,
+  `fly_out`, `Alt+y/n`, `Ctrl+period`, the cube keys, Escape) stay rows of the look. I dumped the rows
+  of the shipped config before and after in both looks (construct: 3 binding sets, cube on and off;
+  xp: all held, one key not held): identical, no lost row, no renamed key. A new side effect, named:
+  an action the shipped file does not bind (`volume: {set: N}`) now has a row in both looks.
+- rk-2 done, b43e555b: the xp give row shows while any give key is held.
+- rk-3 done, 8e7ded04: tools/cut-known.toml xp names chora-chat max 4.
+- rk-4 done, 8e7ded04: `give_row` speaks `System::Give` in both languages ("Give window to a look",
+  "Fenster geben an einen Fenstermanager"); the table has a `giverow` line, the kit cell checks it.
+- rk-5 done, 8e7ded04: tiling keeps the thin space (`spell` is gone); docs/api.md is true as written.
+- rk-6 done, 8e7ded04: tiling shows a binding only when it names `MOD`, or when it is a media key of
+  the volume, as before; no change to name.
+- rk-7 done, a642f7ae: mc ranks the volume rows by their place in the sheet. rk-8 not done (the act
+  checks the nine words every look binds; the other actions differ by look and need a per-look list).
+- docs/api.md names the four looks (eb549825).
+
+Merge: origin/claude/autonomous-dev-session-3w-i33pg7 merged (04ea5851). reports/integ.md does not
+exist on the log branch, so claude/integ is not merged; kit5b and kit7 stay for lane integ.
+Resolutions: crates/chora-kit/src/testing.rs (same change both sides, only reordered: theirs);
+plugins/chora-mc/src/region.rs (their split into region/ taken, my one line `keysheet::chord` for
+the chat key re-applied in region/items.rs); docs/api.md (their wording "Such a look applies");
+plugins/chora-xp/src/help.rs (my `rows`, their `fallback(binding, action)` signature);
+tests/acts/known-red.toml (their I3 and pager rows kept, tiling I5 net3-t1 stays gone, mc I5 stays);
+tests/acts/looks/construct.py (their `cube_acts` and helpers, my `keysheet_acts` call before them);
+tools/copies.toml (their move of the kit2d rows, my three KIT3 rows kept).
