@@ -119,3 +119,8 @@ Head `5755b578887736cbb782e3e35051b39eaa6f3514` on claude/pw (merged origin/clau
 Backlog (no code): rw-4 (sha vs binaries of target/debug), rw-6 (status of `check.py start` ignored in round.sh), rw-7 (unit test that an attached Session leaves the folder).
 
 Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,gate-lib,acts,doors`: all 7 PASS (pre-commit, gate-lib 67 s, build, test 182 s, ci-check 89 s, acts 181 s, doors 328 s), rc 0. `bash tests/persona-selftest.sh` ok. `ROUND_DIR=$(mktemp -d) tests/persona/round.sh smoke`: tiling, xp, mc, construct each `task T7 pass breaches 0`.
+
+## PM review r2 (23:42)
+Diff 3ba07d9b..4e8a25d3 read in full (4 files, +125 -15). rw-1 closed: red selftest line cb67dd3b before a8a6cddc; session.sh sets XDG_PICTURES_DIR and an xdg-user-dir stand-in, the selftest proves no new file in $HOME. rw-2 closed per lane (17 contracts, each a green and a red case in test_acts.py). rw-3: T6 compares notice ids against `before`. rw-5, rw-8 done. rw-4, rw-6, rw-7 backlog.
+- rw-9 NIT check.py notice_ids: a dict item without `id` adds None to both sets; harmless.
+Verdict: MERGE-OK. Train 78. P2 R1 may start on 5755b578 (same content as after train 78 for tests/persona).
