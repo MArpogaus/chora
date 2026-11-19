@@ -63,7 +63,30 @@ def snap(states=None, nodes=None, **kw):
         "clients": {"xp", "acts"},
     }
     fields.update(kw)
+    if "boxes" not in kw:
+        fields["boxes"] = boxes_of(fields["nodes"])
     return Snapshot(**fields)
+
+
+def boxes_of(nodes, size=(1280, 800)):
+    """The scene.boxes answer of nodes with rects, bottom first in list
+    order; a surface is opaque."""
+    out = {}
+    for node in nodes:
+        for output, rect in (node.get("rects") or {}).items():
+            entry = out.setdefault(output, {"size": list(size), "boxes": []})
+            entry["boxes"].append(
+                {
+                    "node": node["id"],
+                    "kind": node.get("kind"),
+                    "owner": node.get("owner"),
+                    "layer": "scene",
+                    "rect": list(rect),
+                    "opaque": node.get("kind") == "surface",
+                }
+                | {k: node[k] for k in ("text", "corners") if k in node}
+            )
+    return out
 
 
 ACT = Act("plain")
@@ -386,6 +409,228 @@ class Expectations(unittest.TestCase):
         self.assertTrue(Expect(gone=1).check(self.after(), self.after()))
 
 
+OUT = "HEADLESS-1"
+
+
+def text_node(nid, text, rect, parent="root", owner="mc"):
+    return {
+        "id": nid,
+        "kind": "text",
+        "owner": owner,
+        "parent": parent,
+        "text": text,
+        "rects": {OUT: list(rect)},
+    }
+
+
+def panel(nid, rect, owner="xp", kind="image", size=None):
+    node = {"id": nid, "kind": kind, "owner": owner, "parent": "root", "rects": {OUT: list(rect)}}
+    if size:
+        node["size"] = list(size)
+    return node
+
+
+def with_texts(*runs, look="xp"):
+    return snap().states | {look: snap().states[look] | {"texts": list(runs)}}
+
+
+def run(node, text, rect, px=14):
+    return {"node": node, "text": text, "rect": list(rect), "px": px, "fg": [0, 0, 0, 255]}
+
+
+class I2(unittest.TestCase):
+    def test_sound(self):
+        self.assertEqual(breaches("I2", snap(), snap()), [])
+
+    def test_a_window_off_screen(self):
+        nodes = [surface("s1", "xp", focused=True, rect=(1270, 10, 300, 200))]
+        self.assertTrue(breaches("I2", snap(), snap(nodes=nodes)))
+
+    def test_a_shown_window_without_a_box(self):
+        self.assertTrue(
+            breaches("I2", snap(), snap(nodes=[surface("s1", "xp", rect=(0, 0, 0, 0))]))
+        )
+
+    def test_a_declared_float_may_leave(self):
+        state = snap().states["xp"] | {"windows": [window("s1") | {"floating": True}]}
+        nodes = [surface("s1", "xp", focused=True, rect=(1270, 10, 300, 200))]
+        self.assertEqual(breaches("I2", snap(), snap(states={"xp": state}, nodes=nodes)), [])
+
+
+class I5(unittest.TestCase):
+    def test_sound(self):
+        nodes = snap().nodes + [
+            text_node("a", "Start", (0, 0, 40, 14)),
+            text_node("b", "12:00", (60, 0, 40, 14)),
+        ]
+        self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
+
+    def test_two_text_nodes_overprint(self):
+        nodes = snap().nodes + [
+            text_node("a", "No helper", (0, 0, 80, 14)),
+            text_node("b", "Volume 40%", (40, 2, 80, 14)),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_the_leading_of_two_lines_may_touch(self):
+        nodes = snap().nodes + [
+            text_node("a", "NOTIFICATIONS", (888, 92, 128, 20)),
+            text_node("b", "Nothing new.", (888, 110, 128, 20)),
+        ]
+        self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
+
+    def test_an_opaque_window_between_hides_the_lower_text(self):
+        nodes = [
+            text_node("a", "label", (20, 20, 80, 14)),
+            surface("s1", "xp", focused=True),
+            text_node("b", "title", (30, 22, 80, 14)),
+        ]
+        self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
+
+    def test_a_run_over_a_text_node(self):
+        nodes = snap().nodes + [
+            panel("xp-tip", (100, 100, 200, 30), size=(200, 30)),
+            text_node("a", "clock", (110, 105, 60, 14)),
+        ]
+        states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14)))
+        self.assertTrue(breaches("I5", snap(), snap(states=states, nodes=nodes)))
+
+
+class I6(unittest.TestCase):
+    def test_sound(self):
+        nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
+        states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14)))
+        self.assertEqual(breaches("I6", snap(), snap(states=states, nodes=nodes)), [])
+
+    def test_a_run_leaves_its_picture(self):
+        nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
+        states = with_texts(run("xp-tip", "a long key name", (150, 3, 80, 14)))
+        self.assertTrue(breaches("I6", snap(), snap(states=states, nodes=nodes)))
+
+    def test_a_text_node_leaves_its_panel(self):
+        nodes = snap().nodes + [
+            panel("mc-row", (0, 0, 100, 20), owner="mc", kind="rect"),
+            text_node("mc-row-key", "Super+Shift+Return", (60, 2, 120, 14), parent="mc-row"),
+        ]
+        self.assertTrue(breaches("I6", snap(), snap(nodes=nodes)))
+
+
+def notify(*shown):
+    return {
+        "notify": {
+            "shown": [{"id": i, "summary": f"note {i}", "node": "notify-card"} for i in shown],
+            "texts": [],
+            "busy": [],
+        }
+    }
+
+
+class I9(unittest.TestCase):
+    def test_sound(self):
+        nodes = snap().nodes + [panel("notify-card", (900, 600, 300, 80), owner="notify")]
+        self.assertEqual(breaches("I9", snap(), snap(nodes=nodes, blocks=notify(1))), [])
+
+    def test_a_notice_without_a_box(self):
+        self.assertTrue(breaches("I9", snap(), snap(blocks=notify(1))))
+
+    def test_a_notice_under_the_chat(self):
+        nodes = snap().nodes + [
+            panel("notify-card", (900, 600, 300, 80), owner="notify"),
+            panel("hud-chat", (800, 400, 480, 400), owner="assistant", kind="group"),
+        ]
+        self.assertTrue(breaches("I9", snap(), snap(nodes=nodes, blocks=notify(1))))
+
+    def test_a_notice_off_the_output(self):
+        nodes = snap().nodes + [panel("notify-card", (1100, 600, 300, 80), owner="notify")]
+        self.assertTrue(breaches("I9", snap(), snap(nodes=nodes, blocks=notify(1))))
+
+    def test_a_notice_from_before_the_act_is_not_checked(self):
+        self.assertEqual(breaches("I9", snap(blocks=notify(1)), snap(blocks=notify(1))), [])
+
+
+class I10(unittest.TestCase):
+    def test_sound(self):
+        nodes = snap().nodes + [text_node("a", "Text Editor", (0, 0, 80, 14))]
+        self.assertEqual(breaches("I10", snap(), snap(nodes=nodes)), [])
+
+    def test_raw_entries(self):
+        for raw in (
+            "org.gnome.TextEditor.desktop",
+            "firefox %U",
+            "org.gnome.Nautilus",
+            "/usr/bin/foot",
+        ):
+            nodes = snap().nodes + [text_node("a", raw, (0, 0, 80, 14))]
+            self.assertTrue(breaches("I10", snap(), snap(nodes=nodes)), raw)
+
+    def test_a_raw_run(self):
+        nodes = snap().nodes + [panel("xp-menu", (0, 300, 300, 480), size=(300, 480))]
+        states = with_texts(run("xp-menu", "org.kde.dolphin.desktop", (40, 10, 200, 14)))
+        self.assertTrue(breaches("I10", snap(), snap(states=states, nodes=nodes)))
+
+
+class I12(unittest.TestCase):
+    def fullscreen(self, *above):
+        state = snap().states["xp"] | {"windows": [window("s1") | {"fullscreen": True}]}
+        nodes = [surface("s1", "xp", focused=True, rect=(0, 0, 1280, 800)), *above]
+        return snap(states={"xp": state}, nodes=nodes)
+
+    def test_sound(self):
+        self.assertEqual(breaches("I12", snap(), self.fullscreen()), [])
+
+    def test_a_taskbar_over_a_fullscreen_window(self):
+        bar = panel("xp-taskbar", (0, 770, 1280, 30))
+        self.assertTrue(breaches("I12", snap(), self.fullscreen(bar)))
+
+    def test_a_layer_bar_over_a_fullscreen_window(self):
+        after = self.fullscreen()
+        after.boxes[OUT]["boxes"].append(
+            {"namespace": "waybar", "layer": "top", "rect": [0, 0, 1280, 30], "opaque": False}
+        )
+        self.assertTrue(breaches("I12", snap(), after))
+
+    def test_a_modal_below_its_parent(self):
+        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-run", "modal": True, "for": "s1"}]}
+        nodes = [panel("xp-dlg-run", (100, 100, 300, 200)), surface("s1", "xp", focused=True)]
+        self.assertTrue(breaches("I12", snap(), snap(states={"xp": state}, nodes=nodes)))
+
+
+def face(k, corners, owner="construct"):
+    xs = [c[0] for c in corners]
+    ys = [c[1] for c in corners]
+    rect = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+    return {
+        "id": f"construct-cube-face-{k}",
+        "kind": "shader",
+        "owner": owner,
+        "parent": "construct-cube",
+        "corners": [list(c) for c in corners],
+        "rects": {OUT: list(rect)},
+    }
+
+
+class I13(unittest.TestCase):
+    FRONT = [[300, 200], [700, 220], [700, 580], [300, 600]]
+
+    def test_sound(self):
+        side = [[700, 220], [820, 240], [820, 560], [700, 580]]
+        nodes = snap().nodes + [face(0, self.FRONT), face(1, side)]
+        self.assertEqual(breaches("I13", snap(), snap(nodes=nodes)), [])
+
+    def test_a_seam_open_by_a_few_pixels(self):
+        side = [[705, 214], [830, 240], [830, 560], [705, 586]]
+        nodes = snap().nodes + [face(0, self.FRONT), face(1, side)]
+        self.assertTrue(breaches("I13", snap(), snap(nodes=nodes)))
+
+    def test_the_last_face_meets_the_first(self):
+        side = [[180, 240], [300, 200], [300, 600], [180, 560]]
+        nodes = snap().nodes + [face(0, self.FRONT), face(3, side)]
+        self.assertEqual(breaches("I13", snap(), snap(nodes=nodes)), [])
+        moved = [[180, 240], [290, 200], [290, 600], [180, 560]]
+        nodes = snap().nodes + [face(0, self.FRONT), face(3, moved)]
+        self.assertTrue(breaches("I13", snap(), snap(nodes=nodes)))
+
+
 class MissingKeys(unittest.TestCase):
     """A look that answers state.get without a key an invariant needs is a
     breach, not a pass."""
@@ -411,10 +656,14 @@ class MissingKeys(unittest.TestCase):
         found = breaches("I8", snap(), self.without("helper", events=events))
         self.assertTrue(any("missing key helper" in b for b in found), found)
 
-    def test_i8_helper_surface_without_rects(self):
+    def test_i8_helper_surface_without_boxes(self):
         node = {"id": "hud-chat", "kind": "group", "owner": "xp", "parent": "root"}
-        found = breaches("I8", snap(), snap(nodes=snap().nodes + [node]))
-        self.assertTrue(any("missing key rects" in b for b in found), found)
+        found = breaches("I8", snap(), snap(nodes=snap().nodes + [node], boxes=None))
+        self.assertTrue(any("missing boxes" in b for b in found), found)
+
+    def test_i9_without_shown(self):
+        found = breaches("I9", snap(), snap(blocks={"notify": {"texts": [], "busy": []}}))
+        self.assertTrue(any("missing key shown" in b for b in found), found)
 
     def test_a_look_without_state_stays_no_state(self):
         found = breaches("I1", snap(), snap(states={"xp": None}))

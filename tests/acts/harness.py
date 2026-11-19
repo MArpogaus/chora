@@ -8,8 +8,10 @@ and the invariants of invariants.py after every act.
                                         "focused": True}))
 
 `act` runs the cues, waits until every `busy` of every look is empty
-(quiet; a timeout fails the act), reads `state.get` of each look and
-`scene.query`, compares with `expect` and runs every invariant. A
+(quiet; a timeout fails the act), reads `state.get` of each look and of
+the blocks (chora-notify), `scene.query` for the nodes and `scene.boxes`
+for what each output shows, compares with `expect` and runs every
+invariant. A
 mismatch keeps the act, the state diff and a still in the run folder.
 An act declares what it leaves open (`opens`), what it closes
 (`closes`) and the clients it ends on purpose (`disconnects`).
@@ -69,6 +71,8 @@ class Snapshot:
     events: list = dataclasses.field(default_factory=list)
     logs: dict = dataclasses.field(default_factory=dict)
     outputs: list = dataclasses.field(default_factory=list)
+    boxes: dict | None = None
+    blocks: dict = dataclasses.field(default_factory=dict)
 
     def by_id(self):
         """The nodes by id."""
@@ -321,6 +325,7 @@ LOOKS = {
     ),
 }
 WALLPAPER = {"xp", "mc", "construct"}
+BLOCKS = ["notify"]
 
 
 class Session:
@@ -491,6 +496,10 @@ class Session:
         """The states of the looks."""
         return {look: self.state(look) for look in self.looks}
 
+    def blocks(self, clients):
+        """The states of the connected blocks that are no look."""
+        return {b: self.state(b) for b in BLOCKS if b in clients and b not in self.looks}
+
     def inject(self, events):
         """Synthetic input through the core."""
         self.core.call("input.inject", {"events": events})
@@ -538,16 +547,19 @@ class Session:
         if wallpaper is None:
             wallpaper = {o["name"] for o in outputs} if self.looks[0] in WALLPAPER else set()
         colours = {o["name"]: self.colours(o) for o in outputs if o["name"] in wallpaper}
+        clients = self.clients()
         return Snapshot(
             states=self.states() if states is None else states,
             nodes=nodes,
             toplevels={n["id"] for n in nodes if n.get("kind") == "surface"},
             colours=colours,
             wallpaper=set(wallpaper),
-            clients=self.clients(),
+            clients=clients,
             events=list(events),
             logs=self.new_log_text(),
             outputs=outputs,
+            boxes=self.core.call("scene.boxes"),
+            blocks=self.blocks(clients),
         )
 
     def act(

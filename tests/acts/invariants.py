@@ -16,6 +16,28 @@ I8   the helper is not `working` after its answer event; one helper
      surface per output
 I14  during the act: no `effect.failed`, no panic line, no disconnect
      the act did not declare
+
+The box invariants read `scene.boxes` (Snapshot.boxes) and the `texts`
+that looks and chora-notify report in `state.get`:
+
+I2   a shown window has a size and lies at least 32 px inside its
+     output, except declared floats
+I5   no two text boxes of visible nodes or reported runs overlap on one
+     output without an opaque node between
+I6   a text box lies inside its panel
+I9   a notice chora-notify accepted during the act is in its `shown` and
+     has a box inside the output, not under the chat
+I10  no visible text matches a raw entry (`.desktop`, `%U`, a reverse-DNS
+     id, a path of a binary)
+I12  no bar or panel box over a fullscreen window; a modal above its
+     parent
+I13  the projected corners of neighbouring cube faces meet within 1 px
+
+Limits: the texts are text nodes and the runs that chora-draw reports;
+text of outside programs (waybar, mako) and SVG text in a picture are not
+seen. Images count as not opaque, so a menu image over a label does not
+hide it for I5. I12 has no `held` window yet (WM5). I13 checks the
+faces at rest only.
 """
 
 import re
@@ -165,14 +187,14 @@ def i8(_before, after, _act):
             for look, s in looks_with_state(after).items()
             if s.get("helper") == "working"
         ]
+    helpers = {n["id"] for n in after.nodes if helper_surfaces(n)}
+    if helpers and after.boxes is None:
+        return [*out, "missing boxes: no scene.boxes answer for the helper surfaces"]
     per_output = {}
-    for node in after.nodes:
-        if node.get("visible") is False or not helper_surfaces(node):
-            continue
-        if "rects" not in node:
-            out.append(f"the helper surface {node.get('id')} missing key rects")
-        for output in node.get("rects") or {}:
-            per_output.setdefault(output, []).append(node["id"])
+    for output, entry in sorted((after.boxes or {}).items()):
+        for box in entry.get("boxes") or []:
+            if box.get("node") in helpers and box["node"] not in per_output.get(output, []):
+                per_output.setdefault(output, []).append(box["node"])
     out += [
         f"{output} shows {len(ids)} helper surfaces: {', '.join(ids)}"
         for output, ids in sorted(per_output.items())
@@ -196,4 +218,299 @@ def i14(before, after, act):
     return out
 
 
-ALL = {"I1": i1, "I3": i3, "I4": i4, "I7": i7, "I8": i8, "I14": i14}
+MARGIN = 32
+SEAM = 1.0
+LEADING = 0.25
+RAW = [
+    (re.compile(r"\.desktop\b"), "a .desktop file"),
+    (re.compile(r"%[UuFfick]\b"), "a field code of Exec"),
+    (
+        re.compile(r"\b(?:org|com|net|io|de|ch|dev|app)\.[A-Za-z0-9_-]+\.[A-Za-z0-9_.-]+"),
+        "a reverse-DNS id",
+    ),
+    (re.compile(r"(?:^|\s)/(?:usr/)?(?:local/)?s?bin/\S+"), "the path of a binary"),
+]
+FACE = re.compile(r"-cube-face-(\d+)$")
+
+
+def boxes_on(snap):
+    """The boxes by output, bottom first; {} without a boxes answer."""
+    return {o: e.get("boxes") or [] for o, e in (snap.boxes or {}).items()}
+
+
+def node_boxes(snap):
+    """{output: {node: (index, box)}} of the boxes of nodes."""
+    return {
+        o: {b["node"]: (i, b) for i, b in enumerate(boxes) if b.get("node")}
+        for o, boxes in boxes_on(snap).items()
+    }
+
+
+def overlap(a, b, least=1.0):
+    """The intersection [x, y, w, h] of two rects when both sides exceed
+    `least`, else None."""
+    x, y = max(a[0], b[0]), max(a[1], b[1])
+    w = min(a[0] + a[2], b[0] + b[2]) - x
+    h = min(a[1] + a[3], b[1] + b[3]) - y
+    return [x, y, w, h] if w > least and h > least else None
+
+
+def inside(inner, outer, slack=1.0):
+    """Whether a rect lies inside another, with a slack in pixels."""
+    return (
+        inner[0] >= outer[0] - slack
+        and inner[1] >= outer[1] - slack
+        and inner[0] + inner[2] <= outer[0] + outer[2] + slack
+        and inner[1] + inner[3] <= outer[1] + outer[3] + slack
+    )
+
+
+def reported_texts(snap):
+    """Every run that a look or a block reports, as (reporter, run)."""
+    sources = {**snap.blocks, **looks_with_state(snap)}
+    return [
+        (name, run)
+        for name, state in sorted(sources.items())
+        if state
+        for run in state.get("texts") or []
+    ]
+
+
+def screen_texts(snap):
+    """{output: [(index, label, text, rect)]}: the text boxes of text nodes
+    and the reported runs, mapped through the box of their node; a run
+    scales with its node's box against the node's size."""
+    nodes = snap.by_id()
+    placed = node_boxes(snap)
+    out = {}
+    for output, boxes in boxes_on(snap).items():
+        items = out.setdefault(output, [])
+        for i, box in enumerate(boxes):
+            if box.get("kind") == "text" and box.get("text"):
+                items.append((i, box["node"], box["text"], box["rect"]))
+        for _name, run in reported_texts(snap):
+            index, box = placed[output].get(run.get("node"), (None, None))
+            if box is None:
+                continue
+            size = (nodes.get(run["node"]) or {}).get("size") or box["rect"][2:]
+            sx = box["rect"][2] / size[0] if size[0] else 1.0
+            sy = box["rect"][3] / size[1] if size[1] else 1.0
+            x, y, w, h = run["rect"]
+            rect = [box["rect"][0] + x * sx, box["rect"][1] + y * sy, w * sx, h * sy]
+            items.append((index, run["node"], run.get("text", ""), rect))
+    return out
+
+
+def i2(_before, after, _act):
+    """A shown window has a size and lies 32 px inside its output."""
+    out = []
+    placed = node_boxes(after)
+    for look, state in sorted(looks_with_state(after).items()):
+        for w in state.get("windows") or []:
+            if not w.get("shown") or w.get("minimized") or w.get("floating"):
+                continue
+            output, sid = w.get("output"), w.get("surface")
+            if output is None or output not in placed:
+                continue
+            size = (after.boxes[output] or {}).get("size") or [0, 0]
+            _, box = placed[output].get(sid, (None, None))
+            if box is None or box["rect"][2] <= 0 or box["rect"][3] <= 0:
+                out.append(f"{look} shows {sid} on {output}, which has no box of a size there")
+            elif not overlap(box["rect"], [0, 0, *size], MARGIN):
+                out.append(f"{look} shows {sid} at {box['rect']}, not 32 px inside {output}")
+    return out
+
+
+def covered(boxes, low, high, rect):
+    """Whether an opaque box between two indices covers a rect."""
+    return any(b.get("opaque") and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1])
+
+
+def i5(_before, after, _act):
+    """No two text boxes overlap on one output without an opaque node
+    between. The line box of a text node holds its leading, so lines
+    whose boxes share a quarter of the smaller height or less pass."""
+    out = []
+    boxes = boxes_on(after)
+    for output, items in sorted(screen_texts(after).items()):
+        for n, (ia, la, ta, ra) in enumerate(items):
+            for ib, lb, tb, rb in items[n + 1 :]:
+                where = overlap(ra, rb)
+                if where is None or where[3] <= LEADING * min(ra[3], rb[3]):
+                    continue
+                low, high = sorted((ia, ib))
+                if low != high and covered(boxes[output], low, high, where):
+                    continue
+                out.append(f"on {output} {ta!r} ({la}) overlaps {tb!r} ({lb}) at {where}")
+    return out
+
+
+def i6(_before, after, _act):
+    """A text box lies inside its panel: a run inside its picture, a text
+    node inside the box of its nearest ancestor that has one."""
+    out = []
+    nodes = after.by_id()
+    for name, run in reported_texts(after):
+        size = (nodes.get(run.get("node")) or {}).get("size")
+        if size and not inside(run["rect"], [0, 0, *size]):
+            out.append(f"{name}: {run.get('text')!r} at {run['rect']} leaves its picture {size}")
+    for output, placed in sorted(node_boxes(after).items()):
+        for node, (_, box) in placed.items():
+            if box.get("kind") != "text":
+                continue
+            parent = (nodes.get(node) or {}).get("parent")
+            while parent and parent not in placed:
+                parent = (nodes.get(parent) or {}).get("parent")
+            if parent and not inside(box["rect"], placed[parent][1]["rect"]):
+                out.append(
+                    f"on {output} {box.get('text')!r} at {box['rect']} leaves its panel "
+                    f"{parent} {placed[parent][1]['rect']}"
+                )
+    return out
+
+
+def i9(before, after, _act):
+    """A notice that showed during the act has a box inside the output,
+    not under a helper surface."""
+    state = after.blocks.get("notify")
+    if not state:
+        return []
+    if "shown" not in state:
+        return ["notify missing key shown: its state.get does not answer it"]
+    was = {n.get("id") for n in (before.blocks.get("notify") or {}).get("shown") or []}
+    helpers = {n["id"] for n in after.nodes if helper_surfaces(n)}
+    out = []
+    for notice in state["shown"]:
+        if notice.get("id") in was:
+            continue
+        shown = [
+            (o, i, b, boxes)
+            for o, boxes in boxes_on(after).items()
+            for i, b in enumerate(boxes)
+            if b.get("node") == notice.get("node")
+        ]
+        if not shown:
+            out.append(f"the notice {notice.get('summary')!r} has no box on any output")
+        for output, i, box, boxes in shown:
+            size = after.boxes[output].get("size") or [0, 0]
+            if not inside(box["rect"], [0, 0, *size]):
+                out.append(f"the notice {notice.get('summary')!r} leaves {output}: {box['rect']}")
+            out += [
+                f"the notice {notice.get('summary')!r} is under the helper {b['node']} on {output}"
+                for b in boxes[i + 1 :]
+                if b.get("node") in helpers and overlap(box["rect"], b["rect"])
+            ]
+    return out
+
+
+def i10(_before, after, _act):
+    """No visible text is a raw launcher entry."""
+    out = []
+    for output, items in sorted(screen_texts(after).items()):
+        for _i, label, text, _rect in items:
+            out += [
+                f"on {output} {label} shows {what}: {text!r}" for rx, what in RAW if rx.search(text)
+            ]
+    return out
+
+
+def bars_over_fullscreen(after, look, window):
+    """The bars and panels over a fullscreen window: a layer surface above
+    the scene or a node of a look, above the window and over its box."""
+    looks = set(after.states)
+    out = []
+    for output, nodes in sorted(node_boxes(after).items()):
+        i, box = nodes.get(window.get("surface"), (None, None))
+        if box is None:
+            continue
+        for b in boxes_on(after)[output][i + 1 :]:
+            bar = b.get("layer") in ("top", "shell_overlay") or b.get("owner") in looks
+            if bar and overlap(box["rect"], b["rect"]):
+                name = b.get("node") or b.get("namespace")
+                by = b.get("owner") or b.get("layer")
+                out.append(f"{name} of {by} lies over the fullscreen {window['surface']} of {look}")
+    return out
+
+
+def modals_below(after, look, state):
+    """The open modals of a look that lie below the window they are for."""
+    out = []
+    for entry in state.get("open") or []:
+        parent = entry.get("for")
+        if not entry.get("modal") or not parent:
+            continue
+        for output, nodes in sorted(node_boxes(after).items()):
+            if entry.get("id") in nodes and parent in nodes:
+                if nodes[entry["id"]][0] < nodes[parent][0]:
+                    out.append(f"the modal {entry['id']} of {look} lies below {parent} on {output}")
+    return out
+
+
+def i12(_before, after, _act):
+    """No bar or panel box over a fullscreen window; a modal above its
+    parent."""
+    out = []
+    for look, state in sorted(looks_with_state(after).items()):
+        for w in state.get("windows") or []:
+            if w.get("fullscreen"):
+                out += bars_over_fullscreen(after, look, w)
+        out += modals_below(after, look, state)
+    return out
+
+
+def edges(corners):
+    """The four edges of a quad as pairs of corners."""
+    return [(corners[k], corners[(k + 1) % 4]) for k in range(4)]
+
+
+def near(a, b):
+    """Whether two points lie within SEAM px."""
+    return abs(a[0] - b[0]) <= SEAM and abs(a[1] - b[1]) <= SEAM
+
+
+def shares_edge(a, b):
+    """Whether two quads share an edge: both corners of an edge of one lie
+    on both corners of an edge of the other, in either direction."""
+    return any(
+        (near(p, r) and near(q, s)) or (near(p, s) and near(q, r))
+        for p, q in edges(a)
+        for r, s in edges(b)
+    )
+
+
+def i13(_before, after, _act):
+    """Neighbouring cube faces that both show share an edge within 1 px."""
+    out = []
+    for output, boxes in sorted(boxes_on(after).items()):
+        faces = {}
+        for b in boxes:
+            found = FACE.search(b.get("node") or "")
+            if found and b.get("corners"):
+                faces[(b.get("owner"), int(found.group(1)))] = b
+        for (owner, k), face in sorted(faces.items()):
+            count = 1 + max(i for o, i in faces if o == owner)
+            other = faces.get((owner, (k + 1) % max(count, 4)))
+            if other and other is not face and not shares_edge(face["corners"], other["corners"]):
+                out.append(
+                    f"on {output} the faces {face['node']} and {other['node']} do not meet: "
+                    f"{[[round(v, 1) for v in c] for c in face['corners']]} and "
+                    f"{[[round(v, 1) for v in c] for c in other['corners']]}"
+                )
+    return out
+
+
+ALL = {
+    "I1": i1,
+    "I2": i2,
+    "I3": i3,
+    "I4": i4,
+    "I5": i5,
+    "I6": i6,
+    "I7": i7,
+    "I8": i8,
+    "I9": i9,
+    "I10": i10,
+    "I12": i12,
+    "I13": i13,
+    "I14": i14,
+}
