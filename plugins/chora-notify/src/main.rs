@@ -210,26 +210,56 @@ fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) ->
 
 impl Notify {
     /// Connects, takes the name on the session bus and exports the
-    /// methods of the settings. `None` when another server owns the name:
-    /// the plugin has nothing to do then, and ends without an error, so
-    /// that no unit restarts it.
+    /// methods of the settings; see [`Self::on`].
     fn start(
         theme: Theme,
         values: Values,
         settings: settings::File<Config>,
     ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
         let ids = Ids::default();
-        let bus = match Bus::start(ids.clone()) {
+        let bus = Bus::start(ids.clone());
+        let rt = Runtime::start(NAME, Vec::new(), EVENTS, Self::methods())?;
+        Ok(Self::on(rt, bus, ids, (theme, values), settings))
+    }
+
+    /// The plugin on a connection, with the outcome of taking the bus
+    /// name. `None` when another server owns the name: the plugin has
+    /// nothing to do then, and ends without an error, so that no unit
+    /// restarts it.
+    fn on(
+        rt: Runtime<()>,
+        bus: Result<Bus, StartError>,
+        ids: Ids,
+        (theme, values): (Theme, Values),
+        settings: settings::File<Config>,
+    ) -> Option<Self> {
+        let bus = match bus {
             Ok(bus) => Some(bus),
             Err(err @ StartError::Taken) => {
                 eprintln!("chora-notify: {err}, which stays its owner");
-                return Ok(None);
+                return None;
             }
             Err(err) => {
                 eprintln!("chora-notify: no session bus ({err}); only the plugins are served");
                 None
             }
         };
+        Some(Self {
+            rt,
+            queue: Queue::new(settings.value),
+            settings,
+            theme,
+            values,
+            icons: Icons::new(icons::THEMES),
+            bus,
+            ids,
+            pending: Vec::new(),
+            card: None,
+        })
+    }
+
+    /// The methods of the settings, `state.get` and the live API.
+    fn methods() -> Vec<chora_scene::ipc::ExportMethod> {
         let mut methods = settings::File::<Config>::methods();
         methods.push(runtime::state_method());
         methods.push(runtime::method(
@@ -252,19 +282,7 @@ impl Notify {
             json!({"id": {"type": "integer"}}),
             &["id"],
         ));
-        let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods)?;
-        Ok(Some(Self {
-            rt,
-            queue: Queue::new(settings.value),
-            settings,
-            theme,
-            values,
-            icons: Icons::new(icons::THEMES),
-            bus,
-            ids,
-            pending: Vec::new(),
-            card: None,
-        }))
+        methods
     }
 
     /// Applies a transaction, with the logical sizes of the pictures.
@@ -482,15 +500,10 @@ mod tests {
         }
     }
 
-    /// A notify on a private session bus and a fake core that answers
-    /// every request with null and `output.list` with no outputs. `None`
-    /// without a `dbus-daemon` to start.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
-    fn on_private_bus(tag: &str) -> Option<(Notify, KillOnDrop)> {
-        use std::io::{BufRead as _, BufReader, Write as _};
+    /// A private session bus: its address and the daemon. `None` without
+    /// a `dbus-daemon` to start.
+    fn private_bus() -> Option<(String, KillOnDrop)> {
+        use std::io::{BufRead as _, BufReader};
         let daemon = std::process::Command::new("dbus-daemon")
             .args(["--session", "--nofork", "--print-address"])
             .stdout(std::process::Stdio::piped())
@@ -500,10 +513,25 @@ mod tests {
         let mut address = String::new();
         let stdout = daemon.0.stdout.take().unwrap();
         BufReader::new(stdout).read_line(&mut address).unwrap();
-        let connection = zbus::blocking::connection::Builder::address(address.trim())
+        Some((address.trim().to_owned(), daemon))
+    }
+
+    fn connect(address: &str) -> zbus::blocking::Connection {
+        zbus::blocking::connection::Builder::address(address)
             .unwrap()
             .build()
-            .unwrap();
+            .unwrap()
+    }
+
+    /// A notify with the outcome of taking the bus name, on a fake core
+    /// that answers every request with null and `output.list` with no
+    /// outputs.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Option<Notify> {
+        use std::io::{BufRead as _, BufReader, Write as _};
         let dir = cache(tag);
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -525,26 +553,49 @@ mod tests {
             }
         });
         let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
-        let (theme, values) = load_assets(&assets, &dir.join("cache")).expect("the assets load");
+        let assets = load_assets(&assets, &dir.join("cache")).expect("the assets load");
         let settings =
             settings::File::<Config>::load(dir.join("chora-notify.yaml"), config::DEFAULT).unwrap();
         let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
         let mut rt = Runtime::with(conn, NAME, Vec::new());
         rt.pin_accepts_injected(false);
+        Notify::on(rt, bus, ids, assets, settings)
+    }
+
+    /// A notify on a private session bus whose name it owns.
+    fn on_private_bus(tag: &str) -> Option<(Notify, KillOnDrop)> {
+        let (address, daemon) = private_bus()?;
         let ids = Ids::default();
-        let notify = Notify {
-            rt,
-            queue: Queue::new(settings.value),
-            settings,
-            theme,
-            values,
-            icons: Icons::new(icons::THEMES),
-            bus: Some(Bus::on(connection, ids.clone()).expect("the name is free")),
-            ids,
-            pending: Vec::new(),
-            card: None,
-        };
+        let bus = Bus::on(connect(&address), ids.clone());
+        assert!(bus.is_ok(), "the name is free");
+        let notify = on_fake_core(tag, bus, ids).expect("notify serves");
         Some((notify, daemon))
+    }
+
+    /// Another server owns the name on the bus, as mako when its
+    /// activation file wins: notify keeps serving `notify.show` and
+    /// `notify.close` to the plugins, without the bus.
+    #[test]
+    fn a_taken_name_leaves_the_live_api_served() {
+        let Some((address, _daemon)) = private_bus() else {
+            return;
+        };
+        let owner = Bus::on(connect(&address), Ids::default()).expect("the name is free");
+        let ids = Ids::default();
+        let taken = Bus::on(connect(&address), ids.clone());
+        assert!(matches!(taken, Err(StartError::Taken)), "the name is taken");
+        let mut notify = on_fake_core("taken", taken, ids).expect("notify serves the plugins");
+        assert!(notify.bus.is_none(), "no bus");
+        let shown = (notify.method(kit_notice::SHOW, json!({"summary": "Saved"})))
+            .expect("notify.show answers");
+        notify.step(Instant::now()).unwrap();
+        let summary = notify.queue.current().map(|n| n.summary.clone());
+        assert_eq!(summary.as_deref(), Some("Saved"));
+        (notify.method(kit_notice::CLOSE, json!({"id": shown["id"]})))
+            .expect("notify.close answers");
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(notify.queue.current(), None);
+        drop(owner);
     }
 
     #[test]
