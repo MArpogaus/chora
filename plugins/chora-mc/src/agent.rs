@@ -28,12 +28,14 @@ const SIGN_WIDTH: f64 = 18.0;
 const MAX_ROWS: usize = 4;
 /// The most notices whose ids mc keeps for `notify.clear`.
 const NOTICES: usize = 32;
+/// The most critical notice ids mc keeps, oldest dropped first.
+const CRITICAL_NOTICES: usize = 64;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
 /// The ids of the notices that mc showed, for `notify.clear`: the last
-/// [`NOTICES`] normal ones, which expire by themselves anyway, and every
-/// critical one, which stays until a click or a clear.
+/// [`NOTICES`] normal ones, which expire by themselves anyway, and the last
+/// [`CRITICAL_NOTICES`] critical ones, which stay until a click or a clear.
 #[derive(Debug, Default)]
 pub struct Notices {
     ids: Vec<(u32, bool)>,
@@ -48,6 +50,12 @@ impl Notices {
         let normal = self.ids.iter().filter(|(_, critical)| !critical).count();
         if normal > NOTICES
             && let Some(oldest) = self.ids.iter().position(|(_, critical)| !critical)
+        {
+            self.ids.remove(oldest);
+        }
+        let critical = self.ids.iter().filter(|(_, critical)| *critical).count();
+        if critical > CRITICAL_NOTICES
+            && let Some(oldest) = self.ids.iter().position(|(_, critical)| *critical)
         {
             self.ids.remove(oldest);
         }
