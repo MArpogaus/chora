@@ -1,127 +1,153 @@
 <title>chora session status</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
+/* Layout: one column, verdict first, then three plan-vs-actual bars, then the eight goals as a row of lights. */
 :root {
-  --bg: #f3f5f8; --surface: #ffffff; --ink: #18202c; --muted: #5b6676; --line: #d9dee6;
-  --accent: #2f5fd0; --good: #1f7a4d; --warn: #a55f00; --bad: #b3261e; --track: #e3e8ef;
+  --bg: #f3f5f8; --surface: #ffffff; --ink: #18202c; --muted: #5b6676; --line: #d9dee6; --track: #e3e8ef;
+  --accent: #2f5fd0; --good: #1f7a4d; --warn: #a55f00; --bad: #b3261e;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
   --font-data: "JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342;
-    --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --track: #252e3b; color-scheme: dark;
+    --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342; --track: #252e3b;
+    --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342;
-  --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --track: #252e3b; color-scheme: dark;
+  --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342; --track: #252e3b;
+  --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
-.wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
-h1 { font-size: 26px; line-height: 1.15; margin: 0; }
-h2 { font-size: 17px; margin: 0 0 10px; }
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+h1 { font-size: 24px; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-family: var(--font-data); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 p { margin: 0; }
-.eyebrow, .meta { font-family: var(--font-data); font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.meta { font-family: var(--font-data); font-size: 12px; color: var(--muted); }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-.kpi b { display: block; font-family: var(--font-data); font-size: 22px; font-variant-numeric: tabular-nums; }
-.kpi span { font-size: 13px; color: var(--muted); }
-.bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin-top: 6px; }
-.bar i { display: block; height: 100%; background: var(--accent); }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-weight: 600; }
-td.n { font-family: var(--font-data); white-space: nowrap; }
-.tag { font-family: var(--font-data); font-size: 12px; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
-.done { color: var(--good); border: 1px solid var(--good); }
-.part { color: var(--warn); border: 1px solid var(--warn); }
-.open { color: var(--muted); border: 1px solid var(--line); }
-.red { color: var(--bad); border: 1px solid var(--bad); }
+.verdict { border-left: 6px solid var(--state); }
+.verdict p { color: var(--muted); margin-top: 4px; }
+.bars { display: flex; flex-direction: column; gap: 14px; }
+.row { display: grid; grid-template-columns: 110px 1fr 56px; gap: 10px; align-items: center; }
+.row b { font-size: 14px; }
+.row span.v { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; font-size: 14px; }
+.track { position: relative; height: 12px; background: var(--track); border-radius: 6px; }
+.fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--state, var(--accent)); }
+.mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.row small { grid-column: 2 / 4; color: var(--muted); font-size: 13px; margin-top: -6px; }
+.goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.goal { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--state); margin-top: 5px; grid-row: span 2; }
+.goal b { font-size: 14px; }
+.goal span { font-size: 13px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--state); margin-right: 6px; }
+.done { --state: var(--good); } .track-ok { --state: var(--accent); } .risk { --state: var(--warn); } .behind { --state: var(--bad); }
 ul { margin: 0; padding-left: 20px; }
-li + li { margin-top: 4px; }
 code { font-family: var(--font-data); font-size: 13px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-figure { margin: 0; }
-img, video { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
-figcaption { font-size: 13px; color: var(--muted); margin-top: 4px; }
-.scroll { overflow-x: auto; }
+video { width: 100%; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
+details summary { cursor: pointer; font-weight: 700; }
+details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
+
+<script>
+// The only part to update by hand. Time progress is computed from the clock.
+const S = {
+  updated: "2026-11-19T10:58:00Z",
+  start: "2026-11-19T05:55:00Z",   // budget reset (owner)
+  end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
+  budget: 17,                      // % of the week used (owner's reading)
+  goals: [
+    ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
+    ["F2", "Shared code in one kit, no copies", "risk", "half the slices in; 2 running"],
+    ["F3", "Window-manager core, first slices", "track-ok", "core in; hosted cube started"],
+    ["F4", "No file over 1,500 lines", "track-ok", "size limit enforced by the gate"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "one flaky step left"],
+    ["F6", "Every change through the merge gate", "track-ok", "27 green merges"],
+    ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],
+    ["F8", "Docs and decision records", "track-ok", "last part merging today"]
+  ],
+  needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
+};
+</script>
+
 <div class="wrap">
-<header>
-  <p class="eyebrow">chora · autonomous session · foundation week</p>
-  <h1>Session status</h1>
-  <p class="meta">Updated 2026-11-19 10:55 UTC (17:55 Bangkok) · week ends Sat 11-21 03:59 UTC (10:59 Bangkok)</p>
-</header>
+  <header>
+    <p class="meta">chora · foundation week · until Sat 21 Nov 03:59 UTC (10:59 Bangkok)</p>
+    <h1>Are we on plan?</h1>
+  </header>
 
-<section class="kpis" aria-label="Key numbers">
-  <div class="kpi"><b>17 %</b><span>of the week used (owner, 10:39 UTC; another agent included)</span><div class="bar"><i style="width:17%"></i></div></div>
-  <div class="kpi"><b>~2 %/h</b><span>pace to use the week by Sat 03:59 UTC (41 h left)</span></div>
-  <div class="kpi"><b>6</b><span>lanes (4 sonnet, 2 opus); resumed 10:53 UTC after the 5-hour limit</span></div>
-  <div class="kpi"><b>27</b><span>green trains on the session branch</span></div>
-</section>
+  <section class="card verdict" id="verdict" aria-live="polite"></section>
 
-<section class="card" aria-label="Foundation">
-  <h2>Foundation F1-F8 (met only with a measure and an independent check)</h2>
-  <div class="scroll"><table>
-    <tr><th>#</th><th>Goal</th><th>State</th><th>Where</th></tr>
-    <tr><td class="n">F1</td><td>Plan in merge-sized slices</td><td><span class="tag done">done</span></td><td>reviewed plan; slices by rank</td></tr>
-    <tr><td class="n">F2</td><td>Shared core in chora-kit, no copies</td><td><span class="tag part">open</span></td><td>KIT1-2, KIT2b, KIT4 in; KIT2c in train 61; KIT2d next train; KIT3, KIT5 running</td></tr>
-    <tr><td class="n">F3</td><td>WM core designed, first slice in</td><td><span class="tag part">open</span></td><td>WM1, WM1b-c in; WM1d, WM2 in train 61; WM3 r2, WM5 review, WM7a r3 running; WM7b hosted cube (your choice, 10:52) next</td></tr>
-    <tr><td class="n">F4</td><td>No file over 1,500 lines; debt down</td><td><span class="tag open">open</span></td><td>size ratchet in the gate</td></tr>
-    <tr><td class="n">F5</td><td>Tests: kit coverage ≥ 80 %, no flaky gate</td><td><span class="tag open">open</span></td><td>flakes-f running (F21 pull flake)</td></tr>
-    <tr><td class="n">F6</td><td>Every slice through the merge gate; cut gate</td><td><span class="tag part">partly</span></td><td>CUT1-2 in; trains batch MERGE-OK branches</td></tr>
-    <tr><td class="n">F7</td><td>No regression against tour v8</td><td><span class="tag open">open</span></td><td>tour v9 next week</td></tr>
-    <tr><td class="n">F8</td><td>Docs and decision records</td><td><span class="tag part">open</span></td><td>DOCS-F8 in; DOCS-F8b in train 61</td></tr>
-  </table></div>
-  <p class="meta" style="margin-top:8px">Forecast for Saturday: F1, F3, F4, F6, F8 likely; F2 partly; F5 open; F7 next week.</p>
-</section>
+  <section class="card" aria-label="Plan against actual">
+    <h2>Plan against actual</h2>
+    <div class="bars" id="bars"></div>
+  </section>
 
-<section class="card" aria-label="Trains">
-  <h2>Merge trains today (UTC)</h2>
-  <div class="scroll"><table>
-    <tr><th>Train</th><th>Branches</th><th>Result</th></tr>
-    <tr><td class="n">59</td><td>cut2, net3</td><td><span class="tag done">green</span> 4548feb3</td></tr>
-    <tr><td class="n">60</td><td>mv4, wm2</td><td><span class="tag red">red</span> pull flake (F21); passes alone</td></tr>
-    <tr><td class="n">61</td><td>60 + kit2c, docs-f8b, wm1d</td><td><span class="tag part">running</span> since 10:33</td></tr>
-    <tr><td class="n">62</td><td>kit2d (MERGE-OK), wm7a r3</td><td><span class="tag open">next</span></td></tr>
-  </table></div>
-</section>
+  <section class="card" aria-label="Goals">
+    <h2>Eight goals for Saturday</h2>
+    <div class="goals" id="goals"></div>
+    <div class="legend">
+      <span class="done"><i></i>met (measured, checked)</span>
+      <span class="track-ok"><i></i>on track</span>
+      <span class="risk"><i></i>at risk</span>
+      <span class="behind"><i></i>behind plan</span>
+    </div>
+  </section>
 
-<section class="card" aria-label="Lanes">
-  <h2>Lanes</h2>
-  <div class="scroll"><table>
-    <tr><th>Lane</th><th>Goal</th><th>Model</th><th>Since</th></tr>
-    <tr><td class="n">flakes-f</td><td>F5: no flaky gate</td><td>opus high</td><td class="n">07:37</td></tr>
-    <tr><td class="n">kit5</td><td>F2</td><td>sonnet high</td><td class="n">07:40</td></tr>
-    <tr><td class="n">wm5</td><td>F3</td><td>opus high</td><td class="n">09:42</td></tr>
-    <tr><td class="n">kit3</td><td>F2: key sheet from the bindings</td><td>sonnet high</td><td class="n">10:06</td></tr>
-    <tr><td class="n">wm7a r3</td><td>F3: cube acts merge</td><td>sonnet high</td><td class="n">10:30</td></tr>
-    <tr><td class="n">wm3 r2</td><td>F3: review fixes (I12 check)</td><td>sonnet high</td><td class="n">10:35</td></tr>
-  </table></div>
-</section>
+  <section class="card" aria-label="Needs you">
+    <h2>Needs you</h2>
+    <ul id="needs"></ul>
+  </section>
 
-<section class="card" aria-label="Needs owner">
-  <h2>Needs you</h2>
-  <ul>
-    <li>Delete branch <code>claude/release-rc4</code> in GitHub (the session's push is refused).</li>
-  </ul>
-</section>
-
-<section class="card" aria-label="Baseline">
-  <h2>Baseline: tour v8 (no visible change allowed this week)</h2>
-  <video src="video/tour-v8.mp4" controls preload="metadata" aria-label="Tour v8 of all four looks"></video>
-  <p class="meta" style="margin:6px 0 12px">Build 733967aa, 17 Nov, 4:04 min: xp 0:00, tiling 1:19, mc 2:13, construct 2:52, one window through the looks 3:26.</p>
-  <div class="grid">
-    <figure><img src="img/xp-desktop.png" alt="xp desktop with a terminal and an editor" loading="lazy"><figcaption>xp (fallback art)</figcaption></figure>
-    <figure><img src="img/tiling-fair.png" alt="Tiling look, fair layout under the bar" loading="lazy"><figcaption>tiling</figcaption></figure>
-    <figure><img src="img/mc-light.png" alt="mc look, light, the Morning page" loading="lazy"><figcaption>mc</figcaption></figure>
-    <figure><img src="img/construct-cube-xp.png" alt="Construct: cube of four xp desktops" loading="lazy"><figcaption>construct</figcaption></figure>
-  </div>
-  <p class="meta" style="margin-top:6px">Stills: build 7d90f049, 16 Nov.</p>
-</section>
+  <section class="card">
+    <details>
+      <summary>Baseline: tour v8 (the look that must not regress)</summary>
+      <video src="video/tour-v8.mp4" controls preload="none" aria-label="Tour v8 of all four looks" style="margin-top:10px"></video>
+      <p class="meta" style="margin-top:6px">Build 733967aa, 17 Nov, 4:04 min: xp, tiling, mc, construct, one window through all four.</p>
+    </details>
+  </section>
 </div>
+
+<script>
+(function () {
+  const t = s => new Date(s).getTime();
+  const fmt = d => d.toISOString().slice(11, 16) + " UTC (" + new Date(d.getTime() + 7 * 3600e3).toISOString().slice(11, 16) + " Bangkok)";
+  const now = Date.now();
+  const timePct = Math.max(0, Math.min(100, Math.round(100 * (now - t(S.start)) / (t(S.end) - t(S.start)))));
+  const hoursLeft = Math.max(0, Math.round((t(S.end) - now) / 3600e3));
+  const g = S.goals, n = g.length;
+  const count = k => g.filter(x => x[2] === k).length;
+  const met = count("done"), risk = count("risk"), behind = count("behind");
+  const forecast = n - risk - behind;
+  const metPct = Math.round(100 * met / n);
+  const spendOk = S.budget >= timePct - 5;
+
+  const bar = (label, pct, cls, note, markPct) =>
+    '<div class="row ' + cls + '"><b>' + label + '</b><div class="track"><div class="fill" style="width:' + pct + '%"></div>' +
+    (markPct != null ? '<div class="mark" style="left:calc(' + markPct + '% - 1px)" title="plan"></div>' : '') +
+    '</div><span class="v">' + pct + ' %</span><small>' + note + '</small></div>';
+
+  document.getElementById("bars").innerHTML =
+    bar("Time", timePct, "track-ok", hoursLeft + " h left until Saturday's deadline") +
+    bar("Budget", S.budget, spendOk ? "done" : "risk",
+        (spendOk ? "Spending on pace" : "Spending too slowly") + " (the line marks where time is; the aim is to use the whole week)", timePct) +
+    bar("Goals met", metPct, met * 100 / n >= timePct - 15 ? "track-ok" : "risk",
+        met + " of " + n + " met; forecast for Saturday: " + forecast + " of " + n, timePct);
+
+  const cls = behind ? "behind" : risk ? "risk" : "done";
+  const late = g.filter(x => x[2] === "risk" || x[2] === "behind").map(x => x[0]).join(", ");
+  const head = behind || risk ? "Mostly on plan; behind on " + late : "On plan";
+  const v = document.getElementById("verdict");
+  v.className = "card verdict " + cls;
+  v.innerHTML = "<h1>" + head + "</h1><p>" + forecast + " of " + n + " goals forecast for Saturday. Updated " + fmt(new Date(S.updated)) + ".</p>";
+
+  document.getElementById("goals").innerHTML = g.map(x =>
+    '<div class="goal ' + x[2] + '"><i class="dot"></i><b>' + x[0] + " " + x[1] + "</b><span>" + x[3] + "</span></div>").join("");
+  document.getElementById("needs").innerHTML = S.needs.map(x => "<li>" + x + "</li>").join("");
+})();
+</script>
