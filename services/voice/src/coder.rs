@@ -74,6 +74,13 @@ pub fn data_dir() -> PathBuf {
     base.join("chora")
 }
 
+/// [`data_dir`] for a given data home.
+#[allow(dead_code, clippy::unnecessary_wraps, reason = "a stub until the fix")]
+fn data_dir_in(data_home: Option<PathBuf>) -> Result<PathBuf, String> {
+    let base = data_home.unwrap_or_else(|| crate::expand("~/.local/share"));
+    Ok(base.join("chora"))
+}
+
 impl Coder {
     pub fn new(cmd: Vec<String>, data: PathBuf, tx: Sender<Input>) -> Self {
         Self {
@@ -526,6 +533,16 @@ mod tests {
     use std::sync::mpsc;
 
     use super::*;
+
+    #[test]
+    fn no_data_home_is_no_relative_path() {
+        let error = data_dir_in(None).expect_err("refused");
+        assert!(error.contains("HOME"), "{error}");
+        assert_eq!(
+            data_dir_in(Some("/home/a/.local/share".into())),
+            Ok("/home/a/.local/share/chora".into())
+        );
+    }
 
     #[test]
     fn steps_come_from_stream_json_and_plain_lines() {
