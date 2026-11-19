@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 23:36 UTC)
+## Now (2026-11-19 23:38 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 22:10 PM 2.1 %; 29 h left: 75 %, 2.6 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -35,12 +35,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | block-v-r2.md (mc-38) | sonnet medium | MERGE-OK ce230288, train 78 |
 | mc-majors-r1.md (RC, mc-33-37) | sonnet high | session_016iS3kMSygrmeY6GnmekpAL |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
-| review-kit-sec-r1.md (F5) | opus high | session_016iS3kQ3zvBR5uTP72XiUtD |
+| kit-sec-r2.md (F5; review FIX rw-1) | sonnet high | starting |
 | ti-majors-r1.md (RC, ti-22-24) | sonnet high | session_016iS3kN6CpA9ijuBr2jMwMF |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 76 green 23:06 (ig-fix, kit-report, minors-2, flake-i, kit-minors). 77 running: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), temp-rest 2e8e67f3, f24-rest, nits-3 0b5f8c34, flake-k 9dde8523, block-v ce230288, pw 5755b578.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, P2-R1-XP 1.1 %, KIT-SEC review 0.5 %, MC-MAJORS 1 %, FLAKE-H r2 0.5 %, TI-MAJORS 1 %; AUDIT-F r3 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, P2-R1-XP 1.1 %, KIT-SEC r2 0.8 %, MC-MAJORS 1 %, FLAKE-H r2 0.5 %, TI-MAJORS 1 %; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
