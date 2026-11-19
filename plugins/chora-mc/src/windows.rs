@@ -199,3 +199,156 @@ impl Mc {
         self.remove_scene(&name)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use chora_kit::{
+        give::Give,
+        runtime::Plugin,
+        testing::{FakeCore, Script, Subject, created, owner, surface},
+    };
+    use chora_scene::Event;
+    use serde_json::{Value, json};
+
+    use crate::{Mc, NAME, testing};
+
+    /// mc under the script of the life of a window.
+    struct Driven<'a>(&'a mut Mc);
+
+    impl Subject for Driven<'_> {
+        fn hear(&mut self, event: Event) {
+            self.0.event(event).unwrap();
+        }
+
+        fn has(&self, surface: &str) -> bool {
+            chora_kit::give::Windows::has(&*self.0, surface)
+        }
+
+        fn give(&mut self, surface: &str, to: &str) -> bool {
+            let give = Give {
+                surface: surface.into(),
+                to: to.into(),
+                grab: None,
+            };
+            self.0.give(give).is_ok()
+        }
+    }
+
+    /// The script that every look runs: create, refused attach, reserved
+    /// for another window manager, detach (mc puts the window back),
+    /// destroy, output removed (the windows stay), give in, refused give
+    /// out, give out.
+    #[test]
+    fn mc_runs_the_script_of_the_life_of_a_window() {
+        let core = FakeCore::start();
+        let mut mc = testing::mc_on(&core, "script", [800, 600]);
+        Script::new(&core, NAME).run(&mut Driven(&mut mc), "test");
+    }
+
+    /// The state tells where a window came from, and no token.
+    #[test]
+    fn the_state_tells_the_origin_of_a_window() {
+        let core = FakeCore::start();
+        let mut mc = testing::mc_on(&core, "origin", [800, 600]);
+        surface(&core.model(), "s1");
+        mc.event(created("s1", None)).unwrap();
+        surface(&core.model(), "s2");
+        core.model().lock().unwrap().scene.reserve("s2", Some(NAME));
+        mc.event(created("s2", Some(NAME))).unwrap();
+        let state = mc.state().unwrap();
+        let origin = |id: &str| {
+            let windows = state["windows"].as_array().unwrap();
+            let window = windows.iter().find(|w| w["surface"] == id).unwrap();
+            window["origin"].clone()
+        };
+        assert_eq!(origin("s1"), "new");
+        assert_eq!(origin("s2"), "given");
+        assert!(!state.to_string().contains("t1"), "no token: {state}");
+        assert!(
+            state.get("open").is_none(),
+            "open stays out until mc fills it"
+        );
+    }
+
+    /// After a restart the core holds the windows free: mc adopts the
+    /// free ones and those reserved for it, each into the scene that its
+    /// app id names, and leaves those of another manager.
+    #[test]
+    fn a_restart_adopts_the_free_windows_of_mc() {
+        let core = FakeCore::start();
+        let mut mc = testing::mc_on(&core, "restart", [800, 600]);
+        for id in ["s1", "s2", "s3", "s4"] {
+            surface(&core.model(), id);
+        }
+        let node = |id: &str, owner: Value, to: Value| {
+            json!({"id": id, "kind": "surface", "owner": owner, "to": to,
+                "surface": {"app_id": "probe"}})
+        };
+        let nodes = [
+            node("s1", Value::Null, Value::Null),
+            node("s2", Value::Null, json!(NAME)),
+            node("s3", Value::Null, json!("xp")),
+            node("s4", json!("xp"), Value::Null),
+        ];
+        mc.adopt_free(&nodes).unwrap();
+        assert!(chora_kit::give::Windows::has(&mc, "s1"));
+        assert!(chora_kit::give::Windows::has(&mc, "s2"));
+        assert!(!chora_kit::give::Windows::has(&mc, "s3"));
+        assert!(!chora_kit::give::Windows::has(&mc, "s4"));
+        assert_eq!(owner(&core.model(), "s1").as_deref(), Some(NAME));
+        assert_eq!(owner(&core.model(), "s3"), None);
+        let scenes: Vec<_> = (mc.windows.iter())
+            .map(|(scene, surface)| (scene.clone(), surface.clone()))
+            .collect();
+        let mut scenes = scenes;
+        scenes.sort();
+        assert_eq!(
+            scenes,
+            [
+                ("probe".into(), "s1".to_owned()),
+                ("probe-s2".into(), "s2".to_owned())
+            ]
+        );
+    }
+
+    /// The scenes of windows come at the end of the order, in the order
+    /// of their windows, and go with them; the number of a scene that
+    /// went is free again.
+    #[test]
+    fn the_order_of_the_scenes_follows_the_windows() {
+        let core = FakeCore::start();
+        let mut mc = testing::mc_on(&core, "order", [800, 600]);
+        let first = mc.order();
+        let mut app = |id: &str, app_id: &str| {
+            surface(&core.model(), id);
+            let event = Event::SurfaceCreated {
+                surface: id.into(),
+                app_id: Some(app_id.into()),
+                title: None,
+                decoration: None,
+                to: None,
+                pid: None,
+                token: None,
+            };
+            mc.event(event).unwrap();
+        };
+        app("s1", "foot");
+        app("s2", "firefox");
+        app("s3", "foot");
+        let opened = mc.order();
+        assert_eq!(opened[..first.len()], first[..]);
+        assert_eq!(opened[first.len()..], ["foot", "firefox", "foot-s3"]);
+        let closed = Event::SurfaceDestroyed {
+            surface: "s2".into(),
+        };
+        mc.event(closed).unwrap();
+        let after = mc.order();
+        assert_eq!(after[first.len()..], ["foot", "foot-s3"]);
+        let number = mc.number("foot-s3");
+        assert_eq!(
+            number,
+            (first.len() + 2).to_string(),
+            "the place of firefox is free"
+        );
+    }
+}

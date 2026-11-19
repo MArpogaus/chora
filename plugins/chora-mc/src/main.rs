@@ -2488,6 +2488,15 @@ mod testing {
     )]
     pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         let core = FakeCore::start();
+        (mc_on(&core, dir, size), core.model())
+    }
+
+    /// As [`mc`], on a fake core of the test.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    pub fn mc_on(core: &FakeCore, dir: &str, size: [i32; 2]) -> Mc {
         let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
         rt.pin_accepts_injected(false);
         let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
@@ -2512,6 +2521,6 @@ mod testing {
             owner: None,
         });
         mc.build().unwrap();
-        (mc, core.model())
+        mc
     }
 }

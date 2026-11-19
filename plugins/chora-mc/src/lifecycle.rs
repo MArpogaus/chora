@@ -150,7 +150,13 @@ impl Mc {
             .rt
             .conn
             .call("scene.query", Query::new("kind:surface"))?;
-        for node in free {
+        self.adopt_free(&free)
+    }
+
+    /// Adopts the free surfaces among `nodes`, and those that the core
+    /// reserved for mc, as after a restart.
+    pub(crate) fn adopt_free(&mut self, nodes: &[Value]) -> Result<(), ClientError> {
+        for node in nodes {
             let ours = node["to"].is_null() || node["to"] == NAME;
             if let (Some(id), true, true) = (node["id"].as_str(), node["owner"].is_null(), ours) {
                 let app_id = node["surface"]["app_id"].as_str();
