@@ -30,14 +30,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, train 78 |
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
 | pw-r2.md (P2) | sonnet medium | MERGE-OK 5755b578, train 78 |
-| p2-r1-xp.md (RC2; r1b no setup) | sonnet+haiku | session_016iS3kLP7F2X6bjVSt3KzWv |
+| p2-r1-xp.md (RC2, r1b) | sonnet+haiku | session_016iS3kLP7F2X6bjVSt3KzWv |
 | nits-3-r1.md (F5) | sonnet medium | MERGE-OK 0b5f8c34, train 78 |
 | block-v-r2.md (mc-38) | sonnet medium | MERGE-OK ce230288, train 78 |
 | mc-majors-r1.md (RC) | sonnet high | session_016iS3kMSygrmeY6GnmekpAL |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r2.md (F5) | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
-| ti-majors-r1.md (RC, ti-22-24) | sonnet high | MERGE-OK c9ed1cfd, train 79 |
-| co-majors-r1.md (RC, co-19-21) | opus high | starting |
+| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, train 79 |
+| co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 77 green 23:39 (harness-gp). 78 running 050a85ca: temp-dirs, temp-rest, f24-rest, nits-3, flake-k, block-v, pw. 79: ti-majors c9ed1cfd.
