@@ -3,7 +3,8 @@
 
 use super::{
     ClientError, Command, Config, Construct, Content, Duration, EVENTS, FRAME, Hold, Instant, Kind,
-    NAME, Pane, PaneFile, RETRY, Value, Waiting, exported_methods, file, json, runtime, settings,
+    NAME, Node, Pane, PaneFile, RETRY, Value, Waiting, exported_methods, file, json, runtime,
+    settings,
 };
 
 impl Construct {
@@ -36,19 +37,27 @@ impl Construct {
         self.build()?;
         self.regrab()?;
         self.claim_indicator(false);
-        for node in self.rt.conn.query("kind:surface")? {
-            let ours = node.to.as_deref().is_none_or(|t| t == NAME);
-            if node.owner.is_none() && ours {
-                let info = node.surface.unwrap_or_default();
-                let label = info.app_id.or(info.title).unwrap_or_default();
-                self.adopt(&node.id, &label, None, Hold::Own, false)?;
-            }
-        }
+        let free = self.rt.conn.query("kind:surface")?;
+        self.adopt_free(free)?;
         let start = self.settings.value.start.clone();
         if !start.is_empty() {
             match file::dir().and_then(|d| file::load(&d, &start)) {
                 Ok(file) => self.load(&start, file)?,
                 Err(err) => eprintln!("chora-construct: start: {err}"),
+            }
+        }
+        Ok(())
+    }
+
+    /// Takes the free surfaces of the core, and those reserved for the
+    /// construct, as panes of the flavor.
+    pub(crate) fn adopt_free(&mut self, nodes: Vec<Node>) -> Result<(), ClientError> {
+        for node in nodes {
+            let ours = node.to.as_deref().is_none_or(|t| t == NAME);
+            if node.owner.is_none() && ours {
+                let info = node.surface.unwrap_or_default();
+                let label = info.app_id.or(info.title).unwrap_or_default();
+                self.adopt(&node.id, &label, None, Hold::Own, false)?;
             }
         }
         Ok(())

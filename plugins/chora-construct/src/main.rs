@@ -46,6 +46,7 @@ mod hints;
 mod hud;
 mod input;
 mod keys;
+mod lifecycle;
 mod list;
 mod methods;
 mod modes;
@@ -78,7 +79,7 @@ use chora_kit::{
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, OutputTexture, PropsUpdate,
+    Command, Event, InputMode, Node, NodeKind, NodeTexture, OutputInfo, OutputTexture, PropsUpdate,
     ToplevelState, Transform, Uniform,
     ipc::{ClientError, ExportMethod, Filter, PressState, Query, RpcError},
     overlay_id,
