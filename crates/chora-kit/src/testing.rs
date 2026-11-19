@@ -358,3 +358,28 @@ pub fn has(model: &Model, id: &str) -> bool {
 pub fn text(model: &Model, id: &str) -> Option<String> {
     model.lock().unwrap().scene.node(id)?.props.text.clone()
 }
+
+/// The variable that tells a test that it runs as the child of
+/// [`stderr_of`].
+const CHILD: &str = "CHORA_TEST_STDERR_CHILD";
+
+/// True in the child process of [`stderr_of`]: the test prints what it
+/// pins and returns.
+#[must_use]
+pub fn in_child() -> bool {
+    std::env::var_os(CHILD).is_some()
+}
+
+/// What the test `test` of the running test binary writes to stderr:
+/// the binary runs again with only that test, which sees [`in_child`].
+/// Use it to pin a line of a log.
+#[must_use]
+pub fn stderr_of(test: &str) -> String {
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", test, "--nocapture", "--test-threads=1"])
+        .env(CHILD, "1")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "the child test {test} failed");
+    String::from_utf8(out.stderr).unwrap()
+}

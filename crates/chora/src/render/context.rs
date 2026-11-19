@@ -75,7 +75,11 @@ pub(super) fn capture(
 ) -> impl Fn(f64, f64) -> [u8; 4] + use<> {
     let picture = wm.ok(core, "screen.capture", json!({"output": "test-1"}));
     let (width, rgba) = decode(&picture);
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "x and y are pixel positions inside the frame, so non-negative"
+    )]
     move |x: f64, y: f64| {
         let at = (y as usize * width + x as usize) * 4;
         rgba[at..at + 4].try_into().expect("a pixel")

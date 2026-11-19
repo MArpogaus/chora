@@ -195,11 +195,11 @@ impl Turn {
 
 /// The desktop some steps away, around the cube.
 pub fn offset(desktop: usize, steps: i32) -> usize {
-    #[allow(
+    #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_possible_wrap,
-        clippy::cast_sign_loss
-    )] // below 4
+        reason = "below 4 desktops; rem_euclid keeps the result non-negative"
+    )]
     let n = (desktop as i32 + steps).rem_euclid(DESKTOPS as i32) as usize;
     n
 }

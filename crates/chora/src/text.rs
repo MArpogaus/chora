@@ -162,7 +162,11 @@ impl Cache {
 }
 
 /// The bytes of a raster of this size.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a glyph raster size, non-negative and far below usize::MAX"
+)]
 fn bytes([w, h]: [f32; 2]) -> usize {
     w as usize * h as usize * 4
 }
@@ -305,7 +309,11 @@ fn within_limit(w: usize, h: usize) -> bool {
 /// Lays out one key at a physical scale and measures it; `None` for
 /// empty text, a line under [`MIN_LINE`] or a raster beyond [`MAX_RASTER_BYTES`]. Returns the
 /// buffer, the layout size in logical pixels and the raster size.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "layout sizes are non-negative pixel values from cosmic-text"
+)]
 fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2], [f32; 2])> {
     // Without any font, cosmic-text panics in the shaping.
     if fonts.system.db().is_empty() {
@@ -341,11 +349,7 @@ fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2],
 
 /// Rasterizes one key at a physical scale into premultiplied RGBA and
 /// wraps it in a render buffer.
-#[allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap
-)] // at most the raster limit
+#[expect(clippy::cast_possible_truncation, reason = "at most the raster limit")]
 fn rasterize(
     fonts: &mut Fonts,
     key: &Key,
@@ -366,7 +370,11 @@ fn rasterize(
 /// Lays out one key at a physical scale and paints its glyphs into
 /// premultiplied RGBA, next to the layout size in logical pixels and
 /// the raster size.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "scaled pixel sizes of a glyph run, non-negative"
+)]
 fn paint(fonts: &mut Fonts, key: &Key, scale: f64) -> Option<([f64; 2], [f32; 2], Vec<u8>)> {
     let color = straight(key.color.as_ref());
     let (buffer, size, [width, height]) = layout(fonts, key, scale as f32)?;
@@ -389,7 +397,10 @@ fn paint(fonts: &mut Fonts, key: &Key, scale: f64) -> Option<([f64; 2], [f32; 2]
 
 /// Paints all layout runs into the premultiplied RGBA buffer; the
 /// number of glyphs that no font drew.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the glyph painter takes its inputs flat, as the caller passes them"
+)]
 fn paint_runs(
     fonts: &mut Fonts,
     rgba: &mut [u8],
@@ -425,7 +436,10 @@ fn paint_runs(
 /// Draws one glyph into the raster; when the laid out font draws
 /// nothing for it, for example a `COLRv1` glyph, asks the other fonts
 /// of the database. Whether any pixel landed.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the glyph painter takes its inputs flat, as the caller passes them"
+)]
 fn paint_glyph(
     fonts: &mut Fonts,
     rgba: &mut [u8],
@@ -498,7 +512,11 @@ fn redraw(fonts: &mut Fonts, family: Option<&str>, word: &str, from: CacheKey) -
 }
 
 /// The node color as straight-alpha RGBA bytes, white by default.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "clamped to 0..=1, then scaled to a byte"
+)]
 fn straight(color: Option<&[f64; 4]>) -> [u8; 4] {
     let [r, g, b, a] = color.copied().unwrap_or([1.0; 4]);
     let byte = |c: f64| (c.clamp(0.0, 1.0) * 255.0).round() as u8;
@@ -508,11 +526,11 @@ fn straight(color: Option<&[f64; 4]>) -> [u8; 4] {
 /// Draws one glyph image into the premultiplied RGBA buffer at `x`, `y`.
 /// Overlapping pixels keep the larger value per channel, so a combining
 /// mark keeps the pixels of the glyph below it.
-#[allow(
-    clippy::cast_possible_truncation,
+#[expect(
     clippy::cast_possible_wrap,
-    clippy::cast_sign_loss
-)] // glyph boxes are small, see MAX_RASTER_BYTES
+    clippy::cast_sign_loss,
+    reason = "glyph boxes are small, see MAX_RASTER_BYTES"
+)]
 fn blit(
     rgba: &mut [u8],
     (width, height): (usize, usize),
@@ -591,7 +609,10 @@ where
 {
     let (buffer, size, pixels) = texts.laid_out(node, placement.output_scale)?;
     let src = Rectangle::from_size(Size::from((f64::from(pixels[0]), f64::from(pixels[1]))));
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a rounded text size in pixels, at least 1"
+    )]
     let size = Size::from((
         (size[0] * placement.scale.0).max(1.0).round() as i32,
         (size[1] * placement.scale.1).max(1.0).round() as i32,
@@ -887,7 +908,11 @@ mod tests {
     /// The render buffer takes the raster size as whole pixels; a part
     /// of a pixel in it shifts each row and slants the text.
     #[test]
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "the test's raster sizes are small and positive"
+    )]
     fn the_raster_has_whole_pixels() {
         if !fonts_present() {
             println!("SKIP: no fonts for the layout");

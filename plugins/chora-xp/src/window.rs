@@ -36,7 +36,10 @@ pub struct Edges {
 /// frame or [`GRIP`] pixels outside it. Near a corner both of its edges
 /// move. `None` when the point is not on the border.
 pub fn edges_at([x, y, w, h]: Rect, inside: i32, [px, py]: [f64; 2]) -> Option<Edges> {
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "a pointer position in pixels"
+    )]
     let [px, py] = [px.floor() as i32, py.floor() as i32];
     let near = |p: i32, from: i32, to: i32| (from - GRIP..to + GRIP).contains(&p);
     if !near(px, x, x + w) || !near(py, y, y + h) {

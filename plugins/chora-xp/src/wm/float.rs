@@ -170,7 +170,7 @@ impl Wm {
         for floated in changed {
             let event = serde_json::json!({"event": float::event(NAME), "data": floated});
             if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-                crate::report(&err);
+                chora_kit::runtime::report(crate::wm::NAME, &err);
             }
         }
     }

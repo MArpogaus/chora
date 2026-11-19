@@ -85,8 +85,8 @@ done
 queued=$(timeout 15 bash -c '. "$1/tests/gate-lib.sh"; echo "$SECONDS $(gate_elapsed)"' gate "$repo" 2>/dev/null | tail -n 1)
 wait
 read -r queued_seconds queued_elapsed <<<"$queued"
-if [ "${queued_seconds:-0}" -lt 2 ] || [ "${queued_elapsed:-9}" != 0 ]; then
-    echo "FAIL: gate_elapsed counts the wait for the gate lock: shell time ${queued_seconds:-none} s, gate_elapsed ${queued_elapsed:-none} s (want 0 after a 3 s wait)"
+if [ "${queued_seconds:-0}" -lt 2 ] || [ "${queued_elapsed:-9}" -gt 1 ]; then
+    echo "FAIL: gate_elapsed counts the wait for the gate lock: shell time ${queued_seconds:-none} s, gate_elapsed ${queued_elapsed:-none} s (want at most 1 after a 3 s wait: SECONDS counts whole seconds)"
     failures=$((failures + 1))
 fi
 mkdir "$work/own" "$work/other"

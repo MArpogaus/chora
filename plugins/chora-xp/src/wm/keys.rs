@@ -356,7 +356,7 @@ impl Wm {
         let binding = match parsed {
             Ok(binding) => binding,
             Err(err) => {
-                crate::report(&err);
+                chora_kit::runtime::report(crate::wm::NAME, &err);
                 return;
             }
         };
@@ -367,14 +367,14 @@ impl Wm {
                 .call::<_, String>("input.grab", Grab { binding })
             {
                 Ok(normal) => self.system_key = Some(normal),
-                Err(err) => crate::report(&err),
+                Err(err) => chora_kit::runtime::report(crate::wm::NAME, &err),
             }
         } else if let Err(err) = self
             .rt
             .conn
             .call::<_, Value>("input.ungrab", Grab { binding })
         {
-            crate::report(&err);
+            chora_kit::runtime::report(crate::wm::NAME, &err);
         }
     }
 
@@ -419,7 +419,7 @@ impl Wm {
         let binding = match ALT_ESCAPE.parse() {
             Ok(binding) => binding,
             Err(err) => {
-                crate::report(&err);
+                chora_kit::runtime::report(crate::wm::NAME, &err);
                 return;
             }
         };
@@ -427,7 +427,7 @@ impl Wm {
         match self.rt.conn.call::<_, String>("input.grab", grab) {
             Ok(normal) => self.switch_escape = Some(normal),
             Err(err) if held_by_a_client(&err) => {}
-            Err(err) => crate::report(&err),
+            Err(err) => chora_kit::runtime::report(crate::wm::NAME, &err),
         }
     }
 
@@ -450,7 +450,7 @@ impl Wm {
     pub(super) fn tell_switcher(&mut self, shown: bool) {
         let event = serde_json::json!({"event": "xp.switcher", "data": {"shown": shown}});
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
-            crate::report(&err);
+            chora_kit::runtime::report(crate::wm::NAME, &err);
         }
     }
 
@@ -466,7 +466,7 @@ impl Wm {
                         .map_err(|e| e.to_string())
                 });
             if let Err(err) = ungrab {
-                crate::report(&err);
+                chora_kit::runtime::report(crate::wm::NAME, &err);
             }
         }
         let switcher = self.switcher.take();
