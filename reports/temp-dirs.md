@@ -67,3 +67,8 @@ Verdict (computed): FIX (tdr-1 open MAJOR). r2: briefs/temp-dirs-r2.md.
 - tdr-1: TempDir lives once, `chora_scene::testing` (feature `testing`; kit feature enables it, kit/choractl/chora dev-depend on it); kit re-exports `chora_kit::testing::TempDir`. Its test moved with it. Three copies deleted; `grep -rn "pub struct TempDir" crates plugins services` gives one line.
 - tdr-3: the copies.toml row allows only the chora-scene file. Deviation: max is 8, not 0: eight counted PNG/socket helpers outside it (guard, transaction, sampling x2, ipc, wayland, testing.rs, xp sheets) still match the pattern; max 0 fails cut-check. They may only fall.
 - Gate (pre-commit,ci-check,build,test,clippy): green.
+
+## PM review r2 (22:31)
+Checks: `grep -rn "pub struct TempDir" crates plugins services` one line (chora-scene/src/testing.rs:20); `grep -rn 'Runtime::with(' plugins` empty (the train 75 conflict fixed here too); kc-fix f666a025 merged; red 9c61e13f first.
+- tdr-1 closed. tdr-2 closed. tdr-3: max 8, not 0, with the reason (eight PNG/socket sites); NIT, next round temp-rest r1.
+Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK 86f42d1f, train 77. It holds kit-connect r1 and kc-fix, so kit-connect r2 was stopped (redundant).
