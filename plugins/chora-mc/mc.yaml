@@ -228,12 +228,9 @@ regions:
 # app: can name such a content), chat (the door of the chat and its box),
 # keys (the key list) and doors (the launcher, lock, power, screenshot and
 # volume, two lines at the foot of a side). Each may set a style. In a side, state
-# also holds the word Mute for the microphone of the voice agent. notify.push fills
-# the texts notify and urgent; urgent shows as a card on top of the column,
-# in the footer where the column does not show. A critical notification
-# starts with the word Urgent in both, and a click on the card takes it
-# away; the notification stays in notify, whose oldest lines give way when
-# the column is full.
+# also holds the word Mute for the microphone of the voice agent. Notices are
+# not a content: notify.push hands them to chora-notify, which draws each as
+# a card in the slot of plugins/chora-mc/notify.
 contents:
   head: {kind: head}
   clock: {kind: clock, format: '%A %-d %B  %H:%M'}
@@ -242,8 +239,6 @@ contents:
   state: {kind: state}
   hud: {kind: hud}
   agents: {kind: agents, title: Helpers}
-  notify: {kind: text, title: Notifications, empty: true, folds: true, style: {base: body}}
-  urgent: {kind: text, style: {base: body, color: red}}
   # The chat of the HUD host in the margin column: a door while it is
   # closed, and the box that mc names to the host while it is open.
   chat: {kind: chat}
@@ -285,7 +280,6 @@ contents:
 rules:
 - {content: head, region: header, slot: -1}
 - {content: hud, scenes: ['@app'], region: header, slot: 0}
-- {content: urgent, region: right, slot: -3}
 - {content: agents, scenes: ['@app'], region: header, slot: 1}
 - {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
@@ -294,7 +288,6 @@ rules:
 - {content: state, region: right, slot: -4}
 - {content: agents, region: right, slot: -2}
 - {content: notes, region: right}
-- {content: notify, region: right, slot: 1}
 - {content: chat, region: right, slot: 5}
 - {content: keys, region: right, slot: 9}
 - {content: doors, region: right, slot: 10}
@@ -311,7 +304,6 @@ presets:
     rules:
     - {content: head, region: header, slot: -1}
     - {content: hud, region: header, slot: 0}
-    - {content: urgent, region: header, slot: -2}
     - {content: agents, region: header, slot: 1}
     - {content: state, region: header, slot: 2}
     - {content: time, region: header, slot: 3}
@@ -321,7 +313,6 @@ presets:
     rules:
     - {content: head, region: header, slot: -1}
     - {content: hud, scenes: ['@app'], region: header, slot: 0}
-    - {content: urgent, region: footer, slot: 0}
     - {content: agents, region: header, slot: 1}
     - {content: state, region: header, slot: 2}
     - {content: clock, region: header, slot: 3}
@@ -330,19 +321,16 @@ presets:
     - {content: next, scenes: ['@page'], region: footer, slot: 1}
     - {content: outline, region: left, slot: 0}
     - {content: notes, region: left, slot: 1}
-    - {content: notify, region: left, slot: 2}
     - {content: shell, region: drawer}
   book:
     rules:
     - {content: head, region: header, slot: -1}
-    - {content: urgent, region: right, slot: -3}
     - {content: agents, region: header, slot: 1}
     - {content: date, region: header, slot: 2}
     - {content: hud, region: footer, slot: -1}
     - {content: time, region: footer, slot: 0}
     - {content: state, region: footer, slot: 1}
     - {content: notes, region: right}
-    - {content: notify, region: right, slot: 1}
     - {content: chat, region: right, slot: 5}
     - {content: keys, region: right, slot: 9}
     - {content: doors, region: right, slot: 10}

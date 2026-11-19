@@ -109,3 +109,9 @@ max = 0
 name = "notice: zbus in chora-kit (KIT5)"
 paths = ["crates/chora-kit"]
 pattern = '\bzbus\b'
+
+[[row]]
+max = 0
+name = "mc: its own stack of notifications, a column and an urgent line (KIT5)"
+paths = ["plugins/chora-mc"]
+pattern = 'NOTIFY_LINES|URGENT_WORD|urgent:clear|const (NOTIFY|URGENT)\b'

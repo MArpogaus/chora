@@ -379,6 +379,8 @@ struct Mc {
     volume_ticks: u32,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
+    /// The ids that chora-notify gave the notices of mc, for `notify.clear`.
+    notices: Vec<u32>,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
     /// The names of the helpers that voice reported.
@@ -435,15 +437,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         mc.page_keys = keys::PageKeys::Bound;
     }
     mc.start(methods)?;
-    // The kit logged it; the defaults that apply show notify.
-    if let Some(err) = mc.settings.broken() {
-        let push = json!({"title": "Settings", "body": err, "urgency": "critical"});
-        let shown = serde_json::from_value(push)
-            .map_err(|e| e.to_string())
-            .and_then(|push| mc.push(push).map_err(|e| e.message));
-        if let Err(err) = shown {
-            eprintln!("chora-mc: notify: {err}");
-        }
+    if let Some(err) = mc.settings.broken().map(str::to_owned) {
+        mc.notice("Settings", &err);
     }
     loop {
         let event = mc.rt.conn.next_event()?;
@@ -537,6 +532,7 @@ impl Mc {
             volume_reading: None,
             volume_ticks: 0,
             texts: BTreeMap::new(),
+            notices: Vec::new(),
             agents: Vec::new(),
             voiced: Vec::new(),
             agent_focus: None,
@@ -1072,8 +1068,8 @@ impl Mc {
             "agent.remove" => self.remove_agent(&runtime::params(params)?),
             "agent.list" => return Ok(self.list_agents()),
             "agent.focus" => self.focus_agent(&runtime::params(params)?),
-            "notify.push" => self.push(runtime::params(params)?),
-            "notify.clear" => self.clear_notifications(),
+            "notify.push" => self.push(&runtime::params(params)?),
+            "notify.clear" => self.clear_notices(),
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
         .map(|()| Value::Null)
@@ -1543,51 +1539,6 @@ mod tests {
             .unwrap_or_default()
     }
 
-    /// A note is one line: its time in the margin style, its words in the
-    /// reading face at a hanging indent. No blank line between two notes.
-    #[test]
-    fn a_notification_is_one_line_with_its_time_in_the_margin_style() {
-        use chora_kit::runtime::Plugin as _;
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("notes", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        for title in ["One", "Two", "Three", "Four"] {
-            mc.method("notify.push", json!({"title": title})).unwrap();
-        }
-        let items = right_items(&mc);
-        let words: Vec<_> = (items.iter())
-            .filter(|i| i.id.contains("-notify-") && !i.id.ends_with("-title"))
-            .collect();
-        assert_eq!(words.len(), 6, "three notes of a time and words each");
-        assert_eq!(words[0].props.family.as_deref(), Some("Inter"));
-        assert_eq!(words[0].props.text.as_deref().map(str::len), Some(5));
-        assert_eq!(words[1].props.text.as_deref(), Some("Four"));
-        assert_eq!(words[1].put, crate::region::Put::Row);
-        assert!(words[1].x > 40.0, "a hanging indent: {}", words[1].x);
-        assert!(words[2].put == crate::region::Put::Stack, "the next note");
-        let tall = |i: &&crate::region::Item| i.props.font_size.unwrap_or(0.0) < 15.0;
-        assert!(words.iter().step_by(2).all(tall), "times at 14.25");
-    }
-
-    /// The empty words stay quiet and the folded head counts nothing.
-    #[test]
-    fn nothing_new_is_muted_and_the_folded_head_counts_zero() {
-        let (mut mc, _) = crate::testing::mc("quiet", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        let muted = mc.settings.value.colors()["muted"];
-        let items = right_items(&mc);
-        let empty = items.iter().find(|i| i.id.ends_with("-notify")).unwrap();
-        assert_eq!(empty.props.text.as_deref(), Some("Nothing new."));
-        assert_eq!(empty.props.color, Some(muted));
-        mc.chat = crate::Chat::Open;
-        let items = right_items(&mc);
-        let head = items
-            .iter()
-            .find(|i| i.id.ends_with("-notify-title"))
-            .unwrap();
-        assert_eq!(head.props.text.as_deref(), Some("NOTIFICATIONS  0"));
-    }
-
     /// An open chat keeps the keyboard; when it closes the page that
     /// shows gets it, to its window or its node.
     #[test]
@@ -1677,20 +1628,26 @@ mod tests {
         assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
-    /// A chat that cannot open says so in a red notice, not only in a log.
+    /// A chat that cannot open says so in a critical notice of
+    /// chora-notify, not only in a log.
     #[test]
     fn a_chat_that_does_not_open_shows_a_notice() {
-        let (mut mc, model) = crate::testing::mc("chat-refused", [1280, 800]);
+        use chora_kit::testing::FakeCore;
+        use serde_json::json;
+        let core = FakeCore::start();
+        core.answer_with("notify.show", json!({"id": 3}));
+        let mut mc = crate::testing::mc_on(&core, "chat-refused", [1280, 800]);
         mc.show("agenda", false).unwrap();
-        model.lock().unwrap().refusals.push("methods.call".into());
+        core.refuse_next("methods.call");
         mc.chat_with(None);
-        let urgent = mc.texts["urgent"].1.join(" ");
-        assert!(urgent.contains("The chat does not open"), "{urgent}");
-        let notes = &mc.texts["notify"].1;
-        let said = notes
-            .iter()
-            .filter(|line| line.contains("The chat does not open"));
-        assert_eq!(said.count(), 1, "{notes:?}");
+        let called = core.model().lock().unwrap().called.clone();
+        let shown: Vec<_> = (called.iter())
+            .filter(|c| c["method"] == "notify.show")
+            .collect();
+        assert_eq!(shown.len(), 1, "{called:?}");
+        let params = &shown[0]["params"];
+        assert_eq!(params["urgency"], "critical");
+        assert!(params["body"].as_str().unwrap().contains("does not open"));
     }
 
     /// The door of the chat has a state word: no helper, a helper, no
@@ -2342,9 +2299,9 @@ mod tests {
     }
 
     /// A client with `methods.call` alone rewrote the detail of a spoken
-    /// confirmation and the notifications through content.set and
-    /// content.add (review plugins r1, MC-02 and MC-03): the contents that
-    /// mc writes itself refuse both.
+    /// confirmation through content.set and content.add (review plugins
+    /// r1, MC-02 and MC-03): the contents that mc writes itself refuse
+    /// both.
     #[test]
     fn the_contents_that_mc_writes_refuse_content_set_and_add() {
         use chora_kit::runtime::Plugin as _;
@@ -2353,24 +2310,11 @@ mod tests {
         mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ask = json!({"id": 21, "prompt": "Run it?", "detail": "rm -r build"});
         mc.follow("voice.confirm", "voice", ask).unwrap();
-        mc.method(
-            "notify.push",
-            json!({"title": "Disk is full", "urgency": "critical"}),
-        )
-        .unwrap();
         let before = mc.texts.clone();
-        for content in ["confirm", "notify", "urgent"] {
-            let set = json!({"content": content, "title": "Run it?", "lines": ["ls"]});
-            assert!(
-                mc.method("content.set", set).is_err(),
-                "content.set {content}"
-            );
-            let add = json!({"content": content, "line": "ls"});
-            assert!(
-                mc.method("content.add", add).is_err(),
-                "content.add {content}"
-            );
-        }
+        let set = json!({"content": "confirm", "title": "Run it?", "lines": ["ls"]});
+        assert!(mc.method("content.set", set).is_err(), "content.set");
+        let add = json!({"content": "confirm", "line": "ls"});
+        assert!(mc.method("content.add", add).is_err(), "content.add");
         assert_eq!(mc.texts, before);
         let notes = json!({"content": "notes", "lines": ["x"]});
         mc.method("content.set", notes).unwrap();
@@ -2430,34 +2374,6 @@ mod tests {
                 (json!("notify.close"), json!({"id": 7})),
             ]
         );
-    }
-
-    /// A pointer press of `input.inject` on the urgent line cleared it,
-    /// as a key row ran its binding (review plugins r1, MC-04): the hits
-    /// and the agent columns ignore injected presses, as the bindings do.
-    #[test]
-    fn an_injected_press_on_a_hit_does_nothing() {
-        use chora_kit::runtime::Plugin as _;
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("injected-hit", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        mc.method(
-            "notify.push",
-            json!({"title": "Disk is full", "urgency": "critical"}),
-        )
-        .unwrap();
-        let item = (mc.items("agenda").into_values())
-            .flat_map(|(items, _)| items)
-            .find(|i| i.id.ends_with("-urgent"))
-            .expect("the urgent line");
-        let hit = format!("{}-hit", item.id);
-        mc.press(&hit, [0.0, 0.0], true).unwrap();
-        assert!(
-            !mc.texts["urgent"].1.is_empty(),
-            "an injected press cleared it"
-        );
-        mc.press(&hit, [0.0, 0.0], false).unwrap();
-        assert!(mc.texts["urgent"].1.is_empty(), "the press of the person");
     }
 
     /// A key of `input.inject` turned the page, or went back along the
