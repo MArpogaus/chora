@@ -115,3 +115,15 @@ max = 0
 name = "construct-notice: a notice that construct draws itself (KIT5)"
 paths = ["plugins/chora-construct"]
 pattern = 'construct-notice'
+
+[[row]]
+max = 0
+name = "tiling: notify-send (KIT5)"
+paths = ["plugins/chora-tiling"]
+pattern = 'notify-send'
+
+[[row]]
+max = 0
+name = "tiling: mako (KIT5)"
+paths = ["plugins/chora-tiling"]
+pattern = 'mako'
