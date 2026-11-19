@@ -1,6 +1,8 @@
 """Acts that every look runs."""
 
-from harness import Expect, key, program
+import pathlib
+
+from harness import REPO, Expect, key, program
 
 
 def ready(s):
@@ -41,3 +43,33 @@ def door_acts(s, sheet, close="Escape"):
             closes=[sheet],
             expect=Expect(open=[]),
         )
+
+
+NOTICE = "Probe notice"
+
+
+def notice_acts(s):
+    """chora-notify runs beside the look, as its unit does. A notice that
+    a plugin sends through `notify.show` shows in a card inside the
+    output and clear of the helper (I9), and goes when dismissed."""
+    ready(s)
+    if "notify" not in s.clients():
+        assets = REPO / "plugins/chora-notify/assets"
+        s.spawn([str(s.bin / "chora-notify"), "--assets", str(assets)], "chora-notify.log")
+        s.until(lambda: s.state("notify") is not None, 30, "chora-notify")
+    sent = {}
+
+    def show(s):
+        call = {
+            "client": "notify",
+            "method": "notify.show",
+            "params": {"app": s.label, "summary": NOTICE, "body": "the text", "expire_ms": 0},
+        }
+        sent.update(s.core.call("methods.call", call))
+
+    def dismiss(s):
+        call = {"client": "notify", "method": "notify.close", "params": {"id": sent["id"]}}
+        s.core.call("methods.call", call)
+
+    s.act("a notice shows", [show], notices=[NOTICE])
+    s.act("a notice is dismissed", [dismiss], dismissed=[NOTICE])

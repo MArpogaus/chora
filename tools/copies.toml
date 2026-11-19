@@ -97,3 +97,15 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own key cap of a question (cap, show_key copy)"
 pattern = 'fn cap\(key: &str\)'
+
+[[row]]
+allow = ["plugins/chora-notify/"]
+max = 0
+name = "notice: a client of org.freedesktop.Notifications outside chora-notify (KIT5)"
+pattern = 'org\.freedesktop\.Notifications'
+
+[[row]]
+max = 0
+name = "notice: zbus in chora-kit (KIT5)"
+paths = ["crates/chora-kit"]
+pattern = '\bzbus\b'

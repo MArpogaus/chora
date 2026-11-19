@@ -3,7 +3,7 @@ The cube acts: the cube opens with xp on four faces and stands back, so
 I13 reads the corners of its faces at rest and held halfway through a turn
 (co-21)."""
 
-from common import door_acts, window_acts
+from common import door_acts, notice_acts, window_acts
 
 FACES = 4
 TURN_MS = 4000
@@ -45,3 +45,4 @@ def run(s):
         held=HELD,
     )
     s.act("the cube comes to rest", [], timeout=30)
+    notice_acts(s)
