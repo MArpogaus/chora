@@ -136,9 +136,9 @@ impl Wm {
         for screen in &screens {
             commands.extend(self.output_changed(screen));
         }
-        let faces = host.faces.iter().enumerate();
-        for (face, output) in faces.map(|(i, o)| (i, o.clone())).collect::<Vec<_>>() {
-            commands.extend(self.leave_output(&output, Some(face)));
+        let screen = screens[0].name.clone();
+        for (face, output) in host.faces.iter().enumerate() {
+            commands.extend(self.leave_output(output, Some((&screen, face))));
         }
         let shown = (self.focused.as_deref())
             .and_then(|s| self.index(s))
@@ -216,8 +216,9 @@ impl Wm {
     }
 
     /// Takes the taskbar of an output away and moves its windows to the
-    /// first other taskbar, onto desktop `desk` when it is given.
-    fn leave_output(&mut self, output: &str, desk: Option<usize>) -> Vec<Command> {
+    /// first other taskbar, or to the taskbar of the output `to` onto its
+    /// desktop when it is given.
+    fn leave_output(&mut self, output: &str, to: Option<(&str, usize)>) -> Vec<Command> {
         let Some(at) = self.bars.iter().position(|b| b.output == output) else {
             return Vec::new();
         };
@@ -229,7 +230,11 @@ impl Wm {
                 to: None,
             },
         ];
-        let Some(target) = self.bars.first().map(Bar::usable) else {
+        let target = match to {
+            Some((to, _)) => self.bars.iter().find(|b| b.output == to),
+            None => self.bars.first(),
+        };
+        let Some(target) = target.map(Bar::usable) else {
             return commands;
         };
         let from = bar.usable();
@@ -238,7 +243,7 @@ impl Wm {
             .collect();
         for i in moved {
             commands.extend(self.move_window(i, from, target));
-            commands.extend(desk.map(|d| self.put_on_desk(i, d)).unwrap_or_default());
+            commands.extend(to.map(|(_, d)| self.put_on_desk(i, d)).unwrap_or_default());
         }
         commands
     }

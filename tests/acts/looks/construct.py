@@ -21,6 +21,7 @@ from harness import LOOKS, Expect, key, load_png_rows, program, wait
 MANAGER = "xp"
 HINT_GONE = 4.0
 FLAT_WITHIN = 3.0
+GRACE = 15.0
 
 FACES = 4
 TURN_MS = 4000
@@ -279,11 +280,15 @@ def windows_on_faces(s):
 
 
 def stop_construct(s):
-    """A cue: construct ends for good; xp goes flat on the screen."""
+    """A cue: construct ends for good; xp goes flat on the screen. The
+    core keeps the nodes of construct for its grace time of 10 s, in
+    which they still cover the screen; the cue waits for their end."""
     os.kill(pid_of(s, "chora-construct"), signal.SIGKILL)
     s.looks.remove("construct")
     s.until(lambda: "construct" not in s.clients(), 5, "construct gone")
     s.until(lambda: flat_xp(s), FLAT_WITHIN, "every window with a flat xp on the screen")
+    kept = {"selector": "owner:construct"}
+    s.until(lambda: not s.core.call("scene.query", kept), GRACE, "the kept nodes of construct")
 
 
 def screen_pager(desk):
