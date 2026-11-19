@@ -33,9 +33,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 | testwatch-r1.md (rc 3) | haiku low | idle |
 
 ## Queue (cost in % of the week; open lines <= 30 % - 5 % reserve)
-2. Done (F4, F6): MV1+CUT1, MV2 x3 (trains 44-47).
-3. (F6) Done: NET2 acts, known-red (trains 49, 50).
-4. Now (F2-F4, F7, F8): kit2b r2; trains 56 mv3, 57 wm1b, 58 kit2b; NET3 (4.5 %), WM2 (4 %) opus. Next: KIT2c-d, WM1c-d (sonnet). F5, user test: next week.
+4. To Sat 03:59 (34 %): Thu trains 56-58 (mv3, wm1b, kit2b); WM1c construct, KIT2c tiling (sonnet). Fri: NET3, WM2 reviews and trains; WM1d, KIT2d xp (in turn); MV4 cube.rs, region.rs, chat.rs; WM3; docs F8b. Sat: recount, coverage, week report. Then P2 user test, tour v9 (F7).
 5. (process) PM decisions 14:55 (owner agreed 15:35; P1 runs into next week): D87 revised (pidfd, no waitid) and D92 kept, no Fluent (KISS); cube form after WM7a; records 1-14 filed with docs F8.
 
 ## Needs owner
