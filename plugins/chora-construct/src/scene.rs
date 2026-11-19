@@ -25,17 +25,17 @@ impl Construct {
             }])?;
         }
         self.output = (self.rt.outputs()?.into_iter()).find(|o| o.is_virtual != Some(true));
-        self.remove_left_outputs()?;
         let mut methods = exported_methods();
         methods.extend(settings::File::<Config>::methods());
         self.rt.announce(&EVENTS, methods)?;
         if self.overlay {
-            return Ok(());
+            return self.reopen_left_cube();
         }
         self.name_theme()?;
         self.active = true;
         self.build()?;
         self.regrab()?;
+        self.reopen_left_cube()?;
         self.claim_indicator(false);
         let free = self.rt.conn.query("kind:surface")?;
         self.adopt_free(free)?;

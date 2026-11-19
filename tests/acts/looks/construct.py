@@ -74,15 +74,20 @@ def pager(desk):
         if "error" in listing:
             raise RuntimeError(listing["error"])
         front = listing["faces"][listing["front"]]["output"]
-        button = f"xp-pager-{desk}-{front}"
-        nodes = s.core.call("scene.query", {"selector": f"id:{button}"}) or []
-        shown = [n for n in nodes if n.get("visible", True)]
-        if not shown:
-            raise RuntimeError(f"no pager button {button}: xp shows no pager on a face")
-        x, y, w, h = shown[0]["rect"]
-        s.inject([{"pointer_move": {"position": [x + w / 2, y + h / 2]}}, {"click": {}}])
+        click_box(s, front, f"xp-pager-{desk}-{front}", "xp shows no pager on a face")
 
     return cue
+
+
+def click_box(s, output, node, missing):
+    """Click the middle of the box of `node` on `output`, which shows at
+    1:1 on the screen."""
+    boxes = ((s.core.call("scene.boxes") or {}).get(output) or {}).get("boxes") or []
+    found = [b for b in boxes if b.get("node") == node]
+    if not found:
+        raise RuntimeError(f"no box of {node}: {missing}")
+    x, y, w, h = found[-1]["rect"]
+    s.inject([{"pointer_move": {"position": [x + w / 2, y + h / 2]}}, {"click": {}}])
 
 
 def drag(x0, x1, y=400):
@@ -221,6 +226,7 @@ def kill_construct_mid_turn(s):
     if s.cube().get("turning") is not True:
         raise RuntimeError(f"the cube is not turning before the kill: {s.cube()!r}")
     os.kill(pid, signal.SIGKILL)
+    s.looks.remove("construct")
     s.until(lambda: "construct" not in s.clients(), 5, "construct gone")
     s.until(lambda: flat_xp(s), FLAT_WITHIN, "every window with a flat xp on the screen")
 
@@ -251,6 +257,7 @@ def restart_construct(s):
     command, extra = LOOKS["construct"]
     s.spawn([str(s.bin / command[0]), *command[1:]], "construct-again.log", **extra)
     s.until(lambda: s.state("construct") is not None, 30, "construct again")
+    s.looks.append("construct")
     s.until(lambda: len(s.cube().get("faces") or []) == FACES, 30, "the cube reopened")
     s.until(lambda: windows_on_faces(s), 30, "every window back on a face of xp")
     start = s.core.call("scene.query", {"selector": "id:construct-start"}) or []
@@ -274,6 +281,7 @@ def windows_on_faces(s):
 def stop_construct(s):
     """A cue: construct ends for good; xp goes flat on the screen."""
     os.kill(pid_of(s, "chora-construct"), signal.SIGKILL)
+    s.looks.remove("construct")
     s.until(lambda: "construct" not in s.clients(), 5, "construct gone")
     s.until(lambda: flat_xp(s), FLAT_WITHIN, "every window with a flat xp on the screen")
 
@@ -284,13 +292,7 @@ def screen_pager(desk):
 
     def cue(s):
         screen = sorted(screens(s))[0]
-        button = f"xp-pager-{desk}-{screen}"
-        nodes = s.core.call("scene.query", {"selector": f"id:{button}"}) or []
-        shown = [n for n in nodes if n.get("visible", True)]
-        if not shown:
-            raise RuntimeError(f"no pager button {button} on the screen")
-        x, y, w, h = shown[0]["rect"]
-        s.inject([{"pointer_move": {"position": [x + w / 2, y + h / 2]}}, {"click": {}}])
+        click_box(s, screen, f"xp-pager-{desk}-{screen}", "no pager on the screen")
 
     return cue
 
