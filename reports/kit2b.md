@@ -61,3 +61,14 @@ Reviewer lane (sonnet, high), branch claude/kit2b at ce0a564d against base 27bd6
 
 ### Simplicity, refactor ideas
 The port is small where it counts: mc acts.rs lost both matches, construct keys.rs shrank to a `Host` impl. `Host::Error` with `Infallible` in mc costs one `let Ok(()) =` line; the builder's proposal 1 (hooks log, no `Error`) is right once tiling and xp are on it. Rank: (1) fix rk-1 before more slices copy the `acts_in_construct` idea (a per-look refuse list is the second hand list; a `Host::acts(&System) -> bool` default would put it with the hooks); (2) rk-4 test; (3) builder proposals 2-6 as ranked in the report.
+
+## r2
+
+Branch claude/kit2b at 517ce83 (on ce0a564d), one commit. rk-1, rk-2, rk-3 fixed; NITs skipped (not one line each).
+- rk-1: new `Settings::refuse` hook (kit) drops bindings the look cannot act on, one warning per key; construct drops `run`, `give` (new in `acts_in_construct`) and, as before refused, `desk`, `cube`, `drag`, and the rest of the file loads (before: desk/cube/drag broke the whole file). docs/configuration.md claim replaced.
+- rk-2: both `keys` and `bindings`: `bindings` wins, one warning names the dropped `keys`.
+- rk-3: `settings.set` with the old name writes the new one.
+- Cells: kit `the_new_name_wins_over_the_old_one_and_a_change_may_use_the_old` (rk-2, rk-3); construct `a_system_action_without_meaning_in_the_construct_is_dropped_with_a_warning` (run, give, desk, cube, drag; replaces the "is_refused" cell). Changed `a_config_with_the_old_names_loads_and_saves_the_new_ones` to save `lock` instead of `run`.
+- Honest note: red was not shown as a separate commit: the construct cell did not compile before `refuse` existed and the kit cell exercises the old both-keys failure the reviewer probed; the fix went into the same commit (hook red-first check passes).
+- Gate: `tests/merge-gate.sh --base 27bd60c7 --jobs 1` on 517ce83: all steps PASS, cube 105 s (no flake), log /tmp/gate3.log. The default base origin/claude/autonomous-dev-session-3w-i33pg7 was not fetched at first and the clone was shallow (2d-guard needs 8742dee); fetched, then run.
+- Tests: kit 224, construct 193, mc 136 ok; clippy clean.
