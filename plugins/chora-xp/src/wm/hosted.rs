@@ -328,6 +328,27 @@ mod tests {
         }
     }
 
+    /// The host closes its cube: its faces go one by one, and xp ends
+    /// with the last one, also when the host listed no faces between.
+    #[test]
+    fn xp_ends_when_the_host_removes_the_last_face() {
+        let (mut wm, _methods) = super::super::tests::wm_on_fake_core("host-closes");
+        let faces: Vec<String> = (1..=4).map(|i| format!("V-{i}")).collect();
+        for (i, face) in (0..).zip(&faces) {
+            let _ = wm.output_changed(&face_output(face, i));
+        }
+        let _ = wm.leave_output("X", None);
+        wm.host = Some(Host {
+            client: "construct".into(),
+            faces: faces.clone(),
+        });
+        for face in &faces {
+            assert!(!wm.done, "xp ends only with the last face");
+            let _ = wm.output_removed(face);
+        }
+        assert!(wm.done);
+    }
+
     #[test]
     fn a_host_lists_every_output_as_a_face() {
         let faces = listing(&["V-1", "V-2", "V-3", "V-4"]);
