@@ -4512,6 +4512,46 @@ mod tests {
         );
     }
 
+    /// `surface.created` carries the `parent` of a dialog as it is at the
+    /// first commit; a later `set_parent` sends no event (docs/api.md,
+    /// D116; rc-6).
+    #[test]
+    fn surface_created_carries_the_parent_of_the_first_commit() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut wm = core.named("wm");
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["surface.created"]}),
+        );
+        let mut wayland = Wayland::connect(&mut core);
+        let created = |wm: &mut crate::testing::Client, core: &mut Core| {
+            (wm.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
+                .filter(|e| e["event"] == "surface.created")
+                .collect::<Vec<_>>()
+        };
+        let parent = wayland.toplevel(&mut core, "app");
+        let first = created(&mut wm, &mut core);
+        assert_eq!(first.len(), 1, "{first:?}");
+        assert!(first[0].get("parent").is_none(), "{first:?}");
+        let child = wayland.child(&mut core, &parent);
+        let second = created(&mut wm, &mut core);
+        assert_eq!(second.len(), 1, "{second:?}");
+        assert_eq!(second[0]["surface"], "s2");
+        assert_eq!(second[0]["parent"], "s1");
+        let late = wayland.toplevel(&mut core, "other");
+        assert_eq!(created(&mut wm, &mut core).len(), 1, "the late toplevel");
+        wayland.reparent(&mut core, &late, Some(&parent));
+        wayland.reparent(&mut core, &child, None);
+        let after = created(&mut wm, &mut core);
+        assert!(
+            after.is_empty(),
+            "a later set_parent sends no event: {after:?}"
+        );
+    }
+
     // A dialog goes to the window manager of its parent, not by the pointer.
     #[test]
     fn a_child_toplevel_goes_to_the_manager_of_its_parent() {
