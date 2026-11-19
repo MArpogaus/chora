@@ -24,7 +24,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| integ-r2.md (F6) | opus high | starting 14:56 (r1 FIX: ri-1 MAJOR, presenter ended before cube hides ring.frag fault) |
+| integ-r2.md (F6) | opus high | session_016iS3kM3xrCPULLrkVLWYGz (14:55; r1 FIX: ri-1 MAJOR, presenter ended before cube hides ring.frag fault) |
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
 | focus-port-r1.md (F2, F3, F7) | opus high | session_016iS3kQVDi6exe5ECXeDNUD (14:20; audit rank 3; from integ 3619ccb3) |
 | moved-tests-xp-r2.md (F5) | haiku high | session_016iS3kNLneVa6Lit4p35nsS (14:29) |
