@@ -56,7 +56,8 @@ pub enum State {
     Working,
     /// No helper works, and the latest report of a helper, or else the
     /// latest report, is an answer: spoken, a question to the person, done
-    /// or blocked. The voice agent listening again changes nothing. Never
+    /// or blocked. The voice agent listening again changes nothing, a new
+    /// utterance of the person (recording, transcribing) clears it. Never
     /// `Working` after it until a helper works again.
     Answered,
 }
@@ -132,13 +133,21 @@ impl Helper {
     }
 
     fn report(&mut self, name: &str, state: &str, task: &str) {
+        if name.is_empty() && matches!(state, "recording" | "transcribing") {
+            for (kept, raw, _) in &mut self.seen {
+                if !kept.is_empty() && State::of(raw) == State::Answered {
+                    "idle".clone_into(raw);
+                }
+            }
+        }
         self.seen.retain(|(n, ..)| n != name);
         self.seen
             .push((name.to_owned(), state.to_owned(), task.to_owned()));
     }
 
     /// Takes in the answer of the method `state` of voice, for a reader
-    /// that starts after voice: its helpers (`agents`), then voice itself.
+    /// that starts after voice: its helpers (`agents`, in the order of
+    /// their reports, the latest last), then voice itself.
     pub fn seed(&mut self, answer: &Value) {
         *self = Self::default();
         for agent in answer["agents"].as_array().into_iter().flatten() {
@@ -263,6 +272,21 @@ mod tests {
         assert_eq!(h.door(Language::En, false), "coder · idle");
     }
 
+    /// The seed keeps the order of `agents`, the latest report last, so
+    /// the door names the helper that reported last.
+    #[test]
+    fn a_late_reader_keeps_the_order_of_the_reports() {
+        let mut h = Helper::default();
+        let agents = |names: [&str; 2]| {
+            let agent = |name| json!({"name": name, "state": "idle"});
+            json!({"state": "listening", "agents": names.map(agent)})
+        };
+        h.seed(&agents(["atlas", "coder"]));
+        assert_eq!(h.door(Language::En, false), "coder · idle");
+        h.seed(&agents(["coder", "atlas"]));
+        assert_eq!(h.door(Language::En, false), "atlas · idle");
+    }
+
     fn voice(event: &str, data: serde_json::Value) -> Event {
         Event::Emitted {
             event: event.into(),
@@ -385,8 +409,46 @@ mod tests {
             (h.state(), h.door(Language::En, false)),
             (State::Answered, "coder · done".into())
         );
+        h.hear(&state("coder", "working"));
+        assert_eq!(
+            (h.state(), h.door(Language::En, false)),
+            (State::Working, "coder · working".into()),
+            "a new working report clears the answer"
+        );
+        h.hear(&state("coder", "done"));
         h.hear(&state("coder", "idle"));
         assert_eq!(h.state(), State::Idle, "the helper reported again");
+    }
+
+    /// A new utterance of the person clears the answer of a helper: the
+    /// voice agent recording or transcribing leaves the helper idle
+    /// (`listening` while it records), and a helper that works still wins
+    /// (rw-6). The voice agent thinking alone, as after a helper said
+    /// something, does not.
+    #[test]
+    fn a_new_utterance_clears_the_answer_of_a_helper() {
+        for (utterance, want) in [
+            ("recording", State::Listening),
+            ("transcribing", State::Idle),
+        ] {
+            let mut h = Helper::default();
+            h.hear(&state("coder", "done"));
+            assert_eq!(h.state(), State::Answered, "{utterance}");
+            h.hear(&state("", utterance));
+            assert_eq!(
+                (h.state(), h.door(Language::En, false)),
+                (want, "coder · idle".into()),
+                "{utterance} clears the answer"
+            );
+        }
+        let mut h = Helper::default();
+        h.hear(&state("coder", "question"));
+        h.hear(&state("", "thinking"));
+        assert_eq!(h.state(), State::Answered, "thinking alone clears nothing");
+        let mut h = Helper::default();
+        h.hear(&state("coder", "working"));
+        h.hear(&state("", "recording"));
+        assert_eq!(h.state(), State::Working, "a helper that works still wins");
     }
 
     /// After an answer event the machine never says `working`, whichever

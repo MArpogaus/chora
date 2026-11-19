@@ -28,12 +28,14 @@ const SIGN_WIDTH: f64 = 18.0;
 const MAX_ROWS: usize = 4;
 /// The most notices whose ids mc keeps for `notify.clear`.
 const NOTICES: usize = 32;
+/// The most critical notice ids mc keeps, oldest dropped first.
+const CRITICAL_NOTICES: usize = 64;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
 /// The ids of the notices that mc showed, for `notify.clear`: the last
-/// [`NOTICES`] normal ones, which expire by themselves anyway, and every
-/// critical one, which stays until a click or a clear.
+/// [`NOTICES`] normal ones, which expire by themselves anyway, and the last
+/// [`CRITICAL_NOTICES`] critical ones, which stay until a click or a clear.
 #[derive(Debug, Default)]
 pub struct Notices {
     ids: Vec<(u32, bool)>,
@@ -48,6 +50,12 @@ impl Notices {
         let normal = self.ids.iter().filter(|(_, critical)| !critical).count();
         if normal > NOTICES
             && let Some(oldest) = self.ids.iter().position(|(_, critical)| !critical)
+        {
+            self.ids.remove(oldest);
+        }
+        let critical = self.ids.iter().filter(|(_, critical)| *critical).count();
+        if critical > CRITICAL_NOTICES
+            && let Some(oldest) = self.ids.iter().position(|(_, critical)| *critical)
         {
             self.ids.remove(oldest);
         }
@@ -657,6 +665,20 @@ mod tests {
         let ids = notices.ids();
         assert_eq!(ids.first(), Some(&1), "the critical one stays: {ids:?}");
         assert_eq!(ids.len(), super::NOTICES + 1);
+    }
+
+    /// The critical ids are capped too, oldest first, so that notices
+    /// that nobody clears do not grow the list without end.
+    #[test]
+    fn the_critical_ids_are_capped_at_one_more() {
+        let mut notices = super::Notices::default();
+        for id in 1..=65 {
+            notices.remember(id, true);
+        }
+        let ids = notices.ids();
+        assert_eq!(ids.len(), 64, "capped at 64: {ids:?}");
+        assert_eq!(ids.first(), Some(&2), "the oldest went");
+        assert_eq!(ids.last(), Some(&65));
     }
 
     /// The server is gone at the first dismissal: the clear stops there
