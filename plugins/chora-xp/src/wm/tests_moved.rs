@@ -215,11 +215,11 @@ mod dispatch {
             "action": "update", "args": {}
         })))
         .unwrap();
-        wm.event(wire(json!({
-            "event": "node.requested", "node": "xp-look", "client": "other",
-            "action": "move", "args": {}
-        })))
-        .unwrap();
+        let update = wm.requested_look("xp-look", &json!({}));
+        assert!(
+            update.is_empty(),
+            "an update of no window of xp changes nothing"
+        );
     }
 
     /// Output changes: a new output, and then one removed, keep xp's bars
@@ -759,9 +759,11 @@ mod choices {
     /// choice that needs it does nothing else.
     #[test]
     fn a_missing_shared_script_is_told_in_a_balloon() {
-        let (mut wm, _methods) = wm_on_fake_core("shared-missing");
+        let (mut wm, methods) = wm_on_fake_core("shared-missing");
+        let before = methods.lock().unwrap().len();
         wm.run_shared("no-such-script", &["arg"]);
-        wm.cannot_do("no-such-script");
+        let sent = methods.lock().unwrap().len() - before;
+        assert_eq!(sent, 1, "one balloon goes to the notification server");
     }
 
     /// A dialog fades the desktop while it is open, and the fade ends with
@@ -770,13 +772,12 @@ mod choices {
     fn the_desktop_fades_while_a_dialog_is_open() {
         let (mut wm, _methods) = wm_on_fake_core("fade-dialog");
         wm.key(&power_key());
-        if wm.fade.is_some() {
-            assert!(wm.fading(), "the desktop fades");
-            assert!(
-                wm.fade_frame(Instant::now()).is_some(),
-                "a frame of the fade"
-            );
-        }
+        assert!(wm.fade.is_some(), "the dialog starts the fade");
+        assert!(wm.fading(), "the desktop fades");
+        assert!(
+            wm.fade_frame(Instant::now()).is_some(),
+            "a frame of the fade"
+        );
         wm.choose(Choice::Cancel);
         assert!(wm.fade.is_none(), "the fade ends with the dialog");
         assert!(!wm.fading());
