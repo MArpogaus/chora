@@ -57,6 +57,16 @@ pub trait Host: Windows {
     /// The look's own.
     fn failed(&mut self, failure: Failure) -> Result<(), Self::Error>;
 
+    /// Opens the power menu of the look itself, before the shared script
+    /// does; answers whether it did.
+    ///
+    /// # Errors
+    ///
+    /// The look's own.
+    fn power(&mut self) -> Result<bool, Self::Error> {
+        Ok(false)
+    }
+
     /// Starts the terminal of the look.
     ///
     /// # Errors
@@ -138,6 +148,9 @@ fn start<H: Host>(host: &mut H, command: Option<String>, name: &str) -> Result<(
 ///
 /// A hook of the look fails.
 pub fn perform<H: Host>(host: &mut H, system: &System) -> Result<(), H::Error> {
+    if matches!(system, System::Power) && host.power()? {
+        return Ok(());
+    }
     if let Some((script, args)) = system.script() {
         return match shared::command(script, args) {
             Some(command) => start(host, Some(command), script),

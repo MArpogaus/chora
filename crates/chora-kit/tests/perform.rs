@@ -65,6 +65,12 @@ impl Host for Look {
         Ok(())
     }
 
+    /// A look with a power menu of its own: the shared script stays out.
+    fn power(&mut self) -> Result<bool, String> {
+        self.done.push("power".into());
+        Ok(true)
+    }
+
     fn terminal(&mut self) -> Result<(), String> {
         self.done.push("terminal".into());
         Ok(())
@@ -148,6 +154,7 @@ fn each_system_action_reaches_its_hook() {
         (System::Close, "close"),
         (System::Keys, "keys"),
         (System::Chat, "chat"),
+        (System::Power, "power"),
         (System::Volume(Change::Up), "volume Up"),
         (System::Volume(Change::Set(30)), "volume Set(30)"),
         (System::Desk(Step::Next), "desk Next"),
