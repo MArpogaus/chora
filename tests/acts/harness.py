@@ -388,6 +388,7 @@ class Session:
         self.procs = []
         self.log_marks = {}
         self.state_filter = None
+        self.attached = False
 
     def __enter__(self):
         self.work = pathlib.Path(tempfile.mkdtemp(prefix="acts-session-"))
@@ -451,16 +452,48 @@ class Session:
             check=True,
             capture_output=True,
         )
-        self.core = Core(values["CHORA_SOCKET"], name="acts")
-        self.watch = Core(values["CHORA_SOCKET"], name="acts-events", events=EVENTS)
+        return self.connect(values["CHORA_SOCKET"], "acts")
+
+    def connect(self, socket_path, name):
+        """Connect to the core as the client `name` (which holds the grants
+        it needs) and wait until the looks and an output are there."""
+        self.core = Core(socket_path, name=name)
+        self.watch = Core(socket_path, name=f"{name}-events", events=EVENTS)
         self.until(lambda: set(self.looks) <= self.clients(), 30, "the looks connect")
         self.until(lambda: self.outputs(), 10, "an output")
         return self
+
+    @classmethod
+    def attach(cls, env_file, name="persona-check", runs=None):
+        """A session that something else started (tests/persona/session.sh):
+        read its env file, connect as `name` and end only the connections:
+        the session and its folder stay. The looks are those of its
+        PERSONA_FLAVORS."""
+        values = {}
+        with open(env_file, encoding="utf-8") as f:
+            for line in f:
+                key, sep, value = line.rstrip("\n").partition("=")
+                if sep:
+                    values[key] = value
+        looks = values["PERSONA_FLAVORS"].split("+")
+        s = cls(*looks, runs=runs or pathlib.Path(values["PERSONA_DIR"]) / "evidence")
+        s.attached = True
+        s.work = pathlib.Path(values["PERSONA_DIR"])
+        s.env = dict(os.environ, **values)
+        s.runtime = pathlib.Path(values["XDG_RUNTIME_DIR"])
+        s.runs.mkdir(parents=True, exist_ok=True)
+        try:
+            return s.connect(values["CHORA_SOCKET"], name)
+        except BaseException:
+            s.__exit__(None, None, None)
+            raise
 
     def __exit__(self, *_exc):
         for core in (getattr(self, "watch", None), getattr(self, "core", None)):
             if core:
                 core.close()
+        if self.attached:
+            return
         for proc in reversed(self.procs):
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(proc.pid, signal.SIGTERM)
