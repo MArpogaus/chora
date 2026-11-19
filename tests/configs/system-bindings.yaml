@@ -1,0 +1,25 @@
+# One YAML binding gives one `System` action in every look (KIT2b). Each
+# look that has bindings loads this file as its common settings and must
+# get `system-bindings.table`. Four old spellings of construct (`help`,
+# `volume_up`, `volume_down`, `mute`) load for one release.
+bindings:
+  Super+t: terminal
+  Super+space: launcher
+  Super+F1: keys
+  Super+slash: help
+  Super+a: chat
+  Super+l: lock
+  Super+p: power
+  Super+Print: screenshot
+  Super+x: close
+  Super+r: {run: foot}
+  Super+g: {give: xp}
+  Super+BTN_LEFT: drag
+  Super+Right: {desk: next}
+  Super+Left: {cube: left}
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
+  Super+F10: volume_up
+  Super+F11: volume_down
+  Super+F12: mute

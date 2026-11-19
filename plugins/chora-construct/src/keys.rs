@@ -1,13 +1,20 @@
 //! The keys that every look has: the launcher, the key list, the chat
 //! with a helper, lock, the power menu, a screenshot and the volume keys.
 //! A key works in the walk, and while the camera is in a pane it is a
-//! grab (`Grab::Key`). The shared actions come from `chora_kit::shared`.
+//! grab (`Grab::Key`). The actions are done by `chora_kit::actions::perform`.
 
 use std::time::Instant;
 
-use chora_kit::{shared, volume::Change, words::Language};
+use chora_kit::{
+    actions::{
+        System,
+        perform::{Failure, Host, perform},
+    },
+    volume::Change,
+    words::Language,
+};
 
-use crate::{ClientError, Construct, config::Action};
+use crate::{ClientError, Construct};
 
 /// The notice of a key that did not start its program.
 #[must_use]
@@ -18,52 +25,77 @@ pub fn not_started(language: Language) -> &'static str {
     }
 }
 
-fn volume_change(action: Action) -> Change {
-    match action {
-        Action::VolumeUp => Change::Up,
-        Action::VolumeDown => Change::Down,
-        _ => Change::Mute,
-    }
-}
-
 impl Construct {
     /// A key of every look from a grab while the camera is in a pane: the
     /// key list steps out of the pane first, since the list takes the
     /// keyboard.
-    pub(crate) fn grabbed_key(&mut self, action: Action) -> Result<(), ClientError> {
-        if action == Action::Help && self.in_pane() {
+    pub(crate) fn grabbed_key(&mut self, system: &System) -> Result<(), ClientError> {
+        if *system == System::Keys && self.in_pane() {
             self.fly_out()?;
         }
-        self.shared_key(action)
+        perform(self, system)
     }
 
-    /// A key of every look. A program or script that does not start is a
-    /// notice.
-    pub(crate) fn shared_key(&mut self, action: Action) -> Result<(), ClientError> {
-        let command = match action {
-            Action::Launcher => {
-                self.start_launcher();
-                return Ok(());
+    /// The notice of a key that did not start its program, a script that
+    /// is missing, or a window manager that did not take a window.
+    fn say_failed(&mut self, failure: Failure) -> Result<(), ClientError> {
+        let language = Language::of_session();
+        let words = match failure {
+            Failure::NoScript(_) | Failure::NotStarted(_) => not_started(language).to_owned(),
+            Failure::NotGiven { to, why } => {
+                eprintln!("chora-construct: give to {to}: {why}");
+                crate::input::refusal(language, &to, &why)
             }
-            Action::Help => return self.toggle_help(),
-            Action::VolumeUp | Action::VolumeDown | Action::Mute => {
-                self.mixer.change(volume_change(action), true);
-                self.doors.ask_for_reading(Instant::now());
-                return Ok(());
-            }
-            Action::Chat => Some("chora-chat".to_owned()),
-            Action::Lock => shared::command("power", &["lock"]),
-            Action::Power => shared::command("power", &[]),
-            Action::Screenshot => shared::command("screenshot", &[]),
-            _ => return Ok(()),
         };
+        self.voice.notice(&words, Instant::now());
+        self.draw_hud()
+    }
+}
+
+/// What the construct does for the actions of every look: the key list in
+/// the space, the volume with its door, the chat, the launcher, the
+/// terminal, a close and a give of its panes. A step through the desks and
+/// a turn of the cube have no meaning here.
+impl Host for Construct {
+    type Error = ClientError;
+
+    fn volume(&mut self, change: Change) -> Result<(), ClientError> {
+        self.mixer.change(change, true);
+        self.doors.ask_for_reading(Instant::now());
+        Ok(())
+    }
+
+    fn keys(&mut self) -> Result<(), ClientError> {
+        self.toggle_help()
+    }
+
+    fn chat(&mut self) -> Result<(), ClientError> {
         let mint = self.rt.conn.activation_token();
-        let started = command.and_then(|c| chora_kit::launch(&c, mint.as_deref()));
-        if started.is_some() {
+        if chora_kit::launch("chora-chat", mint.as_deref()).is_some() {
             return Ok(());
         }
-        let words = not_started(Language::of_session());
-        self.voice.notice(words, Instant::now());
-        self.draw_hud()
+        self.say_failed(Failure::NotStarted("chora-chat".into()))
+    }
+
+    fn failed(&mut self, failure: Failure) -> Result<(), ClientError> {
+        self.say_failed(failure)
+    }
+
+    fn terminal(&mut self) -> Result<(), ClientError> {
+        self.start_terminal();
+        Ok(())
+    }
+
+    fn launcher(&mut self) -> Result<(), ClientError> {
+        self.start_launcher();
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), ClientError> {
+        self.close_ahead()
+    }
+
+    fn give(&mut self, to: &str) -> Result<(), ClientError> {
+        self.give_key(to)
     }
 }
