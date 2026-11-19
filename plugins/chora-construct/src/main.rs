@@ -50,6 +50,7 @@ mod list;
 mod methods;
 mod modes;
 mod names;
+mod notice;
 mod overlay;
 mod panes;
 mod placeholder;

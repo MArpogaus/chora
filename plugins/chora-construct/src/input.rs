@@ -117,7 +117,7 @@ impl Construct {
 
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
-    fn keys_walk(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn keys_walk(&mut self) -> Result<(), ClientError> {
         let now = Instant::now();
         if !keys_walk_due(self.keys_walked, now) {
             return Ok(());
@@ -133,7 +133,7 @@ impl Construct {
 
     /// A give key: gives the focused window, else the window of the pane
     /// ahead, to the window manager `to`. A refusal is a notice.
-    fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
+    pub(crate) fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
         if let Some(sel) = self
             .list
             .as_ref()
