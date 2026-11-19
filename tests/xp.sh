@@ -594,11 +594,13 @@ grep -q "another owner" "$out/notify2.log" || fail "no word of the owner: $out/n
 
 step "17b. a program that cannot start or is slow gets a message that names it"
 said() {
-    jq -e --arg m "$1" --arg s "$2" \
-        'select(.member == $m and (.payload.data[3] // "" | startswith($s)))' \
-        "$out/bus.jsonl" >/dev/null
+    "$bin/choractl" call notify state.get 2>/dev/null |
+        jq -e --arg s "$2" '.shown[]? | select(.summary | startswith($s))' >/dev/null
 }
-closed() { jq -e 'select(.member == "CloseNotification")' "$out/bus.jsonl" >/dev/null; }
+closed() {
+    ! "$bin/choractl" call notify state.get 2>/dev/null |
+        jq -e '.shown[]? | select(.summary | startswith("Starting"))' >/dev/null
+}
 open_my_documents_with() {
     xp settings.set "{\"file_manager\": \"$1\"}" >/dev/null
     click 50 785 || fail "the click failed"
