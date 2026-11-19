@@ -5,6 +5,7 @@
 
 mod animation;
 mod binding;
+pub mod boxes;
 mod command;
 mod event;
 pub mod ipc;

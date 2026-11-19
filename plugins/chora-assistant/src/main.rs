@@ -87,6 +87,8 @@ const EVENTS: &[&str] = &[
     "pointer.left",
     "output.changed",
     "output.removed",
+    "look.theme",
+    "look.view",
     "construct.theme",
     "construct.view",
     "mc.theme",
@@ -276,18 +278,7 @@ impl Plugin for Agent {
                 client,
                 data,
             } => {
-                if event == format!("{client}.theme") {
-                    let theme = data["theme"].as_str().unwrap_or_default();
-                    self.switcher.set_theme(&client, theme, Instant::now());
-                }
-                if client == "construct" && event == "construct.view" {
-                    self.in_pane = data["pane"] == true;
-                    let dim = self
-                        .assistant
-                        .as_ref()
-                        .and_then(|a| a.island_dimmed(self.in_pane));
-                    self.apply(dim.into_iter().collect())?;
-                }
+                self.look_event(&event, &client, &data)?;
                 self.slot_event(&event, &client, &data)?;
                 self.voice_event(&event, &client, &data)?
             }
@@ -359,6 +350,24 @@ impl Plugin for Agent {
 }
 
 impl Agent {
+    /// A look names its theme or its view, with the shared events `look.*`
+    /// (the core names the emitter in `look`) or with its old names.
+    fn look_event(&mut self, event: &str, client: &str, data: &Value) -> Result<(), ClientError> {
+        let shared = event.starts_with("look.");
+        let look = data["look"].as_str().filter(|_| shared).unwrap_or(client);
+        if event == "look.theme" || event == format!("{client}.theme") {
+            let theme = data["theme"].as_str().unwrap_or_default();
+            self.switcher.set_theme(look, theme, Instant::now());
+        }
+        let view = event == "look.view" || event == "construct.view";
+        if look == "construct" && view {
+            self.in_pane = data["pane"] == true;
+            let dim = (self.assistant.as_ref()).and_then(|a| a.island_dimmed(self.in_pane));
+            self.apply(dim.into_iter().collect())?;
+        }
+        Ok(())
+    }
+
     /// Connects, subscribes to the events of the voice agent and exports
     /// the methods of the settings, and shows the figure if the agent is
     /// awake.
@@ -663,6 +672,13 @@ mod tests {
     }
     use super::*;
     use crate::config::Figure;
+
+    #[test]
+    fn the_assistant_listens_for_the_shared_events_of_the_looks() {
+        for event in ["look.theme", "look.view", "construct.theme", "mc.theme"] {
+            assert!(EVENTS.contains(&event), "{event}");
+        }
+    }
 
     #[test]
     fn a_press_of_a_program_on_the_figure_neither_opens_nor_hides_the_chat() {

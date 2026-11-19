@@ -137,8 +137,11 @@ impl Tiling {
     /// Names the theme to the HUD host, which colours its panels, chat and
     /// question card by it.
     pub(super) fn name_theme(&mut self) -> Result<(), ClientError> {
-        let emit = chora_kit::hud::theme_event(NAME, self.scheme == theme::Scheme::Ink);
-        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+        let dark = self.scheme == theme::Scheme::Ink;
+        let emit = chora_kit::hud::theme_event(NAME, dark);
+        self.rt.conn.call::<_, Value>("events.emit", emit)?;
+        let look = chora_kit::hud::look_theme_event(dark);
+        self.rt.conn.call::<_, Value>("events.emit", look).map(drop)
     }
 
     /// Hides the panel with `SIGUSR1` while a window is fullscreen and shows

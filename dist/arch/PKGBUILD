@@ -103,11 +103,11 @@ package() {
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
   install -Dm644 plugins/chora-notify/assets/* -t "$pkgdir/usr/share/chora/notify/assets/"
   install -Dm644 plugins/chora-assistant/huds/neutral/* -t "$pkgdir/usr/share/chora/huds/neutral/"
-  install -Dm644 plugins/chora-assistant/huds/tiling/* -t "$pkgdir/usr/share/chora/huds/tiling/"
   # The HUD folders of the looks. A HUD folder holds no link that leaves
   # it, so the XP folder gets its own copy of the font.
   install -Dm644 plugins/chora-mc/hud/* -t "$pkgdir/usr/share/chora/huds/mc/"
   install -Dm644 plugins/chora-construct/hud/* -t "$pkgdir/usr/share/chora/huds/construct/"
+  install -Dm644 plugins/chora-tiling/hud/* -t "$pkgdir/usr/share/chora/huds/tiling/"
   find flavors/xp/assets/assistant -maxdepth 1 -type f \
     -exec install -Dm644 -t "$pkgdir/usr/share/chora/huds/xp/" {} +
   install -Dm644 flavors/xp/assets/assistant/fonts/* -t "$pkgdir/usr/share/chora/huds/xp/fonts/"
