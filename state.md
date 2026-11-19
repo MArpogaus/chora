@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 16:16 UTC)
+## Now (2026-11-19 17:14 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 15:42 PM 5.5 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 16:58 PM 5.8 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
-session branch: 05878d2a (train 63: flakes-f); 30 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
+session branch: 85764974 (train 65: merge-65, integ, moved-tests-ct; green on rerun 16:57); 31 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, DOCS-F8, F8b in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
 
 ## RC (design/rc.md)
@@ -25,13 +25,13 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
-| moved-tests-mk-r2.md (F5) | haiku high | session_016iS3kPJ3EX6DKyE5Ugy1AD (16:08; r2 the four modules under 70 %) |
+| moved-tests-mk-r3.md (F5) | haiku high | session_016iS3kQE68SuUq1P3CTXdcg (17:02; r2 4904ef79 MERGE-OK: mc met; xp panels, pointer open) |
 | debt-down-r1.md (F4) | sonnet high | session_016iS3kNwNGkLo2yS3ZYgvtV (16:14; F4 open, rows above RC) |
-| copies-0-r1.md (F2) | sonnet high | session_016iS3kQamLkh1Q8PUD3djE6 (16:06; from 85764974) |
+| docs-f8c-r1.md (F8) | sonnet high | session_016iS3kNDb4WhQZ6C9YeKVX9 (17:13; from ee53e09c) |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 65 gate 16:08 (85764974 = merge-65 e667b3d0 + integ 2318d62c + moved-tests-ct c4c4f5d5; xp 16c flaked once in merge-65). Next train: moved-tests-mk 31df2bb9 (MERGE-OK), matrix-cap when MERGE-OK (own train first).
-5. audit-f (3 of 8 met; 12.3 %): focus-port (F2 3.5 %) and moved-tests xp (F5 1.25 %) start 14:19; ct, mk (haiku 1.4 %); DEBT-R done 16:13 (F4 open), DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES after flakes-g (F5 1 %), DOCS-F8c last (1 %).
+4. Trains (F6): 65 green 16:57 after one rerun. 66 red 17:14 only on the matrix cap again (242 s, all 84 cells pass; MX1): held until matrix-cap merges (own train first; its lane reports 221-227 s contended). Then 66 = mk r1 31df2bb9, mk r2 4904ef79, copies-0 ee53e09c.
+5. audit-f (3 of 8 met; 12.3 %): DEBT-R done 16:13 (F4 open), DEBT-DOWN (F4 1.5 %) and COPIES-0 (F2 2.5 %) from 85764974; FLAKE-SERIES after matrix-cap merges (F5 1 %), DOCS-F8c started 17:14 (ranks 3, 4, KIT3 done; 1 %).
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
