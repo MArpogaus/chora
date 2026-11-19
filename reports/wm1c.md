@@ -50,3 +50,19 @@ chora-construct 194 tests, mc 139, tiling 152, chora-kit (testing) all pass. act
 3. Make overlay vs flavor a policy of the book (a `Hold` per proposal) instead of "answer refused": `take_free` and `created` then share one settle.
 4. FakeCore: answer `scene.query` by selector (kind, owner), so `start()` is a cell and `adopt_free` needs no hand-built nodes; give it text layout so `keep_estimates` goes.
 5. `construct-hud` flake: "no claim after the restart of voice" failed once of two (10 s `until_ok`); look at the claim timing after `voice_start`.
+
+## Review r1
+Reviewer lane (cloud, read-only on code), head 5e72e4f9 on base 0ffc53a8. Construct lives in `plugins/chora-construct` (mv3 move), not `crates/`.
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR, 1 MINOR, 1 NIT).
+
+Checks:
+1. PASS. `grep` in plugins/chora-construct: no `to != NAME`, no `is_none_or(.. == NAME)` claim filter, no `Event::SurfaceCreated`. Claims run only through `book.claim` (scene.rs:59, list.rs:104, lifecycle.rs:20,45). A refused give (`give_refused`, list.rs:253) keeps window and pane (cell `..script..`, green).
+2. PASS. `git log`: 62a6747 before 1365525. At 62a6747 `cargo test -p chora-construct lifecycle`: 3 FAILED (script, origin, restart), 1 ok (views guard): the 3 named in the report.
+3. PASS. `cargo test -p chora-construct`: 194 ok. `cargo test -p chora-kit --features testing`: all ok (223 + 17 wm_book incl. `a_created_surface_tells_its_facts_and_its_label`). Run on stable rustc 1.97 (the pinned 1.99 would not download in the lane), not the pinned toolchain. Detach/pull-in, overlay takes no free window, restart leaves xp's windows: read in the diff and covered by cells; consistent with the report.
+4. PASS. `Metrics::estimates` field, the early return and `keep_estimates` are all `#[cfg(test)]` (hud.rs:166-208); no production path changes.
+5. PASS (counts), NIT (docs). `tools/cut-check`: ok. Actual counts: `to != NAME` outside kit 1 (mc acts.rs:31) = max 1; `Event::SurfaceCreated` outside kit 1 (xp dispatch.rs:20) = max 1; construct row 0. docs/api.md `construct.window` fields match `phase_event` (`rect: null`).
+
+Findings:
+- rw-1 MINOR plugins/chora-construct/src/adopt.rs:206,222: a window the construct adopts by token or launch when `free` is false (reserved for another manager, or already pending in the book) is attached but never claimed in the book: no `opened`/`closed` phase, no `origin` in state.get, and `give` refuses it ("is no window of the construct"). Fix: when `created` adopts although the claim was empty, claim it through the book (or skip adopting a window reserved for another manager).
+- rw-2 NIT docs/api.md:1513: says `node` is "the group that carries the window"; for mc and the construct (no groups) `node` is the surface id (book.rs `node_of`). Fix: add "or the surface itself where a look has no groups".
