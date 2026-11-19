@@ -1,9 +1,10 @@
 """The acts of tiling. The door acts: the key list (tests/doors keys-key, keys-alias)."""
 
-from common import door_acts, window_acts
+from common import door_acts, keysheet_acts, window_acts
 
 
 def run(s):
     """A window opens and closes; the key list opens and shuts."""
     window_acts(s)
     door_acts(s, "tiling-keys", "Escape")
+    keysheet_acts(s, "tiling-keys", "Escape")

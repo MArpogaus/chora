@@ -1,0 +1,43 @@
+# The spec of kit::keysheet (KIT3): one wording per System action and one
+# spelling per key of a chord, in every look. Read by the kit cell
+# (crates/chora-kit/tests/keysheet.rs), the xp cell (plugins/chora-xp
+# help.rs) and the act `the key list of ...` (tests/acts/looks/common.py).
+# Lines: `words<TAB>action<TAB>English<TAB>German`, and
+# `cap<TAB>key<TAB>spelling`. An action with an argument is written as
+# the shipped keys bind it; `{}` stands for the argument.
+words	keys	All keys	Alle Tasten
+words	chat	Chat with a helper	Mit einem Helfer chatten
+words	lock	Lock the screen	Bildschirm sperren
+words	power	Power menu	Ausschalt-Menü
+words	screenshot	Take a screenshot	Bildschirmfoto aufnehmen
+words	volume:up	Volume up	Lauter
+words	volume:down	Volume down	Leiser
+words	volume:mute	Mute	Stumm
+words	volume:set	Set the volume to {}%	Lautstärke auf {} %
+words	close	Close window	Fenster schließen
+words	drag	Drag window	Fenster ziehen
+words	terminal	Open a terminal	Terminal öffnen
+words	launcher	Start a program or run a command	Programm starten oder Befehl ausführen
+words	run:fuzzel	Start a program or run a command	Programm starten oder Befehl ausführen
+words	run	Run {}	{} ausführen
+words	give	Give window to {}	Fenster geben an {}
+words	desk:next	Next desk	Nächster Desktop
+words	desk:previous	Previous desk	Voriger Desktop
+words	cube:left	Turn the cube to the left	Würfel nach links drehen
+words	cube:right	Turn the cube to the right	Würfel nach rechts drehen
+cap	Escape	Esc
+cap	Return	Return
+cap	KP_Enter	Return
+cap	space	Space
+cap	slash	/
+cap	period	.
+cap	Left	←
+cap	Right	→
+cap	Up	↑
+cap	Down	↓
+cap	XF86AudioRaiseVolume	Vol+
+cap	XF86AudioLowerVolume	Vol-
+cap	XF86AudioMute	Mute
+cap	BTN_LEFT	drag
+cap	F1	F1
+cap	t	T

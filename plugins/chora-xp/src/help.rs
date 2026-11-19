@@ -556,4 +556,64 @@ mod tests {
         assert_eq!(name("Super+F1"), "Super+F1");
         assert_eq!(name("Super+Shift+e"), "Super+Shift+E");
     }
+
+    /// The words and the spelling of `kit::keysheet`, as every look draws
+    /// them (tests/keysheet/words.table, which the acts of the other three
+    /// looks read too): xp draws its page as pixels, so the lines of the
+    /// page stand for the drawn rows here.
+    #[test]
+    fn the_key_list_speaks_the_keysheet() {
+        let table = include_str!("../../../tests/keysheet/words.table");
+        let fields: Vec<Vec<&str>> = (table.lines())
+            .filter(|l| !l.starts_with('#'))
+            .map(|l| l.split('\t').collect())
+            .collect();
+        let (theme, cache) = crate::sheets::tests::theme("help-keysheet");
+        let dialog = HelpDialog::new(KEYBOARD, rows(&defaults(), all), [0, 0, 1280, 800]);
+        let page = dialog.page(&theme).body.expect("a page");
+        let _ = std::fs::remove_dir_all(cache);
+        let lines: Vec<String> = page
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                chora_draw::theme::Layer::Text(t) => Some(t.line.clone()),
+                _ => None,
+            })
+            .collect();
+        let every_look = [
+            "keys",
+            "chat",
+            "lock",
+            "power",
+            "screenshot",
+            "volume:up",
+            "volume:down",
+            "volume:mute",
+            "launcher",
+        ];
+        let mut breaches = Vec::new();
+        for want in every_look {
+            let line = fields
+                .iter()
+                .find(|f| f[0] == "words" && f[1] == want)
+                .unwrap();
+            if !lines.iter().any(|l| l == line[2]) {
+                breaches.push(format!("no line says {:?} for {want}", line[2]));
+            }
+        }
+        let raw: Vec<&str> = (fields.iter())
+            .filter(|f| f[0] == "cap" && f[1].len() > 1 && f[1] != f[2])
+            .map(|f| f[1])
+            .chain(["Enter"])
+            .collect();
+        for line in &lines {
+            let parts: Vec<&str> = line.split('+').collect();
+            for part in parts.iter().filter(|p| raw.contains(p)) {
+                if parts.len() > 1 || raw.contains(&line.as_str()) {
+                    breaches.push(format!("{part:?} is not spelled as its cap in {line:?}"));
+                }
+            }
+        }
+        assert!(breaches.is_empty(), "{breaches:#?}");
+    }
 }
