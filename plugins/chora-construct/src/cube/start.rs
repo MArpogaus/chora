@@ -155,4 +155,28 @@ mod tests {
             std::thread::sleep(Duration::from_millis(20));
         }
     }
+
+    /// A manager that exited is read at once: the construct waits for the
+    /// reader of its error output to reach the end of the file, not for a
+    /// fixed time that the reader may or may not need (W8).
+    #[test]
+    fn the_last_line_of_a_manager_that_exited_is_there_without_a_wait() {
+        let mut host = super::super::tests::host_of(1);
+        let (child, tail) = launch("echo 'the last line' >&2; exit 3").expect("sh");
+        host.child = Some(child);
+        host.tail = tail;
+        host.health = vec![Health::Starting];
+        let _ = host.child.as_mut().expect("the child").wait();
+        let asked = Instant::now();
+        let reason = host.check_start(chora_kit::words::Language::En, Instant::now());
+        let waited = asked.elapsed();
+        assert!(
+            reason.is_some_and(|r| r.contains("the last line")),
+            "the reason names the last line"
+        );
+        assert!(
+            waited < Duration::from_millis(140),
+            "it waited {waited:?} for a reader that is at the end in a moment"
+        );
+    }
 }
