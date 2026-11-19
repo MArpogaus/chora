@@ -555,7 +555,10 @@ impl DesktopIcons {
         if !press.moving {
             return self.set_selection(theme, icons, vec![press.key]);
         }
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded pointer delta in pixels"
+        )]
         let d = [
             (px - press.start[0]).round() as i32,
             (py - press.start[1]).round() as i32,
@@ -596,7 +599,10 @@ impl DesktopIcons {
 }
 
 /// The rectangle between two corners, in whole pixels.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "pointer positions in pixels, floored"
+)]
 fn band_rect([ax, ay]: [f64; 2], [bx, by]: [f64; 2]) -> Rect {
     let [x, y] = [ax.min(bx).floor() as i32, ay.min(by).floor() as i32];
     let [r, b] = [ax.max(bx).floor() as i32, ay.max(by).floor() as i32];
@@ -639,7 +645,7 @@ fn picture(
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = label(&item.title, if selected { usize::MAX } else { 2 }, width);
     let widths: Vec<f64> = lines.iter().map(|l| width(l).min(LABEL_WIDTH)).collect();
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
     let text = widths.iter().copied().fold(0.0, f64::max).ceil() as i32;
     let rows = i32::try_from(lines.len()).unwrap_or(1);
     // The box as on XP: 1 pixel of room left of the ink, 2 right of it.
@@ -662,7 +668,10 @@ fn picture(
         }
     }
     for ((line, w), row) in lines.iter().zip(&widths).zip(0..) {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a pixel offset inside a cell"
+        )]
         let x = ((f64::from(CELL_W) - w) / 2.0).round() as i32;
         let rect = [x, LABEL_TOP + 1 + row * LINE, LABEL_PX, LINE];
         let mut text = Text::new(line, Font::Ui, WHITE, rect);

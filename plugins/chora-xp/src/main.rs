@@ -125,12 +125,6 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     Ok(wm.leave()?)
 }
 
-/// One line on stderr for a request that failed and changes nothing else:
-/// the plugin keeps running, the log says what went wrong.
-pub(crate) fn report(err: &dyn std::fmt::Display) {
-    eprintln!("chora-xp: {err}");
-}
-
 /// Restart of the Turn Off dialog: the plugin runs itself again with the
 /// same arguments, in the same process, so that the core and the session
 /// keep it. The connection closes with the exec, and the new instance
@@ -189,4 +183,21 @@ fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), Cl
         }
     }
     Ok((event, None))
+}
+
+#[cfg(test)]
+mod tests {
+    /// The line that a failed request leaves in the log (a guard of the
+    /// move of `report` to the kit).
+    #[test]
+    fn report_line() {
+        if chora_kit::testing::in_child() {
+            chora_kit::runtime::report(crate::wm::NAME, &"no such window");
+            return;
+        }
+        assert_eq!(
+            chora_kit::testing::stderr_of("tests::report_line"),
+            "chora-xp: no such window\n"
+        );
+    }
 }

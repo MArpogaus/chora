@@ -91,7 +91,7 @@ mod tests {
     fn on_kit_core(core: &FakeCore, tag: &str) -> Tiling {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
-        let mut tiling = tiling_on(core.connect(NAME), &dir, &[]);
+        let mut tiling = tiling_on(core.runtime(NAME), &dir, &[]);
         let group = Command::Create {
             id: NAME.into(),
             kind: NodeKind::Group,

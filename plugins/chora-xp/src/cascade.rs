@@ -87,7 +87,10 @@ impl Cascade {
         let columns = (count + max_rows - 1) / max_rows;
         let rows = count.min(max_rows);
         let widest = widths.iter().copied().fold(0.0, f64::max);
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a text width in pixels, clamped to the menu range"
+        )]
         let column_width = (widest.ceil() as i32 + 2 * TEXT_X).clamp(130, 380);
         let size = [
             columns * column_width + left + right,

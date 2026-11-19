@@ -403,12 +403,6 @@ struct Mc {
     scroll: BTreeMap<String, f64>,
 }
 
-/// One line on stderr for a page that could not be shown: the plugin keeps
-/// running and the log says which page and why.
-pub(crate) fn report(what: &str, message: &str) {
-    eprintln!("chora-mc: {what}: {message}");
-}
-
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
     let args = Args::parse();
@@ -1023,7 +1017,7 @@ impl Mc {
         if let Some(name) = back.or(first)
             && let Err(err) = self.show(&name, true)
         {
-            crate::report(&name, &err.message);
+            chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
         self.trail = trail;
     }
@@ -1288,6 +1282,23 @@ fn wait() -> Command {
 mod tests {
     use chora_scene::{Command, NodeKind, PropsUpdate};
 
+    /// The line that a page that cannot be shown leaves in the log (a
+    /// guard of the move of `report` to the kit).
+    #[test]
+    fn report_line() {
+        if chora_kit::testing::in_child() {
+            chora_kit::runtime::report(
+                crate::NAME,
+                &format_args!("{}: {}", "Overview", "no such window"),
+            );
+            return;
+        }
+        assert_eq!(
+            chora_kit::testing::stderr_of("tests::report_line"),
+            "chora-mc: Overview: no such window\n"
+        );
+    }
+
     fn text(id: &str, text: &str, color: Option<[f64; 4]>) -> Command {
         super::create(
             id,
@@ -1302,10 +1313,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn the_root_of_mc_lies_in_the_background_order_below_every_other_root() {
         let core = chora_kit::testing::FakeCore::start();
         let mut xp = core.connect("xp");
@@ -2442,7 +2449,7 @@ mod tests {
 /// A plugin on the fake core of the kit, for the tests of this crate.
 #[cfg(test)]
 mod testing {
-    use chora_kit::{runtime::Runtime, settings, testing::FakeCore};
+    use chora_kit::{settings, testing::FakeCore};
     use chora_scene::{OutputInfo, Transform};
 
     use crate::{Mc, NAME, config};
@@ -2451,22 +2458,14 @@ mod testing {
 
     /// A plugin on a fake core with the default settings, no scene files,
     /// one output of `size` and its nodes built; and the model.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         let core = FakeCore::start();
         (mc_on(&core, dir, size), core.model())
     }
 
     /// As [`mc`], on a fake core of the test.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     pub fn mc_on(core: &FakeCore, dir: &str, size: [i32; 2]) -> Mc {
-        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        let mut rt = core.runtime(NAME);
         rt.pin_accepts_injected(false);
         let dir = chora_kit::testing::TempDir::unmade(&format!("chora-mc-{dir}")).keep();
         let file = dir.join("chora-mc.yaml");

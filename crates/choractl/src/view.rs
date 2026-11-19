@@ -615,8 +615,8 @@ mod tests {
 
     const SAVED: &str = "name: work\nplugins:\n- name: tiling\nscene:\n- {id: old, kind: rect}\n";
 
-    fn saved(name: &str, text: &str) -> (crate::temp_dir::TempDir, PathBuf) {
-        let dir = crate::temp_dir::TempDir::new(&format!("choractl-{name}"));
+    fn saved(name: &str, text: &str) -> (chora_scene::testing::TempDir, PathBuf) {
+        let dir = chora_scene::testing::TempDir::new(&format!("choractl-{name}"));
         let path = dir.join("saved.yaml");
         std::fs::write(&path, text).unwrap();
         (dir, path)

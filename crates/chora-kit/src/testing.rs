@@ -19,88 +19,11 @@ use std::{
 use chora_scene::{Command, ipc::RpcError};
 use serde_json::{Value, json};
 
-use crate::conn::Conn;
+use crate::{conn::Conn, runtime::Runtime};
 
 mod script;
-#[cfg(test)]
-mod temp;
 
-/// A new, empty folder in the temporary directory for one test: named by
-/// `name`, the process and a counter of the process, so that two folders
-/// of one name never clash, in one process or between two. The folder
-/// and what is in it go when the value goes, also after a failed test.
-///
-/// Copies of these lines live in the crates that cannot depend on the
-/// kit (`crates/chora/src/testing.rs`, `choractl`, `chora-scene`); keep
-/// them the same.
-pub struct TempDir(PathBuf);
-
-impl TempDir {
-    /// Makes the folder `name-<pid>-<n>` in the temporary directory.
-    ///
-    /// # Panics
-    ///
-    /// The folder cannot be made.
-    #[must_use]
-    pub fn new(name: &str) -> Self {
-        let dir = Self::unmade(name);
-        std::fs::create_dir_all(&dir.0).unwrap();
-        dir
-    }
-
-    /// Takes the name of a folder as `new` does but does not make it,
-    /// for a test whose code under test makes it. What is there when the
-    /// value goes is removed.
-    #[must_use]
-    pub fn unmade(name: &str) -> Self {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!("{name}-{}-{n}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&path);
-        Self(path)
-    }
-
-    /// Gives up the guard: the folder stays after the test. For a helper
-    /// that hands the folder to an object that outlives the helper.
-    #[must_use]
-    pub fn keep(self) -> PathBuf {
-        let path = self.0.clone();
-        std::mem::forget(self);
-        path
-    }
-
-    /// The path of the folder.
-    #[must_use]
-    pub fn path(&self) -> &std::path::Path {
-        &self.0
-    }
-}
-
-impl std::ops::Deref for TempDir {
-    type Target = std::path::Path;
-
-    fn deref(&self) -> &std::path::Path {
-        &self.0
-    }
-}
-
-impl AsRef<std::path::Path> for TempDir {
-    fn as_ref(&self) -> &std::path::Path {
-        &self.0
-    }
-}
-
-impl AsRef<std::ffi::OsStr> for TempDir {
-    fn as_ref(&self) -> &std::ffi::OsStr {
-        self.0.as_os_str()
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+pub use chora_scene::testing::TempDir;
 
 pub use script::{
     Script, Subject, created, created_by, created_child, detach, output, owner, phases, surface,
@@ -243,6 +166,11 @@ impl FakeCore {
             .push(Arc::new(responder));
     }
 
+    /// Makes `output.list` answer with `outputs`, a JSON list of outputs.
+    pub fn outputs(&self, outputs: Value) {
+        self.respond(move |method, _| (method == "output.list").then(|| outputs.clone()));
+    }
+
     /// Plants a recorder: `line` gets the method and the parameters of each
     /// request, and a `Some` is appended to the log that this returns.
     #[must_use]
@@ -279,6 +207,19 @@ impl FakeCore {
     )]
     pub fn connect(&self, name: &str) -> Conn {
         Conn::connect_at(name, &self.path).unwrap()
+    }
+
+    /// A runtime of a plugin named `name`, on a connection to this fake
+    /// core, with no outputs of its own: the one place where a test of a
+    /// plugin connects (`plugins/clippy.toml` bans `Runtime::with` outside
+    /// the kit).
+    ///
+    /// # Panics
+    ///
+    /// The connection fails.
+    #[must_use]
+    pub fn runtime<A>(&self, name: &str) -> Runtime<A> {
+        Runtime::with(self.connect(name), name, Vec::new())
     }
 }
 
@@ -436,4 +377,29 @@ pub fn has(model: &Model, id: &str) -> bool {
 /// The text of a text node of the model.
 pub fn text(model: &Model, id: &str) -> Option<String> {
     model.lock().unwrap().scene.node(id)?.props.text.clone()
+}
+
+/// The variable that tells a test that it runs as the child of
+/// [`stderr_of`].
+const CHILD: &str = "CHORA_TEST_STDERR_CHILD";
+
+/// True in the child process of [`stderr_of`]: the test prints what it
+/// pins and returns.
+#[must_use]
+pub fn in_child() -> bool {
+    std::env::var_os(CHILD).is_some()
+}
+
+/// What the test `test` of the running test binary writes to stderr:
+/// the binary runs again with only that test, which sees [`in_child`].
+/// Use it to pin a line of a log.
+#[must_use]
+pub fn stderr_of(test: &str) -> String {
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", test, "--nocapture", "--test-threads=1"])
+        .env(CHILD, "1")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "the child test {test} failed");
+    String::from_utf8(out.stderr).unwrap()
 }

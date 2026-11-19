@@ -949,24 +949,15 @@ mod tests {
     }
 
     #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn on_fake_core(tag: &str, chats: bool) -> (Agent, [chora_kit::testing::TempDir; 2]) {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-assistant-{tag}"));
         std::fs::create_dir_all(&dir).unwrap();
         let core = chora_kit::testing::FakeCore::start();
-        core.respond(|method, _| {
-            (method == "output.list").then(|| {
-                serde_json::json!([{
-                    "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
-                    "scale": 1.0, "camera": chora_scene::Transform::default(),
-                    "work_area": [0, 0, 1920, 1080]
-                }])
-            })
-        });
-        let conn = core.connect(NAME);
+        core.outputs(serde_json::json!([{
+            "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
+            "scale": 1.0, "camera": chora_scene::Transform::default(),
+            "work_area": [0, 0, 1920, 1080]
+        }]));
         let (theme, mut values, cache) = loaded(tag);
         values.chats = chats;
         let settings =
@@ -974,7 +965,7 @@ mod tests {
                 .unwrap();
         let card_theme = card::theme(&cache, HOST_FAMILY).unwrap();
         let agent = Agent {
-            rt: Runtime::with(conn, NAME, Vec::new()),
+            rt: core.runtime(NAME),
             settings,
             source: Source {
                 assets: None,

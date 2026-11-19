@@ -542,17 +542,12 @@ fn an_injected_pointer_does_not_drive_the_look() {
 
 /// A construct on a fake core that answers every request with null, and
 /// the methods that it saw.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
 fn on_fake_core(tag: &str) -> (Construct, chora_kit::testing::Log) {
     let dir = chora_kit::testing::TempDir::new(&format!("chora-construct-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = chora_kit::testing::FakeCore::start();
     let methods = core.record(|method, _| Some(method.to_owned()));
-    let conn = core.connect(NAME);
-    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    let mut rt = core.runtime(NAME);
     rt.pin_accepts_injected(false);
     let settings =
         settings::File::<Config>::load(dir.join("chora-construct.yaml"), config::DEFAULT).unwrap();
@@ -672,5 +667,19 @@ fn a_window_pulled_during_the_flight_into_it_comes_at_1_to_1_where_the_camera_st
         "the pane at the right edge turns to the pose of the flight, yaw {}, not to where the \
          camera stays, yaw {faces}",
         pane.yaw
+    );
+}
+
+/// The line that a failed request leaves in the log (a guard of the move
+/// of `report` to the kit).
+#[test]
+fn report_line() {
+    if chora_kit::testing::in_child() {
+        chora_kit::runtime::report(NAME, &"no such window");
+        return;
+    }
+    assert_eq!(
+        chora_kit::testing::stderr_of("tests::report_line"),
+        "chora-construct: no such window\n"
     );
 }

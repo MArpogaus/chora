@@ -676,7 +676,7 @@ fn tray(theme: &Theme, width: i32, clock: Option<&str>, icons: Icons) -> Picture
         r#"<g transform="translate({TRAY_PAD} {top})">{helper}</g><g transform="translate({speaker_left} {top})">{speaker}</g>"#
     ));
     if let Some(clock) = clock {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
         let ink = theme.text_width(clock, Font::Ui).ceil() as i32;
         let left = width - TRAY_PAD - ink + CLOCK_BEARING;
         picture = picture.text(Text::new(

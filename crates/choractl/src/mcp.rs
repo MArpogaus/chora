@@ -995,8 +995,8 @@ mod tests {
     }
 
     /// A core on a socket that grants every grab but `Super+k`.
-    fn fake_core() -> (crate::temp_dir::TempDir, PathBuf) {
-        let dir = crate::temp_dir::TempDir::new("choractl-test");
+    fn fake_core() -> (chora_scene::testing::TempDir, PathBuf) {
+        let dir = chora_scene::testing::TempDir::new("choractl-test");
         let path = dir.join("core.sock");
         let listener = std::os::unix::net::UnixListener::bind(&path).expect("bind");
         std::thread::spawn(move || {

@@ -15,10 +15,9 @@ use smithay::{
 
 use crate::state::State;
 
-mod temp_dir;
 pub mod wayland;
 
-pub use temp_dir::TempDir;
+pub use chora_scene::testing::TempDir;
 
 /// The event loop and the state of a core without a backend.
 pub struct Core {

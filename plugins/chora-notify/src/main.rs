@@ -593,10 +593,6 @@ mod tests {
     /// A notify with the outcome of taking the bus name, on a fake core
     /// that answers every request with null and `output.list` with no
     /// outputs.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Notify {
         let dir = cache(tag);
         let _ = std::fs::remove_dir_all(&dir);
@@ -606,7 +602,7 @@ mod tests {
         let assets = load_assets(&assets, &dir.join("cache")).expect("the assets load");
         let settings =
             settings::File::<Config>::load(dir.join("chora-notify.yaml"), config::DEFAULT).unwrap();
-        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        let mut rt = core.runtime(NAME);
         rt.pin_accepts_injected(false);
         Notify::on(rt, bus, ids, assets, settings)
     }

@@ -114,12 +114,15 @@ fn detail(rgba: &[u8], width: usize, (x0, y0): (usize, usize), side: usize) -> (
             high = high.max(here);
         }
     }
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "a pixel count, exact in f64")]
     let count = (side * side) as f64;
     (sum / count, high - low)
 }
 
-#[allow(clippy::print_stdout)]
+#[expect(
+    clippy::print_stdout,
+    reason = "a test prints its measurement report for the reader"
+)]
 fn report(line: &str) {
     println!("{line}");
 }
@@ -197,7 +200,10 @@ fn row(rgba: &[u8], width: usize, y: usize) -> Vec<f64> {
 }
 
 /// Where a row first reaches a level.
-#[allow(clippy::cast_precision_loss)]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "an index into a row, exact in f64"
+)]
 fn reach(row: &[f64], level: f64) -> f64 {
     row.iter().position(|v| *v >= level).unwrap_or(row.len()) as f64
 }

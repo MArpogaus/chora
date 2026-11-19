@@ -719,7 +719,10 @@ mod tests {
     }
 
     /// Six pixels per character.
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a character count, exact in f64"
+    )]
     fn mono(s: &str) -> f64 {
         s.chars().count() as f64 * 6.0
     }

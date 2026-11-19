@@ -270,16 +270,25 @@ name = "own on_path (a second look at PATH)"
 pattern = 'fn on_path\b'
 
 # Test folders come from one counted helper (name, pid, counter; removed on
-# drop): chora_kit::testing::TempDir, copied where the kit cannot be a
-# dependency. What is left outside is counted PNG and socket helpers that
-# hand a file path on, and may only fall.
+# drop): chora_scene::testing::TempDir, re-exported by the kit as
+# chora_kit::testing::TempDir. What is left outside is counted PNG and socket
+# helpers that hand a file path on, and may only fall.
 [[row]]
-allow = [
-  "crates/chora-kit/src/testing.rs",
-  "crates/chora-scene/src/temp_dir.rs",
-  "crates/choractl/src/temp_dir.rs",
-  "crates/chora/src/testing/temp_dir.rs"
-]
-max = 8
+allow = ["crates/chora-scene/src/testing.rs"]
+max = 0
 name = "temp folder by pid outside the counted helper"
 pattern = 'temp_dir\(\)\s*\.join\(format!\(.*process::id'
+
+[[row]]
+max = 0
+name = "own report()"
+paths = ["plugins"]
+pattern = 'fn report\b'
+
+# One way for a test to connect: `FakeCore::runtime` (kit testing). The
+# inline `Runtime::with(core.connect(..), ..)` needed an allow per test.
+[[row]]
+max = 0
+name = "own test connect (Runtime::with in a plugin)"
+paths = ["plugins"]
+pattern = 'Runtime::with\('

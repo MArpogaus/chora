@@ -117,8 +117,8 @@ mod tests {
 
     use super::*;
 
-    fn scratch(name: &str) -> crate::temp_dir::TempDir {
-        crate::temp_dir::TempDir::new(&format!("chora-paths-{name}"))
+    fn scratch(name: &str) -> crate::testing::TempDir {
+        crate::testing::TempDir::new(&format!("chora-paths-{name}"))
     }
 
     #[test]

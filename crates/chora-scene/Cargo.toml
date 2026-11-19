@@ -12,6 +12,8 @@ tracing.workspace = true
 [features]
 # JSON schemas of the commands and the input events, for choractl mcp.
 schema = ["dep:schemars"]
+# Test helpers (`chora_scene::testing`) for the crates above.
+testing = []
 
 [lints]
 workspace = true

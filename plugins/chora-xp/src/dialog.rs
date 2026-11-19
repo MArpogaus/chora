@@ -214,7 +214,7 @@ pub fn tabs(theme: &Theme, [x, y]: [i32; 2], labels: &[&str], selected: usize) -
     let mut left = x + 2;
     let mut out = Vec::new();
     for (i, label) in labels.iter().enumerate() {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
         let w = theme.text_width(label, Font::Ui).ceil() as i32 + 10;
         let rect = if i == selected {
             [left - 2, y - TAB_HEIGHT - 2, w + 4, TAB_HEIGHT + 3]
@@ -263,7 +263,7 @@ pub fn tab_page([x, y, w, h]: Rect) -> String {
 /// blue at its top left, which breaks the line.
 #[allow(clippy::many_single_char_names, reason = "coordinates")]
 pub fn group_box(theme: &Theme, picture: Picture, [x, y, w, h]: Rect, caption: &str) -> Picture {
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
     let width = theme.text_width(caption, Font::Ui).ceil() as i32;
     // The line runs through the middle of the caption.
     let top = f64::from(y + 6) + 0.5;
@@ -965,7 +965,10 @@ impl Dialog {
         let Some(Down::Title([sx, sy], [ox, oy])) = self.down else {
             return Vec::new();
         };
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a rounded pointer delta in pixels"
+        )]
         let origin = [
             ox + (px - sx).round() as i32,
             (oy + (py - sy).round() as i32).max(top),
@@ -987,7 +990,10 @@ impl Dialog {
         theme: &mut Theme,
         [px, py]: [f64; 2],
     ) -> (Vec<Command>, Option<Hit>) {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a pointer position in pixels"
+        )]
         let [x, y] = [
             px.floor() as i32 - self.origin[0],
             py.floor() as i32 - self.origin[1],

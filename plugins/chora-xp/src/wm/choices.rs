@@ -11,7 +11,7 @@ impl Wm {
     /// areas that the taskbars reserve: xp lays them out itself.
     pub(super) fn outputs(&mut self) -> Vec<OutputInfo> {
         let outputs = self.rt.outputs().unwrap_or_else(|err| {
-            crate::report(&err);
+            chora_kit::runtime::report(crate::wm::NAME, &err);
             Vec::new()
         });
         (outputs.into_iter())
@@ -60,7 +60,7 @@ impl Wm {
                     transform: None,
                 };
                 if let Err(err) = self.rt.conn.call::<_, Value>("output.configure", params) {
-                    crate::report(&err);
+                    chora_kit::runtime::report(crate::wm::NAME, &err);
                 }
                 Vec::new()
             }

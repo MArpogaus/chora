@@ -398,7 +398,7 @@ struct Level {
 impl Level {
     fn new(entries: Vec<Entry>, theme: &Theme, min_width: i32) -> Self {
         let widest = entries.iter().map(|e| e.width(theme)).fold(0.0, f64::max);
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
         let w = (widest.ceil() as i32 + TEXT_X + TEXT_END + 2 * PAD).max(min_width) + SHADOW;
         let h = entries.iter().map(Entry::height).sum::<i32>() + 2 * PAD + SHADOW;
         Self {
@@ -982,7 +982,7 @@ fn system_parts(
         ));
     }
     if !entry.key.is_empty() {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
         let kw = theme.text_width(entry.key, Font::Ui).ceil() as i32;
         picture = picture.text(Text::new(
             entry.key,

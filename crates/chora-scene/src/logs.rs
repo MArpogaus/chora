@@ -138,8 +138,8 @@ mod tests {
 
     use super::*;
 
-    fn temp(name: &str) -> crate::temp_dir::TempDir {
-        crate::temp_dir::TempDir::unmade(&format!("chora-logs-{name}"))
+    fn temp(name: &str) -> crate::testing::TempDir {
+        crate::testing::TempDir::unmade(&format!("chora-logs-{name}"))
     }
 
     fn read(path: PathBuf) -> String {

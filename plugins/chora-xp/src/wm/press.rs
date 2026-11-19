@@ -78,7 +78,10 @@ impl Wm {
     /// The right button opens the menu of the clock, of the taskbar or of
     /// the desktop.
     pub(super) fn press_right(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a pointer position in pixels"
+        )]
         let point = position.map(|p| p.floor() as i32);
         if let Some(taskbar::Part::Task(surface)) = taskbar::Part::of(node) {
             return self.open_system(&surface, point);
