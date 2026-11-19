@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T06:21:00Z
+screened-through: 2026-11-19T06:52:00Z
+- 11-19 06:52Z "3%" -> reading: 3 % of the week used at 06:52 (reset 05:55)
 - 11-19 06:21Z "Continuously realign and update plan as you proceed" -> order: at each handback, merge and train result the PM re-checks Queue 4-5 (rank, F moved, merge backlog, budget) and rewrites it; routines.md By event
 - 11-19 06:12Z "OK better, but use tokens wisely and don't burn on unseeded reviews. Use fable where beneficial prefer opus. Let opus reviewers the updated plan and priorities and check for resources waste or misalignment" -> order: reviews only seeded (diff, brief, criteria, known findings); opus default, Fable where it pays; two opus critics on Queue 4 now
 - 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone "Correct?" -> yes (F27 check at lane start); 06:01Z plan question -> answered

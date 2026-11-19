@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 06:16 UTC)
+## Now (2026-11-19 06:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); tokens.py 06:16: PM 0.7 % today. use the week (owner 06:04); trains (1 per 3 h) cap merges.
+budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 06:52 PM 0.8 %. use the week (owner 06:04); trains (1 per 3 h) cap merges.
 models: haiku tests; sonnet builds, port reviews; opus hard causes, core reviews; Fable flakes.
-session branch: dc4bc46d (train 56: mv3); 24 greens; train 57 wm1b running; MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1, DOCS-F8, MV3 in.
+session branch: dc4bc46d (train 56: mv3); 24 greens; MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1, DOCS-F8, MV3 in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
 
 ## RC (design/rc.md)
