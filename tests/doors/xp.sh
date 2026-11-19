@@ -172,12 +172,15 @@ cell_helper_key() {
     key Super+a
     until_ok chat_open && chat_close
 }
-cell_helper_door() {
-    settle
+helper_word_shows() {
     local word
     word=$(tip_of "xp-helper-$output")
     away
-    [ -n "$word" ] && [ "$word" != "No helper" ] || return 1
+    [ -n "$word" ] && [ "$word" != "No helper" ]
+}
+cell_helper_door() {
+    settle
+    until_ok helper_word_shows 80 || return 1
     click_node "xp-helper-$output"
     until_ok chat_open && chat_close
 }

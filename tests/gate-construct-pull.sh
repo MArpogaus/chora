@@ -52,11 +52,12 @@ export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 
 until_ok() {
-    for _ in $(seq "${2:-40}"); do
+    local end=$((SECONDS + ${2:-40} / 2))
+    while :; do
         eval "$1" && return 0
+        [ "$SECONDS" -lt "$end" ] || return 1
         sleep 0.25
     done
-    return 1
 }
 call() { ctl call construct "$@"; }
 inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
@@ -162,7 +163,7 @@ import json, sys
 nodes = json.load(sys.stdin)
 print(round(nodes[0]["rects"].get("HEADLESS-1", [0, 0, 0, 0])[2]) if nodes else 0)'
 }
-[ "$(shown_width)" -ge 200 ] ||
+until_ok '[ "$(shown_width)" -ge 200 ]' 40 ||
     fail "the pane of the pulled window is not in front of the face at 1:1 or nearer: $(shown_width) px wide for 200"
 [ "$(pane_of "$surface")" = shown ] || fail "the pane of the pulled window is not in view: $(pane_of "$surface")"
 ok "the pulled window shows as a pane in front of the face, $(shown_width) px wide"
