@@ -12,9 +12,12 @@ POWER = "xp-session"
 
 
 def run(s):
-    """A window opens and closes, then the doors open and shut."""
+    """A window opens and closes, then the doors open and shut. The
+    helper acts come before Turn Off Computer, which Escape does not shut
+    yet (known red), so that their click on the card closes no dialog."""
     window_acts(s)
     door_acts(s, HELP)
+    helper_acts(s)
     s.act(
         "the Start button opens the Start menu",
         [click(50, 785)],
@@ -29,4 +32,3 @@ def run(s):
         expect=Expect(open=[POWER]),
     )
     s.act("Escape shuts Turn Off Computer", [key("Escape")], closes=[POWER], expect=Expect(open=[]))
-    helper_acts(s)
