@@ -409,7 +409,7 @@ impl Ipc {
     }
 
     /// Drops all the registrations of a connection, as happens when it
-    /// closes. Returns the bindings of the dropped grabs, except `move`.
+    /// closes. Returns the bindings of the dropped grabs; `tell_ungrabbed` skips `move`.
     pub fn drop_grabs(&mut self, conn: u64) -> Vec<Binding> {
         self.drop_grabs_where(|_, _, c| c == conn)
     }
@@ -421,7 +421,7 @@ impl Ipc {
         let mut told = Vec::new();
         self.grabs.retain(|(b, t, c)| {
             let gone = dropped(b, *t, *c);
-            if gone && *t != Trigger::Move {
+            if gone {
                 told.push(b.clone());
             }
             !gone
