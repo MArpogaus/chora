@@ -67,3 +67,23 @@ Findings:
 - rw-6, NIT, crates/chora-kit/src/wm/open.rs:~200 and mod.rs: `shut_at(_why, ..)` ignores `Why`, and `wm::open::Why` (Drag, Give) is a second `Why` beside the re-exported `wm::book::Why`. Fix: drop the argument or rename (`Shut`).
 
 Not findings: `pull` flake F21; the guard act for the title-bar drag is green on the base (the report says so).
+
+## r2
+
+2026-11-19. Build lane (sonnet, high), branch claude/wm3, head 9d55e300 (pushed). Base 0e0bd700 already held 4548feb3, so the merge of the session branch was a no-op. Brief: briefs/wm3-r2.md.
+
+Red commits: a8eef236 (I12 cells with `by`, 2 FAIL: `test_a_modal_node_of_the_look_above_its_fullscreen_parent_is_no_bar`, `test_a_modal_below_its_parent`), cb1ff7d0 (`escape_shuts_the_newest_surface_first`, FAIL at the first Escape: the Help panel shut before the menu).
+
+Findings:
+- rw-1 closed (fb1cde7d): tests/acts/invariants.py reads `by` in `bars_over_fullscreen` and `modals_below`; the fixtures test_acts.py:694, 703 use `by`. Cells: the two above, now green. grep of tests, plugins, crates, services, docs, tools: no reader or writer of `for` left.
+- rw-2 and rw-3 closed (b778b05a, 9d55e300): xp's Escape follows the newest surface of `open` (dialog, Help panel, context menu, Start menu; menus still close their cascades first), so recency is the one order. Cell: `escape_shuts_the_newest_surface_first` (Help panel, then Start menu: the menu shuts first). docs/api.md names the order (newest first, a re-opened surface moves to the front).
+- rw-5 closed (9d55e300): docs/api.md "mc has no `open` yet" replaced by one sentence naming `id`, `kind` (six words), `modal`, `by`.
+- rw-6 closed (9dbe9a8c): `Open::shut_at(keep)` has no `Why`; `wm::open::Why` is gone, one `Why` stays in kit::wm::book. The drag/give cell runs once, no longer per `Why`.
+- rw-4 accepted for now, no code: mc and construct build `Open` from their own state; xp keeps its models beside the list.
+
+Ranked refactor proposal for rw-4 (not done; each its own brief):
+1. xp: let the list own the surfaces that have a model (menu, context, dialog, panels, switcher): the model moves into the `Open` entry or a map keyed by id, so `open`, Escape, drag and give read one place. Removes the six in-step sites; the biggest source of drift (rw-1 and rw-3 came from it).
+2. mc: hold an `Open` in its state and register the sheet and launcher where they open and shut, as xp does. Removes the throwaway list per `state.get`.
+3. construct: the same for its overlay surfaces; lowest value, as it has few surfaces and an enum that already says which is open.
+
+Checks: `cargo test -p chora-kit --features testing` 229+ green, `-p chora-xp` 199, `-p chora-mc` 141, `-p chora-construct` 198, `-p chora-tiling` 152 green; `python3 -m pytest tests/test_acts.py -q` 101 green; `cargo build --workspace --locked` ok; `tests/merge-gate.sh --only xp,acts,keys,hud`: xp PASS 87 s, hud PASS 67 s, acts PASS 69 s, keys PASS 18 s (run dir /tmp/merge-gate.HdCC4e). No full gate run (the train does).
