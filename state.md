@@ -30,10 +30,10 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | flakes-f-r1.md (F5) | opus high, claude/flakes-f | session_016iS3kPFThYoJNuEYopVbjn |
 | wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | 5e72e4f9 MERGE-OK; train 58 07:18 |
 | kit6-r1.md (F2) | sonnet high, claude/kit6 | session_016iS3kQVP9HrenFDKnEYDaa |
-| cut2-r1.md (F6) | sonnet high, claude/cut2 | 29b2fd25; rev session_016iS3kNfYGLseb5KaJkTinm |
+| cut2-r1.md (F6) | sonnet high, claude/cut2 | 29b2fd25 MERGE-OK (2 MINOR backlog); train 59 |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (procedures.md): 57 green; 58 1d1aa5fd (kit2b, wm1c) 07:18; WM2, NET3 after r2; then KIT6, CUT2 last. Pace 1.5-2 %/h.
+4. Trains (procedures.md): 57 green; 58 1d1aa5fd (kit2b, wm1c) 07:18; 59: CUT2 + WM2, NET3 if r2 MERGE-OK; KIT6. Pace 1.5-2 %/h.
 5. Next (sonnet unless complex, owner 06:56): KIT2c after train 58, WM1d, KIT2d, KIT3, KIT5 (F2); MV4 region.rs, chat.rs (F4); WM7a (F3); docs F8b (F8). Sat: opus check lane measures F1-F8 on the head. Cut: WM4, WM6, NET4
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
