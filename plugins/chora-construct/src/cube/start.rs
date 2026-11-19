@@ -31,7 +31,7 @@ const FOLLOW: Duration = Duration::from_millis(100);
 /// A new file for the error output of a manager.
 fn log_file() -> PathBuf {
     static COUNT: AtomicUsize = AtomicUsize::new(0);
-    let dir = std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
+    let dir = chora_scene::paths::runtime_home().unwrap_or_else(std::env::temp_dir);
     let n = COUNT.fetch_add(1, Ordering::Relaxed);
     dir.join(format!(
         "chora-construct-cube-{}-{n}.log",

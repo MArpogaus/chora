@@ -1,7 +1,7 @@
 //! The drag with the modifier on the front face at 1:1: the construct
 //! holds the drag of the turn on the faces, so the hand turns the cube in
-//! use mode as the drag of `chora-xp` turned its own cube, and the window manager
-//! of the faces holds no such binding (`WM7b`).
+//! use mode as the drag of a window manager turned its own cube, and the
+//! window manager of the faces holds no such binding (`WM7b`).
 
 use chora_kit::modes::Mode;
 

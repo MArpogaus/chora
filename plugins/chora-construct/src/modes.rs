@@ -746,7 +746,7 @@ enum Pressed {
 /// of the window that had it draws it inactive and holds it no more (I3).
 fn the_keyboard_to_the_look() -> Vec<Command> {
     vec![
-        Command::Focus { surface: None },
+        chora_kit::wm::focus::release(),
         Command::FocusNode {
             node: Some(LOOK.into()),
         },

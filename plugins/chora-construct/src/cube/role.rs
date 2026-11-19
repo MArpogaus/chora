@@ -125,15 +125,15 @@ mod tests {
     fn the_role_lists_the_faces_with_their_manager_and_health() {
         let mut host = super::super::tests::host_of(4);
         host.name = "XP".into();
-        host.program = "chora-xp".into();
+        host.program = "chora-foo".into();
         host.health[3] = Health::Starting;
         let listing = host.listing();
         assert_eq!(listing.faces.len(), 4);
         assert_eq!(listing.faces[0].output, "VIRTUAL-1");
-        assert_eq!(listing.faces[0].manager, "xp");
-        host.program = "chora-mc".into();
+        assert_eq!(listing.faces[0].manager, "foo");
+        host.program = "chora-bar".into();
         let listing = host.listing();
-        assert_eq!(listing.faces[0].manager, "mc", "the client of the setting");
+        assert_eq!(listing.faces[0].manager, "bar", "the client of the setting");
         assert_eq!(listing.faces[3].health, "starting");
         assert_eq!((listing.front, listing.turning), (0, false));
         assert_eq!(listing.mode, "use");

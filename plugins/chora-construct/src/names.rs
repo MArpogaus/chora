@@ -88,7 +88,7 @@ pub fn face_title(manager: &str, face: usize, faces: usize) -> String {
 }
 
 /// The client name of the window manager of a program: the program
-/// without the prefix `chora-`, as `chora-xp` connects as `xp`.
+/// without the prefix `chora-`, as `chora-foo` connects as `foo`.
 #[must_use]
 pub fn client_of(program: &str) -> &str {
     program.strip_prefix("chora-").unwrap_or(program)
@@ -155,10 +155,10 @@ mod tests {
     #[test]
     fn the_client_of_a_manager_is_its_program_without_chora() {
         assert_eq!(
-            client_of(program_of("/usr/bin/chora-mc --manage-windows")),
-            "mc"
+            client_of(program_of("/usr/bin/chora-bar --manage-windows")),
+            "bar"
         );
-        assert_eq!(client_of(program_of("chora-xp")), "xp");
+        assert_eq!(client_of(program_of("chora-foo")), "foo");
         assert_eq!(client_of("my-wm"), "my-wm");
     }
 
