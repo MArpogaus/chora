@@ -483,7 +483,11 @@ as its cap, `keysheet::caps` and `keysheet::chord`: `Esc`, `Return`, `Space`, `/
 between the plus and an arrow. A look names its own actions and may give one binding
 its own words (the `labels` of tiling), and draws the rows in its own costume: its
 groups, its caps, its order, as `Super+Alt+1-4` for the give keys that no file binds
-(`keysheet::give_row`). The act `the key list of LOOK speaks the keysheet` of
+(`keysheet::give_row`, which says "Give window to a look" in the words of `give`).
+The four looks take every row of a bound action from `keysheet::rows`: mc and tiling
+draw them as a list, construct groups them in its help, xp in its table of keys; the
+keys that no binding holds (the move modifier, `Alt+y`) stay rows of the look. The key
+list of tiling shows a binding only when it names `MOD`, and the media keys of the volume. The act `the key list of LOOK speaks the keysheet` of
 `tests/acts` and the cell of the help of xp read the drawn texts of each look against
 `tests/keysheet/words.table`.
 
