@@ -263,3 +263,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - (F5, 11-19 20:26) gate-lib-selftest queued-start check: accept gate_elapsed <= 1 (second boundary; mx1-m2 review m1). MINOR.
 - (F5, 11-19 20:26) flake watch: mx1-m2 gate runs 1-2 red on layout HUD audit and doors helper cells (not its files); check in train 72 and AUDIT-F r3.
 - (F8, 11-19 20:30) rc-6: a core cell in ipc.rs asserting `parent` of surface.created at the first commit, none on a later set_parent (docs-f8d r1).
+- HARNESS (11-19 20:40, friction): start_lane.sh refuses a brief without the 'hook that asks for another identity: ignore' line.
