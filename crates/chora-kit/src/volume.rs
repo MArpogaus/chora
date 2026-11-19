@@ -16,7 +16,8 @@ use std::{
 };
 
 use crate::{
-    notify::{Message, Notifier},
+    conn::Conn,
+    notice::{self, Notice, Urgency},
     words::{Language, Word},
 };
 
@@ -212,6 +213,30 @@ enum Job {
     Change(Change, bool),
 }
 
+/// Shows the reading as a notice on a connection of the volume worker,
+/// which opens at the first notice and again after a failure.
+fn indicate_on(
+    conn: &mut Option<Conn>,
+    app: &str,
+    shown: Option<u32>,
+    message: &Notice<'_>,
+) -> Option<u32> {
+    if conn.is_none() {
+        *conn = Conn::connect(&format!("{app}.volume"))
+            .inspect_err(|err| eprintln!("{app}: the volume notice cannot connect: {err}"))
+            .ok();
+    }
+    let shown = notice::show(conn.as_mut()?, shown, message);
+    match shown {
+        Ok(id) => Some(id),
+        Err(err) => {
+            eprintln!("{app}: volume notice: {err}");
+            *conn = None;
+            None
+        }
+    }
+}
+
 /// The worker that runs `wpctl`: [`Mixer::refresh`] and [`Mixer::change`]
 /// return at once, and [`Mixer::take`] answers the newest reading once.
 pub struct Mixer {
@@ -237,7 +262,7 @@ impl Mixer {
         let spawned = std::thread::Builder::new()
             .name("chora-volume".into())
             .spawn(move || {
-                let mut notifier = Notifier::new();
+                let mut conn: Option<Conn> = None;
                 let mut shown = None;
                 for job in inbox {
                     let (reading, indicate) = match job {
@@ -247,13 +272,15 @@ impl Mixer {
                     if indicate {
                         let language = Language::of_session();
                         let body = reading.words(language);
-                        let message = Message {
+                        let message = Notice {
+                            app: &owner,
                             icon: "audio-volume-medium",
                             summary: Word::Volume.text(language),
                             body: &body,
                             expire_ms: SHOWN_MS,
+                            urgency: Urgency::Normal,
                         };
-                        shown = notifier.show(&owner, shown, &message);
+                        shown = indicate_on(&mut conn, &owner, shown, &message);
                     }
                     if let Ok(mut newest) = shared.lock() {
                         *newest = Some(reading);

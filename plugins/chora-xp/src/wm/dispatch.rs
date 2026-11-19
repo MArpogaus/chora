@@ -26,7 +26,7 @@ impl Wm {
                 ..
             } => {
                 if let Some(note) = self.launches.window(token.as_deref()) {
-                    self.notifier.close(note);
+                    self.dismiss_notice(note);
                 }
                 return self.adopt(&surface, app_id, title.as_deref(), to.as_deref());
             }

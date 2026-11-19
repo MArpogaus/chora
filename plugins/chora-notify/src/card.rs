@@ -38,7 +38,8 @@ const LINE: i32 = 13;
 const CLOSE: i32 = 14;
 const MIN_WIDTH: i32 = 120;
 pub const GROUP: &str = "notify-card";
-const BODY: &str = "notify-card-body";
+/// The picture of the card: the node whose box is the card on screen.
+pub const BODY: &str = "notify-card-body";
 const CLOSE_ID: &str = "notify-card-close";
 
 /// The pictures that the card reads from the asset folder.

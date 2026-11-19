@@ -1,9 +1,9 @@
 //! The Control Panel, the Log Off and Turn Off dialogs, the fade and sound.
 
 use super::{
-    Bar, Choice, Command, Dialog, FADE, Instant, Message, Mode, NAME, OutputConfigure, OutputInfo,
-    Picture, PropsUpdate, Reading, Setting, ShaderEffect, Sound, Uniform, Value, Wallpaper, Wm,
-    apps, control, give, json, session, shared, sound, wallpaper, without_reserve,
+    Bar, Choice, Command, Dialog, FADE, Instant, Mode, NAME, OutputConfigure, OutputInfo, Picture,
+    PropsUpdate, Reading, Setting, ShaderEffect, Sound, Uniform, Value, Wallpaper, Wm, apps,
+    control, give, json, session, shared, sound, wallpaper, without_reserve,
 };
 
 impl Wm {
@@ -79,13 +79,7 @@ impl Wm {
             Setting::Volume(change) => self.change_volume(*change, false),
             Setting::Give(to) => {
                 if let Err(err) = give::focused(self, to) {
-                    let message = Message {
-                        icon: "",
-                        summary: "Keyboard Shortcuts",
-                        body: &err.message,
-                        expire_ms: -1,
-                    };
-                    self.notifier.show("chora-xp", None, &message);
+                    self.notice(None, "Keyboard Shortcuts", &err.message, -1);
                 }
                 Vec::new()
             }
@@ -242,12 +236,6 @@ impl Wm {
             return;
         }
         let body = format!("The file {script}.sh of the shared scripts is not installed.");
-        let message = Message {
-            icon: "",
-            summary: "Cannot do that",
-            body: &body,
-            expire_ms: 10_000,
-        };
-        self.notifier.show("chora-xp", None, &message);
+        self.notice(None, "Cannot do that", &body, 10_000);
     }
 }

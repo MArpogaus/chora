@@ -29,6 +29,7 @@ use chora_draw::{
 };
 use chora_kit::{
     icons::Icons,
+    notice as kit_notice,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
@@ -37,10 +38,11 @@ use chora_scene::{
     ipc::{ClientError, RpcError},
 };
 use clap::Parser;
-use serde_json::Value;
+use serde::Deserialize;
+use serde_json::{Value, json};
 
 use crate::{
-    bus::{Bus, Note, Reason, Request, Signal, StartError},
+    bus::{Bus, Ids, Note, Reason, Request, Signal, StartError, next_id},
     card::{Card, Queue, Values},
     config::Config,
 };
@@ -67,6 +69,40 @@ struct Args {
     config: Option<PathBuf>,
 }
 
+/// The parameters of `notify.show`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Show {
+    #[serde(default)]
+    #[allow(
+        dead_code,
+        reason = "the caller names itself; the card does not show it"
+    )]
+    app: String,
+    #[serde(default)]
+    replaces: Option<u32>,
+    #[serde(default)]
+    icon: String,
+    summary: String,
+    #[serde(default)]
+    body: String,
+    #[serde(default = "default_expire")]
+    expire_ms: i32,
+    #[serde(default)]
+    urgency: kit_notice::Urgency,
+}
+
+const fn default_expire() -> i32 {
+    -1
+}
+
+/// The parameters of `notify.close`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Close {
+    id: u32,
+}
+
 /// The plugin.
 struct Notify {
     rt: Runtime<()>,
@@ -74,7 +110,9 @@ struct Notify {
     theme: Theme,
     values: Values,
     icons: Icons,
-    bus: Bus,
+    bus: Option<Bus>,
+    ids: Ids,
+    pending: Vec<Request>,
     queue: Queue,
     card: Option<(Note, Card)>,
 }
@@ -104,11 +142,32 @@ impl Plugin for Notify {
         self.apply(commands)
     }
 
-    fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
-        Err(RpcError::new(
-            RpcError::METHOD_NOT_FOUND,
-            format!("{NAME} has no method {method}"),
-        ))
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        match method {
+            kit_notice::SHOW => {
+                let call: Show = runtime::params(params)?;
+                let id = next_id(&self.ids, call.replaces.unwrap_or(0));
+                let critical = call.urgency == kit_notice::Urgency::Critical;
+                self.pending.push(Request::Notify(Note {
+                    id,
+                    icon: call.icon,
+                    summary: call.summary,
+                    body: call.body,
+                    actions: Vec::new(),
+                    expire_ms: if critical { 0 } else { call.expire_ms },
+                }));
+                Ok(json!({"id": id}))
+            }
+            kit_notice::CLOSE => {
+                let call: Close = runtime::params(params)?;
+                self.pending.push(Request::Close(call.id));
+                Ok(Value::Null)
+            }
+            _ => Err(RpcError::new(
+                RpcError::METHOD_NOT_FOUND,
+                format!("{NAME} has no method {method}"),
+            )),
+        }
     }
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
@@ -135,7 +194,7 @@ impl Plugin for Notify {
 fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
     let shown: Vec<Value> = shown
         .map(
-            |note| serde_json::json!({"id": note.id, "summary": note.summary, "node": card::GROUP}),
+            |note| serde_json::json!({"id": note.id, "summary": note.summary, "body": note.body, "node": card::BODY}),
         )
         .into_iter()
         .collect();
@@ -159,16 +218,40 @@ impl Notify {
         values: Values,
         settings: settings::File<Config>,
     ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
-        let bus = match Bus::start() {
-            Ok(bus) => bus,
+        let ids = Ids::default();
+        let bus = match Bus::start(ids.clone()) {
+            Ok(bus) => Some(bus),
             Err(err @ StartError::Taken) => {
                 eprintln!("chora-notify: {err}, which stays its owner");
                 return Ok(None);
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                eprintln!("chora-notify: no session bus ({err}); only the plugins are served");
+                None
+            }
         };
         let mut methods = settings::File::<Config>::methods();
         methods.push(runtime::state_method());
+        methods.push(runtime::method(
+            kit_notice::SHOW,
+            "Shows a notice, or replaces the one named by `replaces`; answers its id.",
+            json!({
+                "app": {"type": "string"},
+                "replaces": {"type": ["integer", "null"]},
+                "icon": {"type": "string"},
+                "summary": {"type": "string"},
+                "body": {"type": "string"},
+                "expire_ms": {"type": "integer"},
+                "urgency": {"enum": ["normal", "critical"]},
+            }),
+            &["summary"],
+        ));
+        methods.push(runtime::method(
+            kit_notice::CLOSE,
+            "Dismisses the notice with an id.",
+            json!({"id": {"type": "integer"}}),
+            &["id"],
+        ));
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods)?;
         Ok(Some(Self {
             rt,
@@ -178,6 +261,8 @@ impl Notify {
             values,
             icons: Icons::new(icons::THEMES),
             bus,
+            ids,
+            pending: Vec::new(),
             card: None,
         }))
     }
@@ -208,7 +293,10 @@ impl Notify {
 
     /// Takes the calls of the clients and closes an expired card.
     fn step(&mut self, now: Instant) -> Result<(), ClientError> {
-        let requests: Vec<Request> = self.bus.requests.try_iter().collect();
+        let mut requests = std::mem::take(&mut self.pending);
+        if let Some(bus) = &self.bus {
+            requests.extend(bus.requests.try_iter());
+        }
         let mut signals = Vec::new();
         for request in requests {
             match request {
@@ -244,8 +332,10 @@ impl Notify {
     /// Sends the signals and shows the card of the current notification,
     /// if it changed.
     fn after(&mut self, signals: &[Signal]) -> Result<Vec<Command>, ClientError> {
-        for signal in signals {
-            self.bus.emit(signal);
+        if let Some(bus) = &self.bus {
+            for signal in signals {
+                bus.emit(signal);
+            }
         }
         let current = self.queue.current();
         if self.card.as_ref().map(|(note, _)| note) == current {
@@ -441,6 +531,7 @@ mod tests {
         let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
         let mut rt = Runtime::with(conn, NAME, Vec::new());
         rt.pin_accepts_injected(false);
+        let ids = Ids::default();
         let notify = Notify {
             rt,
             queue: Queue::new(settings.value),
@@ -448,7 +539,9 @@ mod tests {
             theme,
             values,
             icons: Icons::new(icons::THEMES),
-            bus: Bus::on(connection).expect("the name is free"),
+            bus: Some(Bus::on(connection, ids.clone()).expect("the name is free")),
+            ids,
+            pending: Vec::new(),
             card: None,
         };
         Some((notify, daemon))
@@ -485,6 +578,45 @@ mod tests {
         assert_eq!(notify.queue.current(), None, "the press of the person");
     }
 
+    /// A plugin shows a notice through the live API: the id comes at
+    /// once, the notice shows after the next step, a second call with the
+    /// id replaces it, a critical one waits for a click, and a close
+    /// removes it. `state.get` lists what shows.
+    #[test]
+    fn the_methods_of_the_live_api_show_replace_and_close() {
+        let Some((mut notify, _daemon)) = on_private_bus("methods") else {
+            return;
+        };
+        let call = |notify: &mut Notify, method: &str, params: Value| {
+            notify.method(method, params).expect("the call answers")
+        };
+        let summary = |notify: &Notify| notify.queue.current().map(|n| n.summary.clone());
+        let first = call(
+            &mut notify,
+            kit_notice::SHOW,
+            json!({"app": "probe", "summary": "One", "body": "text"}),
+        );
+        assert_eq!(first, json!({"id": 1}));
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(summary(&notify).as_deref(), Some("One"));
+        let again = call(
+            &mut notify,
+            kit_notice::SHOW,
+            json!({"summary": "Two", "replaces": 1, "urgency": "critical"}),
+        );
+        assert_eq!(again, json!({"id": 1}));
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(summary(&notify).as_deref(), Some("Two"));
+        assert_eq!(notify.queue.current().map(|n| n.expire_ms), Some(0));
+        call(&mut notify, kit_notice::CLOSE, json!({"id": 1}));
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(summary(&notify), None);
+        let err = notify
+            .method(kit_notice::SHOW, json!({"body": "no title"}))
+            .unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+    }
+
     fn note(id: u32, summary: &str) -> Note {
         Note {
             id,
@@ -512,7 +644,7 @@ mod tests {
         assert_eq!(
             shown,
             serde_json::json!({
-                "shown": [{"id": 7, "summary": "Battery low", "node": card::GROUP}],
+                "shown": [{"id": 7, "summary": "Battery low", "body": "text", "node": card::BODY}],
                 "accepted": [7, 8, 9], "waiting": [8], "closed": [9],
                 "texts": [], "busy": []})
         );

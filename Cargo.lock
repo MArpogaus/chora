@@ -605,7 +605,6 @@ dependencies = [
  "serde",
  "serde-saphyr",
  "serde_json",
- "zbus",
 ]
 
 [[package]]
