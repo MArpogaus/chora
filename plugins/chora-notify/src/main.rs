@@ -117,7 +117,7 @@ impl Plugin for Notify {
 
     fn state(&self) -> Option<Value> {
         let shown = self.card.as_ref().map(|(note, _)| note);
-        Some(state_value(shown, &self.theme.texts()))
+        Some(state_value(shown, &self.queue, &self.theme.texts()))
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -129,16 +129,24 @@ impl Plugin for Notify {
 }
 
 /// The answer of `state.get`: the notification on screen with the node
-/// of its card, the runs of text of the card, and nothing busy, since a
-/// card shows and goes without an animation.
-fn state_value(shown: Option<&Note>, texts: &[theme::NodeRun]) -> Value {
+/// of its card, the ids that the server accepted, that wait and that
+/// closed, the runs of text of the card, and nothing busy, since a card
+/// shows and goes without an animation.
+fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
     let shown: Vec<Value> = shown
         .map(
             |note| serde_json::json!({"id": note.id, "summary": note.summary, "node": card::GROUP}),
         )
         .into_iter()
         .collect();
-    serde_json::json!({"shown": shown, "texts": texts, "busy": []})
+    serde_json::json!({
+        "shown": shown,
+        "accepted": queue.accepted_ids(),
+        "waiting": queue.waiting_ids(),
+        "closed": queue.closed_ids(),
+        "texts": texts,
+        "busy": [],
+    })
 }
 
 impl Notify {
@@ -489,17 +497,28 @@ mod tests {
     }
 
     /// `state.get` lists the notification on screen with the node of its
-    /// card, the runs of text of the card, and nothing busy.
+    /// card, the ids that were accepted, that wait and that closed, the
+    /// runs of text of the card, and nothing busy.
     #[test]
     fn the_state_shows_the_card_on_screen() {
-        let shown = state_value(Some(&note(7, "Battery low")), &[]);
+        let new = || Queue::new(chora_kit::settings::parse(config::DEFAULT).unwrap());
+        let mut queue = new();
+        let now = Instant::now();
+        queue.push(note(7, "Battery low"), now);
+        queue.push(note(8, "Update"), now);
+        queue.push(note(9, "Mail"), now);
+        queue.close(9, Reason::Closed, now);
+        let shown = state_value(queue.current(), &queue, &[]);
         assert_eq!(
             shown,
-            serde_json::json!({"shown": [{"id": 7, "summary": "Battery low", "node": card::GROUP}],
+            serde_json::json!({
+                "shown": [{"id": 7, "summary": "Battery low", "node": card::GROUP}],
+                "accepted": [7, 8, 9], "waiting": [8], "closed": [9],
                 "texts": [], "busy": []})
         );
-        let empty = state_value(None, &[]);
+        let empty = state_value(None, &new(), &[]);
         assert_eq!(empty["shown"], serde_json::json!([]));
+        assert_eq!(empty["accepted"], serde_json::json!([]));
     }
 
     #[test]
