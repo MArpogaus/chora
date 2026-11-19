@@ -15,7 +15,7 @@ Non-move lines (git diff --color-moved=dimmed-zebra --color-moved-ws=allow-inden
 - `mod`, `use` lines, `pub use` re-exports in render.rs and input.rs, `//!` module docs, `impl State {`/`impl Scene {` wrappers.
 - `pub(super)` on moved private fns, consts and structs.
 - rustfmt re-wrapped signatures that got longer by `pub(super)` (tree.rs attach, hello.rs ipc_admin, query.rs lineage, textures.rs texture_scale).
-- 24 inline `//` comments (hook no-inline-comments rejects moved lines) became extra `///` lines on the enclosing fn, as in mv2-tiling: scene 7, picking 7, ipc 17 less overlap, see diff. No code changed.
+- 30 inline `//` comments (hook no-inline-comments rejects moved lines) became extra `///` lines on the enclosing fn, as in mv2-tiling: scene 6, picking 7, ipc 17 (counts of lines moved into docs). No code changed.
 - `use super::*` was replaced by the explicit lists clippy gave (wildcard_imports is pedantic).
 
 Gate (head 917df9d0): one full run stopped at pull ("192 px wide for 200", the F21 width read; PASS twice alone). All steps before it PASS. Then the skipped steps in one run: construct-hud FAIL once ("light-1280x720@1.5: no claim of the indicator", the known flake of mv1 r2), then construct-hud, pixels, mc-paths, mc-sofa, mc-handover, e2e all PASS in the next run (e2e PASS, so F27 did not hit here). Cargo test and clippy PASS in the gate.
