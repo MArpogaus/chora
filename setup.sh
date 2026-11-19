@@ -17,6 +17,13 @@ if [ "${#need_apt[@]}" -gt 0 ]; then
     for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
         [ -f "$f" ] && sed -i -E 's#http://(archive|security)\.ubuntu\.com#https://\1.ubuntu.com#g' "$f"
     done
+    # archive/security.ubuntu.com reset by the proxy (11-19 12:27); the Azure mirror carries both pockets.
+    if ! timeout 20 curl -fsS -o /dev/null https://archive.ubuntu.com/ubuntu/dists/noble/InRelease 2>/dev/null; then
+        log "archive.ubuntu.com unreachable: azure.archive.ubuntu.com"
+        for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            [ -f "$f" ] && sed -i -E 's#https?://(archive|security)\.ubuntu\.com#https://azure.archive.ubuntu.com#g' "$f"
+        done
+    fi
     apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
     timeout 600 apt-get "${apt_opts[@]}" update -qq || log "FAILED apt-get update"
     DEBIAN_FRONTEND=noninteractive timeout 1200 apt-get "${apt_opts[@]}" install -y -qq "${need_apt[@]}" >/dev/null ||
