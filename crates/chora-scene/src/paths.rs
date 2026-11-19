@@ -157,6 +157,18 @@ mod tests {
     }
 
     #[test]
+    fn a_dir_without_group_or_other_bits_is_accepted() {
+        let base = scratch("strict");
+        for mode in [0o700, 0o2700, 0o500, 0o1700] {
+            let dir = base.join(format!("m{mode:o}"));
+            fs::create_dir(&dir).expect("the dir");
+            fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).expect("the mode");
+            private_dir(&dir).unwrap_or_else(|e| panic!("mode {mode:04o} is private: {e}"));
+        }
+        fs::remove_dir_all(&base).expect("cleanup");
+    }
+
+    #[test]
     fn a_dir_with_group_or_other_bits_is_refused() {
         let base = scratch("bits");
         for mode in [0o770, 0o750, 0o707, 0o755] {
