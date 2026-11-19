@@ -92,9 +92,7 @@ use crate::{
     config::{Action, Config},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_ROWS, Look, Metrics, Voice},
-    methods::{
-        GlideTo, ManagerPane, MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods,
-    },
+    methods::{GlideTo, ManagerPane, MovePane, Named, OpenCube, ResizePane, exported_methods},
     panes::{PaneLook, configure, create, handed_over, mirror_size, shadow_w, update, vec3},
     space::{Lens, Pose},
 };

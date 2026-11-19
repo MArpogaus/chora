@@ -39,3 +39,17 @@ id = "act:the keys alias key opens the key list"
 look = "mc"
 match = "expected open ['mc-keys']"
 slice = "WM3"
+
+[[red]]
+finding = "wm7a-a1: hosted cube, construct and the xp of the faces both say they hold the focus while no window has it"
+id = "I3"
+look = "construct"
+match = "construct and xp each say they hold the focus"
+slice = "WM7b"
+
+[[red]]
+finding = "wm7a-a2: hosted cube, xp shows no pager on a face, so the pager cannot turn the cube (cube.turn {to})"
+id = "act:the pager turns the cube"
+look = "construct"
+match = "xp shows no pager on a face"
+slice = "WM7b"

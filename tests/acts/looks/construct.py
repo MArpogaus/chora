@@ -10,10 +10,10 @@ import signal
 import time
 
 from common import door_acts, window_acts
-from harness import LOOKS, Expect, key, program
+from harness import LOOKS, Expect, key, load_png_rows, program, wait
 
 MANAGER = "xp"
-FACE_PREFIXES = ("construct-cube", "construct-look")
+HINT_GONE = 4.0
 
 
 def run(s):
@@ -65,23 +65,48 @@ def drag(x0, x1, y=400):
     )
 
 
-def step_back(s):
-    """A cue: stand back from the front face."""
-    s.call("construct", "view.step_back")
+def plain(name):
+    """A cue: a key pressed and released without a modifier."""
+    return lambda s: s.inject(
+        [
+            {"key": {"key": name, "state": "pressed"}},
+            {"key": {"key": name, "state": "released"}},
+        ]
+    )
 
 
-def construct_shown(after):
-    """The visible nodes of the construct outside the cube and its look:
-    at 1:1 the front face alone shows."""
-    return [
-        f"the construct shows {n['id']} at 1:1"
-        for n in after.nodes
-        if n.get("owner") == "construct"
-        and n.get("visible") is not False
-        and (n.get("opacity") is None or n.get("opacity") > 0.0)
-        and n.get("kind") in ("text", "image", "rect", "surface", "shader")
-        and not str(n.get("id")).startswith(FACE_PREFIXES)
-    ]
+def one_to_one(s):
+    """A check: the screen shows the output of the front face pixel for
+    pixel, so no construct node is left over the face."""
+
+    def verify(after):
+        listing = after.cube or {}
+        if "faces" not in listing:
+            return [f"the cube role: {listing.get('error')}"]
+        face = listing["faces"][listing["front"]]["output"]
+        screen = s.outputs()[0]["name"]
+        rows = load_png_rows()
+        a = list(rows(s.capture(screen, 1280)[1]))
+        b = list(rows(s.capture(face, 1280)[1]))
+        if len(a) != len(b):
+            return [f"{screen} has {len(a)} rows and {face} {len(b)}"]
+        total = sum(len(r) // 4 for r in a)
+        differ = [
+            (i // 4, y)
+            for y, (ra, rb) in enumerate(zip(a, b, strict=True))
+            for i in range(0, min(len(ra), len(rb)), 4)
+            if max(abs(ra[i + k] - rb[i + k]) for k in range(3)) > 8
+        ]
+        if len(differ) > total // 1000:
+            xs, ys = [x for x, _ in differ], [y for _, y in differ]
+            box = [min(xs), min(ys), max(xs), max(ys)]
+            return [
+                f"{screen} differs from the face {face} in {len(differ)} of {total} "
+                f"pixels, within {box}"
+            ]
+        return []
+
+    return verify
 
 
 def pid_of(s, name):
@@ -100,7 +125,8 @@ def pid_of(s, name):
 
 def kill_construct_mid_turn(s):
     """A cue: a slow turn, construct killed in its middle, then started
-    again as the flavor's unit would; the xp of the cube ends with it."""
+    again as the flavor's unit would; the xp of the cube ends with it, and
+    its windows come back to a look after the reset of the core."""
     pid = pid_of(s, "chora-construct")
     s.call("construct", "cube.turn", {"by": 1, "ms": 3000})
     time.sleep(1.0)
@@ -110,6 +136,13 @@ def kill_construct_mid_turn(s):
     command, extra = LOOKS["construct"]
     s.spawn([str(s.bin / command[0]), *command[1:]], "construct-again.log", **extra)
     s.until(lambda: s.state("construct") is not None, 30, "construct again")
+    s.until(lambda: all_with_a_look(s), 30, "every window back with a look")
+
+
+def all_with_a_look(s):
+    """Whether a look of the session owns every toplevel."""
+    surfaces = s.core.call("scene.query", {"selector": "kind:surface"}) or []
+    return all(n.get("owner") in s.looks for n in surfaces)
 
 
 def cube_acts(s):
@@ -146,14 +179,19 @@ def cube_acts(s):
         expect=Expect(cube={"front": 2, "turning": False, "mode": "use"}),
     )
     s.act(
+        "the key of the step back stands back",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"front": 0, "turning": False, "mode": "navigate"}),
+    )
+    s.act(
         "a drag on a face turns the cube",
-        [step_back, drag(780, 80)],
+        [drag(780, 80)],
         expect=Expect(cube={"front": 1, "turning": False, "mode": "navigate"}),
     )
     s.act(
-        "back at 1:1 no construct surface is left",
-        [key("Return")],
-        expect=Expect(cube={"front": 1, "mode": "use"}, verify=construct_shown),
+        "back at 1:1 no construct surface is left once the hint went",
+        [plain("Return"), wait(HINT_GONE)],
+        expect=Expect(cube={"front": 1, "mode": "use"}, verify=one_to_one(s)),
     )
     s.act(
         "construct killed mid-turn loses no window",

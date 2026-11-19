@@ -1521,6 +1521,25 @@ in node meta under the keys `kept.1.*` and reads the keys of before.
 $ choractl state mc
 ```
 
+The cube role (D71): the client that hosts a cube of faces, today the
+construct, exports `cube.list`, `cube.turn` and `cube.pull`, and emits
+`<client>.cube` with `{front, turning}` whenever the front face or the
+turning changes. `cube.list` answers the faces in turn order, each with
+its virtual `output`, the client name of its window `manager` and its
+`health` (`starting`, `up`, `failed`), and the `front` face, `turning`
+and the `mode` (`use` at 1:1, else `navigate`). `cube.turn` takes either
+`by` quarter turns, positive to the right, or `to` a face, the short
+way, with an optional `ms` a quarter, and answers whether the cube took
+the turn. `cube.pull` takes the `surface` of a window on a face and makes
+it a pane in the space. A look reaches the cube through
+`chora_kit::cube`, which finds the exporter with `methods.list`, and
+never names the plugin:
+
+```console
+$ choractl call construct cube.list
+$ choractl call construct cube.turn '{"to": 2}'
+```
+
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
 `turn_to`, `window.move`, `windows.float` and `restart`, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and

@@ -1,10 +1,12 @@
 //! The `Plugin` implementation: events, methods and settings of the
 //! construct.
 
+use chora_kit::cube;
+
 use super::{
     ClientError, Command, Construct, Entry, Event, Give, GlideTo, Grab, LOOK, ManagerPane,
-    MovePane, Named, OpenCube, Plugin, Pose, ResizePane, RpcError, Runtime, Store, TurnCube, Value,
-    file, give, json, moved, runtime,
+    MovePane, Named, OpenCube, Plugin, Pose, ResizePane, RpcError, Runtime, Store, Value, file,
+    give, json, moved, runtime,
 };
 
 impl Plugin for Construct {
@@ -120,10 +122,15 @@ impl Plugin for Construct {
                 let OpenCube { faces } = runtime::params(params)?;
                 self.open_cube(faces).map_err(rejected)
             }
-            "cube.turn" => {
-                let TurnCube { by, ms } = runtime::params(params)?;
-                self.turn_cube(by, ms, false).map_err(rejected)?;
-                Ok(Value::Null)
+            cube::LIST => Ok(json!(self.cube_listing())),
+            cube::TURN => {
+                let turn: cube::Turn = runtime::params(params)?;
+                Ok(json!(self.turn_method(turn)?))
+            }
+            cube::PULL => {
+                let cube::Pull { surface } = runtime::params(params)?;
+                let pane = self.pull(&surface).map_err(rejected)?;
+                Ok(json!({"pane": pane}))
             }
             "view.step_back" => self.mode_method(chora_kit::modes::Act::StepBack),
             "view.step_in" => self.mode_method(chora_kit::modes::Act::StepIn),

@@ -83,6 +83,35 @@ impl Construct {
     /// Flies to the pane of a window, or takes the window of another
     /// client as a pane at its own size first (F30). Answers the pane.
     pub(crate) fn show(&mut self, entry: &Entry) -> Result<String, ClientError> {
+        let i = self.pane_of(entry)?;
+        if self.flown.is_some() {
+            self.fly_out()?;
+        }
+        self.fly_in(i)?;
+        Ok(self.panes[i].name.clone())
+    }
+
+    /// `cube.pull`: the window `surface` of the window manager of the cube
+    /// leaves its face and becomes a pane in the space, where the camera
+    /// stays; it goes back to the manager when the pane or the construct
+    /// goes.
+    pub(crate) fn pull(&mut self, surface: &str) -> Result<String, ClientError> {
+        let refuse = |m: String| ClientError::Rpc(RpcError::new(RpcError::REJECTED, m));
+        let manager = (self.cube.as_ref())
+            .map(crate::cube::Host::manager)
+            .ok_or_else(|| refuse("no cube is open; cube.open first".into()))?;
+        let windows = self.windows()?;
+        let entry = (windows.iter())
+            .find(|e| e.surface == surface && e.pane == "none")
+            .filter(|e| e.owner.as_deref() == Some(manager.as_str()))
+            .ok_or_else(|| refuse(format!("no window {surface:?} on a face of the cube")))?;
+        let i = self.pane_of(entry)?;
+        Ok(self.panes[i].name.clone())
+    }
+
+    /// The pane of the window of `entry`; a window without one becomes a
+    /// pane first.
+    fn pane_of(&mut self, entry: &Entry) -> Result<usize, ClientError> {
         if entry.pane == "none" {
             let file = PaneFile {
                 kind: Kind::Program,
@@ -102,17 +131,14 @@ impl Construct {
             };
             self.adopt(&entry.surface, &entry.name, Some(&file), hold, true)?;
         }
-        let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(&entry.surface)) else {
-            return Err(ClientError::Rpc(RpcError::new(
-                RpcError::REJECTED,
-                format!("the window {} did not become a pane", entry.name),
-            )));
-        };
-        if self.flown.is_some() {
-            self.fly_out()?;
-        }
-        self.fly_in(i)?;
-        Ok(self.panes[i].name.clone())
+        (self.panes.iter())
+            .position(|p| p.window() == Some(&entry.surface))
+            .ok_or_else(|| {
+                ClientError::Rpc(RpcError::new(
+                    RpcError::REJECTED,
+                    format!("the window {} did not become a pane", entry.name),
+                ))
+            })
     }
 
     pub(crate) fn open_list(&mut self) -> Result<(), ClientError> {
