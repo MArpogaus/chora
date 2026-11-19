@@ -43,3 +43,48 @@ tests/merge-gate.sh step gate-lib, tests/gate-tiling-audit.sh); pre-commit hooks
 The merge of the session branch must be merged again before the gate (brief).
 
 Commits on claude/flakes-g: 2513bee7 (merge), 8d555fc5 (red), f0c9e640, c227d433.
+
+# flakes-g r3 (F5, F26, F28, FF1), 11-19
+
+Lane: cloud, opus, branch claude/flakes-g from c227d433; setup.sh ran (all present), `cargo check -p chora`
+ok, foot/fuzzel 1.11.1/waybar present. Merged origin/claude/autonomous-dev-session-3w-i33pg7 at start
+(9bc22c94) and before item 1 with origin/claude/cubesplit (74157504, a463d753; edits on the moved
+cube/construct.rs). Host: 4 CPUs, 15 G. Load: tests/under-load.sh, 4 busy loops unless noted.
+
+## Fixed and proven
+
+| item | cause (file:line) | red | fix | proof |
+|---|---|---|---|---|
+| 3 F28 chat-keys "text typed before the pick did not reach the picked helper" | plugins/chora-assistant/src/chat.rs Session::said, List arm `(Some(index), _) => (Some(index), None)` (r3 base, ~:1016): when the field reads the keys "2" and Enter before the host's `pick_first` line, the host takes Say("moin") and Say("2") in one poll (field polled every 100 ms, chat/host.rs:69); a number alone dropped the held text, the pick cleared the field and sent nothing. services/voice/chat/src/session.rs:182 pick_first also restores only into an empty draft | eb5a23c7 cell a_number_that_comes_before_the_text_is_given_back_sends_the_text (both Says in one poll); red: no agent_say of "moin" | 28df6308 a number alone is a pick, as a click is: the held text goes to the picked helper once, by the chat path of said | cargo test -p chora-assistant 242/242; gate chat-keys 10/10 under load after. Gate-level red not reached: before the fix 10/10 under 4 loops and 10/10 under 12 loops (the race needs the field more than 1 s behind its keys) |
+| 4 FF1 rw-2 short writes untested | crates/chora/src/words.rs:101 write_all: the F17 cell blocks SIGALRM on the writer, so its write is never cut | test only | 8d953291 cell a_backtrace_cut_by_the_alarm_of_its_own_thread_arrives_whole: SIGALRM sent to the writing thread (pthread_kill; a process alarm goes to the harness main thread), reader 300 ms late, asks for thread_start | mutation (write_all stops after one write): new cell fails "cut after 61691 bytes", the old cell passes; real code 10/10 under load |
+| 1 cube.open over 300 ms | plugins/chora-construct/src/cube/construct.rs add_outputs: one output.add round trip per face, each waiting for a frame of the core | none under load here: 4 runs read 70-116 ms over construct.list (flakes-f's 414 ms not seen) | f075a20d kit Conn::call_all (chora_scene Client::call_all) pipelines calls, the core handles all lines of one wake (crates/chora/src/ipc.rs ipc_readable); add_outputs sends the four output.add in one round trip; docs/api.md IPC methods; kit cell call_all_answers_each_call_in_its_place | cube gate 10/10 under load, 65-141 ms (no measurable gain on this host) |
+
+rw-1 and rw-4 were done in r1 (above).
+
+## Found, not fixed
+
+- 5 pull (gate-construct-pull.sh:163, 169 px for 200): not reproduced. 6/6 pass under 4 busy loops (67-73 s,
+  260 px each). With the gate at nice 19 under 4 loops 1/3 pass; the 2 fails are another cell ("the
+  fly-in ended before the key", the pane fly check), so too much load to count. Lead, unproven: the query
+  rect of a meshed pane is the projected box of the mesh (crates/chora/src/ipc.rs:1302), and
+  crates/chora-kit/src/wobbly.rs:228 caps simulated time at 100 ms per advance, so when the construct ticks
+  slower than every 100 ms (wm5 r3 ran clippy beside the gate) the wobble after the drop settles slower
+  than wall time and 1 s later the mesh still has depth (a narrower box). A red would be a wobbly cell: a
+  released grid advanced every 400 ms for 1 s vs every 16 ms must reach the same state.
+- 2 F26 doors "missing": not reached in this round (budget went to 1, 3, 5); no reproducer. Leads
+  unchanged (train 22 dump: click on a hit node over mc's surface s1; testwatch: different cells each time,
+  xp helper-key/helper-door, mc screenshot/volume, tiling keys-alias). The merge gate run below includes doors.
+
+## Merge gate on the head
+
+`tests/merge-gate.sh --jobs 3` on f075a20d (/tmp/merge-gate.azo2Xe): red-first, pre-commit, gate-lib, build
+PASS; test FAIL: chora-xp wm::state::tests::a_give_shuts_the_start_menu and
+a_give_with_the_drag_shuts_the_start_menu ("the give: xp has no window s1", plugins/chora-xp/src/wm/state.rs:287).
+Not this lane: both fail 3/3 alone, and fail the same on origin/claude/cubesplit and on its base fa457b29
+(the cubesplit lane's own merge of claude/wm7b and claude/wm3, not yet on the session branch); the session
+head 05878d2a has neither test. The brief's merge of cubesplit brought them in. No gate step after test ran,
+so doors (F26) did not run either. Next: the owner of the wm7b merge fixes the two xp cells (or the
+merge order puts wm7b's fix first), then this head gets the gate again.
+
+Commits on claude/flakes-g (r3): 9bc22c94 (merge), 8d953291 (rw-2 test), eb5a23c7 (F28 red), 28df6308 (F28 fix),
+74157504, a463d753 (merges, cubesplit), f075a20d (item 1).
