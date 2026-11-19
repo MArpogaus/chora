@@ -829,12 +829,12 @@ impl Mc {
                     title,
                     lines,
                 } = runtime::params(params)?;
-                self.set_client_text(&content, title, |_| lines)?;
+                self.set_text(&content, title, |_| lines)?;
                 Ok(Value::Null)
             }
             "content.add" => {
                 let AddLine { content, line } = runtime::params(params)?;
-                self.set_client_text(&content, None, |mut lines| {
+                self.set_text(&content, None, |mut lines| {
                     lines.push(line);
                     let extra = lines.len().saturating_sub(MAX_LINES);
                     lines.split_off(extra)
