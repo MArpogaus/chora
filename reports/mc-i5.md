@@ -17,3 +17,9 @@ Checks:
 - `tests/merge-gate.sh --jobs 3`: stopped at `xp` ("timeout: said Notify Starting slow-manager", a 3-job load flake of the xp notify cell, nothing near mc); `xp` reran alone with `--only xp`: PASS (87 s). Steps before it passed in that run (red-first .. xp-fields). The steps it had not reached ran with `--only` (matrix, hud, layout, tiling-audit, chat-keys); there `acts` failed on the selftest above (fixed by commit 3); then red-first, pre-commit, tiling-look, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-handover, e2e all PASS on f7a69761. No step red on the final head; the gate was not one single run (the xp flake and the selftest finding).
 
 Open: none for I5. The mc row of known-red.toml is gone; the cube row (co-21, I13) stays.
+
+## Review r1 (PM, 18:14; builder sonnet; f7a69761, 3 files +76 -24)
+Checks: red f1a52402 then fix 1a5d744b (lane: fails on its parent, row 2 ends 616 over 588); the fix is one `room()` shared by the item and its probe (region.rs), no other behaviour; the test asserts each row ends above the next and that at least one row wraps (no empty pass); known-red mc I5 row removed with the cause named.
+- MINOR rm-1: f7a69761 deletes test_a_second_overprint_of_the_mc_key_column_blocks, the only selftest that a known-red row blocks a second, different overlap (harness.judge). Rewrite it on a synthetic row instead of losing it (next harness round).
+- MINOR rm-2: the gate was not one run (xp flake "said Notify Starting slow-manager", then --only steps); the train's gate is the full run. The xp flake goes to FLAKE-SERIES evidence.
+Verdict (computed): no open MAJOR -> MERGE-OK f7a69761. Train 69 (conflict risk with construct-red in tests/test_acts.py and known-red.toml: the train's).
