@@ -27,6 +27,8 @@ The decision records are in [docs/decisions.md](docs/decisions.md#decisions-of-t
 
 A count only falls: `tools/cut-check` prints "lower max" when the real count is lower. Write the red test of the shared module first (D96 `FakeCore`), then the move, then the row.
 
+The cut gate (D103) runs `tools/cut-check` in `ci-check`, the merge gate and CI: a plugin or service may not depend on another one, and a row of `tools/copies.toml` at `max = 0` blocks a copy that comes back. A merge that moves code into the kit lowers the row in the same commit. Details are further down, next to the size ratchet.
+
 ## Hooks
 
 Install the hooks once in every fresh clone:

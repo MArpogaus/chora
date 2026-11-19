@@ -13,13 +13,6 @@ match = "expected open []"
 slice = "WM3"
 
 [[red]]
-finding = "net2-a2: mc gives the keyboard to its page node after its window goes, and holds no focus by the net1 review rule"
-id = "I3"
-look = "mc"
-match = "no look says it holds the focus"
-slice = "WM2"
-
-[[red]]
 finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
 id = "I4"
 look = "mc"

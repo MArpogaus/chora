@@ -100,11 +100,17 @@ fn the_shared_scripts_run_lock_power_and_screenshot() {
     assert_eq!(System::Chat.script(), None);
 }
 
-/// The four spellings of construct before the port load for one release:
-/// `help` is the key list, the three volume keys are `volume: ...`.
+/// The spellings before the ports load for one release: `help` of the
+/// construct and `show_keys` of tiling are the key list, the three volume
+/// keys of the construct are `volume: ...`.
 #[test]
 fn help_is_the_old_spelling_of_keys() {
     assert_eq!(one("help"), Action::System(System::Keys));
+}
+
+#[test]
+fn show_keys_is_the_old_spelling_of_keys() {
+    assert_eq!(one("show_keys"), Action::System(System::Keys));
 }
 
 #[test]

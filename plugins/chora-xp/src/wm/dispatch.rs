@@ -1,5 +1,7 @@
 //! The event loop methods: reading events, handling them, answering calls and the periodic tick.
 
+use chora_kit::wm::Created;
+
 use super::{
     Bar, Call, ClientError, Command, Duration, Event, Helper, Instant, Language, MENUS, Panel,
     Reading, RpcError, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar, volume,
@@ -16,28 +18,14 @@ impl Wm {
     #[allow(clippy::too_many_lines)]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         self.voiced.hear(&event);
+        if let Some(created) = Created::of(&event) {
+            return self.window_created(&created);
+        }
         let commands = match event {
-            Event::SurfaceCreated {
-                surface,
-                app_id,
-                title,
-                to,
-                token,
-                ..
-            } => {
-                if let Some(note) = self.launches.window(token.as_deref()) {
-                    self.dismiss_notice(note);
-                }
-                return self.adopt(&surface, app_id, title.as_deref(), to.as_deref());
-            }
-            Event::SurfaceDetached { surface } => {
-                let commands = self.forget(&surface);
-                self.apply(commands)?;
-                return self.adopt(&surface, None, None, None);
-            }
-            Event::SurfaceDestroyed { surface } => {
-                self.core_focus.take_if(|s| *s == surface);
-                self.forget(&surface)
+            Event::SurfaceDetached { .. } => return self.window_left(&event),
+            Event::SurfaceDestroyed { ref surface } => {
+                self.core_focus.take_if(|s| s == surface);
+                return self.window_left(&event);
             }
             Event::SurfaceChanged {
                 surface,

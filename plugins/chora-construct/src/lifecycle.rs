@@ -294,6 +294,22 @@ mod tests {
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
+    /// A window that the core reserved for another window manager is
+    /// no pane, even right after the construct launched a program: only
+    /// a window that the book claimed is the construct's, so that its
+    /// phases, its origin and its give agree with its panes (rw-1).
+    #[test]
+    fn a_launch_adopts_no_window_reserved_for_another_manager() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "reserved");
+        construct.launched = Some(std::time::Instant::now());
+        surface(&core.model(), "s1");
+        construct.event(created("s1", Some("mc"))).unwrap();
+        assert!(!Driven(&mut construct).has("s1"));
+        assert_eq!(owner(&core.model(), "s1"), None);
+        assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
+    }
+
     /// The views and the faces of the cube stay as they are while
     /// windows come and go: a window that closes takes only its own pane.
     #[test]

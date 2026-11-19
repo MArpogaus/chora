@@ -131,6 +131,11 @@ impl Host for Bare {
         Ok(())
     }
 
+    fn run(&mut self, command: &str) -> Result<(), String> {
+        self.0.done.push(format!("run {command}"));
+        Ok(())
+    }
+
     fn failed(&mut self, failure: Failure) -> Result<(), String> {
         self.0.failures.push(failure);
         Ok(())
@@ -191,6 +196,17 @@ fn a_command_that_does_not_start_is_a_failure() {
         look.failures,
         [Failure::NotStarted("chora-no-such-program".into())]
     );
+}
+
+/// A look that starts commands its own way, as tiling does without the
+/// wait for `choractl`, gets the command and does not start it here.
+#[test]
+fn a_look_takes_over_the_start_of_a_command() {
+    let core = FakeCore::start();
+    let mut look = Bare(Look::new(&core));
+    perform(&mut look, &System::Run("foot".into())).unwrap();
+    assert_eq!(look.0.done, ["run foot"]);
+    assert_eq!(look.0.failures, Vec::<Failure>::new());
 }
 
 /// Without a window, the default give is a refusal that names the target.

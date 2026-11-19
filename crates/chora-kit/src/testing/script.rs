@@ -32,6 +32,7 @@ pub trait Subject {
 pub struct Script<'a> {
     core: &'a FakeCore,
     name: &'a str,
+    other: &'a str,
     releases: bool,
 }
 
@@ -43,8 +44,17 @@ impl<'a> Script<'a> {
         Self {
             core,
             name,
+            other: "xp",
             releases: false,
         }
+    }
+
+    /// The window manager that the script reserves windows for and gives
+    /// windows to; `xp` unless the look under test is xp.
+    #[must_use]
+    pub const fn beside(mut self, other: &'a str) -> Self {
+        self.other = other;
+        self
     }
 
     /// The look lets every window go when the last output that it
@@ -89,8 +99,12 @@ impl<'a> Script<'a> {
         assert_eq!(phases(&model, name).len(), 1, "nothing opened");
 
         surface(&model, "s3");
-        look.hear(created("s3", Some("xp")));
-        assert!(!look.has("s3"), "a window reserved for xp is not claimed");
+        look.hear(created("s3", Some(self.other)));
+        assert!(
+            !look.has("s3"),
+            "a window reserved for {} is not claimed",
+            self.other
+        );
     }
 
     fn detach_and_destroy(&self, look: &mut impl Subject) {
@@ -155,24 +169,26 @@ impl<'a> Script<'a> {
         look.hear(created("s5", Some(name)));
         assert!(look.has("s5"), "a window given in is the look's");
 
-        assert!(!look.give("s5", "xp"), "xp holds no claim yet");
+        let other = self.other;
+        assert!(!look.give("s5", other), "{other} holds no claim yet");
         assert!(look.has("s5"), "a refused give keeps the window");
-        let mut xp = self.core.connect("xp");
-        xp.apply(vec![Command::Create {
-            id: "xp".into(),
-            kind: NodeKind::Group,
-            parent: ROOT.into(),
-            props: PropsUpdate {
-                claim: Some(Some([0.0, 0.0, 800.0, 600.0])),
-                ..PropsUpdate::default()
-            },
-        }])
-        .unwrap();
+        let mut receiver = self.core.connect(other);
+        receiver
+            .apply(vec![Command::Create {
+                id: other.into(),
+                kind: NodeKind::Group,
+                parent: ROOT.into(),
+                props: PropsUpdate {
+                    claim: Some(Some([0.0, 0.0, 800.0, 600.0])),
+                    ..PropsUpdate::default()
+                },
+            }])
+            .unwrap();
 
-        assert!(look.give("s5", "xp"));
+        assert!(look.give("s5", other));
         assert!(!look.has("s5"));
         let to = model.lock().unwrap().scene.node("s5").unwrap().to.clone();
-        assert_eq!(to.as_deref(), Some("xp"), "reserved for the receiver");
+        assert_eq!(to.as_deref(), Some(other), "reserved for the receiver");
         assert_eq!(
             phases(&model, name).last(),
             Some(&("s5".into(), "given".into()))
