@@ -489,6 +489,58 @@ mod tests {
         assert!(words.contains("words::tests::overflow"), "{words}");
     }
 
+    /// A backtrace that fills the pipe of stderr while its reader is
+    /// slow, as the journal or a test harness is under load, waits for
+    /// the reader and is not stuck: the alarm, here on another thread,
+    /// lets it go on, and the backtrace arrives whole (F17).
+    #[test]
+    fn a_backtrace_into_a_full_pipe_waits_for_its_reader() {
+        use std::{io::Read as _, os::unix::process::ExitStatusExt as _};
+        const CHILD: &str = "CHORA_WORDS_LATE_READER";
+        if std::env::var_os(CHILD).is_some() {
+            GIVE_UP_AFTER.store(5, Ordering::Relaxed);
+            install();
+            let faulting = std::thread::spawn(|| {
+                // SAFETY: the set is a live value; the call only masks a signal.
+                #[allow(unsafe_code, reason = "the alarm goes to another thread")]
+                unsafe {
+                    let mut set: libc::sigset_t = std::mem::zeroed();
+                    libc::sigemptyset(&raw mut set);
+                    libc::sigaddset(&raw mut set, libc::SIGALRM);
+                    libc::pthread_sigmask(libc::SIG_BLOCK, &raw const set, std::ptr::null_mut());
+                }
+                roomy_signal_stack();
+                overflow(0)
+            });
+            let _ = faulting.join();
+            return;
+        }
+        let test = "words::tests::a_backtrace_into_a_full_pipe_waits_for_its_reader";
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", test, "--nocapture", "--test-threads=1"])
+            .env(CHILD, "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let mut words = String::new();
+        let mut stderr = child.stderr.take().unwrap();
+        let _ = stderr.read_to_string(&mut words);
+        let status = child.wait().unwrap();
+        assert!(
+            !words.contains("is stuck"),
+            "{}",
+            &words[words.len().saturating_sub(300)..]
+        );
+        assert_eq!(status.signal(), Some(libc::SIGSEGV));
+        assert!(
+            words.contains("thread_start"),
+            "the backtrace is cut after {} bytes",
+            words.len()
+        );
+    }
+
     /// A handler that sleeps, as one that waits for the lock of malloc
     /// does, is stuck: the alarm says so, names the state of `/proc`
     /// that it found (F17: a cut backtrace then names its cause), and
