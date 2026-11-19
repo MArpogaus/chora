@@ -54,6 +54,8 @@ pub struct Window {
     pub fullscreen: bool,
     /// Whether it floats.
     pub floating: bool,
+    /// Whether the person holds it, as in a drag: it lies on top.
+    pub held: bool,
     /// Its place in the stacking order, bottom first.
     pub z: Option<usize>,
 }

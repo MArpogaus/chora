@@ -10,6 +10,17 @@ use serde_json::{Map, Value, json};
 use crate::{NAME, Tiling, keys};
 
 impl Tiling {
+    /// What still moves.
+    fn busy(&self) -> Vec<String> {
+        let running = [
+            (self.effects.animating(), "effects"),
+            (self.chip_until.is_some(), "chip"),
+        ];
+        (running.into_iter().filter(|(on, _)| *on))
+            .map(|(_, name)| name.to_owned())
+            .collect()
+    }
+
     /// The windows bottom first, the tags that show, the focus, the key
     /// list while it is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
@@ -32,6 +43,7 @@ impl Tiling {
                     maximized: w.maximized == (true, true),
                     fullscreen: w.fullscreen,
                     floating: w.floating,
+                    held: self.dragged.as_ref().is_some_and(|(id, _)| *id == w.id),
                     z: z(&w.id),
                 }
             })
@@ -55,13 +67,6 @@ impl Tiling {
         }))
         .into_iter()
         .collect();
-        let running = [
-            (self.effects.animating(), "effects"),
-            (self.chip_until.is_some(), "chip"),
-        ];
-        let busy = (running.into_iter().filter(|(on, _)| *on))
-            .map(|(_, name)| name.to_owned())
-            .collect();
         let mut more = Map::new();
         more.insert("helper".into(), json!(self.voiced.word()));
         State {
@@ -69,7 +74,7 @@ impl Tiling {
             desks,
             focus,
             open,
-            busy,
+            busy: self.busy(),
             more,
         }
         .value()
