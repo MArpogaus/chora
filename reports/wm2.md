@@ -80,3 +80,41 @@ tiling and mc name a window of theirs that the core focused even when they did n
 5. Move tiling's ShownFocus cells (main.rs:1617, 1659) into crates/chora-kit/tests/wm_focus.rs. S.
 6. `key_place` scans all nodes per key press (place.rs, claimant_at); cache the place per focus/pointer change. S.
 Cut: no new breach (plugins use chora-kit and chora-scene only).
+
+## Review r1
+2026-11-19 UTC. Lane: cloud, opus, read-only on code; claude/wm2 head 751dfbcb, base dc4bc46d. Brief: briefs/review-wm2-r1.md.
+Verdict: **FIX** (1 MAJOR open). Counts: BLOCK 0, MAJOR 1, MINOR 2, NIT 2.
+
+Checks run (head 751dfbcb):
+1) key place: `cargo test -p chora input::` 46 pass. Safety layer (VT, Ctrl+Alt+BackSpace/Escape/i) is decided in
+   `press_action` before `grab_action`; the injected path is unchanged. A key a look binds reaches the look (I11 cell);
+   a hovered manager's grab is held back and swallowed, no raw key to a hovered client. Rule matches docs/api.md.
+2) red first: 93e50bfd is the oldest of the 9 commits and holds only cells + kit skeleton; cells not re-run at 93e50bfd
+   (two extra core builds, not cheap); the report's red evidence is consistent with the diff.
+3) `kit::wm::focus` (Focus, Holder, Policy) is generic and 167 lines; ShownFocus gone (row max 0 holds); mc and tiling
+   go through kit. `cargo test -p chora-kit --features testing` all pass (223 lib + integration), chora-mc 136,
+   chora-tiling 153.
+4) visible behaviour: see rw-1 (a click does not always bring the keys back).
+5) `tools/cut-check` ok, copies rows exact (no grown/lower report); `tools/size-ratchet` ok; region.rs 2520 lines
+   (2521 at base), ratchet 2270.
+
+Findings:
+- rw-1, MAJOR, plugins/chora-mc/src/manage.rs:204, a click on mc's own window after another look took the keyboard
+  sends no focus (compares `focus.surface`, ignores `lost`); with the new key place (767249d7) mc's bindings then stay
+  swallowed and typing stays in the other pane, so "click does" (D55, docs/api.md "until one of its windows takes it
+  back") fails for mc in panes; before, hover at least gave mc its grabs. Confirmed by a probe cell (click s1,
+  `focus.changed` other, click s1: no Focus sent). Fix: call `self.focus.take()` and send when
+  `self.focus.sends(Some(node))`, with that cell.
+- rw-2, MINOR, plugins/chora-mc/src/main.rs:1017, `take_free_keyboard` sends `Command::FocusNode` around kit `Focus`,
+  so at start and after a panel rebuilt the page the page node has the keyboard but `state.get` says holder null (the
+  I3 mc cell covers only `keyboard_to`). Fix: send `self.focus.to_node(Some(page_id(&name)))`.
+- rw-3, MINOR, crates/chora/src/input/place.rs:54, `key_place` takes the window owner from `focus_wanted` and ignores
+  `layer_focus`: while a clicked layer surface (panel search field) has the keyboard, the place is the owner of the
+  window that had it before, not the pointer (old) or nobody. Fix: skip the window owner while `state.layer_focus` is
+  set, with a core cell.
+- rw-4, NIT, plugins/chora-tiling/src/windows.rs:185, `forget_window` has two stacked doc paragraphs; the old one
+  ("when the window comes back, tiling sends it again") no longer describes the policy. Fix: merge into one.
+- rw-5, NIT, crates/chora-kit/src/wm/focus.rs:40, `surface`/`sent`/`lost` are pub and tiling (windows.rs:195) and mc
+  (show.rs:159) write them directly, past `node`/`core`. Fix: a `Focus` method for "forgot, next is X" and private
+  fields (fits proposal 3).
+Known, not findings: I3 for xp open (core proposal 1); no mc book on this base.
