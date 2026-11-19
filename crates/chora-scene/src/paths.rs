@@ -161,9 +161,9 @@ pub fn check_runtime_home(dir: &Path) -> io::Result<()> {
 
 fn check_runtime_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
     let refuse = |reason: &str| {
+        let path = dir.display();
         Err(io::Error::other(format!(
-            "{} is no safe runtime directory: {reason}",
-            dir.display()
+            "{path} is no safe runtime directory: {reason}; chmod 0700 {path}, or set {RUNTIME_ENV} to a dir of yours"
         )))
     };
     if !meta.is_dir() {
@@ -203,6 +203,7 @@ fn check_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
             dir.display()
         )))
     };
+    let refuse_mode = |reason: &str| refuse(&format!("{reason}; chmod 0700 {}", dir.display()));
     if meta.file_type().is_symlink() {
         return refuse("it is a symlink");
     }
@@ -214,12 +215,12 @@ fn check_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
     }
     let mode = meta.mode() & 0o7777;
     if mode & OTHERS != 0 {
-        return refuse(&format!(
+        return refuse_mode(&format!(
             "its mode is {mode:04o}, it has group or other bits"
         ));
     }
     if mode & OWNER != OWNER {
-        return refuse(&format!(
+        return refuse_mode(&format!(
             "its mode is {mode:04o}, its owner cannot write to it"
         ));
     }

@@ -4,7 +4,9 @@
 
 - **security**: refuse an XDG_RUNTIME_DIR that another user owns or that
 group or other can write: chora opens no socket and no plugin writes
-shaders, icon copies or caches there; the log names the path and the mode
+shaders, icon copies or caches there; chora prints the reason and the
+remedy (chmod 0700 PATH, or set XDG_RUNTIME_DIR to a dir of yours) and
+the log names the path and the mode
 - **security**: make the shader, icon-copy and block cache directories
 private (mode 0700, checked) like the socket directory
 - **paths**: accept a private directory with setgid (02700); refuse any
