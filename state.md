@@ -34,7 +34,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | block-v-r2.md (RC1, mc-38) | sonnet medium | session_016iS3kQmymuHisQ92V8khSe |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r1.md (F5) | sonnet high | session_016iS3kPTiu5i9QdTant26v4 |
-| ti-majors-r1.md (RC, ti-22-24) | sonnet high | starting |
+| ti-majors-r1.md (RC, ti-22-24) | sonnet high | session_016iS3kN6CpA9ijuBr2jMwMF |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 76 green 23:06 (ig-fix, kit-report, minors-2, flake-i, kit-minors). 77 running: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), temp-rest 2e8e67f3, f24-rest, nits-3 0b5f8c34, flake-k 9dde8523.
