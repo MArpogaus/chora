@@ -387,6 +387,30 @@ mod keys {
         assert!(wm.switcher.is_none());
     }
 
+    /// A client that holds Alt+Escape refuses the grab until it has given
+    /// the key up. xp does not sleep and ask again: the loop stays free,
+    /// and the grab is made again on the event with which the holder says
+    /// the key is free (W7).
+    #[test]
+    fn alt_escape_is_grabbed_when_the_holder_says_it_is_free() {
+        let core = chora_kit::testing::FakeCore::start();
+        let mut wm = wm_on_kit_core(&core, "alt-escape-held");
+        own_window(&mut wm, "s1");
+        own_window(&mut wm, "s2");
+        core.refuse_next("input.grab");
+        wm.key("Alt+Tab");
+        assert!(wm.switcher.is_some(), "the switcher shows");
+        assert!(
+            wm.switch_escape.is_none(),
+            "the holder has the key, and xp does not wait for it by sleeping"
+        );
+        let free = json!({"event": "construct.escape_free", "client": "construct", "data": {}});
+        wm.event(serde_json::from_value(free).unwrap()).unwrap();
+        assert!(wm.switch_escape.is_some(), "the event made the grab");
+        wm.key("Alt+Escape");
+        assert!(wm.switch_escape.is_none(), "and Alt+Escape is given back");
+    }
+
     /// Alt+Escape cancels the switch: its key is grabbed while the
     /// switcher shows, and the window stays where it was.
     #[test]
