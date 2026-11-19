@@ -1,5 +1,6 @@
 //! Presses on nodes: the context menus, window actions and arranging.
 
+use super::surfaces::Escape;
 use super::{
     Act, Action, Command, DesktopIcons, LEFT_BUTTON, MENU_KEY, MENUS, Menu, Message, Panel, Part,
     Plan, RIGHT_BUTTON, Rect, Wm, close, context, desktop_icons, desktop_plan, json, session,
@@ -56,7 +57,7 @@ impl Wm {
     /// A press on a dialog raises it; its title bar starts a drag, its
     /// controls go down.
     pub(super) fn press_panel(&mut self, i: usize, node: &str, position: [f64; 2]) -> Vec<Command> {
-        let mut panel = self.panels.remove(i);
+        let mut panel = self.take_panel(i);
         let mut commands = vec![Command::Move {
             id: panel.window().group(),
             parent: None,
@@ -67,7 +68,7 @@ impl Wm {
             .window_ref()
             .dragging()
             .then(|| panel.window_ref().group());
-        self.panels.push(panel);
+        self.push_panel(panel);
         if let Some(group) = dragging {
             self.start_wobble(&group, position);
         }
@@ -125,7 +126,9 @@ impl Wm {
         let (area, usable) = (bar.area(), bar.usable());
         let menu = context::Menu::new(&self.theme, entries, point, area, 0);
         self.sys_window = Some(surface.into());
-        self.show_context(menu, usable)
+        let commands = self.show_context(menu, usable);
+        self.context_opened(Some(surface));
+        commands
     }
 
     /// Does what a row of the system menu says to its window.
@@ -158,12 +161,20 @@ impl Wm {
             node: Some(context::FOCUS.into()),
         });
         self.context = Some((menu, area));
+        self.context_opened(None);
         commands
     }
 
     /// A key while a node of the plugin has the keyboard: a context menu
     /// or the start menu.
     pub(super) fn node_key(&mut self, key: &str) -> Vec<Command> {
+        if key == "Escape" {
+            match self.escape_target() {
+                Some(Escape::Dialog) => return self.close_dialog(),
+                Some(Escape::Help(i)) => return self.close_panel(i),
+                Some(Escape::Menu) | None => {}
+            }
+        }
         if let Some((menu, area)) = &mut self.context {
             let area = *area;
             return match menu.key(&mut self.theme, MENUS, key) {
@@ -171,11 +182,6 @@ impl Wm {
                 context::Key::Act(act) => self.close_and_act(act, area),
                 context::Key::Close => self.close_context(),
             };
-        }
-        if key == "Escape"
-            && let Some(i) = self.panels.iter().position(|p| matches!(p, Panel::Help(_)))
-        {
-            return self.close_panel(i);
         }
         if !self.menu.is_open() {
             return if key == MENU_KEY {
@@ -239,6 +245,7 @@ impl Wm {
         let Some((menu, _)) = self.context.take() else {
             return Vec::new();
         };
+        self.open.shut(super::surfaces::CONTEXT);
         let mut commands = menu.remove();
         commands.extend(self.menu.hold(&mut self.theme, None));
         commands.push(self.desktop_keys());

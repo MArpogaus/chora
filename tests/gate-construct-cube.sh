@@ -49,9 +49,9 @@
 #    than the ended xp owns it.
 # 5. A window manager that never connects: the outputs go after the
 #    wait. cube.close removes a cube, and Super+C opens a cube.
-# 6. The xp of the cube ends with a construct that is killed (C2). A
-#    construct that starts again removes the virtual outputs that it
-#    left.
+# 6. A construct that is killed (C2) leaves the xp of the cube flat on
+#    the screen with every window within 3 s. A construct that starts
+#    again reopens the cube around that xp, with the windows on its faces.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
@@ -634,9 +634,10 @@ sys.exit(1 if len(dark) >= 3 else 0)
 PYEND
 }
 surfaces_before=$(ctl query kind:surface | jq length)
+mkdir -p "$work/fail"
 starts=$work/mc-starts
 : >"$starts"
-cat >"$work/chora-mc" <<SH
+cat >"$work/fail/chora-xp" <<SH
 #!/bin/sh
 echo start >>"$starts"
 if [ "\$(wc -l <"$starts")" -ge 3 ]; then exec "$bin/chora-xp" "\$@"; fi
@@ -644,8 +645,8 @@ echo "it needs foot 1.26 or later." >&2
 sleep 2
 exit 1
 SH
-chmod +x "$work/chora-mc"
-call settings.set "{\"cube_manager\": \"$work/chora-mc\", \"theme\": \"light\"}" >/dev/null || fail "settings.set cube_manager to a manager that fails"
+chmod +x "$work/fail/chora-xp"
+call settings.set "{\"cube_manager\": \"$work/fail/chora-xp\", \"theme\": \"light\"}" >/dev/null || fail "settings.set cube_manager to a manager that fails"
 call_ms() {
     local start=${EPOCHREALTIME/./}
     call "$@" >/dev/null || return 1
@@ -654,30 +655,30 @@ call_ms() {
 list_ms=$(call_ms construct.list) || fail "construct.list before cube.open"
 open_ms=$(call_ms cube.open '{}') || fail "cube.open with a manager that fails"
 [ $((open_ms - list_ms)) -le 300 ] || fail "cube.open took $open_ms ms, $((open_ms - list_ms)) ms more than construct.list: more than the 300 ms of docs/cube-modes.md"
-prop construct-face-card-head text | grep -q "^Starting Media center$" || fail "no card Starting Media center on the face when cube.open answered: $(prop construct-face-card-head text)"
-ok "a face whose manager starts shows Starting Media center when cube.open answers, $((open_ms - list_ms)) ms more than construct.list"
+prop construct-face-card-head text | grep -q "^Starting XP$" || fail "no card Starting XP on the face when cube.open answered: $(prop construct-face-card-head text)"
+ok "a face whose manager starts shows Starting XP when cube.open answers, $((open_ms - list_ms)) ms more than construct.list"
 lit_frame "$work/starting.png" || fail "a black frame while the manager starts"
 [ -z "${STARTING_SHOT:-}" ] || cp "$work/starting.png" "$STARTING_SHOT"
 for _ in $(seq 12); do
     lit_frame "$work/clip.png" || fail "a black frame while the manager starts or fails"
     sleep 0.2
 done
-until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the face never says it did not start: $(prop construct-face-card-head text)"
-prop construct-face-card-reason text | grep -q "^chora-mc stopped after 2 s: it needs foot 1.26 or later\.$" || fail "the reason on the card: $(prop construct-face-card-reason text)"
+until_ok 'prop construct-face-card-head text | grep -q "^XP did not start\.$"' 40 || fail "the face never says it did not start: $(prop construct-face-card-head text)"
+prop construct-face-card-reason text | grep -q "^chora-xp stopped after 2 s: it needs foot 1.26 or later\.$" || fail "the reason on the card: $(prop construct-face-card-reason text)"
 lit_frame "$work/failed.png" || fail "a black frame once the manager failed"
-ok "a manager that exits: the card says Media center did not start, with the reason, and no frame is black"
+ok "a manager that exits: the card says XP did not start, with the reason, and no frame is black"
 call view.step_back >/dev/null || fail "view.step_back with a failed face"
 until_ok "$stood_back" 20 || fail "no step back with a failed face"
 until_ok 'prop construct-face-label-words text | grep -q "did not start"' 20 || fail "the face label does not say did not start: $(prop construct-face-label-words text)"
-[ "$(prop construct-face-label-name text)" = "Media center 1" ] || fail "the face label names $(prop construct-face-label-name text)"
+[ "$(prop construct-face-label-name text)" = "XP 1" ] || fail "the face label names $(prop construct-face-label-name text)"
 [ "$(prop construct-face-label-dot-0 color)" = "[0.0, 0.0, 0.0, 0.0]" ] || fail "the dot of the failed face is not hollow: $(prop construct-face-label-dot-0 color)"
 until_ok 'prop construct-mode-step-in-text text | grep -q "Try again"' 20 || fail "the middle hint does not say Try again: $(prop construct-mode-step-in-text text)"
 [ -z "${FAILED_SHOT:-}" ] || ctl capture "$FAILED_SHOT" >/dev/null
 ok "stood back, the label says did not start, its dot is hollow and the middle hint says Try again"
 plain Return
 until_ok 'test "$(wc -l <"$starts")" = 2' 20 || fail "Return did not start the manager again: $(wc -l <"$starts") starts"
-quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' || fail "no card Starting after Return: $(prop construct-face-card-head text)"
-until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the second start did not fail on the face: $(prop construct-face-card-head text)"
+quick 'prop construct-face-card-head text | grep -q "^Starting XP$"' || fail "no card Starting after Return: $(prop construct-face-card-head text)"
+until_ok 'prop construct-face-card-head text | grep -q "^XP did not start\.$"' 40 || fail "the second start did not fail on the face: $(prop construct-face-card-head text)"
 ok "Return tries again, and the second failure shows on the face again"
 call view.step_in >/dev/null || fail "view.step_in with a failed face"
 until_ok 'test "$(width construct-cube-face-0)" = 1280' 20 || fail "no step in with a failed face: width $(width construct-cube-face-0)"
@@ -703,16 +704,34 @@ ok "Super+C opens the cube"
 call cube.close >/dev/null || fail "cube.close after the key"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after the key left $(virtuals)"
 
-call cube.open '{}' >/dev/null || fail "cube.open before the restart"
-until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the restart"
-construct=$(pid_of chora-construct)
-kill -9 "$construct"
-until_ok 'test -z "$(pid_of chora-xp)"' 40 || fail "the xp of the cube outlived the construct that died: $(pid_of chora-xp)"
-ok "the xp of the cube ends with a construct that dies without a word"
+call cube.open '{}' >/dev/null || fail "cube.open before the kill"
+until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the kill"
+until_ok 'test "$(bars)" = 4' 80 || fail "no xp taskbars before the kill: $(bars)"
+known=" $(probe | awk '{print $1}' | tr '\n' ' ') "
+mine() { probe | awk -v known="$known" 'index(known, " " $1 " ") == 0'; }
+"$bin/chora-probe" window 60 160 120 >"$work/probe6.log" 2>&1 &
+probe6=$!
+pids+=("$probe6")
+until_ok 'mine | grep -q " xp VIRTUAL"' 80 || fail "the probe window of the kill came to no xp face: $(probe)"
+xp_pid=$(pid_of chora-xp)
+kill -9 "$(pid_of chora-construct)"
+until_ok 'mine | grep -q " xp HEADLESS-1 " && ! mine | grep -q " VIRTUAL"' 12 ||
+    fail "a dying construct left no flat xp with the window within 3 s: $(mine)"
+[ "$(pid_of chora-xp)" = "$xp_pid" ] || fail "the xp of the cube did not outlive the construct: $(pid_of chora-xp)"
+[ -n "$(ctl query id:xp-bar-HEADLESS-1 | jq '.[]')" ] || fail "the flat xp shows no taskbar on the screen"
+ok "a dying construct leaves a flat xp on the screen with every window"
 "$bin/chora-construct" >"$work/construct2.log" 2>&1 &
 pids+=($!)
-until_ok 'test -z "$(virtuals)"' 16 || fail "the restarted construct left its outputs: $(virtuals)"
-ok "a restarted construct removed the outputs that it left"
+until_ok 'test "$(call cube.list 2>/dev/null | jq ".faces | length")" = 4' 80 ||
+    fail "a restarted construct did not reopen the cube: $(call cube.list 2>&1)"
+until_ok 'mine | grep -q " xp VIRTUAL" && ! mine | grep -q " HEADLESS-1 "' 40 ||
+    fail "the window did not go back to a face of the reopened cube: $(mine)"
+[ "$(pid_of chora-xp)" = "$xp_pid" ] || fail "the reopened cube runs another xp: $(pid_of chora-xp)"
+ok "a restarted construct reopens the cube with the windows on its faces"
+kill "$probe6"
+call cube.close >/dev/null || fail "cube.close after the restart"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close after the restart left $(virtuals)"
+until_ok 'test -z "$(pid_of chora-xp)"' 40 || fail "the xp of the reopened cube outlived cube.close: $(pid_of chora-xp)"
 
 "$bin/chora-probe" window 300 200 --report >"$work/pane.log" 2>&1 &
 pids+=($!)

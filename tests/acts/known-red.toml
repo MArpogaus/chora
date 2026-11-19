@@ -6,48 +6,6 @@
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
 [[red]]
-finding = "net2-a1: Escape does not cancel the dialog Turn Off Computer of xp (one Esc order)"
-id = "act:Escape shuts Turn Off Computer"
-look = "xp"
-match = "expected open []"
-slice = "WM3"
-
-[[red]]
-finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
-id = "I4"
-look = "mc"
-match = "missing key open"
-slice = "WM3"
-
-[[red]]
-finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
-id = "act:the keys key opens the key list"
-look = "mc"
-match = "expected open ['mc-keys']"
-slice = "WM3"
-
-[[red]]
-finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
-id = "act:the keys alias key opens the key list"
-look = "mc"
-match = "expected open ['mc-keys']"
-slice = "WM3"
-
-[[red]]
-finding = "wm7a-a1: hosted cube, construct and the xp of the faces both say they hold the focus while no window has it"
-id = "I3"
-look = "construct"
-match = "construct and xp each say they hold the focus"
-slice = "WM7b"
-
-[[red]]
-finding = "wm7a-a2: hosted cube, xp shows no pager on a face, so the pager cannot turn the cube (cube.turn {to})"
-id = "act:the pager turns the cube"
-look = "construct"
-match = "xp shows no pager on a face"
-slice = "WM7b"
-
-[[red]]
 finding = "net3-t1: the key list of tiling: the long row 'Run a program or a typed command' runs into the heading 'System' of the next column"
 id = "I5"
 look = "tiling"

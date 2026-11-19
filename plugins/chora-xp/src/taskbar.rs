@@ -207,8 +207,8 @@ pub struct Bar {
     auto_hide: bool,
     /// The clock shows.
     clock: bool,
-    /// The buttons of the desktops show: not on a virtual output, where
-    /// the plugin has no cube of its own.
+    /// The buttons of the desktops show: on a screen, and on the faces of
+    /// a cube that another client hosts.
     pager: bool,
     /// What shows the output.
     kind: Kind,
@@ -324,9 +324,12 @@ impl Bar {
         }
     }
 
-    /// Whether the taskbar shows the buttons of the desktops.
-    pub fn has_pager(&self) -> bool {
-        self.pager
+    /// Shows the buttons of the desktops or not, and tells whether that
+    /// changed; the caller redraws them and the task buttons.
+    pub fn show_pager(&mut self, on: bool) -> bool {
+        let was = self.pager;
+        self.pager = on || !self.is_virtual();
+        was != self.pager
     }
 
     /// Whether the output is a virtual one, which a client shows.

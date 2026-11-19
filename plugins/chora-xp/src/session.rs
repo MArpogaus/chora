@@ -164,6 +164,10 @@ pub struct Dialog {
 }
 
 impl Dialog {
+    /// The node that holds the keyboard while the dialog shows, so that
+    /// Escape cancels it.
+    pub const FOCUS: &'static str = GROUP;
+
     /// A dialog in the middle of an output of a size.
     pub fn new(mode: Mode, output: &str, size: [i32; 2], suspend: bool) -> Self {
         Self {

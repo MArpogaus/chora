@@ -113,7 +113,7 @@ impl Tiling {
             let done = self.relayout();
             self.still = false;
             done?;
-            if self.keys_open {
+            if self.keys_open() {
                 self.hide_keys()?;
                 self.toggle_keys()?;
             }
@@ -235,7 +235,7 @@ impl Tiling {
 
     /// Shows the key list when it is hidden, and hides it when it shows.
     pub(super) fn toggle_keys(&mut self) -> Result<(), ClientError> {
-        if self.keys_open {
+        if self.keys_open() {
             return self.hide_keys();
         }
         let Some((output, size)) = self.wm.current_output() else {
@@ -263,7 +263,9 @@ impl Tiling {
             node: Some(keys::KEYS.into()),
         });
         self.apply(commands)?;
-        self.keys_open = true;
+        self.open.open(
+            chora_kit::wm::open::Surface::new(keys::KEYS, chora_kit::wm::open::Kind::Sheet).modal(),
+        );
         Ok(())
     }
 
@@ -299,9 +301,14 @@ impl Tiling {
         keys::fit_list(output, panel[3], right)
     }
 
+    /// Whether the key list shows, and holds the keyboard.
+    pub(super) fn keys_open(&self) -> bool {
+        self.open.contains(keys::KEYS)
+    }
+
     /// Hides the key list and gives the keyboard back.
     pub(super) fn hide_keys(&mut self) -> Result<(), ClientError> {
-        self.keys_open = false;
+        self.open.shut(keys::KEYS);
         self.apply(vec![
             Command::FocusNode { node: None },
             Command::Remove {

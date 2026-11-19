@@ -8,6 +8,7 @@ mod desktops;
 mod dispatch;
 mod effects;
 mod float;
+mod hosted;
 mod items;
 mod keys;
 mod lifecycle;
@@ -19,6 +20,7 @@ mod resize;
 mod restart;
 mod startup;
 mod state;
+mod surfaces;
 mod windows;
 
 use std::{
@@ -46,7 +48,11 @@ use chora_scene::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use self::{desktops::desk_id, effects::Effects};
+use self::{
+    desktops::desk_id,
+    effects::Effects,
+    hosted::{CubeKeys, Host},
+};
 use crate::{
     apps,
     config::{Config, KeyAction, Look, Picture, Wallpaper},
@@ -314,13 +320,19 @@ pub struct Wm {
     hover: Option<String>,
     /// The output that the pointer entered last, where a new window opens.
     pointer_output: Option<String>,
-    /// Whether the bindings of the cube are grabbed.
-    cube_keys: bool,
+    /// The bindings of the cube that are grabbed.
+    cube_keys: CubeKeys,
+    /// The client that hosts the faces of a cube on the outputs, and the
+    /// one that went, until it lists the same faces again.
+    host: Option<Host>,
+    left: Option<Host>,
     /// The windows that float off their virtual output.
     floats: float::Floats,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
+    /// The open shell surfaces.
+    open: chora_kit::wm::open::Open,
     /// When the dialog opened, while the desktop fades to gray.
     fade: Option<Instant>,
     /// The shader of the fade, in the cache.
@@ -707,7 +719,7 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 /// the pointer entered last, else the first output. Screens keep the
 /// first one, as before virtual outputs.
 fn home_bar<'a>(bars: &'a [Bar], entered: Option<&str>) -> Option<&'a Bar> {
-    let under_the_pointer = |b: &&Bar| !b.has_pager() && Some(b.output.as_str()) == entered;
+    let under_the_pointer = |b: &&Bar| b.is_virtual() && Some(b.output.as_str()) == entered;
     bars.iter().find(under_the_pointer).or(bars.first())
 }
 
@@ -817,16 +829,19 @@ fn of_the_cube(action: &KeyAction) -> bool {
     )
 }
 
-/// Grabs the bindings of the settings, with or without those of the cube;
-/// a binding of the cube that another client holds falls back to its
-/// stand-in.
+/// Grabs the bindings of the settings with those of the cube that `cube`
+/// names; a binding of the cube that another client holds falls back to
+/// its stand-in.
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
-    cube: bool,
+    cube: CubeKeys,
 ) -> Result<(), ClientError> {
-    for (text, action) in bindings.iter().filter(|(_, a)| cube || !of_the_cube(a)) {
+    let held = |action: &KeyAction| {
+        !matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) || !of_the_cube(action)
+    };
+    for (text, action) in bindings.iter().filter(|(_, a)| held(a)) {
         for text in std::iter::once(text.as_str()).chain(fallback(text, action)) {
             let binding: Binding = text.parse().expect("the settings check their bindings");
             if rt.grab(binding, action.clone())? {
@@ -842,7 +857,7 @@ fn grab_keys(
 fn change_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
-    cube: bool,
+    cube: CubeKeys,
 ) -> Result<(), ClientError> {
     rt.start_grabs();
     grab_keys(rt, bindings, cube)?;
@@ -1125,6 +1140,21 @@ mod tests {
         assert_eq!(wm.cube_grab, Some(100.0), "the press of the person");
     }
 
+    /// On virtual outputs alone without a cube host, as in a pane, xp
+    /// has no desktops to switch: it holds no turn key, so another
+    /// client may, and no drag turns anything.
+    #[test]
+    fn without_a_cube_xp_holds_no_turn_key_and_no_drag() {
+        let (mut rt, _calls) = on_fake_core("flat-keys");
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, CubeKeys::Flat).unwrap();
+        assert!(rt.action("Ctrl+Alt+Left").is_none(), "no turn key");
+        assert!(
+            rt.action("Super+BTN_LEFT").is_none(),
+            "no drag without a cube"
+        );
+    }
+
     /// A press of the binding `Super+BTN_RIGHT` that the user moved to
     /// `close`: the focused window closes, and no cube turns (rw-1).
     #[test]
@@ -1165,7 +1195,7 @@ mod tests {
         let (mut rt, calls) = on_fake_core_refusing("no-stand-in", &["Ctrl+Alt+Left"]);
         let mut bindings = crate::config::defaults().common.bindings;
         bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
-        grab_keys(&mut rt, &bindings, true).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         let calls = calls.lock().unwrap().clone();
         assert!(
             !calls.iter().any(|c| c.contains("Ctrl+Super+Left")),
@@ -1174,7 +1204,7 @@ mod tests {
         assert!(rt.action("Ctrl+Super+Left").is_none());
         let (mut rt, _calls) = on_fake_core_refusing("stand-in", &["Ctrl+Alt+Left"]);
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, true).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         assert_eq!(
             rt.action("Ctrl+Super+Left"),
             Some(&KeyAction::System(System::Cube(Turn::Left)))
@@ -1188,9 +1218,9 @@ mod tests {
     fn a_change_of_the_cube_keys_keeps_the_other_keys() {
         let (mut rt, calls) = on_fake_core("cube-keys");
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, true).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         calls.lock().unwrap().clear();
-        change_keys(&mut rt, &bindings, false).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Hosted).unwrap();
         let mut gone = std::mem::take(&mut *calls.lock().unwrap());
         gone.sort();
         assert_eq!(
@@ -1205,10 +1235,14 @@ mod tests {
         );
         assert_eq!(rt.action("Super+d"), Some(&KeyAction::Look(Look::Desktop)));
         assert!(rt.action("Ctrl+Alt+Left").is_none());
-        change_keys(&mut rt, &bindings, true).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         assert_eq!(
             rt.action("Ctrl+Alt+Left"),
             Some(&KeyAction::System(System::Cube(Turn::Left)))
+        );
+        assert_eq!(
+            rt.action("Super+BTN_LEFT"),
+            Some(&KeyAction::Look(Look::Cube))
         );
         assert!(
             calls

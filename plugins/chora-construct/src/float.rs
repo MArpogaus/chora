@@ -47,13 +47,14 @@ pub(crate) fn plane_face(node: &str) -> Option<usize> {
 
 /// The windows of an answer or an event that the construct shows: each
 /// names the group of its surface, as the window manager makes it, and
-/// lies with a size on or near its face of `size`; the top `MAX`.
-fn valid(windows: Vec<Floating>, size: [f64; 2]) -> Vec<Floating> {
+/// lies with a size on or near its face of `size`; the top `MAX`. The
+/// window manager has the client name `client`.
+fn valid(windows: Vec<Floating>, size: [f64; 2], client: &str) -> Vec<Floating> {
     let near = |v: f64, side: f64| v.is_finite() && (-side..=2.0 * side).contains(&v);
     let fits = |v: f64, side: f64| v.is_finite() && v >= 1.0 && v <= 2.0 * side;
     let sound = |w: &Floating| {
         let [x, y, width, height] = w.rect;
-        w.node == format!("{}-win-{}", cube::MANAGER, w.surface)
+        w.node == format!("{client}-win-{}", w.surface)
             && near(x, size[0])
             && near(y, size[1])
             && fits(width, size[0])
@@ -70,7 +71,7 @@ impl Construct {
             output: output.to_owned(),
             on,
         };
-        let call = json!({"client": cube::MANAGER, "method": float::METHOD, "params": float});
+        let call = json!({"client": self.face_manager(), "method": float::METHOD, "params": float});
         let floated: Floated = (self.rt.conn).call_within("methods.call", call, ANSWER)?;
         Ok(floated.windows)
     }
@@ -85,7 +86,7 @@ impl Construct {
         match answer {
             Ok(windows) => {
                 host.owes(face, false);
-                Some(valid(windows, size))
+                Some(valid(windows, size, host.client()))
             }
             Err(err) => {
                 if host.owes(face, true) {
@@ -218,7 +219,8 @@ impl Construct {
         let Some(face) = face else {
             return Ok(());
         };
-        if let Some(err) = self.set_planes(face, valid(floated.windows, size))? {
+        let client = self.face_manager();
+        if let Some(err) = self.set_planes(face, valid(floated.windows, size, &client))? {
             eprintln!("chora-construct: the planes of face {face}: {err}");
             self.flatten(face)?;
         }
@@ -313,7 +315,7 @@ mod tests {
         let empty = window("s4", [0.0, 0.0, 0.0, 200.0]);
         let broken = window("s5", [f64::NAN, 0.0, 10.0, 10.0]);
         let all = vec![good.clone(), foreign, far, huge, empty, broken];
-        assert_eq!(valid(all, size), vec![good]);
+        assert_eq!(valid(all, size, "xp"), vec![good]);
     }
 
     #[test]
@@ -321,7 +323,7 @@ mod tests {
         let many: Vec<Floating> = (0..float::MAX + 4)
             .map(|i| window(&format!("s{i}"), [0.0, 0.0, 10.0, 10.0]))
             .collect();
-        let shown = valid(many, [1280.0, 800.0]);
+        let shown = valid(many, [1280.0, 800.0], "xp");
         assert_eq!(shown.len(), float::MAX);
         assert_eq!(shown[0].surface, "s4");
     }
