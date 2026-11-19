@@ -697,6 +697,13 @@ voice agent that tells a HUD its state:
   no client sends a core event or the event of another name. A client
   whose name starts as a core namespace, such as `surface` or `output`,
   cannot emit.
+- The exception is the shared events of the looks, `look.theme` (`theme`:
+  `light` or `dark`) and `look.view` (`pane`: whether the camera of the
+  space is in a pane). Any client emits them, and the core sets the field
+  `look` of their data to the name of the emitter, whatever the client
+  sent. A HUD host subscribes to `look.*` once and learns each look by its
+  name; a new look needs no change in the host. No other `look.` name is
+  accepted.
 - A connection subscribes to the name, for example `voice.state`, or to
   a pattern `PREFIX.*`, for example `voice.*`. A pattern also works for
   core events, for example `surface.*`. An empty list means every core
@@ -804,7 +811,7 @@ answers every request.
 | `scene.query(selector, filter)` | read nodes |
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
-| `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
+| `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name or `look.theme` or `look.view` (the core adds `look` to their data), with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
 | `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`, or the key is a media key below and the client is an unconfined window manager with a claim; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; a connection holds at most 256 grabs, and a further grab fails with code 6; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant; injected input is no activity for `ext-idle-notify`, so it does not keep the session from locking |
