@@ -360,9 +360,7 @@ impl Construct {
         if let Some(host) = &mut self.cube {
             host.note_focus(window);
         }
-        self.rt.conn.apply(vec![Command::FocusNode {
-            node: Some(LOOK.into()),
-        }])
+        self.rt.conn.apply(the_keyboard_to_the_look())
     }
 
     /// The window that had the keyboard before the step back gets it
@@ -743,6 +741,14 @@ enum Pressed {
     Nothing,
 }
 
+/// The commands that give the keyboard to the look node of the
+/// construct.
+fn the_keyboard_to_the_look() -> Vec<Command> {
+    vec![Command::FocusNode {
+        node: Some(LOOK.into()),
+    }]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -753,6 +759,16 @@ mod tests {
         let turns = wanted.iter().filter(|(_, g)| matches!(g, Grab::Turn(_)));
         assert_eq!(turns.count(), 2, "the turn keys are bound in every state");
         (wanted.iter()).any(|(b, g)| b == "Alt+Escape" && matches!(g, Grab::StepBack))
+    }
+
+    /// The step back focuses no surface before the look node takes the
+    /// keyboard, so that the window manager of the window that had it
+    /// learns that it lost it (I3).
+    #[test]
+    fn the_step_back_takes_the_focus_from_the_window() {
+        let commands = serde_json::to_value(the_keyboard_to_the_look()).unwrap();
+        let expected = json!([{"focus": {"surface": null}}, {"focus_node": {"node": LOOK}}]);
+        assert_eq!(commands, expected);
     }
 
     #[test]
