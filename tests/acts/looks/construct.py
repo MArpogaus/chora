@@ -82,8 +82,7 @@ def box(s, node):
 
 def tab_after_a_new_window(s):
     """kit7-a2 (rw-5): after a press on a pane, Tab right after a new
-    window opens the window list, without a flight into a pane first
-    (known red under WM2)."""
+    window opens the window list, without a flight into a pane first."""
     want = {"app_id": "chora-probe", "owner": s.label}
     window = [program("chora-probe", "window", "40", "120", "200")]
     s.act("a window opens to point at", window, expect=Expect(new_window=want))

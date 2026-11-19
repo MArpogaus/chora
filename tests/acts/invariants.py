@@ -33,7 +33,8 @@ I10  no visible text matches a raw entry (`.desktop`, `%U`, a reverse-DNS
 I12  no bar or panel box over a fullscreen window; the held window on
      top; a modal above its parent
 I13  the projected corners of neighbouring cube faces meet within 1 px;
-     held in a turn, a neighbour of a face that shows is there with corners
+     held in a turn, a face that shows has a neighbour that shows with
+     corners (the faces that face away have no box)
 
 Limits: the texts are text nodes and the runs that chora-draw reports;
 text of outside programs (waybar, mako) and SVG text in a picture are not
@@ -583,20 +584,23 @@ def shares_edge(a, b):
 
 def ring_breaches(output, owner, faces, count, held):
     """The breaches of the faces of one cube on one output: a face meets
-    the next one; held in a turn, each neighbour of a face that shows also
-    has a box with corners."""
+    the next one; held in a turn, a neighbour that has a box has corners
+    and a face that shows does not show alone. A closed cube hides the faces
+    that face away, so a neighbour without a box is no breach (co-21):
+    halfway through a turn two faces show and the other two face away."""
     out = []
     for k in sorted(k for k, face in faces.items() if face.get("corners")):
         face = faces[k]
-        for n in sorted({(k + 1) % count, (k - 1) % count} - {k}) if held else []:
+        ring = sorted({(k + 1) % count, (k - 1) % count} - {k})
+        for n in ring if held else []:
             other = faces.get(n)
-            name = f"{owner}-cube-face-{n}"
-            if other is None:
-                out.append(f"on {output} the face {name} is missing beside {face['node']}")
-            elif not other.get("corners"):
+            if other is not None and not other.get("corners"):
                 out.append(
                     f"on {output} the face {other['node']} has no corners beside {face['node']}"
                 )
+        if held and not any(faces.get(n, {}).get("corners") for n in ring):
+            names = " nor ".join(f"{owner}-cube-face-{n}" for n in ring)
+            out.append(f"on {output} the face {face['node']} shows alone in a turn: neither {names}")
         other = faces.get((k + 1) % count)
         if other and other.get("corners") and not shares_edge(face["corners"], other["corners"]):
             out.append(

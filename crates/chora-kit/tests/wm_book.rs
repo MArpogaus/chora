@@ -455,8 +455,10 @@ fn a_created_surface_tells_its_facts_and_its_label() {
         to: Some(NAME.into()),
         pid: Some(7),
         token: Some("t1".into()),
+        parent: Some("s0".into()),
     };
     let created = Created::of(&event).unwrap();
+    assert_eq!(created.parent.as_deref(), Some("s0"));
     assert_eq!(created.surface, "s1");
     assert_eq!(created.to.as_deref(), Some(NAME));
     assert_eq!(

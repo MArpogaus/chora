@@ -5,23 +5,3 @@
 # act `act:NAME`), its finding id and the slice that turns it green. An
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
-[[red]]
-finding = "co-21: the cube held 2 s into a 4 s turn shows face 1 and no box for its neighbour face 0 (and face 3 beside face 2)"
-id = "I13"
-look = "construct"
-match = "is missing beside"
-slice = "WM6"
-
-[[red]]
-finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back; old on v8 733967aa: the press gives the pane window the keyboard and Tab goes to it (reports/focus-port.md r1)"
-id = "act:Tab right after a new window opens the window list"
-look = "construct"
-match = "expected open ['construct-list'], got []"
-slice = "WM2"
-
-[[red]]
-finding = "kit7-a2: in the construct, after a press on a pane and a new window, Tab opens no window list until a flight into a pane and back; old on v8 733967aa: the press gives the pane window the keyboard and Tab goes to it (reports/focus-port.md r1)"
-id = "I4"
-look = "construct"
-match = "in act 'Tab right after a new window opens the window list': construct-list was declared open and is not"
-slice = "WM2"

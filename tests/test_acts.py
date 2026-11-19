@@ -788,8 +788,13 @@ class I13(unittest.TestCase):
         self.assertEqual(breaches("I13", snap(), self.ring(0, 1, 2, 3)), [])
 
     def test_a_neighbour_of_a_shown_face_is_missing(self):
-        out = breaches("I13", snap(), self.ring(0, 1, 2), HELD)
-        self.assertTrue(any("construct-cube-face-3" in b and "missing" in b for b in out), out)
+        out = breaches("I13", snap(), self.ring(1), HELD)
+        self.assertTrue(any("construct-cube-face-1" in b and "alone" in b for b in out), out)
+
+    def test_held_in_a_turn_a_closed_cube_hides_its_back_faces(self):
+        """co-21: halfway through a turn faces 1 and 2 show and meet; 0
+        and 3 face away and have no box, as a closed cube hides them."""
+        self.assertEqual(breaches("I13", snap(), self.ring(1, 2), HELD), [])
 
     def test_a_neighbour_of_a_shown_face_has_no_corners(self):
         out = breaches("I13", snap(), self.ring(0, 1, 2, 3, bare=(1,)), HELD)

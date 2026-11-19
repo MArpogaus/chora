@@ -25,7 +25,31 @@ impl Construct {
         let free = !changes.is_empty();
         let done = self.created(created, free);
         self.settle_plain(changes)?;
-        done
+        done?;
+        self.keys_for_new(created)
+    }
+
+    /// A new window came as a pane and the camera is in no window, while
+    /// a window of a pane has the keyboard from a press. A child of that
+    /// window (a dialog, or the new window of the same app) gets the
+    /// keyboard, as a new window takes it in the other looks; any other
+    /// new pane gives it back to the walk (D116). A focus of another
+    /// window manager, of the launcher or of a window that the camera
+    /// flies into stays.
+    fn keys_for_new(&mut self, created: &Created) -> Result<(), ClientError> {
+        let surface = created.surface.as_str();
+        let pane = (self.panes.iter()).any(|p| p.window() == Some(surface));
+        let pressed = (self.core_focus.as_deref()).filter(|f| *f != surface && self.own_window(f));
+        let Some(pressed) = pressed.filter(|_| pane && self.inside().is_none()) else {
+            return Ok(());
+        };
+        if created.parent.as_deref() == Some(pressed) {
+            return self
+                .rt
+                .conn
+                .apply(vec![chora_kit::wm::focus::give(surface)]);
+        }
+        self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }
 
     /// A surface lost its parent and owner: an own window leaves the
@@ -163,7 +187,10 @@ mod tests {
     use chora_kit::{
         runtime::{Plugin, Runtime},
         settings,
-        testing::{FakeCore, Script, Subject, created, output, owner, surface},
+        testing::{
+            FakeCore, Script, Subject, created, created_child, focus_changed, output, owner,
+            surface,
+        },
     };
     use chora_scene::{Event, Node};
 
@@ -308,6 +335,114 @@ mod tests {
         assert!(!Driven(&mut construct).has("s1"));
         assert_eq!(owner(&core.model(), "s1"), None);
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
+    }
+
+    /// kit7-a2 (D116): a press on the window of a pane gives it the
+    /// keyboard; a new window that comes as a pane without a flight takes
+    /// the keyboard back to the walk, as a new window takes it in the
+    /// other looks, so that Tab opens the window list and no key goes to
+    /// the window pointed at before.
+    #[test]
+    fn a_new_pane_takes_the_keyboard_back_to_the_walk_after_a_press() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "press-then-new");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct
+            .event(Event::PointerPressed {
+                node: "s1".into(),
+                button: 272,
+                position: [0.0; 2],
+                local: [0.0; 2],
+                modifiers: Vec::new(),
+                injected: false,
+            })
+            .unwrap();
+        let last = || core.model().lock().unwrap().focuses.last().cloned();
+        assert_eq!(last(), Some(Some("s1".into())), "the press");
+        construct.event(focus_changed(Some("s1"))).unwrap();
+        surface(&core.model(), "s2");
+        construct.event(created("s2", None)).unwrap();
+        assert!(Driven(&mut construct).has("s2"));
+        assert_eq!(last(), Some(None), "the new pane gives no surface the keys");
+        construct.event(focus_changed(None)).unwrap();
+        let focus = construct.state().unwrap()["focus"].clone();
+        assert_eq!(focus, serde_json::json!({"holder": NAME}), "the walk");
+    }
+
+    /// kit7-a2, rc-1 (D116): a window that the pressed window opens as its
+    /// child (a dialog with an xdg parent) gets the keyboard, as in the
+    /// other looks; a new window that is no child of it does not.
+    #[test]
+    fn a_dialog_of_the_pressed_window_gets_the_keyboard_and_an_unrelated_window_does_not() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "press-then-dialog");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct
+            .event(Event::PointerPressed {
+                node: "s1".into(),
+                button: 272,
+                position: [0.0; 2],
+                local: [0.0; 2],
+                modifiers: Vec::new(),
+                injected: false,
+            })
+            .unwrap();
+        construct.event(focus_changed(Some("s1"))).unwrap();
+        let last = || core.model().lock().unwrap().focuses.last().cloned();
+        surface(&core.model(), "s2");
+        construct.event(created_child("s2", "s1")).unwrap();
+        assert!(Driven(&mut construct).has("s2"));
+        assert_eq!(last(), Some(Some("s2".into())), "the dialog gets the keys");
+        construct.event(focus_changed(Some("s2"))).unwrap();
+        surface(&core.model(), "s3");
+        construct.event(created("s3", None)).unwrap();
+        assert_eq!(
+            last(),
+            Some(None),
+            "an unrelated window gives them to the walk"
+        );
+    }
+
+    /// A new pane that is the child of a window other than the pressed
+    /// one is no child of it: the keys go back to the walk.
+    #[test]
+    fn a_child_of_another_window_gives_the_keyboard_to_the_walk() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "press-then-other-child");
+        for id in ["s1", "s2"] {
+            surface(&core.model(), id);
+            construct.event(created(id, None)).unwrap();
+        }
+        construct
+            .event(Event::PointerPressed {
+                node: "s1".into(),
+                button: 272,
+                position: [0.0; 2],
+                local: [0.0; 2],
+                modifiers: Vec::new(),
+                injected: false,
+            })
+            .unwrap();
+        construct.event(focus_changed(Some("s1"))).unwrap();
+        surface(&core.model(), "s3");
+        construct.event(created_child("s3", "s2")).unwrap();
+        let last = core.model().lock().unwrap().focuses.last().cloned();
+        assert_eq!(last, Some(None));
+    }
+
+    /// A new pane leaves the keyboard where another window manager put
+    /// it: the construct takes it only from its own window.
+    #[test]
+    fn a_new_pane_leaves_a_foreign_focus() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "foreign-then-new");
+        construct.event(focus_changed(Some("x1"))).unwrap();
+        let before = core.model().lock().unwrap().focuses.len();
+        surface(&core.model(), "s2");
+        construct.event(created("s2", None)).unwrap();
+        assert_eq!(core.model().lock().unwrap().focuses.len(), before);
     }
 
     /// The views and the faces of the cube stay as they are while

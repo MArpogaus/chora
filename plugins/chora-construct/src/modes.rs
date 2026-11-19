@@ -744,7 +744,7 @@ enum Pressed {
 /// The commands that give the keyboard to the look node of the
 /// construct: first no surface has the focus, so that the window manager
 /// of the window that had it draws it inactive and holds it no more (I3).
-fn the_keyboard_to_the_look() -> Vec<Command> {
+pub(crate) fn the_keyboard_to_the_look() -> Vec<Command> {
     vec![
         chora_kit::wm::focus::release(),
         Command::FocusNode {

@@ -191,6 +191,7 @@ impl State {
             };
             let info = self.surface_info(&id);
             let (pid, token) = self.created_origin(toplevel.wl_surface());
+            let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
             self.emit(&Event::SurfaceCreated {
                 surface: id.clone(),
                 app_id: info.app_id,
@@ -199,6 +200,7 @@ impl State {
                 to,
                 pid,
                 token,
+                parent,
             });
             self.send_early_requests(&id);
         }
