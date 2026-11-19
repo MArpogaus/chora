@@ -5,10 +5,9 @@ use chora_kit::wm::Created;
 use super::{
     BARS, Bar, ClientError, Command, Config, DESKTOPS, DIALOGS, DesktopIcons, EVENTS, Effects,
     ExportMethod, HashMap, Helper, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
-    Mixer, NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound,
-    Theme, Tooltip, WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give,
-    grab_keys, hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window,
-    without_reserve,
+    Mixer, NAME, NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip,
+    WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
+    hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window, without_reserve,
 };
 
 impl Wm {
@@ -99,7 +98,6 @@ impl Wm {
             book: chora_kit::wm::Book::new(NAME, false).with_groups(decoration::GROUP),
             launches: Launches::new(),
             notepad,
-            notifier: Notifier::new(),
             volume: None,
             helper: Helper::default(),
             voiced: chora_kit::helper::Helpers::default(),

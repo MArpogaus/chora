@@ -94,6 +94,7 @@ const EVENTS: &[&str] = &[
     "mc.theme",
     "tiling.theme",
     "xp.theme",
+    chat::NOTIFY_READY,
 ];
 
 /// The assistant of the voice agent.
@@ -213,7 +214,7 @@ struct Agent {
     chat: Session,
     /// When the chat last pulled from voice.
     chat_pulled: Instant,
-    /// What `assistant.chat` last said: open, and with whom.
+    /// What `assistant.chat` last said: open, with whom, where, and its box.
     announced: Option<chat::Announced>,
     /// The frame that the chat was last drawn in.
     chat_seen: Option<chat::Frame>,
@@ -280,6 +281,7 @@ impl Plugin for Agent {
             } => {
                 self.look_event(&event, &client, &data)?;
                 self.slot_event(&event, &client, &data)?;
+                self.chat_again(&event, &client)?;
                 self.voice_event(&event, &client, &data)?
             }
             Event::ClientConnected { name } => {

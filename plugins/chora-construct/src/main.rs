@@ -51,6 +51,7 @@ mod list;
 mod methods;
 mod modes;
 mod names;
+mod notice;
 mod overlay;
 mod panes;
 mod placeholder;
@@ -152,6 +153,8 @@ const NO_ROOM: &str = "No room in view: in the window list (Tab)";
 /// How long the notice of a typed key that does nothing waits before it
 /// shows again.
 const KEYS_WALK_AGAIN: Duration = Duration::from_secs(10);
+/// How long a notice of the construct shows, in milliseconds.
+const NOTICE_MS: i32 = 4000;
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
 /// The left button, as Linux names it.
@@ -561,8 +564,9 @@ struct Construct {
     /// The windows of the panes that have no buffer yet, which show the
     /// placeholder.
     unfilled: Vec<String>,
-    /// The notice under the island exists.
-    notice_drawn: bool,
+    /// The id that the notification server gave the last notice of the construct,
+    /// which the next one replaces.
+    notice_id: Option<u32>,
     claim: Claim,
     glass: Glass,
     /// The last point of the pointer over the space that the core told:
@@ -682,7 +686,7 @@ impl Construct {
             label_drawn: false,
             label_text: String::new(),
             unfilled: Vec::new(),
-            notice_drawn: false,
+            notice_id: None,
             claim: Claim { due: true },
             glass: Glass::default(),
             pointer: None,

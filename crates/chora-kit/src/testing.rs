@@ -47,6 +47,9 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
+    /// What `methods.call` answers for a method, by its name; `null` for
+    /// the others.
+    pub answers: std::collections::HashMap<String, Value>,
     /// Whether `activation.token` mints a token; without, it answers null.
     pub mints_tokens: bool,
     /// Whether `scene.query` answers every selector; else only `id:`.
@@ -100,6 +103,12 @@ impl FakeCore {
     /// it passes again.
     pub fn refuse_next(&self, method: &str) {
         self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Plants the answer that every call of `method` through
+    /// `methods.call` gets, as when the client that serves it is there.
+    pub fn answer_with(&self, method: &str, answer: Value) {
+        (self.model.lock().unwrap().answers).insert(method.to_owned(), answer);
     }
 
     /// Makes `activation.token` mint a new token on each call, as the
@@ -194,9 +203,10 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             let mut core = model.lock().unwrap();
+            let answer = core.answers.get(&method).cloned().unwrap_or(Value::Null);
             core.calls.push(method);
             core.called.push(params.clone());
-            Ok(Value::Null)
+            Ok(answer)
         }
         "output.list" => Ok(json!([])),
         "events.emit" => {

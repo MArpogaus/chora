@@ -6,9 +6,7 @@ Usage: tests/tiling-audit.py CAPTURE.png NODES.json THEME SCALE CELL [BAR] [WALL
   THEME       ink or paper
   SCALE       the scale of the output
   CELL        desktop, chat, question, toast, keys, layout, tooltip, launcher,
-              fullscreen, chatq (chat and question card) or chattoast
-              (chat and a notification)
-  REF         `ref=CHAT.png`: the capture of the chat alone (cell chattoast)
+              fullscreen or chatq (chat and question card)
   BAR         `bar` when the panel runs: the islands stand at y 8 to 40
   WALL        `wall` when the wallpaper runs behind the tiles (cell desktop)
 
@@ -23,9 +21,8 @@ Prints one `FAIL:` line per finding; exit status 1 on a finding.
   bar         the layout word stands in a pill of `surface-2`, close to the
               right edge of the left island
   terminal    the fill of a tile with a terminal is the `terminal` token
-  toast       a notification stands in the lower right corner, 24 from the
-              edges, on `surface` with a hairline of `line`, rounded, clear
-              of the dot of the helper
+  toast       the card of chora-notify stands inside the lower right
+              quarter of the output, clear of the dot of the helper
   keys        the top of the key list is on the grid of 4, the title and the
               hint stand on one baseline, and the keycaps of a column end at
               one x
@@ -44,8 +41,6 @@ Prints one `FAIL:` line per finding; exit status 1 on a finding.
               above 1 their edge has few mid-tones, as the text has
   chatq       the question card stands clear of the chat panel, the state word
               and the orb, and the card shows
-  chattoast   the notification stands clear of the chat panel: the panel
-              looks as it does without one, and the notification shows
   scrim       the key list's scrim is tinted, not grey, and the bar and the
               surfaces under the scrim stay within a few levels of each other
   look        the wallpaper shows at the corners of the screen, the focused
@@ -239,44 +234,19 @@ def main():
             problems.append(f"chatq: the chat {panel} and the card {card} must both show")
         elif meets(panel, card):
             problems.append(f"chatq: the card {card} covers or is covered by the chat panel {panel}")
-    if cell == "chattoast":
-        ref = next((f[4:] for f in flags if f.startswith("ref=")), None)
-        if not (panel and ref):
-            problems.append("chattoast: no chat panel or no reference capture")
-        else:
-            before = load(ref)
-
-            def changed(x0, x1):
-                found = 0
-                for yy in range(int(660 * scale), int(736 * scale), 2):
-                    for xx in range(int(x0 * scale), int(x1 * scale), 2):
-                        a, b = rows[yy][xx * 4:xx * 4 + 3], before[yy][xx * 4:xx * 4 + 3]
-                        found += sum(abs(p - q) for p, q in zip(a, b)) > 40
-                return found
-
-            under = changed(panel[0], panel[0] + panel[2])
-            if under > 40:
-                problems.append(f"chattoast: the notification changes {under} samples of the chat panel {panel}")
-            beside = changed(500, panel[0])
-            if beside < 100:
-                problems.append(f"chattoast: no notification beside the chat panel, {beside} samples changed")
     if cell == "toast":
-        left, right, bottom = 896, 1256, 738
-        fill = px(right - 16, bottom - 6)
-        if not near(fill, palette["surface"], 6):
-            problems.append(f"toast: no notification in the corner, {fill} at {right - 16},{bottom - 6}")
+        body = next((n for n in nodes if n.get("id") == "notify-card-body" and n.get("rects")), None)
+        if body is None:
+            problems.append("toast: chora-notify shows no card")
         else:
-            top = bottom - 6
-            while top > 40 and near(px(right - 16, top - 1), palette["surface"], 6):
-                top -= 1
-            edge = px((left + right) / 2, bottom - 1)
-            if not near(edge, palette["line"], 24):
-                problems.append(f"toast: the hairline {edge} is no `line` {palette['line']}")
-            steps = corner([left, top, right - left, bottom - top])
-            if not 3 <= steps <= 8:
-                problems.append(f"toast: the corner turns in {steps} px, not the radius family of 10 to 14")
-            if bottom - top < 40:
-                problems.append(f"toast: only {bottom - top} px high")
+            card = next(iter(body["rects"].values()))
+            left, top, width, height = card
+            out_w, out_h = len(rows[0]) / 4 / scale, len(rows) / scale
+            if left < out_w / 2 or top < out_h / 2 or left + width > out_w or top + height > out_h:
+                problems.append(f"toast: the card {card} is not inside the lower right quarter of the output")
+            for part in ("hud-word", "hud-figure"):
+                if named.get(part) and meets(card, named[part]):
+                    problems.append(f"toast: the card {card} covers {part} {named[part]}")
     helpers = surfaces(nodes)
     if bar:
         island = px(573, 24)
@@ -329,7 +299,7 @@ def main():
             fill = dominant(keys)
             if not near(fill, palette["surface"]):
                 problems.append(f"tokens keys: the key list fill {fill} is not `surface` {palette['surface']}")
-    if cell not in ("desktop", "fullscreen", "keys", "toast", "layout", "tooltip", "launcher", "chattoast"):
+    if cell not in ("desktop", "fullscreen", "keys", "toast", "layout", "tooltip", "launcher"):
         if not helpers:
             problems.append(f"{cell}: no helper surface on the screen")
         for name, rect in helpers.items():

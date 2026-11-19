@@ -6,8 +6,7 @@
 #   scene-head     the first page, at rest
 #   hover          the pointer over the key row "Start a program or run a command"
 #   all-keys       Super+F1, the whole key list
-#   agenda         the first page with notifications, an urgent line and a
-#                  helper that asks
+#   agenda         the first page with a helper that asks
 #   terminal       Super+Return, the terminal page
 #   chat-question  the chat open with a question and its card
 #
@@ -118,9 +117,6 @@ until_ok '! text_shows "Show overview"' || fail "Super+F1 does not close the lis
 
 emit voice.state '{"state": "listening", "task": "", "said": ""}'
 emit voice.state '{"name": "Atlas", "state": "question", "task": "Write file", "seq": 5}'
-ctl call mc notify.push '{"title": "Update ready"}' >/dev/null || fail "notify.push"
-ctl call mc notify.push '{"title": "Backup done and a longer line that wraps"}' >/dev/null || fail "notify.push"
-ctl call mc notify.push '{"title": "Disk is full", "urgency": "critical"}' >/dev/null || fail "notify.push critical"
 until_ok 'text_shows "Atlas"' || fail "no row for the helper"
 shot agenda
 

@@ -15,7 +15,7 @@ import os
 import signal
 import time
 
-from common import door_acts, window_acts
+from common import door_acts, notice_acts, window_acts
 from harness import LOOKS, Expect, key, load_png_rows, program, wait
 
 MANAGER = "xp"
@@ -380,6 +380,7 @@ def cube_acts(s):
         held=HELD,
     )
     s.act("the cube comes to rest", [], timeout=30)
+    notice_acts(s)
     s.act(
         "construct killed mid-turn leaves the windows with a flat xp within 3 s",
         [kill_construct_mid_turn],

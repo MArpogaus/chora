@@ -1,0 +1,5 @@
+# The settings of chora-notify beside chora-mc: the card stands at the
+# bottom left, in the margin of the page above its footer line.
+position: bottom_left
+shortest: 10
+longest: 30

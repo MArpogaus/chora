@@ -1,11 +1,12 @@
 //! The agents that report their state with `agent.set`, for the status
-//! line of the regions and the agents scene, and the notifications of
-//! `notify.push`.
+//! line of the regions and the agents scene, and the notices of
+//! `notify.push`, which the notification server shows.
 
 use std::time::Instant;
 
 use chora_kit::{
     ask::{self, Button, Card, Click, Keys, Question, show_key},
+    notice::{self, Notice},
     words::Language,
 };
 use chora_scene::{
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    Mc,
+    Mc, NAME,
     config::{Color, Style},
     invalid,
     region::{self, Content, Item, Put, Region},
@@ -30,10 +31,50 @@ const SIGN_WIDTH: f64 = 18.0;
 
 /// The most helpers that a side shows, one row each.
 const MAX_ROWS: usize = 4;
-/// The lines of the notifications: three, with a blank line between them.
-const NOTIFY_LINES: usize = 3;
+/// The most notices whose ids mc keeps for `notify.clear`.
+const NOTICES: usize = 32;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
+
+/// The ids of the notices that mc showed, for `notify.clear`: the last
+/// [`NOTICES`] normal ones, which expire by themselves anyway, and every
+/// critical one, which stays until a click or a clear.
+#[derive(Debug, Default)]
+pub struct Notices {
+    ids: Vec<(u32, bool)>,
+}
+
+impl Notices {
+    /// Keeps the id of a notice that mc showed, critical or not; a
+    /// replaced id moves to the end.
+    pub fn remember(&mut self, id: u32, critical: bool) {
+        self.ids.retain(|(kept, _)| *kept != id);
+        self.ids.push((id, critical));
+        let normal = self.ids.iter().filter(|(_, critical)| !critical).count();
+        if normal > NOTICES
+            && let Some(oldest) = self.ids.iter().position(|(_, critical)| !critical)
+        {
+            self.ids.remove(oldest);
+        }
+    }
+
+    /// Dismisses the notices with `dismiss`, oldest first. On the first
+    /// failure the server is gone: the clear stops there, so that it waits
+    /// once, and keeps that id and the rest for the next clear.
+    pub fn clear<E>(&mut self, mut dismiss: impl FnMut(u32) -> Result<(), E>) -> Result<(), E> {
+        while let Some(&(id, _)) = self.ids.first() {
+            dismiss(id)?;
+            self.ids.remove(0);
+        }
+        Ok(())
+    }
+
+    /// The ids that a clear would dismiss, oldest first.
+    #[cfg(test)]
+    fn ids(&self) -> Vec<u32> {
+        self.ids.iter().map(|(id, _)| *id).collect()
+    }
+}
 
 /// An agent as `agent.set` reports it.
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -165,7 +206,8 @@ fn question_line(question: &str, language: Language) -> String {
     format!("? {question}  — {yes} / {no}")
 }
 
-/// As in the freedesktop notifications: critical breaks through in red.
+/// As in the freedesktop notifications: a critical notice stays until the
+/// person closes it, the others show for the time of the notification server.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Urgency {
@@ -175,19 +217,12 @@ enum Urgency {
     Critical,
 }
 
-/// The content that stacks the notifications, newest on top.
-const NOTIFY: &str = "notify";
-/// The content of the last critical notification.
-const URGENT: &str = "urgent";
-/// The word before a critical notification, in the column and in the
-/// footer, so that the red is not its only sign.
-const URGENT_WORD: &str = "Urgent";
 /// The content of a spoken confirmation: its prompt as the title, its
 /// detail in mono.
 const CONFIRM: &str = "confirm";
-/// The text contents that mc writes itself, from `notify.push` and
-/// `voice.confirm`: `content.set` and `content.add` refuse them.
-pub const OWN_TEXTS: [&str; 3] = [NOTIFY, URGENT, CONFIRM];
+/// The text contents that mc writes itself, from `voice.confirm`:
+/// `content.set` and `content.add` refuse them.
+pub const OWN_TEXTS: [&str; 1] = [CONFIRM];
 /// The scenes whose panels mc writes itself, from the agents and the
 /// scenes: `panel.set` refuses them.
 pub const OWN_SCENES: [&str; 2] = [SCENE, crate::manage::OVERVIEW];
@@ -594,47 +629,37 @@ impl Mc {
     }
 
     /// Tells the person that something did not work, as a critical
-    /// notification.
+    /// notice of the notification server.
     pub fn notice(&mut self, title: &str, body: &str) {
-        let push = Push {
-            title: title.to_owned(),
-            body: body.to_owned(),
-            urgency: Urgency::Critical,
-        };
-        if let Err(err) = self.push(push) {
-            eprintln!("chora-mc: notice {title}: {}", err.message);
+        let notice = Self::notice_of(title, body, Urgency::Critical);
+        if let Some(id) = notice::show_or_log(&mut self.rt.conn, None, &notice) {
+            self.notices.remember(id, true);
         }
     }
 
-    /// Adds a notification on top of the stack; a critical one starts
-    /// with the word `Urgent` and also shows in red in `urgent`, until the
-    /// next one, a click on that line or `notify.clear`.
-    pub fn push(&mut self, push: Push) -> Result<(), RpcError> {
-        let Push {
-            title,
+    /// Shows a notice of the notification server; a critical one stays until the
+    /// person closes it.
+    pub fn push(&mut self, push: &Push) -> Result<(), RpcError> {
+        let notice = Self::notice_of(&push.title, &push.body, push.urgency);
+        let id = notice::show(&mut self.rt.conn, None, &notice).map_err(|err| gone(&err))?;
+        (self.notices).remember(id, push.urgency == Urgency::Critical);
+        Ok(())
+    }
+
+    fn notice_of<'a>(summary: &'a str, body: &'a str, urgency: Urgency) -> Notice<'a> {
+        let critical = urgency == Urgency::Critical;
+        Notice {
+            app: NAME,
+            icon: "",
+            summary,
             body,
-            urgency,
-        } = push;
-        let text = if body.is_empty() {
-            title
-        } else {
-            format!("{title}: {body}")
-        };
-        let text = if urgency == Urgency::Critical {
-            format!("{URGENT_WORD}: {text}")
-        } else {
-            text
-        };
-        let line = format!("{}  {}", region::date("%H:%M"), text.replace('\n', " "));
-        if urgency == Urgency::Critical {
-            self.set_text(URGENT, None, |_| vec![text.clone()])?;
+            expire_ms: if critical { 0 } else { -1 },
+            urgency: if critical {
+                notice::Urgency::Critical
+            } else {
+                notice::Urgency::Normal
+            },
         }
-        self.set_text(NOTIFY, None, |old| {
-            let mut lines = vec![line];
-            lines.extend(old);
-            lines.truncate(NOTIFY_LINES);
-            lines
-        })
     }
 
     /// Shows a spoken confirmation alone in the drawer over any scene,
@@ -830,21 +855,17 @@ impl Mc {
         true
     }
 
-    /// Takes the urgent line of the footer away; the notification stays
-    /// in the column.
-    pub fn clear_urgent(&mut self) -> Result<(), RpcError> {
-        self.set_text(URGENT, None, |_| Vec::new())
+    /// Closes the notices that mc showed and the notification server still holds.
+    pub fn clear_notices(&mut self) -> Result<(), RpcError> {
+        let conn = &mut self.rt.conn;
+        (self.notices)
+            .clear(|id| notice::dismiss(conn, id))
+            .map_err(|err| gone(&err))
     }
+}
 
-    /// Empties the notifications.
-    pub fn clear_notifications(&mut self) -> Result<(), RpcError> {
-        for content in [NOTIFY, URGENT] {
-            if self.texts.contains_key(content) {
-                self.set_text(content, None, |_| Vec::new())?;
-            }
-        }
-        Ok(())
-    }
+fn gone(err: &notice::Gone) -> RpcError {
+    RpcError::new(RpcError::REJECTED, err.to_string())
 }
 
 /// The cell of the `n`-th column of the agents, for `count` agents on a
@@ -889,6 +910,41 @@ fn band(agent: &Agent) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
+
+    /// A critical notice stays until a click: the normal ones after it,
+    /// which expire by themselves, never push it out of what a clear
+    /// dismisses.
+    #[test]
+    fn a_clear_dismisses_an_old_critical_notice() {
+        let mut notices = super::Notices::default();
+        notices.remember(1, true);
+        for id in 2..=40 {
+            notices.remember(id, false);
+        }
+        let ids = notices.ids();
+        assert_eq!(ids.first(), Some(&1), "the critical one stays: {ids:?}");
+        assert_eq!(ids.len(), super::NOTICES + 1);
+    }
+
+    /// The server is gone at the first dismissal: the clear stops there
+    /// and keeps that id and the rest for the next clear.
+    #[test]
+    fn a_failed_dismissal_keeps_the_ids() {
+        let mut notices = super::Notices::default();
+        for id in 1..=3 {
+            notices.remember(id, true);
+        }
+        let mut tried = Vec::new();
+        let failed = notices.clear(|id| {
+            tried.push(id);
+            Err("gone")
+        });
+        assert_eq!(failed, Err("gone"));
+        assert_eq!(tried, [1], "one wait for a server that is gone");
+        assert_eq!(notices.ids(), [1, 2, 3]);
+        assert_eq!(notices.clear(|_| Ok::<(), ()>(())), Ok(()));
+        assert_eq!(notices.ids(), Vec::<u32>::new());
+    }
 
     use chora_kit::ask::{Card, Click, Question};
 

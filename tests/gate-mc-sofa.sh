@@ -24,10 +24,6 @@
 #               at least 14 px high in its text, not the 11 px of the
 #               host (mc-34)
 #
-#   notices     a helper row and two long critical notices leave the column
-#               whole: the Chat door stays above the rule of KEYS, and the
-#               newest notice is a card in the column, in full (mc-35)
-#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -204,31 +200,6 @@ cell_answer() {
         fail "the answer of the host is $rect, a line of the small 11 px text"
 }
 
-cell_notices() {
-    local door rule card foot
-    key Super+Home
-    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
-    emit voice.state '{"name": "Atlas", "state": "working", "task": "Reminder", "step": 1, "steps": 1, "seq": 5}'
-    until_ok 'has_text "HELPERS"' 20 || fail "no helper row: $(texts | tr '\n' '|')"
-    ctl call mc notify.clear '{}' >/dev/null
-    ctl call mc notify.push '{"title": "Backup failed", "body": "The disk of the notes is almost full, so the copy of last night stopped half way.", "urgency": "critical"}' >/dev/null || fail "notify.push"
-    ctl call mc notify.push '{"title": "Update broke", "body": "The update of the voice agent did not finish and the old one runs again, please look at it.", "urgency": "critical"}' >/dev/null || fail "notify.push"
-    until_ok 'texts | grep -qF "Update broke"' 20 || fail "no notice: $(texts | tr '\n' '|')"
-    sleep 1.5
-    shot notices
-    door=$(text_rect "Chat with a helper ...")
-    rule=$(rect_of right-keys-title-rule)
-    jq -ne --argjson d "$door" --argjson r "$rule" '$d[1] + $d[3] <= $r[1]' >/dev/null ||
-        fail "the Chat door $door stands on the rule of KEYS $rule"
-    card=$(texts | grep -F "Urgent: Update broke" | sort -u | head -n 1)
-    [[ $card == *"please look at it."* ]] || fail "the card of the notice is cut: $card"
-    [ "$(texts | grep -cF "Urgent: Update broke")" -ge 1 ] || fail "no card of the notice"
-    foot=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select(.visible and (.rects | length) > 0 and (.text | startswith("Urgent:")) and (.rects | to_entries[0].value[1]) > 650)] | length')
-    [ "$foot" = 0 ] || fail "a line of the notice stands in the footer"
-    jq -ne --argjson d "$door" '$d[0] >= 860 and $d[0] + $d[2] <= 1230' >/dev/null || fail "the Chat door $door leaves the column"
-    ctl call mc notify.clear '{}' >/dev/null
-}
-
 failed=()
 run_cell() {
     local name=$1
@@ -239,7 +210,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer notices)
+cells=(remote wide door status empty-head answer)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

@@ -33,7 +33,6 @@ use chora_kit::{
     actions::{System, Turn},
     give,
     icons::Icons,
-    notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
     shared,
@@ -388,7 +387,6 @@ pub struct Wm {
     /// The programs that started and show no window yet.
     launches: Launches,
     notepad: apps::Editors,
-    notifier: Notifier,
     /// The reading that the speaker of the taskbars shows; none before
     /// the first.
     volume: Option<Reading>,

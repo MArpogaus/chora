@@ -31,11 +31,8 @@ mod items;
 
 pub use fit::{column_width, lines, place, rect};
 use fit::{fit, lines_of, park, props_ink, shed_updates, shorten, trailing};
-#[cfg(test)]
-pub use hits::close_id;
 use hits::{close_nodes, close_place, lead, left_of};
 pub use hits::{hit_nodes, hit_place};
-use items::URGENT;
 pub use items::{Item, Plan, Put};
 
 /// The group of all regions, over the scenes. It holds the parked apps and
@@ -419,17 +416,6 @@ impl Mc {
                 .into_iter()
                 .map(|(r, v)| (r, v.into_iter().map(|(s, n)| (s, n.into())).collect()))
                 .collect();
-        if !self.shown(Region::Right, name)
-            && let Some(slots) = placed.get_mut(&Region::Right)
-            && let Some(at) = slots.iter().position(|(_, c)| c == URGENT)
-        {
-            slots.remove(at);
-            placed
-                .entry(Region::Footer)
-                .or_default()
-                .push((0, URGENT.into()));
-            placed.retain(|_, slots| !slots.is_empty());
-        }
         if let Some(solo) = &self.solo {
             for slots in placed.values_mut() {
                 slots.retain(|(_, c)| *c != solo.content);
@@ -1310,22 +1296,6 @@ mod tests {
     }
 
     #[test]
-    fn a_critical_notice_stands_in_the_column_and_in_the_footer_without_one() {
-        let (mut mc, _model) = crate::testing::mc("urgent-card", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        assert!(mc.shown(Region::Right, "agenda"), "a column");
-        let at = |mc: &crate::Mc| -> Vec<Region> {
-            (mc.placed("agenda").into_iter())
-                .filter(|(_, slots)| slots.iter().any(|(_, c)| c == URGENT))
-                .map(|(region, _)| region)
-                .collect()
-        };
-        assert_eq!(at(&mc), [Region::Right]);
-        mc.toggle(Region::Right, Some(false), false).unwrap();
-        assert_eq!(at(&mc), [Region::Footer]);
-    }
-
-    #[test]
     fn the_first_rule_wins_by_content_kind_and_scene() {
         let config = parse::<Config>(DEFAULT).unwrap();
         let page = layout(&config.rules, &config.contents, "agenda", false);
@@ -1334,9 +1304,7 @@ mod tests {
         assert_eq!(names(&page, Region::Footer), ["prev", "hud", "next"]);
         assert_eq!(
             names(&page, Region::Right),
-            [
-                "state", "urgent", "agents", "notes", "notify", "chat", "keys", "doors"
-            ]
+            ["state", "agents", "notes", "chat", "keys", "doors"]
         );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
         assert_eq!(
@@ -1347,7 +1315,7 @@ mod tests {
             !app.contains_key(&Region::Footer),
             "no footer line in an app"
         );
-        assert_eq!(names(&app, Region::Right)[..2], ["state", "urgent"]);
+        assert_eq!(names(&app, Region::Right)[..2], ["state", "notes"]);
     }
 
     #[test]
@@ -1364,9 +1332,7 @@ mod tests {
         let moved = layout(&rules, &config.contents, "agenda", false);
         assert_eq!(
             names(&moved, Region::Left),
-            [
-                "confirm", "next", "notes", "notify", "outline", "overlay", "prev", "urgent"
-            ]
+            ["confirm", "next", "notes", "outline", "overlay", "prev"]
         );
         assert_eq!(
             names(&moved, Region::Right),
@@ -1375,9 +1341,7 @@ mod tests {
         let other = layout(&rules, &config.contents, "mail", false);
         assert_eq!(
             names(&other, Region::Right),
-            [
-                "state", "urgent", "agents", "notes", "notify", "chat", "keys", "doors"
-            ]
+            ["state", "agents", "notes", "chat", "keys", "doors"]
         );
     }
     #[test]

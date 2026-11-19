@@ -99,20 +99,19 @@ impl Construct {
         self.draw_hints()
     }
 
-    /// Whether the HUD line shows: the voice HUD with `voice_hud: own`,
-    /// and the notices of the construct always.
+    /// Whether the HUD line shows: the voice HUD with `voice_hud: own`.
     pub(crate) fn shows_hud(&self) -> bool {
         self.active && self.output.is_some()
     }
 
-    /// The voice HUD and the notices: at the bottom centre, or compact at
-    /// the bottom right while flown into a pane.
+    /// The voice HUD: at the bottom centre, or compact at the bottom right
+    /// while flown into a pane.
     pub(crate) fn draw_hud(&mut self) -> Result<(), ClientError> {
         if !self.shows_hud() {
             return Ok(());
         }
         if !self.settings.value.draws_voice() {
-            return self.draw_notice();
+            return Ok(());
         }
         let out = [self.lens.w, self.lens.h];
         let level = self.voice.level(Instant::now());

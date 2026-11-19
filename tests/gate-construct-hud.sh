@@ -21,7 +21,7 @@
 # Then, with CHORA_FRAME_BUDGET_US=1, the watchdog takes the shaders: the
 # HUD panel and its label stay, and the glow comes back with no shader.
 # Last, with a pane that fills the view, a new window waits in the window
-# list with a notice in the HUD, and window.show makes its pane.
+# list with a notice of chora-notify, and window.show makes its pane.
 # Then Super+F1 shows the help panel with the bindings; settings.set of the
 # modifier changes it at once, and help.toggle hides it.
 #
@@ -345,6 +345,7 @@ printf 'theme: light\nvoice_hud: own\n' >"$work/chora/chora-construct.yaml"
 CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
 session=${pids[-1]}
 grant screen.capture input.inject
+notify_start
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 foot_pane first ffffff 14181e 'the first pane'
 foot_pane second 000000 eceef2 'the second pane'
@@ -353,12 +354,12 @@ foot -a third -f "$font" sh -c 'sleep 600' &
 pids+=($!)
 listed() { ctl call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "third"), "missing"))'; }
 until_ok 'test "$(listed)" = none' || fail "the third window is not in the list: $(listed)"
-until_ok 'node id:construct-hud-say '"'"'n[0]["text"]'"'"' | grep -q "No room in view"' || fail "the HUD gives no notice: $(node id:construct-hud-say 'n[0]["text"]')"
+until_ok 'notices | grep -q "No room in view"' || fail "no notice of the full view: $(notices)"
 sleep 0.3
 shot "$shots/construct-hud-light-1280x720-noroom.png"
 call window.show '{"name": "third"}'
 until_ok 'ctl call construct construct.list | grep -q "\"name\": \"third\""' || fail "window.show made no pane"
-ok "with the view full, a new window waited in the list, and window.show made its pane"
+ok "with the view full, a new window waited in the list with a notice, and window.show made its pane"
 kill "$session"
 wait "$session" 2>/dev/null || true
 

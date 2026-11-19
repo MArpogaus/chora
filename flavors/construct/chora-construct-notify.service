@@ -1,0 +1,9 @@
+[Unit]
+Description=chora-notify, the notices of the construct flavor, in the neutral card
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/chora-notify
+Restart=on-failure
+RestartSec=1

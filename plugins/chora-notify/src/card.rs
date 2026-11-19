@@ -38,7 +38,8 @@ const LINE: i32 = 13;
 const CLOSE: i32 = 14;
 const MIN_WIDTH: i32 = 120;
 pub const GROUP: &str = "notify-card";
-const BODY: &str = "notify-card-body";
+/// The picture of the card: the node whose box is the card on screen.
+pub const BODY: &str = "notify-card-body";
 const CLOSE_ID: &str = "notify-card-close";
 
 /// The pictures that the card reads from the asset folder.
@@ -247,23 +248,52 @@ fn body_lines(body: &str, width: impl Fn(&str) -> f64) -> Vec<String> {
     lines
 }
 
+/// The origin of a card of `size` at `origin` beside `chat`, a box on
+/// its output that it must not cover: the panel of the chat of the HUD
+/// host. A card that would cover the box moves along the edge of its
+/// corner to the side of the box toward the middle of the output, `margin`
+/// away from it, and stays on the output.
+pub fn aside(
+    origin: [i32; 2],
+    size: [i32; 2],
+    chat: Option<[i32; 4]>,
+    (margin, right): (i32, bool),
+) -> [i32; 2] {
+    let Some([cx, cy, cw, ch]) = chat else {
+        return origin;
+    };
+    let ([x, y], [w, h]) = (origin, size);
+    if !(x < cx + cw && cx < x + w && y < cy + ch && cy < y + h) {
+        return origin;
+    }
+    let x = if right {
+        cx - margin - w
+    } else {
+        cx + cw + margin
+    };
+    [x.max(0), y]
+}
+
 /// A card on the overlay root of an output.
 pub struct Card {
     output: String,
     layout: Layout,
     origin: [i32; 2],
+    /// Its size with the tail.
+    size: [i32; 2],
     picture: Picture,
     hovered: bool,
 }
 
 impl Card {
-    /// Lays out a notification in a corner of an output.
+    /// Lays out a notification in a corner of an output, beside the box
+    /// of the chat on it, if any.
     pub fn new(
         theme: &mut Theme,
         note: &Note,
         icon: Option<&Path>,
         values: &Values,
-        (output, corner): (&OutputInfo, Corner),
+        (output, corner, chat): (&OutputInfo, Corner, Option<[i32; 4]>),
     ) -> Self {
         let style = &values.card;
         let color = style.text_rgba();
@@ -277,7 +307,12 @@ impl Card {
         );
         let [w, h] = layout.size;
         let height = h + style.tail;
-        let origin = corner.origin(output.size, [w, height], values.margin);
+        let origin = aside(
+            corner.origin(output.size, [w, height], values.margin),
+            [w, height],
+            chat,
+            (values.margin[0], corner.right()),
+        );
         let mut picture =
             Picture::new(w, height).svg(style.shape(layout.size, style.tail_x(w, corner)));
         if let (Some(path), Some(rect)) = (icon, layout.icon) {
@@ -296,9 +331,16 @@ impl Card {
             output: output.name.clone(),
             layout,
             origin,
+            size: [w, height],
             picture,
             hovered: false,
         }
+    }
+
+    /// The box of the card on its output: x, y, width and height.
+    pub fn rect(&self) -> [i32; 4] {
+        let ([x, y], [w, h]) = (self.origin, self.size);
+        [x, y, w, h]
     }
 
     /// Whether a node belongs to a card.
@@ -405,6 +447,25 @@ mod tests {
 
     fn queue() -> Queue {
         Queue::new(chora_kit::settings::parse(crate::config::DEFAULT).unwrap())
+    }
+
+    /// The chat panel of tiling stands at the right edge, 400 pixels
+    /// wide: a card in a right corner steps to its left, one that does
+    /// not touch it stays, and one in a left corner beside a panel at the
+    /// left steps to its right.
+    #[test]
+    fn the_card_steps_aside_of_the_chat_panel() {
+        let size = [300, 80];
+        let corner = |right| (16, right);
+        let panel = Some([856, 24, 400, 752]);
+        assert_eq!(aside([964, 704], size, panel, corner(true)), [540, 704]);
+        assert_eq!(aside([964, 704], size, None, corner(true)), [964, 704]);
+        let high = Some([856, 24, 400, 300]);
+        assert_eq!(aside([964, 704], size, high, corner(true)), [964, 704]);
+        let left = Some([24, 24, 400, 752]);
+        assert_eq!(aside([16, 704], size, left, corner(false)), [440, 704]);
+        let wide = Some([100, 0, 1180, 800]);
+        assert_eq!(aside([964, 704], size, wide, corner(true)), [0, 704]);
     }
 
     #[test]

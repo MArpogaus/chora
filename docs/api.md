@@ -1581,8 +1581,12 @@ of text that `chora_draw` painted into their image nodes: `node`,
 `text` (the line as drawn, with its ellipsis), `rect` (`[x, y, w, h]`
 of its ink in the logical pixels of the node at its own size), `px` (the
 font size) and `fg` (RGBA). chora-notify answers `shown`, the
-notifications on screen with `id`, `summary` and the `node` of the card,
-and `busy` while a card shows.
+notification on screen with its `id`, `summary`, `body`, the `node` of
+its card picture (`notify-card-body`) and the `rect` of the card on its
+output (`[x, y, w, h]`); `accepted`, `waiting` and `closed`, the ids
+that it took, that wait for their turn and that went; `chat`, the box of
+the open chat of the HUD host that the card keeps clear, or null; and an
+empty `busy`, since a card shows and goes without an animation.
 
 A look built on `chora_kit::wm` (tiling, mc, the construct, xp) emits
 `<look>.window` with `{surface, node, phase, rect}` when a window becomes
@@ -1642,6 +1646,24 @@ method `restart` runs `chora-xp` again, which also reads the file again:
 
 ```console
 $ choractl call xp settings.set '{"effects": {"wobbly": false, "sounds": false}}'
+```
+
+`chora-notify` connects as `notify` and is the one server of notices:
+a look calls these two through `chora_kit::notice` and draws none of its
+own. The ids are the ones of `org.freedesktop.Notifications` on the
+session bus, so a `notify.close` of an id that a bus client got closes
+that notification too. Without the bus name (another server owns it, or
+there is no session bus) the two methods still serve the plugins.
+
+| Method | Parameters | Result |
+|--------|------------|--------|
+| `notify.show` | `summary`, the bold title (required); `body`, the text under it; `app`, the caller; `icon`, a name of the icon theme or a path; `replaces`, the id of an earlier notice to replace in place, or null; `expire_ms`, how long it shows: `-1` (the default) for the shortest time of the settings, another time held between the shortest and the longest, `0` until a click; `urgency`, `normal` or `critical` (a critical one stays until a click, whatever `expire_ms` says) | `{id}`, the id of the notice; it shows after the cards before it |
+| `notify.close` | `id` | null; the notice goes, from the screen or from the queue |
+
+```console
+$ choractl call notify notify.show '{"app": "me", "summary": "Saved", "body": "notes.md"}'
+{"id": 3}
+$ choractl call notify notify.close '{"id": 3}'
 ```
 
 ## Plugins

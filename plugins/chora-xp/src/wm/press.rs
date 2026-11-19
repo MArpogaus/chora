@@ -2,9 +2,9 @@
 
 use super::surfaces::Escape;
 use super::{
-    Act, Action, Command, DesktopIcons, LEFT_BUTTON, MENU_KEY, MENUS, Menu, Message, Panel, Part,
-    Plan, RIGHT_BUTTON, Rect, Wm, close, context, desktop_icons, desktop_plan, json, session,
-    taskbar, wallpaper, window,
+    Act, Action, Command, DesktopIcons, LEFT_BUTTON, MENU_KEY, MENUS, Menu, Panel, Part, Plan,
+    RIGHT_BUTTON, Rect, Wm, close, context, desktop_icons, desktop_plan, json, session, taskbar,
+    wallpaper, window,
 };
 
 impl Wm {
@@ -290,13 +290,12 @@ impl Wm {
             let home = chora_scene::paths::home().unwrap_or_else(|| "/".into());
             self.start_program(&desktop_icons::open_with(&manager, &home));
         } else {
-            let message = Message {
-                icon: "",
-                summary: "No file manager",
-                body: "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.",
-                expire_ms: 10_000,
-            };
-            self.notifier.show("chora-xp", None, &message);
+            self.notice(
+                None,
+                "No file manager",
+                "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.",
+                10_000,
+            );
         }
         Vec::new()
     }

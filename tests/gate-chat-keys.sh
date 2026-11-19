@@ -12,7 +12,8 @@
 # then the helper of that number. The first helper asks its question
 # while the list shows (FAKE_ACP_ASK_AFTER of the fake agent), and the
 # number still picks: a question of some helper does not hold the Enter
-# of the list (F28).
+# of the list (F28). While the chat is open, the card of a notice of
+# chora-notify stands beside the chat panel, not over it (rw-3 of kit5).
 #
 # Usage: tests/gate-chat-keys.sh   BIN: directory with the binaries
 set -u
@@ -76,6 +77,28 @@ key Return
 until_ok 'helper_got coder hallo' 40 || fail "with one helper, typed text did not reach it"
 grep -q hallo "$work/window" && fail "typed text reached the window"
 ok "with one helper, typed text and Enter reach the helper"
+
+notify_start
+ctl call notify notify.show '{"summary": "Beside the chat", "body": "a notice while the chat is open"}' >/dev/null ||
+    fail "notify.show"
+until_ok "ctl query id:notify-card-body | grep -q rects" 40 || fail "the notice shows no card"
+apart() {
+    { ctl query id:hud-chat; ctl query id:notify-card-body; } | python3 -I -c '
+import json, sys
+text, at, found = sys.stdin.read(), 0, []
+while text[at:].strip():
+    nodes, at = json.JSONDecoder().raw_decode(text, len(text) - len(text[at:].lstrip()))
+    found += nodes
+boxes = [next(iter(n["rects"].values())) for n in found if n.get("rects")]
+if len(boxes) != 2:
+    sys.exit(f"want the boxes of the chat and of the card, got {boxes}")
+[ax, ay, aw, ah], [bx, by, bw, bh] = boxes
+if ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah:
+    sys.exit(f"the card {boxes[1]} covers the chat {boxes[0]}")
+'
+}
+until_ok apart 20 || fail "$(apart 2>&1); notify: $(ctl call notify state.get | jq -c '{shown, chat}')"
+ok "a notice of chora-notify steps aside of the open chat panel"
 
 key Escape
 until_ok 'window_has enter 2' 40 || fail "Esc did not give the window the keyboard back"

@@ -153,6 +153,42 @@ name = "root moved below the other roots by hand (D83)"
 paths = ["plugins", "services"]
 pattern = 'fn under_other_plugins|Order::Lock'
 
+[[row]]
+allow = ["plugins/chora-notify/"]
+max = 0
+name = "notice: a client of org.freedesktop.Notifications outside chora-notify (KIT5)"
+pattern = 'org\.freedesktop\.Notifications'
+
+[[row]]
+max = 0
+name = "notice: zbus in chora-kit (KIT5)"
+paths = ["crates/chora-kit"]
+pattern = '\bzbus\b'
+
+[[row]]
+max = 0
+name = "mc: its own stack of notifications, a column and an urgent line (KIT5)"
+paths = ["plugins/chora-mc"]
+pattern = 'NOTIFY_LINES|URGENT_WORD|urgent:clear|const (NOTIFY|URGENT)\b'
+
+[[row]]
+max = 0
+name = "construct-notice: a notice that construct draws itself (KIT5)"
+paths = ["plugins/chora-construct"]
+pattern = 'construct-notice'
+
+[[row]]
+max = 0
+name = "tiling: notify-send (KIT5)"
+paths = ["plugins/chora-tiling"]
+pattern = 'notify-send'
+
+[[row]]
+max = 0
+name = "tiling: mako (KIT5)"
+paths = ["plugins/chora-tiling"]
+pattern = 'mako'
+
 # kit6: kit::launch owns the start of a program and its end (D104); a
 # plugin starts through it and keeps no token variable, pidfd or status file.
 [[row]]

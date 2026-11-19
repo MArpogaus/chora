@@ -34,8 +34,10 @@ use chora_kit::{
         System,
         perform::{Failure, Host, perform},
     },
+    conn::Conn,
     effects::{Driver, Target},
     give::{self, MOVE},
+    notice,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
     wm::{Book, give::pass_on, kept},
@@ -236,6 +238,31 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
+/// Shows why a program does not start as a critical notice of
+/// the notification server; when the core or the server is gone, the line on stderr
+/// is the only message.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a launch is no plugin: it only shows one notice and ends"
+)]
+fn tell_launch_error(err: &theme::LaunchError) {
+    let (title, text) = err.notice();
+    let notice = notice::Notice {
+        app: "chora-tiling",
+        icon: "",
+        summary: title,
+        body: text,
+        expire_ms: 0,
+        urgency: notice::Urgency::Critical,
+    };
+    match Conn::connect("chora-tiling.launch") {
+        Ok(mut conn) => {
+            notice::show_or_log(&mut conn, None, &notice);
+        }
+        Err(err) => eprintln!("chora-tiling: notice {title:?}: {err}"),
+    }
+}
+
 /// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
 /// config file of the flavor, in the palette; another program as it is.
 /// `fuzzel` without arguments is the Apps list: the installed programs
@@ -251,11 +278,7 @@ fn launch(argv: &[String]) -> ExitCode {
         Ok(line) => line,
         Err(err) => {
             eprintln!("chora-tiling: cannot start {program}: {err}");
-            let (title, text) = err.notice();
-            let _ = std::process::Command::new("notify-send")
-                .args(["-a", "chora-tiling", "-u", "critical", title, text])
-                .stdin(std::process::Stdio::null())
-                .status();
+            tell_launch_error(&err);
             return ExitCode::FAILURE;
         }
     };
@@ -271,9 +294,6 @@ fn launch(argv: &[String]) -> ExitCode {
             .env("CHORA_MENU", "chora-tiling --launch fuzzel")
             .env("CHORA_LOCKER", "chora-tiling --launch swaylock -f")
             .env("CHORA_SCREENSHOT", "chora-tiling --launch screenshot");
-    }
-    if program == "screenshot" {
-        command.env("CHORA_NOTIFIER", "chora-tiling --launch mako");
     }
     if program == "fuzzel" {
         let current = std::env::var("XDG_DATA_DIRS").ok();
@@ -409,26 +429,12 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
     }
 }
 
-/// Whether the chat of the assistant opened or closed, when `event` says so:
-/// the notifications step aside of the panel while it is open.
-fn chat_open(event: &Event) -> Option<bool> {
-    match event {
-        Event::Emitted {
-            event,
-            client,
-            data,
-        } if event == "assistant.chat" && client == "assistant" => data["open"].as_bool(),
-        _ => None,
-    }
-}
-
 /// The events that tiling handles.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 17] = [
     "voice.state",
     "voice.remove",
     "client.disconnected",
     "assistant.ready",
-    "assistant.chat",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -674,15 +680,6 @@ impl Tiling {
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
             return self.name_theme();
-        }
-        if let Some(open) = chat_open(&event) {
-            let _ = std::process::Command::new("makoctl")
-                .args(["mode", if open { "-a" } else { "-r" }, "chat"])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
-            return Ok(());
         }
         match self.overlay_event(&event) {
             Some(done) => done,
@@ -1099,18 +1096,6 @@ mod tests {
         path::Path,
         sync::{Arc, Mutex},
     };
-
-    #[test]
-    fn the_notifications_follow_the_chat_of_the_assistant() {
-        let said = |client: &str, open: bool| Event::Emitted {
-            event: "assistant.chat".into(),
-            client: client.into(),
-            data: serde_json::json!({"open": open}),
-        };
-        assert_eq!(chat_open(&said("assistant", true)), Some(true));
-        assert_eq!(chat_open(&said("assistant", false)), Some(false));
-        assert_eq!(chat_open(&said("other", true)), None);
-    }
 
     use chora_kit::conn::Conn;
 

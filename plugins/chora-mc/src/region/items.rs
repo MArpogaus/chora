@@ -18,10 +18,6 @@ const NEXT: &str = "next";
 
 /// The content that names the previous page in the footer.
 const PREV: &str = "prev";
-pub(super) const URGENT: &str = "urgent";
-
-/// The content of the last notifications, which give way in a full side.
-const NOTIFY: &str = "notify";
 
 /// One text node of a region.
 pub struct Item {
@@ -329,15 +325,6 @@ impl Mc {
     }
 
     fn text_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
-        let mut items = self.text_items_of(region, slot, (name, scene));
-        let notifications = name == NOTIFY && !region.is_line();
-        for item in &mut items {
-            item.shed = notifications;
-        }
-        items
-    }
-
-    fn text_items_of(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let (title, text) = self.content_text(name, content, scene);
         let (mut text, hit) = self.filled(region, (name, scene), &text);
@@ -357,14 +344,8 @@ impl Mc {
             if quiet && !is_title {
                 props.color = self.settings.value.colors().get("muted").copied();
             }
-            let urgent = name == URGENT;
             Item {
-                hit: if urgent {
-                    Some("urgent:clear".into())
-                } else {
-                    hit.clone()
-                },
-                mark: urgent,
+                hit: hit.clone(),
                 ..Item::text(id, slot, props, first)
             }
         };

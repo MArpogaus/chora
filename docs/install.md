@@ -32,12 +32,12 @@ The packages require two programs, which the package manager installs:
   first version with mouse selection.
 - fontconfig: chora-mc looks up its font faces with it.
 
-The tiling look starts these programs: waybar, fuzzel, mako, swaybg,
+The tiling look starts these programs: waybar, fuzzel, swaybg,
 swaylock, swayidle, kanshi and foot. The RPM recommends all but fuzzel.
 On Arch Linux, install them as optional dependencies:
 
 ```bash
-sudo pacman -S --asdeps uwsm foot waybar mako swaybg swayidle swaylock kanshi
+sudo pacman -S --asdeps uwsm foot waybar swaybg swayidle swaylock kanshi
 ```
 
 Notepad of the xp look opens a text editor with a window, for example

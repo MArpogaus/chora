@@ -16,7 +16,7 @@ impl Wm {
     /// the book says whether the surface is free for xp.
     pub(super) fn window_created(&mut self, created: &Created) -> Result<(), ClientError> {
         if let Some(note) = self.launches.window(created.token.as_deref()) {
-            self.notifier.close(note);
+            self.dismiss_notice(note);
         }
         let changes = self.book.claim(
             &created.surface,

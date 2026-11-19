@@ -328,7 +328,6 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("fuzzel.ini", fuzzel(colors)),
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
-        ("mako.conf", mako(colors)),
         ("icons/apps.svg", icon(&colors.text, APPS, 16)),
         ("icons/apps@2.svg", icon(&colors.text, APPS, 32)),
         ("icons/keys.svg", icon(&colors.text, KEYS_ICON, 16)),
@@ -386,46 +385,6 @@ fn fuzzel(c: &Colors) -> String {
          radius=12\n"
     )
 }
-
-fn mako(c: &Colors) -> String {
-    format!(
-        "# The notifications of the tiling flavor: an island in the palette, above\n\
-         # the dot of the helper and 12 inside the border of a tile. Written by\n\
-         # chora-tiling --apply-theme from the palette of chora-tiling.yaml.\n\
-         font=Inter 14\n\
-         layer=overlay\n\
-         anchor=bottom-right\n\
-         margin=24,24,62,24\n\
-         padding=12\n\
-         width=360\n\
-         border-size=1\n\
-         border-radius=10\n\
-         icons=0\n\
-         default-timeout=10000\n\
-         background-color={surface}\n\
-         text-color={text}\n\
-         border-color={line}\n\
-         progress-color=over {accent}\n\
-         \n\
-         [mode=chat]\n\
-         margin=24,{beside},62,24\n\
-         \n\
-         [urgency=high]\n\
-         border-color={urgent}\n\
-         default-timeout=0\n",
-        surface = c.surface,
-        text = c.text,
-        line = c.line,
-        accent = c.accent,
-        urgent = c.urgent,
-        beside = CHAT_BESIDE,
-    )
-}
-
-/// The right margin of a notification while the chat panel is open: the
-/// panel is 400 wide, 13 from the edge, and the notification stands 12
-/// left of it.
-const CHAT_BESIDE: i32 = 424;
 
 fn foot(c: &Colors) -> String {
     let b = bare;
@@ -773,11 +732,6 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "mako" => line.extend(
-            find(&["mako.conf"])
-                .into_iter()
-                .flat_map(|f| ["--config".into(), f]),
-        ),
         "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
@@ -1073,10 +1027,6 @@ mod tests {
         let text = |n: &str| all.iter().find(|(k, _)| *k == n).unwrap().1.clone();
         assert!(text("fuzzel.ini").contains("background=1a1d27ff"));
         assert!(!text("fuzzel.ini").contains("selection-radius"));
-        let mako = text("mako.conf");
-        assert!(mako.contains("background-color=#1a1d27"));
-        assert!(mako.contains("border-color=#2e3344"));
-        assert!(mako.contains("border-radius=10"));
         assert!(text("foot.ini").contains("pad=16x16"));
         assert!(text("foot.ini").contains("font=JetBrains Mono:size=10.5"));
     }
@@ -1098,11 +1048,25 @@ mod tests {
     }
 
     #[test]
-    fn the_notifications_keep_clear_of_the_dot_and_the_border() {
-        let all = files(&Colors::of(Scheme::Ink));
-        let mako = &all.iter().find(|(k, _)| *k == "mako.conf").unwrap().1;
-        assert!(mako.contains("margin=24,24,62,24"));
-        assert!(mako.contains("[mode=chat]\nmargin=24,424,62,24"));
-        assert!(!mako.contains("max-icon-size"), "mako refuses a size of 0");
+    fn the_palette_files_are_those_of_the_programs_the_flavor_starts() {
+        let names: Vec<&str> = files(&Colors::of(Scheme::Ink))
+            .iter()
+            .map(|(k, _)| *k)
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "colors.css",
+                "fuzzel.ini",
+                "foot.ini",
+                "swaylock.conf",
+                "icons/apps.svg",
+                "icons/apps@2.svg",
+                "icons/keys.svg",
+                "icons/keys@2.svg",
+                "icons/power.svg",
+                "icons/power@2.svg",
+            ]
+        );
     }
 }

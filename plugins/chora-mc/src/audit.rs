@@ -180,7 +180,7 @@ fn bar_findings(model: &Model) -> (usize, Vec<String>) {
 }
 
 fn above_keys(items: &[crate::region::Item]) -> Vec<String> {
-    let stays = |i: &&crate::region::Item| i.id.contains("-notify") || i.id.contains("-chat");
+    let stays = |i: &&crate::region::Item| i.id.contains("-chat");
     let over = items.iter().filter(stays);
     over.map(|i| format!("{} stays above the list of all keys", i.id))
         .collect()
@@ -388,50 +388,15 @@ mod tests {
         }
     }
 
-    fn notified() -> (crate::Mc, Model) {
-        use chora_kit::runtime::Plugin as _;
+    fn on_agenda() -> (crate::Mc, Model) {
         let (mut mc, model) = crate::testing::mc("audit-rows", [1280, 800]);
         mc.show("agenda", false).unwrap();
-        for title in ["Update ready", "Backup done and a longer line"] {
-            mc.method("notify.push", serde_json::json!({"title": title}))
-                .unwrap();
-        }
         (mc, model)
     }
 
     #[test]
-    fn items_of_one_row_share_a_baseline_and_rows_have_a_gap() {
-        let (_mc, model) = notified();
-        let all = texts(&model);
-        let mut seen = 0;
-        for time in all.iter().filter(|t| t.id.ends_with("-time")) {
-            let words = all
-                .iter()
-                .find(|t| t.id == time.id.trim_end_matches("-time"))
-                .unwrap();
-            seen += 1;
-            let base = |t: &Text| t.y + truth(t).1;
-            assert!(
-                (base(time) - base(words)).abs() <= TOLERANCE,
-                "{} and {}",
-                time.id,
-                words.id
-            );
-        }
-        assert!(seen >= 2, "{seen} rows");
-        let mut rows: Vec<&Text> = all.iter().filter(|t| t.id.ends_with("-time")).collect();
-        rows.sort_by(|a, b| a.y.total_cmp(&b.y));
-        for pair in rows.windows(2) {
-            assert!(
-                pair[1].y - pair[0].y >= pair[0].line + 14.0 - TOLERANCE,
-                "{pair:?}"
-            );
-        }
-    }
-
-    #[test]
     fn the_last_line_of_doors_stands_on_the_baseline_of_the_footer() {
-        let (_mc, model) = notified();
+        let (_mc, model) = on_agenda();
         let all = texts(&model);
         let base = |t: &Text| t.y + truth(t).1;
         let foot = all.iter().find(|t| t.id.contains("-footer-next")).unwrap();
@@ -449,7 +414,7 @@ mod tests {
 
     #[test]
     fn no_text_of_the_column_is_set_under_14_pixels() {
-        let (mut mc, model) = notified();
+        let (mut mc, model) = on_agenda();
         for list in [List::Six, List::All] {
             mc.keys = list;
             mc.render().unwrap();
@@ -471,7 +436,7 @@ mod tests {
             .filter(|i| i.id.ends_with("-title"))
             .map(|i| i.id.clone())
             .collect();
-        let want = ["agents", "notify", "chat", "keys"].map(|n| format!("-right-{n}-title"));
+        let want = ["agents", "chat", "keys"].map(|n| format!("-right-{n}-title"));
         for id in want {
             assert!(
                 heads.iter().any(|h| h.ends_with(&id)),
@@ -489,16 +454,11 @@ mod tests {
     /// Every state that a page shows: with notes, a question of a helper,
     /// the chat open, and the key list whole.
     fn states(scene: &str, size: [i32; 2]) -> Vec<(String, crate::Mc, Model)> {
-        use chora_kit::runtime::Plugin as _;
         let mut out = Vec::new();
         for state in ["rest", "notes", "chat", "keys"] {
             let (mut mc, model) = crate::testing::mc(&format!("audit-grid-{scene}-{state}"), size);
             mc.show(scene, false).unwrap();
             if state != "rest" {
-                for title in ["Update ready", "Backup done and a longer line"] {
-                    mc.method("notify.push", serde_json::json!({"title": title}))
-                        .unwrap();
-                }
                 helper(&mut mc);
             }
             if state == "chat" {
@@ -569,14 +529,9 @@ mod tests {
     #[test]
     fn the_label_columns_of_the_margin_column_are_one_width() {
         use chora_kit::hud::LABEL_COLUMN;
-        use chora_kit::runtime::Plugin as _;
         assert_eq!(LABEL_COLUMN % 14.0, 0.0, "a multiple of 14");
         let (mut mc, model) = crate::testing::mc("audit-labels", [1280, 800]);
         mc.show("agenda", false).unwrap();
-        for title in ["Update ready", "Backup done and a longer line"] {
-            mc.method("notify.push", serde_json::json!({"title": title}))
-                .unwrap();
-        }
         helper(&mut mc);
         mc.render().unwrap();
         pin(&mc);
@@ -589,7 +544,6 @@ mod tests {
                 .collect()
         };
         for (what, xs) in [
-            ("a note", words("-notify-0")),
             ("a helper", words("-agents-0-state")),
             ("a key", words("-keys-1-words")),
         ] {
@@ -673,63 +627,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    /// The urgent card is marked by a drawn close mark and
-    /// not by a glyph: two bars at 45 degrees, in a hit of 14 pixels or
-    /// more, and a click on it clears the line.
-    #[test]
-    fn the_urgent_card_has_a_drawn_close_mark_of_14_pixels() {
-        use chora_kit::runtime::Plugin as _;
-        let (mut mc, model) = crate::testing::mc("audit-urgent", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        mc.method(
-            "notify.push",
-            serde_json::json!({"title": "Disk is full", "urgency": "critical"}),
-        )
-        .unwrap();
-        let name = mc.current.clone().unwrap();
-        let item = (mc.items(&name).into_values())
-            .flat_map(|(items, _)| items)
-            .find(|i| i.id.ends_with("-urgent"))
-            .expect("the urgent line");
-        let words = item.props.text.clone().unwrap();
-        assert!(!words.contains('✕'), "a fallback glyph: {words}");
-        assert!(item.mark, "no close mark");
-        let core = model.lock().unwrap();
-        for n in 0..2 {
-            let id = crate::region::close_id(&item.id, n);
-            let bar = core
-                .scene
-                .node(&id)
-                .unwrap_or_else(|| panic!("no bar {id}"));
-            let [w, h] = bar.props.size.unwrap();
-            assert!(w >= 14.0 && h >= 1.5, "bar {w}x{h}");
-        }
-        drop(core);
-        assert!(mc.click_hit(&format!("{}-hit", item.id)));
-        assert!(mc.texts["urgent"].1.is_empty(), "the click clears the card");
-    }
-
-    /// A critical notification says `Urgent` in the column twice, as a card
-    /// and in the list, the card is not under 14 pixels, and a click on it
-    /// leaves the notification in the list.
-    #[test]
-    fn a_critical_notification_says_urgent_and_stays_in_the_column() {
-        use chora_kit::runtime::Plugin as _;
-        let (mut mc, _model) = crate::testing::mc("audit-urgent-word", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        let push = serde_json::json!({"title": "Disk is full", "urgency": "critical"});
-        mc.method("notify.push", push).unwrap();
-        let item = (mc.items("agenda").into_values())
-            .flat_map(|(items, _)| items)
-            .find(|i| i.id.ends_with("-urgent"))
-            .expect("the urgent line");
-        assert_eq!(item.props.text.as_deref(), Some("Urgent: Disk is full"));
-        assert!(item.props.font_size.unwrap() >= 14.0, "the card");
-        assert!(mc.click_hit(&format!("{}-hit", item.id)));
-        assert_eq!(mc.texts["notify"].1.len(), 1, "the column keeps it");
-        assert!(mc.texts["notify"].1[0].ends_with("Urgent: Disk is full"));
     }
 
     #[test]

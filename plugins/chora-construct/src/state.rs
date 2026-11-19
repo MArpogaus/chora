@@ -114,7 +114,7 @@ impl Construct {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use chora_kit::{
         runtime::{Plugin as _, Runtime},
         settings,
@@ -129,7 +129,7 @@ mod tests {
         clippy::disallowed_methods,
         reason = "the test connects to its fake core"
     )]
-    fn construct(tag: &str, overlay: bool) -> (Construct, FakeCore) {
+    pub(crate) fn construct(tag: &str, overlay: bool) -> (Construct, FakeCore) {
         let core = FakeCore::start();
         let rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
         let dir =
