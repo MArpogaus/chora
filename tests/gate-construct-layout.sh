@@ -113,7 +113,7 @@ press_at() {
 }
 label_is() { [ "$(ctl query id:construct-label-body-text | jq -r '.[0].text // empty')" = "$1" ]; }
 label_gone() { ctl query id:construct-label-body | jq -e 'length == 0 or .[0].visible == false or (.[0].opacity // 1) < 0.05' >/dev/null 2>&1; }
-notice_is() { [ "$(ctl query id:construct-notice-text | jq -r '.[0].text // empty')" = "$1" ]; }
+notice_is() { [ "$(notices)" = "$1" ]; }
 has_node() { ctl query "id:$1" | jq -e 'length > 0' >/dev/null 2>&1; }
 frame_is_buffer() {
     local s=$1
@@ -394,7 +394,7 @@ more_panes() {
         { echo "FAIL: $tag: a window is lost: $(ctl query 'kind:surface' | jq -c '[.[].surface.app_id]')"; failed=1; }
     key Super+Alt+2
     until_ok 'notice_is "XP did not take the window: it is not running."' ||
-        { echo "FAIL: $tag: the notice of a refused give reads '$(ctl query id:construct-notice-text | jq -r '.[0].text')'"; failed=1; }
+        { echo "FAIL: $tag: the notice of a refused give reads '$(notices)'"; failed=1; }
     key Alt+Escape
     ctl query 'kind:surface' | jq -e 'length == 4' >/dev/null ||
         { echo "FAIL: $tag: a refused give lost a window: $(ctl query 'kind:surface' | jq -c '[.[].surface.app_id]')"; failed=1; }
@@ -414,6 +414,7 @@ SCRIPT
     CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/chora-construct"
     local session=${pids[-1]}
     grant screen.capture input.inject methods.call
+    notify_start
     ctl wait id:construct-look --timeout 20 >/dev/null || fail "$tag: no space: $(tail -n 5 "$GATE_ENV")"
     first_floor "$tag" "$size"
     use_mode "$tag"

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Gate of the keys that create and close panes in chora-construct:
-# text typed into the space starts and closes nothing, and the HUD says
-# that the keys walk in one line, also under the default voice_hud: host;
+# text typed into the space starts and closes nothing, and a notice of
+# chora-notify says that the keys walk, also under the default
+# voice_hud: host;
 # a give key without a window says so; Super+t starts the terminal, and
 # the camera flies into its new pane, which has the keyboard; after
 # Alt+Escape, Super+F1 shows the help, Escape hides it and d walks, and none
@@ -55,6 +56,7 @@ printf '[main]\nfont=%s\n' "$font" >"$work/fuzzel/fuzzel.ini"
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 session_start 1280x800 -- "$bin/chora-construct"
 grant input.inject
+notify_start
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject || fail "inject $1"; }
 panes() {
     ctl call construct construct.list |
@@ -67,7 +69,7 @@ import json, sys
 print(any(n.get("focused") and (n.get("surface") or {}).get("app_id") == sys.argv[1] for n in json.load(sys.stdin)))' "$1"
 }
 flown_in() { ctl query id:construct-look | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0]["visible"])' | grep -qx False; }
-say() { ctl query id:construct-notice-text | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("text", "") if n else "")'; }
+say() { notices; }
 # until_ok CODE: waits up to 10 s for the shell code to succeed.
 until_ok() {
     for _ in $(seq 40); do
@@ -84,7 +86,7 @@ until_ok 'say | grep -q "keys walk"' ||
 sleep 1
 [ -z "$(panes)" ] || fail "typed text made panes: $(panes)"
 ctl query kind:surface | grep -q '"term"' && fail "typed text started the terminal"
-ok "typed text starts nothing, and the HUD says that the keys walk"
+ok "typed text starts nothing, and a notice says that the keys walk"
 
 key Super+Alt+2
 until_ok 'say | grep -q "No window to give"' || fail "a give key without a window said nothing: $(say)"

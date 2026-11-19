@@ -80,6 +80,21 @@ session_start() {
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
+notify_start() {
+    need_bins chora-notify
+    env -u DBUS_SESSION_BUS_ADDRESS "$bin/chora-notify" \
+        --assets "$repo/plugins/chora-notify/assets" >"${GATE_ENV:?}.notify" 2>&1 &
+    pids+=($!)
+    for _ in $(seq 40); do
+        ctl call notify state.get >/dev/null 2>&1 && return 0
+        sleep 0.25
+    done
+    fail "no chora-notify: $(tail -n 3 "$GATE_ENV.notify")"
+}
+notices() {
+    ctl call notify state.get 2>/dev/null |
+        python3 -I -c 'import json, sys; print("\n".join(n["summary"] for n in json.load(sys.stdin).get("shown", [])))'
+}
 layout_audit() {
     local tag=$1 dir out
     shift
