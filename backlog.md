@@ -274,3 +274,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - F5 hud flake 73b (11-19 21:31, --jobs 3): construct-host-hud 'a done of another id closed the question' and chat-long-task 'timeout 5s: header_capped ... working' missing; rerun alone green (21:38). Next flake lane.
 - TRAIN75 (11-19 22:18): red in ci-check: kit-connect (row "own test connect" max 0) vs cube-tests tests_construct.rs:64 Runtime::with, a semantic conflict two lanes could not see. Earliest gate: a lane's ci-check after merging the session branch; kit-connect r2 fixes it. Harness idea: a lane merges the session head before its final gate.
 - F24R-1 NIT (11-19 22:33): tests/grab-gap-check.py misses a grab skipped on a branch in a callee (f24-rest r1).
+- H-mkdir (kit-sec r1 FIX 23:38): earliest gate none; a pre-commit check that flags `mkdir -p` without `-m 700` under $XDG_RUNTIME_DIR in flavors/ and plugins/ shell scripts. 0.2 %.
