@@ -463,9 +463,12 @@ The actions that every look shares are one enum, `chora_kit::actions::System`
 binding. A look adds its own actions as a second enum and binds both with
 `chora_kit::actions::Action<Look>`; its settings take the shared keys
 `bindings` and `test_accept_injected_keys` from `chora_kit::settings::Common`
-through `#[serde(flatten)]`. A look refuses a `System` value that it has no
-act for, naming the binding. `desk` and `cube` are values only; no look acts
-on them yet. mc is the first look on it; the others follow.
+through `#[serde(flatten)]`. A look drops a binding to a `System` value that
+it has no act for, with one warning that names the key. `desk` and `cube`
+are values only in mc and construct. xp acts on `cube` as a quarter turn of
+its cube. mc, construct and xp read `bindings`; tiling follows. xp has had
+the setting since KIT2d, with the keys that it had hard-coded as its
+defaults.
 
 The key action `give` is the same on every window manager. A binding
 `give: NAME` gives the focused window to the window manager `NAME`.
@@ -1580,6 +1583,29 @@ that gets the keyboard after the focused one goes.
 
 ```console
 $ choractl state mc
+```
+
+The cube role (D71): the client that hosts a cube of faces, today the
+construct, exports `cube.list`, `cube.turn` and `cube.pull`, and emits
+`<client>.cube` with `{front, turning}` whenever the front face or the
+turning changes. `cube.list` answers the faces in turn order, each with
+its virtual `output`, the client name of its window `manager` and its
+`health` (`starting`, `up`, `failed`), and the `front` face, `turning`
+and the `mode` (`use` at 1:1, else `navigate`). `cube.turn` takes either
+`by` quarter turns, positive to the right, or `to` a face, the short
+way, with an optional `ms` a quarter, and answers whether the cube took
+the turn: `false` when it is ignored, because a turn runs or `to` names
+the front face. `cube.pull` takes the `surface` of a window on a face and
+makes it a pane in the space, and answers `{pane}`, the name of the pane,
+which `pane.remove` takes; the window goes back to the manager of the
+faces when the pane goes. It is refused for a window that is not on a face
+and while no cube is open. A look reaches the cube through
+`chora_kit::cube`, which finds the exporter with `methods.list`, and
+never names the plugin:
+
+```console
+$ choractl call construct cube.list
+$ choractl call construct cube.turn '{"to": 2}'
 ```
 
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,

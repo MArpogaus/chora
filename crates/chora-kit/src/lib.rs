@@ -13,6 +13,7 @@ pub mod ask;
 pub mod chat;
 pub mod clock;
 pub mod conn;
+pub mod cube;
 pub mod desktop_entry;
 pub mod effects;
 pub mod float;

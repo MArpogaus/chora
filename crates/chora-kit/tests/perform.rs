@@ -65,6 +65,12 @@ impl Host for Look {
         Ok(())
     }
 
+    /// A look with a power menu of its own: the shared script stays out.
+    fn power(&mut self) -> Result<bool, String> {
+        self.done.push("power".into());
+        Ok(true)
+    }
+
     fn terminal(&mut self) -> Result<(), String> {
         self.done.push("terminal".into());
         Ok(())
@@ -153,6 +159,7 @@ fn each_system_action_reaches_its_hook() {
         (System::Close, "close"),
         (System::Keys, "keys"),
         (System::Chat, "chat"),
+        (System::Power, "power"),
         (System::Volume(Change::Up), "volume Up"),
         (System::Volume(Change::Set(30)), "volume Set(30)"),
         (System::Desk(Step::Next), "desk Next"),
@@ -236,6 +243,15 @@ fn the_default_hooks_do_nothing() {
         perform(&mut look, &system).unwrap();
     }
     assert_eq!(look.0.failures, Vec::<Failure>::new());
+}
+
+/// A look without a power menu of its own leaves the action to the shared
+/// script: its hook says no.
+#[test]
+fn the_default_power_hook_leaves_the_menu_to_the_shared_script() {
+    let core = FakeCore::start();
+    let mut look = Bare(Look::new(&core));
+    assert_eq!(look.power(), Ok(false));
 }
 
 #[test]

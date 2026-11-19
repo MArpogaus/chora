@@ -141,7 +141,8 @@ fn clear_right(width: f64, [top, bottom]: [f64; 2], icons: &[[f64; 4]]) -> f64 {
         .fold(width, f64::min)
 }
 
-fn no_cube() -> ClientError {
+/// The refusal of a method of the cube while none is open.
+pub(crate) fn no_cube() -> ClientError {
     ClientError::Rpc(RpcError::new(
         RpcError::REJECTED,
         "no cube is open; cube.open first",
