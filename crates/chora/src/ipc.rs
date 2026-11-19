@@ -1516,7 +1516,7 @@ mod tests {
         let window = wayland.toplevel(&mut core, "win");
         wayland.attach(&mut core, &window, (40, 30));
         let mut wm = core.named("wm");
-        let path = png("mirror", 8);
+        let (_dir, path) = png("mirror", 8);
         let sent = wm.send(
             "scene.apply",
             json!({"commands": [
@@ -1657,7 +1657,7 @@ mod tests {
         let mut core = Core::new();
         core.add_output("out", (800, 600));
         let mut wm = core.named("wm");
-        let path = png("asset", 4);
+        let (_dir, path) = png("asset", 4);
         let sent = wm.send(
             "scene.apply",
             json!({"commands": [
@@ -1687,9 +1687,9 @@ mod tests {
     }
 
     /// Writes a gray PNG file of a size and returns its path.
-    fn png(name: &str, side: u32) -> String {
-        let path =
-            std::env::temp_dir().join(format!("chora-ipc-{name}-{}.png", std::process::id()));
+    fn png(name: &str, side: u32) -> (chora_scene::testing::TempDir, String) {
+        let dir = chora_scene::testing::TempDir::new("chora-ipc");
+        let path = dir.join(format!("{name}.png"));
         let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
         let mut encoder = png::Encoder::new(file, side, side);
         encoder.set_color(png::ColorType::Grayscale);
@@ -1697,7 +1697,8 @@ mod tests {
         writer
             .write_image_data(&vec![128; (side * side) as usize])
             .unwrap();
-        path.to_str().unwrap().to_owned()
+        let path = path.to_str().unwrap().to_owned();
+        (dir, path)
     }
 
     #[test]

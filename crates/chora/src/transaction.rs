@@ -600,8 +600,9 @@ mod tests {
     }
 
     /// Writes a gray PNG file of a size and returns its path.
-    fn png(name: &str, side: u32) -> String {
-        let path = std::env::temp_dir().join(format!("chora-{}-{name}.png", std::process::id()));
+    fn png(name: &str, side: u32) -> (chora_scene::testing::TempDir, String) {
+        let dir = chora_scene::testing::TempDir::new("chora-transaction");
+        let path = dir.join(format!("{name}.png"));
         let file = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
         let mut encoder = png::Encoder::new(file, side, side);
         encoder.set_color(png::ColorType::Grayscale);
@@ -609,7 +610,8 @@ mod tests {
         writer
             .write_image_data(&vec![128; (side * side) as usize])
             .unwrap();
-        path.to_str().unwrap().to_owned()
+        let path = path.to_str().unwrap().to_owned();
+        (dir, path)
     }
 
     fn image(id: &str, path: &str) -> Value {
@@ -637,7 +639,7 @@ mod tests {
         let mut core = Core::new();
         let mut loader = core.named("loader");
         let mut panel = core.named("panel");
-        let path = png("large", 2048);
+        let (_dir, path) = png("large", 2048);
         let first = loader.send("scene.apply", image("picture", &path));
         let second = loader.send("scene.apply", rect("after"));
         let other = panel.send("scene.apply", rect("p"));
