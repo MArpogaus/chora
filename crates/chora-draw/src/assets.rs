@@ -60,7 +60,10 @@ impl Count {
 /// The tree is larger or costlier; the message says how.
 pub fn check_tree(tree: &usvg::Tree) -> Result<(), String> {
     let size = tree.size();
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a constant side limit, exact in f32"
+    )]
     let limit = MAX_SIDE as f32;
     if size.width() > limit || size.height() > limit {
         return Err(format!(

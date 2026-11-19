@@ -274,7 +274,10 @@ const ECHO_MEMORY: Duration = Duration::from_secs(3);
 const NOTES: usize = 8;
 
 // ponytail: the flags of the state machine; one state enum if they grow.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the core keeps several independent flags"
+)]
 pub struct Core {
     config: Config,
     gate: Gate,

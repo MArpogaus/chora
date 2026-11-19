@@ -190,7 +190,11 @@ impl Wm {
                     scale: 100,
                 },
                 |o| {
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        clippy::cast_sign_loss,
+                        reason = "a rounded physical output size in pixels"
+                    )]
                     display::Screen {
                         output: o.name.clone(),
                         physical: o.size.map(|n| (f64::from(n) * o.scale).round() as i32),
@@ -379,7 +383,10 @@ impl Wm {
     /// A click on the speaker of a taskbar mutes or unmutes, and a double
     /// click on the clock opens Date and Time.
     pub(super) fn press_tray(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a pointer position in pixels"
+        )]
         let [x, y] = [px.floor() as i32, py.floor() as i32];
         let on = |[cx, cy, cw, ch]: Rect| (cx..cx + cw).contains(&x) && (cy..cy + ch).contains(&y);
         if self.bars.iter().any(|b| on(b.speaker_rect())) {

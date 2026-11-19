@@ -136,7 +136,10 @@ pub fn window_rect(
 ) -> Result<Option<Window>, GlesError> {
     let viewport = viewport(frame)?;
     let projection = *frame.projection();
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "pixel coordinates, exact in f64"
+    )]
     let corners = [
         (rect.loc.x, rect.loc.y),
         (rect.loc.x + rect.size.w, rect.loc.y + rect.size.h),
@@ -151,7 +154,10 @@ pub fn window_rect(
         };
         [window(0), window(1)]
     });
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "rounded pixel edges, clamped to the i32 viewport"
+    )]
     let edge = |row: usize| {
         let (low, high) = (viewport[row], viewport[row] + viewport[row + 2]);
         let (first, second) = (corners[0][row], corners[1][row]);
@@ -242,7 +248,7 @@ pub struct Glass<'a> {
 pub fn glass(frame: &mut GlesFrame<'_, '_>, glass: &Glass<'_>) -> Result<(), GlesError> {
     let viewport = viewport(frame)?;
     let size = smithay::backend::renderer::Texture::size(glass.texture);
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "pixel sizes, exact in f32")]
     let call = Draw {
         clip: glass.clip,
         uv: glass.uv,

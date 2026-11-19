@@ -34,7 +34,10 @@ impl Earcon {
                 let envelope = (i / fade).min((n - i) / fade).min(1.0);
                 let t = i / f64::from(RATE);
                 let s = amplitude * envelope * (std::f64::consts::TAU * freq * t).sin();
-                #[allow(clippy::cast_possible_truncation)]
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "a sine sample scaled to +-10 000, inside i16"
+                )]
                 let s = s as i16;
                 s
             }));

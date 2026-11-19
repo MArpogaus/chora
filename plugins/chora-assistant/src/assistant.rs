@@ -360,7 +360,7 @@ fn speech(
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = wrap(text, MAX_SPEECH, width);
     let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
     let w = (PAD + (text_width.ceil() as i32) + PAD).max(MIN_WIDTH);
     let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + PAD;
     let (origin, tail, below) = place((style, tail_left), [w, h], tip, anchor);
@@ -981,14 +981,20 @@ impl Assistant {
         }
         let [x, y, w, h] = self.with_word();
         if self.values.line.plain {
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "small constant sizes, far below i32::MAX"
+            )]
             let most = [MAX_PLAIN as i32 + 2 * BACKING, BALLOON_REACH];
             let [left, top] = beside(most, [x, y, w, h], self.area);
             let from = left.min(x);
             let to = (left + most[0]).max(x + w);
             return [from, top, to - from, most[1].max(h)];
         }
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a small constant size, far below i32::MAX"
+        )]
         let widest = PAD + MAX_SPEECH as i32 + PAD;
         let style = (&self.values.speech, self.values.line.tail_left);
         let tip = [x + self.values.figure.head()[0], y];
@@ -1023,7 +1029,7 @@ impl Assistant {
             .map_or((MAX_PLAIN, LINE), |face| (MAX_PLAIN_SIZED, face.line()));
         let lines = wrap(text, most, width);
         let widest = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
         let w = (widest.ceil() as i32).max(1) + 2 * BACKING;
         let h = i32::try_from(lines.len()).unwrap_or(0).max(1) * row + 2 * BACKING;
         let [red, green, blue] = self.values.speech.fill;

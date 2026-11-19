@@ -32,14 +32,21 @@ fn world() -> (Core, Client) {
 fn shot(core: &mut Core, wm: &mut Client) -> impl Fn(f64, f64) -> [u8; 4] + use<> {
     let picture = wm.ok(core, "screen.capture", json!({"output": OUTPUT}));
     let (width, rgba) = decode(&picture);
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "x and y are pixel positions inside the frame, so non-negative"
+    )]
     move |x: f64, y: f64| {
         let at = (y as usize * width + x as usize) * 4;
         rgba[at..at + 4].try_into().expect("a pixel")
     }
 }
 
-#[allow(clippy::print_stdout)]
+#[expect(
+    clippy::print_stdout,
+    reason = "a test prints its measurement report for the reader"
+)]
 fn report(line: &str) {
     println!("{line}");
 }

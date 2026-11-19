@@ -319,6 +319,10 @@ impl Mc {
     /// One node per row, so that a row wraps and its note stays on
     /// its first line; `align` stacks the rows as the core lays
     /// them out, and moves the notes flush right to the margin.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "rustfmt splits the reasoned casts below over several lines"
+    )]
     pub(crate) fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
         let (Some([x, y, w, h]), Some(geo)) = (self.place(name, panel), self.geometry(name)) else {
             return Vec::new();
@@ -353,7 +357,11 @@ impl Mc {
         let body = self.ty("body", panel.style.as_ref());
         if let Some(rows) = panel.columns() {
             let note = self.ty("margin", panel.note_style.as_ref());
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            #[expect(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "a non-negative line count of the body"
+            )]
             let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
                 #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]

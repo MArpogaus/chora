@@ -76,7 +76,10 @@ fn ramp(row: &[u8]) -> usize {
     first(230) - first(26)
 }
 
-#[allow(clippy::print_stdout)]
+#[expect(
+    clippy::print_stdout,
+    reason = "a test prints its measurement report for the reader"
+)]
 fn report(line: &str) {
     println!("{line}");
 }
