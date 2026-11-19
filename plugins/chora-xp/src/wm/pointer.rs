@@ -528,3 +528,6 @@ impl Wm {
         }
     }
 }
+
+#[cfg(test)]
+mod tests_moved;

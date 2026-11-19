@@ -210,3 +210,6 @@ impl Mc {
         self.grab_some(needs_claim)
     }
 }
+
+#[cfg(test)]
+mod tests_moved;

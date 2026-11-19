@@ -3,11 +3,14 @@
 
 use chora_kit::actions::System;
 use chora_kit::actions::perform::{Failure, Host};
+use chora_kit::runtime::Plugin as _;
+use chora_kit::testing::{FakeCore, created, owner, surface};
+use chora_scene::{Command, NodeKind, PropsUpdate, ROOT};
 
 use crate::config::Look;
 use crate::region::Region;
 use crate::testing;
-use crate::{Action, Mc, PressState};
+use crate::{Action, Mc, NAME, PressState};
 
 const DRAG: &str = "Super+BTN_LEFT";
 
@@ -226,4 +229,56 @@ fn a_bound_system_action_runs_through_the_host() {
     let (mut mc, model) = testing::mc("acts-perform-chat", [1280, 800]);
     mc.perform(Action::System(System::Chat));
     assert!(model.lock().unwrap().calls.iter().any(|c| c == "chat.show"));
+}
+
+/// mc on a fake core that selects by any selector, with the drag bound and
+/// one window of mc that the core knows as its own.
+fn holding_a_window(dir: &str) -> (Mc, FakeCore) {
+    let core = FakeCore::start().selecting();
+    let mut mc = testing::mc_on(&core, dir, [1280, 800]);
+    bind(&mut mc, DRAG, Action::System(System::Drag));
+    surface(&core.model(), "s1");
+    mc.event(created("s1", None)).unwrap();
+    assert_eq!(
+        owner(&core.model(), "s1").as_deref(),
+        Some(NAME),
+        "mc owns the window"
+    );
+    mc.windows.insert("agenda".into(), "s1".into());
+    (mc, core)
+}
+
+/// A release on the claim of another window manager hands the dragged
+/// window to it: the core reserves the window for that manager.
+#[test]
+fn a_release_on_another_claim_hands_the_dragged_window_over() {
+    let (mut mc, core) = holding_a_window("acts-handover");
+    let mut manager = core.connect("wm-other");
+    manager
+        .apply(vec![Command::Create {
+            id: "wm-other".into(),
+            kind: NodeKind::Group,
+            parent: ROOT.into(),
+            props: PropsUpdate {
+                claim: Some(Some([0.0, 0.0, 800.0, 600.0])),
+                ..PropsUpdate::default()
+            },
+        }])
+        .unwrap();
+    mc.drag(DRAG, PressState::Pressed, [10.0, 10.0], Some("s1".into()));
+    assert_eq!(
+        mc.dragged.as_deref(),
+        Some("s1"),
+        "the press takes the window"
+    );
+    mc.drag(DRAG, PressState::Released, [10.0, 10.0], None);
+    assert_eq!(mc.dragged, None, "the release ends the drag");
+    let model = core.model();
+    let node = model.lock().unwrap().scene.node("s1").cloned();
+    let to = node.and_then(|n| n.to);
+    assert_eq!(
+        to.as_deref(),
+        Some("wm-other"),
+        "reserved for the other manager"
+    );
 }
