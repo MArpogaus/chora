@@ -53,3 +53,10 @@ id = "I13"
 look = "construct"
 match = "is missing beside"
 slice = "WM6"
+
+[[red]]
+finding = "kit7-a1: after chat.show of the helper in mc the core focuses the page node of mc, and mc does not say in state.get that it holds the focus"
+id = "I3"
+look = "mc"
+match = "in act 'the chat of the helper opens'"
+slice = "WM2"
