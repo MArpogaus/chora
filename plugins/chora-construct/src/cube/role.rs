@@ -101,10 +101,11 @@ mod tests {
     use super::super::TURN;
     use super::*;
 
+    /// The faces name the client of the manager, not its display name.
     #[test]
     fn the_role_lists_the_faces_with_their_manager_and_health() {
         let mut host = super::super::tests::host_of(4);
-        host.name = "xp".into();
+        host.name = "XP".into();
         host.health[3] = Health::Starting;
         let listing = host.listing();
         assert_eq!(listing.faces.len(), 4);

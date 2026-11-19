@@ -123,6 +123,44 @@ def pid_of(s, name):
     raise RuntimeError(f"no process {name} in the session")
 
 
+def probe_surface(s):
+    """The surface of the window of chora-probe."""
+    nodes = s.core.call("scene.query", {"selector": "kind:surface"}) or []
+    found = [n["id"] for n in nodes if (n.get("surface") or {}).get("app_id") == "chora-probe"]
+    if len(found) != 1:
+        raise RuntimeError(f"expected one chora-probe window, got {found}")
+    return found[0]
+
+
+def pull_and_remove(s):
+    """A cue: cube.pull makes the probe window a pane and answers its name;
+    a second pull of the same window is refused, as it is off a face; the
+    window goes back to the xp of the face once the pane is removed."""
+    sid = probe_surface(s)
+    try:
+        pane = s.call("construct", "cube.pull", {"surface": sid}).get("pane")
+    except RuntimeError as err:
+        listed = s.call("construct", "window.list")
+        raise RuntimeError(f"{err}; window.list {listed}; cube.list {s.cube()}") from err
+    listed = s.call("construct", "construct.list").get("panes") or []
+    if pane not in [p.get("name") for p in listed]:
+        raise RuntimeError(f"the pane {pane!r} of the pull is not in construct.list")
+    try:
+        s.call("construct", "cube.pull", {"surface": sid})
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("a second pull of a window in a pane was not refused")
+    s.call("construct", "pane.remove", {"name": pane})
+    s.until(lambda: owner_of(s, sid) == MANAGER, 20, "the window back with the xp of the face")
+
+
+def owner_of(s, sid):
+    """The client that owns the node of the surface `sid`."""
+    nodes = s.core.call("scene.query", {"selector": f"id:{sid}"}) or []
+    return nodes[0].get("owner") if nodes else None
+
+
 def kill_construct_mid_turn(s):
     """A cue: a slow turn, construct killed in its middle, then started
     again as the flavor's unit would; the xp of the cube ends with it, and
@@ -184,7 +222,7 @@ def cube_acts(s):
     )
     s.act(
         "the key of the step back stands back",
-        [key("Alt+Escape")],
+        [lambda s: s.call("construct", "cube.turn", {"to": 0}), wait(0.8), key("Alt+Escape")],
         expect=Expect(cube={"front": 0, "turning": False, "mode": "navigate"}),
     )
     s.act(
@@ -196,6 +234,11 @@ def cube_acts(s):
         "back at 1:1 no construct surface is left once the hint went",
         [plain("Return"), wait(HINT_GONE)],
         expect=Expect(cube={"front": 1, "mode": "use"}, verify=one_to_one(s)),
+    )
+    s.act(
+        "a pulled window goes back to the xp of its face when its pane goes",
+        [pull_and_remove],
+        expect=Expect(gone=0, cube={"mode": "use"}),
     )
     s.act(
         "construct killed mid-turn loses no window",
