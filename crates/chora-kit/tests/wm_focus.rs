@@ -37,12 +37,11 @@ impl Look {
     }
 }
 
-/// The focus goes to the last window of the book that is not `gone`.
-struct LastWindow;
-
-impl Policy for LastWindow {
-    fn focus_after(&self, gone: &str, _why: &Why, book: &Book) -> Option<String> {
-        book.windows()
+/// The policy of the look: the last window of its book that is not
+/// `gone`.
+impl Policy for Look {
+    fn focus_after(&self, gone: &str, _why: &Why) -> Option<String> {
+        (self.book.windows())
             .filter(|w| *w != gone)
             .last()
             .map(String::from)
@@ -136,8 +135,7 @@ fn an_empty_focus_is_no_loss() {
 fn the_policy_says_where_the_focus_goes_after_a_window() {
     let mut look = Look::new("tiling", &["t1", "t2", "t3"]);
     look.focus.sent(Some("t3".into()));
-    let after =
-        |look: &Look, gone: &str, why: &Why| look.focus.after(gone, why, &LastWindow, &look.book);
+    let after = |look: &Look, gone: &str, why: &Why| look.focus.after(gone, why, look);
     assert_eq!(after(&look, "t3", &Why::Destroyed), Some(Some("t2".into())));
     assert_eq!(after(&look, "t1", &Why::Destroyed), None, "t1 had no focus");
     assert_eq!(after(&look, "t3", &Why::Given("xp".into())), None);
@@ -164,6 +162,12 @@ fn the_holder_is_a_window_of_the_book() {
     );
     look.focus.sent(Some("gone".into()));
     assert_eq!(look.focus.holder(|s| look.book.has(s)), Holder::Nobody);
+    look.focus.hear(&changed(Some("t1")));
+    assert_eq!(
+        look.focus.holder(|s| look.book.has(s)),
+        Holder::Window("t1".into()),
+        "a window of the look that the core focused holds it"
+    );
     let command = look.focus.to(Some("t1".into()));
     assert!(matches!(command, Command::Focus { .. }));
     assert!(look.focus.sent && !look.focus.sends(Some("t1")));

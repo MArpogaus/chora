@@ -10,14 +10,14 @@
 
 use chora_scene::{Command, Event};
 
-use super::{Book, Why, state};
+use super::{Why, state};
 
 /// The rules of focus that a look decides; it sees its own model.
 pub trait Policy {
     /// The window of the look that gets the keyboard after its focused
     /// window `gone` went for `why`; none leaves the keyboard to the
     /// look's own nodes, or to nobody.
-    fn focus_after(&self, gone: &str, why: &Why, book: &Book) -> Option<String>;
+    fn focus_after(&self, gone: &str, why: &Why) -> Option<String>;
 }
 
 /// Who holds the keyboard, seen from one look.
@@ -45,6 +45,8 @@ pub struct Focus {
     pub lost: bool,
     /// The own node that has the keyboard, through `focus_node`.
     node: Option<String>,
+    /// The surface that the core focuses, as it told or the look sent.
+    core: Option<String>,
 }
 
 impl Focus {
@@ -61,6 +63,7 @@ impl Focus {
     /// the look must then still focus its next window. A window ends the
     /// focus of a node.
     pub fn moved(&mut self, surface: Option<&str>) {
+        self.core = surface.map(String::from);
         let Some(surface) = surface else {
             return;
         };
@@ -72,8 +75,8 @@ impl Focus {
     /// which focuses it.
     pub fn gave(&mut self, surface: &str) {
         if self.surface.as_deref() == Some(surface) {
-            self.lost = true;
-            self.node = None;
+            self.lose();
+            self.surface = None;
         }
     }
 
@@ -82,6 +85,7 @@ impl Focus {
     pub fn lose(&mut self) {
         self.lost = true;
         self.node = None;
+        self.core = None;
     }
 
     /// A window of the look takes the focus back: the next transaction
@@ -104,6 +108,7 @@ impl Focus {
         if focus.is_some() {
             self.node = None;
         }
+        self.core.clone_from(&focus);
         self.surface = focus;
         self.sent = true;
     }
@@ -125,17 +130,17 @@ impl Focus {
         Command::FocusNode { node }
     }
 
-    /// Who holds the keyboard; `own` tells the windows of the look.
+    /// Who holds the keyboard; `own` tells the windows of the look. A
+    /// window of the look that the core focuses holds it, also one that
+    /// the look did not send.
     #[must_use]
     pub fn holder(&self, own: impl Fn(&str) -> bool) -> Holder {
-        if self.lost {
-            return Holder::Foreign;
-        }
         if let Some(node) = &self.node {
             return Holder::Node(node.clone());
         }
-        match self.surface.as_deref() {
-            Some(surface) if self.sent && own(surface) => Holder::Window(surface.into()),
+        match self.core.as_deref() {
+            Some(surface) if own(surface) => Holder::Window(surface.into()),
+            _ if self.lost => Holder::Foreign,
             _ => Holder::Nobody,
         }
     }
@@ -155,14 +160,8 @@ impl Focus {
     /// look did not hold the keyboard on it or gave it away (the receiver
     /// focuses it), else what the policy says.
     #[must_use]
-    pub fn after(
-        &self,
-        gone: &str,
-        why: &Why,
-        policy: &dyn Policy,
-        book: &Book,
-    ) -> Option<Option<String>> {
+    pub fn after(&self, gone: &str, why: &Why, policy: &dyn Policy) -> Option<Option<String>> {
         let held = !self.lost && self.surface.as_deref() == Some(gone);
-        (held && !matches!(why, Why::Given(_))).then(|| policy.focus_after(gone, why, book))
+        (held && !matches!(why, Why::Given(_))).then(|| policy.focus_after(gone, why))
     }
 }

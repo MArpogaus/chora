@@ -192,7 +192,7 @@ impl Tiling {
     pub(super) fn forget_window(&mut self, id: &str, why: &Why) {
         self.book.forget(id);
         self.wm.remove_window(id);
-        let next = self.focus.after(id, why, &self.wm, &self.book);
+        let next = self.focus.after(id, why, &self.wm);
         if next.is_some() || self.focus.surface.as_deref() == Some(id) {
             self.focus.surface = next.flatten();
             self.focus.sent = false;

@@ -202,12 +202,7 @@ pub struct Wm {
 /// The focus after a window goes: the window focused before it on the
 /// current output, by the history of the focus.
 impl chora_kit::wm::focus::Policy for Wm {
-    fn focus_after(
-        &self,
-        gone: &str,
-        _why: &chora_kit::wm::Why,
-        _book: &chora_kit::wm::Book,
-    ) -> Option<String> {
+    fn focus_after(&self, gone: &str, _why: &chora_kit::wm::Why) -> Option<String> {
         self.focused().filter(|f| *f != gone).map(String::from)
     }
 }
