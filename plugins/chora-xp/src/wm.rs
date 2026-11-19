@@ -1148,13 +1148,14 @@ mod tests {
         assert_eq!(wm.cube_grab, Some(100.0), "the press of the person");
     }
 
-    /// Without a cube on virtual outputs alone, the turn keys switch the
-    /// desks flat, and no drag turns anything.
+    /// On virtual outputs alone without a cube host, as in a pane, xp
+    /// has no desktops to switch: it holds no turn key, so another
+    /// client may, and no drag turns anything.
     #[test]
-    fn without_a_cube_the_turn_keys_stay_and_the_drag_goes() {
+    fn without_a_cube_xp_holds_no_turn_key_and_no_drag() {
         let (mut rt, _calls) = on_fake_core("flat-keys");
         grab_keys(&mut rt, CubeKeys::Flat).unwrap();
-        assert!(matches!(rt.action("Ctrl+Alt+Left"), Some(Key::Turn(-1))));
+        assert!(rt.action("Ctrl+Alt+Left").is_none(), "no turn key");
         assert!(
             rt.action("Super+BTN_LEFT").is_none(),
             "no drag without a cube"
