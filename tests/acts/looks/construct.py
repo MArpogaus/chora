@@ -128,8 +128,12 @@ def kill_construct_mid_turn(s):
     again as the flavor's unit would; the xp of the cube ends with it, and
     its windows come back to a look after the reset of the core."""
     pid = pid_of(s, "chora-construct")
-    s.call("construct", "cube.turn", {"by": 1, "ms": 3000})
+    taken = s.call("construct", "cube.turn", {"by": 1, "ms": 3000})
+    if taken is not True:
+        raise RuntimeError(f"the slow turn was not taken: {taken!r}")
     time.sleep(1.0)
+    if s.cube().get("turning") is not True:
+        raise RuntimeError(f"the cube is not turning before the kill: {s.cube()!r}")
     os.kill(pid, signal.SIGKILL)
     s.until(lambda: not {"construct", MANAGER} & s.clients(), 20, "construct and xp gone")
     s.looks.remove(MANAGER)
@@ -195,7 +199,7 @@ def cube_acts(s):
     )
     s.act(
         "construct killed mid-turn loses no window",
-        [lambda s: s.call("construct", "cube.turn", {"to": 0}), kill_construct_mid_turn],
+        [kill_construct_mid_turn],
         disconnects=["construct", MANAGER],
         expect=Expect(gone=0),
     )
