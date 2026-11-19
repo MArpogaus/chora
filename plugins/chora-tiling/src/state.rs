@@ -4,21 +4,21 @@
 //! them. Title and app id are core facts that tiling does not keep;
 //! `views` and `texts` stay out.
 
-use chora_kit::wm::state::{Desks, Open, State, Window};
+use chora_kit::wm::state::{Desks, State, Window};
 use serde_json::{Value, json};
 
-use crate::{NAME, Tiling, keys};
+use crate::{NAME, Tiling};
 
 impl Tiling {
-    /// The key list, while it is open.
-    fn open_value(&self) -> Vec<Open> {
-        (self.keys_open.then(|| Open {
-            id: keys::KEYS.into(),
-            kind: "sheet".into(),
-            modal: true,
-        }))
-        .into_iter()
-        .collect()
+    /// What still moves.
+    fn busy(&self) -> Vec<String> {
+        let running = [
+            (self.effects.animating(), "effects"),
+            (self.chip_until.is_some(), "chip"),
+        ];
+        (running.into_iter().filter(|(on, _)| *on))
+            .map(|(_, name)| name.to_owned())
+            .collect()
     }
 
     /// The windows bottom first, the tags that show, the focus, the key
@@ -42,6 +42,7 @@ impl Tiling {
                     maximized: w.maximized == (true, true),
                     fullscreen: w.fullscreen,
                     floating: w.floating,
+                    held: self.dragged.as_ref().is_some_and(|(id, _)| *id == w.id),
                     z: z(&w.id),
                     ..Window::default()
                 }
@@ -54,22 +55,16 @@ impl Tiling {
             })
             .collect();
         let mut focus = self.focus.state(NAME, |s| self.wm.has(s));
-        if self.keys_open {
+        if self.keys_open() {
             focus.holder = Some(NAME.to_owned());
         }
-        let running = [
-            (self.effects.animating(), "effects"),
-            (self.chip_until.is_some(), "chip"),
-        ];
-        let busy = (running.into_iter().filter(|(on, _)| *on))
-            .map(|(_, name)| name.to_owned())
-            .collect();
+        let open = self.open.state();
         State {
             windows,
             desks,
             focus,
-            open: self.open_value(),
-            busy,
+            open,
+            busy: self.busy(),
             more: [("helper".to_owned(), json!(self.voiced.word()))]
                 .into_iter()
                 .collect(),
@@ -107,7 +102,7 @@ mod tests {
         let (tiling, _) = on_fake_core("state-empty");
         let state = tiling.state().expect("tiling has a state");
         let expected = json!({"windows": [], "desks": [], "focus": {"holder": null},
-            "open": [], "busy": [], "helper": "none"});
+            "open": [], "busy": [], "helper": "no_helper"});
         assert_eq!(state, expected);
     }
 
@@ -139,19 +134,22 @@ mod tests {
     #[test]
     fn the_key_list_is_open_while_it_shows() {
         let (mut tiling, _) = on_fake_core("state-keys");
-        tiling.keys_open = true;
+        tiling.open.open(
+            chora_kit::wm::open::Surface::new(crate::keys::KEYS, chora_kit::wm::open::Kind::Sheet)
+                .modal(),
+        );
         let state = tiling.state().unwrap();
         let open = json!([{"id": "tiling-keys", "kind": "sheet", "modal": true}]);
         assert_eq!(state["open"], open);
         assert_eq!(state["focus"], json!({"holder": "tiling"}));
     }
 
-    /// `helper` is `none` until voice reports, follows its latest
-    /// `voice.state`, and is `none` again when voice goes.
+    /// `helper` is the word of the kit machine: `no_helper` until a helper
+    /// exists, its state while it does, `no_helper` again when voice goes.
     #[test]
     fn the_helper_follows_voice() {
         let (mut x, _) = on_fake_core("state-helper");
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let said = |event: &str, data| chora_scene::Event::Emitted {
             event: event.into(),
             client: "voice".into(),
@@ -159,7 +157,7 @@ mod tests {
         };
         x.event(said("voice.state", json!({"state": "idle"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         x.event(said(
             "voice.state",
             json!({"name": "atlas", "state": "working"}),
@@ -168,9 +166,42 @@ mod tests {
         assert_eq!(x.state().unwrap()["helper"], "working");
         x.event(said("voice.remove", json!({"name": "atlas"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let gone = json!({"event": "client.disconnected", "name": "voice"});
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
+    }
+
+    /// A look that hears voice connect asks voice for its state, and it
+    /// hears every event of the helper machine, so that it says what the
+    /// presenter says (rw-4).
+    #[test]
+    fn the_helper_is_seeded_from_voice_and_hears_every_event() {
+        assert_eq!(
+            chora_kit::helper::unheard(&crate::EVENTS),
+            Vec::<&str>::new()
+        );
+        let core = chora_kit::testing::FakeCore::start();
+        let dir = std::env::temp_dir().join(format!("chora-tiling-seed-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut x = crate::tests::tiling_on(core.connect(crate::NAME), &dir, &[]);
+        core.answer_call(
+            "voice",
+            "state",
+            json!({"state": "listening", "agents": [{"name": "coder", "state": "idle"}]}),
+        );
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        x.event(connected).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "listening");
+        let said = chora_scene::Event::Emitted {
+            event: "voice.say".into(),
+            client: "voice".into(),
+            data: json!({"state": "speaking", "text": "Hi"}),
+        };
+        x.event(said).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "answered");
     }
 }

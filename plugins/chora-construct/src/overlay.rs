@@ -3,7 +3,7 @@
 
 use super::{
     BTreeMap, ClientError, Command, Construct, Duration, Instant, LIST, LIST_ROWS, Look, NAME,
-    NodeKind, PropsUpdate, Query, VOICE, Value, create, hud, json,
+    NodeKind, PropsUpdate, Query, Value, create, hud,
 };
 
 impl Construct {
@@ -254,7 +254,7 @@ impl Construct {
         if !self.active || self.output.is_none() {
             return Ok(());
         }
-        let mut commands: Vec<Command> = [hud::LABEL, hud::HUD, LIST]
+        let mut commands: Vec<Command> = [hud::LABEL, LIST]
             .map(|id| Command::Remove {
                 id: id.into(),
                 to: None,
@@ -273,8 +273,6 @@ impl Construct {
         self.face_card = None;
         self.face_place = None;
         self.doors.stale = true;
-        self.draw_hud()?;
-        self.draw_ask()?;
         if self.list.is_some() {
             self.draw_list(true)?;
         }
@@ -379,26 +377,7 @@ impl Construct {
         }
         self.rt.conn.apply(commands)
     }
-
-    /// Asks the voice agent to hide its dot while the HUD shows its
-    /// state, once per connection of the agent (docs/voice.md, 10).
-    pub(crate) fn claim_indicator(&mut self, last: bool) {
-        if !self.settings.value.draws_voice() || !self.active {
-            return;
-        }
-        let conn = &mut self.rt.conn;
-        self.claim.claim(last, || {
-            let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
-            conn.call::<_, Value>("methods.call", call).is_ok()
-        });
-    }
 }
-
-/// The notice of the construct under the island of the host.
-const NOTICE: &str = "construct-notice";
-/// The widest notice, and its top: under the island, 8 below it.
-const NOTICE_WIDTH: f64 = 520.0;
-const NOTICE_TOP: f64 = 80.0;
 
 /// Where a point `delta` from the camera is for the person who looks along
 /// `forward` on the ground: ahead, left, right or behind.
@@ -440,54 +419,6 @@ fn close_word(query: &str, language: chora_kit::words::Language) -> String {
 }
 
 impl Construct {
-    /// The notice of the construct, with the HUD of the host: one line of
-    /// `text` on a glass capsule under the island at the top right, at
-    /// most 520 wide, for its 4 seconds (construct HUD spec, section 5).
-    pub(crate) fn draw_notice(&mut self) -> Result<(), ClientError> {
-        use chora_kit::glass::{CAPSULE, Type, margin};
-        let mut commands = Vec::new();
-        if std::mem::take(&mut self.notice_drawn) {
-            commands.push(Command::Remove {
-                id: NOTICE.into(),
-                to: None,
-            });
-        }
-        if let Some(said) = self.voice.say.clone() {
-            let out = [self.lens.w, self.lens.h];
-            commands.extend(self.fitted(|s| {
-                let look = s.styled();
-                let role = crate::glass::face(Type::Text, 400);
-                let line = look.one_line(role, &said, NOTICE_WIDTH - 32.0);
-                let w = (look.size(role, &line, None)[0] + 32.0).ceil();
-                let x = out[0] - margin(out[0]) - w;
-                let mut commands = crate::glass::surface(
-                    &look,
-                    &look.glass,
-                    &crate::glass::Surface {
-                        id: NOTICE,
-                        parent: NAME,
-                        rect: [x, NOTICE_TOP, w, CAPSULE],
-                        radius: CAPSULE / 2.0,
-                        strong: false,
-                        name: "notice",
-                        input: chora_scene::InputMode::Pass,
-                    },
-                );
-                commands.push(crate::glass::text(
-                    &look,
-                    &format!("{NOTICE}-text"),
-                    NOTICE,
-                    (role, &line),
-                    [16.0, 8.0],
-                    look.glass.text,
-                ));
-                commands
-            })?);
-            self.notice_drawn = true;
-        }
-        self.rt.conn.apply(commands)
-    }
-
     /// The set of hints that applies now, and the hint of the pointer,
     /// none while a command surface, a question or a moving pane hides
     /// them. A change of the camera into or out of a pane starts the time
@@ -1003,7 +934,7 @@ impl Construct {
                 self.mode_act(chora_kit::modes::Act::StepBack, crate::modes::By::Person)?;
             }
             "step-back" => self.fly_out()?,
-            "cube" => self.cube_key()?,
+            "cube" => self.cube_key(),
             _ => {}
         }
         Ok(true)

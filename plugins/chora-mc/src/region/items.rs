@@ -18,10 +18,6 @@ const NEXT: &str = "next";
 
 /// The content that names the previous page in the footer.
 const PREV: &str = "prev";
-pub(super) const URGENT: &str = "urgent";
-
-/// The content of the last notifications, which give way in a full side.
-const NOTIFY: &str = "notify";
 
 /// One text node of a region.
 pub struct Item {
@@ -272,11 +268,10 @@ impl Mc {
         text: &str,
     ) -> (String, Option<String>) {
         let content = &self.settings.value.contents[name];
-        let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
         if !text.is_empty() {
             return (text.to_owned(), None);
         }
-        if content.kind == Kind::State && !region.is_line() && host {
+        if content.kind == Kind::State && !region.is_line() {
             return (" ".to_owned(), None);
         }
         if name == NEXT && region.is_line() {
@@ -329,15 +324,6 @@ impl Mc {
     }
 
     fn text_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
-        let mut items = self.text_items_of(region, slot, (name, scene));
-        let notifications = name == NOTIFY && !region.is_line();
-        for item in &mut items {
-            item.shed = notifications;
-        }
-        items
-    }
-
-    fn text_items_of(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let (title, text) = self.content_text(name, content, scene);
         let (mut text, hit) = self.filled(region, (name, scene), &text);
@@ -357,14 +343,8 @@ impl Mc {
             if quiet && !is_title {
                 props.color = self.settings.value.colors().get("muted").copied();
             }
-            let urgent = name == URGENT;
             Item {
-                hit: if urgent {
-                    Some("urgent:clear".into())
-                } else {
-                    hit.clone()
-                },
-                mark: urgent,
+                hit: hit.clone(),
                 ..Item::text(id, slot, props, first)
             }
         };
@@ -430,19 +410,23 @@ impl Mc {
         items
     }
 
-    /// The state word of the helper door: the state of the first helper,
-    /// or that there is none.
+    /// The state word of the helper door: the state of the helper that the
+    /// helper machine of the kit names (KIT7), else of the first helper of
+    /// `agent.set`, or that there is none; the label is costume (mc.yaml).
     fn helper_state_word(&self) -> String {
-        let Some(agent) = self.agents.first() else {
+        let machine = &self.voiced_word;
+        let named = machine
+            .named()
+            .filter(|_| machine.state() != chora_kit::helper::State::NoHelper)
+            .map(|(_, raw, _)| raw);
+        let Some(raw) = named.or_else(|| self.agents.first().map(|a| a.state.as_str())) else {
             let language = chora_kit::words::Language::of_session();
             return chora_kit::words::Word::NoHelperDoor
                 .text(language)
                 .to_owned();
         };
-        let state = self.settings.value.states.get(&agent.state);
-        let words = state
-            .and_then(|s| s.label.as_deref())
-            .unwrap_or(&agent.state);
+        let state = self.settings.value.states.get(raw);
+        let words = state.and_then(|s| s.label.as_deref()).unwrap_or(raw);
         let mut letters = words.chars();
         letters
             .next()

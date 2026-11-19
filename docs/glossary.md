@@ -25,6 +25,8 @@ terms and no synonyms.
 | **Log file** | The file `$XDG_STATE_HOME/chora/logs/NAME.log` of the core (`chora`) or the voice agent (`voice`), next to stderr. It moves to `NAME.log.1` at 4 MiB and at each start; three old files stay (see [Logs](logs.md)). |
 | **chora-report** | The script that bundles the versions, log files, journal and settings into an anonymised `.tar.gz` that the person reads and sends by hand. It uploads nothing. |
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
+| **Order** | The band a group under `root` draws in: `background`, `normal`, `held`, `overlay` or `lock`, bottom first (D89). The core keeps the roots sorted by it; inside one order the plugins order with `move`. `lock` belongs to the core. Not a layer: a layer is a node that draws through a texture of its own. |
+| **Held window** | The window a person holds in a drag. `kit::wm::stack` puts it on top of the order of its look; across looks a group in the `held` order draws above every window. |
 | **Owner** | The client name that created or attached a node. Only the owner changes the node. |
 | **Toplevel** | A surface with the role of an application window (`xdg_toplevel`). Other roles are layer surfaces and popups. |
 | **Damage-less attach** | A commit that attaches an shm buffer of the same size and format as the buffer before, with no damage inside the buffer. The core keeps the texture of the surface as it is, a leniency that foot relies on. |
@@ -57,7 +59,7 @@ terms and no synonyms.
 | **Helper row** | A row that `chora-assistant` draws for a helper of the voice agent: its name, its state word and its task, as `Atlas · working · Write file (2/2)`. A click opens the chat with the helper. See `hud.md`. |
 | **Chat slot** | The box of a window manager that holds the chat view: a HUD folder names the client with `chat.slot`, and the client announces the box with its event `chat.slot`. mc uses the chat section of its margin column. See `hud.md`. |
 | **Help and Support** | The window of chora-xp that F1 (with the grant `input.grab-any`) and Super+F1 open: a blue task pane of topics at the left, the page at the right, and on the page Keyboard shortcuts, a table made from the live bindings. See `xp-style.md`. |
-| **Margin column** | The right side of mc, 26 per cent of the output wide in whole lines of the grid, with a hairline on its left: the state, the helpers, the notifications, the chat and the key list stand in it, so that nothing takes a share of the page. See `mc-style.md`. |
+| **Margin column** | The right side of mc, 26 per cent of the output wide in whole lines of the grid, with a hairline on its left: the state, the helpers, the chat and the key list stand in it, so that nothing takes a share of the page. See `mc-style.md`. |
 | **Chat field** | The text field of the chat: `chora-chat --input NAME`, a layer surface that the host starts. Enter sends, Esc closes it and keeps the draft. It answers no question. See `voice.md`. |
 | **Coordinator** | The party that installs and connects plugins, services and flavors. First the user, later an agent with special permissions. |
 | **Inventory** | A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core. |

@@ -3,8 +3,8 @@
 use chora_kit::wm::Created;
 
 use super::{
-    Bar, Call, ClientError, Command, Duration, Event, Helper, Instant, Language, MENUS, Panel,
-    Reading, RpcError, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar, volume,
+    Bar, Call, ClientError, Command, Duration, Event, Instant, Language, MENUS, Panel, Reading,
+    RpcError, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar, volume,
     without_reserve,
 };
 
@@ -17,7 +17,7 @@ impl Wm {
     /// Handles one event of the core, with one arm per event.
     #[allow(clippy::too_many_lines)]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
-        self.voiced.hear(&event);
+        let heard = self.voiced.hear_asking(&event, &mut self.rt.conn);
         if let Some(created) = Created::of(&event) {
             return self.window_created(&created);
         }
@@ -58,25 +58,22 @@ impl Wm {
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } if event == "voice.state" && client == "voice" => self.voice_state(&data, false),
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } if event == "voice.remove" && client == "voice" => self.voice_state(&data, true),
+            Event::Emitted { event, client, .. }
+                if (event == "voice.state" || event == "voice.say" || event == "voice.remove")
+                    && client == "voice" =>
+            {
+                self.voice_state(heard)
+            }
+            Event::ClientConnected { name } if name == "voice" && heard => self.trays(),
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
-                if name == "voice" && self.helper != Helper::default() {
-                    self.helper = Helper::default();
+                if name == "voice" && heard {
                     self.trays()
                 } else {
-                    Vec::new()
+                    self.host_gone(&name)
                 }
             }
+            Event::Emitted { event, .. } if self.left.is_some() => self.host_back(&event),
             event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
             | Event::InputButton { .. } // injected: hears drops an injected event unless xp accepts them
             | Event::InputMoved { .. } // injected: hears drops an injected event unless xp accepts them
@@ -84,9 +81,7 @@ impl Wm {
             Event::PointerEntered { node, .. } => self.hovered(&node, true), // injected: hears drops an injected event unless xp accepts them
             Event::PointerLeft { node } => self.hovered(&node, false),
             Event::EffectsDropped { client } if is_own(&client) => self.effects_dropped(),
-            Event::FocusChanged {
-                surface: Some(surface),
-            } => self.focus_moved(&surface),
+            Event::FocusChanged { surface } => self.focus_moved(surface.as_deref()),
             _ => Vec::new(),
         };
         self.apply(commands)
@@ -222,30 +217,20 @@ impl Wm {
     pub(super) fn icons(&self) -> taskbar::Icons {
         taskbar::Icons {
             speaker: self.speaker(),
-            mic_off: self.helper.mic_off,
+            mic_off: self.voiced.mic_off(),
         }
     }
 
     /// The tooltip of the helper: its state word, or "Voice off" while the
     /// microphone is off.
     pub(super) fn helper_tip(&self) -> String {
-        self.helper.tip(Language::of_session())
+        super::helper_tip(&self.voiced, Language::of_session())
     }
 
-    /// The state of the helper that voice announces: the tray icon shows
-    /// the microphone and the tooltip the state word.
-    pub(super) fn voice_state(&mut self, data: &Value, gone: bool) -> Vec<Command> {
-        let mut helper = self.helper.clone();
-        if gone {
-            helper.forget(data);
-        } else {
-            helper.follow(data);
-        }
-        if helper == self.helper {
-            return Vec::new();
-        }
-        self.helper = helper;
-        self.trays()
+    /// The helper machine changed: the tray icon shows the microphone and
+    /// the tooltip the door words.
+    pub(super) fn voice_state(&mut self, heard: bool) -> Vec<Command> {
+        if heard { self.trays() } else { Vec::new() }
     }
 
     /// The tooltip of the speaker: the level, or what is wrong.

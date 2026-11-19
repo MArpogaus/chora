@@ -9,9 +9,9 @@
 # tool calls of the "LLM".
 #
 # Regression steps of the live bugs of 2026-10-31:
-#  1. mc shows the physical question with a No button (voice_hud own: the
-#     default host leaves it to chora-assistant, which this session does
-#     not run); an injected click answers nothing, a spoken no after the
+#  1. the HUD host chora-assistant shows the physical question with a No
+#     button over mc (mc draws no question of its own); an injected click
+#     answers nothing, a spoken no after the
 #     question does. That a press stops the speech of the question is the
 #     unit an_answer_cancels_the_speech_of_the_question (voice core.rs).
 #  2. settings.reload with a new chora_mcp restarts the tool process
@@ -81,10 +81,14 @@ button() { ctl query "id:$1" 2> /dev/null | grep -q "\"$1\""; }
 # --- start: mc, the voice agent ---------------------------------------------
 # the tool process of the agent is a client of its own, with the grants that the user gives it
 admin grant voice-mcp methods.call methods.privileged activation.token >> "$RUN" 2>&1
-"$bin/chora-mc" --print-config | sed 's/^voice_hud: host$/voice_hud: own/' > "$XDG_CONFIG_HOME/chora/chora-mc.yaml"
-grep -qx 'voice_hud: own' "$XDG_CONFIG_HOME/chora/chora-mc.yaml" || finding "W16: cannot set voice_hud own in mc" breaks "chora-mc --print-config"
+printf 'enabled: true\nposition: null\nhud: mc\n' > "$XDG_CONFIG_HOME/chora/chora-assistant.yaml"
+export XDG_DATA_HOME=$XDG_CONFIG_HOME/data
+mkdir -p "$XDG_DATA_HOME/chora/huds"
+cp -rL "$repo/plugins/chora-mc/hud" "$XDG_DATA_HOME/chora/huds/mc"
 bg "$bin/chora-mc"
 ctl wait --timeout 20 owner:mc > /dev/null || finding "W16: mc does not start" breaks "chora-mc"
+bg "$bin/chora-assistant"
+ctl wait --timeout 20 owner:assistant > /dev/null || finding "W16: the HUD host does not start" breaks "chora-assistant"
 RUST_LOG="chora_voice=debug,info,tract_linalg=warn,rmcp=warn" "$bin/chora-voice" >> "$vlog" 2>&1 &
 vpid=$!; track $vpid
 expect "voice does not answer" breaks 'ctl call voice state > /dev/null 2>&1' 30 || exit 1
@@ -95,20 +99,20 @@ ctl wait --timeout 10 owner:mc > /dev/null
 health "voice started"
 step "voice state: $(state)"
 
-step "== 1 physical question in mc"
+step "== 1 physical question over mc"
 tool voice__settings__set '{"patch": {"allow_programs": ["sh"]}}'
 reply "Not done."
 l0=$(mark "$vlog")
 say "Please allow the shell."
-expect "1: the physical question shows no No button in mc" breaks 'button mc-answer-no' 25
-click_node mc-answer-no || finding "W16: cannot click the No button" breaks "click mc-answer-no"
+expect "1: the physical question shows no No button over mc" breaks 'button hud-card-no' 25
+click_node hud-card-no || finding "W16: cannot click the No button" breaks "click hud-card-no"
 sleep 2
-since "$vlog" "$l0" | grep -q 'confirm: by a button' && finding "W16: an injected click answered a question" endangers "inject a click on mc-answer-no"
-button mc-answer-no || finding "W16: an injected click closed the question in mc" breaks "click mc-answer-no"
+since "$vlog" "$l0" | grep -q 'confirm: by a button' && finding "W16: an injected click answered a question" endangers "inject a click on hud-card-no"
+button hud-card-no || finding "W16: an injected click closed the question over mc" breaks "click hud-card-no"
 expect "1: the question never ended" breaks 'py "import sys; sys.exit(not $(play_age) > 1.5)"' 30
 say "no"
 expect "1: voice did not take a spoken no" breaks "since $vlog $l0 | grep -qE 'confirm (settings: )?no'" 20
-expect "1: the No button stays after the answer" breaks '! button mc-answer-no' 10
+expect "1: the No button stays after the answer" breaks '! button hud-card-no' 10
 turn_done "1" "$l0"
 settings voice | py 'import json, sys; sys.exit("sh" not in json.load(sys.stdin)["allow_programs"])' && finding "W16: a spoken no changed allow_programs" endangers "say no"
 health "step 1"
@@ -177,14 +181,14 @@ tool voice__settings__set '{"patch": {"always_words": ["always", "immer", "for s
 reply "Done."
 l0=$(mark "$vlog")
 say "Add a word for always."
-expect "4: no physical question (state: $(state))" breaks 'button mc-answer-yes' 25
+expect "4: no physical question (state: $(state))" breaks 'button hud-card-yes' 25
 sleep 3
 # the spoken yes: the ASR hears it, the question stays
 say "yes"
 expect "4: the ASR did not get the yes" nit 'grep -qx yes "$work/asr.log"' 15
 sleep 3
 since "$vlog" "$l0" | grep -q 'confirm: yes' && finding "W16: a spoken yes answered a security question" endangers "settings.set always_words, say yes"
-button mc-answer-yes || finding "W16: the question closed on a spoken yes" endangers "settings.set always_words, say yes"
+button hud-card-yes || finding "W16: the question closed on a spoken yes" endangers "settings.set always_words, say yes"
 settings voice | grep -q 'for sure' && finding "W16: a spoken yes changed a security setting" endangers "settings.set always_words, say yes"
 # the key answers it
 key Alt+y
@@ -199,7 +203,7 @@ tool call_method '{"client": "voice", "method": "settings.set", "params": {"patc
 reply "Done."
 l0=$(mark "$vlog"); a0=$(mark "$work/llm.log")
 say "Add one more word for always."
-expect "4b: no physical question" breaks 'button mc-answer-yes' 25
+expect "4b: no physical question" breaks 'button hud-card-yes' 25
 key Alt+y
 turn_done "4b" "$l0"
 tool_result() { since "$work/llm.log" "$a0" | tail -1 | py 'import json, sys

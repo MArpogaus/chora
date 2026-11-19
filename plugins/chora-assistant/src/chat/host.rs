@@ -127,15 +127,20 @@ pub fn token_of(token: Option<String>, confined: bool) -> Option<String> {
     token.filter(|_| !confined)
 }
 
-/// What `assistant.chat` said last: open, with whom, and where.
-pub type Announced = (bool, Option<String>, String);
+/// The event of the notification server when it listens: a late reader
+/// of `assistant.chat`.
+pub const NOTIFY_READY: &str = "notify.ready";
+
+/// What `assistant.chat` said last: open, with whom, where, and the box
+/// of the open view on that output, which a notice does not cover.
+pub type Announced = (bool, Option<String>, String, Option<[i32; 4]>);
 
 /// The data of `assistant.chat` when it differs from the last one.
 pub fn announcement(last: &mut Option<Announced>, now: Announced) -> Option<Value> {
     if last.as_ref() == Some(&now) {
         return None;
     }
-    let data = json!({"open": now.0, "name": now.1, "output": now.2});
+    let data = json!({"open": now.0, "name": now.1, "output": now.2, "rect": now.3});
     *last = Some(now);
     Some(data)
 }
@@ -316,6 +321,7 @@ impl Agent {
             self.chat.is_open(),
             self.chat.helper().map(str::to_owned),
             frame.output.clone(),
+            self.chat.is_open().then(|| frame.rect()),
         );
         let Some(data) = announcement(&mut self.announced, now) else {
             return Ok(());
@@ -415,6 +421,21 @@ impl Agent {
             }
             _ => Ok(false),
         }
+    }
+
+    /// The notification server came (`notify.ready`) after the chat
+    /// opened: it hears `assistant.chat` with the box of the open chat
+    /// again, so that its card steps aside. A closed chat is not said
+    /// again: a look gives the keyboard back on it.
+    pub fn chat_again(&mut self, event: &str, client: &str) -> Result<(), ClientError> {
+        if event != NOTIFY_READY || client != "notify" || !self.chat.is_open() {
+            return Ok(());
+        }
+        let Some(frame) = self.chat_seen.clone() else {
+            return Ok(());
+        };
+        self.announced = None;
+        self.chat_announce(&frame)
     }
 
     /// A press on a node of the host while the chat is open: the field has
@@ -777,11 +798,13 @@ mod tests {
     #[test]
     fn mc_hears_of_a_chat_that_moves_to_another_output() {
         let mut last = None;
-        let first = (true, Some("atlas".to_owned()), "DP-1".to_owned());
+        let rect = Some([856, 24, 400, 752]);
+        let first = (true, Some("atlas".to_owned()), "DP-1".to_owned(), rect);
         assert!(announcement(&mut last, first.clone()).is_some());
         assert!(announcement(&mut last, first).is_none());
-        let moved = (true, Some("atlas".to_owned()), "DP-2".to_owned());
+        let moved = (true, Some("atlas".to_owned()), "DP-2".to_owned(), rect);
         let said = announcement(&mut last, moved).unwrap();
         assert_eq!(said["output"], "DP-2");
+        assert_eq!(said["rect"], json!([856, 24, 400, 752]));
     }
 }

@@ -64,6 +64,8 @@ pub struct Window {
     pub fullscreen: bool,
     /// Whether it floats.
     pub floating: bool,
+    /// Whether the person holds it, as in a drag: it lies on top.
+    pub held: bool,
     /// Its place in the stacking order, bottom first.
     pub z: Option<usize>,
 }
@@ -92,10 +94,13 @@ pub struct Focus {
 pub struct Open {
     /// Its node id.
     pub id: String,
-    /// What it is: `menu`, `popup`, `dialog`, `sheet` or `launcher`.
+    /// What it is: `menu`, `popup`, `dialog`, `sheet`, `launcher` or `switcher`.
     pub kind: String,
     /// Whether it holds the keyboard and the pointer.
     pub modal: bool,
+    /// The window that opened it, when a window did.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
 }
 
 impl Origin {

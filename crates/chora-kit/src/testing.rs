@@ -47,10 +47,15 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
+    /// What `methods.call` answers for a method, by its name; `null` for
+    /// the others.
+    pub answers: std::collections::HashMap<String, Value>,
     /// Whether `activation.token` mints a token; without, it answers null.
     pub mints_tokens: bool,
     /// Whether `scene.query` answers every selector; else only `id:`.
     pub selects: bool,
+    /// The answers of `methods.call` by client and method; null without.
+    pub client_answers: Vec<((String, String), Value)>,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -100,6 +105,22 @@ impl FakeCore {
     /// it passes again.
     pub fn refuse_next(&self, method: &str) {
         self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Plants the answer that every call of `method` through
+    /// `methods.call` gets, as when the client that serves it is there.
+    pub fn answer_with(&self, method: &str, answer: Value) {
+        (self.model.lock().unwrap().answers).insert(method.to_owned(), answer);
+    }
+
+    /// Plants the answer of the method `method` of the client `client`
+    /// for `methods.call`, as the state of voice; null without.
+    pub fn answer_call(&self, client: &str, method: &str, answer: Value) {
+        self.model
+            .lock()
+            .unwrap()
+            .client_answers
+            .push(((client.to_owned(), method.to_owned()), answer));
     }
 
     /// Makes `activation.token` mint a new token on each call, as the
@@ -194,9 +215,15 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             let mut core = model.lock().unwrap();
-            core.calls.push(method);
+            core.calls.push(method.clone());
             core.called.push(params.clone());
-            Ok(Value::Null)
+            let client = params["client"].as_str().unwrap_or_default();
+            let by_client = (core.client_answers.iter())
+                .find(|((c, m), _)| c == client && *m == method)
+                .map(|(_, answer)| answer.clone());
+            Ok(by_client
+                .or_else(|| core.answers.get(&method).cloned())
+                .unwrap_or(Value::Null))
         }
         "output.list" => Ok(json!([])),
         "events.emit" => {

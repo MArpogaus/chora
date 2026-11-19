@@ -332,8 +332,8 @@ are hidden as in the journal: the value of each `*_headers` key, of
 `authorization`, of a key that ends in `token`, and of a key with
 `api_key`, `secret` or `password` shows as `(hidden)`. A question of a sub-agent has its prompt as
 `detail`. When the question gets its answer, ends or times out, the
-agent emits `voice.confirm {id, done: true}`. chora-mc shows the
-question as a notification, chora-assistant as a bubble. The agent cannot
+agent emits `voice.confirm {id, done: true}`. chora-assistant shows the
+question as a card, also over chora-mc, which draws no question itself. The agent cannot
 see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
@@ -450,7 +450,7 @@ the user agrees:
 - An injected key or press could answer the question. The core marks an
   `input.key` event and a `pointer.pressed` event of `input.inject`
   with `injected: true`. The agent ignores an injected key of
-  `confirm_keys`, and the answer buttons of mc, the assistant and the
+  `confirm_keys`, and the answer buttons of the assistant and the
   construct ignore an injected press. Besides, the agent
   refuses `inject_input` while such a question waits, and `inject_input`
   always asks by the default rules and never takes an always word.

@@ -7,8 +7,8 @@ use chora_kit::words::{Language, Word, say};
 
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
-    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, Voice,
-    WHEEL, cube, give, hud, space, window_flown_into,
+    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, WHEEL, cube,
+    give, space, window_flown_into,
 };
 
 /// The notice of a window manager that did not take a window, with the
@@ -103,12 +103,12 @@ impl Construct {
         match self.settings.value.action(key, modifiers).cloned() {
             Some(Action::System(system)) => return perform(self, &system),
             Some(Action::Look(Own::Windows)) => return self.open_list(),
-            Some(Action::Look(Own::Cube)) => return self.cube_key(),
+            Some(Action::Look(Own::Cube)) => self.cube_key(),
             Some(Action::Look(own @ (Own::Forward | Own::Back | Own::Left | Own::Right))) => {
                 self.stride_press(key, own);
             }
             Some(Action::Look(own)) => self.act(own),
-            None if typed => return self.keys_walk(),
+            None if typed => self.keys_walk(),
             None => {}
         }
         Ok(())
@@ -116,18 +116,17 @@ impl Construct {
 
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
-    fn keys_walk(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn keys_walk(&mut self) {
         let now = Instant::now();
         if !keys_walk_due(self.keys_walked, now) {
-            return Ok(());
+            return;
         }
         self.keys_walked = Some(now);
         let help = (self.settings.value.common.bindings.iter())
             .find(|(_, action)| **action == Action::System(System::Keys))
             .map_or("Super+F1", |(key, _)| key.as_str());
         let words = say(Language::of_session(), Word::KeysWalk, &[("key", help)]);
-        self.voice.notice(&words, now);
-        self.draw_hud()
+        self.tell(&words);
     }
 
     /// A give key: gives the focused window, else the window of the pane
@@ -147,8 +146,8 @@ impl Construct {
                 eprintln!("chora-construct: give to {to}: {err}");
                 let language = Language::of_session();
                 let words = refusal(language, to, &err.to_string());
-                self.voice.notice(&words, Instant::now());
-                return self.draw_hud();
+                self.tell(&words);
+                return Ok(());
             }
             return Ok(());
         }
@@ -171,8 +170,8 @@ impl Construct {
                 }
             },
         };
-        self.voice.notice(&words, Instant::now());
-        self.draw_hud()
+        self.tell(&words);
+        Ok(())
     }
 
     /// The events of the voice agent and of the watchdog, then the input.
@@ -182,24 +181,11 @@ impl Construct {
                 event,
                 client,
                 data,
-            } if client == VOICE => self.follow(&event, data),
-            Event::ClientConnected { name } if name == VOICE => {
-                self.claim.due = true;
-                self.claim_indicator(false);
-                Ok(())
-            }
+            } if client == VOICE => self.follow(&event, &data),
             Event::ClientConnected { ref name } | Event::ClientDisconnected { ref name }
                 if self.manages(name) =>
             {
                 self.manager_client(&event)
-            }
-            Event::ClientDisconnected { name } if name == VOICE => {
-                self.claim.due = true;
-                self.voice = Voice::default();
-                self.rt
-                    .conn
-                    .try_apply(vec![hud::fade(hud::HUD, 0.0, hud::FADE_OUT)])?;
-                self.draw_ask()
             }
             Event::EffectsDropped { client } if client == NAME => {
                 if !self.glass.plain {
@@ -211,26 +197,13 @@ impl Construct {
                 self.glass.plain = true;
                 self.effects.dropped();
                 self.bends_dropped();
-                self.draw_hud()
+                Ok(())
             }
             Event::LayersDropped { nodes, .. } => {
                 if !nodes.is_empty() {
                     eprintln!("chora-construct: layers stay out: {}", nodes.join(" "));
                 }
-                self.float_dropped(&nodes)?;
-                let ours = [
-                    "construct-hud",
-                    "construct-ask",
-                    "construct-list",
-                    "construct-label",
-                ];
-                let hide = nodes.iter().any(|n| ours.iter().any(|o| n.starts_with(o)));
-                if hide != self.glass.hidden {
-                    self.glass.hidden = hide;
-                    self.draw_hud()?;
-                    self.draw_ask()?;
-                }
-                Ok(())
+                self.float_dropped(&nodes)
             }
             event => self.input(event),
         }
@@ -309,12 +282,6 @@ impl Construct {
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)), // injected: Construct::event drops an injected pointer event first
-            Event::PointerPressed {
-                node,
-                button,
-                injected,
-                ..
-            } if button == BTN_LEFT && self.answer(&node, injected) => return Ok(()),
             Event::PointerEntered { node, .. } => { // injected: Construct::event drops an injected pointer event first
                 let hovered = self.own_window(&node).then_some(node);
                 if hovered != self.hovered {
@@ -353,11 +320,6 @@ impl Construct {
             {
                 return self.release(position, self.texture_pane(&node));
             }
-            Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => { // injected: Construct::event drops an injected pointer event first
-                if let Some(command) = self.voice.scroll(dy) {
-                    self.rt.conn.apply(vec![command])?;
-                }
-            }
             Event::PointerScroll {
                 node,
                 position,
@@ -394,6 +356,9 @@ impl Construct {
     /// is fixed, and the cube must not leave it. The walk takes the keyboard.
     pub(crate) fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if held && self.hand_press(at) {
+            return Ok(());
+        }
         if self.flown.is_none() {
             self.rt.conn.apply(vec![Command::FocusNode {
                 node: Some(LOOK.into()),
@@ -465,6 +430,9 @@ impl Construct {
 
     pub(crate) fn moved(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if self.hand_moved(at)? {
+            return Ok(());
+        }
         if self.moving.is_some() {
             return self.drag_pane(at);
         }
@@ -476,6 +444,9 @@ impl Construct {
     /// nothing.
     pub(crate) fn release(&mut self, at: [f64; 2], pane: Option<usize>) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if self.hand_released()? {
+            return Ok(());
+        }
         if self.moving.is_some() && self.cube.is_some() {
             let screen = (self.output.as_ref())
                 .map(|o| o.name.clone())
@@ -570,7 +541,7 @@ impl Construct {
                 match row_of(node).and_then(act) {
                     Some(Act::Terminal) => self.start_terminal(),
                     Some(Act::Programs) => self.start_launcher(),
-                    Some(Act::Cube) => self.cube_key()?,
+                    Some(Act::Cube) => self.cube_key(),
                     None => {}
                 }
                 Ok(true)
@@ -625,15 +596,13 @@ impl Construct {
 
     /// The key of the cube opens one while none is open; a refusal is a
     /// notice.
-    pub(crate) fn cube_key(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn cube_key(&mut self) {
         if self.cube.is_some() {
-            return Ok(());
+            return;
         }
         if let Err(err) = self.open_cube(cube::FACES) {
-            self.voice.notice(&err.to_string(), Instant::now());
-            return self.draw_hud();
+            self.tell(&err.to_string());
         }
-        Ok(())
     }
 
     /// The keys and the clicks of the open window list; whether it took

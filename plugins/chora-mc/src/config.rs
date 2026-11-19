@@ -319,17 +319,33 @@ pub struct Write {
     pub duration_ms: f64,
 }
 
-/// Who draws the voice HUD in mc: mc itself, or the HUD host
-/// `chora-assistant` with the folder of mc.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+/// Who draws the voice HUD in mc: the HUD host with the
+/// folder of mc, which draws the state, the sentence and the question of
+/// the voice agent; mc shows only the helpers and claims nothing. The
+/// setting chose before; `own`, the HUD of mc itself, is gone (KIT7) and
+/// reads as `host`, with a warning, for one release.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoiceHud {
-    /// mc shows the state, the sentence and the question of the voice
-    /// agent and claims its indicator.
     #[default]
-    Own,
-    /// The host draws them; mc shows only the helpers and claims nothing.
     Host,
+}
+
+impl<'de> Deserialize<'de> for VoiceHud {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        match name.as_str() {
+            "host" => Ok(Self::Host),
+            "own" => {
+                eprintln!(
+                    "chora-mc: voice_hud: own is gone; the HUD host draws the voice \
+                     HUD of mc (read as host)"
+                );
+                Ok(Self::Host)
+            }
+            _ => Err(serde::de::Error::unknown_variant(&name, &["host", "own"])),
+        }
+    }
 }
 
 /// The settings of the plugin.
@@ -337,8 +353,10 @@ pub enum VoiceHud {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub theme: Theme,
-    /// Who draws the voice HUD: `own` or `host`.
-    #[serde(default)]
+    /// Who draws the voice HUD: only `host`; read for one release, never
+    /// written.
+    #[serde(default, skip_serializing)]
+    #[allow(dead_code, reason = "an old file loads with it; nothing chooses by it")]
     pub voice_hud: VoiceHud,
     /// The bindings and the switch of the tests, as in every look. With
     /// `test_accept_injected_keys` the hits and the agent columns take
@@ -612,11 +630,43 @@ mod tests {
         );
     }
 
-    /// The host draws the voice HUD by default: one voice indicator.
+    /// The host draws the voice HUD: one voice indicator. The old values
+    /// `host` and `own` still load, as `host`, for one release; any other
+    /// value fails, and a save writes no `voice_hud`.
     #[test]
-    fn the_default_leaves_the_voice_hud_to_the_host() {
+    fn the_voice_hud_is_the_host_and_old_values_load() {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.voice_hud, VoiceHud::Host);
+        let with = |value: &str| {
+            parse::<Config>(&format!("{DEFAULT}voice_hud: {value}\n")).map(|c| c.voice_hud)
+        };
+        assert_eq!(with("host"), Ok(VoiceHud::Host));
+        assert_eq!(with("own"), Ok(VoiceHud::Host));
+        for wrong in ["maybe", "true", "false"] {
+            assert!(with(wrong).is_err(), "{wrong}");
+        }
+        let written = serde_json::to_value(&config).unwrap();
+        assert!(written.get("voice_hud").is_none());
+    }
+
+    /// A settings file of mc with `voice_hud: own` loads, and a save
+    /// drops the setting.
+    #[test]
+    fn a_file_with_voice_hud_own_loads_and_a_save_drops_it() {
+        use chora_kit::settings::{File, Store};
+        let dir = std::env::temp_dir().join(format!("chora-mc-own-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("mc.yaml");
+        std::fs::write(&path, "theme: light\nvoice_hud: own\n").unwrap();
+        let mut file = File::<Config>::load(path.clone(), DEFAULT).unwrap();
+        assert!(file.broken().is_none());
+        assert_eq!(file.value.voice_hud, VoiceHud::Host);
+        assert_eq!(file.value.theme, Theme::Light);
+        file.set(serde_json::json!({"theme": "dark"})).unwrap();
+        file.save().unwrap();
+        let saved = std::fs::read_to_string(&path).unwrap();
+        assert!(!saved.contains("voice_hud"), "{saved}");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// Super+a is the chat as in every look; the terminal has its own key.

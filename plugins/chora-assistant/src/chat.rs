@@ -35,8 +35,8 @@ mod host;
 mod view;
 
 pub use face::Face;
-pub use host::{Announced, ShowParams, exported, token_of};
-pub use view::{GAP, card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
+pub use host::{Announced, NOTIFY_READY, ShowParams, exported, token_of};
+pub use view::{CHAT, GAP, card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;

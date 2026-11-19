@@ -117,7 +117,7 @@ The plugins `chora-tiling`, `chora-xp`, `chora-notify`,
 `chora-voice` read their settings file (D62) as strict YAML too. If the file does not parse or check, for example because an
 update removed a key, the plugin does not stop. It starts with its
 default settings, writes the error to its log and does not change the
-file. `chora-mc` also shows the error as a critical notification.
+file. `chora-mc` also shows the error as a critical notice of `chora-notify`.
 `chora-voice` does not start on a broken file. It writes the error to
 its log. The error names the kind of the wrong value or the line of the
 wrong YAML. It does not quote the value or the line, because a value at
@@ -411,6 +411,15 @@ the running head and the clock, what the voice agent does, notes and a
 docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.
 
+`chora-mc` draws no notices of its own: `chora-notify` shows them in the
+mc slot (see [chora-notify](#chora-notify)). mc has no flavor target, so
+its start runs both:
+
+```sh
+chora -- sh -c 'chora-notify --assets /usr/share/chora/mc/notify \
+    --config /usr/share/chora/mc/notify/notify.yaml & exec chora-mc'
+```
+
 By default mc claims no windows: it shows its scenes, for example as the
 source of a plugin pane beside chora-construct or chora-tiling. With
 `--manage-windows` it is a window manager: it claims the work area of its
@@ -473,35 +482,22 @@ The methods marked privileged start programs: a caller on a client
 socket needs `methods.privileged` besides `methods.call`.
 
 mc also follows the events of the voice agent (D65); it subscribes to
-`voice.*`. `voice.state` sets the agent `voice` as `agent.set` does, or
-the sub-agent that the `name` of its data names, such as `coder` or an
-ACP agent of the voice agent; `voice.remove {name}` removes such a
-sub-agent.
-`voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
-`prompt` and its whole `detail` in mono alone in the drawer until the
-event with `done` and the same `id`. With `buttons`, the words Yes and No
-(Ja and Nein in a German session) stand flush right on its title line,
-each with a hairline under it; a click 400 ms or more after the question
-showed calls `voice.confirm.answer {id, yes}`. A question about a
-security key (`physical`) shows its `keys`, such as Alt+Y and Alt+N,
-before them. Only a pointer press on a word answers; no method of mc
-calls `confirm.answer`, but mc cannot tell an injected click
-(`input.inject`) from a real one. At its start and after the agent
-connects, mc calls the method `indicator.claim` of the agent, so that the
-agent hides its own state dot. Data that mc does not
+`voice.*`. `voice.state` with a `name` sets the sub-agent that it names,
+such as `coder` or an ACP agent of the voice agent, as `agent.set` does;
+`voice.remove {name}` removes such a sub-agent. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
-With the setting `voice_hud: host`, the default, the HUD host
-`chora-assistant` draws the voice HUD of mc with the folder
-`plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
-of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
+The HUD host `chora-assistant` draws the voice HUD of mc with the folder
+`plugins/chora-mc/hud` ([HUD folders](hud.md)): the state, the sentences
+and the questions of the voice agent, and it claims the indicator of the
+agent. mc takes no state of the agent itself but the state of its
+microphone, no `voice.say` and no `voice.confirm`, and claims no
 indicator; it still shows the helpers that `voice.state` names. A click
 on the column of a helper in the scene `agents`, or on its row in a
 region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
 `assistant` says that the chat is open on the output of mc, the content
-`chat` of the margin column holds it: the texts with `folds: true`, such
-as the notifications, fold into their head and the count of their lines
+`chat` of the margin column holds it: the texts with `folds: true` fold into their head and the count of their lines
 with `Show` flush right, the key list goes, and mc emits the box under the
 head `Chat` as `mc.chat.slot {output, rect}` (`rect` is
 `[x, y, width, height]` on the output, `null` when the chat closes). The
@@ -528,15 +524,15 @@ gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
-| `content.set` | `content`, `lines` and an optional `title` of a text content; not of `notify`, `urgent` or `confirm`, which mc writes itself |
-| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines; not to `notify`, `urgent` or `confirm` |
+| `content.set` | `content`, `lines` and an optional `title` of a text content |
+| `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
 | `agent.set` | privileged. `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red as a card on top of the column, in the footer where the column does not show, in the text `urgent`, until the next one or a click on the card, which leaves it in `notify`; the oldest lines of `notify` give way while the column is full |
-| `notify.clear` | privileged; empties `notify` and `urgent` |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): shows a notice through `chora-notify`, the only notification server beside mc, as `notify.show` does (`critical` stays until a click, the others show for its times); mc draws no notice, no column of notifications and no urgent line of its own. An error when `chora-notify` does not run |
+| `notify.clear` | privileged; closes the notices that mc showed, the last 32, and that `chora-notify` still holds |
 
 New text writes itself, as Write of manim: a soft front draws the
 outlines line by line, and the fill follows. This happens when a scene
@@ -649,10 +645,12 @@ with `settings.reload`:
   take the keys of `input.inject` as keys of the user, and the hits and
   the agent columns its pointer presses (see
   [Injected keys](#injected-keys)).
-- `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
-  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
-  The chat shows in the margin column of mc, in the box that mc announces
-  (see the HUD host above).
+- `voice_hud`: gone; the HUD host `chora-assistant` always draws the
+  voice HUD of mc with the folder `plugins/chora-mc/hud`, and the chat
+  shows in the margin column of mc, in the box that mc announces (see the
+  HUD host above). An old file with `voice_hud: host` or `voice_hud: own`
+  still loads for one release, both as `host`; `own`, the voice HUD that
+  mc drew itself, logs a warning that it is gone.
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -725,7 +723,7 @@ The `contents` are named. Their `kind` is one of:
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
-| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines,; with `folds: true`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
 | `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat` with the state word of the first helper (`No helper` without one), `Esc  Close` and the box of the chat while it is open; the header of the host says `No helper is set up.` when there is none. When the host does not answer, a red notice says so. The helpers of voice go when voice ends |
 | `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest, the give keys `Super+Alt+1-4` in one row, the lock, the power menu, the screenshot, the volume keys and `Esc`, in the words of the six rows. While it shows, the side that holds the list has only the state line above it; the other sides keep their content. A binding of `keys` after the first has no row. A thin space follows the plus before an arrow |
 | `doors` | the doors of the actions that have a key, in two lines at the foot of a side under the key list: `Programs` (the launcher), `Lock`, `Power` (the power menu), `Screenshot` and the volume (`Volume 40%`, or `Muted` or the words of a failure). A click acts as the key; a click on the volume mutes or unmutes. The volume is read every 5 s and after each change |
@@ -760,12 +758,11 @@ key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows
-the words of the agent left, a critical notification in red in the
-middle and the next entry of the agenda right (the collector fills the
+the words of the agent left and the next entry of the agenda right (the collector fills the
 content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
-with `content.add`, and the notifications below them, newest on top, and
+with `content.add`, and
 the key list and the doors at its foot. The state of the voice agent and the helpers
-stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden with `voice_hud: host`, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
+stand at the top of that column, in the header only over an app. The first line of the column stays free for the state word of the host, and the helper rows are mc's own. Over an app the header ends where the column begins, also while the column is hidden, so that no word of the header lies under the column or the state word. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.
@@ -848,9 +845,11 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
-`flavors/construct/` holds its target and its services: `chora-construct`
-and `chora-assistant`, the voice HUD and the chat in the construct
-folder, in the theme that `construct.theme` names. The first output shows
+`flavors/construct/` holds its target and its services: `chora-construct`,
+`chora-notify`, which shows the notices of the construct (a refusal, a
+dead key, no room) as the neutral card, and `chora-assistant`, the voice
+HUD and the chat in the construct folder, in the theme that
+`construct.theme` names. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
 lies over a floor of white polished marble with soft grey veins. In the
 dark theme, a black void lies over black polished marble with faint
@@ -942,10 +941,10 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 | `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
-| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
+| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it connects as the client of its program without the prefix `chora-`, `xp` for `chora-xp`; it outlives the construct: a construct that dies leaves it flat on the screens with every window, and a construct that starts again opens the cube around it again; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings, the keys of the window list and its pointer presses take the input of `input.inject` as the user's (see [Injected keys](#injected-keys)) |
-| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
+| `voice_hud` | `host` | `host`, the only value: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, and the construct claims no indicator. The own voice HUD of the construct is gone: `own`, `true` and `false`, the values of earlier versions, load as `host` for one release, and `own` and `true` log a warning |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
@@ -1060,13 +1059,13 @@ windows of the other flavor.
 | `pane.manager` | privileged. `manager`, a key of the setting `managers`, and `size`, `[width, height]` in logical pixels, 1024 x 768 by default and at most the view: adds a virtual output of that size, starts the window manager on it as a child with `--output NAME`, and shows the output in a pane ahead. The pane passes the pointer into the output at any place and turn (D69), so the windows of the manager take clicks; the modifier with a drag moves the pane. One pane per manager: refused while a client of that name runs, in a pane, on the cube or by itself. While the construct has the keyboard, a new window under the pane goes to its manager; while a window in a pane has it, to the manager of that window (D55). A manager that ends, or does not connect within 10 s, takes its pane and its output with it; `pane.remove` ends it, and the child gets `SIGTERM` when the construct ends. The windows on the output then go back to the window manager that gave them, else to a screen (D69). Answers the `name` of the pane and its `output`. `tests/gate-construct-wm-pane.sh` checks it |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
-| `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends after it connected. A window manager that exits or does not connect within 10 s leaves the cube open: its faces show a card that says what failed, and a click on the face, `Return` or the hint `Try again` starts it again (see [cube modes](cube-modes.md#starting-and-failed-faces)). Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
+| `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends after it connected. A window manager that exits or does not connect within 10 s leaves the cube open: its faces show a card that says what failed, and a click on the face, `Return` or the hint `Try again` starts it again (see [cube modes](cube-modes.md#starting-and-failed-faces)). Refused while a cube is open or the client of `cube_manager` runs. Answers the `outputs` in face order |
 | `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, or `to`: to a face, the short way; in `ms` milliseconds, 360 a quarter turn by default, eased out; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat. Answers whether the cube took the turn: `false` when the turn is ignored, because one runs or `to` names the front face |
 | `cube.list` | none; answers the faces with their output, manager and health, the front face, whether the cube turns and the mode, as the cube role of the [API](api.md#plugin-methods) says; no faces without a cube |
 | `cube.pull` | `surface`: the window on a face of the cube becomes a pane in the space, where the camera stays; it goes back to the window manager of the faces when the pane or the construct goes. Answers `{pane}`, the name of the new pane, which `pane.remove` takes. Refused for a window that is not on a face, and while no cube is open |
 | `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
 | `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
-| `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
+| `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again while the window manager of its cube still runs opens the cube on the outputs that it left, and the windows go back to their faces; else it removes those outputs |
 | `camera.glide` | `x`, `z`, `yaw`, and optionally `pitch` and `ms`: flies the camera to that pose in `ms` milliseconds, slow at its start and at its end; the place stays inside the leash; refused while the camera is in a pane |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
 | `clock.step` | `ms`: stops the clock of the glide and the wobble at that time of a recording, and draws one frame; `null` lets it run again; privileged; `choractl record` calls it (see [Recording](api.md#recording)) |
@@ -1159,10 +1158,12 @@ camera, not far off in the fog.
 
 ### Notices
 
-A notice of the construct, such as a refused give or the hint that the
-keys walk, shows for 4 seconds as one line of text on a glass capsule
-under the island at the top right, 32 from the edge and at most 520
-wide, while the host draws the HUD (`voice_hud: host`). A refused give
+The construct draws no notice of its own. A notice of the construct,
+such as a refused give or the hint that the keys walk, is a call of
+`notify.show` of `chora-notify` for 4 seconds, in the card that
+`chora-notify` draws; a new notice replaces the one that still shows.
+Without `chora-notify`, the person gets none and the construct logs it
+once per notice. A refused give
 names the window manager by its display name (`XP`, `Tiling`, `Media
 center`, `Construct`) and the reason, as in `Tiling did not take the
 window: it is not running.`; the German words are `Tiling hat das
@@ -1260,33 +1261,16 @@ a pane goes in any way.
 
 ### The voice HUD
 
-With `voice_hud: own` (the default is `host`), the construct shows the voice agent
-([voice](voice.md), section 10) at the bottom centre of the output, from its first
-`voice.state` on. A glass panel holds a ring in the accent and the state
-as a label: a thin, dim ring asleep, a full ring listening, a turning arc
-thinking and working, a pulse at a question, and five moving bars while
-a sentence plays. While thinking or working, the task shows under the
-label; a spoken sentence shows in two lines at most, keeps its end, and
-fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
-ring and the label at the bottom right. `voice.confirm` opens a question
-at the top centre with the prompt and the whole detail; the wheel
-scrolls a long one, and its `done` closes it. The answer is by voice.
-With `buttons`, the question has the glass buttons Yes and No (Ja and
-Nein in a German session) at its bottom; a click 400 ms or more after the
-question showed calls `voice.confirm.answer {id, yes}`. A question about
-a security key (`physical`) shows the key caps of its `keys`, such as
-Alt+Y and Alt+N, beside them, after an accent mark, and says that it
-needs a key press or a click. Only a pointer press on a button answers;
-no method of the construct calls `confirm.answer`, but the construct
-cannot tell an injected click (`input.inject`) from a real one.
-The construct claims the indicator of the agent (`indicator.claim`) at
-the start and on each connection of the agent, and hides the HUD while
-the agent is away.
+The HUD host `chora-assistant` is the only presenter of the voice agent
+([voice](voice.md), section 10) in the construct: it draws the voice HUD
+and the questions with the folder `plugins/chora-construct/hud` ([HUD
+folders](hud.md)). The construct draws neither and claims no indicator;
+an open question of the agent (`voice.confirm`) only hides its hints.
+The own voice HUD of earlier versions (`voice_hud: own`) is gone.
 
-The notices of the construct show in the same place with either value
-of `voice_hud`, as one line of text on the glass with no label and no
-ring, for 4 s: a typed key that does nothing, a window with no room in
-view, and a give key that gives nothing ("No window to give.", "xp did
+The notices of the construct go to `chora-notify` for 4 s: a typed key that does nothing, a window with no
+room in view, a key that did not start its program, and a give key that
+gives nothing ("No window to give.", "xp did
 not take the window."). A give key gives the focused window, else the
 window of the pane ahead.
 
@@ -1311,11 +1295,10 @@ press to its release, so the label does not follow a hover. That pane,
 or the pane flown into, is the focused pane: it shows clear, without the
 fog of its distance, with an accent hairline and a soft glow under it.
 
-The ring, the bars and the glow are one shader, `glass.frag`. When the
-watchdog takes the shaders (`effects.dropped`), the panels and their
-labels stay, without the ring, until the settings change.
-`tests/gate-construct-hud.sh` checks the HUD with a fake agent,
-`tests/fake-voice.py`, and captures each state in both themes.
+The glow of the panels is one shader, `glass.frag`. When the watchdog
+takes the shaders (`effects.dropped`), the panels and their labels stay,
+plain, until the settings change. `tests/gate-construct-hud.sh` checks
+the list, the labels, the notices and the help in both themes.
 
 ## chora-notify
 
@@ -1354,9 +1337,25 @@ client between the shortest and the longest time, and never for a time
 of 0, until a click. A click on the close button dismisses the card; a
 click on the card invokes the action `default` of the notification, if
 it has one, and dismisses it too. If another server, such as GNOME
-Shell, owns the name on the bus, `chora-notify` logs the owner and ends
-with status 0, so that its unit does not restart it; it never takes the
-name from its owner.
+Shell or mako, owns the name on the bus, `chora-notify` logs the owner
+and never takes the name from it; it keeps serving `notify.show` and
+`notify.close`, so the notices of the plugins still show as cards, while
+the clients of the bus reach the other server. Without a session bus it
+does the same. A second `chora-notify` in a session where the first owns
+the bus name and the client name `notify` logs the owner and ends with
+status 0, so that its unit does not restart it.
+
+A card never covers the open chat of the HUD host. The host names the
+box of its open chat in the event `assistant.chat {open, name, output,
+rect}` (`rect` is `[x, y, width, height]` on the output, `null` while the
+chat is closed). While that box is on the output of the card and the card
+would cover it, the card moves along the edge of its corner to the side
+of the chat toward the middle of the output, `margin` away from it; when
+the chat closes, the card goes back to its corner. `chora-notify` emits
+`notify.ready` once it listens, and the host then says `assistant.chat`
+of an open chat again, so a server that starts later steps aside too.
+`state.get` of `notify` lists the box of the card on its output as `rect`
+in `shown`, and the box of the chat that it keeps clear as `chat`.
 
 The look of the card comes from the asset folder. A folder replaces the
 neutral one and does not merge with it. A missing or broken file stops the
@@ -1370,6 +1369,12 @@ start with an error that names it. The folder holds:
 
 `plugins/chora-notify/assets` is the neutral folder, a flat card without a
 tail. `flavors/xp/assets/notify` is the balloon of XP.
+`plugins/chora-mc/notify` is the slot of `chora-mc`, which has no notices of
+its own: assets and `notify.yaml` put the card at the bottom left, 160 pixels
+from the edge and 56 above the bottom, in the margin between the page and its
+footer line, where it covers neither the page nor the margin column with the
+chat. Start it with `chora-notify --assets /usr/share/chora/mc/notify --config
+/usr/share/chora/mc/notify/notify.yaml`.
 
 ## chora-assistant
 
@@ -1534,10 +1539,11 @@ The package installs the tiling flavor (D51):
 
 ```text
 /usr/share/chora/flavors/tiling/
-├── chora-tiling.target               # wants the units below and mako.service
+├── chora-tiling.target               # wants the units below, with the notifications
 ├── chora-tiling.service              # chora-tiling
 ├── chora-tiling-assistant.service    # chora-assistant: the voice HUD and the chat
 ├── chora-tiling-xwayland.service     # xwayland-satellite
+├── chora-tiling-notify.service       # chora-notify: the notifications, in the neutral card
 ├── chora-tiling-waybar.service       # the panel
 ├── chora-tiling-swaybg.service       # the wallpaper
 ├── wallpaper.png                     # Ink with two glows
@@ -1561,10 +1567,14 @@ The package installs the tiling flavor (D51):
 ```
 
 Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, mako, swaybg, swayidle,
+recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, swaybg, swayidle,
 swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
-`xdg-desktop-portal-gtk`. mako starts from the unit of
-its own package and needs no configuration. The helpers of the scripts
+`xdg-desktop-portal-gtk`. `chora-tiling-notify.service` starts
+`chora-notify`, the only notification server of the flavor: it shows the
+notices of the plugins and serves `notify-send` for other programs, in the
+neutral asset folder (`chora-notify.yaml` changes its times and corner).
+While the chat panel is open at the right, a card stands to its left.
+The helpers of the scripts
 are recommended too: grim and slurp (screenshots), wl-clipboard
 (`wl-copy`) and libnotify (`notify-send`). The fonts are Inter (Arch
 `inter-font`, Fedora `rsms-inter-fonts`), JetBrains Mono (`ttf-jetbrains-mono`,
@@ -1686,12 +1696,13 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   prompt "Power" and five words: Lock, Log out, Restart, Shut down and Screenshot, the way to a screenshot for a person with a mouse (swaylock in the palette, with a notice when it does not start,
   `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
   that is not set, `systemctl reboot`, `systemctl poweroff`).
-  A session with no session bus gets a bus of its own for 7 s with mako and the notice.
+  A session with no session bus shows no notice: the line goes to stderr.
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
   area that slurp lets you select: `screenshot.sh` writes it to
   `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else
   `$XDG_PICTURES_DIR`, else `~/Pictures`), copies it with `wl-copy` when that is there and
-  names the file in a notice (`notify-send`, shown by mako). grim is needed,
+  names the file in a notice (`notify-send`, shown by `chora-notify`; without a session
+  bus, `choractl call notify notify.show`). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config
   files, `chora/tiling/` of the config directory first, then the flavor, and
@@ -1699,8 +1710,9 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   (`/usr/share/chora/flavors/shared`, or `$CHORA_SHARED_DIR`), which every
   look uses: it holds `power.sh`, `screenshot.sh` and `applications/` with
   the entries Chat with a helper, Screenshot and Screenshot of an area.
-  A script that is in none of them is an error on stderr and a notice
-  ("Power menu not installed", "Screenshot not installed"), never a key
+  A script that is in none of them is an error on stderr and a notice of
+  `chora-notify` ("Power menu not installed", "Screenshot not installed";
+  the stderr line alone when `chora-notify` is not running), never a key
   that does nothing.
 - **The lock**: swayidle runs `chora-tiling --launch swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
@@ -2158,7 +2170,9 @@ the meshes of its own windows as their owner:
   click on the button pours it out again.
 - **Desktop cube.** Four desktops sit on the faces of a cube. A turn shows
   the cube in perspective, and the windows fly off their faces and land
-  again. The taskbar lists the windows of the current desktop.
+  again. The taskbar lists the windows of the current desktop. On the
+  faces of the cube of the construct, each face is one desktop, and the
+  pager turns that cube.
 
 If frames get too slow because of `chora-xp`, the core drops its effects;
 `chora-xp` then goes without them for 15 seconds. A drop of the effects

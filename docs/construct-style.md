@@ -1,11 +1,15 @@
 # chora-construct style guide
 
 These rules apply to every element that `chora-construct` draws over its
-space: the voice HUD, the window list, the pane labels and the
-confirmation questions. The space is a calm 3D void. The light theme has
-a floor of white polished marble with soft grey veins, a crisp horizon
-and a pale sky. The dark theme has a black void over black polished
-marble with faint white veins. The mirror images in the floor blur with
+space: the notices, the window list, the pane labels and the help. The
+HUD host `chora-assistant` draws the voice HUD and the confirmation
+questions with the folder `plugins/chora-construct/hud`, after the
+section [Blurred glass](#blurred-glass-the-hud-rework); the rules for
+them below are those of the own voice HUD of earlier versions. The
+space is a calm 3D void. The light theme has a floor of white polished
+marble with soft grey veins, a crisp horizon and a pale sky. The dark
+theme has a black void over black polished marble with faint white
+veins. The mirror images in the floor blur with
 the distance from their pane. Panes float with a fixed turn; walking past one shows it at an angle.
 All elements share one visual language: floating glass, few sizes, one
 accent and calm motion.
@@ -157,8 +161,9 @@ rule 5. `plans/construct-hud.md` adds the section.
 
 ## Blurred glass (the HUD rework)
 
-This section replaces rules 2, 3, 6, 7, 12 and 13 where they differ;
-the voice HUD of `voice_hud: own` keeps the rules above. The tokens are
+This section replaces rules 2, 3, 6, 7, 12 and 13 where they differ.
+The own voice HUD of `voice_hud: own` is gone: the HUD host draws the
+voice HUD, and `own` loads as `host` for one release. The tokens are
 `chora_kit::glass`, which the construct and the host share. A surface
 is a rect with the `backdrop` of the core, a blur of 40 and the
 saturation of its theme, whose colour is the tint; the host lays its
@@ -197,7 +202,7 @@ mockups rendered over real captures.
     has an accent fill at 0.16 in the light theme and 0.30 in the dark.
 22. **Three families of places.** Ambient capsules sit at the edges
     and on the pane: the voice island at the top right, the pane label,
-    the hints at the bottom centre and the notices under the island.
+    the hints at the bottom centre; the notices are cards of `chora-notify`.
     One more capsule in the top left corner holds the clock and the
     doors, plain words on glass that a click works: `Programs`, `Keys`,
     `Lock`, `Power`, `Screenshot` and the volume word. It hides in a

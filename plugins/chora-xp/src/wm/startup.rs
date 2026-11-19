@@ -4,10 +4,10 @@ use chora_kit::wm::Created;
 
 use super::{
     BARS, Bar, ClientError, Command, Config, DESKTOPS, DIALOGS, DesktopIcons, EVENTS, Effects,
-    ExportMethod, HashMap, Helper, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
-    Mixer, NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound,
-    Theme, Tooltip, WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give,
-    grab_keys, max_scale, move_method, settings, wallpaper, window, without_reserve,
+    ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu, Mixer, NAME,
+    NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip, WALLPAPERS,
+    WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
+    hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window, without_reserve,
 };
 
 impl Wm {
@@ -69,9 +69,12 @@ impl Wm {
             desktop: 0,
             hover: None,
             pointer_output: None,
-            cube_keys: false,
+            cube_keys: CubeKeys::Own,
+            host: None,
+            left: None,
             floats: float::Floats::default(),
             dialog: None,
+            open: chora_kit::wm::open::Open::default(),
             fade: None,
             fade_shader: None,
             context: None,
@@ -95,14 +98,13 @@ impl Wm {
             book: chora_kit::wm::Book::new(NAME, false).with_groups(decoration::GROUP),
             launches: Launches::new(),
             notepad,
-            notifier: Notifier::new(),
             volume: None,
-            helper: Helper::default(),
-            voiced: chora_kit::helper::Helpers::default(),
+            voiced: chora_kit::helper::Helper::default(),
             mixer: Mixer::new(NAME),
             volume_read: Instant::now(),
         };
         wm.clock = wm.now();
+        wm.voiced.ask(&mut wm.rt.conn);
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
         wm.create_scene(old_root)?;
@@ -110,6 +112,9 @@ impl Wm {
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
+        wm.sync_cube_keys();
+        let pagers = wm.pagers();
+        wm.apply(pagers)?;
         Ok(wm)
     }
 
@@ -258,7 +263,7 @@ impl Wm {
     }
 
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
-        let cube = !self.cube_off();
+        let cube = self.wanted_keys();
         self.cube_keys = cube;
         grab_keys(&mut self.rt, &self.settings.value.common.bindings, cube)?;
         self.rt

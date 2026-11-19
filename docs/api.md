@@ -40,6 +40,18 @@ with input, effects and ownership. The overlay root stays when its output
 goes, with its nodes, for the return of the output; the emergency reset
 empties it.
 
+The children of `root` draw by their `order` (D89), bottom first:
+`background`, `normal`, `held`, `overlay`, `lock`. A root group of a
+higher order draws above every root group of a lower order, whatever the
+order in which the plugins built them; a surface under `root` is
+`normal`. Inside one order, `create`, `attach` and `move` place a node as
+before, but only between the first and the last root of its order: an
+`index` outside that band goes to its nearest end. A new `order` puts the
+group on top of its new order. `lock` is reserved: no node holds
+it, the lock draws outside the scene, and a client that asks for it
+fails with code 1, so no plugin draws above the lock. The order of a
+group deeper in the tree has no effect.
+
 This table is the one list of node properties.
 
 | Property | Nodes | Meaning |
@@ -57,6 +69,7 @@ This table is the one list of node properties.
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
+| `order` | group | `background`, `normal` (the default, left out), `held`, `overlay`; for a group under `root`, the band it draws in (see above): background for a page under the windows of other window managers, held for the window a person drags, overlay for bars and menus; `lock` fails |
 | `perspective` | group | from 1 to 10^6 logical pixels, on a group with a `size`: the distance of the eye in front of the centre of the group, which makes it a 3D context (see below); `null` removes it |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
 | `color` | rect, text | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
@@ -669,6 +682,7 @@ the order the output stacks them:
 |-------|---------|
 | `node`, `kind`, `owner` | the node, its kind and the client name of its owner; a layer surface has `namespace` instead |
 | `layer` | `background` and `bottom` (layer surfaces below the scene), `scene` (the nodes below the root, through the camera), `overlay` (the nodes under `screen:NAME`), `top` and `shell_overlay` (layer surfaces above) |
+| `order` | for a node under `root`: the `order` of the root group that holds it |
 | `rect` | `[x, y, w, h]` in logical pixels of the output, the same box as the `rects` of `scene.query` |
 | `opaque` | `true` for a window, or a rect with an opaque fill, square corners and no backdrop, each at full opacity after its ancestors; images, text, shaders and layer surfaces are never opaque |
 | `corners` | for a node that draws as a plane, or a node in a 3D context: the corners of its size after its transforms, the camera and the perspective, top left, top right, bottom right, bottom left; left out when a corner lies at or behind the near plane |
@@ -689,7 +703,7 @@ node; a plugin reports such runs in the `texts` of its `state.get`.
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
-| `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
+| `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; the press of a button binding of another client ends a binding of a lone modifier, such as `Super+Super_L`, without a `released`, so a drag with Super is no tap of Super; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move, and after a `give_grab` also `grab` with `point`, `velocity` and `wobble` as the giver sent them; only to the connection of the grab; `injected: true` (absent otherwise) when the press of the grab, or for `input.moved` the move, came from `input.inject`, which a window manager that takes a drag for the user must ignore |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked; `pointer.entered` has `injected: true` when the move of the pointer came from `input.inject`, which a client that takes a hover for the user, such as a window manager that focuses the window under the pointer, must ignore; `pointer.left` has no flag, as it only ends a hover |
@@ -1551,9 +1565,14 @@ and what still moves (`busy`). `choractl state mc` prints it. All four
 looks answer it. `focus.holder` names the look only while the focus is
 on one of its windows or on one of its own nodes (the construct on its
 space, mc on its page), else it is null; `focus.surface` names the
-window. A field that a look does not fill is left out, never empty: mc
-has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`,
-xp also `title` and `app_id`;
+window. A field that a look does not fill is left out, never empty. Every
+look fills `open`, the menus, popups, dialogs, sheets, launchers and
+switchers that show: each entry has `id`, `kind` (`menu`, `popup`,
+`dialog`, `sheet`, `launcher` or `switcher`), `modal` and, for a
+surface that belongs to a window, `by` (the surface of that window).
+The list runs newest first, the order in which Escape shuts the
+surfaces: a surface that opens again moves to the front. xp and tiling
+add `desks` (counted from 1) and `z`, xp also `title` and `app_id`;
 the construct adds `views`, the panes of windows, plugin nodes and
 virtual outputs that it shows but does not own. Every look adds the
 `origin` of each window: `new`, `given` (another window manager gave it)
@@ -1562,8 +1581,30 @@ of text that `chora_draw` painted into their image nodes: `node`,
 `text` (the line as drawn, with its ellipsis), `rect` (`[x, y, w, h]`
 of its ink in the logical pixels of the node at its own size), `px` (the
 font size) and `fg` (RGBA). chora-notify answers `shown`, the
-notifications on screen with `id`, `summary` and the `node` of the card,
-and `busy` while a card shows.
+notification on screen with its `id`, `summary`, `body`, the `node` of
+its card picture (`notify-card-body`) and the `rect` of the card on its
+output (`[x, y, w, h]`); `accepted`, `waiting` and `closed`, the ids
+that it took, that wait for their turn and that went; `chat`, the box of
+the open chat of the HUD host that the card keeps clear, or null; and an
+empty `busy`, since a card shows and goes without an animation.
+
+Every look and the presenter chora-assistant answer `helper`, the state
+of the helper machine of the kit (`chora_kit::helper`, from the events
+of voice): `no_helper` (no helper exists, or voice does not run; the
+voice agent alone is no helper, and its thinking and speaking show only
+in the figure), `working` (a helper works, whoever reported after it),
+`answered` (no helper works and the latest report of a helper is an
+answer: spoken, a question, done or blocked; the voice agent listening
+again changes nothing, and it is never `working` after it until a helper
+works again), else `idle` or `listening`, by the latest report. chora-assistant, the only presenter of
+the helper, adds `door`, the words of a helper door (`No helper`, or the
+name and state of the helper that works and reported last, else of the
+helper that reported last), which `chora-chat --door`
+prints for a panel, and `shown`, the helper surfaces on screen
+(`hud-figure`, `hud-card`, `hud-chat`). Each of them hears `voice.state`,
+`voice.say` and `voice.remove`, and asks voice for its `state` when it
+starts and when voice connects, so that a look that starts after voice
+says what the presenter says.
 
 A look built on `chora_kit::wm` (tiling, mc, the construct, xp) emits
 `<look>.window` with `{surface, node, phase, rect}` when a window becomes
@@ -1612,11 +1653,35 @@ $ choractl call construct cube.turn '{"to": 2}'
 `turn_to`, `window.move`, `windows.float` and `restart`, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and
 Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
-Its dialogs change the settings in the same way as `settings.set`. The
+Its dialogs change the settings in the same way as `settings.set`.
+On the virtual outputs of a cube host, `chora-xp` is hosted: it finds
+the host by the cube role, the pager of each face calls `cube.turn` with
+`to`, and the host holds the keys and the drag of the turn. When the host
+disconnects, `chora-xp` goes flat on the screens, with the windows of each
+face on the desktop of that face, and when the host lists the same faces
+again, the windows go back to them. On virtual outputs without a host, there is no desk switch. The
 method `restart` runs `chora-xp` again, which also reads the file again:
 
 ```console
 $ choractl call xp settings.set '{"effects": {"wobbly": false, "sounds": false}}'
+```
+
+`chora-notify` connects as `notify` and is the one server of notices:
+a look calls these two through `chora_kit::notice` and draws none of its
+own. The ids are the ones of `org.freedesktop.Notifications` on the
+session bus, so a `notify.close` of an id that a bus client got closes
+that notification too. Without the bus name (another server owns it, or
+there is no session bus) the two methods still serve the plugins.
+
+| Method | Parameters | Result |
+|--------|------------|--------|
+| `notify.show` | `summary`, the bold title (required); `body`, the text under it; `app`, the caller; `icon`, a name of the icon theme or a path; `replaces`, the id of an earlier notice to replace in place, or null; `expire_ms`, how long it shows: `-1` (the default) for the shortest time of the settings, another time held between the shortest and the longest, `0` until a click; `urgency`, `normal` or `critical` (a critical one stays until a click, whatever `expire_ms` says) | `{id}`, the id of the notice; it shows after the cards before it |
+| `notify.close` | `id` | null; the notice goes, from the screen or from the queue |
+
+```console
+$ choractl call notify notify.show '{"app": "me", "summary": "Saved", "body": "notes.md"}'
+{"id": 3}
+$ choractl call notify notify.close '{"id": 3}'
 ```
 
 ## Plugins

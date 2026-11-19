@@ -8,6 +8,7 @@ mod desktops;
 mod dispatch;
 mod effects;
 mod float;
+mod hosted;
 mod items;
 mod keys;
 mod lifecycle;
@@ -19,6 +20,7 @@ mod resize;
 mod restart;
 mod startup;
 mod state;
+mod surfaces;
 mod windows;
 
 use std::{
@@ -31,12 +33,11 @@ use chora_kit::{
     actions::{System, Turn},
     give,
     icons::Icons,
-    notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
     shared,
     volume::{self, Mixer, Reading},
-    words::{self, Language, Word},
+    words::{Language, Word},
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -46,7 +47,11 @@ use chora_scene::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use self::{desktops::desk_id, effects::Effects};
+use self::{
+    desktops::desk_id,
+    effects::Effects,
+    hosted::{CubeKeys, Host},
+};
 use crate::{
     apps,
     config::{Config, KeyAction, Look, Picture, Wallpaper},
@@ -110,7 +115,8 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 24] = [
+    "client.connected",
     "client.disconnected",
     "surface.created",
     "surface.changed",
@@ -132,6 +138,7 @@ const EVENTS: [&str; 22] = [
     "effects.dropped",
     "node.requested",
     "voice.state",
+    "voice.say",
     "voice.remove",
 ];
 
@@ -243,45 +250,14 @@ fn add_help(entries: &mut Vec<switcher::Entry>, help: switcher::Entry, active: b
     entries.insert(at, help);
 }
 
-/// What voice announces about the helpers: the state and task of each
-/// by name, and whether the microphone is off.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct Helper {
-    agents: BTreeMap<String, (String, String)>,
-    mic_off: bool,
-}
-
-impl Helper {
-    /// Takes in a `voice.state`: of a named helper, or of voice itself.
-    fn follow(&mut self, data: &Value) {
-        let text = |key: &str| data[key].as_str().unwrap_or_default().to_owned();
-        match data["name"].as_str() {
-            Some(name) => {
-                self.agents
-                    .insert(name.to_owned(), (text("state"), text("task")));
-            }
-            None => self.mic_off = data["muted"]["mic"].as_bool().unwrap_or(false),
-        }
+/// The words of the tooltip of the helper door of the tray: "Voice off"
+/// while the microphone is off, else the door of the helper machine with
+/// the task of the helper.
+fn helper_tip(helper: &chora_kit::helper::Helper, language: Language) -> String {
+    if helper.mic_off() {
+        return Word::VoiceOff.text(language).to_owned();
     }
-
-    /// Takes in a `voice.remove`: the helper is gone.
-    fn forget(&mut self, data: &Value) {
-        if let Some(name) = data["name"].as_str() {
-            self.agents.remove(name);
-        }
-    }
-
-    /// The words of its tooltip: "Voice off" while the microphone is off,
-    /// else the row of the first helper, else "No helper".
-    fn tip(&self, language: Language) -> String {
-        if self.mic_off {
-            return Word::VoiceOff.text(language).to_owned();
-        }
-        match self.agents.iter().next() {
-            Some((name, (state, task))) => words::row(language, name, state, task),
-            None => Word::NoHelperDoor.text(language).to_owned(),
-        }
-    }
+    helper.door(language, true)
 }
 
 /// The state of the window manager.
@@ -314,13 +290,19 @@ pub struct Wm {
     hover: Option<String>,
     /// The output that the pointer entered last, where a new window opens.
     pointer_output: Option<String>,
-    /// Whether the bindings of the cube are grabbed.
-    cube_keys: bool,
+    /// The bindings of the cube that are grabbed.
+    cube_keys: CubeKeys,
+    /// The client that hosts the faces of a cube on the outputs, and the
+    /// one that went, until it lists the same faces again.
+    host: Option<Host>,
+    left: Option<Host>,
     /// The windows that float off their virtual output.
     floats: float::Floats,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
+    /// The open shell surfaces.
+    open: chora_kit::wm::open::Open,
     /// When the dialog opened, while the desktop fades to gray.
     fade: Option<Instant>,
     /// The shader of the fade, in the cache.
@@ -376,13 +358,11 @@ pub struct Wm {
     /// The programs that started and show no window yet.
     launches: Launches,
     notepad: apps::Editors,
-    notifier: Notifier,
     /// The reading that the speaker of the taskbars shows; none before
     /// the first.
     volume: Option<Reading>,
-    helper: Helper,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// Runs wpctl off the main loop.
     mixer: Mixer,
     /// When the volume was last read.
@@ -707,7 +687,7 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 /// the pointer entered last, else the first output. Screens keep the
 /// first one, as before virtual outputs.
 fn home_bar<'a>(bars: &'a [Bar], entered: Option<&str>) -> Option<&'a Bar> {
-    let under_the_pointer = |b: &&Bar| !b.has_pager() && Some(b.output.as_str()) == entered;
+    let under_the_pointer = |b: &&Bar| b.is_virtual() && Some(b.output.as_str()) == entered;
     bars.iter().find(under_the_pointer).or(bars.first())
 }
 
@@ -817,16 +797,19 @@ fn of_the_cube(action: &KeyAction) -> bool {
     )
 }
 
-/// Grabs the bindings of the settings, with or without those of the cube;
-/// a binding of the cube that another client holds falls back to its
-/// stand-in.
+/// Grabs the bindings of the settings with those of the cube that `cube`
+/// names; a binding of the cube that another client holds falls back to
+/// its stand-in.
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
-    cube: bool,
+    cube: CubeKeys,
 ) -> Result<(), ClientError> {
-    for (text, action) in bindings.iter().filter(|(_, a)| cube || !of_the_cube(a)) {
+    let held = |action: &KeyAction| {
+        !matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) || !of_the_cube(action)
+    };
+    for (text, action) in bindings.iter().filter(|(_, a)| held(a)) {
         for text in std::iter::once(text.as_str()).chain(fallback(text, action)) {
             let binding: Binding = text.parse().expect("the settings check their bindings");
             if rt.grab(binding, action.clone())? {
@@ -842,7 +825,7 @@ fn grab_keys(
 fn change_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
-    cube: bool,
+    cube: CubeKeys,
 ) -> Result<(), ClientError> {
     rt.start_grabs();
     grab_keys(rt, bindings, cube)?;
@@ -1125,6 +1108,21 @@ mod tests {
         assert_eq!(wm.cube_grab, Some(100.0), "the press of the person");
     }
 
+    /// On virtual outputs alone without a cube host, as in a pane, xp
+    /// has no desktops to switch: it holds no turn key, so another
+    /// client may, and no drag turns anything.
+    #[test]
+    fn without_a_cube_xp_holds_no_turn_key_and_no_drag() {
+        let (mut rt, _calls) = on_fake_core("flat-keys");
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, CubeKeys::Flat).unwrap();
+        assert!(rt.action("Ctrl+Alt+Left").is_none(), "no turn key");
+        assert!(
+            rt.action("Super+BTN_LEFT").is_none(),
+            "no drag without a cube"
+        );
+    }
+
     /// A press of the binding `Super+BTN_RIGHT` that the user moved to
     /// `close`: the focused window closes, and no cube turns (rw-1).
     #[test]
@@ -1165,7 +1163,7 @@ mod tests {
         let (mut rt, calls) = on_fake_core_refusing("no-stand-in", &["Ctrl+Alt+Left"]);
         let mut bindings = crate::config::defaults().common.bindings;
         bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
-        grab_keys(&mut rt, &bindings, true).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         let calls = calls.lock().unwrap().clone();
         assert!(
             !calls.iter().any(|c| c.contains("Ctrl+Super+Left")),
@@ -1174,7 +1172,7 @@ mod tests {
         assert!(rt.action("Ctrl+Super+Left").is_none());
         let (mut rt, _calls) = on_fake_core_refusing("stand-in", &["Ctrl+Alt+Left"]);
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, true).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         assert_eq!(
             rt.action("Ctrl+Super+Left"),
             Some(&KeyAction::System(System::Cube(Turn::Left)))
@@ -1188,9 +1186,9 @@ mod tests {
     fn a_change_of_the_cube_keys_keeps_the_other_keys() {
         let (mut rt, calls) = on_fake_core("cube-keys");
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, true).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         calls.lock().unwrap().clear();
-        change_keys(&mut rt, &bindings, false).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Hosted).unwrap();
         let mut gone = std::mem::take(&mut *calls.lock().unwrap());
         gone.sort();
         assert_eq!(
@@ -1205,10 +1203,14 @@ mod tests {
         );
         assert_eq!(rt.action("Super+d"), Some(&KeyAction::Look(Look::Desktop)));
         assert!(rt.action("Ctrl+Alt+Left").is_none());
-        change_keys(&mut rt, &bindings, true).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         assert_eq!(
             rt.action("Ctrl+Alt+Left"),
             Some(&KeyAction::System(System::Cube(Turn::Left)))
+        );
+        assert_eq!(
+            rt.action("Super+BTN_LEFT"),
+            Some(&KeyAction::Look(Look::Cube))
         );
         assert!(
             calls
@@ -1423,17 +1425,30 @@ mod tests {
 
     #[test]
     fn the_helper_tooltip_names_the_helper_and_says_no_helper_without_one() {
-        let mut helper = Helper::default();
-        let tip = |helper: &Helper| helper.tip(Language::En);
+        let mut helper = chora_kit::helper::Helper::default();
+        let said = |data| Event::Emitted {
+            event: "voice.state".into(),
+            client: "voice".into(),
+            data,
+        };
+        let tip = |helper: &chora_kit::helper::Helper| helper_tip(helper, Language::En);
         assert_eq!(tip(&helper), "No helper");
-        helper.follow(&json!({"state": "listening"}));
+        helper.hear(&said(json!({"state": "listening"})));
         assert_eq!(tip(&helper), "No helper");
-        helper.follow(&json!({"name": "coder", "state": "working", "task": "Write"}));
+        helper.hear(&said(
+            json!({"name": "coder", "state": "working", "task": "Write"}),
+        ));
         assert_eq!(tip(&helper), "coder · working · Write");
-        helper.follow(&json!({"state": "listening", "muted": {"mic": true}}));
+        helper.hear(&said(json!({"state": "listening", "muted": {"mic": true}})));
         assert_eq!(tip(&helper), "Voice off");
-        helper.follow(&json!({"state": "listening", "muted": {"mic": false}}));
-        helper.forget(&json!({"name": "coder"}));
+        helper.hear(&said(
+            json!({"state": "listening", "muted": {"mic": false}}),
+        ));
+        helper.hear(&Event::Emitted {
+            event: "voice.remove".into(),
+            client: "voice".into(),
+            data: json!({"name": "coder"}),
+        });
         assert_eq!(tip(&helper), "No helper");
     }
 

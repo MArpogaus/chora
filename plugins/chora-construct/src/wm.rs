@@ -134,7 +134,7 @@ impl Construct {
     /// Whether a window manager of that client name runs: in a pane, on
     /// the cube, or as a client that the construct did not start.
     fn manager_taken(&mut self, manager: &str) -> Result<bool, ClientError> {
-        if self.has_manager(manager) || (self.cube.is_some() && manager == cube::MANAGER) {
+        if self.has_manager(manager) || (self.cube.is_some() && manager == self.face_manager()) {
             return Ok(true);
         }
         let clients: Value = self.rt.conn.call("clients.list", Value::Null)?;
@@ -156,7 +156,7 @@ impl Construct {
     /// Whether the construct runs the window manager of that client
     /// name, in a pane or on the cube.
     pub(crate) fn manages(&self, client: &str) -> bool {
-        self.has_manager(client) || (self.cube.is_some() && client == cube::MANAGER)
+        self.has_manager(client) || (self.cube.is_some() && client == self.face_manager())
     }
 
     /// A window manager of the construct connected, and no longer has

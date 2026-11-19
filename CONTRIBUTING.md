@@ -248,7 +248,7 @@ tests/agent.sh target/debug
 `tests/gate-0.9-session-units.sh` checks the units of the session and of
 the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
-mako, swaybg, swayidle and kanshi.
+swaybg, swayidle and kanshi.
 
 `tests/merge-gate.sh` decides whether a merge into the session branch may
 be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the

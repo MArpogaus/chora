@@ -35,12 +35,11 @@ fn face_id(desktop: usize) -> String {
 impl Wm {
     /// Turns the cube to a desktop the short way round.
     pub(super) fn turn_to(&mut self, desktop: usize) -> Vec<Command> {
-        match (desktop + DESKTOPS - self.desktop) % DESKTOPS {
-            0 => Vec::new(),
-            3 => self.turn(-1),
-            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // below 4
-            steps => self.turn(steps as i32),
-        }
+        self.turn(chora_kit::cube::quarters_to(
+            self.desktop,
+            desktop,
+            DESKTOPS,
+        ))
     }
 
     /// Moves the focused window to the next desktop and turns the cube
@@ -267,7 +266,7 @@ impl Wm {
     }
 
     /// Shows a desktop flat, without a turn.
-    fn show_desktop(&mut self, target: usize) -> Vec<Command> {
+    pub(super) fn show_desktop(&mut self, target: usize) -> Vec<Command> {
         self.desktop = target;
         let mut commands: Vec<Command> = (0..DESKTOPS)
             .map(|d| visible(&desk_id(d), d == self.desktop))

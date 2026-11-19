@@ -1,7 +1,7 @@
-//! The elements over the space (F28, docs/construct-style.md): the voice
-//! HUD, the questions of the voice agent, the pane label and the glass of
-//! the window list. Pure builders of commands, without a connection;
-//! `main.rs` sends them.
+//! The elements over the space (F28, docs/construct-style.md): the
+//! notices, the pane label and the glass of the window list; the HUD host
+//! draws the voice HUD and the questions. Pure builders
+//! of commands, without a connection; `main.rs` sends them.
 #![allow(
     clippy::cognitive_complexity,
     clippy::many_single_char_names,
@@ -14,18 +14,9 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap},
-    time::{Duration, Instant},
 };
 
-use chora_kit::{
-    ask::{self, Button, Card, Click, Keys, Question, show_key},
-    words::{Language, Word},
-};
-use chora_scene::{
-    Border, Clip, Command, Easing, InputMode, NodeKind, PropsUpdate, Transform, Uniform,
-};
-use serde::Deserialize;
-use serde_json::Value;
+use chora_scene::{Border, Command, Easing, InputMode, NodeKind, PropsUpdate, Transform, Uniform};
 
 use crate::config::{Colors, Style};
 
@@ -36,34 +27,17 @@ const LABEL_TEXT: &str = "construct-label-text";
 /// pane.
 pub const LABEL_BODY: &str = "construct-label-body";
 const LABEL_TEXT_BODY: &str = "construct-label-body-text";
-pub const HUD: &str = "construct-hud";
-const HUD_GLASS: &str = "construct-hud-glass";
-pub const HUD_GLOW: &str = "construct-hud-glow";
-const HUD_STATE: &str = "construct-hud-state";
-pub const HUD_SAY: &str = "construct-hud-say";
 pub const LIST: &str = "construct-list";
 pub const LIST_GLASS: &str = "construct-list-glass";
 pub const LIST_GLOW: &str = "construct-list-glow";
 pub const LIST_LABEL: &str = "construct-list-label";
-pub const ASK: &str = "construct-ask";
 /// The help panel with the bindings.
 pub const HELP: &str = "construct-help";
-/// The glass of a question takes the wheel that scrolls it.
-pub const ASK_GLASS: &str = "construct-ask-glass";
-pub const ASK_GLOW: &str = "construct-ask-glow";
-const ASK_VIEW: &str = "construct-ask-view";
-pub const ASK_BODY: &str = "construct-ask-body";
-/// The buttons of a question; a click answers it (`voice.confirm.answer`).
-pub const ASK_YES: &str = "construct-ask-yes";
-pub const ASK_NO: &str = "construct-ask-no";
-
-/// The roles of type: the three of the voice HUD of the construct
-/// (rule 2), and the faces of the glass HUD (rule 23) in a weight.
+/// The roles of type: the label (rule 2), and the faces of the glass HUD
+/// (rule 23) in a weight.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Role {
     Label,
-    Data,
-    Text,
     Face(chora_kit::glass::Type, u16),
 }
 
@@ -71,49 +45,16 @@ impl Role {
     const fn size(self) -> (f64, f64) {
         match self {
             Self::Label => (11.0, 16.0),
-            Self::Data => (12.0, 16.0),
-            Self::Text => (16.0, 24.0),
             Self::Face(face, _) => (face.face().size, face.face().line),
         }
     }
 }
 
-/// The diameter of the state ring.
-const RING: f64 = 40.0;
-/// The widths at which a spoken sentence and a question wrap.
-const SAY_WIDTH: f64 = 480.0;
-const ASK_WIDTH: f64 = 640.0;
 /// The window list: the rows that it shows at most.
 pub const LIST_ROWS: usize = 12;
 /// The fades of rule 12, in milliseconds.
 pub const FADE_IN: f64 = 160.0;
-const GLOW_IN: f64 = 240.0;
 pub const FADE_OUT: f64 = 120.0;
-/// How long a spoken sentence stays after its end.
-pub const LINGER: Duration = Duration::from_secs(2);
-/// How long a notice shows.
-const NOTICE: Duration = Duration::from_secs(4);
-/// The most bytes of a text node (api.md).
-const CHUNK: usize = 4096;
-/// The most characters of a spoken sentence: two lines of 480.
-const SAY_CHARS: usize = 100;
-
-/// The ring mode of `glass.frag` and the label of a state of the voice
-/// agent; an unknown state shows as `listening`, with an empty label that
-/// the caller fills with the state in capitals.
-#[must_use]
-pub fn mode(state: &str) -> (f64, &'static str) {
-    match state {
-        "asleep" => (0.0, "ASLEEP"),
-        "listening" => (1.0, "LISTENING"),
-        "thinking" => (2.0, "THINKING"),
-        "working" => (3.0, "WORKING"),
-        "question" => (4.0, "QUESTION"),
-        "speaking" => (5.0, "SPEAKING"),
-        _ => (1.0, ""),
-    }
-}
-
 /// A chip of the cube: a capsule 32 high with its words in `small` 500.
 const CHIP_HEIGHT: f64 = 32.0;
 const CHIP_ROLE: Role = Role::Face(chora_kit::glass::Type::Small, 500);
@@ -265,8 +206,6 @@ fn ends(text: &str) -> Vec<String> {
 fn width(role: Role, text: &str) -> f64 {
     let k = match role {
         Role::Label => 0.72,
-        Role::Data => 0.602,
-        Role::Text => 0.5,
         Role::Face(face, _) if face.face().mono => 0.602,
         Role::Face(face, _) if face.face().caps => 0.72,
         Role::Face(..) => 0.55,
@@ -280,42 +219,6 @@ fn lines(role: Role, text: &str, wrap: f64) -> f64 {
     text.split('\n')
         .map(|line| (width(role, line) / wrap).ceil().max(1.0))
         .sum()
-}
-
-/// The end of a long sentence, from a word on, after an ellipsis
-/// (rule 11).
-#[must_use]
-pub fn tail(text: &str) -> String {
-    let count = text.chars().count();
-    if count <= SAY_CHARS {
-        return text.into();
-    }
-    let (cut, _) = text
-        .char_indices()
-        .nth(count - SAY_CHARS)
-        .unwrap_or_default();
-    let rest = &text[cut..];
-    let words = rest.split_once(' ').map_or(rest, |(_, words)| words);
-    format!("\u{2026}{words}")
-}
-
-/// A detail in pieces of at most 4 KiB, cut at line ends, which the
-/// pieces leave out; a line longer than a piece is cut at a character.
-#[must_use]
-pub fn chunks(detail: &str) -> Vec<&str> {
-    let mut out = Vec::new();
-    let mut rest = detail;
-    while rest.len() > CHUNK {
-        let mut end = CHUNK;
-        while !rest.is_char_boundary(end) {
-            end -= 1;
-        }
-        let (piece, skip) = rest[..end].rfind('\n').map_or((end, 0), |nl| (nl, 1));
-        out.push(&rest[..piece]);
-        rest = &rest[piece + skip..];
-    }
-    out.push(rest);
-    out
 }
 
 /// What the builders need of the settings.
@@ -455,17 +358,13 @@ impl Look<'_> {
             };
         }
         let (size, line) = role.size();
-        let label = matches!(role, Role::Label);
         PropsUpdate {
             text: Some(if text.is_empty() { " " } else { text }.into()),
-            family: Some(match role {
-                Role::Data => self.style.mono.clone(),
-                _ => self.style.font.clone(),
-            }),
+            family: Some(self.style.font.clone()),
             font_size: Some(size),
             line_height: Some(line / size),
-            weight: Some(if label { 500 } else { 400 }),
-            letter_spacing: label.then_some(0.16),
+            weight: Some(500),
+            letter_spacing: Some(0.16),
             color: rgba(color, 1.0),
             ..PropsUpdate::default()
         }
@@ -548,29 +447,8 @@ impl Look<'_> {
         ])
     }
 
-    /// The glow of a panel of `size`: the update, then the rise to full
-    /// (rule 12), since an update ends a running animation.
-    fn glow_update(
-        &self,
-        id: &str,
-        size: [f64; 2],
-        ring: [f64; 4],
-        level: f64,
-        shown: bool,
-    ) -> Vec<Command> {
-        if self.plain {
-            return Vec::new();
-        }
-        let props = PropsUpdate {
-            visible: Some(shown),
-            ..self.glow_props(size, ring, level)
-        };
-        vec![update(id, props), fade(id, 1.0, GLOW_IN)]
-    }
-
     /// The groups of the elements over the space, hidden, in the stack of
-    /// rule 9 from the back: the pane label, the HUD and the window list.
-    /// A question comes on top when it opens.
+    /// rule 9 from the back: the pane label and the window list.
     #[must_use]
     pub fn groups(&self, parent: &str) -> Vec<Command> {
         let group = |id: &str, input| {
@@ -612,16 +490,9 @@ impl Look<'_> {
                     ..PropsUpdate::default()
                 },
             ),
-            group(HUD, Some(InputMode::Pass)),
-            self.glass(HUD_GLASS, HUD, None),
-        ];
-        commands.extend(self.glow(HUD_GLOW, HUD));
-        commands.extend([
-            self.text(HUD_STATE, HUD, Role::Label, " ", self.colors.muted),
-            self.text(HUD_SAY, HUD, Role::Text, " ", self.colors.text),
             group(LIST, None),
             self.glass(LIST_GLASS, LIST, None),
-        ]);
+        ];
         commands.extend(self.glow(LIST_GLOW, LIST));
         commands.push(self.text(LIST_LABEL, LIST, Role::Label, " ", self.colors.muted));
         commands
@@ -826,110 +697,6 @@ impl Look<'_> {
     pub fn label_hide() -> Vec<Command> {
         vec![fade(LABEL_BODY, 0.0, FADE_OUT)]
     }
-
-    /// The row of answers at the bottom of a question, `top` from its
-    /// top: per answer a button with the words of the session language while the agent takes
-    /// clicks, and the key cap of a physical question beside it, after an
-    /// accent mark that says a key is needed.
-    fn answers(&self, ask: &Ask, top: f64, wrap: f64, language: Language) -> Vec<Command> {
-        let [yes_label, no_label] = Card::buttons(language);
-        let (u, pad) = (self.style.unit, self.pad());
-        let h = 4.0 * u;
-        let mut commands = Vec::new();
-        if ask.keys().is_some() {
-            // The accent marks the row, as it marks a selection; text
-            // never takes it (rule 4).
-            commands.push(create(
-                "construct-ask-mark",
-                NodeKind::Rect,
-                ASK,
-                PropsUpdate {
-                    transform: at(pad / 2.0 - 1.0, top + u),
-                    size: Some([2.0, h - 2.0 * u]),
-                    color: rgba(self.style.accent, 1.0),
-                    radius: Some(1.0),
-                    ..PropsUpdate::default()
-                },
-            ));
-        }
-        // A small glass box at `x`, with a text in it.
-        let boxed = |id: &str, x: f64, role, text: &str, color, input| {
-            let w = (self.size(role, text, None)[0] + 4.0 * u).ceil();
-            let dy = if matches!(role, Role::Text) {
-                u - 4.0
-            } else {
-                u
-            };
-            let commands = vec![
-                self.glass(id, ASK, input),
-                update(
-                    id,
-                    PropsUpdate {
-                        transform: at(x, top),
-                        size: Some([w, h]),
-                        radius: Some(u),
-                        ..PropsUpdate::default()
-                    },
-                ),
-                create(
-                    &format!("{id}-text"),
-                    NodeKind::Text,
-                    ASK,
-                    PropsUpdate {
-                        transform: at(x + 2.0 * u, top + dy),
-                        input: Some(InputMode::Pass),
-                        ..self.text_props(role, text, color)
-                    },
-                ),
-            ];
-            (commands, w)
-        };
-        let half = (wrap - 2.0 * u) / 2.0;
-        let mut x = pad;
-        for (yes, id, label) in [(true, ASK_YES, yes_label), (false, ASK_NO, no_label)] {
-            let start = x;
-            if ask.buttons() {
-                let (c, w) = boxed(
-                    id,
-                    x,
-                    Role::Text,
-                    label,
-                    self.colors.text,
-                    Some(InputMode::Accept),
-                );
-                commands.extend(c);
-                x += w + u;
-            }
-            if let Some(keys) = ask.keys() {
-                let key = show_key(if yes { &keys.yes } else { &keys.no });
-                let key = self.one_line(Role::Data, &key, half / 2.0);
-                let (c, w) = boxed(
-                    &format!("{id}-key"),
-                    x,
-                    Role::Data,
-                    &key,
-                    self.colors.text,
-                    None,
-                );
-                commands.extend(c);
-                x += w + u;
-                if !ask.buttons() {
-                    commands.push(create(
-                        &format!("{id}-what"),
-                        NodeKind::Text,
-                        ASK,
-                        PropsUpdate {
-                            transform: at(x, top + u - 4.0),
-                            ..self.text_props(Role::Text, label, self.colors.muted)
-                        },
-                    ));
-                    x += self.size(Role::Text, label, None)[0] + u;
-                }
-            }
-            x = (start + half + 2.0 * u).max(x + u);
-        }
-        commands
-    }
 }
 
 /// The meta `state` of the list: `open`, or empty, which removes it. The
@@ -954,462 +721,8 @@ pub fn list_close() -> Vec<Command> {
     ]
 }
 
-/// `voice.say`: a sentence when its sound starts.
-#[derive(Deserialize)]
-struct Say {
-    text: String,
-    #[serde(default)]
-    duration_ms: f64,
-}
-
-/// `voice.state`; `name` is a sub-agent, which the HUD leaves out in v1.
-#[derive(Deserialize)]
-struct Status {
-    #[serde(default)]
-    name: Option<String>,
-    state: String,
-    #[serde(default)]
-    task: String,
-}
-
-/// An open question: the card of `kit::ask`, the only question model,
-/// and how far the wheel scrolled it.
-pub struct Ask {
-    pub card: Card,
-    /// How far the wheel scrolled it, and how far it can.
-    pub scroll: f64,
-    pub scroll_max: f64,
-}
-
-impl Ask {
-    /// The keys of a physical question.
-    fn keys(&self) -> Option<&Keys> {
-        let question = &self.card.question;
-        question.physical.then_some(&question.keys)
-    }
-
-    /// The question takes clicks.
-    fn buttons(&self) -> bool {
-        self.card.question.buttons
-    }
-}
-
-/// What the voice agent shows: its state, its sentence and its question.
-#[derive(Default)]
-pub struct Voice {
-    /// None until the first `voice.state`: the HUD does not show.
-    pub state: Option<String>,
-    pub task: String,
-    pub say: Option<String>,
-    /// The end of the sound of the sentence, the start of its fade-out
-    /// and the end of the fade.
-    pub say_until: Option<Instant>,
-    pub fade_at: Option<Instant>,
-    pub drop_at: Option<Instant>,
-    pub ask: Option<Ask>,
-}
-
-/// What an event changed.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct Changed {
-    pub hud: bool,
-    pub ask: bool,
-}
-
-impl Voice {
-    /// Follows an event `voice.KIND` of the agent `voice`.
-    ///
-    /// # Errors
-    /// The data do not fit the event.
-    pub fn follow(&mut self, kind: &str, data: Value, now: Instant) -> Result<Changed, String> {
-        let err = |e: serde_json::Error| e.to_string();
-        match kind {
-            "state" => {
-                let state: Status = serde_json::from_value(data).map_err(err)?;
-                if state.name.as_deref().is_some_and(|n| n != "voice") {
-                    return Ok(Changed::default());
-                }
-                self.state = Some(state.state);
-                self.task = state.task;
-                Ok(Changed {
-                    hud: true,
-                    ask: false,
-                })
-            }
-            "say" => {
-                let say: Say = serde_json::from_value(data).map_err(err)?;
-                let len = Duration::from_secs_f64(say.duration_ms.clamp(0.0, 600_000.0) / 1000.0);
-                self.say = Some(tail(&say.text));
-                self.say_until = Some(now + len);
-                self.fade_at = Some(now + len + LINGER);
-                self.drop_at = None;
-                Ok(Changed {
-                    hud: true,
-                    ask: false,
-                })
-            }
-            "confirm" => {
-                if data["done"] == true {
-                    let open = ask::event_id(&data).is_some_and(|id| {
-                        self.ask
-                            .as_ref()
-                            .is_some_and(|a| a.card.question.answer_id == id)
-                    });
-                    if open {
-                        self.ask = None;
-                    }
-                    return Ok(Changed {
-                        hud: false,
-                        ask: open,
-                    });
-                }
-                let question = Question::from_event(&data, None)
-                    .ok_or("confirm: an id as a number and a prompt")?;
-                self.ask = Some(Ask {
-                    card: Card::new(question, now),
-                    scroll: 0.0,
-                    scroll_max: 0.0,
-                });
-                Ok(Changed {
-                    hud: false,
-                    ask: true,
-                })
-            }
-            _ => Ok(Changed::default()),
-        }
-    }
-
-    /// Shows a short notice in the text line for a few seconds, also
-    /// without the voice agent.
-    pub fn notice(&mut self, text: &str, now: Instant) {
-        self.say = Some(text.into());
-        self.say_until = None;
-        self.fade_at = Some(now + NOTICE);
-        self.drop_at = None;
-    }
-
-    /// The next deadline of the sentence.
-    #[must_use]
-    pub fn deadline(&self) -> Option<Instant> {
-        [self.say_until, self.fade_at, self.drop_at]
-            .into_iter()
-            .flatten()
-            .min()
-    }
-
-    /// Whether the waveform moves.
-    #[must_use]
-    pub fn level(&self, now: Instant) -> f64 {
-        if self.say_until.is_some_and(|t| now < t) {
-            1.0
-        } else {
-            0.0
-        }
-    }
-
-    /// The text line of the HUD and whether it is muted: the sentence,
-    /// else the task while thinking or working; compact, the sentence only.
-    fn line(&self, compact: bool) -> Option<(&str, bool)> {
-        if let Some(say) = &self.say {
-            return Some((say, false));
-        }
-        let busy = matches!(self.state.as_deref(), Some("thinking" | "working"));
-        (!compact && busy && !self.task.is_empty()).then_some((self.task.as_str(), true))
-    }
-
-    /// The HUD for an output of `out`: its place, the panel, the ring, the
-    /// label and the text line. Compact, flown into a pane, it sits at
-    /// the bottom right. Answers nothing before the first state.
-    #[must_use]
-    pub fn hud(
-        &self,
-        look: &Look,
-        out: [f64; 2],
-        compact: bool,
-        level: f64,
-        glow: bool,
-    ) -> Vec<Command> {
-        let (ring_mode, label) = match &self.state {
-            Some(state) => match mode(state) {
-                (ring, "") => (ring, state.to_uppercase()),
-                (ring, label) => (ring, label.into()),
-            },
-            None if self.say.is_some() => (-1.0, String::new()),
-            None => return vec![fade(HUD, 0.0, FADE_OUT)],
-        };
-        let ringless = look.plain || ring_mode < 0.0;
-        let (u, pad) = (look.style.unit, look.pad());
-        let slot = if ringless { 0.0 } else { RING + 2.0 * u };
-        // The sentence wraps within the panel, and at most two lines show
-        // (rule 11); on a narrow output the panel shrinks to it.
-        let wrap = SAY_WIDTH
-            .min(out[0] - 8.0 * u - pad * 2.0 - slot)
-            .max(u * 8.0);
-        let line = (self.line(compact))
-            .map(|(t, muted)| (look.last_lines(Role::Text, t, wrap, 2.0), muted));
-        let label = look.one_line(Role::Label, &label, wrap);
-        let [line_w, line_h] =
-            (line.as_ref()).map_or([0.0; 2], |(t, _)| look.size(Role::Text, t, Some(wrap)));
-        let label_h = if label.is_empty() { 0.0 } else { 16.0 };
-        let content = label_h + line_h;
-        let label_w = look.size(Role::Label, &label, None)[0];
-        let w = (pad * 2.0 + slot + label_w.max(line_w)).ceil();
-        let h = pad * 2.0 + content.max(if ringless { 0.0 } else { RING });
-        let x = if compact {
-            out[0] - 4.0 * u - w
-        } else {
-            ((out[0] - w) / 2.0).round()
-        };
-        let y = out[1] - 4.0 * u - h;
-        let top = ((h - content) / 2.0).round();
-        let opacity = if ring_mode == 0.0 { 0.6 } else { 1.0 };
-        let mut commands = vec![
-            update(
-                HUD,
-                PropsUpdate {
-                    transform: at(x.round(), y),
-                    visible: Some(true),
-                    ..PropsUpdate::default()
-                },
-            ),
-            fade(HUD, opacity, FADE_IN),
-            update(
-                HUD_GLASS,
-                PropsUpdate {
-                    size: Some([w, h]),
-                    ..PropsUpdate::default()
-                },
-            ),
-            update(
-                HUD_STATE,
-                PropsUpdate {
-                    transform: at(pad + slot, top),
-                    ..look.text_props(Role::Label, &label, look.colors.muted)
-                },
-            ),
-        ];
-        let say = match &line {
-            Some((text, muted)) => {
-                let color = if *muted {
-                    look.colors.muted
-                } else {
-                    look.colors.text
-                };
-                PropsUpdate {
-                    transform: at(pad + slot, top + label_h),
-                    max_width: Some(wrap),
-                    visible: Some(true),
-                    opacity: Some(1.0),
-                    ..look.text_props(Role::Text, text, color)
-                }
-            }
-            None => PropsUpdate {
-                visible: Some(false),
-                ..PropsUpdate::default()
-            },
-        };
-        commands.push(update(HUD_SAY, say));
-        let diameter = if ringless { 0.0 } else { RING };
-        let ring = [pad + RING / 2.0, h / 2.0, diameter, ring_mode];
-        commands.extend(look.glow_update(HUD_GLOW, [w, h], ring, level, glow));
-        commands
-    }
-
-    /// The question panel at the top centre of an output of `out`, made
-    /// anew: the label, the prompt, the whole detail in pieces and the
-    /// hint. When it is taller than the output minus 64, a clip shows a
-    /// part, and the wheel scrolls it. Sets how far it can scroll.
-    #[must_use]
-    pub fn ask(
-        &mut self,
-        look: &Look,
-        out: [f64; 2],
-        glow: bool,
-        language: Language,
-    ) -> Vec<Command> {
-        let mut commands = vec![Command::Remove {
-            id: ASK.into(),
-            to: None,
-        }];
-        let Some(ask) = &mut self.ask else {
-            return commands;
-        };
-        let (u, pad) = (look.style.unit, look.pad());
-        // The panel keeps 32 to each side of a narrow output.
-        let wrap = ASK_WIDTH.min(out[0] - 8.0 * u - pad * 2.0).max(u * 8.0);
-        let w = wrap + pad * 2.0;
-        let text = |id: &str, role, text: &str, color, y: f64| {
-            create(
-                id,
-                NodeKind::Text,
-                ASK_BODY,
-                PropsUpdate {
-                    transform: at(pad, y),
-                    max_width: Some(wrap),
-                    ..look.text_props(role, text, color)
-                },
-            )
-        };
-        let label = "construct-ask-label";
-        let mut body = vec![text(label, Role::Label, "QUESTION", look.colors.muted, pad)];
-        let mut y = pad + 16.0 + u;
-        body.push(text(
-            "construct-ask-prompt",
-            Role::Text,
-            &ask.card.question.prompt,
-            look.colors.text,
-            y,
-        ));
-        y += look.size(Role::Text, &ask.card.question.prompt, Some(wrap))[1] + u;
-        if !ask.card.question.detail.is_empty() {
-            for (k, piece) in chunks(&ask.card.question.detail).into_iter().enumerate() {
-                let id = format!("construct-ask-detail-{k}");
-                body.push(text(&id, Role::Data, piece, look.colors.text, y));
-                y += look.size(Role::Data, piece, Some(wrap))[1];
-            }
-            y += u;
-        }
-        let hint = if ask.keys().is_some() {
-            Word::NoVoiceYes.text(language).to_uppercase()
-        } else {
-            let [yes, no] = Card::buttons(language);
-            format!("{yes} / {no}").to_uppercase()
-        };
-        let hint = look.one_line(Role::Label, &hint, wrap);
-        body.push(text(
-            "construct-ask-hint",
-            Role::Label,
-            &hint,
-            look.colors.muted,
-            y,
-        ));
-        let full = (y + 16.0 + pad).ceil();
-        // The answers stay at the bottom, also while the body scrolls.
-        let row = ask.keys().is_some() || ask.buttons();
-        let footer = if row { 5.0 * u + pad } else { 0.0 };
-        // At most the output minus 32 above and below, and minus the room
-        // of the HUD with two lines, which stays in sight under it.
-        let room = out[1] - 8.0 * u - (2.0 * pad + 16.0 + 48.0 + 2.0 * u);
-        let body_h = full.min(room - footer);
-        let h = body_h + footer;
-        ask.scroll_max = full - body_h;
-        ask.scroll = ask.scroll.clamp(0.0, ask.scroll_max);
-        let x = ((out[0] - w) / 2.0).round();
-        commands.extend([
-            create(
-                ASK,
-                NodeKind::Group,
-                crate::NAME,
-                PropsUpdate {
-                    transform: at(x, 4.0 * u),
-                    opacity: Some(0.0),
-                    ..PropsUpdate::default()
-                },
-            ),
-            look.glass(ASK_GLASS, ASK, None),
-            update(
-                ASK_GLASS,
-                PropsUpdate {
-                    size: Some([w, h]),
-                    ..PropsUpdate::default()
-                },
-            ),
-        ]);
-        commands.extend(look.glow(ASK_GLOW, ASK));
-        let clip = (ask.scroll_max > 0.0).then_some(Clip {
-            radius: look.style.radius,
-        });
-        if row {
-            commands.extend(look.answers(ask, body_h, wrap, language));
-        }
-        commands.extend([
-            create(
-                ASK_VIEW,
-                NodeKind::Group,
-                ASK,
-                PropsUpdate {
-                    size: clip.map(|_| [w, body_h]),
-                    clip: clip.map(Some),
-                    input: Some(InputMode::Pass),
-                    ..PropsUpdate::default()
-                },
-            ),
-            create(
-                ASK_BODY,
-                NodeKind::Group,
-                ASK_VIEW,
-                PropsUpdate {
-                    transform: at(0.0, -ask.scroll),
-                    ..PropsUpdate::default()
-                },
-            ),
-        ]);
-        commands.extend(body);
-        commands.push(fade(ASK, 1.0, FADE_IN));
-        commands.extend(look.glow_update(ASK_GLOW, [w, h], [0.0; 4], 0.0, glow));
-        commands
-    }
-
-    /// What a press on `node` comes to at `now`: a button of the open
-    /// question that has buttons, a pointer press only, 400 ms after the
-    /// question showed. No method of the construct answers.
-    #[must_use]
-    pub fn click(&self, node: &str, injected: bool, now: Instant) -> Click {
-        let button = match node {
-            ASK_YES => Button::Yes,
-            ASK_NO => Button::No,
-            _ => return Click::Ignored,
-        };
-        self.ask
-            .as_ref()
-            .map_or(Click::Ignored, |ask| ask.card.click(button, injected, now))
-    }
-
-    /// The question was drawn at `now`: its buttons take no click for
-    /// 400 ms.
-    pub fn drawn(&mut self, now: Instant) {
-        if let Some(ask) = &mut self.ask {
-            ask.card.moved(now);
-        }
-    }
-
-    /// Scrolls the open question by `dy`; answers the move of its body.
-    pub fn scroll(&mut self, dy: f64) -> Option<Command> {
-        let ask = self.ask.as_mut().filter(|a| a.scroll_max > 0.0)?;
-        ask.scroll = (ask.scroll + dy).clamp(0.0, ask.scroll_max);
-        Some(update(
-            ASK_BODY,
-            PropsUpdate {
-                transform: at(0.0, -ask.scroll.round()),
-                ..PropsUpdate::default()
-            },
-        ))
-    }
-}
-
-/// The claim of the indicator of the voice agent: due at the start and
-/// after each connection of the agent.
-pub struct Claim {
-    pub due: bool,
-}
-
-impl Claim {
-    /// Calls `call` while a claim is due. A failed call, as without an
-    /// agent, leaves it due; after an event of the agent (`last`) it is no
-    /// longer due.
-    pub fn claim(&mut self, last: bool, call: impl FnOnce() -> bool) {
-        if !self.due {
-            return;
-        }
-        let done = call();
-        self.due = !done && !last;
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
     use crate::config::{Config, DEFAULT};
 
@@ -1427,110 +740,6 @@ mod tests {
             glass: chora_kit::glass::Material::of(false),
             metrics,
         }
-    }
-
-    #[test]
-    fn each_state_has_its_ring_and_label() {
-        let rows = [
-            ("asleep", 0.0, "ASLEEP"),
-            ("listening", 1.0, "LISTENING"),
-            ("thinking", 2.0, "THINKING"),
-            ("working", 3.0, "WORKING"),
-            ("question", 4.0, "QUESTION"),
-            ("speaking", 5.0, "SPEAKING"),
-            ("dreaming", 1.0, ""),
-        ];
-        for (state, ring, label) in rows {
-            assert_eq!(mode(state), (ring, label), "{state}");
-        }
-    }
-
-    #[test]
-    fn a_state_of_a_sub_agent_changes_nothing() {
-        let mut voice = Voice::default();
-        let now = Instant::now();
-        let coder = json!({"name": "coder", "state": "working", "task": "x"});
-        assert_eq!(
-            voice.follow("state", coder, now).unwrap(),
-            Changed::default()
-        );
-        assert!(voice.state.is_none());
-        let own = json!({"state": "thinking", "task": "the weather"});
-        assert!(voice.follow("state", own, now).unwrap().hud);
-        assert_eq!(voice.state.as_deref(), Some("thinking"));
-    }
-
-    /// The port of `a_confirmation_shows_until_its_answer` of mc: a done
-    /// of another id keeps the question, of its id closes it; the detail
-    /// shows whole.
-    #[test]
-    #[allow(clippy::cognitive_complexity, reason = "one question after the other")]
-    fn a_confirmation_shows_until_its_answer() {
-        let config = config();
-        let mut voice = Voice::default();
-        let now = Instant::now();
-        let detail = format!("{}\n", "x".repeat(51)).repeat(200);
-        assert!(detail.len() > 10 * 1024 - 1000);
-        let ask = json!({"id": 7, "prompt": "Run it?", "detail": detail});
-        assert!(voice.follow("confirm", ask, now).unwrap().ask);
-        let metrics = Metrics::default();
-        let commands = voice.ask(
-            &look(&config, &metrics),
-            [1920.0, 1080.0],
-            true,
-            Language::En,
-        );
-        let pieces: Vec<&str> = (commands.iter())
-            .filter_map(|c| match c {
-                Command::Create { id, props, .. } if id.starts_with("construct-ask-detail-") => {
-                    props.text.as_deref()
-                }
-                _ => None,
-            })
-            .collect();
-        assert_eq!(pieces.len(), 3);
-        assert!(pieces.iter().all(|p| p.len() <= CHUNK));
-        assert_eq!(pieces.join("\n"), detail, "no byte lost");
-        assert!(
-            voice.ask.as_ref().unwrap().scroll_max > 0.0,
-            "taller than the output"
-        );
-        let done = |id| json!({"id": id, "done": true});
-        assert!(!voice.follow("confirm", done(6), now).unwrap().ask);
-        assert!(voice.ask.is_some(), "another id");
-        assert!(voice.follow("confirm", done(7), now).unwrap().ask);
-        assert!(voice.ask.is_none());
-    }
-
-    /// The question shows no character that hides or reorders text,
-    /// whatever the event carries (sh-26).
-    #[test]
-    fn a_question_shows_no_bidi_character() {
-        let config = config();
-        let mut voice = Voice::default();
-        let now = Instant::now();
-        let ask = json!({"id": 8, "prompt": "Run\u{202e} it?",
-            "detail": "echo safe\u{202e}fr- mr\u{200b}\u{1b}[2J"});
-        assert!(voice.follow("confirm", ask, now).unwrap().ask);
-        let metrics = Metrics::default();
-        let commands = voice.ask(
-            &look(&config, &metrics),
-            [1920.0, 1080.0],
-            true,
-            Language::En,
-        );
-        let text = |prefix: &str| -> Vec<String> {
-            (commands.iter())
-                .filter_map(|c| match c {
-                    Command::Create { id, props, .. } if id.starts_with(prefix) => {
-                        props.text.clone()
-                    }
-                    _ => None,
-                })
-                .collect()
-        };
-        assert_eq!(text("construct-ask-prompt"), ["Run it?"]);
-        assert_eq!(text("construct-ask-detail-").join(""), "echo safefr- mr");
     }
 
     /// Measures every miss as the core would with a monospace advance
@@ -1564,16 +773,14 @@ mod tests {
         })
     }
 
-    /// A list row, a pane label and the HUD keep their texts inside
-    /// their panels, by the sizes that the core measures: a row and a
-    /// label end with an ellipsis, the sentence keeps its last two lines.
+    /// A pane label keeps its text inside its panel, by the sizes that
+    /// the core measures: it ends with an ellipsis.
     #[test]
     fn every_text_fits_its_panel() {
         let config = config();
         let metrics = Metrics::default();
         let look = look(&config, &metrics);
         let long = "Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen";
-        let pad = look.pad();
         let (label, w) = measured(&metrics, || look.label(long, true, false));
         assert!(w <= LABEL_MAX, "{w}");
         assert!(
@@ -1581,290 +788,6 @@ mod tests {
                 .unwrap()
                 .ends_with(ELLIPSIS)
         );
-        let mut voice = Voice::default();
-        let now = Instant::now();
-        voice
-            .follow("state", json!({"state": "speaking"}), now)
-            .unwrap();
-        let sentence = format!("Ich starte jetzt {long} und danach {long} für dich.");
-        voice
-            .follow("say", json!({"text": sentence, "duration_ms": 1}), now)
-            .unwrap();
-        for out in [[1280.0, 720.0], [480.0, 720.0]] {
-            let hud = measured(&metrics, || voice.hud(&look, out, false, 0.0, true));
-            let say = text_of(&hud, HUD_SAY).unwrap();
-            assert!(
-                say.starts_with(ELLIPSIS) && say.ends_with("für dich."),
-                "{say}"
-            );
-            let glass = hud.iter().find_map(|c| match c {
-                Command::Update { id, props } if id == HUD_GLASS => props.size,
-                _ => None,
-            });
-            let [w, h] = glass.unwrap();
-            assert!(w <= out[0] - 8.0 * config.style.unit, "{out:?}: {w}");
-            assert!(h <= 2.0 * pad + 16.0 + 48.0, "{out:?}: {h}");
-        }
-    }
-
-    /// A notice is one calm line: the sentence alone, with no label above
-    /// it and no ring.
-    #[test]
-    fn a_notice_is_one_line_without_a_label() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let mut voice = Voice::default();
-        voice.notice("No room in view", Instant::now());
-        let hud = measured(&metrics, || {
-            voice.hud(&look, [1280.0, 720.0], false, 0.0, true)
-        });
-        assert_eq!(text_of(&hud, HUD_SAY), Some("No room in view"));
-        assert_eq!(text_of(&hud, HUD_STATE).map(str::trim), Some(""));
-        let glass = hud.iter().find_map(|c| match c {
-            Command::Update { id, props } if id == HUD_GLASS => props.size,
-            _ => None,
-        });
-        let pad = look.pad();
-        assert_eq!(glass.unwrap()[1], 2.0 * pad + Role::Text.size().1);
-    }
-
-    /// The question grows with its prompt as the core wraps it.
-    #[test]
-    fn the_question_grows_with_its_prompt() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let mut voice = Voice::default();
-        let now = Instant::now();
-        let height = |voice: &mut Voice| {
-            let commands = measured(&metrics, || {
-                voice.ask(&look, [1280.0, 720.0], true, Language::En)
-            });
-            commands.iter().find_map(|c| match c {
-                Command::Update { id, props } if id == ASK_GLASS => props.size.map(|s| s[1]),
-                _ => None,
-            })
-        };
-        voice
-            .follow("confirm", json!({"id": 1, "prompt": "Ja?"}), now)
-            .unwrap();
-        let short = height(&mut voice).unwrap();
-        let prompt = "Soll ich Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz \
-            öffnen und foot -e sh -c 'make -j8 install' starten?";
-        voice
-            .follow("confirm", json!({"id": 2, "prompt": prompt}), now)
-            .unwrap();
-        let tall = height(&mut voice).unwrap();
-        assert!(tall >= short + 24.0, "{short} {tall}");
-    }
-
-    /// A click on Ja or Nein maps to `confirm.answer` with the id as
-    /// text; without buttons, or on another node, nothing; a physical
-    /// question shows its key caps beside the buttons.
-    #[test]
-    fn a_click_on_a_button_answers_the_question() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let mut voice = Voice::default();
-        let shown = Instant::now();
-        let now = shown + Duration::from_secs(1);
-        let ask = json!({"id": 4, "prompt": "Set allow?", "detail": "allow: [sh]",
-            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
-        voice.follow("confirm", ask, shown).unwrap();
-        assert_eq!(
-            voice.click(ASK_YES, false, now),
-            Click::Answer(json!({"id": "4", "yes": true}))
-        );
-        assert_eq!(
-            voice.click(ASK_NO, false, now),
-            Click::Answer(json!({"id": "4", "yes": false}))
-        );
-        assert_eq!(voice.click(ASK_GLASS, false, now), Click::Ignored);
-        let commands = measured(&metrics, || {
-            voice.ask(&look, [1280.0, 720.0], true, Language::En)
-        });
-        assert_eq!(
-            text_of(&commands, "construct-ask-yes-text"),
-            Some(Word::Yes.text(Language::En))
-        );
-        assert_eq!(
-            text_of(&commands, "construct-ask-no-key-text"),
-            Some("Alt+N")
-        );
-        let numeric = json!({"id": 9, "prompt": "Run?", "buttons": true});
-        voice.follow("confirm", numeric, shown).unwrap();
-        assert_eq!(
-            voice.click(ASK_YES, false, now),
-            Click::Answer(json!({"id": "9", "yes": true}))
-        );
-        let plain = json!({"id": 5, "prompt": "Run?"});
-        voice.follow("confirm", plain, shown).unwrap();
-        assert_eq!(
-            voice.click(ASK_YES, false, now),
-            Click::Ignored,
-            "no buttons"
-        );
-        voice
-            .follow("confirm", json!({"id": 5, "done": true}), now)
-            .unwrap();
-        assert_eq!(voice.click(ASK_NO, false, now), Click::Ignored, "closed");
-        let open = json!({"id": 6, "prompt": "Run?", "buttons": true});
-        voice.follow("confirm", open, shown).unwrap();
-        assert_eq!(
-            voice.click(ASK_YES, true, now),
-            Click::Ignored,
-            "an injected press"
-        );
-        assert_eq!(
-            voice.click(ASK_YES, false, now),
-            Click::Answer(json!({"id": "6", "yes": true}))
-        );
-    }
-
-    /// sh-26: a press inside 400 ms of the question showing answers
-    /// nothing; the same press after it does.
-    #[test]
-    fn a_press_inside_400_ms_of_the_question_is_refused() {
-        let mut voice = Voice::default();
-        let shown = Instant::now();
-        let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
-        voice.follow("confirm", ask, shown).unwrap();
-        let ms = Duration::from_millis;
-        assert_eq!(voice.click(ASK_YES, false, shown + ms(399)), Click::TooSoon);
-        assert_eq!(
-            voice.click(ASK_YES, false, shown + ms(400)),
-            Click::Answer(json!({"id": "4", "yes": true}))
-        );
-    }
-
-    /// sh-26: the guard counts from the draw, not from the event: a
-    /// question asked while the HUD was hidden and drawn later.
-    #[test]
-    fn a_press_inside_400_ms_of_the_draw_is_refused() {
-        let mut voice = Voice::default();
-        let asked = Instant::now();
-        let ms = Duration::from_millis;
-        let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
-        voice.follow("confirm", ask, asked).unwrap();
-        let draw = asked + ms(5000);
-        voice.drawn(draw);
-        assert_eq!(voice.click(ASK_YES, false, draw + ms(100)), Click::TooSoon);
-        assert_eq!(
-            voice.click(ASK_YES, false, draw + ms(400)),
-            Click::Answer(json!({"id": "4", "yes": true}))
-        );
-        voice.drawn(draw + ms(2000));
-        assert_eq!(voice.click(ASK_NO, false, draw + ms(2100)), Click::TooSoon);
-    }
-
-    /// sh-27: the hint lines come from the words of the kit.
-    #[test]
-    fn the_hint_follows_the_session_language() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let mut voice = Voice::default();
-        let plain = json!({"id": 4, "prompt": "Run it?"});
-        voice.follow("confirm", plain, Instant::now()).unwrap();
-        let hint = |voice: &mut Voice, language| {
-            let commands = measured(&metrics, || {
-                voice.ask(&look, [1280.0, 720.0], true, language)
-            });
-            text_of(&commands, "construct-ask-hint").map(str::to_uppercase)
-        };
-        let (yes, no) = (Word::Yes.text(Language::De), Word::No.text(Language::De));
-        let de = hint(&mut voice, Language::De).unwrap();
-        assert!(
-            de.contains(&yes.to_uppercase()) && de.contains(&no.to_uppercase()),
-            "{de}"
-        );
-        assert!(!de.contains("YES"), "{de}");
-        let physical = json!({"id": 5, "prompt": "Run it?", "physical": true});
-        voice.follow("confirm", physical, Instant::now()).unwrap();
-        let de = hint(&mut voice, Language::De).unwrap();
-        assert!(
-            de.contains(&Word::NoVoiceYes.text(Language::De).to_uppercase()),
-            "{de}"
-        );
-        assert!(!de.contains("SPOKEN"), "{de}");
-    }
-
-    /// sh-27: the buttons follow the language of the session.
-    #[test]
-    fn the_buttons_follow_the_session_language() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let mut voice = Voice::default();
-        let ask = json!({"id": 4, "prompt": "Run it?", "buttons": true});
-        voice.follow("confirm", ask, Instant::now()).unwrap();
-        for (language, yes, no) in [
-            (Language::En, "Yes", "No"),
-            (
-                Language::De,
-                Word::Yes.text(Language::De),
-                Word::No.text(Language::De),
-            ),
-        ] {
-            let commands = measured(&metrics, || {
-                voice.ask(&look, [1280.0, 720.0], true, language)
-            });
-            assert_eq!(text_of(&commands, "construct-ask-yes-text"), Some(yes));
-            assert_eq!(text_of(&commands, "construct-ask-no-text"), Some(no));
-        }
-    }
-
-    #[test]
-    fn a_long_line_splits_at_a_character() {
-        let line = "é".repeat(3000);
-        let pieces = chunks(&line);
-        assert_eq!(pieces.concat(), line);
-        assert!(pieces.iter().all(|p| p.len() <= CHUNK));
-    }
-
-    #[test]
-    fn a_long_sentence_keeps_its_end() {
-        let long = format!("{}end", "word ".repeat(60));
-        let short = tail(&long);
-        assert!(short.starts_with('\u{2026}') && short.ends_with("word end"));
-        assert!(short.chars().count() <= SAY_CHARS + 1);
-        assert_eq!(tail("short"), "short");
-    }
-
-    /// The port of `mc_claims_the_indicator_of_voice_once_per_connection`:
-    /// once at the start, again after `client.connected`, and no more
-    /// after the first event.
-    #[test]
-    fn the_construct_claims_the_indicator_of_voice_once_per_connection() {
-        let mut calls = 0;
-        let mut claim = Claim { due: true };
-        claim.claim(false, || {
-            calls += 1;
-            true
-        });
-        assert_eq!(calls, 1);
-        // The first event of the agent: claimed already.
-        claim.claim(true, || {
-            calls += 1;
-            true
-        });
-        assert_eq!(calls, 1);
-        // client.connected of voice.
-        claim.due = true;
-        claim.claim(false, || {
-            calls += 1;
-            true
-        });
-        assert_eq!(calls, 2);
-        assert!(!claim.due);
-        // Without an agent the claim stays due until its first event.
-        claim.due = true;
-        claim.claim(false, || false);
-        assert!(claim.due);
-        claim.claim(true, || false);
-        assert!(!claim.due);
     }
 
     /// At most 16 own uniforms per shader (scene.rs).
@@ -1884,76 +807,6 @@ mod tests {
                 .count();
             assert!(own <= 16, "{name}.frag has {own} uniforms");
         }
-    }
-
-    /// The layers of the elements over the space at 1920x1080, each at its
-    /// largest (plan section 6).
-    #[test]
-    fn the_elements_keep_to_the_layer_budget() {
-        let config = config();
-        let metrics = Metrics::default();
-        let look = look(&config, &metrics);
-        let out = [1920.0, 1080.0];
-        let mut voice = Voice::default();
-        let now = Instant::now();
-        voice
-            .follow("state", json!({"state": "speaking"}), now)
-            .unwrap();
-        voice
-            .follow(
-                "say",
-                json!({"text": "word ".repeat(80), "duration_ms": 1000}),
-                now,
-            )
-            .unwrap();
-        let detail = "x\n".repeat(4000);
-        voice
-            .follow(
-                "confirm",
-                json!({"id": 1, "prompt": "?", "detail": detail}),
-                now,
-            )
-            .unwrap();
-        let mut commands = look.groups(crate::NAME);
-        commands.extend(voice.hud(&look, out, false, 1.0, true));
-        commands.extend(voice.ask(&look, out, true, Language::En));
-        commands.extend(look.label(&"w".repeat(32), true, false).0);
-        // The last size of each node that is a layer: a shader, a rect
-        // with a radius, a group with a size.
-        let mut layers: BTreeMap<String, (bool, [f64; 2])> = BTreeMap::new();
-        for c in &commands {
-            let (id, props, kind) = match c {
-                Command::Create {
-                    id, props, kind, ..
-                } => (id, props, Some(kind)),
-                Command::Update { id, props } => (id, props, None),
-                _ => continue,
-            };
-            let entry = layers.entry(id.clone()).or_insert((false, [0.0; 2]));
-            if let Some(kind) = kind {
-                entry.0 = matches!(kind, NodeKind::Shader)
-                    || (matches!(kind, NodeKind::Rect) && props.radius.unwrap_or(0.0) > 0.0)
-                    || (matches!(kind, NodeKind::Group) && props.size.is_some());
-            }
-            if let Some(size) = props.size {
-                entry.1 = size;
-            }
-        }
-        let sum: f64 = (layers.values())
-            .filter(|(layer, _)| *layer)
-            .map(|(_, s)| s[0] * s[1])
-            .sum();
-        // The glow nodes alone, as plan section 6 counts them, and all the
-        // layers: each glass rect and the clip of a question that scrolls
-        // are layers too. At scale 2 that is under 11 Mi beside 8 panes of
-        // 16.6 Mi, within the 64 Mi of the core.
-        let glows: f64 = (layers.iter())
-            .filter(|(id, _)| id.ends_with("-glow"))
-            .map(|(_, (_, s))| s[0] * s[1])
-            .sum();
-        assert!(glows < 1.5 * 1024.0 * 1024.0, "{glows}");
-        assert!(sum < 2.75 * 1024.0 * 1024.0, "{sum}");
-        assert!(sum > 500_000.0, "the question counts: {sum}");
     }
 
     /// A task of a few thousand characters made one candidate and one

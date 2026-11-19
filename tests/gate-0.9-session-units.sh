@@ -3,7 +3,7 @@
 # flavor pass `systemd-analyze --user verify`, and the session entries
 # pass `desktop-file-validate`. The units name their programs in /usr; a
 # copy of each unit takes them from this tree instead, so the check needs
-# no installed package. The programs of other packages (waybar, mako,
+# no installed package. The programs of other packages (waybar,
 # swaybg, swayidle, kanshi) must be installed.
 #
 # Usage: tests/gate-0.9-session-units.sh   BIN: directory with the binaries

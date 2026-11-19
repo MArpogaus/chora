@@ -2,16 +2,44 @@
 
 use super::{
     Action, BARS, Bar, Change, Click, Command, DIALOGS, DOUBLE_CLICK, DateDialog, DisplayDialog,
-    EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Message, Mode, NAME, Outcome, Panel, Path,
-    Rect, Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display,
-    help, json, launch, taskbar, volume, wallpaper,
+    EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Mode, NAME, Outcome, Panel, Path, Rect,
+    Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display, help,
+    json, launch, taskbar, volume, wallpaper,
 };
 
+use chora_kit::notice::{self, Notice, Urgency};
+
 impl Wm {
+    /// Shows a notice of chora-xp, or replaces the one `replaces` names.
+    pub(super) fn notice(
+        &mut self,
+        replaces: Option<u32>,
+        summary: &str,
+        body: &str,
+        expire_ms: i32,
+    ) -> Option<u32> {
+        let notice = Notice {
+            app: NAME,
+            icon: "",
+            summary,
+            body,
+            expire_ms,
+            urgency: Urgency::Normal,
+        };
+        notice::show_or_log(&mut self.rt.conn, replaces, &notice)
+    }
+
+    /// Dismisses a notice of chora-xp; a server that is gone is logged.
+    pub(super) fn dismiss_notice(&mut self, id: u32) {
+        if let Err(err) = notice::dismiss(&mut self.rt.conn, id) {
+            eprintln!("{NAME}: notice {id}: {err}");
+        }
+    }
+
     /// Tells the user that a program starts or did not open.
     pub(super) fn tell(&mut self, change: &Change) {
         if let Change::Done { note: Some(note) } = change {
-            self.notifier.close(*note);
+            self.dismiss_notice(*note);
         }
         if matches!(change, Change::Done { .. }) {
             return;
@@ -25,19 +53,14 @@ impl Wm {
             Change::Failed { note, .. } | Change::Fallback { note, .. } => (*note, -1),
             Change::Done { .. } => return,
         };
-        let message = Message {
-            icon: "",
-            summary: &summary,
-            body: &body,
-            expire_ms,
-        };
-        let id = self.notifier.show("chora-xp", replaces, &message);
+        let id = self.notice(replaces, &summary, &body, expire_ms);
         if let (Change::Starting { token, .. }, Some(id)) = (change, id) {
             self.launches.noted(token, id);
         }
     }
 
     pub(super) fn close_menu(&mut self) -> Vec<Command> {
+        self.open.shut(super::surfaces::MENU);
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
         if let Some(output) = output {
@@ -71,9 +94,9 @@ impl Wm {
     /// Raises an open dialog of a kind; `None` if none is open.
     pub(super) fn raise_panel(&mut self, kind: fn(&Panel) -> bool) -> Option<Vec<Command>> {
         let i = self.panels.iter().position(kind)?;
-        let panel = self.panels.remove(i);
+        let panel = self.take_panel(i);
         let id = panel.window_ref().group();
-        self.panels.push(panel);
+        self.push_panel(panel);
         Some(vec![Command::Move {
             id,
             parent: None,
@@ -90,7 +113,7 @@ impl Wm {
         let mut panel = TaskbarDialog::new(self.taskbar, area);
         let page = panel.page(&mut self.theme, &self.clock);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
-        self.panels.push(Panel::Taskbar(panel));
+        self.push_panel(Panel::Taskbar(panel));
         commands
     }
 
@@ -116,7 +139,7 @@ impl Wm {
             let mut panel = HelpDialog::new(topic, rows, area);
             let page = panel.page(&self.theme);
             commands.extend(panel.dialog.create(&mut self.theme, DIALOGS, page));
-            self.panels.push(Panel::Help(panel));
+            self.push_panel(Panel::Help(panel));
         }
         commands.extend(self.focus(None));
         if let Some(Panel::Help(panel)) = self.panels.last() {
@@ -138,7 +161,7 @@ impl Wm {
         let mut panel = DateDialog::new(now, area);
         let page = panel.page(&self.theme, now);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
-        self.panels.push(Panel::Clock(panel));
+        self.push_panel(Panel::Clock(panel));
         commands
     }
 
@@ -187,7 +210,7 @@ impl Wm {
         let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
         let page = panel.page(&mut self.theme);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
-        self.panels.push(Panel::Display(panel));
+        self.push_panel(Panel::Display(panel));
         commands
     }
 
@@ -293,7 +316,7 @@ impl Wm {
         let page = panel.page();
         let mut panel = Panel::Effects(panel);
         let commands = panel.window().create(&mut self.theme, DIALOGS, page);
-        self.panels.push(panel);
+        self.push_panel(panel);
         commands
     }
 
@@ -301,7 +324,7 @@ impl Wm {
     /// time. If no window has the focus, the topmost window of the
     /// desktop gets it, as in XP.
     pub(super) fn close_panel(&mut self, i: usize) -> Vec<Command> {
-        let panel = self.panels.remove(i);
+        let panel = self.take_panel(i);
         if let Panel::Display(display) = &panel {
             self.display_tab = display.tab;
         }

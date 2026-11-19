@@ -34,8 +34,10 @@ use chora_kit::{
         System,
         perform::{Failure, Host, perform},
     },
+    conn::Conn,
     effects::{Driver, Target},
     give::{self, MOVE},
+    notice,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
     wm::{Book, give::pass_on, kept},
@@ -191,10 +193,11 @@ struct Tiling {
     /// Whether the next placement is a rebuild, not a change a person made:
     /// nothing moves.
     still: bool,
-    /// Whether the key list shows, and holds the keyboard.
-    keys_open: bool,
+    /// The open shell surfaces: the key list, a sheet that holds the
+    /// keyboard.
+    open: chora_kit::wm::open::Open,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
     /// The colours of the look, and the scheme they come from.
@@ -235,6 +238,31 @@ fn main() -> ExitCode {
     runtime::run(NAME, || play(&args))
 }
 
+/// Shows why a program does not start as a critical notice of
+/// the notification server; when the core or the server is gone, the line on stderr
+/// is the only message.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a launch is no plugin: it only shows one notice and ends"
+)]
+fn tell_launch_error(err: &theme::LaunchError) {
+    let (title, text) = err.notice();
+    let notice = notice::Notice {
+        app: "chora-tiling",
+        icon: "",
+        summary: title,
+        body: text,
+        expire_ms: 0,
+        urgency: notice::Urgency::Critical,
+    };
+    match Conn::connect("chora-tiling.launch") {
+        Ok(mut conn) => {
+            notice::show_or_log(&mut conn, None, &notice);
+        }
+        Err(err) => eprintln!("chora-tiling: notice {title:?}: {err}"),
+    }
+}
+
 /// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
 /// config file of the flavor, in the palette; another program as it is.
 /// `fuzzel` without arguments is the Apps list: the installed programs
@@ -250,11 +278,7 @@ fn launch(argv: &[String]) -> ExitCode {
         Ok(line) => line,
         Err(err) => {
             eprintln!("chora-tiling: cannot start {program}: {err}");
-            let (title, text) = err.notice();
-            let _ = std::process::Command::new("notify-send")
-                .args(["-a", "chora-tiling", "-u", "critical", title, text])
-                .stdin(std::process::Stdio::null())
-                .status();
+            tell_launch_error(&err);
             return ExitCode::FAILURE;
         }
     };
@@ -270,9 +294,6 @@ fn launch(argv: &[String]) -> ExitCode {
             .env("CHORA_MENU", "chora-tiling --launch fuzzel")
             .env("CHORA_LOCKER", "chora-tiling --launch swaylock -f")
             .env("CHORA_SCREENSHOT", "chora-tiling --launch screenshot");
-    }
-    if program == "screenshot" {
-        command.env("CHORA_NOTIFIER", "chora-tiling --launch mako");
     }
     if program == "fuzzel" {
         let current = std::env::var("XDG_DATA_DIRS").ok();
@@ -347,8 +368,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bar: None,
         bar_hidden: None,
         still: true,
-        keys_open: false,
-        voiced: chora_kit::helper::Helpers::default(),
+        open: chora_kit::wm::open::Open::default(),
+        voiced: chora_kit::helper::Helper::default(),
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
@@ -408,26 +429,14 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
     }
 }
 
-/// Whether the chat of the assistant opened or closed, when `event` says so:
-/// the notifications step aside of the panel while it is open.
-fn chat_open(event: &Event) -> Option<bool> {
-    match event {
-        Event::Emitted {
-            event,
-            client,
-            data,
-        } if event == "assistant.chat" && client == "assistant" => data["open"].as_bool(),
-        _ => None,
-    }
-}
-
 /// The events that tiling handles.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 19] = [
     "voice.state",
+    "voice.say",
     "voice.remove",
+    "client.connected",
     "client.disconnected",
     "assistant.ready",
-    "assistant.chat",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -555,6 +564,7 @@ impl Tiling {
     }
 
     fn start(&mut self) -> Result<(), ClientError> {
+        self.voiced.ask(&mut self.rt.conn);
         for output in self.rt.outputs()? {
             self.wm
                 .set_output(&output.name, output.layout_area(), full_area(&output));
@@ -654,7 +664,7 @@ impl Tiling {
         self.sent.clear();
         self.grab_all()?;
         self.rt.end_grabs()?;
-        if self.keys_open {
+        if self.keys_open() {
             self.hide_keys()?;
             self.toggle_keys()?;
         }
@@ -669,19 +679,10 @@ impl Tiling {
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
-        self.voiced.hear(&event);
+        self.voiced.hear_asking(&event, &mut self.rt.conn);
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
             return self.name_theme();
-        }
-        if let Some(open) = chat_open(&event) {
-            let _ = std::process::Command::new("makoctl")
-                .args(["mode", if open { "-a" } else { "-r" }, "chat"])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
-            return Ok(());
         }
         match self.overlay_event(&event) {
             Some(done) => done,
@@ -918,11 +919,11 @@ impl Tiling {
                 text: _,
                 injected: _, // injected: hears drops an injected key unless tiling accepts them
             } => {
-                let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
+                let escape = self.keys_open() && key == "Escape" && *state == PressState::Pressed;
                 Some(if escape { self.hide_keys() } else { Ok(()) })
             }
             Event::PointerPressed { node, .. } // injected: hears drops an injected press unless tiling accepts them
-                if self.keys_open && node.starts_with(keys::KEYS) =>
+                if self.keys_open() && node.starts_with(keys::KEYS) =>
             {
                 Some(if node.ends_with("scrim") {
                     self.hide_keys()
@@ -1099,18 +1100,6 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    #[test]
-    fn the_notifications_follow_the_chat_of_the_assistant() {
-        let said = |client: &str, open: bool| Event::Emitted {
-            event: "assistant.chat".into(),
-            client: client.into(),
-            data: serde_json::json!({"open": open}),
-        };
-        assert_eq!(chat_open(&said("assistant", true)), Some(true));
-        assert_eq!(chat_open(&said("assistant", false)), Some(false));
-        assert_eq!(chat_open(&said("other", true)), None);
-    }
-
     use chora_kit::conn::Conn;
 
     use super::*;
@@ -1197,8 +1186,8 @@ mod tests {
             bar: None,
             bar_hidden: None,
             still: true,
-            keys_open: false,
-            voiced: chora_kit::helper::Helpers::default(),
+            open: chora_kit::wm::open::Open::default(),
+            voiced: chora_kit::helper::Helper::default(),
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,
@@ -1551,6 +1540,78 @@ mod tests {
         let offsets = grab["wobble"]["offsets"].as_array();
         assert_eq!(offsets.map(Vec::len), Some(16), "{grab}");
         assert!(tiling.dragged.is_none());
+    }
+
+    /// I12 (WM5): the held window lies on top of the order of tiling while
+    /// the person drags it, also below a window that was raised later.
+    #[test]
+    fn the_held_window_lies_on_top_while_it_is_dragged() {
+        let (mut tiling, _methods) = with_a_floating_window("held-on-top");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Own::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.order.last().map(String::as_str), Some("s2"));
+        press_and_move(&mut tiling, None);
+        assert_eq!(
+            tiling.dragged.as_ref().map(|(id, _)| id.as_str()),
+            Some("s1")
+        );
+        tiling.relayout().unwrap();
+        assert_eq!(
+            tiling.order.last().map(String::as_str),
+            Some("s1"),
+            "{:?}",
+            tiling.order
+        );
+    }
+
+    /// I12 (WM5 r2): the press of a drag raises the window as a click does,
+    /// so it stays on top after the release, also over a window that was
+    /// raised later.
+    #[test]
+    fn a_dragged_window_stays_on_top_after_the_release() {
+        let (mut tiling, _methods) = with_a_floating_window("held-release");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Own::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.order.last().map(String::as_str), Some("s2"));
+        drag(&mut tiling, "s1", &[[190.0, 150.0], [230.0, 170.0]]);
+        tiling.relayout().unwrap();
+        assert!(tiling.dragged.is_none());
+        assert_eq!(
+            tiling.order.last().map(String::as_str),
+            Some("s1"),
+            "{:?}",
+            tiling.order
+        );
+    }
+
+    /// I12 (WM5 r2): `state.get` names the dragged window as `held`, as the
+    /// acts read it, with a floating window under another one. The state
+    /// goes to the file of `CHORA_STATE_DUMP` for the cell of the acts.
+    #[test]
+    fn state_get_names_the_dragged_window_as_held() {
+        let (mut tiling, _methods) = with_a_floating_window("held-state");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Own::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        press_and_move(&mut tiling, None);
+        tiling.relayout().unwrap();
+        let state = tiling.state_value();
+        if let Some(path) = std::env::var_os("CHORA_STATE_DUMP") {
+            std::fs::write(path, state.to_string()).unwrap();
+        }
+        let held: Vec<&str> = state["windows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|w| w["held"] == json!(true))
+            .filter_map(|w| w["surface"].as_str())
+            .collect();
+        assert_eq!(held, ["s1"], "{state}");
     }
 
     /// E3: the press of `move` that comes with a window and its drag puts

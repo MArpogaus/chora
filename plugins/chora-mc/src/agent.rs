@@ -1,22 +1,18 @@
 //! The agents that report their state with `agent.set`, for the status
-//! line of the regions and the agents scene, and the notifications of
-//! `notify.push`.
-
-use std::time::Instant;
+//! line of the regions and the agents scene, and the notices of
+//! `notify.push`, which the notification server shows.
 
 use chora_kit::{
-    ask::{self, Button, Card, Click, Keys, Question, show_key},
+    ask::Card,
+    notice::{self, Notice},
     words::Language,
 };
-use chora_scene::{
-    Command, InputMode, NodeKind, PropsUpdate, Transform,
-    ipc::{ClientError, RpcError},
-};
+use chora_scene::ipc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    Mc,
+    Mc, NAME,
     config::{Color, Style},
     invalid,
     region::{self, Content, Item, Put, Region},
@@ -30,10 +26,50 @@ const SIGN_WIDTH: f64 = 18.0;
 
 /// The most helpers that a side shows, one row each.
 const MAX_ROWS: usize = 4;
-/// The lines of the notifications: three, with a blank line between them.
-const NOTIFY_LINES: usize = 3;
+/// The most notices whose ids mc keeps for `notify.clear`.
+const NOTICES: usize = 32;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
+
+/// The ids of the notices that mc showed, for `notify.clear`: the last
+/// [`NOTICES`] normal ones, which expire by themselves anyway, and every
+/// critical one, which stays until a click or a clear.
+#[derive(Debug, Default)]
+pub struct Notices {
+    ids: Vec<(u32, bool)>,
+}
+
+impl Notices {
+    /// Keeps the id of a notice that mc showed, critical or not; a
+    /// replaced id moves to the end.
+    pub fn remember(&mut self, id: u32, critical: bool) {
+        self.ids.retain(|(kept, _)| *kept != id);
+        self.ids.push((id, critical));
+        let normal = self.ids.iter().filter(|(_, critical)| !critical).count();
+        if normal > NOTICES
+            && let Some(oldest) = self.ids.iter().position(|(_, critical)| !critical)
+        {
+            self.ids.remove(oldest);
+        }
+    }
+
+    /// Dismisses the notices with `dismiss`, oldest first. On the first
+    /// failure the server is gone: the clear stops there, so that it waits
+    /// once, and keeps that id and the rest for the next clear.
+    pub fn clear<E>(&mut self, mut dismiss: impl FnMut(u32) -> Result<(), E>) -> Result<(), E> {
+        while let Some(&(id, _)) = self.ids.first() {
+            dismiss(id)?;
+            self.ids.remove(0);
+        }
+        Ok(())
+    }
+
+    /// The ids that a clear would dismiss, oldest first.
+    #[cfg(test)]
+    fn ids(&self) -> Vec<u32> {
+        self.ids.iter().map(|(id, _)| *id).collect()
+    }
+}
 
 /// An agent as `agent.set` reports it.
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -98,74 +134,14 @@ pub struct Push {
     urgency: Urgency,
 }
 
-/// The confirmation that shows: the card of `kit::ask`, the only
-/// question model.
-#[derive(Clone, Debug)]
-pub struct Confirming {
-    card: Card,
-}
-
-/// The group of the answers of a confirmation, over the regions.
-const ANSWERS: &str = "mc-answers";
-/// The click areas of the answers.
-pub const ANSWER_YES: &str = "mc-answer-yes";
-pub const ANSWER_NO: &str = "mc-answer-no";
-
-impl Confirming {
-    /// The id as `voice.confirm` sent it.
-    fn id(&self) -> &str {
-        &self.card.question.answer_id
-    }
-
-    /// The question takes clicks.
-    fn buttons(&self) -> bool {
-        self.card.question.buttons
-    }
-
-    /// The keys of a physical question.
-    fn keys(&self) -> Option<&Keys> {
-        let question = &self.card.question;
-        question.physical.then_some(&question.keys)
-    }
-
-    /// What a press on `node` comes to: only a pointer press on an
-    /// answer, and only 400 ms after the card showed; no method of mc
-    /// answers.
-    pub fn click(&self, node: &str, injected: bool, now: Instant) -> Click {
-        let button = match node {
-            ANSWER_YES => Button::Yes,
-            ANSWER_NO => Button::No,
-            _ => return Click::Ignored,
-        };
-        self.card.click(button, injected, now)
-    }
-
-    /// The answers as margin notes, right to left from the right edge:
-    /// per answer its key in the style `margin` and its word in `body`,
-    /// the word with a hairline under it while it takes a click.
-    fn parts(&self, language: Language) -> Vec<(String, &'static str, String)> {
-        let [yes, no] = Card::buttons(language);
-        [(true, yes), (false, no)]
-            .into_iter()
-            .map(|(is_yes, word)| {
-                let id = if is_yes { ANSWER_YES } else { ANSWER_NO };
-                let key = self
-                    .keys()
-                    .map(|k| show_key(if is_yes { &k.yes } else { &k.no }))
-                    .unwrap_or_default();
-                (id.to_owned(), word, key)
-            })
-            .collect()
-    }
-}
-
 /// The line of the agent column that shows its question.
 fn question_line(question: &str, language: Language) -> String {
     let [yes, no] = Card::buttons(language);
     format!("? {question}  — {yes} / {no}")
 }
 
-/// As in the freedesktop notifications: critical breaks through in red.
+/// As in the freedesktop notifications: a critical notice stays until the
+/// person closes it, the others show for the time of the notification server.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Urgency {
@@ -175,19 +151,10 @@ enum Urgency {
     Critical,
 }
 
-/// The content that stacks the notifications, newest on top.
-const NOTIFY: &str = "notify";
-/// The content of the last critical notification.
-const URGENT: &str = "urgent";
-/// The word before a critical notification, in the column and in the
-/// footer, so that the red is not its only sign.
-const URGENT_WORD: &str = "Urgent";
-/// The content of a spoken confirmation: its prompt as the title, its
-/// detail in mono.
-const CONFIRM: &str = "confirm";
-/// The text contents that mc writes itself, from `notify.push` and
-/// `voice.confirm`: `content.set` and `content.add` refuse them.
-pub const OWN_TEXTS: [&str; 3] = [NOTIFY, URGENT, CONFIRM];
+/// The text contents that mc writes itself: none since the notices went
+/// to the notification server and the voice questions to the HUD host;
+/// `content.set` and `content.add` refuse them.
+pub const OWN_TEXTS: [&str; 0] = [];
 /// The scenes whose panels mc writes itself, from the agents and the
 /// scenes: `panel.set` refuses them.
 pub const OWN_SCENES: [&str; 2] = [SCENE, crate::manage::OVERVIEW];
@@ -594,257 +561,50 @@ impl Mc {
     }
 
     /// Tells the person that something did not work, as a critical
-    /// notification.
+    /// notice of the notification server.
     pub fn notice(&mut self, title: &str, body: &str) {
-        let push = Push {
-            title: title.to_owned(),
-            body: body.to_owned(),
-            urgency: Urgency::Critical,
-        };
-        if let Err(err) = self.push(push) {
-            eprintln!("chora-mc: notice {title}: {}", err.message);
+        let notice = Self::notice_of(title, body, Urgency::Critical);
+        if let Some(id) = notice::show_or_log(&mut self.rt.conn, None, &notice) {
+            self.notices.remember(id, true);
         }
     }
 
-    /// Adds a notification on top of the stack; a critical one starts
-    /// with the word `Urgent` and also shows in red in `urgent`, until the
-    /// next one, a click on that line or `notify.clear`.
-    pub fn push(&mut self, push: Push) -> Result<(), RpcError> {
-        let Push {
-            title,
+    /// Shows a notice of the notification server; a critical one stays until the
+    /// person closes it.
+    pub fn push(&mut self, push: &Push) -> Result<(), RpcError> {
+        let notice = Self::notice_of(&push.title, &push.body, push.urgency);
+        let id = notice::show(&mut self.rt.conn, None, &notice).map_err(|err| gone(&err))?;
+        (self.notices).remember(id, push.urgency == Urgency::Critical);
+        Ok(())
+    }
+
+    fn notice_of<'a>(summary: &'a str, body: &'a str, urgency: Urgency) -> Notice<'a> {
+        let critical = urgency == Urgency::Critical;
+        Notice {
+            app: NAME,
+            icon: "",
+            summary,
             body,
-            urgency,
-        } = push;
-        let text = if body.is_empty() {
-            title
-        } else {
-            format!("{title}: {body}")
-        };
-        let text = if urgency == Urgency::Critical {
-            format!("{URGENT_WORD}: {text}")
-        } else {
-            text
-        };
-        let line = format!("{}  {}", region::date("%H:%M"), text.replace('\n', " "));
-        if urgency == Urgency::Critical {
-            self.set_text(URGENT, None, |_| vec![text.clone()])?;
-        }
-        self.set_text(NOTIFY, None, |old| {
-            let mut lines = vec![line];
-            lines.extend(old);
-            lines.truncate(NOTIFY_LINES);
-            lines
-        })
-    }
-
-    /// Shows a spoken confirmation alone in the drawer over any scene,
-    /// with its whole detail, until the event `done` of its id.
-    pub fn confirm(&mut self, data: &Value) -> Result<(), RpcError> {
-        self.confirm_at(data, Instant::now())
-    }
-
-    /// [`Self::confirm`] at `now`.
-    pub fn confirm_at(&mut self, data: &Value, now: Instant) -> Result<(), RpcError> {
-        let rejected =
-            |e: chora_scene::ipc::ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
-        if data["done"] == true {
-            let id = ask::event_id(data).ok_or_else(|| invalid("id: a text or a number".into()))?;
-            if self.confirming.as_ref().is_none_or(|c| c.id() != id) {
-                return Ok(());
-            }
-            self.confirming = None;
-            self.apply(vec![Command::Remove {
-                id: ANSWERS.into(),
-                to: None,
-            }])
-            .map_err(rejected)?;
-            self.set_text(CONFIRM, None, |_| Vec::new())?;
-            if self.solo.as_ref().is_some_and(|s| s.content == CONFIRM) {
-                self.solo(CONFIRM, Region::Drawer, Some(false), false)
-                    .map_err(rejected)?;
-            }
-            return Ok(());
-        }
-        let question = Question::from_event(data, None)
-            .ok_or_else(|| invalid("id: a number, prompt: a text".into()))?;
-        let lines = question.detail.lines().map(Into::into).collect();
-        self.set_text(CONFIRM, Some(question.prompt.clone()), |_| lines)?;
-        let had = self.confirming.replace(Confirming {
-            card: Card::new(question, now),
-        });
-        // ponytail: it takes the place of a solo of the user, which does
-        // not come back after the answer.
-        self.solo(CONFIRM, Region::Drawer, Some(true), false)
-            .map_err(rejected)?;
-        self.show_answers(had.is_some(), now).map_err(rejected)
-    }
-
-    /// The answers of the confirmation at the top right of the drawer, on
-    /// the line of its title, flush right as margin notes: Yes and No
-    /// (Ja and Nein in a German session) while the agent takes clicks,
-    /// each with the key of a physical question before it.
-    #[allow(clippy::too_many_lines, reason = "the nodes, then their places")]
-    fn show_answers(&mut self, had: bool, now: Instant) -> Result<(), ClientError> {
-        let mut commands = Vec::new();
-        if had {
-            commands.push(Command::Remove {
-                id: ANSWERS.into(),
-                to: None,
-            });
-        }
-        let Some(c) = self
-            .confirming
-            .clone()
-            .filter(|c| c.buttons() || c.keys().is_some())
-        else {
-            return self.apply(commands);
-        };
-        let Some([x, top, w, _]) = self.drawer_box() else {
-            return self.apply(commands);
-        };
-        let config = &self.settings.value;
-        let b = config.scale.baseline;
-        let (Ok(word), Ok(data)) = (config.resolve("body", None), config.resolve("margin", None))
-        else {
-            return self.apply(commands);
-        };
-        let faint = config.colors().get("faint").copied().unwrap_or([0.5; 4]);
-        let muted = config.colors().get("muted").copied().unwrap_or([0.5; 4]);
-        let hidden = PropsUpdate {
-            opacity: Some(0.0),
-            ..PropsUpdate::default()
-        };
-        commands.push(crate::create(
-            ANSWERS,
-            NodeKind::Group,
-            crate::region::REGIONS,
-            hidden,
-        ));
-        let parts = c.parts(Language::of_session());
-        for (id, w, k) in &parts {
-            let mut props = word.props(w);
-            if c.buttons() {
-                props.input = Some(InputMode::Pass);
+            expire_ms: if critical { 0 } else { -1 },
+            urgency: if critical {
+                notice::Urgency::Critical
             } else {
-                props.color = Some(muted);
-            }
-            commands.push(crate::create(
-                &format!("{id}-word"),
-                NodeKind::Text,
-                ANSWERS,
-                props,
-            ));
-            if !k.is_empty() {
-                let props = PropsUpdate {
-                    color: Some(muted),
-                    ..data.props(k)
-                };
-                commands.push(crate::create(
-                    &format!("{id}-key"),
-                    NodeKind::Text,
-                    ANSWERS,
-                    props,
-                ));
-            }
-        }
-        self.apply(commands)?;
-        // Right to left, by the widths that the core measured.
-        let mut right = x + w;
-        let mut moves = Vec::new();
-        let place = |id: &str, x: f64, y: f64| Command::Update {
-            id: id.into(),
-            props: PropsUpdate {
-                transform: Some(Transform::translate(x.round(), y.round(), 0.0)),
-                ..PropsUpdate::default()
+                notice::Urgency::Normal
             },
-        };
-        for (id, _, k) in parts.iter().rev() {
-            let width = |s: &mut Self, node: &str| -> Result<f64, ClientError> {
-                Ok(s.rect(node)?.map_or(0.0, |r| r[2]))
-            };
-            let ww = width(self, &format!("{id}-word"))?;
-            right -= ww;
-            moves.push(place(&format!("{id}-word"), right, top));
-            if c.buttons() {
-                // A click area over the word, and a hairline under it.
-                let area = PropsUpdate {
-                    transform: Some(Transform::translate(right, top, 0.0)),
-                    size: Some([ww, word.line]),
-                    color: Some([0.0; 4]),
-                    input: Some(InputMode::Accept),
-                    ..PropsUpdate::default()
-                };
-                moves.push(crate::create(id, NodeKind::Rect, ANSWERS, area));
-                let rule = PropsUpdate {
-                    transform: Some(Transform::translate(right, top + word.line, 0.0)),
-                    size: Some([ww, 1.0]),
-                    color: Some(faint),
-                    ..PropsUpdate::default()
-                };
-                moves.push(crate::create(
-                    &format!("{id}-rule"),
-                    NodeKind::Rect,
-                    ANSWERS,
-                    rule,
-                ));
-            }
-            if !k.is_empty() {
-                let kw = width(self, &format!("{id}-key"))?;
-                right -= kw + b;
-                moves.push(place(
-                    &format!("{id}-key"),
-                    right,
-                    top + word.line - data.line,
-                ));
-            }
-            right -= 2.0 * b;
         }
-        moves.push(Command::Update {
-            id: ANSWERS.into(),
-            props: PropsUpdate {
-                opacity: Some(1.0),
-                ..PropsUpdate::default()
-            },
-        });
-        self.apply(moves)?;
-        if let Some(c) = self.confirming.as_mut() {
-            c.card.moved(now);
-        }
-        Ok(())
     }
 
-    /// Answers the confirmation by the click on `node`, with
-    /// `voice.confirm.answer`; a refusal, as for an old id, only logs.
-    /// True when the click was spent on an answer, also when it came
-    /// too soon to count.
-    pub fn press_answer(&mut self, node: &str, injected: bool, now: Instant) -> bool {
-        let params = match (self.confirming.as_ref()).map(|c| c.click(node, injected, now)) {
-            Some(Click::Answer(params)) => params,
-            Some(Click::TooSoon) => return true,
-            Some(Click::Ignored) | None => return false,
-        };
-        let call = ask::answer_call(&params);
-        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-mc: confirm.answer: {err}");
-        }
-        true
+    /// Closes the notices that mc showed and the notification server still holds.
+    pub fn clear_notices(&mut self) -> Result<(), RpcError> {
+        let conn = &mut self.rt.conn;
+        (self.notices)
+            .clear(|id| notice::dismiss(conn, id))
+            .map_err(|err| gone(&err))
     }
+}
 
-    /// Takes the urgent line of the footer away; the notification stays
-    /// in the column.
-    pub fn clear_urgent(&mut self) -> Result<(), RpcError> {
-        self.set_text(URGENT, None, |_| Vec::new())
-    }
-
-    /// Empties the notifications.
-    pub fn clear_notifications(&mut self) -> Result<(), RpcError> {
-        for content in [NOTIFY, URGENT] {
-            if self.texts.contains_key(content) {
-                self.set_text(content, None, |_| Vec::new())?;
-            }
-        }
-        Ok(())
-    }
+fn gone(err: &notice::Gone) -> RpcError {
+    RpcError::new(RpcError::REJECTED, err.to_string())
 }
 
 /// The cell of the `n`-th column of the agents, for `count` agents on a
@@ -888,9 +648,40 @@ fn band(agent: &Agent) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
+    /// A critical notice stays until a click: the normal ones after it,
+    /// which expire by themselves, never push it out of what a clear
+    /// dismisses.
+    #[test]
+    fn a_clear_dismisses_an_old_critical_notice() {
+        let mut notices = super::Notices::default();
+        notices.remember(1, true);
+        for id in 2..=40 {
+            notices.remember(id, false);
+        }
+        let ids = notices.ids();
+        assert_eq!(ids.first(), Some(&1), "the critical one stays: {ids:?}");
+        assert_eq!(ids.len(), super::NOTICES + 1);
+    }
 
-    use chora_kit::ask::{Card, Click, Question};
+    /// The server is gone at the first dismissal: the clear stops there
+    /// and keeps that id and the rest for the next clear.
+    #[test]
+    fn a_failed_dismissal_keeps_the_ids() {
+        let mut notices = super::Notices::default();
+        for id in 1..=3 {
+            notices.remember(id, true);
+        }
+        let mut tried = Vec::new();
+        let failed = notices.clear(|id| {
+            tried.push(id);
+            Err("gone")
+        });
+        assert_eq!(failed, Err("gone"));
+        assert_eq!(tried, [1], "one wait for a server that is gone");
+        assert_eq!(notices.ids(), [1, 2, 3]);
+        assert_eq!(notices.clear(|_| Ok::<(), ()>(())), Ok(()));
+        assert_eq!(notices.ids(), Vec::<u32>::new());
+    }
 
     #[test]
     fn an_error_of_chat_show_without_a_name_names_the_reason() {
@@ -958,7 +749,6 @@ mod tests {
     fn a_click_on_the_row_of_a_helper_shows_its_chat() {
         use serde_json::json;
         let (mut mc, model) = crate::testing::mc("row-chat", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let state = json!({"name": "Atlas", "state": "working"});
         mc.follow("voice.state", "voice", state).unwrap();
         mc.show("agenda", false).unwrap();
@@ -978,164 +768,6 @@ mod tests {
         );
     }
 
-    /// voice.confirm shows its prompt and its whole detail alone in the
-    /// drawer; the done event of its id removes it, of another id not.
-    #[test]
-    fn a_confirmation_shows_until_its_answer() {
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("confirm", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let detail = format!("rm -r build\n{}", "x".repeat(400));
-        let ask = json!({"id": "11", "prompt": "Run it?", "detail": detail});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
-        let (title, lines) = mc.texts["confirm"].clone();
-        assert_eq!(title, "Run it?");
-        assert_eq!(lines.join("\n"), detail, "never cut");
-        assert!(mc.solo.as_ref().is_some_and(|s| s.content == "confirm"));
-        let done = |id| json!({"id": id, "done": true});
-        mc.follow("voice.confirm", "voice", done("10")).unwrap();
-        assert!(mc.solo.is_some(), "another id");
-        mc.follow("voice.confirm", "voice", done("11")).unwrap();
-        assert!(mc.texts["confirm"].1.is_empty() && mc.solo.is_none());
-    }
-
-    /// The confirmation shows no character that hides or reorders text,
-    /// whatever the event carries (sh-26).
-    #[test]
-    fn a_confirmation_shows_no_bidi_character() {
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("confirm-bidi", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": "12", "prompt": "Run\u{202e} it?",
-            "detail": "echo safe\u{202e}fr- mr\u{200b}\nline two\u{1b}[2J"});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
-        let (title, lines) = mc.texts["confirm"].clone();
-        assert_eq!(title, "Run it?");
-        assert_eq!(lines, vec!["echo safefr- mr", "line two"]);
-    }
-
-    /// A click on Ja or Nein maps to `confirm.answer` with the id as
-    /// text, only while the confirmation has buttons.
-    #[test]
-    fn a_click_on_an_answer_maps_to_confirm_answer() {
-        use serde_json::json;
-        let confirming = |data: serde_json::Value| super::Confirming {
-            card: Card::new(Question::from_event(&data, None).unwrap(), Instant::now()),
-        };
-        let late = Instant::now() + std::time::Duration::from_secs(1);
-        let with = confirming(json!({"id": 4, "prompt": "x", "buttons": true}));
-        assert_eq!(
-            with.click(super::ANSWER_YES, false, late),
-            Click::Answer(json!({"id": "4", "yes": true}))
-        );
-        assert_eq!(
-            with.click(super::ANSWER_NO, false, late),
-            Click::Answer(json!({"id": "4", "yes": false}))
-        );
-        assert_eq!(
-            with.click("mc-answer-yes-word", false, late),
-            Click::Ignored
-        );
-        let without = confirming(json!({"id": 4, "prompt": "x"}));
-        assert_eq!(
-            without.click(super::ANSWER_YES, false, late),
-            Click::Ignored
-        );
-        assert_eq!(
-            with.click(super::ANSWER_YES, true, late),
-            Click::Ignored,
-            "an injected press answers nothing"
-        );
-        let (mut mc, _) = crate::testing::mc("answers", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": 5, "prompt": "Set allow?", "detail": "allow: [sh]",
-            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
-        let parts = mc
-            .confirming
-            .as_ref()
-            .unwrap()
-            .parts(chora_kit::words::Language::De);
-        assert_eq!(parts[0].2, "Alt+Y");
-        assert_eq!(
-            parts[1].1,
-            chora_kit::words::Word::No.text(chora_kit::words::Language::De)
-        );
-    }
-
-    /// The agent sent the id as a number: the question showed on no
-    /// screen (review 1.1).
-    #[test]
-    fn a_confirmation_with_a_numeric_id_shows() {
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("confirm-number", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": 7, "prompt": "Start foot?", "detail": "foot"});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
-        assert_eq!(mc.texts["confirm"].0, "Start foot?");
-        assert!(mc.solo.as_ref().is_some_and(|s| s.content == "confirm"));
-        mc.follow("voice.confirm", "voice", json!({"id": 7, "done": true}))
-            .unwrap();
-        assert!(mc.solo.is_none(), "the done of the number closes it");
-    }
-
-    fn calls(model: &crate::testing::Model, method: &str) -> usize {
-        let called = model.lock().unwrap().called.clone();
-        called.iter().filter(|c| c["method"] == method).count()
-    }
-
-    /// sh-26: a press inside 400 ms of the card showing is refused, the
-    /// same press after it answers.
-    #[test]
-    fn a_press_inside_400_ms_of_the_card_is_refused() {
-        use serde_json::json;
-        use std::time::{Duration, Instant};
-        let (mut mc, model) = crate::testing::mc("answers-guard", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": 5, "prompt": "Run it?", "detail": "rm x", "buttons": true});
-        let shown = Instant::now();
-        mc.confirm_at(&ask, shown).unwrap();
-        let early = shown + Duration::from_millis(100);
-        assert!(
-            mc.press_answer(super::ANSWER_YES, false, early),
-            "the click is spent"
-        );
-        assert_eq!(
-            calls(&model, chora_kit::ask::ANSWER_METHOD),
-            0,
-            "refused inside 400 ms"
-        );
-        let late = shown + Duration::from_millis(900);
-        assert!(mc.press_answer(super::ANSWER_YES, false, late));
-        assert_eq!(
-            calls(&model, chora_kit::ask::ANSWER_METHOD),
-            1,
-            "answers after it"
-        );
-    }
-
-    /// sh-26: the guard counts from the draw of the answers and starts
-    /// again when the drawer is placed again; `now` is injected.
-    #[test]
-    fn a_press_after_the_drawer_is_placed_again_is_refused() {
-        use serde_json::json;
-        use std::time::{Duration, Instant};
-        let (mut mc, model) = crate::testing::mc("answers-replace", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ms = Duration::from_millis;
-        mc.show("agenda", false).unwrap();
-        let t0 = Instant::now();
-        let ask = json!({"id": 5, "prompt": "Run it?", "buttons": true});
-        mc.confirm_at(&ask, t0).unwrap();
-        assert!(mc.drawer_box().is_some(), "the drawer shows");
-        let again = t0 + ms(2000);
-        mc.show_answers(true, again).unwrap();
-        assert!(mc.press_answer(super::ANSWER_YES, false, again + ms(100)));
-        assert_eq!(calls(&model, chora_kit::ask::ANSWER_METHOD), 0);
-        assert!(mc.press_answer(super::ANSWER_YES, false, again + ms(400)));
-        assert_eq!(calls(&model, chora_kit::ask::ANSWER_METHOD), 1);
-    }
-
     /// sh-27: the line of the agent column names the words of the kit.
     #[test]
     fn the_agent_question_line_follows_the_session_language() {
@@ -1149,27 +781,6 @@ mod tests {
         assert!(!line.contains("ja / nein"), "{line}");
         let en = super::question_line("Run it?", chora_kit::words::Language::En);
         assert!(en.contains("Yes") && en.contains("No"), "{en}");
-    }
-
-    /// sh-27: the buttons follow the language of the session.
-    #[test]
-    fn the_buttons_follow_the_session_language() {
-        use chora_kit::words::{Language, Word};
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("answers-language", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": 6, "prompt": "Run it?", "buttons": true});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
-        let confirming = mc.confirming.as_ref().unwrap();
-        let words = |language| -> Vec<&'static str> {
-            confirming.parts(language).iter().map(|p| p.1).collect()
-        };
-        assert_eq!(words(Language::En), ["Yes", "No"]);
-        assert_eq!(
-            words(Language::De),
-            [Word::Yes.text(Language::De), Word::No.text(Language::De)]
-        );
-        assert_ne!(words(Language::De), words(Language::En));
     }
 
     #[test]

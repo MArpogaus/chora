@@ -1,9 +1,9 @@
 //! The Control Panel, the Log Off and Turn Off dialogs, the fade and sound.
 
 use super::{
-    Bar, Choice, Command, Dialog, FADE, Instant, Message, Mode, NAME, OutputConfigure, OutputInfo,
-    Picture, PropsUpdate, Reading, Setting, ShaderEffect, Sound, Uniform, Value, Wallpaper, Wm,
-    apps, control, give, json, session, shared, sound, wallpaper, without_reserve,
+    Bar, Choice, Command, Dialog, FADE, Instant, Mode, NAME, OutputConfigure, OutputInfo, Picture,
+    PropsUpdate, Reading, Setting, ShaderEffect, Sound, Uniform, Value, Wallpaper, Wm, apps,
+    control, give, json, session, shared, sound, wallpaper, without_reserve,
 };
 
 impl Wm {
@@ -79,13 +79,7 @@ impl Wm {
             Setting::Volume(change) => self.change_volume(*change, false),
             Setting::Give(to) => {
                 if let Err(err) = give::focused(self, to) {
-                    let message = Message {
-                        icon: "",
-                        summary: "Keyboard Shortcuts",
-                        body: &err.message,
-                        expire_ms: -1,
-                    };
-                    self.notifier.show("chora-xp", None, &message);
+                    self.notice(None, "Keyboard Shortcuts", &err.message, -1);
                 }
                 Vec::new()
             }
@@ -120,6 +114,10 @@ impl Wm {
         let dialog = Dialog::new(mode, &bar.output, [w, h], suspend);
         let mut commands = dialog.create(&mut self.theme);
         self.dialog = Some(dialog);
+        self.session_opened();
+        commands.push(Command::FocusNode {
+            node: Some(Dialog::FOCUS.into()),
+        });
         if self.fade_shader.is_none() {
             match self.theme.cache_file("fade.frag", session::FADE_SHADER) {
                 Ok(path) => self.fade_shader = Some(path.to_string_lossy().into_owned()),
@@ -184,7 +182,8 @@ impl Wm {
         if self.dialog.take().is_none() {
             return Vec::new();
         }
-        let mut commands = vec![Dialog::remove()];
+        self.open.shut(super::surfaces::SESSION);
+        let mut commands = vec![Dialog::remove(), self.desktop_keys()];
         if self.fade.take().is_some() {
             commands.push(Command::Update {
                 id: NAME.into(),
@@ -247,12 +246,6 @@ impl Wm {
     /// Says in a balloon that a shared script is not installed.
     pub(super) fn cannot_do(&mut self, script: &str) {
         let body = format!("The file {script}.sh of the shared scripts is not installed.");
-        let message = Message {
-            icon: "",
-            summary: "Cannot do that",
-            body: &body,
-            expire_ms: 10_000,
-        };
-        self.notifier.show("chora-xp", None, &message);
+        self.notice(None, "Cannot do that", &body, 10_000);
     }
 }

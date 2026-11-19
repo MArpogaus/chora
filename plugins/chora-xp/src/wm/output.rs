@@ -10,6 +10,7 @@ impl Wm {
             commands.extend(self.claim());
             self.sync_cube_keys();
             self.reserve_bars();
+            commands.extend(self.pagers());
             return commands;
         };
         let mine: Vec<usize> = (0..self.windows.len())
@@ -62,9 +63,12 @@ impl Wm {
         commands
     }
 
+    /// An output went, and its windows move to another one. When the last
+    /// face of a hosted cube goes, its host closed the cube: the plugin ends.
     pub(super) fn output_removed(&mut self, name: &str) -> Vec<Command> {
         let mut commands = Vec::new();
         if self.menu.output() == Some(name) {
+            self.open.shut(super::surfaces::MENU);
             commands.extend(self.menu.close(&mut self.theme));
         }
         if let Some(i) = self.bars.iter().position(|b| b.output == name) {
@@ -79,6 +83,9 @@ impl Wm {
             }
             commands.extend(self.refresh_icons());
             commands.extend(self.claim());
+            if self.bars.is_empty() && self.host.is_some() {
+                self.done = true;
+            }
             self.sync_cube_keys();
         }
         commands

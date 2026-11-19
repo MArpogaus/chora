@@ -51,6 +51,7 @@ mod list;
 mod methods;
 mod modes;
 mod names;
+mod notice;
 mod overlay;
 mod panes;
 mod placeholder;
@@ -93,7 +94,7 @@ use crate::{
     camera::{moved, takes_the_camera, window_flown_into},
     config::{Action, Config, Own},
     file::{Kind, PaneFile},
-    hud::{Claim, LIST, LIST_ROWS, Look, Metrics, Voice},
+    hud::{LIST, LIST_ROWS, Look, Metrics},
     methods::{GlideTo, ManagerPane, MovePane, Named, OpenCube, ResizePane, exported_methods},
     panes::{PaneLook, configure, create, handed_over, mirror_size, shadow_w, update, vec3},
     space::{Lens, Pose},
@@ -152,6 +153,8 @@ const NO_ROOM: &str = "No room in view: in the window list (Tab)";
 /// How long the notice of a typed key that does nothing waits before it
 /// shows again.
 const KEYS_WALK_AGAIN: Duration = Duration::from_secs(10);
+/// How long a notice of the construct shows, in milliseconds.
+const NOTICE_MS: i32 = 4000;
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
 /// The left button, as Linux names it.
@@ -528,9 +531,6 @@ struct Construct {
     /// The window that had the keyboard when an overlay took the output;
     /// it gets it back on leave (F31).
     focus_before: Option<String>,
-    /// The voice agent: its state, sentence and question (F28), and the
-    /// claim of its indicator.
-    voice: Voice,
     /// The sizes of the texts over the space, as the core measures them.
     metrics: Metrics,
     /// Whether the help panel shows.
@@ -561,9 +561,9 @@ struct Construct {
     /// The windows of the panes that have no buffer yet, which show the
     /// placeholder.
     unfilled: Vec<String>,
-    /// The notice under the island exists.
-    notice_drawn: bool,
-    claim: Claim,
+    /// The id that the notification server gave the last notice of the construct,
+    /// which the next one replaces.
+    notice_id: Option<u32>,
     glass: Glass,
     /// The last point of the pointer over the space that the core told:
     /// it tells the place only from a press to its release.
@@ -596,7 +596,7 @@ struct Construct {
     /// only by `state.get`.
     core_focus: Option<String>,
     /// The word of `state.get`; only reads.
-    voiced: chora_kit::helper::Helpers,
+    voiced: chora_kit::helper::Helper,
     /// Which windows are the construct's, and where each came from
     /// (`kit::wm::book`).
     book: chora_kit::wm::Book,
@@ -666,7 +666,6 @@ impl Construct {
             drag: None,
             list: None,
             focus_before: None,
-            voice: Voice::default(),
             metrics: Metrics::default(),
             help: false,
             help_query: String::new(),
@@ -682,8 +681,7 @@ impl Construct {
             label_drawn: false,
             label_text: String::new(),
             unfilled: Vec::new(),
-            notice_drawn: false,
-            claim: Claim { due: true },
+            notice_id: None,
             glass: Glass::default(),
             pointer: None,
             labelled: None,
@@ -697,7 +695,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             core_focus: None,
-            voiced: chora_kit::helper::Helpers::default(),
+            voiced: chora_kit::helper::Helper::default(),
             book: chora_kit::wm::Book::new(NAME, false),
         };
         construct.effects.set(&construct.settings.value.effects);
@@ -749,8 +747,6 @@ struct Glass {
     /// After the watchdog took the shaders: no more glow nodes until the
     /// settings change (D57).
     plain: bool,
-    /// They hide while a layer of the elements stays out.
-    hidden: bool,
 }
 
 /// A drag with the button held, in output coordinates.

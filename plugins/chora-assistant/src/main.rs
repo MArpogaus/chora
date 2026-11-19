@@ -94,6 +94,7 @@ const EVENTS: &[&str] = &[
     "mc.theme",
     "tiling.theme",
     "xp.theme",
+    chat::NOTIFY_READY,
 ];
 
 /// The assistant of the voice agent.
@@ -177,6 +178,9 @@ struct Agent {
     stale: Vec<PathBuf>,
     /// What the agent last said of each helper that it named.
     helpers: BTreeMap<String, rows::Helper>,
+    /// The helper state machine of the kit: the one state of the helper,
+    /// which `state.get` reports and the figure word reads.
+    machine: chora_kit::helper::Helper,
     /// The box of the slot of the chat: the client that announced it, the
     /// output and the box.
     slot: Option<chat::Held>,
@@ -213,7 +217,7 @@ struct Agent {
     chat: Session,
     /// When the chat last pulled from voice.
     chat_pulled: Instant,
-    /// What `assistant.chat` last said: open, and with whom.
+    /// What `assistant.chat` last said: open, with whom, where, and its box.
     announced: Option<chat::Announced>,
     /// The frame that the chat was last drawn in.
     chat_seen: Option<chat::Frame>,
@@ -247,6 +251,7 @@ impl Plugin for Agent {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
+        self.machine.hear(&event);
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
@@ -280,6 +285,7 @@ impl Plugin for Agent {
             } => {
                 self.look_event(&event, &client, &data)?;
                 self.slot_event(&event, &client, &data)?;
+                self.chat_again(&event, &client)?;
                 self.voice_event(&event, &client, &data)?
             }
             Event::ClientConnected { name } => {
@@ -320,6 +326,10 @@ impl Plugin for Agent {
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
         Some(&mut self.settings)
+    }
+
+    fn state(&self) -> Option<Value> {
+        Some(self.presented())
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -379,6 +389,7 @@ impl Agent {
         source.loads = source.loads.max(1);
         let mut methods = chat::exported();
         methods.extend(settings::File::<Config>::methods());
+        methods.push(chora_kit::runtime::state_method());
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods).map_err(|e| e.to_string())?;
         let mut agent = Self {
             rt,
@@ -393,6 +404,7 @@ impl Agent {
             deferred: Vec::new(),
             stale: Vec::new(),
             helpers: BTreeMap::new(),
+            machine: chora_kit::helper::Helper::default(),
             slot: None,
             slot_client: None,
             look_cache,
@@ -996,6 +1008,7 @@ mod tests {
             deferred: Vec::new(),
             stale: Vec::new(),
             helpers: BTreeMap::new(),
+            machine: chora_kit::helper::Helper::default(),
             slot: None,
             slot_client: None,
             look_cache: cache,

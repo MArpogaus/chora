@@ -6,7 +6,6 @@ schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 serde_json.workspace = true
-zbus.workspace = true
 
 [features]
 testing = []
@@ -30,6 +29,10 @@ required-features = ["testing"]
 
 [[test]]
 name = "launch"
+required-features = ["testing"]
+
+[[test]]
+name = "notice"
 required-features = ["testing"]
 
 [[test]]

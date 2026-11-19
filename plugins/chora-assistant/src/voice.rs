@@ -67,6 +67,7 @@ impl Agent {
         };
         self.voice = Some((VOICE.to_owned(), assistant::context_state(name)));
         self.muted = state["muted"]["mic"].as_bool().unwrap_or(false);
+        self.machine.seed(&state);
         let mut commands = self.sync_assistant(Instant::now())?;
         commands.extend(self.sync_badge()?);
         self.apply(commands)?;
@@ -605,7 +606,28 @@ impl Agent {
 
     /// The words of a state, in the language of the screen.
     fn state_label(&self, state: &str) -> String {
-        door_label(self.language, state, self.helpers.is_empty())
+        door_label(self.language, state, self.machine.named().is_none())
+    }
+
+    /// The answer of `state.get` (KIT7): the state of the helper machine,
+    /// the words of a helper door and the helper surfaces that show, the
+    /// one presenter of the helper.
+    pub fn presented(&self) -> Value {
+        let mut shown = Vec::new();
+        if self.assistant.is_some() {
+            shown.push(assistant::CLIP);
+        }
+        if self.card.is_some() {
+            shown.push(card::CARD);
+        }
+        if self.chat.is_open() {
+            shown.push(chat::CHAT);
+        }
+        json!({
+            "helper": self.machine.word(),
+            "door": self.machine.door(self.language, false),
+            "shown": shown,
+        })
     }
 
     /// Shows, moves into its state or removes the figure, as the agent,

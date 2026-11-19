@@ -115,7 +115,10 @@ is the one place with `unsafe` code besides the GL calls in `gl.rs`.
 ### Scene
 
 The scene is a tree of nodes with stable ids. [API](api.md#nodes) lists the
-node properties. The order of the children sets the stacking order. The crate
+node properties. The order of the children sets the stacking order; the
+children of `root` stay sorted by their `order` (background, normal, held,
+overlay; lock belongs to the core, D89), and inside one order the clients
+order them. The crate
 `chora-scene` holds the scene model (see
 [Project structure](project-structure.md)).
 

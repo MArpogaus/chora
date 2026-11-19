@@ -33,13 +33,14 @@ impl Wm {
                 maximized: w.maximized(),
                 fullscreen: false,
                 floating: self.floats.floats(&w.surface),
+                held: false,
                 z: Some(z),
             })
             .collect();
         let desks = (self.bars.iter())
             .map(|b| Desks {
                 output: b.output.clone(),
-                shown: vec![self.desktop + 1],
+                shown: vec![self.desk_of(b) + 1],
             })
             .collect();
         let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
@@ -47,7 +48,7 @@ impl Wm {
                 holder: Some(NAME.into()),
                 surface: Some(surface.into()),
             },
-            None if !self.focus_away() => Focus {
+            None if !self.focus_away() && !self.cube_off() => Focus {
                 holder: Some(NAME.into()),
                 surface: None,
             },
@@ -96,28 +97,7 @@ impl Wm {
 
     /// The menus and dialogs that show, in the order Escape shuts them.
     fn open_value(&self) -> Vec<Open> {
-        let entry = |id: &str, kind: &str, modal: bool| Open {
-            id: id.into(),
-            kind: kind.into(),
-            modal,
-        };
-        let mut open = Vec::new();
-        if self.switcher.is_some() {
-            open.push(entry("xp-switcher", "switcher", false));
-        }
-        if self.dialog.is_some() {
-            open.push(entry("xp-session", "dialog", true));
-        }
-        if self.context.is_some() {
-            open.push(entry("xp-ctx", "menu", false));
-        }
-        if self.menu.is_open() {
-            open.push(entry("xp-menu", "menu", false));
-        }
-        for panel in self.panels.iter().rev() {
-            open.push(entry(&panel.window_ref().group(), "dialog", false));
-        }
-        open
+        self.open.state()
     }
 
     /// What still moves: quiet once this is empty.
@@ -161,7 +141,7 @@ mod tests {
         let (wm, _methods) = wm_on_fake_core("state-empty");
         let state = wm.state().expect("xp has a state");
         let expected = json!({"windows": [], "focus": {"holder": "xp"}, "open": [],
-            "busy": [], "helper": "none", "desks": [{"output": "X", "shown": [1]}]});
+            "busy": [], "helper": "no_helper", "desks": [{"output": "X", "shown": [1]}]});
         assert_eq!(
             state.get("texts").map(serde_json::Value::is_array),
             Some(true)
@@ -235,6 +215,23 @@ mod tests {
         assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
     }
 
+    /// The core focuses no surface, as when the construct of a hosted cube
+    /// takes the keyboard with its own node: xp names no window and draws
+    /// none active.
+    #[test]
+    fn xp_names_no_window_when_the_core_focuses_none() {
+        let (mut wm, _methods) = wm_on_fake_core("state-none");
+        add(&mut wm, "s1", 0);
+        wm.event(focus("s1")).unwrap();
+        let none = json!({"event": "focus.changed", "surface": null});
+        wm.event(serde_json::from_value(none).unwrap()).unwrap();
+        assert_eq!(wm.state().unwrap()["focus"], json!({"holder": "xp"}));
+        assert_eq!(wm.focused, None, "the window of s1 looks inactive");
+        wm.event(focus("s1")).unwrap();
+        let focus_s1 = json!({"holder": "xp", "surface": "s1"});
+        assert_eq!(wm.state().unwrap()["focus"], focus_s1);
+    }
+
     /// A `focus.changed` of the core.
     fn focus(surface: &str) -> chora_scene::Event {
         serde_json::from_value(json!({"event": "focus.changed", "surface": surface})).unwrap()
@@ -253,6 +250,81 @@ mod tests {
         );
         wm.method("start_menu", json!({"open": false})).unwrap();
         assert_eq!(wm.state().unwrap()["open"], json!([]));
+    }
+
+    /// The ids of what is open, in the order Escape shuts them.
+    fn open_ids(wm: &super::Wm) -> Vec<String> {
+        let open = wm.state().unwrap()["open"].clone();
+        let ids = open.as_array().unwrap().iter();
+        ids.map(|o| o["id"].as_str().unwrap().to_owned()).collect()
+    }
+
+    /// I4 (sd-h2): a window that goes to another window manager, by the
+    /// give keys or by a drag out of the face, shuts the Start menu and
+    /// the context menu; they stayed open and covered the window.
+    #[test]
+    fn a_give_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-give-menu");
+        wm.windows.push(window("s1", 0));
+        wm.book.keep("s1");
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        assert_eq!(open_ids(&wm), ["xp-menu"]);
+        wm.give("s1", "tiling")
+            .expect("the fake core takes the give");
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the give");
+    }
+
+    /// The same for the drag that carries the window out (`pull_out`).
+    #[test]
+    fn a_give_with_the_drag_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-drag-menu");
+        wm.windows.push(window("s1", 0));
+        wm.book.keep("s1");
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let grab = chora_scene::GivenGrab {
+            point: [10.0, 10.0],
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        wm.give_dragged("s1", "tiling", Some(grab))
+            .expect("the give");
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the drag");
+    }
+
+    /// A press on a title bar, which starts a drag, shuts the menu too.
+    #[test]
+    fn a_press_on_a_title_bar_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-title-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let commands = wm.pressed("xp-title-s1", 272, [100.0, 100.0]);
+        wm.apply(commands).unwrap();
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the press");
+    }
+
+    /// Escape shuts what opened last: a Help panel, then the Start menu on
+    /// top of it. The first Escape shuts the menu, the second the panel,
+    /// the order `state.open` lists them in.
+    #[test]
+    fn escape_shuts_the_newest_surface_first() {
+        let (mut wm, _methods) = wm_on_fake_core("state-escape-order");
+        let commands = wm.open_help(0);
+        wm.apply(commands).unwrap();
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let ids = open_ids(&wm);
+        assert_eq!(ids.len(), 2, "open: {ids:?}");
+        assert_eq!(ids[0], "xp-menu", "the menu is the newest: {ids:?}");
+        let panel = ids[1].clone();
+        let commands = wm.node_key("Escape");
+        wm.apply(commands).unwrap();
+        assert_eq!(
+            open_ids(&wm),
+            std::slice::from_ref(&panel),
+            "the first Escape"
+        );
+        let commands = wm.node_key("Escape");
+        wm.apply(commands).unwrap();
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "the second Escape");
     }
 
     /// `texts` holds the runs of text that xp painted into the image
@@ -276,12 +348,12 @@ mod tests {
         }
     }
 
-    /// `helper` is `none` until voice reports, follows its latest
-    /// `voice.state`, and is `none` again when voice goes.
+    /// `helper` is the word of the kit machine: `no_helper` until a helper
+    /// exists, its state while it does, `no_helper` again when voice goes.
     #[test]
     fn the_helper_follows_voice() {
         let (mut x, _methods) = wm_on_fake_core("state-helper");
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let said = |event: &str, data| chora_scene::Event::Emitted {
             event: event.into(),
             client: "voice".into(),
@@ -289,7 +361,7 @@ mod tests {
         };
         x.event(said("voice.state", json!({"state": "idle"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         x.event(said(
             "voice.state",
             json!({"name": "atlas", "state": "working"}),
@@ -298,9 +370,39 @@ mod tests {
         assert_eq!(x.state().unwrap()["helper"], "working");
         x.event(said("voice.remove", json!({"name": "atlas"})))
             .unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "idle");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
         let gone = json!({"event": "client.disconnected", "name": "voice"});
         x.event(serde_json::from_value(gone).unwrap()).unwrap();
-        assert_eq!(x.state().unwrap()["helper"], "none");
+        assert_eq!(x.state().unwrap()["helper"], "no_helper");
+    }
+
+    /// A look that hears voice connect asks voice for its state, and it
+    /// hears every event of the helper machine, so that it says what the
+    /// presenter says (rw-4).
+    #[test]
+    fn the_helper_is_seeded_from_voice_and_hears_every_event() {
+        assert_eq!(
+            chora_kit::helper::unheard(&super::super::EVENTS),
+            Vec::<&str>::new()
+        );
+        let core = chora_kit::testing::FakeCore::start();
+        let mut x = super::super::tests::wm_on_kit_core(&core, "state-seed");
+        core.answer_call(
+            "voice",
+            "state",
+            json!({"state": "listening", "agents": [{"name": "coder", "state": "idle"}]}),
+        );
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        x.event(connected).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "listening");
+        let said = chora_scene::Event::Emitted {
+            event: "voice.say".into(),
+            client: "voice".into(),
+            data: json!({"state": "speaking", "text": "Hi"}),
+        };
+        x.event(said).unwrap();
+        assert_eq!(x.state().unwrap()["helper"], "answered");
     }
 }

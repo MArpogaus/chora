@@ -6,7 +6,7 @@ Usage: tests/packaging-files.py [--pkgbuild FILE]   (from any directory; exits 1
 
 Reads the install lines of dist/arch/PKGBUILD and the assets of
 crates/chora/Cargo.toml (the RPM). Every regular file under flavors/ and
-plugins/*/{hud,huds,assets,collectors} must match a source of each; an executable file must match a
+plugins/*/{hud,huds,assets,collectors,notify} must match a source of each; an executable file must match a
 755 source and no 644 one.
 """
 import os
@@ -68,7 +68,7 @@ def shipped():
     files = []
     roots = [ROOT / "flavors"] + sorted((ROOT / "plugins").glob("*/hud*")) + sorted(
         (ROOT / "plugins").glob("*/assets")
-    ) + sorted((ROOT / "plugins").glob("*/collectors"))
+    ) + sorted((ROOT / "plugins").glob("*/collectors")) + sorted((ROOT / "plugins").glob("*/notify"))
     for base in roots:
         for dirpath, _, names in os.walk(base):
             for name in names:

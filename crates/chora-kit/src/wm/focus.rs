@@ -20,6 +20,13 @@ pub trait Policy {
     fn focus_after(&self, gone: &str, why: &Why) -> Option<String>;
 }
 
+/// The command that takes the keyboard focus from every surface, for a
+/// client that gives the keyboard to a node of its own next.
+#[must_use]
+pub fn release() -> Command {
+    Command::Focus { surface: None }
+}
+
 /// Who holds the keyboard, seen from one look.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Holder {

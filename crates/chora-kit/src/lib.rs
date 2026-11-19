@@ -27,7 +27,7 @@ pub mod lamp;
 pub mod launch;
 pub mod launcher;
 pub mod modes;
-pub mod notify;
+pub mod notice;
 pub mod runtime;
 pub mod settings;
 pub mod shared;

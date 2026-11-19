@@ -29,6 +29,7 @@ use chora_draw::{
 };
 use chora_kit::{
     icons::Icons,
+    notice as kit_notice,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
@@ -37,10 +38,11 @@ use chora_scene::{
     ipc::{ClientError, RpcError},
 };
 use clap::Parser;
-use serde_json::Value;
+use serde::Deserialize;
+use serde_json::{Value, json};
 
 use crate::{
-    bus::{Bus, Note, Reason, Request, Signal, StartError},
+    bus::{Bus, Ids, Note, Reason, Request, Signal, StartError, next_id},
     card::{Card, Queue, Values},
     config::Config,
 };
@@ -67,6 +69,40 @@ struct Args {
     config: Option<PathBuf>,
 }
 
+/// The parameters of `notify.show`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Show {
+    #[serde(default)]
+    #[allow(
+        dead_code,
+        reason = "the caller names itself; the card does not show it"
+    )]
+    app: String,
+    #[serde(default)]
+    replaces: Option<u32>,
+    #[serde(default)]
+    icon: String,
+    summary: String,
+    #[serde(default)]
+    body: String,
+    #[serde(default = "default_expire")]
+    expire_ms: i32,
+    #[serde(default)]
+    urgency: kit_notice::Urgency,
+}
+
+const fn default_expire() -> i32 {
+    -1
+}
+
+/// The parameters of `notify.close`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Close {
+    id: u32,
+}
+
 /// The plugin.
 struct Notify {
     rt: Runtime<()>,
@@ -74,9 +110,14 @@ struct Notify {
     theme: Theme,
     values: Values,
     icons: Icons,
-    bus: Bus,
+    bus: Option<Bus>,
+    ids: Ids,
+    pending: Vec<Request>,
     queue: Queue,
     card: Option<(Note, Card)>,
+    /// The output and the box of the open chat of the HUD host, which the
+    /// card does not cover.
+    chat: Option<(String, [i32; 4])>,
 }
 
 impl Plugin for Notify {
@@ -99,16 +140,50 @@ impl Plugin for Notify {
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => self.redraw()?,
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if client == HOST && event == CHAT => {
+                let chat = chat_box(&data);
+                if chat == self.chat {
+                    Vec::new()
+                } else {
+                    self.chat = chat;
+                    self.redraw()?
+                }
+            }
             _ => Vec::new(),
         };
         self.apply(commands)
     }
 
-    fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
-        Err(RpcError::new(
-            RpcError::METHOD_NOT_FOUND,
-            format!("{NAME} has no method {method}"),
-        ))
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        match method {
+            kit_notice::SHOW => {
+                let call: Show = runtime::params(params)?;
+                let id = next_id(&self.ids, call.replaces.unwrap_or(0));
+                let critical = call.urgency == kit_notice::Urgency::Critical;
+                self.pending.push(Request::Notify(Note {
+                    id,
+                    icon: call.icon,
+                    summary: call.summary,
+                    body: call.body,
+                    actions: Vec::new(),
+                    expire_ms: if critical { 0 } else { call.expire_ms },
+                }));
+                Ok(json!({"id": id}))
+            }
+            kit_notice::CLOSE => {
+                let call: Close = runtime::params(params)?;
+                self.pending.push(Request::Close(call.id));
+                Ok(Value::Null)
+            }
+            _ => Err(RpcError::new(
+                RpcError::METHOD_NOT_FOUND,
+                format!("{NAME} has no method {method}"),
+            )),
+        }
     }
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
@@ -116,8 +191,10 @@ impl Plugin for Notify {
     }
 
     fn state(&self) -> Option<Value> {
-        let shown = self.card.as_ref().map(|(note, _)| note);
-        Some(state_value(shown, &self.queue, &self.theme.texts()))
+        let shown = self.card.as_ref().map(|(note, card)| (note, card.rect()));
+        let mut state = state_value(shown, &self.queue, &self.theme.texts());
+        state["chat"] = json!(self.chat.as_ref().map(|(_, rect)| rect));
+        Some(state)
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
@@ -129,14 +206,15 @@ impl Plugin for Notify {
 }
 
 /// The answer of `state.get`: the notification on screen with the node
-/// of its card, the ids that the server accepted, that wait and that
-/// closed, the runs of text of the card, and nothing busy, since a card
-/// shows and goes without an animation.
-fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
+/// and the box of its card on the output, the ids that the server
+/// accepted, that wait and that closed, the runs of text of the card, and
+/// nothing busy, since a card shows and goes without an animation.
+fn state_value(shown: Option<(&Note, [i32; 4])>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
     let shown: Vec<Value> = shown
-        .map(
-            |note| serde_json::json!({"id": note.id, "summary": note.summary, "node": card::GROUP}),
-        )
+        .map(|(note, rect)| {
+            json!({"id": note.id, "summary": note.summary, "body": note.body,
+                "node": card::BODY, "rect": rect})
+        })
         .into_iter()
         .collect();
     serde_json::json!({
@@ -150,27 +228,64 @@ fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) ->
 }
 
 impl Notify {
-    /// Connects, takes the name on the session bus and exports the
-    /// methods of the settings. `None` when another server owns the name:
-    /// the plugin has nothing to do then, and ends without an error, so
-    /// that no unit restarts it.
+    /// Takes the name on the session bus, connects and exports the
+    /// methods of the settings; see [`Self::on`]. `None` when another
+    /// chora-notify serves this session: it owns the bus name and the
+    /// client name `notify` of the core. The plugin ends without an error
+    /// then, so that no unit restarts it.
     fn start(
         theme: Theme,
         values: Values,
         settings: settings::File<Config>,
     ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
-        let bus = match Bus::start() {
-            Ok(bus) => bus,
-            Err(err @ StartError::Taken) => {
-                eprintln!("chora-notify: {err}, which stays its owner");
+        let ids = Ids::default();
+        let bus = Bus::start(ids.clone());
+        let mut rt = match Runtime::start(NAME, Vec::new(), EVENTS, Self::methods()) {
+            Ok(rt) => rt,
+            Err(ClientError::Rpc(err))
+                if err.code == RpcError::NAME_TAKEN && matches!(bus, Err(StartError::Taken)) =>
+            {
+                eprintln!(
+                    "chora-notify: {}, and another chora-notify serves the session",
+                    StartError::Taken
+                );
                 return Ok(None);
             }
             Err(err) => return Err(err.into()),
         };
-        let mut methods = settings::File::<Config>::methods();
-        methods.push(runtime::state_method());
-        let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods)?;
-        Ok(Some(Self {
+        let ready = json!({"event": READY, "data": {}});
+        if let Err(err) = rt.conn.call::<_, Value>("events.emit", ready) {
+            eprintln!("chora-notify: {READY}: {err}");
+        }
+        Ok(Some(Self::on(rt, bus, ids, (theme, values), settings)))
+    }
+
+    /// The plugin on a connection, with the outcome of taking the bus
+    /// name. Without the name, as when another server owns it or there is
+    /// no session bus, the plugin serves `notify.show` and `notify.close`
+    /// to the plugins all the same: their notices show as cards, while
+    /// the clients of the bus reach the other server.
+    fn on(
+        rt: Runtime<()>,
+        bus: Result<Bus, StartError>,
+        ids: Ids,
+        (theme, values): (Theme, Values),
+        settings: settings::File<Config>,
+    ) -> Self {
+        let bus = match bus {
+            Ok(bus) => Some(bus),
+            Err(err @ StartError::Taken) => {
+                eprintln!(
+                    "chora-notify: {err}, which stays its owner; only the plugins are served"
+                );
+                None
+            }
+            Err(err) => {
+                eprintln!("chora-notify: no session bus ({err}); only the plugins are served");
+                None
+            }
+        };
+        Self {
             rt,
             queue: Queue::new(settings.value),
             settings,
@@ -178,8 +293,38 @@ impl Notify {
             values,
             icons: Icons::new(icons::THEMES),
             bus,
+            ids,
+            pending: Vec::new(),
             card: None,
-        }))
+            chat: None,
+        }
+    }
+
+    /// The methods of the settings, `state.get` and the live API.
+    fn methods() -> Vec<chora_scene::ipc::ExportMethod> {
+        let mut methods = settings::File::<Config>::methods();
+        methods.push(runtime::state_method());
+        methods.push(runtime::method(
+            kit_notice::SHOW,
+            "Shows a notice, or replaces the one named by `replaces`; answers its id.",
+            json!({
+                "app": {"type": "string"},
+                "replaces": {"type": ["integer", "null"]},
+                "icon": {"type": "string"},
+                "summary": {"type": "string"},
+                "body": {"type": "string"},
+                "expire_ms": {"type": "integer"},
+                "urgency": {"enum": ["normal", "critical"]},
+            }),
+            &["summary"],
+        ));
+        methods.push(runtime::method(
+            kit_notice::CLOSE,
+            "Dismisses the notice with an id.",
+            json!({"id": {"type": "integer"}}),
+            &["id"],
+        ));
+        methods
     }
 
     /// Applies a transaction, with the logical sizes of the pictures.
@@ -208,7 +353,10 @@ impl Notify {
 
     /// Takes the calls of the clients and closes an expired card.
     fn step(&mut self, now: Instant) -> Result<(), ClientError> {
-        let requests: Vec<Request> = self.bus.requests.try_iter().collect();
+        let mut requests = std::mem::take(&mut self.pending);
+        if let Some(bus) = &self.bus {
+            requests.extend(bus.requests.try_iter());
+        }
         let mut signals = Vec::new();
         for request in requests {
             match request {
@@ -244,8 +392,10 @@ impl Notify {
     /// Sends the signals and shows the card of the current notification,
     /// if it changed.
     fn after(&mut self, signals: &[Signal]) -> Result<Vec<Command>, ClientError> {
-        for signal in signals {
-            self.bus.emit(signal);
+        if let Some(bus) = &self.bus {
+            for signal in signals {
+                bus.emit(signal);
+            }
         }
         let current = self.queue.current();
         if self.card.as_ref().map(|(note, _)| note) == current {
@@ -272,20 +422,23 @@ impl Notify {
             .filter(|i| !i.is_empty())
             .and_then(|i| self.icons.for_sender(i));
         let corner = self.settings.value.position;
+        let chat = (self.chat.as_ref())
+            .filter(|(on, _)| *on == output.name)
+            .map(|(_, rect)| *rect);
         let card = Card::new(
             &mut self.theme,
             &note,
             icon.as_deref(),
             &self.values,
-            (&output, corner),
+            (&output, corner, chat),
         );
         let commands = card.create(&mut self.theme);
         self.card = Some((note, card));
         Ok(commands)
     }
 
-    /// Draws the card again, after a change of the outputs or of the
-    /// corner.
+    /// Draws the card again, after a change of the outputs, of the corner
+    /// or of the chat.
     fn redraw(&mut self) -> Result<Vec<Command>, ClientError> {
         let Some((note, _)) = self.card.take() else {
             return Ok(Vec::new());
@@ -311,7 +464,29 @@ const EVENTS: &[&str] = &[
     "pointer.left",
     "output.changed",
     "output.removed",
+    CHAT,
 ];
+
+/// The client name of the HUD host, which draws the chat.
+const HOST: &str = "assistant";
+
+/// The event of the plugin once it listens, so that the HUD host says
+/// where its open chat is.
+const READY: &str = "notify.ready";
+
+/// The event of the HUD host when its chat opens, closes or moves.
+const CHAT: &str = "assistant.chat";
+
+/// The output and the box of the chat that `assistant.chat {open, output,
+/// rect}` names; `None` when the chat closed or names no box.
+fn chat_box(data: &Value) -> Option<(String, [i32; 4])> {
+    if data["open"] != true {
+        return None;
+    }
+    let output = data["output"].as_str()?.to_owned();
+    let rect: [i32; 4] = serde_json::from_value(data["rect"].clone()).ok()?;
+    Some((output, rect))
+}
 
 fn main() -> ExitCode {
     let args = Args::parse();
@@ -392,15 +567,10 @@ mod tests {
         }
     }
 
-    /// A notify on a private session bus and a fake core that answers
-    /// every request with null and `output.list` with no outputs. `None`
-    /// without a `dbus-daemon` to start.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
-    fn on_private_bus(tag: &str) -> Option<(Notify, KillOnDrop)> {
-        use std::io::{BufRead as _, BufReader, Write as _};
+    /// A private session bus: its address and the daemon. `None` without
+    /// a `dbus-daemon` to start.
+    fn private_bus() -> Option<(String, KillOnDrop)> {
+        use std::io::{BufRead as _, BufReader};
         let daemon = std::process::Command::new("dbus-daemon")
             .args(["--session", "--nofork", "--print-address"])
             .stdout(std::process::Stdio::piped())
@@ -410,10 +580,25 @@ mod tests {
         let mut address = String::new();
         let stdout = daemon.0.stdout.take().unwrap();
         BufReader::new(stdout).read_line(&mut address).unwrap();
-        let connection = zbus::blocking::connection::Builder::address(address.trim())
+        Some((address.trim().to_owned(), daemon))
+    }
+
+    fn connect(address: &str) -> zbus::blocking::Connection {
+        zbus::blocking::connection::Builder::address(address)
             .unwrap()
             .build()
-            .unwrap();
+            .unwrap()
+    }
+
+    /// A notify with the outcome of taking the bus name, on a fake core
+    /// that answers every request with null and `output.list` with no
+    /// outputs.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Notify {
+        use std::io::{BufRead as _, BufReader, Write as _};
         let dir = cache(tag);
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -435,23 +620,49 @@ mod tests {
             }
         });
         let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
-        let (theme, values) = load_assets(&assets, &dir.join("cache")).expect("the assets load");
+        let assets = load_assets(&assets, &dir.join("cache")).expect("the assets load");
         let settings =
             settings::File::<Config>::load(dir.join("chora-notify.yaml"), config::DEFAULT).unwrap();
         let conn = chora_kit::conn::Conn::connect_at(NAME, &path).unwrap();
         let mut rt = Runtime::with(conn, NAME, Vec::new());
         rt.pin_accepts_injected(false);
-        let notify = Notify {
-            rt,
-            queue: Queue::new(settings.value),
-            settings,
-            theme,
-            values,
-            icons: Icons::new(icons::THEMES),
-            bus: Bus::on(connection).expect("the name is free"),
-            card: None,
-        };
+        Notify::on(rt, bus, ids, assets, settings)
+    }
+
+    /// A notify on a private session bus whose name it owns.
+    fn on_private_bus(tag: &str) -> Option<(Notify, KillOnDrop)> {
+        let (address, daemon) = private_bus()?;
+        let ids = Ids::default();
+        let bus = Bus::on(connect(&address), ids.clone());
+        assert!(bus.is_ok(), "the name is free");
+        let notify = on_fake_core(tag, bus, ids);
         Some((notify, daemon))
+    }
+
+    /// Another server owns the name on the bus, as mako when its
+    /// activation file wins: notify keeps serving `notify.show` and
+    /// `notify.close` to the plugins, without the bus.
+    #[test]
+    fn a_taken_name_leaves_the_live_api_served() {
+        let Some((address, _daemon)) = private_bus() else {
+            return;
+        };
+        let owner = Bus::on(connect(&address), Ids::default()).expect("the name is free");
+        let ids = Ids::default();
+        let taken = Bus::on(connect(&address), ids.clone());
+        assert!(matches!(taken, Err(StartError::Taken)), "the name is taken");
+        let mut notify = on_fake_core("taken", taken, ids);
+        assert!(notify.bus.is_none(), "no bus");
+        let shown = (notify.method(kit_notice::SHOW, json!({"summary": "Saved"})))
+            .expect("notify.show answers");
+        notify.step(Instant::now()).unwrap();
+        let summary = notify.queue.current().map(|n| n.summary.clone());
+        assert_eq!(summary.as_deref(), Some("Saved"));
+        (notify.method(kit_notice::CLOSE, json!({"id": shown["id"]})))
+            .expect("notify.close answers");
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(notify.queue.current(), None);
+        drop(owner);
     }
 
     #[test]
@@ -485,6 +696,45 @@ mod tests {
         assert_eq!(notify.queue.current(), None, "the press of the person");
     }
 
+    /// A plugin shows a notice through the live API: the id comes at
+    /// once, the notice shows after the next step, a second call with the
+    /// id replaces it, a critical one waits for a click, and a close
+    /// removes it. `state.get` lists what shows.
+    #[test]
+    fn the_methods_of_the_live_api_show_replace_and_close() {
+        let Some((mut notify, _daemon)) = on_private_bus("methods") else {
+            return;
+        };
+        let call = |notify: &mut Notify, method: &str, params: Value| {
+            notify.method(method, params).expect("the call answers")
+        };
+        let summary = |notify: &Notify| notify.queue.current().map(|n| n.summary.clone());
+        let first = call(
+            &mut notify,
+            kit_notice::SHOW,
+            json!({"app": "probe", "summary": "One", "body": "text"}),
+        );
+        assert_eq!(first, json!({"id": 1}));
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(summary(&notify).as_deref(), Some("One"));
+        let again = call(
+            &mut notify,
+            kit_notice::SHOW,
+            json!({"summary": "Two", "replaces": 1, "urgency": "critical"}),
+        );
+        assert_eq!(again, json!({"id": 1}));
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(summary(&notify).as_deref(), Some("Two"));
+        assert_eq!(notify.queue.current().map(|n| n.expire_ms), Some(0));
+        call(&mut notify, kit_notice::CLOSE, json!({"id": 1}));
+        notify.step(Instant::now()).unwrap();
+        assert_eq!(summary(&notify), None);
+        let err = notify
+            .method(kit_notice::SHOW, json!({"body": "no title"}))
+            .unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+    }
+
     fn note(id: u32, summary: &str) -> Note {
         Note {
             id,
@@ -508,17 +758,36 @@ mod tests {
         queue.push(note(8, "Update"), now);
         queue.push(note(9, "Mail"), now);
         queue.close(9, Reason::Closed, now);
-        let shown = state_value(queue.current(), &queue, &[]);
+        let shown = state_value(queue.current().map(|n| (n, [8, 9, 300, 80])), &queue, &[]);
         assert_eq!(
             shown,
             serde_json::json!({
-                "shown": [{"id": 7, "summary": "Battery low", "node": card::GROUP}],
+                "shown": [{"id": 7, "summary": "Battery low", "body": "text", "node": card::BODY,
+                    "rect": [8, 9, 300, 80]}],
                 "accepted": [7, 8, 9], "waiting": [8], "closed": [9],
                 "texts": [], "busy": []})
         );
         let empty = state_value(None, &new(), &[]);
         assert_eq!(empty["shown"], serde_json::json!([]));
         assert_eq!(empty["accepted"], serde_json::json!([]));
+    }
+
+    /// `assistant.chat` of the HUD host names the box of its open chat;
+    /// a closed chat or one without a box leaves the card where it is.
+    #[test]
+    fn the_chat_of_the_host_names_its_box() {
+        let open = json!({"open": true, "name": "coder", "output": "HEADLESS-1",
+            "rect": [856, 24, 400, 752]});
+        assert_eq!(
+            chat_box(&open),
+            Some(("HEADLESS-1".to_owned(), [856, 24, 400, 752]))
+        );
+        let closed = json!({"open": false, "name": null, "output": "HEADLESS-1", "rect": null});
+        assert_eq!(chat_box(&closed), None);
+        assert_eq!(
+            chat_box(&json!({"open": true, "output": "HEADLESS-1"})),
+            None
+        );
     }
 
     #[test]

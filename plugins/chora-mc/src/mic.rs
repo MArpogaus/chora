@@ -1,7 +1,7 @@
 //! The word for the microphone on the state line of the margin column:
-//! `Mute` while the voice agent listens, and the way back while it is
-//! muted, where the HUD host does not show its badge for that. A press
-//! of the person on the word calls `mute` of the agent.
+//! `Mute` while the voice agent listens; while it is muted the badge of
+//! the HUD host says so and turns it on. A press of the person on the
+//! word calls `mute` of the agent.
 
 use serde_json::{Value, json};
 
@@ -26,7 +26,7 @@ pub enum Mic {
     Refused,
 }
 
-/// The hit of the word: `mic:mute` or `mic:on`.
+/// The hit of the word: `mic:mute`.
 const HIT: &str = "mic";
 
 impl Mic {
@@ -39,14 +39,14 @@ impl Mic {
         }
     }
 
-    /// The word of the state line and what a press on it asks for.
-    fn word(self) -> Option<(&'static str, Option<bool>)> {
+    /// The word of the state line and whether a press on it mutes. A
+    /// muted microphone has no word: the badge of the host has it.
+    fn word(self) -> Option<(&'static str, bool)> {
         match self {
-            Self::Unknown => None,
-            Self::On => Some(("Mute", Some(true))),
-            Self::Off => Some(("Turn microphone on", Some(false))),
-            Self::Failed => Some(("The microphone did not switch", None)),
-            Self::Refused => Some(("Use your own mouse", None)),
+            Self::Unknown | Self::Off => None,
+            Self::On => Some(("Mute", true)),
+            Self::Failed => Some(("The microphone did not switch", false)),
+            Self::Refused => Some(("Use your own mouse", false)),
         }
     }
 }
@@ -58,46 +58,33 @@ impl Mc {
         std::mem::replace(&mut self.mic, mic) != mic
     }
 
-    /// The word for the microphone as an item of the state line `id`: in
-    /// the line of the state word, flush right, or beside the HUD host right
-    /// after the word, which the host's word would cover at the right edge,
-    /// or alone at the left edge when mc draws no state word there. Beside
-    /// the HUD host a muted microphone has no word of mc: the badge of the
-    /// host says so there and turns it on.
+    /// The word for the microphone as an item of the state line `id`:
+    /// right after a state word of `hud.set`, which the word of the HUD
+    /// host would cover at the right edge, or alone at the left edge when
+    /// mc draws no state word there.
     pub fn mic_item(&self, id: &str, slot: i32, alone: bool) -> Option<Item> {
-        let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
-        if host && self.mic == Mic::Off {
-            return None;
-        }
-        let (word, mute) = self.mic.word()?;
+        let (word, mutes) = self.mic.word()?;
         let props = self.ty("margin", None).props(word);
         Some(Item {
-            put: match (alone, host) {
-                (true, _) => Put::Stack,
-                (false, true) => Put::After,
-                (false, false) => Put::End,
-            },
-            hit: mute.map(|mute| format!("{HIT}:{}", if mute { "mute" } else { "on" })),
+            put: if alone { Put::Stack } else { Put::After },
+            hit: mutes.then(|| format!("{HIT}:mute")),
             ..Item::text(format!("{id}-mic"), slot, props, alone)
         })
     }
 
-    /// A press on the word: a person's press switches the microphone with
+    /// A press on the word: a person's press mutes the microphone with
     /// `voice.mute`; the line says so when the agent refuses, and when the
     /// press was injected. True when `token` is a hit of the word.
     pub fn press_mic(&mut self, token: &str, injected: bool) -> bool {
-        let mute = match token.split_once(':') {
-            Some((HIT, "mute")) => true,
-            Some((HIT, "on")) => false,
-            _ => return false,
-        };
+        if token.split_once(':') != Some((HIT, "mute")) {
+            return false;
+        }
         self.mic = if injected {
             Mic::Refused
         } else {
-            let call = json!({"client": crate::VOICE, "method": "mute", "params": {"mic": mute}});
+            let call = json!({"client": crate::VOICE, "method": "mute", "params": {"mic": true}});
             match self.rt.conn.call::<_, Value>("methods.call", call) {
-                Ok(_) if mute => Mic::Off,
-                Ok(_) => Mic::On,
+                Ok(_) => Mic::Off,
                 Err(err) => {
                     eprintln!("chora-mc: voice.mute: {err}");
                     Mic::Failed
@@ -135,9 +122,10 @@ mod tests {
         .unwrap();
     }
 
-    /// Beside the HUD host the word Mute stands alone at the left of the
-    /// state line once the agent told its state, in 14 pixels or more,
-    /// and goes while the microphone is muted.
+    /// The word Mute stands alone at the left of the state line once the
+    /// agent told its state, in 14 pixels or more, and goes while the
+    /// microphone is muted; after a state word of `hud.set` it follows
+    /// that word.
     #[test]
     fn the_state_line_says_mute_while_the_agent_listens() {
         let (mut mc, _model) = crate::testing::mc("mic-host", [1280, 800]);
@@ -149,26 +137,11 @@ mod tests {
         assert_eq!(item.hit.as_deref(), Some("mic:mute"));
         assert_eq!(item.put, Put::Stack);
         assert!(item.props.font_size.unwrap() >= 14.0);
-        state(&mut mc, true);
-        assert!(word(&mc).is_none(), "a word beside the badge of the host");
-    }
-
-    /// Without the host mc draws the state word, the word for the
-    /// microphone stands flush right in its line, and a muted microphone
-    /// has the way back there.
-    #[test]
-    fn without_the_host_the_word_stands_in_the_line_of_the_state() {
-        let (mut mc, _model) = crate::testing::mc("mic-own", [1280, 800]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        mc.show("agenda", false).unwrap();
         mc.method("hud.set", json!({"state": "Listening", "text": ""}))
             .unwrap();
-        mc.mic = Mic::On;
-        assert_eq!(word(&mc).expect("the word").put, Put::End);
-        mc.mic = Mic::Off;
-        let item = word(&mc).expect("the way back");
-        assert_eq!(item.props.text.as_deref(), Some("Turn microphone on"));
-        assert_eq!(item.hit.as_deref(), Some("mic:on"));
+        assert_eq!(word(&mc).expect("the word").put, Put::After);
+        state(&mut mc, true);
+        assert!(word(&mc).is_none(), "a word beside the badge of the host");
     }
 
     /// An injected press does not switch the microphone, and the line

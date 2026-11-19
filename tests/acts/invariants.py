@@ -30,15 +30,16 @@ I9   a notice chora-notify accepted during the act is in its `shown`,
      not under the chat
 I10  no visible text matches a raw entry (`.desktop`, `%U`, a reverse-DNS
      id, a path of a binary)
-I12  no bar or panel box over a fullscreen window; a modal above its
-     parent
+I12  no bar or panel box over a fullscreen window; the held window on
+     top; a modal above its parent
 I13  the projected corners of neighbouring cube faces meet within 1 px;
      held in a turn, a neighbour of a face that shows is there with corners
 
 Limits: the texts are text nodes and the runs that chora-draw reports;
 text of outside programs (waybar, mako) and SVG text in a picture are not
 seen. Images count as not opaque, so a menu image over a label does not
-hide it for I5. I12 has no `held` window yet (WM5). I13 reads the faces
+hide it for I5. I12 sees a held window only where a look reports `held`
+in its `windows`, which acts snapshot once quiet. I13 reads the faces
 as the acts hold them, at rest and halfway through a turn.
 """
 
@@ -177,7 +178,9 @@ def i8(_before, after, _act):
     said = [
         (e.get("data") or {}).get("state") for e in after.events if e.get("event") == "voice.state"
     ]
-    states = looks_with_state(after)
+    states = looks_with_state(after) | {
+        name: state for name, state in after.blocks.items() if state and "helper" in state
+    }
     if said and states and not any("helper" in s for s in states.values()):
         out += [
             f"{look} missing key helper: the helper answered and no look reports it"
@@ -186,7 +189,7 @@ def i8(_before, after, _act):
     if said and said[-1] != "working":
         out += [
             f"{look} says the helper works after its answer ({said[-1]})"
-            for look, s in looks_with_state(after).items()
+            for look, s in states.items()
             if s.get("helper") == "working"
         ]
     helpers = {n["id"] for n in after.nodes if helper_surfaces(n)}
@@ -488,7 +491,7 @@ def bars_over_fullscreen(after, look, window, state):
     window attached to it, such as a dialog, and the open entries of the
     look for the window are no bars."""
     looks = set(after.states)
-    own = {o.get("id") for o in state.get("open") or [] if o.get("for") == window.get("surface")}
+    own = {o.get("id") for o in state.get("open") or [] if o.get("by") == window.get("surface")}
     out = []
     for output, nodes in sorted(node_boxes(after).items()):
         i, box = nodes.get(window.get("surface"), (None, None))
@@ -509,7 +512,7 @@ def modals_below(after, look, state):
     """The open modals of a look that lie below the window they are for."""
     out = []
     for entry in state.get("open") or []:
-        parent = entry.get("for")
+        parent = entry.get("by")
         if not entry.get("modal") or not parent:
             continue
         for output, nodes in sorted(node_boxes(after).items()):
@@ -519,14 +522,41 @@ def modals_below(after, look, state):
     return out
 
 
+BELOW_HELD = {None, "background", "normal"}
+
+
+def covers_held(after, look, window):
+    """The boxes of the scene over the held window of a look: a window, or
+    a node of another client in an order below `held` (D89). Its own
+    frame and the bars of the overlay order are no cover."""
+    out = []
+    for output, nodes in sorted(node_boxes(after).items()):
+        i, box = nodes.get(window.get("surface"), (None, None))
+        if box is None:
+            continue
+        for b in boxes_on(after)[output][i + 1 :]:
+            if b.get("layer") != "scene" or b.get("order") not in BELOW_HELD:
+                continue
+            if b.get("owner") == look and b.get("kind") != "surface":
+                continue
+            if overlap(box["rect"], b["rect"]):
+                out.append(
+                    f"{b.get('node')} of {b.get('owner')} lies over the held "
+                    f"{window['surface']} of {look} on {output}"
+                )
+    return out
+
+
 def i12(_before, after, _act):
-    """No bar or panel box over a fullscreen window; a modal above its
-    parent."""
+    """No bar or panel box over a fullscreen window; the held window on
+    top; a modal above its parent."""
     out = []
     for look, state in sorted(looks_with_state(after).items()):
         for w in state.get("windows") or []:
             if w.get("fullscreen"):
                 out += bars_over_fullscreen(after, look, w, state)
+            if w.get("held"):
+                out += covers_held(after, look, w)
         out += modals_below(after, look, state)
     return out
 

@@ -18,6 +18,7 @@ impl Construct {
 
     /// Builds the space, then takes the events and the free windows.
     pub(crate) fn start(&mut self) -> Result<(), ClientError> {
+        self.voiced.ask(&mut self.rt.conn);
         if !self.rt.conn.query(&format!("id:{NAME}"))?.is_empty() {
             self.rt.conn.apply(vec![Command::Remove {
                 id: NAME.into(),
@@ -25,18 +26,17 @@ impl Construct {
             }])?;
         }
         self.output = (self.rt.outputs()?.into_iter()).find(|o| o.is_virtual != Some(true));
-        self.remove_left_outputs()?;
         let mut methods = exported_methods();
         methods.extend(settings::File::<Config>::methods());
         self.rt.announce(&EVENTS, methods)?;
         if self.overlay {
-            return Ok(());
+            return self.reopen_left_cube();
         }
         self.name_theme()?;
         self.active = true;
         self.build()?;
         self.regrab()?;
-        self.claim_indicator(false);
+        self.reopen_left_cube()?;
         let free = self.rt.conn.query("kind:surface")?;
         self.adopt_free(free)?;
         let start = self.settings.value.start.clone();
@@ -82,8 +82,7 @@ impl Construct {
             } else {
                 Duration::from_secs(3600)
             };
-            let wait = (self.voice.deadline().into_iter())
-                .chain(self.cube_deadline())
+            let wait = (self.cube_deadline().into_iter())
                 .chain(self.hints.until)
                 .chain(self.doors.deadline())
                 .fold(wait, |wait, t| {

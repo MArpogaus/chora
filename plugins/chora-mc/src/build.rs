@@ -1,8 +1,10 @@
+use chora_scene::Order;
+
 use super::{
     BTreeMap, CLOCK, ClientError, Command, Easing, FADE, HEAD, Layout, Mc, NAME, NodeKind, PARKED,
     Panel, PropsUpdate, REGIONS, ROOT, Scene, Style, THEME_FADE, TICK, Type, VOLUME, Value, WAIT,
     create, fonts, manage, page_id, pane_tag, panel_id, panels_id, region, regions_on_top,
-    scene_id, translate, under_other_plugins, volume_wait, wait, wheel_id,
+    scene_id, translate, volume_wait, wait, wheel_id,
 };
 
 impl Mc {
@@ -62,6 +64,26 @@ impl Mc {
         Ok(())
     }
 
+    /// The root group over the output `[x, y, w, h]`, in the background
+    /// order (D89): a window of another window manager that is dragged
+    /// over the output shows above the opaque page, whatever the build
+    /// order of the plugins.
+    fn root(&self, [x, y, w, h]: [f64; 4], work: [f64; 4]) -> Command {
+        create(
+            NAME,
+            NodeKind::Group,
+            ROOT,
+            PropsUpdate {
+                transform: Some(translate(x, y)),
+                claim: self.manage_windows.then_some(Some(work)),
+                size: Some([w, h]),
+                meta: Some(pane_tag(self.current.as_deref())),
+                order: Some(Order::Background),
+                ..PropsUpdate::default()
+            },
+        )
+    }
+
     /// Builds all nodes again, for example after a change of the theme or
     /// of the output. The windows wait under the root meanwhile, all in one
     /// transaction, so nothing flickers.
@@ -85,18 +107,7 @@ impl Mc {
         let [w, h] = output.size.map(f64::from);
         let [x, y] = output.position.map(f64::from);
         let work = self.work_area([x, y, w, h]);
-        commands.push(create(
-            NAME,
-            NodeKind::Group,
-            ROOT,
-            PropsUpdate {
-                transform: Some(translate(x, y)),
-                claim: self.manage_windows.then_some(Some(work)),
-                size: Some([w, h]),
-                meta: Some(pane_tag(self.current.as_deref())),
-                ..PropsUpdate::default()
-            },
-        ));
+        commands.push(self.root([x, y, w, h], work));
         for id in [TICK, CLOCK, WAIT, VOLUME] {
             commands.push(create(id, NodeKind::Group, NAME, PropsUpdate::default()));
         }
@@ -123,7 +134,7 @@ impl Mc {
             .map(|name| (name.clone(), self.scene_commands(name)))
             .collect();
         self.apply_scenes(commands, scenes)?;
-        self.apply(vec![regions_on_top(), under_other_plugins()])?;
+        self.apply(vec![regions_on_top()])?;
         self.built = true;
         self.rendered = None;
         self.left = None;

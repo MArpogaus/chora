@@ -6,7 +6,7 @@ use imbl::OrdMap;
 
 use crate::{
     Command, Easing, Effect, InputMode, MAX_DURATION, MAX_EFFECTS, MAX_MESH_CELLS,
-    MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, Props, PropsUpdate, ROOT, Selector,
+    MAX_NODE_TEXTURES, MAX_UNIFORMS, Node, NodeKind, Order, Props, PropsUpdate, ROOT, Selector,
     ShaderEffect, SurfaceInfo, ToplevelState, Transform, Uniform,
     animation::{Animation, CameraMove},
     node::apply_meta,
@@ -747,6 +747,7 @@ impl Scene {
         check_props(id, node.kind, props)?;
         check_meta(id, &node.props.meta, props)?;
         self.animations.remove(id);
+        self.set_order(id, props.order);
         #[allow(clippy::expect_used, reason = "checked above")]
         let node = self.nodes.get_mut(id).expect("owned above");
         let Some((duration, easing)) = timing else {
@@ -898,17 +899,60 @@ impl Scene {
 
     #[allow(clippy::expect_used, reason = "the caller checks both nodes")]
     fn link(&mut self, id: &str, parent: &str, index: Option<usize>) {
+        let [low, high] = self.band(id, parent);
         let siblings = &mut self
             .nodes
             .get_mut(parent)
             .expect("checked by the caller")
             .children;
-        let at = index.map_or(siblings.len(), |i| i.min(siblings.len()));
+        let at = index.map_or(high, |i| i.clamp(low, high));
         siblings.insert(at, id.into());
         self.nodes
             .get_mut(id)
             .expect("checked by the caller")
             .parent = Some(parent.into());
+    }
+
+    /// The places among the children of `parent` where `id` may go: for
+    /// the root, from the first to after the last root of the same
+    /// [`Order`] (D89); anywhere under another parent.
+    fn band(&self, id: &str, parent: &str) -> [usize; 2] {
+        let Some(siblings) = self.nodes.get(parent).map(|p| &p.children) else {
+            return [0, 0];
+        };
+        if parent != ROOT {
+            return [0, siblings.len()];
+        }
+        let order = self.order_of(id);
+        let low = siblings
+            .iter()
+            .take_while(|s| self.order_of(s) < order)
+            .count();
+        let high = siblings
+            .iter()
+            .take_while(|s| self.order_of(s) <= order)
+            .count();
+        [low, high]
+    }
+
+    /// The order of a node; a surface is normal.
+    fn order_of(&self, id: &str) -> Order {
+        self.nodes.get(id).map_or(Order::Normal, |n| n.props.order)
+    }
+
+    /// Gives a node a new order; a root group goes on top of it.
+    fn set_order(&mut self, id: &str, order: Option<Order>) {
+        let Some(order) = order.filter(|o| *o != self.order_of(id)) else {
+            return;
+        };
+        let Some(node) = self.nodes.get_mut(id) else {
+            return;
+        };
+        node.props.order = order;
+        if node.parent.as_deref() == Some(ROOT) {
+            self.unlink(id);
+            self.link(id, ROOT, None);
+        }
     }
 
     fn unlink(&mut self, id: &str) {
@@ -947,6 +991,17 @@ impl Scene {
         std::iter::successors(Some(id), |current| {
             self.nodes.get(*current)?.parent.as_deref()
         })
+    }
+
+    /// The order of the root group that holds a node, the node itself
+    /// included (D89); `None` for the root and for nodes outside of it.
+    #[must_use]
+    pub fn root_order(&self, id: &str) -> Option<Order> {
+        let mut line: Vec<&str> = self.ancestors(id).collect();
+        if line.pop() != Some(ROOT) {
+            return None;
+        }
+        line.last().map(|top| self.order_of(top))
     }
 
     fn node_mut(&mut self, id: &str) -> Result<&mut Node, SceneError> {

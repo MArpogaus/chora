@@ -116,7 +116,8 @@ class Expect:
     gone        the number of toplevels that went away
     focus       the look that says it holds the focus once quiet
     open        the ids that are open afterwards, in any look
-    helper      the `helper` word of every look that reports one
+    helper      the `helper` word of every look that reports one and of
+                the presenter chora-assistant while it runs
     cube        fields of the answer of the cube role `cube.list`; `faces`
                 is compared by its count
     verify      a function of the snapshot after the act that answers
@@ -156,6 +157,8 @@ class Expect:
             words = {
                 look: s.get("helper") for look, s in after.states.items() if s and "helper" in s
             }
+            if "assistant" in after.clients:
+                words["assistant"] = ((after.blocks or {}).get("assistant") or {}).get("helper")
             if not words or any(w != self.helper for w in words.values()):
                 out.append(f"expected the helper {self.helper}, got {words}")
         if self.cube is not None:
@@ -360,7 +363,7 @@ LOOKS = {
     ),
 }
 WALLPAPER = {"xp", "mc", "construct"}
-BLOCKS = ["notify"]
+BLOCKS = ["notify", "assistant"]
 
 
 class Session:
@@ -442,6 +445,7 @@ class Session:
                 "screen.capture",
                 "input.inject",
                 "methods.call",
+                "methods.privileged",
             ],
             env=self.env,
             check=True,
@@ -684,6 +688,29 @@ def click(x, y, button=272):
     return lambda s: s.inject(
         [{"pointer_move": {"position": [x, y]}}, {"click": {"button": button}}]
     )
+
+
+def drag_title(look, dx, dy, index=-1):
+    """A cue: drag the title bar of the window `index` of the state of `look`
+    (the topmost by default) by `dx`, `dy`, in steps, and let go. The title
+    bar lies above the client, 25 px high; its middle is the grip."""
+
+    def cue(s):
+        x, y, w, _h = s.state(look)["windows"][index]["rect"]
+        start = [x + w / 2, y - 12]
+        events = [
+            {"pointer_move": {"position": start}},
+            {"button": {"button": 272, "state": "pressed"}},
+        ]
+        for i in range(1, 7):
+            point = [start[0] + dx * i / 6, start[1] + dy * i / 6]
+            events.append({"pointer_move": {"position": point}})
+            s.inject(events)
+            events = []
+            time.sleep(0.05)
+        s.inject([{"button": {"button": 272, "state": "released"}}])
+
+    return cue
 
 
 def program(name, *args, log=None):

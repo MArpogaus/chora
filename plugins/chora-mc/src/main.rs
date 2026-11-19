@@ -362,7 +362,7 @@ struct Mc {
     /// `focus.changed`.
     core_focus: Option<String>,
     /// The word of `state.get`; only reads.
-    voiced_word: chora_kit::helper::Helpers,
+    voiced_word: chora_kit::helper::Helper,
     /// The window that a `drag` binding holds since its press.
     dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
@@ -381,6 +381,8 @@ struct Mc {
     volume_ticks: u32,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
+    /// The ids that the notification server gave the notices of mc, for `notify.clear`.
+    notices: agent::Notices,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
     /// The names of the helpers that voice reported.
@@ -397,11 +399,6 @@ struct Mc {
     slot: Option<[f64; 4]>,
     /// The output and the box that the host was told last.
     slot_sent: Option<(String, Option<[f64; 4]>)>,
-    /// The spoken confirmation that shows, until its answer.
-    confirming: Option<agent::Confirming>,
-    /// Whether mc claims the state indicator of the voice agent at its
-    /// next event: after the start and after the agent connected.
-    claim_due: bool,
     /// How far the page of a scene scrolled down, by scene.
     scroll: BTreeMap<String, f64>,
 }
@@ -437,15 +434,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         mc.page_keys = keys::PageKeys::Bound;
     }
     mc.start(methods)?;
-    // The kit logged it; the defaults that apply show notify.
-    if let Some(err) = mc.settings.broken() {
-        let push = json!({"title": "Settings", "body": err, "urgency": "critical"});
-        let shown = serde_json::from_value(push)
-            .map_err(|e| e.to_string())
-            .and_then(|push| mc.push(push).map_err(|e| e.message));
-        if let Err(err) = shown {
-            eprintln!("chora-mc: notify: {err}");
-        }
+    if let Some(err) = mc.settings.broken().map(str::to_owned) {
+        mc.notice("Settings", &err);
     }
     loop {
         let event = mc.rt.conn.next_event()?;
@@ -530,7 +520,7 @@ impl Mc {
             rendered: None,
             focus: Focus::default(),
             core_focus: None,
-            voiced_word: chora_kit::helper::Helpers::default(),
+            voiced_word: chora_kit::helper::Helper::default(),
             dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,
@@ -539,6 +529,7 @@ impl Mc {
             volume_reading: None,
             volume_ticks: 0,
             texts: BTreeMap::new(),
+            notices: agent::Notices::default(),
             agents: Vec::new(),
             voiced: Vec::new(),
             agent_focus: None,
@@ -547,8 +538,6 @@ impl Mc {
             chat: Chat::Closed,
             slot: None,
             slot_sent: None,
-            confirming: None,
-            claim_due: true,
             scroll: BTreeMap::new(),
         };
         mc.keep_texts();
@@ -622,7 +611,7 @@ impl Plugin for Mc {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
-        self.voiced_word.hear(&event);
+        self.voiced_word.hear_asking(&event, &mut self.rt.conn);
         if chora_kit::wm::Book::hears(&event) {
             self.lifecycle(&event)?;
         }
@@ -868,65 +857,33 @@ impl Mc {
         }
     }
 
-    /// An event of a client (D65): `NAME.state` sets the agent `NAME` as
-    /// `agent.set` does, or the sub-agent that `name` in the data names;
-    /// `NAME.remove` removes such a sub-agent; `NAME.say` shows a sentence
-    /// as `hud.say` does. Wrong data only logs, since the emitter gets no
-    /// answer; other events do nothing.
+    /// An event of the voice agent (D65). The HUD host
+    /// draws the state, the sentences and the questions of the agent, so
+    /// mc takes from its own state only the state of the microphone;
+    /// `voice.state` with a `name` sets that helper as `agent.set` does,
+    /// and `voice.remove` removes it. Wrong data only logs, since the
+    /// emitter gets no answer; other events do nothing.
     fn follow(&mut self, event: &str, client: &str, mut data: Value) -> Result<(), ClientError> {
-        if client == VOICE {
-            self.claim_indicator(true);
-        }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
-        let own_state = client == VOICE && kind == Some("state") && data.get("name").is_none();
-        if own_state && self.mic_follows(mic::Mic::of(&data)) {
+        let helper = data.get("name").is_some();
+        if kind == Some("state") && !helper && self.mic_follows(mic::Mic::of(&data)) {
             self.render()?;
         }
-        let host = client == VOICE && self.settings.value.voice_hud == config::VoiceHud::Host;
-        let hosts_it = match kind {
-            Some("confirm" | "say") => true,
-            Some("state") => data.get("name").is_none(),
-            _ => false,
-        };
-        if host && hosts_it {
-            return Ok(());
-        }
         let done = match kind {
-            Some("state") => {
+            Some("state") if helper => {
                 if let Some(object) = data.as_object_mut() {
-                    object.entry("name").or_insert_with(|| client.into());
                     object.retain(|key, _| agent::STATE_FIELDS.contains(&key.as_str()));
                 }
-                if client == VOICE {
-                    self.voiced(&data);
-                }
+                self.voiced(&data);
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
             Some("remove") => runtime::params(data).and_then(|r| self.remove_agent(&r)),
-            Some("confirm") => self.confirm(&data),
-            Some("say") => match runtime::params(data) {
-                Ok(say) => return self.say(say),
-                Err(e) => Err(e),
-            },
             _ => Ok(()),
         };
         if let Err(e) = done {
             eprintln!("chora-mc: {event}: {e}");
         }
         Ok(())
-    }
-
-    /// Asks the voice agent to hide its own state indicator, since mc
-    /// shows the state, while one is due. An error, such as no agent or
-    /// an agent without the method, only leaves it due; after an event
-    /// of the agent (`last`) it is no longer due.
-    fn claim_indicator(&mut self, last: bool) {
-        if !self.claim_due || self.settings.value.voice_hud == config::VoiceHud::Host {
-            return;
-        }
-        let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
-        let done = self.rt.conn.call::<_, Value>("methods.call", call).is_ok();
-        self.claim_due = !done && !last;
     }
 
     /// An event of a client (D65): of the voice agent, or `assistant.chat`
@@ -1015,11 +972,9 @@ impl Mc {
         self.apply(vec![focus])
     }
 
-    /// The voice agent came or went: its indicator is due again, and the
-    /// state of its microphone is unknown until its next state.
+    /// The voice agent came or went: the state of its microphone is
+    /// unknown until its next state.
     fn voice_changed(&mut self) -> Result<(), ClientError> {
-        self.claim_due = true;
-        self.claim_indicator(false);
         if self.mic_follows(mic::Mic::Unknown) {
             self.render()?;
         }
@@ -1077,8 +1032,8 @@ impl Mc {
             "agent.remove" => self.remove_agent(&runtime::params(params)?),
             "agent.list" => return Ok(self.list_agents()),
             "agent.focus" => self.focus_agent(&runtime::params(params)?),
-            "notify.push" => self.push(runtime::params(params)?),
-            "notify.clear" => self.clear_notifications(),
+            "notify.push" => self.push(&runtime::params(params)?),
+            "notify.clear" => self.clear_notices(),
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
         .map(|()| Value::Null)
@@ -1295,17 +1250,6 @@ fn needs_claim(action: &Action) -> bool {
 }
 
 /// Keeps the regions over a scene group that was just created.
-/// The root of mc below the roots of the other plugins, so that a window
-/// of another window manager that is dragged over the output shows above
-/// the opaque page and not behind it.
-fn under_other_plugins() -> Command {
-    Command::Move {
-        id: NAME.into(),
-        parent: None,
-        index: Some(0),
-    }
-}
-
 fn regions_on_top() -> Command {
     Command::Move {
         id: REGIONS.into(),
@@ -1349,6 +1293,63 @@ mod tests {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    #[test]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "the test connects to its fake core"
+    )]
+    fn the_root_of_mc_lies_in_the_background_order_below_every_other_root() {
+        let core = chora_kit::testing::FakeCore::start();
+        let mut xp = core.connect("xp");
+        xp.apply(vec![super::create(
+            "xp",
+            NodeKind::Group,
+            chora_scene::ROOT,
+            PropsUpdate::default(),
+        )])
+        .unwrap();
+        let mut mc = crate::testing::mc_on(&core, "background-order", [800, 600]);
+        let model = core.model();
+        let roots = || {
+            model
+                .lock()
+                .unwrap()
+                .scene
+                .node(chora_scene::ROOT)
+                .unwrap()
+                .children
+                .clone()
+        };
+        let order = model
+            .lock()
+            .unwrap()
+            .scene
+            .node(super::NAME)
+            .unwrap()
+            .props
+            .order;
+        assert_eq!(order, chora_scene::Order::Background);
+        xp.apply(vec![Command::Move {
+            id: "xp".into(),
+            parent: None,
+            index: Some(0),
+        }])
+        .unwrap();
+        assert_eq!(
+            roots().first().map(String::as_str),
+            Some(super::NAME),
+            "{:?}",
+            roots()
+        );
+        mc.build().unwrap();
+        assert_eq!(
+            roots().first().map(String::as_str),
+            Some(super::NAME),
+            "{:?}",
+            roots()
+        );
     }
 
     /// The head of a page opens the page list: it takes the pointer like
@@ -1548,51 +1549,6 @@ mod tests {
             .unwrap_or_default()
     }
 
-    /// A note is one line: its time in the margin style, its words in the
-    /// reading face at a hanging indent. No blank line between two notes.
-    #[test]
-    fn a_notification_is_one_line_with_its_time_in_the_margin_style() {
-        use chora_kit::runtime::Plugin as _;
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("notes", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        for title in ["One", "Two", "Three", "Four"] {
-            mc.method("notify.push", json!({"title": title})).unwrap();
-        }
-        let items = right_items(&mc);
-        let words: Vec<_> = (items.iter())
-            .filter(|i| i.id.contains("-notify-") && !i.id.ends_with("-title"))
-            .collect();
-        assert_eq!(words.len(), 6, "three notes of a time and words each");
-        assert_eq!(words[0].props.family.as_deref(), Some("Inter"));
-        assert_eq!(words[0].props.text.as_deref().map(str::len), Some(5));
-        assert_eq!(words[1].props.text.as_deref(), Some("Four"));
-        assert_eq!(words[1].put, crate::region::Put::Row);
-        assert!(words[1].x > 40.0, "a hanging indent: {}", words[1].x);
-        assert!(words[2].put == crate::region::Put::Stack, "the next note");
-        let tall = |i: &&crate::region::Item| i.props.font_size.unwrap_or(0.0) < 15.0;
-        assert!(words.iter().step_by(2).all(tall), "times at 14.25");
-    }
-
-    /// The empty words stay quiet and the folded head counts nothing.
-    #[test]
-    fn nothing_new_is_muted_and_the_folded_head_counts_zero() {
-        let (mut mc, _) = crate::testing::mc("quiet", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        let muted = mc.settings.value.colors()["muted"];
-        let items = right_items(&mc);
-        let empty = items.iter().find(|i| i.id.ends_with("-notify")).unwrap();
-        assert_eq!(empty.props.text.as_deref(), Some("Nothing new."));
-        assert_eq!(empty.props.color, Some(muted));
-        mc.chat = crate::Chat::Open;
-        let items = right_items(&mc);
-        let head = items
-            .iter()
-            .find(|i| i.id.ends_with("-notify-title"))
-            .unwrap();
-        assert_eq!(head.props.text.as_deref(), Some("NOTIFICATIONS  0"));
-    }
-
     /// An open chat keeps the keyboard; when it closes the page that
     /// shows gets it, to its window or its node.
     #[test]
@@ -1682,20 +1638,26 @@ mod tests {
         assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
-    /// A chat that cannot open says so in a red notice, not only in a log.
+    /// A chat that cannot open says so in a critical notice of
+    /// the notification server, not only in a log.
     #[test]
     fn a_chat_that_does_not_open_shows_a_notice() {
-        let (mut mc, model) = crate::testing::mc("chat-refused", [1280, 800]);
+        use chora_kit::testing::FakeCore;
+        use serde_json::json;
+        let core = FakeCore::start();
+        core.answer_with("notify.show", json!({"id": 3}));
+        let mut mc = crate::testing::mc_on(&core, "chat-refused", [1280, 800]);
         mc.show("agenda", false).unwrap();
-        model.lock().unwrap().refusals.push("methods.call".into());
+        core.refuse_next("methods.call");
         mc.chat_with(None);
-        let urgent = mc.texts["urgent"].1.join(" ");
-        assert!(urgent.contains("The chat does not open"), "{urgent}");
-        let notes = &mc.texts["notify"].1;
-        let said = notes
-            .iter()
-            .filter(|line| line.contains("The chat does not open"));
-        assert_eq!(said.count(), 1, "{notes:?}");
+        let called = core.model().lock().unwrap().called.clone();
+        let shown: Vec<_> = (called.iter())
+            .filter(|c| c["method"] == "notify.show")
+            .collect();
+        assert_eq!(shown.len(), 1, "{called:?}");
+        let params = &shown[0]["params"];
+        assert_eq!(params["urgency"], "critical");
+        assert!(params["body"].as_str().unwrap().contains("does not open"));
     }
 
     /// The door of the chat has a state word: no helper, a helper, no
@@ -1815,35 +1777,13 @@ mod tests {
         );
     }
 
-    /// The claim of the indicator of the voice agent goes out at the
-    /// start, again after the agent connected, and with its first event
-    /// after a failed claim; then no more.
+    /// The HUD host draws the voice HUD and the question: mc shows
+    /// neither the state nor the sentence of the voice agent nor its
+    /// question, and still shows its helpers.
     #[test]
-    fn mc_claims_the_indicator_of_voice_once_per_connection() {
-        let (mut mc, model) = crate::testing::mc("claim", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let claims = || model.lock().unwrap().calls.len();
-        mc.claim_indicator(false);
-        assert_eq!(claims(), 1);
-        mc.follow("voice.state", "voice", serde_json::json!({}))
-            .unwrap();
-        assert_eq!(claims(), 1, "claimed already");
-        let connected = chora_scene::Event::ClientConnected {
-            name: "voice".into(),
-        };
-        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
-        assert_eq!(claims(), 2);
-        assert!(!mc.claim_due);
-    }
-
-    /// With `voice_hud: host` the host draws the voice HUD and the
-    /// question: mc shows neither the state nor the sentence of the voice
-    /// agent nor its question, and still shows its helpers.
-    #[test]
-    fn voice_hud_host_draws_no_voice_status() {
+    fn the_host_draws_the_voice_status() {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("host-status", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
         mc.follow("voice.state", "voice", json!({"state": "listening"}))
             .unwrap();
         mc.follow(
@@ -1863,16 +1803,14 @@ mod tests {
         .unwrap();
         assert!(mc.hud.state.is_empty() && mc.hud.text.is_empty());
         assert!(!mc.agents.iter().any(|a| a.name == "voice"));
-        assert!(mc.confirming.is_none() && mc.solo.is_none());
+        assert!(mc.solo.is_none() && !mc.texts.contains_key("confirm"));
         assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
     }
 
-    /// With `voice_hud: host` mc never claims the indicator of voice.
+    /// mc never claims the indicator of voice: the HUD host does.
     #[test]
-    fn voice_hud_host_claims_no_indicator() {
+    fn mc_claims_no_indicator() {
         let (mut mc, model) = crate::testing::mc("host-claim", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
-        mc.claim_indicator(false);
         mc.follow("voice.state", "voice", serde_json::json!({}))
             .unwrap();
         let connected = chora_scene::Event::ClientConnected {
@@ -2383,41 +2321,6 @@ mod tests {
         assert_eq!(mc.focus.surface, None);
     }
 
-    /// A client with `methods.call` alone rewrote the detail of a spoken
-    /// confirmation and the notifications through content.set and
-    /// content.add (review plugins r1, MC-02 and MC-03): the contents that
-    /// mc writes itself refuse both.
-    #[test]
-    fn the_contents_that_mc_writes_refuse_content_set_and_add() {
-        use chora_kit::runtime::Plugin as _;
-        use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("own-contents", [1920, 1080]);
-        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
-        let ask = json!({"id": 21, "prompt": "Run it?", "detail": "rm -r build"});
-        mc.follow("voice.confirm", "voice", ask).unwrap();
-        mc.method(
-            "notify.push",
-            json!({"title": "Disk is full", "urgency": "critical"}),
-        )
-        .unwrap();
-        let before = mc.texts.clone();
-        for content in ["confirm", "notify", "urgent"] {
-            let set = json!({"content": content, "title": "Run it?", "lines": ["ls"]});
-            assert!(
-                mc.method("content.set", set).is_err(),
-                "content.set {content}"
-            );
-            let add = json!({"content": content, "line": "ls"});
-            assert!(
-                mc.method("content.add", add).is_err(),
-                "content.add {content}"
-            );
-        }
-        assert_eq!(mc.texts, before);
-        let notes = json!({"content": "notes", "lines": ["x"]});
-        mc.method("content.set", notes).unwrap();
-    }
-
     /// `panel.set` is unprivileged and rewrote the columns of the agents,
     /// the words that the page shows as the agent's, and the list of the
     /// overview (review security a r1, MC-03 alias): mc writes those alone.
@@ -2439,32 +2342,38 @@ mod tests {
         mc.method("panel.set", lines).unwrap();
     }
 
-    /// A pointer press of `input.inject` on the urgent line cleared it,
-    /// as a key row ran its binding (review plugins r1, MC-04): the hits
-    /// and the agent columns ignore injected presses, as the bindings do.
+    /// The notifications are the notification server's: `notify.push` of mc shows
+    /// through `notify.show` as `chora_kit::notice` does, a critical one
+    /// until the person closes it, and `notify.clear` closes what mc
+    /// showed, once per id (the fake server gives both the id 7).
     #[test]
-    fn an_injected_press_on_a_hit_does_nothing() {
-        use chora_kit::runtime::Plugin as _;
+    fn notify_push_shows_through_chora_notify_and_clear_closes_it() {
+        use chora_kit::{runtime::Plugin as _, testing::FakeCore};
         use serde_json::json;
-        let (mut mc, _) = crate::testing::mc("injected-hit", [1280, 800]);
-        mc.show("agenda", false).unwrap();
-        mc.method(
-            "notify.push",
-            json!({"title": "Disk is full", "urgency": "critical"}),
-        )
-        .unwrap();
-        let item = (mc.items("agenda").into_values())
-            .flat_map(|(items, _)| items)
-            .find(|i| i.id.ends_with("-urgent"))
-            .expect("the urgent line");
-        let hit = format!("{}-hit", item.id);
-        mc.press(&hit, [0.0, 0.0], true).unwrap();
-        assert!(
-            !mc.texts["urgent"].1.is_empty(),
-            "an injected press cleared it"
+        let core = FakeCore::start();
+        core.answer_with("notify.show", json!({"id": 7}));
+        let mut mc = crate::testing::mc_on(&core, "forward", [1280, 800]);
+        let push = json!({"title": "Disk", "body": "full", "urgency": "critical"});
+        mc.method("notify.push", push).unwrap();
+        mc.method("notify.push", json!({"title": "Update"}))
+            .unwrap();
+        mc.method("notify.clear", json!({})).unwrap();
+        let sent: Vec<_> = (core.model().lock().unwrap().called.iter())
+            .filter(|c| c["client"] == "notify")
+            .map(|c| (c["method"].clone(), c["params"].clone()))
+            .collect();
+        let show = |summary, body, expire_ms, urgency| {
+            json!({"app": "mc", "replaces": null, "icon": "", "summary": summary,
+                   "body": body, "expire_ms": expire_ms, "urgency": urgency})
+        };
+        assert_eq!(
+            sent,
+            [
+                (json!("notify.show"), show("Disk", "full", 0, "critical")),
+                (json!("notify.show"), show("Update", "", -1, "normal")),
+                (json!("notify.close"), json!({"id": 7})),
+            ]
         );
-        mc.press(&hit, [0.0, 0.0], false).unwrap();
-        assert!(mc.texts["urgent"].1.is_empty(), "the press of the person");
     }
 
     /// A key of `input.inject` turned the page, or went back along the

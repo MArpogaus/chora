@@ -1789,6 +1789,52 @@ mod tests {
     }
 
     #[test]
+    fn the_lock_order_stays_above_every_plugin() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut mc = core.named("mc");
+        let mut bar = core.named("bar");
+        let (status, message) = mc.fails(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "mc", "kind": "group", "parent": "root",
+                "props": {"order": "lock"}}}]}),
+        );
+        assert_eq!(status, 1, "SceneError::Invalid: {message}");
+        assert!(message.contains("lock"), "{message}");
+        bar.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "bar", "kind": "group", "parent": "root",
+                "props": {"order": "overlay"}}}]}),
+        );
+        mc.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "mc", "kind": "group", "parent": "root",
+                "props": {"order": "background"}}}]}),
+        );
+        let root = mc.ok(&mut core, "scene.query", json!({"selector": "id:root"}));
+        assert_eq!(root[0]["children"], json!(["mc", "bar"]), "bottom first");
+    }
+
+    #[test]
+    fn an_unknown_order_is_refused_at_the_parse_and_not_defaulted() {
+        let mut core = Core::new();
+        core.add_output("out", (800, 600));
+        let mut mc = core.named("mc");
+        let (status, message) = mc.fails(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "mc", "kind": "group", "parent": "root",
+                "props": {"order": "top"}}}]}),
+        );
+        assert_eq!(status, -32602, "{message}");
+        let root = mc.ok(&mut core, "scene.query", json!({"selector": "id:root"}));
+        assert_eq!(root[0]["children"], json!([]), "nothing was created");
+    }
+
+    #[test]
     fn query_filters_by_owner_kind_app_id_and_focus() {
         let mut f = fixture();
         assert_eq!(

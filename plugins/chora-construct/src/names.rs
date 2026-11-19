@@ -87,6 +87,13 @@ pub fn face_title(manager: &str, face: usize, faces: usize) -> String {
     }
 }
 
+/// The client name of the window manager of a program: the program
+/// without the prefix `chora-`, as `chora-foo` connects as `foo`.
+#[must_use]
+pub fn client_of(program: &str) -> &str {
+    program.strip_prefix("chora-").unwrap_or(program)
+}
+
 /// The display name of the window manager that a command line starts:
 /// its program without the path and without the prefix `chora-`.
 #[must_use]
@@ -144,6 +151,16 @@ mod tests {
     use super::*;
 
     const EN: Language = Language::En;
+
+    #[test]
+    fn the_client_of_a_manager_is_its_program_without_chora() {
+        assert_eq!(
+            client_of(program_of("/usr/bin/chora-bar --manage-windows")),
+            "bar"
+        );
+        assert_eq!(client_of(program_of("chora-foo")), "foo");
+        assert_eq!(client_of("my-wm"), "my-wm");
+    }
 
     #[test]
     fn a_pane_is_labelled_with_its_title() {
