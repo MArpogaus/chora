@@ -508,7 +508,7 @@ impl Agent {
     /// that a panel reads changed, the figure on the output of the focus. A
     /// folder that fails to load leaves the look as it is and is not asked
     /// for again.
-    fn restyle(&mut self, context: &Context) -> Result<Vec<Command>, ClientError> {
+    pub fn restyle(&mut self, context: &Context) -> Result<Vec<Command>, ClientError> {
         let wanted = if self.source.assets.is_some() {
             self.folder.clone()
         } else {

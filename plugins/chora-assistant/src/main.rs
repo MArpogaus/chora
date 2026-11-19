@@ -1076,6 +1076,30 @@ mod tests {
     }
 
     #[test]
+    fn a_new_look_keeps_the_files_of_the_figure_on_the_screen_until_it_is_replaced() {
+        let mut agent = on_fake_core("reload", false);
+        agent.folder = "before".into();
+        let old = agent.look_cache.clone();
+        let ring = agent
+            .theme
+            .cache_file("ring.frag", "void main() {}")
+            .unwrap();
+        let commands = agent.restyle(&Context::default()).unwrap();
+        assert_ne!(agent.look_cache, old, "the neutral folder loaded again");
+        assert!(
+            ring.exists(),
+            "the figure on the screen still draws with the shader of the old look"
+        );
+        assert!(
+            agent.stale.contains(&old),
+            "it goes once the new figure shows"
+        );
+        agent.apply(commands).unwrap();
+        let _ = std::fs::remove_dir_all(old);
+        let _ = std::fs::remove_dir_all(&agent.look_cache);
+    }
+
+    #[test]
     fn a_hover_of_a_program_leaves_no_mark_and_one_of_a_person_does() {
         let mut agent = on_fake_core("hover", false);
         agent.event(entered("hud-chat-close", true)).unwrap();
