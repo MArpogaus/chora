@@ -32,3 +32,34 @@ F27: `fuzzel --version` = 1.11.1 +cairo +png +svg(nanosvg) -assertions.
 - Gate 3 on 847f0964 (`--jobs 3`, /tmp/merge-gate.jW4RQ3, lane container): all 41 steps PASS (pull 70 s, cube 114 s, tiling-audit 348 s, doors 343 s, chat-keys 8 s), 11:18 UTC.
 
 Commits on claude/flakes-f: f106713d (red), 10c5a50b, 16dbdd4a (red), cc413838, d9100536 (red), 5955b3a9, f1db38ad (red), 847f0964.
+
+## Review r1
+
+Reviewer: cloud lane, opus, read-only on claude/flakes-f 847f0964 (base dc4bc46d, 9 files, +322 -35). Brief briefs/review-flakes-f-r1.md.
+
+Ran: `cargo test -p chora-construct` 190/190 ok; `cargo test -p chora --lib words` 12/12 ok; `bash tests/gate-lib-selftest.sh` ok;
+reds confirmed: f1db38ad pull cell fails (yaw 1.32 for 0.55), 16dbdd4a words cell fails ("stuck after 150 ms in the state S");
+under-load.sh killed with TERM leaves no busy loop.
+
+Checks:
+1. F21 pull: take_pulled places, sizes the depth and faces the pane for `target()` (= pose without a glide, so unchanged
+   at rest); `boxed` uses the same pose. Other callers: `move_pane` (plugin.rs:148 pane.move) keeps the current pose;
+   `drag_pane` now faces `target()` and is equal to the old pose when no glide runs. No caller relies on the old pose. OK.
+2. F17 words: `stuck` treats a write(2) to fd 2 (/proc syscall) as held up; a lock wait (futex, state S) is still
+   stuck at GIVE_UP_AFTER, and every wait still ends at GIVE_UP_AT_LAST (60 s), so a reader that never reads cannot
+   hang the core. write_all: EINTR retries (SA_RESTART makes it rare, a signal per alarm only), short writes advance,
+   0 and other errors end; no spin, no malloc (Cursor path, stack buffers, errno read). /proc open failure gives
+   false (old behaviour). New code uses /proc and SYS_write only, as the existing state_of/gettid; the crate is Linux-only. OK.
+3. F29 tiling-audit: own FAIL line, the audit still runs after it, waybar is at the top so work_area[1] is the bar
+   reserve. Bound is not 20 s, see rw-1.
+4. gate-lib: `: >"$env_file"` truncates before the new session; the old session is killed and waited in end_session,
+   headless-session.sh cleans its core on TERM and the core logs elsewhere, so no old line can land in the new file. OK.
+5. under-load.sh: busy loops are `sh -c` (no package), pass = exit 0 and no ^FAIL line, no sleeps. OK, see rw-3.
+
+Findings:
+- rw-1, MINOR, tests/gate-tiling-audit.sh:86, `fullscreen_rests` bounds iterations (80 x 0.25 s), not time: each round runs two `ctl` calls (timeout 10 each) and jq, so under load the wait can run far past 20 s (worst 80 x 20 s) while the FAIL line says "within 20 s"; fix: loop on a deadline (`end=$((SECONDS + 20)); while [ "$SECONDS" -lt "$end" ]`).
+- rw-2, MINOR, crates/chora/src/words.rs:101, no cell covers the short-write path of `write_all` (the 63954-byte cut of the report): the new cell blocks SIGALRM on the writer, so with SA_RESTART its write is never cut; fix: add the same cell without the sigmask (alarm on the writing thread, reader 300 ms late) asserting `thread_start` arrives.
+- rw-3, NIT, plugins/chora-construct/src/input.rs:755, `drag_pane` takes the pace k and the forward of `self.pose` while it faces `target()`: a drop during the turn back lands off the pointer (it catches up on the next move after the glide); fix: use `self.target()` for k and forward too, or say why the current pose is meant.
+- rw-4, NIT, tests/under-load.sh:44, a run has no time limit, so a hung gate hangs the tool; fix: wrap each run in `timeout` (a `--timeout S` option, default 1800).
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 2 NIT).
