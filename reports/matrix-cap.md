@@ -48,3 +48,13 @@ After the change, 5 runs under the same command: 225, 226, 225, 227, 221 s, all 
 - run 3: all 40 steps PASS (exit 0), matrix script 241 s: it would have failed the old cap of 240 s at 1 s; the step took 329 s with the three gates after it.
 
 Matrix script times inside the three full runs: 228, 218, 241 s. The two reds of runs 1 and 2 are other gates' timing under 3 jobs on 4 CPUs; construct-hud and cube are not changed here.
+
+## Review r1 (PM, 17:25; builder: sonnet lane; diff 1 file, +28 -9)
+Checks: base 05878d2a in 85764974, no change to the file since (no conflict); bash -n clean; two
+fixed sleeps became polled conditions; cap 240 -> 315 s from five runs under --jobs 3 (worst 249 s
++ 25 %), documented as a hang guard, not a speed test; phase lines per part.
+- MINOR m1: both new polls fall through silently on timeout (eof 10 s, pane 5 s); the later cell
+  checks still catch a missing pane, so no false pass. Known issue.
+- MINOR m2: MX1 asked which time the cap measures (a rerun printed 322 s as PASS); the report does
+  not answer it. Stays open in backlog MX1.
+Verdict (computed): no open MAJOR -> MERGE-OK b71c5096. Harness branch: its own train 67 first.
