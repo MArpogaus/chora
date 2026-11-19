@@ -403,12 +403,6 @@ struct Mc {
     scroll: BTreeMap<String, f64>,
 }
 
-/// One line on stderr for a page that could not be shown: the plugin keeps
-/// running and the log says which page and why.
-pub(crate) fn report(what: &str, message: &str) {
-    eprintln!("chora-mc: {what}: {message}");
-}
-
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
     let args = Args::parse();
@@ -1023,7 +1017,7 @@ impl Mc {
         if let Some(name) = back.or(first)
             && let Err(err) = self.show(&name, true)
         {
-            crate::report(&name, &err.message);
+            chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
         self.trail = trail;
     }
@@ -1287,6 +1281,23 @@ fn wait() -> Command {
 #[cfg(test)]
 mod tests {
     use chora_scene::{Command, NodeKind, PropsUpdate};
+
+    /// The line that a page that cannot be shown leaves in the log (a
+    /// guard of the move of `report` to the kit).
+    #[test]
+    fn report_line() {
+        if chora_kit::testing::in_child() {
+            chora_kit::runtime::report(
+                crate::NAME,
+                &format_args!("{}: {}", "Overview", "no such window"),
+            );
+            return;
+        }
+        assert_eq!(
+            chora_kit::testing::stderr_of("tests::report_line"),
+            "chora-mc: Overview: no such window\n"
+        );
+    }
 
     fn text(id: &str, text: &str, color: Option<[f64; 4]>) -> Command {
         super::create(

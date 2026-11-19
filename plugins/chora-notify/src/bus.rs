@@ -151,7 +151,10 @@ impl Server {
         vec!["actions", "body", "icon-static"]
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(
+        clippy::unused_self,
+        reason = "a D-Bus interface method; its signature is fixed"
+    )]
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
         ("chora-notify", "chora", env!("CARGO_PKG_VERSION"), "1.2")
     }

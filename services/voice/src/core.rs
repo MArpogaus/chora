@@ -274,7 +274,10 @@ const ECHO_MEMORY: Duration = Duration::from_secs(3);
 const NOTES: usize = 8;
 
 // ponytail: the flags of the state machine; one state enum if they grow.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the core keeps several independent flags"
+)]
 pub struct Core {
     config: Config,
     gate: Gate,
@@ -350,6 +353,9 @@ pub struct Core {
     tts_failed: Option<u64>,
     /// The ACP agents by name: the parameters of `mc agent.set`.
     subs: BTreeMap<String, Value>,
+    /// The names of `subs` in the order of their latest reports, the
+    /// latest last.
+    reported: Vec<String>,
     /// The question of a sub-agent that waits for yes or no, and until
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
@@ -433,6 +439,7 @@ impl Core {
             notes: VecDeque::new(),
             tts_failed: None,
             subs: BTreeMap::new(),
+            reported: Vec::new(),
             sub_confirm: None,
             sub_until: now,
             sub_physical: false,
@@ -482,7 +489,7 @@ impl Core {
             "last_reply": self.last_reply,
             "queued": self.queue.len(),
             "coder": self.coder(),
-            "agents": self.subs.values().collect::<Vec<_>>(),
+            "agents": self.reported.iter().filter_map(|name| self.subs.get(name)).collect::<Vec<_>>(),
             "health": crate::health::record(),
         })
     }
@@ -725,10 +732,13 @@ impl Core {
         match event {
             agents::Event::State(record) => {
                 let name = record["name"].as_str().unwrap_or_default().to_owned();
+                self.reported.retain(|kept| *kept != name);
+                self.reported.push(name.clone());
                 self.subs.insert(name, record);
             }
             agents::Event::Gone(name) => {
                 self.subs.remove(&name);
+                self.reported.retain(|kept| *kept != name);
                 if self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name) {
                     self.sub_confirm = None;
                 }
@@ -1538,6 +1548,32 @@ mod tests {
         let record = json!({"name": "coder", "state": "working"});
         core.handle(Input::Agent(agents::Event::State(record)));
         core
+    }
+
+    /// The `agents` of the state come in the order of their reports, the
+    /// latest last, not by name, so that a reader that starts late (the
+    /// helper machine of the kit seeds from it) picks the latest helper.
+    #[test]
+    fn the_agents_of_the_record_keep_the_order_of_their_reports() {
+        let mut core = Core::new(Config::default());
+        for (name, state) in [("coder", "idle"), ("atlas", "idle"), ("coder", "done")] {
+            let record = json!({"name": name, "state": state});
+            core.handle(Input::Agent(agents::Event::State(record)));
+        }
+        let names = |core: &Core| -> Vec<String> {
+            let agents = core.record()["agents"].clone();
+            let names = agents.as_array().unwrap().iter();
+            names
+                .map(|a| a["name"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        assert_eq!(names(&core), ["atlas", "coder"], "coder reported last");
+        core.handle(Input::Agent(agents::Event::State(
+            json!({"name": "atlas", "state": "working"}),
+        )));
+        assert_eq!(names(&core), ["coder", "atlas"], "atlas reported last");
+        core.handle(Input::Agent(agents::Event::Gone("coder".into())));
+        assert_eq!(names(&core), ["atlas"]);
     }
 
     /// An ACP agent: its state shows, its question is spoken in its voice

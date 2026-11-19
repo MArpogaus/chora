@@ -393,6 +393,14 @@ impl Wayland {
         }
     }
 
+    /// Sets the xdg parent of a toplevel after its first commit and
+    /// commits.
+    pub fn reparent(&mut self, core: &mut Core, child: &Toplevel, parent: Option<&Toplevel>) {
+        child.role.set_parent(parent.map(|p| &p.role));
+        child.surface.commit();
+        self.roundtrip(core);
+    }
+
     /// A popup of a toplevel that grabs the input with a serial, after its
     /// first commit.
     pub fn popup(&mut self, core: &mut Core, parent: &Toplevel, serial: u32) -> Popup {

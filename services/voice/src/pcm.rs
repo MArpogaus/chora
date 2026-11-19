@@ -36,7 +36,10 @@ impl Default for Downsampler {
             })
             .collect();
         let sum: f64 = taps.iter().sum();
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a filter tap, narrowed to f32"
+        )]
         let taps = std::array::from_fn(|k| (taps[k] / sum) as f32);
         Self {
             taps,
@@ -82,7 +85,7 @@ pub fn samples(bytes: &[u8]) -> Vec<i16> {
 #[must_use]
 pub fn rms(samples: &[i16]) -> f64 {
     let sum: f64 = samples.iter().map(|&s| f64::from(s).powi(2)).sum();
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss, reason = "a sample count, exact in f64")]
     let n = samples.len().max(1) as f64;
     (sum / n).sqrt()
 }
@@ -102,7 +105,10 @@ pub fn normalized(samples: &[i16]) -> Vec<i16> {
     if gain <= 1.0 {
         return samples.to_vec();
     }
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the gain brings the loudest sample to ASR_PEAK, inside i16"
+    )]
     samples
         .iter()
         .map(|&s| (f64::from(s) * gain).round() as i16)
@@ -193,7 +199,10 @@ mod tests {
         (0..n)
             .map(|i| {
                 let t = f64::from(i) / f64::from(RATE);
-                #[allow(clippy::cast_possible_truncation)]
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "a sine sample scaled to +-10 000, inside i16"
+                )]
                 let s = (10_000.0 * (std::f64::consts::TAU * freq * t).sin()) as i16;
                 s
             })

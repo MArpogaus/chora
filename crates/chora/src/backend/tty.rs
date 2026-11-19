@@ -676,7 +676,10 @@ fn create_output(
 /// The size, make, model and serial number of a monitor, from its EDID.
 // The type of the EDID info is private in smithay-drm-extras, so the
 // closures cannot name its methods.
-#[allow(clippy::redundant_closure_for_method_calls)]
+#[expect(
+    clippy::redundant_closure_for_method_calls,
+    reason = "the EDID type is private in smithay-drm-extras, so the closures cannot name its methods"
+)]
 fn properties(device: &Device, connector: &connector::Info) -> PhysicalProperties {
     let info = display_info::for_connector(device.manager.device(), connector.handle());
     let text = |v: Option<String>| v.unwrap_or_else(|| "Unknown".into());
