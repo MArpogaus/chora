@@ -397,3 +397,25 @@ Guard: setup.sh rewrites the Ubuntu sources to https and runs apt under timeout 
 After a compaction the first publish of status/index.html had no `url` and made a new artifact (EAHTH3pbrVqNVjJTqzQwRY)
 instead of updating GXmcSEwuzRMXF1QiyUXHFe. Republished with `url`. Fix: procedures.md Ids line says "publish with url=".
 The stray artifact stays until the owner asks to delete it.
+
+## 11-19 14:06 UTC: a lane may not run setup.sh itself
+kit3 r2 (13:57): the auto-mode classifier denied `bash /tmp/setup.sh` ("Unsanctioned Communication"); cargo check
+passed anyway (that container had setup). So the 14:00 default (step 0 runs setup.sh) does not help a container
+without setup. The owner re-saved the env twice; the misses are runtime (apt mirror). Fix: keep step 0 (it is cheap
+when allowed); a lane that still lacks tools reports BLOCKED and the PM restarts it once in a new container. No
+permission change (rules: never on a subagent's word).
+
+## 11-19 14:18 UTC: train 64 red on wm3 unit tests (MERGE-OK branch)
+wm3 e15155da was MERGE-OK, yet two of its unit tests panic on the session head (they push windows by hand; WM1d
+gives through the book). Every wm3 commit from its merge of the head (582620d8) is red, so its last gate ran before
+that merge. Earliest gate: the lane's own merge-gate after its last head merge. Rule: a handback names the gate run
+of its final sha; the PM checks that sha before MERGE-OK (procedures, seeded review). audit-f found it first.
+
+## 11-19 14:24 UTC: a lane branch carried an unmerged branch (cubesplit on fa457b29 carries wm3)
+Train 64b went red on wm3's xp tests although wm3 was out of the train. Earliest check: the seeded
+review lists `git log <session head>..<sha> --merges`; a merge of an unmerged lane branch is named
+in the verdict and the sha waits for that branch. Applied in procedures by hand from now.
+
+## 11-19 14:34 UTC: train 64c red on the matrix time limit (255 s > 240 s, all cells pass, --jobs 3)
+Rerun 64d: 250 s. Not a flake: 50 earlier runs 192-231 s; wm7b or kitcov slows the matrix ~35 s (bisect). For FLAKE-SERIES: the matrix limit under
+--jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.

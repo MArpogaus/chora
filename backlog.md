@@ -245,3 +245,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - kit7 r2 MINOR/nit (11-19 13:14): answered->working untested (helper.rs:195); new utterance does not clear answered (helper.rs:205); seed() alphabetical, not report order (helper.rs:142); no voice-alone cell per look; docs/api.md:1573 rewrap. reports/kit7.md.
 - flake (11-19 13:32, wm5 r3): pull gate-construct-pull.sh:163 pane 169 px for 200 under load, passed alone x2; for flakes-g.
 - cut-check REPORT (wm3 r3, wm5 r3): Event::FocusChanged outside kit 9 > max 8; a kit focus slice brings it back (F2).
+- runtime.rs of chora-kit at 1446 lines (kitcov r1 tests): split before the next production change there (F4).
