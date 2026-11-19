@@ -25,17 +25,17 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | Lane | Model, branch | State |
 |---|---|---|
 | kit-report-r1.md (F2, F4) | sonnet high | MERGE-OK 582ab506, train 76 |
-| flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt (20:30) from 219d5afe |
+| flake-h-r1.md (F5) | sonnet high | session_016iS3kLiNdKN9zCqfAGKuUt |
 | kit-minors-r2.md (F2, F5) | sonnet medium | MERGE-OK e4208314, train 76 |
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 76 |
 | ig-fix-r2.md (F6) | sonnet low | MERGE-OK b717a5f2, train 76 |
 | temp-rest-r1.md (F2, F5) | sonnet medium | session_016iS3kLptnHFBxgynweQiE1 (22:32) |
 | temp-dirs-r2.md (F2, F5) | sonnet medium | MERGE-OK 86f42d1f (+kc-fix), train 77 |
-| flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH (21:43) |
+| flake-k-r1.md (F5) | sonnet high | session_016iS3kM7FnHjyUxMp89TMzH |
 | f24-rest-r1.md (F5) | sonnet medium | MERGE-OK 7231b51a, train 78 |
 | p2-plan-r1.md (next week) | opus high | session_016iS3kMFBnLJ7gVEmgjpPBa (22:34) |
 | nits-3-r1.md (F5) | sonnet medium | session_016iS3kNnRm2jce7Mh1tANM6 (22:34) |
-| flake-l-r1.md (F5) | sonnet high | starting |
+| flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo (22:40) |
 
 ## Queue (% of week; 5 % reserve)
 4. Trains (F6): 74 green 22:13. 75 red 22:18 (copies). 76 red 22:39 (xp rm-2 flake, 3rd), rerun: ig-fix, kit-report, minors-2, flake-i, kit-minors. 77: harness-gp 66f384b4. 78: temp-dirs r2 (holds kc-fix), f24-rest.
