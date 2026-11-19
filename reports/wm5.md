@@ -110,3 +110,26 @@ Range d14f5342..f6c67200, 9 files +117 -15. Verdict: MERGE-OK (no BLOCK, no MAJO
 - NIT: tests/test_acts.py I12 cell shells out to `cargo test -p chora-tiling`, so the acts step builds tiling tests;
   a missing dump file errors (red) rather than fails; acceptable.
 - NIT: only tiling writes `held`; xp, mc, construct drags still report false (out of this brief).
+
+## r3 (merge)
+Merge sha d74dd374 on claude/wm5 (parents f6c67200 and dd2a0aa3, one merge commit, no rebase, pushed without force).
+The session branch had not moved since dd2a0aa3 (no second merge needed).
+
+Conflicts, all to the session side's types, nothing of either side dropped:
+- crates/chora-kit/src/wm/mod.rs: module doc only; kept both sentences (WM2 focus from the session, WM5 stack from this branch).
+- plugins/chora-tiling/src/state.rs: kept the session's `Open`/`focus.state`/`..State::default()` shape and this branch's
+  `busy()` helper (and `helper` in `more`); both `busy()` and `open_value()` exist.
+- plugins/chora-tiling/src/windows.rs: one import line, `Why, kept` (session) plus `stack::Rules` (this branch).
+- tools/copies.toml: kept both row groups (WM5 D83 row, and the session's KIT6/kit2c/kit2d rows).
+Semantic fixes after the textual merge (compile errors, no new behaviour):
+- plugins/chora-xp/src/wm/state.rs: the kit `Window` of this branch has `held`; xp's typed initializer gets `held: false`
+  (xp reported no `held` before; its own `w.held` is the minimize-animation flag, not a drag).
+- plugins/chora-tiling/src/main.rs: the three WM5 held tests use `Own::ToggleFloating` (the session moved the action off `Action`).
+
+Gate (tests/merge-gate.sh --only build,ci-check,acts,tiling-audit,keys,pull), final run: build PASS, ci-check PASS 13 s,
+tiling-audit PASS 326 s, acts PASS 90 s, pull PASS 66 s, keys PASS 18 s.
+Note: an earlier run failed `pull` once ("the pane of the pulled window is not in front of the face at 1:1 or nearer:
+169 px wide for 200", tests/gate-construct-pull.sh:163) while I ran clippy at the same time; alone it passed twice.
+It samples a wobble width, so it looks load-sensitive; not investigated further.
+`cargo clippy --workspace --all-targets`: 0 warnings. `python3 tools/cut-check`: exit 0 (REPORT only: `Event::FocusChanged`
+outside kit grew to 9, max 8 in copies.toml; not a failure).
