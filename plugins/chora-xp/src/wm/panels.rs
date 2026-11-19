@@ -343,7 +343,7 @@ impl Wm {
     /// with a warning.
     pub(super) fn change(&mut self, changes: Value) -> Vec<Command> {
         if let Err(err) = self.settings.set(changes) {
-            crate::report(&err);
+            chora_kit::runtime::report(crate::wm::NAME, &err);
             return Vec::new();
         }
         let commands = self.configure();

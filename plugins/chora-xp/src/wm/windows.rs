@@ -364,7 +364,7 @@ impl Wm {
         let grabbed = change_keys(&mut self.rt, &self.settings.value.common.bindings, cube)
             .and_then(|()| self.rt.grab_give_keys());
         if let Err(err) = grabbed {
-            crate::report(&err);
+            chora_kit::runtime::report(crate::wm::NAME, &err);
         }
     }
 
