@@ -20,6 +20,10 @@ const PRIVATE_MODE: u32 = 0o700;
 /// The group and other bits, which a private directory has none of.
 const OTHERS: u32 = 0o077;
 
+/// The owner bits that chora needs in a directory it writes to: write
+/// and search.
+const OWNER: u32 = 0o300;
+
 /// The group and other write bits, which the runtime directory has none of.
 const WRITABLE: u32 = 0o022;
 
@@ -94,7 +98,8 @@ fn tighten(dir: &Path) -> io::Result<()> {
     let old = meta.is_dir()
         && meta.uid() == rustix::process::geteuid().as_raw()
         && mode & OTHERS != 0
-        && mode & WRITABLE == 0;
+        && mode & WRITABLE == 0
+        && mode & OWNER == OWNER;
     if !old {
         return Ok(());
     }
@@ -171,11 +176,16 @@ fn check_runtime_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<(
     if mode & WRITABLE != 0 {
         return refuse(&format!("its mode is {mode:04o}, group or other can write"));
     }
+    if mode & OWNER != OWNER {
+        return refuse(&format!(
+            "its mode is {mode:04o}, its owner cannot write to it"
+        ));
+    }
     Ok(())
 }
 
 /// Checks that a directory belongs to the current user, has no group or
-/// other bit (0700, but also 02700 or 0500) and is no symlink. A refusal is logged with its reason.
+/// other bit (0700, but also 02700), can be written by the owner and is no symlink. A refusal is logged with its reason.
 ///
 /// # Errors
 ///
@@ -206,6 +216,11 @@ fn check_meta(dir: &Path, meta: &fs::Metadata, uid: u32) -> io::Result<()> {
     if mode & OTHERS != 0 {
         return refuse(&format!(
             "its mode is {mode:04o}, it has group or other bits"
+        ));
+    }
+    if mode & OWNER != OWNER {
+        return refuse(&format!(
+            "its mode is {mode:04o}, its owner cannot write to it"
         ));
     }
     Ok(())

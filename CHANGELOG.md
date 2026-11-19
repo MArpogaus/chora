@@ -8,7 +8,8 @@ shaders, icon copies or caches there; the log names the path and the mode
 - **security**: make the shader, icon-copy and block cache directories
 private (mode 0700, checked) like the socket directory
 - **paths**: accept a private directory with setgid (02700); refuse any
-group or other bit
+group or other bit, and one that its owner cannot write to (0500), at the
+check with its path and mode, not at the next write
 - **paths**: make a directory of the user that the last release made 0755
 (below the runtime directory, for shaders, theme files and caches) 0700
 at the next start; one that group or other can write stays refused
