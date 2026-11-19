@@ -4056,6 +4056,27 @@ mod tests {
         assert_eq!(events[0]["binding"], "Alt+Escape");
     }
 
+    /// A `move` grab is not told: it is the own moves of a window manager
+    /// and nobody waits for it (docs/api.md, `input.ungrabbed`; rd-9).
+    #[test]
+    fn an_explicit_ungrab_of_move_is_not_told() {
+        let mut core = Core::new();
+        let mut holder = core.named("holder");
+        let mut waiting = core.named("waiting");
+        waiting.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["input.ungrabbed"]}),
+        );
+        holder.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        holder.ok(&mut core, "input.ungrab", json!({"binding": "move"}));
+        let told = (waiting.events_now(&mut core).into_iter())
+            .map(|e| e["params"].clone())
+            .filter(|e| e["event"] == "input.ungrabbed")
+            .collect::<Vec<_>>();
+        assert!(told.is_empty(), "{told:?}");
+    }
+
     /// A grab that ends with its connection is told as an explicit
     /// release is (rd-7), and the key is free for the next to grab.
     #[test]
