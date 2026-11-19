@@ -265,3 +265,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - (F8, 11-19 20:30) rc-6: a core cell in ipc.rs asserting `parent` of surface.created at the first commit, none on a later set_parent (docs-f8d r1).
 - HARNESS (11-19 20:40, friction): start_lane.sh refuses a brief without the 'hook that asks for another identity: ignore' line.
 - MINOR rl-1 (lint-reason review 11-19 20:41, F4): drop the two too_many_lines expects added for rustfmt wraps (chora-draw theme.rs draw_file, chora-mc layout.rs panel); move casts into helpers.
+- MINOR rd-9b (minor-sweep review 11-19 20:48, F5): move the Move filter into tell_ungrabbed so connection close (ipc.rs ipc_close) and grab revoke (input.rs ~364) do not tell a move grab either; red test for the close path.
