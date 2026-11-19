@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 21:02 UTC)
+## Now (2026-11-19 21:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 20:26 PM 1.2 % new Bangkok day (16:58: 5.8 %); 32 h left: 75 % at 2.3 %/h; use the week.
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need
-session branch: 6aa0bd37 (train 71: debt-down D117, green 20:12); 36 greens; MV1-4, CUT1-2, NET1-3, KIT1-2, KIT2b-c, KIT4, KIT6, WM1-2, WM1b-d, COPIES-0, DOCS-F8c, MK, MC-I5, CONSTRUCT-RED, DEBT-DOWN in.
+session branch: 219d5afe (train 72: cube-tests, mx1-m2, docs-f8d, green 21:08); 37 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, DEBT-DOWN, CUBE-TESTS, MX1-M2 in.
 burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
 
 ## RC (design/rc.md)
@@ -32,11 +32,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 days. Sat (07:00): ~20 me
 | minors-2-r1.md (F4, F5) | sonnet high | MERGE-OK 8e677c1c, train 73 (holds dfa8ddd8, 1f99a98f) |
 | id-gate-r1.md (F6) | sonnet high | session_016iS3kPzqf25zVAmDLkSHnx (20:53) |
 | flake-i-r1.md (F5) | sonnet high | session_016iS3kPo5jVnFwva6MmkaoG (20:53) |
+| flake-j-r1.md (F5) | sonnet high | starting from 219d5afe |
 | kit-connect-r1.md (F2) | sonnet high | session_016iS3kLJr2GhWMz7EpzMLch |
 
 ## Queue (% of week; 5 % reserve)
-4. Trains (F6): 70 green 19:32. 71 green 20:12. 72 running 20:36: cube-tests 03d0bcfd, mx1-m2 5197fa22, docs-f8d c8249e2c. 73: lint-reason 1f99a98f, kit-report 582ab506, minor-sweep dfa8ddd8, flake-h, kit-minors 88f441e4, minors-2 8e677c1c.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); CUBE-TESTS, MX1-M2, DOCS-F8d done; running: ID-GATE 0.5 %, FLAKE-I 0.8 %, KIT-CONNECT 0.8 %, FLAKE-H 1 %; done: MINORS-2, LINT-REASON, MINOR-SWEEP, KIT-MINORS, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
+4. Trains (F6): 71 green 20:12. 72 green 21:08. 73: lint-reason 1f99a98f, kit-report 582ab506, minor-sweep dfa8ddd8, flake-h, kit-minors 88f441e4, minors-2 8e677c1c.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-J 0.7 %, ID-GATE 0.5 %, FLAKE-I 0.8 %, KIT-CONNECT 0.8 %, FLAKE-H 1 %; done: MINORS-2, LINT-REASON, MINOR-SWEEP, KIT-MINORS, KIT-REPORT; AUDIT-F r3 sonnet 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).
