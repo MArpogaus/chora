@@ -24,6 +24,19 @@ use crate::{Config, Construct, Flown, NAME, Pose, Runtime, config, settings};
     reason = "the test connects to its fake core"
 )]
 fn on_core(tag: &str, answer: fn(&str, &Value) -> Option<Value>) -> (Construct, Log) {
+    let (construct, methods, _core) = on_fake_core(tag, answer);
+    (construct, methods)
+}
+
+/// As [`on_core`], with the fake core, whose model keeps the emits.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "the test connects to its fake core"
+)]
+fn on_fake_core(
+    tag: &str,
+    answer: fn(&str, &Value) -> Option<Value>,
+) -> (Construct, Log, FakeCore) {
     let dir = std::env::temp_dir().join(format!(
         "chora-construct-moved-{tag}-{}",
         std::process::id()
@@ -42,7 +55,7 @@ fn on_core(tag: &str, answer: fn(&str, &Value) -> Option<Value>) -> (Construct, 
     let shaders = |name: &str, _: &str| Ok(format!("{}/{name}", dir.display()));
     let mut construct = Construct::new(rt, settings, false, &shaders).unwrap();
     construct.active = true;
-    (construct, methods)
+    (construct, methods, core)
 }
 
 /// How many requests of the method `method` the fake core saw.
@@ -319,4 +332,42 @@ fn outputs_reopen_only_as_a_cube_of_the_faces_and_not_as_an_overlay() {
         "an overlay does not reopen the cube"
     );
     assert_eq!(count(&methods, "output.remove"), FACES);
+}
+
+/// wm7a-m3: the cube closed during a turn tells `construct.cube` once more,
+/// at rest, so that a look that follows the event keeps no `turning: true`;
+/// a cube closed at rest tells nothing more.
+#[test]
+fn a_cube_closed_in_a_turn_tells_its_rest_last() {
+    let (mut construct, _methods, core) = on_fake_core("closed-in-turn", |_, _| None);
+    let told = || {
+        let emits = core.model().lock().unwrap().emits.clone();
+        (emits.into_iter())
+            .filter(|e| e["event"] == "construct.cube")
+            .map(|e| e["data"].clone())
+            .collect::<Vec<_>>()
+    };
+    let mut host = host_of(FACES);
+    host.turn = Some(Turn::new(0.0, 1.0, Instant::now(), Duration::from_secs(4)));
+    host.front = 1;
+    construct.cube = Some(host);
+    construct.tell_cube();
+    assert_eq!(told(), [json!({"front": 1, "turning": true})], "the turn");
+    construct.close_cube().unwrap();
+    assert_eq!(
+        told().last(),
+        Some(&json!({"front": 1, "turning": false})),
+        "the last word at rest"
+    );
+    let mut host = host_of(FACES);
+    host.front = 2;
+    construct.cube = Some(host);
+    construct.tell_cube();
+    let before = told().len();
+    construct.close_cube().unwrap();
+    assert_eq!(
+        told().len(),
+        before,
+        "a cube at rest that goes tells nothing more"
+    );
 }
