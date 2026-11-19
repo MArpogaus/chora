@@ -298,6 +298,14 @@ fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState, i
     state.ipc.send_to(conn, &event);
 }
 
+/// True for a binding whose key is a modifier itself, as `Super+Super_L`:
+/// a tap of the modifier.
+fn lone_modifier(binding: &Binding) -> bool {
+    ["Super_", "Alt_", "Control_", "Shift_", "Meta_"]
+        .iter()
+        .any(|m| binding.key.starts_with(m))
+}
+
 /// True for a binding without Ctrl, Alt or Super. It needs the capability
 /// `input.grab-any`, and it ends with its own key, not with a modifier.
 pub fn free_binding(binding: &Binding) -> bool {
@@ -948,7 +956,9 @@ pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial
 /// window of a move and the state of a drag that came with it. Without
 /// an output under the pointer the event has the pointer in the layout
 /// and no output name, so that a release always arrives. `injected` is
-/// set when the press of the grab did not come from the person.
+/// set when the press of the grab did not come from the person. A press
+/// ends the held taps of a lone modifier of other clients without their
+/// release: a drag with Super is no tap of Super.
 fn send_button(
     state: &mut State,
     (conn, binding): (u64, String),
@@ -956,6 +966,9 @@ fn send_button(
     window: Option<(&str, Option<GivenGrab>)>,
     injected: bool,
 ) {
+    if press == PressState::Pressed {
+        (state.held.grabs).retain(|h| h.conn == conn || !lone_modifier(&h.binding));
+    }
     let (surface, grab) = window.unzip();
     let layout = [state.pointer_layout.x, state.pointer_layout.y];
     let (position, output, local) =
@@ -1636,6 +1649,31 @@ mod tests {
     fn pointer_focused(core: &Core) -> bool {
         let pointer = core.state.seat.get_pointer().expect("a pointer");
         pointer.current_focus().is_some()
+    }
+
+    /// A button grab of one client during the tap of a lone modifier
+    /// that another client holds, such as Super of a start menu, ends the
+    /// tap without its release: the drag with Super is no tap of Super.
+    #[test]
+    fn a_grabbed_button_ends_the_tap_of_a_lone_modifier_of_another_client() {
+        let (mut core, _wayland, _window, mut wm, mut xp) = window_and_menu();
+        let drag = json!({"binding": "Super+BTN_LEFT"});
+        assert_eq!(wm.ok(&mut core, "input.grab", drag), "Super+BTN_LEFT");
+        let tap = json!({"binding": "Super+Super_L"});
+        assert_eq!(xp.ok(&mut core, "input.grab", tap), "Super+Super_L");
+        move_to(&mut core, 50.0, 50.0);
+        press(&mut core, SUPER, true);
+        click(&mut core, true);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        assert_eq!(key_states(&mut xp, &mut core, "Super+Super_L"), ["pressed"]);
+        press(&mut core, SUPER, true);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_states(&mut xp, &mut core, "Super+Super_L"),
+            ["pressed", "released"],
+            "a tap without a button ends with its release"
+        );
     }
 
     #[test]
