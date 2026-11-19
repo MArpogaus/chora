@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 13:54 UTC)
+## Now (2026-11-19 13:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 13:49 PM 4.6 %; 38 h left: 75 % at 2 %/h (10:39-13:5x ran 2.5 %/h); 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -35,5 +35,4 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 6. (process) 14:55 decisions (owner 15:35): D87 revised, D92 kept, no Fluent; cube form after WM7a; records 1-14 with docs F8.
 
 ## Needs owner
-- env (12:32 UTC): some new containers lack setup (apt mirror reset; wm7b r3 had it). Re-save Setup script (setup.sh 67f6a9f1, Azure). Default 14:00 UTC (21:00 Bkk): step 0 runs setup.sh itself; veto?
 - Delete claude/release-rc4 (403). rc.4 tag: kept local (owner).

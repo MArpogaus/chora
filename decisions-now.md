@@ -1,5 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T13:50:00Z
+screened-through: 2026-11-19T13:55:00Z
+- 11-19 13:55Z "I've resaved env already twice" -> reading: saved; the misses are runtime (apt mirror); every brief's step 0 runs setup.sh
 - 11-19 13:50Z "25 % any trouble?" -> reading: 25 % week; question
 - 11-19 10:55Z "...at a glance... on plan or where we are behind..." -> order: status page at a glance, plan vs actual
 - 11-19 10:49Z "Cube question?", 10:50Z "?"; 10:52Z "Hosted (Recommended)" -> decision: WM7b hosted (construct holds the face turn; flat fallback)
@@ -7,7 +8,7 @@ screened-through: 2026-11-19T13:50:00Z
 - 11-19 06:56Z "Only use stringer models where needed (complex task or planning). Rely on sonnet for routine tasks. haiku fort testing. Agree? Fable bursn tokens extremely fast. Use with goof care. Don't waste our additional time" -> order: opus complex/planning, sonnet routine, haiku tests; Fable by named need
 - 11-19 10:39Z "Cleanup artefact. Rewrite status page..." -> order: lean status page (full: answers.md)
 - 11-19 06:21Z "Continuously realign and update plan as you proceed" -> order: at each handback, merge and train result the PM re-checks Queue 4-5 (rank, F moved, merge backlog, budget) and rewrites it; routines.md By event
-- 11-19 06:12Z "OK better, but use tokens wisely and don't burn on unseeded reviews. Use fable where beneficial prefer opus. Let opus reviewers the updated plan and priorities and check for resources waste or misalignment" -> order: reviews only seeded; opus default, Fable where it pays (full: answers.md)
+- 11-19 06:12Z "OK better, but use tokens wisely and don't burn on unseeded reviews..." -> order: reviews only seeded (full: answers.md)
 - 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone -> yes (F27 check at lane start)
 - 11-19 05:59Z dialog: rc.4 tag "Keep local for now." -> no tag push; F27 "Yes, what do I have to do?" -> he re-saves; D77 vs D95 "D95 holds, amends D77 (Recommended)" -> decision; release-rc4 "Yes, delete it (Recommended)" -> owner deletes in GitHub
 - 11-19 05:55Z "Reset. Continue and clarity open questions" -> order: continue, ask
