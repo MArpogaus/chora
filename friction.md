@@ -386,3 +386,4 @@ flakes-f (07:16) and wm1d (07:20) sat in setup.sh `apt-get update` with no outpu
 archive.ubuntu.com times out behind the proxy (curl 10 s, 0 bytes); https answers (update 1m40 in the PM container).
 Guard: setup.sh rewrites the Ubuntu sources to https and runs apt under timeout with Acquire timeouts; a failure logs
 "FAILED apt" instead of hanging. Hung sessions recreated.
+- 11-19 train 60: pull F21 red (179 px for 200) under the full gate; flakes-f has F21 first. PM folded 60 into 61 (one gate) rather than rerun.
