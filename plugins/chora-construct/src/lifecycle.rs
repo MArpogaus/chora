@@ -25,7 +25,23 @@ impl Construct {
         let free = !changes.is_empty();
         let done = self.created(created, free);
         self.settle_plain(changes)?;
-        done
+        done?;
+        self.keys_back_for(&created.surface)
+    }
+
+    /// A new window came as a pane and the camera is in no window: a
+    /// window of a pane that a press gave the keyboard gives it back to
+    /// the walk, as a new window takes it in the other looks (D107). A
+    /// focus of another window manager, of the launcher or of a window
+    /// that the camera flies into stays.
+    fn keys_back_for(&mut self, surface: &str) -> Result<(), ClientError> {
+        let pane = (self.panes.iter()).any(|p| p.window() == Some(surface));
+        let pressed =
+            (self.core_focus.as_deref()).is_some_and(|f| f != surface && self.own_window(f));
+        if !pane || !pressed || self.inside().is_some() {
+            return Ok(());
+        }
+        self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }
 
     /// A surface lost its parent and owner: an own window leaves the
