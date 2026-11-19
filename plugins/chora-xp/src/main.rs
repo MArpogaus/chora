@@ -190,3 +190,20 @@ fn last_move(wm: &mut Wm, mut event: Event) -> Result<(Event, Option<Event>), Cl
     }
     Ok((event, None))
 }
+
+#[cfg(test)]
+mod tests {
+    /// The line that a failed request leaves in the log (a guard of the
+    /// move of `report` to the kit).
+    #[test]
+    fn report_line() {
+        if chora_kit::testing::in_child() {
+            crate::report(&"no such window");
+            return;
+        }
+        assert_eq!(
+            chora_kit::testing::stderr_of("tests::report_line"),
+            "chora-xp: no such window\n"
+        );
+    }
+}

@@ -1288,6 +1288,20 @@ fn wait() -> Command {
 mod tests {
     use chora_scene::{Command, NodeKind, PropsUpdate};
 
+    /// The line that a page that cannot be shown leaves in the log (a
+    /// guard of the move of `report` to the kit).
+    #[test]
+    fn report_line() {
+        if chora_kit::testing::in_child() {
+            crate::report("Overview", "no such window");
+            return;
+        }
+        assert_eq!(
+            chora_kit::testing::stderr_of("tests::report_line"),
+            "chora-mc: Overview: no such window\n"
+        );
+    }
+
     fn text(id: &str, text: &str, color: Option<[f64; 4]>) -> Command {
         super::create(
             id,
