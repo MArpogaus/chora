@@ -139,3 +139,13 @@ Diff 751dfbcb..12305e5a (6 files, +98 -13); red fa6ba541 before fix 12305e5a.
 - rw-3: place.rs:54 skips the window owner while layer_focus is set; cell the_key_place_is_not_the_window_owner_while_a_layer_has_the_keyboard. Closed.
 - rw-4: doc merged. rw-5 NIT open -> backlog.
 Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK 12305e5a; train 59.
+
+## r3 (F3: merge of the session branch into wm2)
+Head: 8db02220 on claude/wm2 (merge of claude/autonomous-dev-session-3w-i33pg7 at 1d1aa5fd into 12305e5a). Conflicts in three files, nothing else.
+- plugins/chora-mc/src/windows.rs: imports joined (`Book, Change, Origin, Phase, Why, focus::Policy`, `Event`); `impl Policy for Mc` and `enum Named` both kept.
+- plugins/chora-mc/src/manage.rs: `give` is the wm1c book flow (`book.give/refused/confirm`, `settle(.., &Named::Ask)`, `fn gave`); in `gave` the old `self.focused` reset is replaced by `self.focus.gave(surface)` (the field `focused` no longer exists; one focus state).
+- docs/api.md: the wm1c sentence ("mc and the construct tell no rect: the panes lie in a space") kept, with the wm2 paragraph on `chora_kit::wm::focus` after it.
+No cell broke in the merge.
+Green: `cargo test -p chora-mc` 143, `-p chora-tiling` 153, `-p chora-kit --features testing` 224 + integration, `-p chora input::` 47.
+`tests/merge-gate.sh --only keys,pane-keys,wm-pane,acts,mc-handover,mc-paths`: all six PASS (acts 51 s, wm-pane 21 s, pane-keys 7 s, keys 18 s, mc-paths 65 s, mc-handover 10 s). The first attempt failed only because target/debug had no build; `cargo build --workspace --locked` then rerun. No full gate.
+Pushed claude/wm2 (12305e5a..8db02220); commit hooks passed, no --no-verify.
