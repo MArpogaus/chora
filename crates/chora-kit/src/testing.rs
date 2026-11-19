@@ -47,14 +47,15 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
-    /// What `methods.call` answers for a method, by its name; `null` for
-    /// the others.
+    /// What `methods.call` answers for a method, by its name: looked up
+    /// by client first, then by method, else null.
     pub answers: std::collections::HashMap<String, Value>,
     /// Whether `activation.token` mints a token; without, it answers null.
     pub mints_tokens: bool,
     /// Whether `scene.query` answers every selector; else only `id:`.
     pub selects: bool,
-    /// The answers of `methods.call` by client and method; null without.
+    /// The answers of `methods.call` by client and method: looked up by
+    /// client first, then by method, else null.
     pub client_answers: Vec<((String, String), Value)>,
 }
 
