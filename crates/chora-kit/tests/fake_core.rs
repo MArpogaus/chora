@@ -123,3 +123,19 @@ fn a_runtime_of_the_fake_core_reaches_the_core() {
         "the connect says hello, then the request follows"
     );
 }
+
+/// `outputs` plants the answer of `output.list`; without it the list is
+/// empty.
+#[test]
+fn the_fake_core_answers_output_list_with_its_outputs() {
+    let core = FakeCore::start();
+    let mut rt: chora_kit::runtime::Runtime<()> = core.runtime("probe");
+    assert!(rt.all_outputs().unwrap().is_empty(), "none by default");
+    core.outputs(serde_json::json!([{
+        "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
+        "scale": 1.0, "camera": {}, "work_area": [0, 0, 1920, 1080]
+    }]));
+    let outputs = rt.all_outputs().unwrap();
+    assert_eq!(outputs.len(), 1);
+    assert_eq!(outputs[0].name, "DP-1");
+}

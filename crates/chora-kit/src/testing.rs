@@ -164,6 +164,11 @@ impl FakeCore {
             .push(Arc::new(responder));
     }
 
+    /// Makes `output.list` answer with `outputs`, a JSON list of outputs.
+    pub fn outputs(&self, outputs: Value) {
+        self.respond(move |method, _| (method == "output.list").then(|| outputs.clone()));
+    }
+
     /// Plants a recorder: `line` gets the method and the parameters of each
     /// request, and a `Some` is appended to the log that this returns.
     #[must_use]
