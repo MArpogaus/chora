@@ -1537,6 +1537,28 @@ mod tests {
         );
     }
 
+    /// I12 (WM5 r2): the press of a drag raises the window as a click does,
+    /// so it stays on top after the release, also over a window that was
+    /// raised later.
+    #[test]
+    fn a_dragged_window_stays_on_top_after_the_release() {
+        let (mut tiling, _methods) = with_a_floating_window("held-release");
+        tiling.wm.add_window("s2");
+        tiling.wm.act(&Action::ToggleFloating);
+        assert!(tiling.wm.set_size("s2", [40, 20]));
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.order.last().map(String::as_str), Some("s2"));
+        drag(&mut tiling, "s1", &[[190.0, 150.0], [230.0, 170.0]]);
+        tiling.relayout().unwrap();
+        assert!(tiling.dragged.is_none());
+        assert_eq!(
+            tiling.order.last().map(String::as_str),
+            Some("s1"),
+            "{:?}",
+            tiling.order
+        );
+    }
+
     /// I12 (WM5 r2): `state.get` names the dragged window as `held`, as the
     /// acts read it, with a floating window under another one. The state
     /// goes to the file of `CHORA_STATE_DUMP` for the cell of the acts.
