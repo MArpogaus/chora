@@ -2,7 +2,7 @@
 
 ## Now (2026-11-19 08:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 07:50 PM 1.8 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
+budget: week reset 05:55 Thu (owner); owner 06:52: 3 % week; tokens.py 08:52 PM 2.2 % (lanes not counted); 6 lanes since 07:40; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
 session branch: 1d1aa5fd (train 58: kit2b, wm1c); 26 greens; MV1-3, CUT1, NET1-2, KIT1-2, KIT2b, KIT4, WM1, WM1b-c, DOCS-F8 in.
 burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly; 1.9 days. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next week.
@@ -25,7 +25,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-f-r1.md (F5) | opus high | session_016iS3kM5cKSFS5yqPLLGoj7 (07:37) |
-| wm1d-r2.md (F3) | sonnet high | starting |
+| wm1d-r2.md (F3) | sonnet high | session_016iS3kMu2Me5Yp8sQFfyzaD (08:52) |
 | kit5-r1.md (F2) | sonnet high | session_016iS3kNgFvoGjshMusuMiZV (07:40) |
 | wm7a-r1.md (F3) | opus high | session_016iS3kPRrXrPs57WvWHZBEU (07:40) |
 | kit2c-r1.md (F2) | sonnet high | session_016iS3kQWUsFuZNFkENAEJBT (07:51) |
