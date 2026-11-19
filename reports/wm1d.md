@@ -64,3 +64,14 @@ Checked, each green: (1) `cargo test -p chora-xp` 197 pass; lifecycle (create, a
 Findings:
 - rw-1, MINOR, plugins/chora-xp/src/wm/state.rs:28,30: `state.get` of xp changed shape: `rect` ints now print as floats (300 to 300.0) and `output` is "" where it was null (a window under no bar). Fix: accept as the kit shape and say so in docs/api.md, or keep `output` an `Option` in `kit::wm::state::Window`.
 - rw-2, MINOR, plugins/chora-construct/src/adopt.rs:223: `self.launched.take()` (and `waiting.remove`) still run before the `free` test, so a window reserved for another manager that arrives within LAUNCHED of a launch eats the launch marker; the real program window is then adopted without `force` and without the fly-in. Fix: take `launched` only when `free`.
+
+## r2
+
+Head `679e7786` on claude/wm1d (merge of net3 dc00d33c, train 59 not landed yet, so no merge of the session branch).
+- plugins/chora-xp/src/wm/state.rs: conflict resolved by keeping wm1d's typed `kit::wm::state` port and adding `texts: self.texts_value()` (the runs of `theme.texts()` as json); module doc says texts are in; net3's `texts`-is-an-array assertion in `a_fresh_xp_has_an_empty_state` kept.
+- crates/chora-kit/src/wm/state.rs: `State` gets `texts: Vec<Value>`, left out when empty (test `texts_are_left_out_when_empty`); not a json side path.
+- docs/api.md: merged without conflict; net3's paragraph (xp and chora-notify add `texts`, `shown`, `busy`), wm1d's "Every look adds the `origin`" and xp in the `<look>.window` list are all there.
+- Cell that broke in the merge: plugins/chora-tiling/src/state.rs built `State` without `texts`; fixed with `..State::default()` and a small `open_value` helper (the function hit clippy too_many_lines at 61/60).
+- rw-1 not touched (the merge did not touch those lines).
+- Green: `cargo test -p chora-xp` (198), `-p chora-kit --features testing` (225+), `-p chora-notify` (18), `-p chora-tiling` (152); clippy workspace `-D warnings`; `tests/merge-gate.sh --only xp,xp-fields,xp-question,xp-notepad,hud,acts` all PASS. No full gate.
+- Note for the lane: `--only` skips the `build` step, so run `cargo build --workspace` first (the first `xp` run failed only for missing binaries).
