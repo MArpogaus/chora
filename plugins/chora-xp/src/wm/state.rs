@@ -3,9 +3,9 @@
 //! reads, besides `core_focus`. Without a focused window xp holds the
 //! focus with its own nodes (the icons, a menu, a dialog) until a window
 //! of another window manager takes it: a node that takes the keyboard
-//! sends no `focus.changed`. Desktops count from 1, as the pager shows them. `views` and
-//! `texts` stay out: xp shows no window of another look, and its drawn
-//! text runs come with NET3.
+//! sends no `focus.changed`. Desktops count from 1, as the pager shows them. `views`
+//! stays out: xp shows no window of another look. `texts` are the runs
+//! of text that chora-draw reports for the image nodes of xp.
 
 use serde_json::{Value, json};
 
@@ -43,7 +43,7 @@ impl Wm {
         };
         json!({"windows": windows, "desks": desks, "focus": focus,
             "open": self.open_value(), "busy": self.busy_value(),
-            "helper": self.voiced.word()})
+            "helper": self.voiced.word(), "texts": self.theme.texts()})
     }
 
     /// A window of another window manager took the focus last.
@@ -120,6 +120,12 @@ mod tests {
         let state = wm.state().expect("xp has a state");
         let expected = json!({"windows": [], "focus": {"holder": "xp"}, "open": [],
             "busy": [], "helper": "none", "desks": [{"output": "X", "shown": [1]}]});
+        assert_eq!(
+            state.get("texts").map(serde_json::Value::is_array),
+            Some(true)
+        );
+        let mut state = state;
+        state.as_object_mut().unwrap().remove("texts");
         assert_eq!(state, expected);
     }
 
