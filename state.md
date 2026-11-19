@@ -29,7 +29,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open (F2: every 
 | net3-r1.md (F7) | opus high, claude/net3 | session_016iS3kLZ9zKCda38a6cRs6a |
 | wm2-r1.md (F3) | opus high, claude/wm2 | 751dfbcb green; review session_016iS3kQkbSJYNkfqYdUHypC |
 | flakes-f-r1.md (F5) | opus high, claude/flakes-f | session_016iS3kPLuNxC9L4qF4UPzzP |
-| wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | session_016iS3kPjrW3RH4BYJ8KZtJc |
+| wm1c-r1.md (F2, F3) | sonnet high, claude/wm1c | 5e72e4f9; review-wm1c-r1.md sonnet |
 | kit6-r1.md (F2) | sonnet high, claude/kit6 | session_016iS3kQVP9HrenFDKnEYDaa |
 | cut2-r1.md (F6) | sonnet high, claude/cut2 | session_016iS3kNdkNBFAYBgQRp7tcg |
 
