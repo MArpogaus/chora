@@ -45,3 +45,25 @@ Changed only where the bugs were: a give and a drag out of a face shut the Start
 3. `Open::escape` is not wired in xp: Escape still goes to each model (menu, context, Help, now the dialog). One `escape` would give the one Esc order of the plan; needs xp's Help panel and cascades to answer it. M.
 4. `Why` is unused by `shut_at` (the rule is the same for both); either drop it or let a look declare "stays through a drag but not a give". S.
 5. tiling's launcher (fuzzel) and mc's chat are outside programs/windows and not on the list; the launcher kind is used by construct only. Decide whether an outside launcher registers when the look starts it. S.
+
+## Review r1
+
+2026-11-19. Reviewer lane (sonnet, high), read-only on code: claude/wm3 head 0e0bd700 against base 4548feb3. Brief: briefs/review-wm3-r1.md. **Verdict: FIX** (1 MAJOR, 3 MINOR, 2 NIT; 0 BLOCK).
+
+Checks:
+1. Red first: ee61246e comes before 1c3c4d99. Run at ee61246e: `a_give_shuts_the_start_menu` and `a_give_with_the_drag_shuts_the_start_menu` FAIL (left `["xp-menu"]`, right `[]`), `a_press_on_a_title_bar_shuts_the_start_menu` is green (guard, as the report says). They are the real sd-h2 bug (a give and a pull-out drag leave the Start menu open), red for the right reason.
+2. `kit::wm::open` is small (about 160 production lines), generic, tested; it feeds `state::State.open`. `cargo test -p chora-kit --features testing` green (229 unit cells; the report's 273 is not what I count with that command, not a finding). Ok, apart from rw-2 and rw-3.
+3. xp, tiling: list through it; mc and construct build a throwaway `Open` from their own flags on each `state.get` (rw-4). `cargo test -p chora-xp -p chora-tiling -p chora-mc -p chora-construct` green (198, 152, 141, 198).
+4. net2-a1 and net2-a3 rows removed: the cells (act "Escape shuts Turn Off Computer", the mc keys acts, mc I4) are unchanged, not weakened; the code now does what they expect (`Dialog::FOCUS`, Escape in `node_key`, mc `open`). Ok.
+5. Visible behaviour: drag and give shut menus; Escape cancels Turn Off. Two changes the report does not name: the `for` key of xp's context entry (rw-1) and the order of xp's `open` (rw-3).
+6. `tools/cut-check --base 4548feb3` ok, `tools/size-ratchet --base 4548feb3` ok. docs/api.md not touched and now wrong (rw-5).
+
+Findings:
+- rw-1, MAJOR, tests/acts/invariants.py:491 and :512 (also tests/test_acts.py:694,703): xp's open entry key `for` was renamed `by`, but invariant I12 (`bars_over_fullscreen` own-set, `modals_below`) still reads `entry.get("for")`, and no look produces `for` any more (grep of plugins, crates, services: none). The report says "nothing reads either"; I12 now cannot see a system menu or modal belonging to a fullscreen window, and its test_acts.py cells pass only on hand-made states with `for`. Fix: read `by` in both places of invariants.py (and update the two test_acts.py fixtures), or keep emitting `for`.
+- rw-2, MINOR, crates/chora-kit/src/wm/open.rs (`escape`, `newest`, `modal`): no production caller in any look (only cells and the doctest); xp's Escape still goes through its own order in `node_key` (dialog, context, Help panel, menu), so `state.open` can say the Start menu is on top while Escape shuts a Help panel first. Fix: wire xp's Escape to `open.escape()` (report proposal 3), or say in the doc comment that the order is only reported.
+- rw-3, MINOR, plugins/chora-xp/src/wm/state.rs:55 and surfaces.rs: xp's `open` order was fixed (switcher, dialog, context, menu, panels) and is now pure recency (a raised panel moves to the front on a press); not named in the report. Fix: name it in docs/api.md or keep a kind rank.
+- rw-4, MINOR, plugins/chora-mc/src/state.rs:62 and plugins/chora-construct/src/state.rs:91: both build a throwaway `Open` from their own booleans or enum on each call, and xp keeps `menu.is_open()`, `context`, `dialog`, `panels`, `switcher` beside the list (six sites in step), so "no look keeps its own list" holds for tiling only. Fix: record as accepted in the report (proposal 2) or let the models own the surface.
+- rw-5, MINOR, docs/api.md:1544: still says "mc has no `open` yet"; names no `open` kind words, `by`, or the `switcher` kind for any look (check 6). Fix: one sentence: every look fills `open` (`id`, `kind`, `modal`, optional `by`; kinds menu, popup, dialog, sheet, launcher, switcher).
+- rw-6, NIT, crates/chora-kit/src/wm/open.rs:~200 and mod.rs: `shut_at(_why, ..)` ignores `Why`, and `wm::open::Why` (Drag, Give) is a second `Why` beside the re-exported `wm::book::Why`. Fix: drop the argument or rename (`Shut`).
+
+Not findings: `pull` flake F21; the guard act for the title-bar drag is green on the base (the report says so).
