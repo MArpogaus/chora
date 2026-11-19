@@ -527,6 +527,44 @@ mod tests {
         }
     }
 
+    /// KIT3: the table is the rows of `kit::keysheet` for the bindings,
+    /// not a table of its own: a binding of any action of the system that
+    /// xp acts on has a row with the words of kit, one the shipped file
+    /// does not bind too.
+    #[test]
+    fn every_action_of_the_system_has_a_row_with_the_words_of_the_keysheet() {
+        let mut bindings = defaults();
+        bindings.insert(
+            "Super+v".into(),
+            KeyAction::System(System::Volume(volume::Change::Set(30))),
+        );
+        let rows = rows(&bindings, all);
+        for (binding, action) in &bindings {
+            let KeyAction::System(system) = action else {
+                continue;
+            };
+            let words = keysheet::words(system, Language::En).expect("words");
+            assert!(
+                rows.iter()
+                    .any(|r| r.text == words && r.keys.contains(&name(binding))),
+                "{binding}: no row says {words:?} for it in {rows:?}"
+            );
+        }
+    }
+
+    /// One give key held by another client still leaves the row of the
+    /// others (rk-2).
+    #[test]
+    fn the_give_row_shows_while_any_give_key_is_held() {
+        let first = give::KEYS[0].0;
+        let rows = rows(&defaults(), |b| b == first);
+        assert!(
+            rows.iter()
+                .any(|r| r.keys == [keysheet::give_row(Language::En).0]),
+            "{rows:?}"
+        );
+    }
+
     #[test]
     fn chords_read_as_key_caps() {
         assert_eq!(name("Super+e"), "Super+E");

@@ -1101,6 +1101,34 @@ mod tests {
         }
     }
 
+    /// KIT3: the rows of the help are the rows of `kit::keysheet` for the
+    /// bindings: any action of the system that the construct acts on has
+    /// a row with the words of kit, also one the shipped file does not
+    /// bind.
+    #[test]
+    fn every_action_of_the_system_has_a_row_with_the_words_of_the_keysheet() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        config.common.bindings.insert(
+            "Super+v".into(),
+            Action::System(System::Volume(Change::Set(30))),
+        );
+        let rows: Vec<_> = (config.help_groups(false).into_iter())
+            .flat_map(|g| g.rows)
+            .collect();
+        for (binding, action) in &config.common.bindings {
+            let Action::System(system) = action else {
+                continue;
+            };
+            let words =
+                chora_kit::keysheet::words(system, chora_kit::words::Language::En).expect("words");
+            let keys = chora_kit::keysheet::caps(binding);
+            assert!(
+                rows.iter().any(|r| r.what == words && r.keys == keys),
+                "{binding}: no row says {words:?} with its keys"
+            );
+        }
+    }
+
     /// Polish 14: the help names the window managers as people read them.
     #[test]
     fn the_help_gives_a_window_to_managers_by_their_display_names() {
