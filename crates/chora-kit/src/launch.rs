@@ -593,6 +593,30 @@ fn main_process_gone(pid: u32, unit: Option<&str>) -> bool {
     poll(&mut fds, Some(&timeout)).is_ok_and(|ready| ready > 0)
 }
 
+/// The time between two looks at a program that cannot be held with a pidfd.
+#[allow(dead_code)]
+const POLL: Duration = Duration::from_secs(1);
+
+/// Whether `probe` turns true before `deadline`, asked once every `every`.
+#[allow(dead_code)]
+fn becomes(deadline: Instant, every: Duration, probe: impl FnMut() -> bool) -> bool {
+    let _ = (deadline, every, probe);
+    false
+}
+
+/// Whether the process `pid` is gone before `deadline`, found by looking
+/// at it once every `every`: it is no process any more, or the unit names
+/// another main process.
+#[allow(dead_code)]
+fn gone_by_polling(
+    (pid, unit): (u32, Option<&str>),
+    (deadline, every): (Instant, Duration),
+    (alive, main_pid): (impl Fn(u32) -> bool, impl Fn(&str) -> Option<u32>),
+) -> bool {
+    let _ = (pid, unit, deadline, every, alive, main_pid);
+    false
+}
+
 /// The trimmed stdout of `systemctl --user ARGS`; empty when it fails to
 /// run.
 fn systemctl(args: &[&str]) -> String {
@@ -765,6 +789,63 @@ mod tests {
 
     fn seconds(now: Instant, s: u64) -> Instant {
         now + Duration::from_secs(s)
+    }
+
+    #[test]
+    fn a_probe_that_turns_true_before_the_deadline_is_true() {
+        let mut asked = 0;
+        let turned = becomes(
+            Instant::now() + Duration::from_secs(5),
+            Duration::from_millis(5),
+            || {
+                asked += 1;
+                asked == 3
+            },
+        );
+        assert!(turned);
+        assert_eq!(asked, 3);
+    }
+
+    #[test]
+    fn a_probe_that_stays_false_is_false_at_the_deadline() {
+        let begun = Instant::now();
+        let turned = becomes(
+            begun + Duration::from_millis(100),
+            Duration::from_millis(5),
+            || false,
+        );
+        assert!(!turned);
+        assert!(begun.elapsed() >= Duration::from_millis(100));
+    }
+
+    #[test]
+    fn a_process_that_cannot_be_held_is_followed_by_looking_at_it() {
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        let every = Duration::from_millis(5);
+        let probes = (alive, |_: &str| None);
+        let soon = Instant::now() + Duration::from_millis(100);
+        assert!(!gone_by_polling((pid, None), (soon, every), probes));
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let later = Instant::now() + Duration::from_secs(5);
+        assert!(gone_by_polling((pid, None), (later, every), probes));
+    }
+
+    #[test]
+    fn a_unit_that_names_another_main_process_ends_the_wait() {
+        let later = Instant::now() + Duration::from_secs(5);
+        let every = Duration::from_millis(5);
+        let own = std::process::id();
+        let probes = (alive, |_: &str| Some(own + 1));
+        assert!(gone_by_polling(
+            (own, Some("app.service")),
+            (later, every),
+            probes
+        ));
     }
 
     #[test]
