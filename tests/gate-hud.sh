@@ -267,7 +267,7 @@ cell_list_huds() {
     local listed
     private_dirs
     listed=$(XDG_DATA_HOME=$data XDG_CONFIG_HOME=$cfg timeout 10 "$bin/chora-assistant" --list-huds 2>&1) || return 1
-    for n in neutral xp mc construct mine; do
+    for n in neutral xp mc construct tiling mine; do
         grep -qw -- "$n" <<<"$listed" || return 1
     done
 }

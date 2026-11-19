@@ -67,8 +67,10 @@ One setting names the folder: `hud: NAME` in
 looks for `NAME` in `$XDG_DATA_HOME/chora/huds`, then in `chora/huds` of
 each directory of `$XDG_DATA_DIRS` (`/usr/local/share` and `/usr/share`
 when the variable is empty), then, for a binary run from
-`target/<profile>/`, in its own `plugins/chora-assistant/huds` of the
-source tree, which links the folders of xp, mc and construct.
+`target/<profile>/`, in the source tree: `neutral` in
+`plugins/chora-assistant/huds` and the folder of each look in the
+directory of that look (`plugins/chora-NAME/hud`, or `flavors/NAME/assets/assistant`
+for xp).
 
 | Command | Does |
 |---|---|
@@ -88,7 +90,9 @@ trusts.
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
 always matches. The shipped settings have these rules, so each look
-shows its own folder:
+shows its own folder, and a look that is not listed shows its own folder
+too if it names itself with `look.theme` and ships one (rule `@look`, see
+Themes):
 
 ```yaml
 huds:
@@ -96,6 +100,7 @@ huds:
   - {when: {wm: mc}, folder: mc}
   - {when: {wm: xp}, folder: xp}
   - {when: {space: tiling}, folder: tiling}
+  - {folder: '@look'}
 ```
 
 A matching rule overrides `hud`, and so `--use-hud`, which prints a warning
@@ -308,12 +313,22 @@ when: {wm: [xp, mc], agents: any}
 
 ### Themes
 
-A window manager names its theme with its event `NAME.theme {theme:
+A window manager names its theme with the event `look.theme {theme:
 light|dark}`, at its start, when its settings change and on the event
-`assistant.ready`, which the host emits once it listens; mc and
-construct do. The host listens to `construct.theme`,
-`mc.theme`, `tiling.theme` and `xp.theme`, and the context field `theme`
-is the theme of the client of `space`, else of `wm`, else `light`.
+`assistant.ready`, which the host emits once it listens. Any client emits
+`look.theme` and `look.view {pane}`; the core adds the name of the emitter
+as `look`. The host listens to `look.*` and, for the looks that still
+emit the old names, to `construct.theme`, `construct.view`, `mc.theme`,
+`tiling.theme` and `xp.theme`. The context field `theme` is the theme of
+the client of `space`, else of `wm`, else `light`.
+
+A look that names itself needs no rule for its folder: the folder name
+`@look` in a rule stands for the folder that has the name of the `space`
+of the context, else of its `wm`, if that look named itself and shipped one
+in its own directory (`plugins/chora-NAME/hud` of the source tree,
+`chora/huds/NAME` of the installed system). When there is none, the next
+rule decides. The shipped rules end with `{folder: '@look'}`; a setting
+`huds` of your own has no such rule unless you write it.
 
 The block `dark:` gives the colours of the dark theme over those of the
 folder: `chat` takes `fill`, `text`, `name`, `border`, `well` and `glow`, and
@@ -360,7 +375,7 @@ click on its entry or by its number typed after the text. After such a
 text only a click or a number picks: the name of a helper is text. A
 number that is no entry of the list is text too, and comes back with the
 same words. The text ends
-with the list: after Escape or a hide no helper gets it, and a chat that
+with the list: after Escape or a hide no helper gets it and the field is empty, and a chat that
 a question, `chat.show` or the only helper opens sends nothing.
 
 The empty-field hint of a plain chat is in the colour `name`. Its field

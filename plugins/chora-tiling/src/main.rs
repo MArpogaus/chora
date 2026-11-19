@@ -13,7 +13,6 @@ mod commands;
 mod config;
 mod drag;
 mod dress;
-mod focus;
 mod keys;
 mod layout;
 mod lifecycle;
@@ -31,6 +30,10 @@ use std::{
 };
 
 use chora_kit::{
+    actions::{
+        System,
+        perform::{Failure, Host, perform},
+    },
     effects::{Driver, Target},
     give::{self, MOVE},
     runtime::{self, Plugin, Runtime},
@@ -45,10 +48,11 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use chora_kit::wm::focus::Focus;
+
 use crate::{
     commands::{GROUP, answers, leaves_tiling, runtime_shader},
-    config::{Action, Config},
-    focus::ShownFocus,
+    config::{Action, Config, Own},
     layout::Layout,
     methods::exported_methods,
     wm::{Effect, OutputTags, Placement, WINDOW_KEY, Wm},
@@ -146,7 +150,7 @@ struct Tiling {
     /// only.
     sent: HashMap<String, Placement>,
     order: Vec<String>,
-    focus: ShownFocus,
+    focus: Focus,
     /// The meta that the core has, by node: what a restart rebuilds from.
     saved: HashMap<String, BTreeMap<String, String>>,
     /// The claim that the core has (D55).
@@ -326,7 +330,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         ignore: args.ignore.clone(),
         sent: HashMap::new(),
         order: Vec::new(),
-        focus: ShownFocus::default(),
+        focus: Focus::default(),
         saved: HashMap::new(),
         claimed: None,
         dragged: None,
@@ -501,6 +505,48 @@ impl give::Windows for Tiling {
     }
 }
 
+/// What tiling does for the actions of every look that it has: a command,
+/// a close, the volume, the key list and a give. The rest has no meaning
+/// here, and the settings drop its bindings.
+impl Host for Tiling {
+    type Error = ClientError;
+
+    fn volume(&mut self, change: chora_kit::volume::Change) -> Result<(), ClientError> {
+        self.volume.change(change, true);
+        Ok(())
+    }
+
+    fn keys(&mut self) -> Result<(), ClientError> {
+        self.toggle_keys()
+    }
+
+    fn chat(&mut self) -> Result<(), ClientError> {
+        Ok(())
+    }
+
+    fn run(&mut self, command: &str) -> Result<(), ClientError> {
+        chora_kit::launch::run(command, self.rt.conn.activation_token().as_deref());
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), ClientError> {
+        let Some(surface) = self.wm.focused().map(String::from) else {
+            return Ok(());
+        };
+        self.apply(vec![Command::Close { surface }])
+    }
+
+    fn failed(&mut self, failure: Failure) -> Result<(), ClientError> {
+        match failure {
+            Failure::NoScript(script) | Failure::NotStarted(script) => {
+                eprintln!("chora-tiling: {script} did not start");
+            }
+            Failure::NotGiven { to, why } => eprintln!("chora-tiling: give to {to}: {why}"),
+        }
+        Ok(())
+    }
+}
+
 impl Tiling {
     /// Whether `--output` names outputs and none of them is there: the
     /// plugin then leaves all windows to other window managers.
@@ -569,10 +615,11 @@ impl Tiling {
     /// client holds only logs.
     #[allow(clippy::expect_used, reason = "the configuration checks its bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
-        let bindings = self.wm.config.bindings.clone();
-        self.rt.give_keys(Some(|to| Action::Give(to.into())));
+        let bindings = self.wm.config.common.bindings.clone();
         self.rt
-            .accept_injected(self.wm.config.test_accept_injected_keys);
+            .give_keys(Some(|to| Action::System(System::Give(to.into()))));
+        self.rt
+            .accept_injected(self.wm.config.common.test_accept_injected_keys);
         for (text, action) in bindings {
             let binding = self
                 .wm
@@ -584,11 +631,11 @@ impl Tiling {
         self.rt.grab_give_keys()?;
         // The title bars of the clients drag as `drag` does.
         let moves = MOVE.parse().expect("move is a binding");
-        self.rt.grab(moves, Action::Drag)?;
+        self.rt.grab(moves, Action::System(System::Drag))?;
         let swallowed: Vec<_> = self.wm.config.swallowed().collect();
         for binding in swallowed {
             if self.rt.action(&binding.to_string()).is_none() {
-                self.rt.grab(binding, Action::Swallow)?;
+                self.rt.grab(binding, Action::Look(Own::Swallow))?;
             }
         }
         Ok(())
@@ -744,7 +791,7 @@ impl Tiling {
         if !commands.is_empty() {
             let applied = self.apply_report(commands)?;
             if leaves_tiling(applied, action, args) {
-                self.forget_window(node);
+                self.forget_window(node, &chora_kit::wm::Why::Detached);
             }
         }
         self.relayout()
@@ -890,7 +937,7 @@ impl Tiling {
     /// `set_layout` and `next_layout`.
     fn change_layout(&mut self, method: &str, params: Value) -> Result<(), RpcError> {
         if method == "next_layout" {
-            self.wm.act(&Action::NextLayout);
+            self.wm.act(&Own::NextLayout);
             return Ok(());
         }
         let change: SetLayout = runtime::params(params)?;
@@ -979,35 +1026,28 @@ impl Tiling {
         let Some(action) = self.rt.action(binding).cloned() else {
             return Ok(());
         };
-        if let Action::Give(to) = &action {
-            self.give_focused(to);
-            return Ok(());
+        match action {
+            Action::System(system) => perform(self, &system),
+            Action::Look(own) => self.turn(&own),
         }
-        if action == Action::ShowKeys {
-            return self.toggle_keys();
-        }
+    }
+
+    /// Does an action of tiling: a change of the windows, the layouts or
+    /// the tags.
+    fn turn(&mut self, action: &Own) -> Result<(), ClientError> {
         let before = self.wm.focused().map(String::from);
-        let effect = self.wm.act(&action);
+        let effect = self.wm.act(action);
         // A binding that moves the focus of tiling takes it back.
         if self.wm.focused() != before.as_deref() {
             self.focus.take();
         }
-        let layout_key = matches!(action, Action::NextLayout | Action::PreviousLayout);
+        let layout_key = matches!(action, Own::NextLayout | Own::PreviousLayout);
         match effect {
             Some(Effect::Relayout) if layout_key => {
                 self.relayout()?;
                 self.show_chip()
             }
             Some(Effect::Relayout) => self.relayout(),
-            Some(Effect::Run(command)) => {
-                chora_kit::run(&command, self.rt.conn.activation_token().as_deref());
-                Ok(())
-            }
-            Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
-            Some(Effect::Volume(change)) => {
-                self.volume.change(change, true);
-                Ok(())
-            }
             // The same path as the method `settings.reload`.
             Some(Effect::Reload) => {
                 if let Err(err) = runtime::reload_settings(self) {
@@ -1140,7 +1180,7 @@ mod tests {
             ignore: Vec::new(),
             sent: HashMap::new(),
             order: Vec::new(),
-            focus: ShownFocus::default(),
+            focus: Focus::default(),
             saved: HashMap::new(),
             claimed: None,
             dragged: None,
@@ -1205,7 +1245,7 @@ mod tests {
             .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
         tiling.wm.add_window("s1");
         tiling.book.keep("s1");
-        tiling.wm.act(&Action::ToggleFloating);
+        tiling.wm.act(&Own::ToggleFloating);
         assert!(tiling.wm.set_size("s1", [40, 20]));
         tiling.relayout().unwrap();
         drag(
@@ -1427,7 +1467,7 @@ mod tests {
             .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
         for id in ["s1", "s2"] {
             tiling.wm.add_window(id);
-            tiling.wm.act(&Action::ToggleFloating);
+            tiling.wm.act(&Own::ToggleFloating);
             assert!(tiling.wm.set_size(id, [40, 20]));
         }
         tiling.relayout().unwrap();
@@ -1463,7 +1503,7 @@ mod tests {
             .wm
             .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
         tiling.wm.add_window("s1");
-        tiling.wm.act(&Action::ToggleFloating);
+        tiling.wm.act(&Own::ToggleFloating);
         assert!(tiling.wm.set_size("s1", [40, 20]));
         tiling.relayout().unwrap();
         (tiling, methods)
@@ -1614,7 +1654,7 @@ mod tests {
 
     #[test]
     fn a_relayout_takes_no_focus_from_another_window_manager() {
-        let mut shown = ShownFocus::default();
+        let mut shown = Focus::default();
         assert!(shown.sends(Some("s3")));
         shown.sent(Some("s3".into()));
         assert!(!shown.sends(Some("s3")));
@@ -1656,7 +1696,7 @@ mod tests {
 
     #[test]
     fn a_focus_emptied_by_a_closed_window_is_no_loss() {
-        let mut shown = ShownFocus::default();
+        let mut shown = Focus::default();
         shown.sent(Some("s3".into()));
         // The focused window of tiling exits: the core empties the focus.
         shown.moved(None);
@@ -1665,6 +1705,21 @@ mod tests {
         // Another window manager still takes it with its own window.
         shown.moved(Some("s9"));
         assert!(shown.lost && !shown.sends(Some("s4")));
+    }
+
+    /// The policy of tiling (`kit::wm::focus`): after the focused window
+    /// goes, the window focused before it gets the keyboard.
+    #[test]
+    fn the_window_focused_before_gets_the_keyboard_after_a_close() {
+        let (mut tiling, _) = on_fake_core("after");
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.wm.add_window("s1");
+        tiling.wm.add_window("s2");
+        tiling.relayout().unwrap();
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s2"));
+        tiling.forget_window("s2", &chora_kit::wm::Why::Destroyed);
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s1"));
+        assert!(tiling.focus.sends(Some("s1")), "the next relayout sends it");
     }
 
     /// A press on a window took the focus, and Escape hid the key list,
@@ -1767,7 +1822,7 @@ mod tests {
             json!({"event": "input.moved", "binding": give::MOVE, "position": [90.0, 90.0],
                 "output": "X", "local": [90.0, 90.0], "injected": injected})
         };
-        tiling.wm.act(&Action::ToggleFloating);
+        tiling.wm.act(&Own::ToggleFloating);
         tiling.relayout().unwrap();
         send(&mut tiling, grab(false));
         assert!(

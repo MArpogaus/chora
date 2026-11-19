@@ -48,7 +48,7 @@ export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work/shots}
 mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
-cp -rL "$repo/plugins/chora-assistant/huds/tiling" "$work/data/chora/huds/tiling"
+cp -rL "$repo/plugins/chora-tiling/hud" "$work/data/chora/huds/tiling"
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
 flavor=$repo/flavors/tiling

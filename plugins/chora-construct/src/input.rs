@@ -2,17 +2,18 @@
 //! keys.
 
 use crate::camera::take_flight;
+use chora_kit::actions::{System, perform::perform};
 use chora_kit::words::{Language, Word, say};
 
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
-    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL,
-    cube, give, hud, space, window_flown_into,
+    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, Voice,
+    WHEEL, cube, give, hud, space, window_flown_into,
 };
 
 /// The notice of a window manager that did not take a window, with the
 /// reason from the error.
-fn refusal(language: Language, manager: &str, error: &str) -> String {
+pub(crate) fn refusal(language: Language, manager: &str, error: &str) -> String {
     let reason = crate::names::reason(error, language);
     crate::names::refused(language, manager, &reason)
 }
@@ -99,16 +100,14 @@ impl Construct {
         modifiers: &[String],
         typed: bool,
     ) -> Result<(), ClientError> {
-        match self.settings.value.action(key, modifiers) {
-            Some(Action::Terminal) => self.start_terminal(),
-            Some(action) if Action::SHARED.contains(&action) => return self.shared_key(action),
-            Some(Action::Close) => return self.close_ahead(),
-            Some(Action::Windows) => return self.open_list(),
-            Some(Action::Cube) => return self.cube_key(),
-            Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
-                self.stride_press(key, action);
+        match self.settings.value.action(key, modifiers).cloned() {
+            Some(Action::System(system)) => return perform(self, &system),
+            Some(Action::Look(Own::Windows)) => return self.open_list(),
+            Some(Action::Look(Own::Cube)) => return self.cube_key(),
+            Some(Action::Look(own @ (Own::Forward | Own::Back | Own::Left | Own::Right))) => {
+                self.stride_press(key, own);
             }
-            Some(action) => self.act(action),
+            Some(Action::Look(own)) => self.act(own),
             None if typed => return self.keys_walk(),
             None => {}
         }
@@ -123,8 +122,8 @@ impl Construct {
             return Ok(());
         }
         self.keys_walked = Some(now);
-        let help = (self.settings.value.keys.iter())
-            .find(|(_, action)| **action == Action::Help)
+        let help = (self.settings.value.common.bindings.iter())
+            .find(|(_, action)| **action == Action::System(System::Keys))
             .map_or("Super+F1", |(key, _)| key.as_str());
         let words = say(Language::of_session(), Word::KeysWalk, &[("key", help)]);
         self.voice.notice(&words, now);
@@ -133,7 +132,7 @@ impl Construct {
 
     /// A give key: gives the focused window, else the window of the pane
     /// ahead, to the window manager `to`. A refusal is a notice.
-    fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
+    pub(crate) fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
         if let Some(sel) = self
             .list
             .as_ref()
@@ -287,8 +286,11 @@ impl Construct {
             } => {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
-                    Some(&Grab::Key(Action::Terminal)) => self.terminal_beside(),
-                    Some(&Grab::Key(action)) => self.grabbed_key(action),
+                    Some(Grab::Key(System::Terminal)) => self.terminal_beside(),
+                    Some(Grab::Key(system)) => {
+                        let system = system.clone();
+                        self.grabbed_key(&system)
+                    }
                     _ => self.fly_out(),
                 };
             }
@@ -650,7 +652,7 @@ impl Construct {
                 else {
                     return Ok(*state == PressState::Pressed);
                 };
-                let toggle = self.settings.value.keys.get(key) == Some(&Action::Windows);
+                let toggle = self.settings.value.common.bindings.get(key) == Some(&Action::Look(Own::Windows));
                 match key {
                     "Escape" if searching => self.search_list(String::clear),
                     "Escape" => self.close_list(),
@@ -715,7 +717,7 @@ impl Construct {
         let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected()) else {
             return Ok(false);
         };
-        let own = self.settings.value.action(key, modifiers) == Some(Action::Help);
+        let own = self.settings.value.action(key, modifiers) == Some(&Action::System(System::Keys));
         match key {
             "Escape" if !self.help_query.is_empty() => {
                 self.help_query.clear();

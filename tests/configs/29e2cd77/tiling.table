@@ -1,0 +1,81 @@
+MOD+1	{"view_tag":1}
+MOD+2	{"view_tag":2}
+MOD+3	{"view_tag":3}
+MOD+4	{"view_tag":4}
+MOD+5	{"view_tag":5}
+MOD+6	{"view_tag":6}
+MOD+7	{"view_tag":7}
+MOD+8	{"view_tag":8}
+MOD+9	{"view_tag":9}
+MOD+BTN_LEFT	"drag"
+MOD+Ctrl+1	{"toggle_tag_view":1}
+MOD+Ctrl+2	{"toggle_tag_view":2}
+MOD+Ctrl+3	{"toggle_tag_view":3}
+MOD+Ctrl+4	{"toggle_tag_view":4}
+MOD+Ctrl+5	{"toggle_tag_view":5}
+MOD+Ctrl+6	{"toggle_tag_view":6}
+MOD+Ctrl+7	{"toggle_tag_view":7}
+MOD+Ctrl+8	{"toggle_tag_view":8}
+MOD+Ctrl+9	{"toggle_tag_view":9}
+MOD+Ctrl+Return	"move_to_master"
+MOD+Ctrl+Shift+1	{"toggle_window_tag":1}
+MOD+Ctrl+Shift+2	{"toggle_window_tag":2}
+MOD+Ctrl+Shift+3	{"toggle_window_tag":3}
+MOD+Ctrl+Shift+4	{"toggle_window_tag":4}
+MOD+Ctrl+Shift+5	{"toggle_window_tag":5}
+MOD+Ctrl+Shift+6	{"toggle_window_tag":6}
+MOD+Ctrl+Shift+7	{"toggle_window_tag":7}
+MOD+Ctrl+Shift+8	{"toggle_window_tag":8}
+MOD+Ctrl+Shift+9	{"toggle_window_tag":9}
+MOD+Ctrl+Shift+space	"previous_layout"
+MOD+Ctrl+h	{"inc_columns":1}
+MOD+Ctrl+j	"focus_next_output"
+MOD+Ctrl+k	"focus_previous_output"
+MOD+Ctrl+l	{"inc_columns":-1}
+MOD+Ctrl+m	"toggle_maximized_vertical"
+MOD+Ctrl+n	"restore_minimized"
+MOD+Ctrl+r	"reload"
+MOD+Ctrl+space	"toggle_floating"
+MOD+Escape	"view_back"
+MOD+F1	"show_keys"
+MOD+Left	"view_previous"
+MOD+Print	{"run":"chora-tiling --launch screenshot"}
+MOD+Return	{"run":"chora-tiling --launch foot"}
+MOD+Right	"view_next"
+MOD+Shift+1	{"move_to_tag":1}
+MOD+Shift+2	{"move_to_tag":2}
+MOD+Shift+3	{"move_to_tag":3}
+MOD+Shift+4	{"move_to_tag":4}
+MOD+Shift+5	{"move_to_tag":5}
+MOD+Shift+6	{"move_to_tag":6}
+MOD+Shift+7	{"move_to_tag":7}
+MOD+Shift+8	{"move_to_tag":8}
+MOD+Shift+9	{"move_to_tag":9}
+MOD+Shift+Escape	{"run":"loginctl lock-session"}
+MOD+Shift+c	"close"
+MOD+Shift+e	{"run":"chora-tiling --launch power"}
+MOD+Shift+h	{"inc_masters":1}
+MOD+Shift+j	"swap_next"
+MOD+Shift+k	"swap_previous"
+MOD+Shift+l	{"inc_masters":-1}
+MOD+Shift+m	"toggle_maximized_horizontal"
+MOD+Shift+s	{"run":"chora-tiling --launch screenshot area"}
+MOD+Shift+space	"next_layout"
+MOD+Tab	"focus_back"
+MOD+a	{"run":"chora-chat"}
+MOD+f	"toggle_fullscreen"
+MOD+h	{"inc_master_width":-0.05}
+MOD+j	"focus_next"
+MOD+k	"focus_previous"
+MOD+l	{"inc_master_width":0.05}
+MOD+m	"toggle_maximized"
+MOD+n	"minimize"
+MOD+o	"move_to_next_output"
+MOD+r	{"run":"chora-tiling --launch fuzzel"}
+MOD+slash	"show_keys"
+MOD+space	{"run":"chora-tiling --launch fuzzel"}
+MOD+t	"toggle_on_top"
+MOD+u	"focus_urgent"
+XF86AudioLowerVolume	{"volume":"down"}
+XF86AudioMute	{"volume":"mute"}
+XF86AudioRaiseVolume	{"volume":"up"}

@@ -591,6 +591,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-saphyr",
+ "serde_json",
  "zune-jpeg",
 ]
 
@@ -600,6 +601,7 @@ version = "0.9.0-rc.3"
 dependencies = [
  "chora-scene",
  "libc",
+ "rustix 1.1.6",
  "schemars",
  "serde",
  "serde-saphyr",

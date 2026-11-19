@@ -295,7 +295,7 @@ impl Construct {
         let of_window =
             |construct: &Self| (construct.panes.iter()).position(|p| p.window() == Some(surface));
         if of_window(self).is_none() {
-            self.take_detached(surface, false)?;
+            self.take_free(surface, false)?;
         }
         if self.inside().as_deref() == Some(surface) {
             if self.flown.is_some() {

@@ -115,12 +115,38 @@ impl Plugin for Notify {
         Some(&mut self.settings)
     }
 
+    fn state(&self) -> Option<Value> {
+        let shown = self.card.as_ref().map(|(note, _)| note);
+        Some(state_value(shown, &self.queue, &self.theme.texts()))
+    }
+
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         self.queue.set_times(self.settings.value);
         self.redraw()
             .and_then(|commands| self.apply(commands))
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
+}
+
+/// The answer of `state.get`: the notification on screen with the node
+/// of its card, the ids that the server accepted, that wait and that
+/// closed, the runs of text of the card, and nothing busy, since a card
+/// shows and goes without an animation.
+fn state_value(shown: Option<&Note>, queue: &Queue, texts: &[theme::NodeRun]) -> Value {
+    let shown: Vec<Value> = shown
+        .map(
+            |note| serde_json::json!({"id": note.id, "summary": note.summary, "node": card::GROUP}),
+        )
+        .into_iter()
+        .collect();
+    serde_json::json!({
+        "shown": shown,
+        "accepted": queue.accepted_ids(),
+        "waiting": queue.waiting_ids(),
+        "closed": queue.closed_ids(),
+        "texts": texts,
+        "busy": [],
+    })
 }
 
 impl Notify {
@@ -141,12 +167,9 @@ impl Notify {
             }
             Err(err) => return Err(err.into()),
         };
-        let rt = Runtime::start(
-            NAME,
-            Vec::new(),
-            EVENTS,
-            settings::File::<Config>::methods(),
-        )?;
+        let mut methods = settings::File::<Config>::methods();
+        methods.push(runtime::state_method());
+        let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods)?;
         Ok(Some(Self {
             rt,
             queue: Queue::new(settings.value),
@@ -460,6 +483,51 @@ mod tests {
         notify.rt.pin_accepts_injected(false);
         notify.event(press(false)).unwrap();
         assert_eq!(notify.queue.current(), None, "the press of the person");
+    }
+
+    fn note(id: u32, summary: &str) -> Note {
+        Note {
+            id,
+            icon: String::new(),
+            summary: summary.into(),
+            body: "text".into(),
+            actions: Vec::new(),
+            expire_ms: 0,
+        }
+    }
+
+    /// `state.get` lists the notification on screen with the node of its
+    /// card, the ids that were accepted, that wait and that closed, the
+    /// runs of text of the card, and nothing busy.
+    #[test]
+    fn the_state_shows_the_card_on_screen() {
+        let new = || Queue::new(chora_kit::settings::parse(config::DEFAULT).unwrap());
+        let mut queue = new();
+        let now = Instant::now();
+        queue.push(note(7, "Battery low"), now);
+        queue.push(note(8, "Update"), now);
+        queue.push(note(9, "Mail"), now);
+        queue.close(9, Reason::Closed, now);
+        let shown = state_value(queue.current(), &queue, &[]);
+        assert_eq!(
+            shown,
+            serde_json::json!({
+                "shown": [{"id": 7, "summary": "Battery low", "node": card::GROUP}],
+                "accepted": [7, 8, 9], "waiting": [8], "closed": [9],
+                "texts": [], "busy": []})
+        );
+        let empty = state_value(None, &new(), &[]);
+        assert_eq!(empty["shown"], serde_json::json!([]));
+        assert_eq!(empty["accepted"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn notify_answers_state_get() {
+        let Some((notify, _daemon)) = on_private_bus("state") else {
+            return;
+        };
+        let state = notify.state().expect("notify has a state");
+        assert_eq!(state["shown"], serde_json::json!([]));
     }
 
     #[test]

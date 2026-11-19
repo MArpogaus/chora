@@ -1,10 +1,6 @@
 //! Handing windows to other window managers and dragging windows with the pointer.
 
-use chora_kit::{
-    effects::Target,
-    give::{self, Give},
-    runtime,
-};
+use chora_kit::{actions::System, effects::Target, give::Give, runtime, wm::Why};
 use chora_scene::{
     GivenGrab,
     ipc::{ClientError, PressState, RpcError},
@@ -79,23 +75,15 @@ impl Tiling {
         let given = self.book.confirm(surface);
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         self.settle(given).map_err(rejected)?;
-        self.forget_window(surface);
+        self.forget_window(surface, &Why::Given(to.into()));
         self.relayout().map_err(rejected)?;
         Ok(answer)
-    }
-
-    /// The key `give`: the focused window goes to the window manager `to`.
-    /// A refusal only logs.
-    pub(super) fn give_focused(&mut self, to: &str) {
-        if let Err(err) = give::focused(self, to) {
-            eprintln!("chora-tiling: give to {to}: {}", err.message);
-        }
     }
 
     /// Whether a binding drags: the one of `drag`, or `move`, the
     /// interactive move of a client, for example from its title bar.
     pub(super) fn drags(&self, binding: &str) -> bool {
-        matches!(self.rt.action(binding), Some(Action::Drag))
+        matches!(self.rt.action(binding), Some(Action::System(System::Drag)))
     }
 
     /// A drag: the press takes the window that asked for a move, else the

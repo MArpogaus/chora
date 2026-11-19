@@ -27,6 +27,8 @@ The decision records are in [docs/decisions.md](docs/decisions.md#decisions-of-t
 
 A count only falls: `tools/cut-check` prints "lower max" when the real count is lower. Write the red test of the shared module first (D96 `FakeCore`), then the move, then the row.
 
+The cut gate (D103) runs `tools/cut-check` in `ci-check`, the merge gate and CI: a plugin or service may not depend on another one, and a row of `tools/copies.toml` at `max = 0` blocks a copy that comes back. A merge that moves code into the kit lowers the row in the same commit. Details are further down, next to the size ratchet.
+
 ## Hooks
 
 Install the hooks once in every fresh clone:
@@ -313,13 +315,20 @@ needs the rustfmt form: `#[cfg(test)]` on one line, then `mod x {` on the
 next; any other form counts the tests as production lines.
 
 `tools/cut-check` asks whether a plugin could be packaged and moved to
-another repository alone. A dependency of one crate under `plugins/` or
-`services/` on another blocks. Assets outside the crate, the names of
-other plugins, workspace dependencies beyond chora-kit, chora-scene and
-chora-draw, and the copy rows of `tools/copies.toml` are reported; a copy
-row at `max = 0` that still matches blocks. A dev-dependency of one
-plugin on another blocks too. Both run in `ci-check` of the
-merge gate and in CI, each with a self-test under `tests/`.
+another repository alone. These block: a dependency of one crate under
+`plugins/` or `services/` on another (a dev or build dependency too), a
+workspace dependency beyond chora-kit, chora-scene and chora-draw, an
+`include_str!` or `include_bytes!` path or a link that leaves the crate,
+an entry of a `huds` folder other than `neutral` (a look ships its own
+costume in its own `hud` folder), a name of another plugin beyond the
+count of `tools/cut-known.toml`, and a copy row of `tools/copies.toml` at
+`max = 0` that still matches. The counts of `cut-known.toml` only fall:
+the tool prints "lower max" when the real count is lower, and a new
+breach is fixed, not listed. With `--base REF` it also reports the match
+arms on a chora-kit enum that the plugins gained since `REF`, so a port
+that starts to act on a shared variant shows before review. Both run in
+`ci-check` of the merge gate and in CI, each with a self-test under
+`tests/`.
 
 ## Demo media
 

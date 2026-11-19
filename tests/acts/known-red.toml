@@ -13,13 +13,6 @@ match = "expected open []"
 slice = "WM3"
 
 [[red]]
-finding = "net2-a2: mc gives the keyboard to its page node after its window goes, and holds no focus by the net1 review rule"
-id = "I3"
-look = "mc"
-match = "no look says it holds the focus"
-slice = "WM2"
-
-[[red]]
 finding = "net2-a3: mc reports no open, so its key list is not open in state.get"
 id = "I4"
 look = "mc"
@@ -39,3 +32,24 @@ id = "act:the keys alias key opens the key list"
 look = "mc"
 match = "expected open ['mc-keys']"
 slice = "WM3"
+
+[[red]]
+finding = "net3-t1: the key list of tiling: the long row 'Run a program or a typed command' runs into the heading 'System' of the next column"
+id = "I5"
+look = "tiling"
+match = "'Run a program or a typed command'"
+slice = "KIT3"
+
+[[red]]
+finding = "net3-m1: the key column of mc: the wrapped line of 'Start a program or run a command' overprints the next row 'Chat with a helper'"
+id = "I5"
+look = "mc"
+match = "'Start a program or run a command'"
+slice = "KIT3"
+
+[[red]]
+finding = "co-21: the cube held 2 s into a 4 s turn shows face 1 and no box for its neighbour face 0 (and face 3 beside face 2)"
+id = "I13"
+look = "construct"
+match = "is missing beside"
+slice = "WM6"

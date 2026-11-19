@@ -1,7 +1,10 @@
 //! The programs of All Programs: the applications of the XDG desktop
 //! files, in program groups by their main category, as on XP.
 
-use chora_kit::desktop_entry::{self, Entry, command};
+use chora_kit::{
+    desktop_entry::{self, Entry, command},
+    launch::Candidate,
+};
 
 /// An entry of All Programs or of one of its groups.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -87,16 +90,6 @@ pub fn load(terminal: &str, editor: Option<&str>) -> Vec<Node> {
     let command = self::editor(editor, on_path).unwrap_or_else(|| NO_EDITOR.into());
     add_notepad(&mut nodes, command);
     nodes
-}
-
-/// One way to start Notepad: the name that messages use and its shell
-/// command.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Candidate {
-    /// The program, as a message names it.
-    pub name: String,
-    /// The shell command.
-    pub command: String,
 }
 
 /// The editors that Notepad tries, in order.

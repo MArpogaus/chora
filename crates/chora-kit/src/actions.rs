@@ -4,6 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod perform;
+
 use crate::volume::Change;
 
 /// A step through the desks of a look. Only a value for now: no look acts
@@ -37,7 +39,9 @@ pub enum System {
     Terminal,
     /// Starts the launcher of the look.
     Launcher,
-    /// Shows all keys in the key list.
+    /// Shows all keys in the key list. `help` is the old spelling of the
+    /// construct and `show_keys` that of tiling, read for one release.
+    #[serde(alias = "help", alias = "show_keys")]
     Keys,
     /// Asks the HUD host to open the chat with a helper.
     Chat,
@@ -63,6 +67,23 @@ pub enum System {
 }
 
 impl System {
+    /// Whether the action is one of the keys that every look has: it works
+    /// in the walk and as a grab in a pane, the launcher, the key list, the
+    /// chat, lock, power, the screenshot and the volume.
+    #[must_use]
+    pub const fn in_every_look(&self) -> bool {
+        matches!(
+            self,
+            Self::Launcher
+                | Self::Keys
+                | Self::Chat
+                | Self::Lock
+                | Self::Power
+                | Self::Screenshot
+                | Self::Volume(_)
+        )
+    }
+
     /// The shared script that runs the action and its arguments, for
     /// [`crate::shared::command`]: the locker, the power menu and the
     /// screenshot.
@@ -87,31 +108,51 @@ pub enum Action<L> {
     Look(L),
 }
 
-/// The names of the system actions as a binding spells them.
-const SYSTEM: [&str; 14] = [
-    "run",
+/// The actions of the system that a binding spells as a plain name; `help`
+/// and `show_keys` are old spellings of `keys`.
+const NAMES: [&str; 11] = [
     "terminal",
     "launcher",
     "keys",
+    "help",
+    "show_keys",
     "chat",
     "lock",
     "power",
     "screenshot",
-    "volume",
     "close",
-    "give",
     "drag",
-    "desk",
-    "cube",
 ];
 
-/// Whether a value names an action of the system: a string, or a map with
-/// one key, that is one of [`SYSTEM`].
+/// The actions of the system that a binding spells as a map with one key.
+const WORDS: [&str; 5] = ["run", "volume", "give", "desk", "cube"];
+
+/// The old spellings of the three volume keys of the construct, read for
+/// one release: the plain name and the change that it stands for.
+const OLD: [(&str, &str); 3] = [
+    ("volume_up", "up"),
+    ("volume_down", "down"),
+    ("mute", "mute"),
+];
+
+/// Rewrites an old spelling to the spelling of today.
+fn current(value: serde_json::Value) -> serde_json::Value {
+    if let serde_json::Value::String(name) = &value
+        && let Some((_, change)) = OLD.iter().find(|(old, _)| old == name)
+    {
+        return serde_json::json!({ "volume": change });
+    }
+    value
+}
+
+/// Whether a value names an action of the system: a plain name of
+/// [`NAMES`], or a map with one key of [`WORDS`]. A bare `cube` is the
+/// cube action of a look, `{cube: left}` the turn of the system.
 fn names_system(value: &serde_json::Value) -> bool {
     match value {
-        serde_json::Value::String(name) => SYSTEM.contains(&name.as_str()),
+        serde_json::Value::String(name) => NAMES.contains(&name.as_str()),
         serde_json::Value::Object(map) => {
-            map.len() == 1 && map.keys().all(|k| SYSTEM.contains(&k.as_str()))
+            map.len() == 1 && map.keys().all(|k| WORDS.contains(&k.as_str()))
         }
         _ => false,
     }
@@ -129,7 +170,7 @@ impl<'de, L: serde::de::DeserializeOwned> Deserialize<'de> for Action<L> {
     /// is a bad volume, not an unknown action of the look.
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
+        let value = current(serde_json::Value::deserialize(deserializer)?);
         match System::deserialize(&value) {
             Ok(system) => Ok(Self::System(system)),
             Err(err) if names_system(&value) => Err(D::Error::custom(err)),

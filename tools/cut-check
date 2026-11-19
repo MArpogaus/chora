@@ -1,29 +1,44 @@
 #!/usr/bin/env python3
 """Cut gate (CUT1): can a plugin be packaged and moved to another repo alone?
 
-Usage: tools/cut-check [--root DIR]
+Usage: tools/cut-check [--root DIR] [--base REF]
   --root DIR  the repository to check (default: the one holding this tool)
+  --base REF  also report the match arms on a chora-kit enum that the
+              plugins and services gained since REF (see variants)
 
-Checks, each over the crates under plugins/ and services/:
+Checks, each over the crates under plugins/ and services/. A crate must be
+packageable and movable to another repository alone:
   deps       BLOCKS. No workspace dependency from one of these crates on
-             another of them (cargo metadata).
-  packaging  reports. A workspace dependency other than chora-kit,
+             another of them (cargo metadata; normal, dev and build).
+  packaging  BLOCKS. A workspace dependency other than chora-kit,
              chora-scene and chora-draw.
-  assets     reports. An include_str!/include_bytes! path that leaves the
-             crate directory.
-  names      reports. The name of another plugin or service (chora-xp,
-             chora_xp) in a crate's sources.
+  assets     BLOCKS. An include_str!/include_bytes! path that leaves the
+             crate directory; a link that leaves it; an entry of its huds
+             folder other than neutral (a look ships its own costume in
+             its own hud folder). The include breaches that a crate has
+             today are counted in tools/cut-known.toml.
+  names      BLOCKS beyond the known count. The name of another plugin or
+             service (chora-xp, chora_xp) in a crate's sources. The count
+             per crate and name is in tools/cut-known.toml.
   copies     reports; BLOCKS a row at max 0 that still matches. Rows are
              in tools/copies.toml: a count above max is reported as grown,
              below max as "lower max".
+  variants   reports, only with --base. A line added since REF in a crate
+             that has a match arm `Enum::Variant ... =>` on a pub enum of
+             chora-kit: a port that starts to act on a shared variant
+             shows before review. An arm that spans lines is not seen.
+Counts of tools/cut-known.toml only fall: a count above its max blocks, one
+below is reported as "lower max".
 Exit status 0 nothing blocks, 1 a block, 2 usage. Lines starting with
 FAIL: block, lines starting with REPORT: do not.
 """
 import json
+import os
 import re
 import subprocess
 import sys
 import tomllib
+from collections import Counter
 from pathlib import Path
 
 SHARED = {"chora-kit", "chora-scene", "chora-draw"}
@@ -69,30 +84,56 @@ def own_files(root, crates, name):
 
 
 def check_deps(crates):
-    blocks, reports = [], []
+    blocks = []
     for name, (_, pkg) in sorted(crates.items()):
         for dep in pkg["dependencies"]:
             if dep["name"] in crates and dep["name"] != name:
                 blocks.append(f"deps: {name} depends on {dep['name']}")
             elif dep.get("path") and dep["name"] not in SHARED and dep["name"] not in crates:
-                reports.append(f"packaging: {name} depends on workspace crate {dep['name']}")
-    return blocks, reports
+                blocks.append(f"packaging: {name} depends on workspace crate {dep['name']}")
+    return blocks
 
 
-def check_assets(root, crates):
-    reports = []
-    for name, (directory, _) in sorted(crates.items()):
+def include_breaches(root, crates):
+    found = {}
+    for name in sorted(crates):
         files, own = own_files(root, crates, name)
+        lines = []
         for f in files:
             for target in INCLUDE.findall(f.read_text(errors="replace")):
-                resolved = (f.parent / target).resolve()
-                if not resolved.is_relative_to(own):
-                    reports.append(f"assets: {name} {rel(root, f)} includes {target}")
-    return reports
+                if not (f.parent / target).resolve().is_relative_to(own):
+                    lines.append(f"assets: {name} {rel(root, f)} includes {target}")
+        found[name] = lines
+    return found
 
 
-def check_names(root, crates):
-    reports = []
+def crate_entries(root, crates, name):
+    own = (root / crates[name][0]).resolve()
+    nested = [(root / d).resolve() for n, (d, _) in crates.items() if n != name and (root / d).resolve().is_relative_to(own)]
+    for here, dirs, files in os.walk(own):
+        here = Path(here)
+        dirs[:] = sorted(d for d in dirs if d != "target" and (here / d).resolve() not in nested)
+        for entry in sorted(dirs + files):
+            yield own, here / entry
+
+
+def check_links(root, crates):
+    blocks = []
+    for name in sorted(crates):
+        leaving = set()
+        for own, path in crate_entries(root, crates, name):
+            if path.is_symlink() and not path.resolve().is_relative_to(own):
+                leaving.add(path)
+                blocks.append(f"assets: {name} {path.relative_to(own).as_posix()} is a link that leaves the crate")
+        huds = (root / crates[name][0] / "huds")
+        for entry in sorted(huds.iterdir()) if huds.is_dir() else []:
+            if entry.name != "neutral" and entry not in leaving:
+                blocks.append(f"assets: {name} huds/{entry.name} is not the neutral costume")
+    return blocks
+
+
+def name_counts(root, crates):
+    found = {}
     for name in sorted(crates):
         files, own = own_files(root, crates, name)
         for other in sorted(n for n in crates if n != name and not (root / crates[n][0]).resolve().is_relative_to(own)):
@@ -103,8 +144,81 @@ def check_names(root, crates):
                     if pattern.search(line):
                         hits.append(f"{rel(root, f)}:{number}")
             if hits:
-                reports.append(f"names: {name} names {other} on {len(hits)} lines, first {hits[0]}")
-    return reports
+                found[(name, other)] = (len(hits), hits[0])
+    return found
+
+
+def known_rows(root, check):
+    path = root / "tools" / "cut-known.toml"
+    rows = tomllib.loads(path.read_text()).get("known", []) if path.exists() else []
+    return [row for row in rows if row["check"] == check]
+
+
+def ratchet(describe, counts, known, lines):
+    """Compare counts (key to number) with the known max of each key.
+
+    Returns (blocks, reports): a key above its max blocks with its lines; at
+    or below it reports them; a known max above the count is reported."""
+    blocks, reports = [], []
+    for key, count in sorted(counts.items()):
+        if count > known.get(key, 0):
+            blocks += lines[key]
+        else:
+            reports += lines[key]
+    for key, limit in sorted(known.items()):
+        count = counts.get(key, 0)
+        if count < limit:
+            reports.append(f"known: {describe(key)}: {count}, lower max from {limit}")
+    return blocks, reports
+
+
+def check_assets(root, crates):
+    breaches = include_breaches(root, crates)
+    counts = {(name,): len(lines) for name, lines in breaches.items() if lines}
+    lines = {(name,): found for name, found in breaches.items() if found}
+    known = {(row["crate"],): row["max"] for row in known_rows(root, "assets")}
+    blocks, reports = ratchet(lambda key: f"{key[0]} assets", counts, known, lines)
+    return check_links(root, crates) + blocks, reports
+
+
+def check_names(root, crates):
+    found = name_counts(root, crates)
+    counts = {key: count for key, (count, _) in found.items()}
+    lines = {key: [f"names: {key[0]} names {key[1]} on {count} lines, first {first}"] for key, (count, first) in found.items()}
+    known = {(row["crate"], row["other"]): row["max"] for row in known_rows(root, "names")}
+    return ratchet(lambda key: f"{key[0]} names {key[1]}", counts, known, lines)
+
+
+def kit_enums(root):
+    names = set()
+    for f in rust_files(root / "crates" / "chora-kit"):
+        names.update(re.findall(r"^\s*pub enum (\w+)", f.read_text(errors="replace"), re.M))
+    return names
+
+
+def crate_of(crates, path):
+    owners = [(len(d), name) for name, (d, _) in crates.items() if path.startswith(d + "/")]
+    return max(owners)[1] if owners else None
+
+
+def check_variants(root, crates, base):
+    diff = subprocess.run(
+        ["git", "diff", "-U0", base, "--", "plugins", "services"],
+        cwd=root, capture_output=True, text=True,
+    )
+    if diff.returncode != 0:
+        return [f"variants: cannot diff against {base}: {diff.stderr.strip()[-200:]}"], []
+    enums = kit_enums(root)
+    arm = re.compile(r"\b(" + "|".join(sorted(enums)) + r")::([A-Z]\w*)") if enums else None
+    seen, current = {}, None
+    for line in diff.stdout.splitlines():
+        if line.startswith("+++ "):
+            current = line[6:] if line.startswith("+++ b/") else None
+        elif current and arm and current.endswith(".rs") and line.startswith("+") and "=>" in line:
+            for enum, variant in arm.findall(line[1:].split("=>")[0]):
+                seen[(crate_of(crates, current), f"{enum}::{variant}", current)] = None
+    reports = [f"variants: {crate} acts on {variant} (new arm in {path})" for crate, variant, path in sorted(seen) if crate]
+    return [], reports
 
 
 def check_copies(root):
@@ -132,20 +246,40 @@ def check_copies(root):
     return blocks, reports
 
 
+def parse(argv):
+    root, base = Path(__file__).resolve().parent.parent, None
+    args = list(argv)
+    while args:
+        flag = args.pop(0)
+        if flag in ("--root", "--base") and args:
+            value = args.pop(0)
+            if flag == "--root":
+                root = Path(value).resolve()
+            else:
+                base = value
+        else:
+            return None
+    return root, base
+
+
 def main(argv):
-    root = Path(__file__).resolve().parent.parent
-    if argv[:1] == ["--root"] and len(argv) > 1:
-        root = Path(argv[1]).resolve()
-    elif argv:
+    if argv[:1] in (["-h"], ["--help"]):
         print(__doc__)
-        return 0 if argv[0] in ("-h", "--help") else 2
+        return 0
+    parsed = parse(argv)
+    if parsed is None:
+        print(__doc__)
+        return 2
+    root, base = parsed
     crates = cut_crates(root, workspace(root))
-    blocks, reports = check_deps(crates)
-    reports += check_assets(root, crates)
-    reports += check_names(root, crates)
-    copy_blocks, copy_reports = check_copies(root)
-    blocks += copy_blocks
-    reports += copy_reports
+    blocks, reports = check_deps(crates), []
+    for found in (check_assets(root, crates), check_names(root, crates), check_copies(root)):
+        blocks += found[0]
+        reports += found[1]
+    if base:
+        found = check_variants(root, crates, base)
+        blocks += found[0]
+        reports += found[1]
     for line in reports:
         print(f"REPORT: cut-check: {line}")
     for line in blocks:

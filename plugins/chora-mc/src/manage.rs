@@ -157,17 +157,32 @@ impl Mc {
             .ok_or_else(|| {
                 RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
             })?;
-        let answer = self.rt.conn.give_dragged(&surface, &to, grab)?;
-        self.windows.remove(&name);
-        if self.focused.as_deref() == Some(surface.as_str()) {
-            self.focused = None;
-        }
-        // The receiver focuses the window; mc takes no keyboard.
-        self.leave(&name, false);
-        if self.transient.contains(&name) {
-            self.remove_scene(&name).map_err(rejected)?;
-        }
+        self.book.give(&surface, &to);
+        let answer = match self.rt.conn.give_dragged(&surface, &to, grab) {
+            Ok(answer) => answer,
+            Err(err) => {
+                self.book.refused(&surface);
+                return Err(err);
+            }
+        };
+        let given = self.book.confirm(&surface);
+        self.settle(given, &crate::windows::Named::Ask)
+            .map_err(rejected)?;
+        self.gave(&name, &surface).map_err(rejected)?;
         Ok(answer)
+    }
+
+    /// A window of a scene went to another window manager: the receiver
+    /// focuses it, so mc takes no keyboard; the scene of an app goes with
+    /// it.
+    fn gave(&mut self, name: &str, surface: &str) -> Result<(), ClientError> {
+        self.windows.remove(name);
+        self.focus.gave(surface);
+        self.leave(name, false);
+        if self.transient.contains(name) {
+            self.remove_scene(name)?;
+        }
+        Ok(())
     }
 
     /// Removes a scene whose app ended, with its nodes; the scenes after
@@ -203,7 +218,8 @@ impl Mc {
         }
         let mut ours = self.windows.values().chain(self.docks.values());
         if ours.any(|s| s == node) {
-            if self.focused.as_deref() != Some(node) {
+            self.focus.take();
+            if self.focus.sends(Some(node)) {
                 self.focus(Some(node.into()))?;
             }
             return Ok(());
@@ -498,9 +514,13 @@ mod tests {
         let before = focuses();
         mc.click("s1", on_line, true).unwrap();
         assert_eq!(focuses(), before, "a window took the keyboard");
-        assert_eq!(mc.focused, None);
+        assert_eq!(mc.focus.surface, None);
         mc.click("s1", on_line, false).unwrap();
-        assert_eq!(mc.focused.as_deref(), Some("s1"), "the press of the person");
+        assert_eq!(
+            mc.focus.surface.as_deref(),
+            Some("s1"),
+            "the press of the person"
+        );
         mc.click(&wheel, on_line, false).unwrap();
         assert_eq!(mc.current.as_deref(), Some("morning"), "the person");
     }

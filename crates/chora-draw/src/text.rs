@@ -138,6 +138,20 @@ impl Text {
     }
 }
 
+/// A line of text as a drawer painted it into a picture, for checks that
+/// read the text of a screen without measuring pixels.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct Run {
+    /// The line as drawn, with its ellipsis when it was cut.
+    pub text: String,
+    /// `[x, y, w, h]` of its ink in the logical pixels of the picture.
+    pub rect: [f64; 4],
+    /// The font size in logical pixels.
+    pub px: u32,
+    /// The colour, RGBA.
+    pub fg: [u8; 4],
+}
+
 /// The look of one font.
 struct Spec {
     family: String,
@@ -305,6 +319,20 @@ impl Fonts {
         base: Transform,
         pixmap: &mut PixmapMut<'_>,
     ) -> Result<(), String> {
+        let (line, x) = self.placed(text);
+        let mut body = String::new();
+        if let Some(shadow) = text.shadow {
+            body += &self.element(&line, text, [x + 1.0, 1.0], shadow);
+        }
+        body += &self.element(&line, text, [x, 0.0], text.color);
+        let tree = self.parse(&body, pixmap.width(), pixmap.height())?;
+        resvg::render(&tree, base, pixmap);
+        Ok(())
+    }
+
+    /// The line that [`Self::draw`] paints, shortened to fit, and the x
+    /// where it starts.
+    fn placed(&self, text: &Text) -> (String, f64) {
         let [x, _, w, _] = text.rect;
         let line = self.fit(&text.line, text.font, w);
         let x = match text.align {
@@ -314,14 +342,24 @@ impl Fonts {
                 f64::from(x) + (f64::from(w) - width).max(0.0) / 2.0
             }
         };
-        let mut body = String::new();
-        if let Some(shadow) = text.shadow {
-            body += &self.element(&line, text, [x + 1.0, 1.0], shadow);
-        }
-        body += &self.element(&line, text, [x, 0.0], text.color);
-        let tree = self.parse(&body, pixmap.width(), pixmap.height())?;
-        resvg::render(&tree, base, pixmap);
-        Ok(())
+        (line, x)
+    }
+
+    /// The run that [`Self::draw`] paints for a text: the line as drawn,
+    /// with its ellipsis, the box of its ink in the coordinates of the
+    /// picture, its font size and colour. `None` for a line without ink.
+    #[must_use]
+    pub fn run(&self, text: &Text) -> Option<Run> {
+        let (line, x) = self.placed(text);
+        let body = self.element(&line, text, [x, 0.0], text.color);
+        let tree = self.parse(&body, 4096, 4096).ok()?;
+        let ink = tree.root().abs_bounding_box();
+        (ink.width() > 0.0).then(|| Run {
+            text: line,
+            rect: [ink.x(), ink.y(), ink.width(), ink.height()].map(f64::from),
+            px: self.size(text.font),
+            fg: text.color,
+        })
     }
 
     /// The text, shortened with an ellipsis to fit a width.
@@ -628,6 +666,56 @@ mod tests {
             .draw(&title, Transform::identity(), &mut pixmap.as_mut())
             .expect("the title parses");
         assert!(pixmap.pixels().iter().any(|p| p.alpha() > 0));
+    }
+
+    fn tahoma() -> Fonts {
+        let mut db = Database::new();
+        db.load_fonts_dir(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../flavors/xp/theme/fonts"
+        ));
+        Fonts::with(db, "Tahoma")
+    }
+
+    /// A font check: the run of a line of body text has the body size,
+    /// and its ink lies in its rectangle, about one line of that size
+    /// high, as wide as the width of the line.
+    #[test]
+    fn a_run_reports_the_ink_of_its_line_at_its_font_size() {
+        let fonts = tahoma();
+        let text = Text::new("Hello", Font::Body, [0, 0, 0, 255], [10, 20, 200, 30]);
+        let run = fonts.run(&text).expect("a run");
+        assert_eq!(run.text, "Hello");
+        assert_eq!(run.px, BODY_SIZE);
+        assert_eq!(run.fg, [0, 0, 0, 255]);
+        let [x, y, w, h] = run.rect;
+        assert!(
+            (10.0..12.0).contains(&x),
+            "starts at the left edge: {run:?}"
+        );
+        assert!(y >= 20.0 && y + h <= 50.0, "inside its rectangle: {run:?}");
+        assert!(
+            (7.0..=f64::from(BODY_SIZE) * 1.3).contains(&h),
+            "one line: {run:?}"
+        );
+        let width = fonts.width("Hello", Font::Body).expect("a width");
+        assert!((x + w - 10.0 - width).abs() < 1.0, "{run:?} vs {width}");
+    }
+
+    #[test]
+    fn a_run_is_the_line_as_drawn_cut_and_centered() {
+        let fonts = tahoma();
+        let long = "A title much too long for its narrow button";
+        let cut = Text::new(long, Font::Ui, [0, 0, 0, 255], [0, 0, 80, 20]);
+        let run = fonts.run(&cut).expect("a run");
+        assert!(run.text.ends_with('…'), "{run:?}");
+        assert!(run.rect[0] + run.rect[2] <= 80.0, "{run:?}");
+        let centered = Text::new("OK", Font::Ui, [0, 0, 0, 255], [0, 0, 100, 20]).centered();
+        let run = fonts.run(&centered).expect("a run");
+        let middle = run.rect[0] + run.rect[2] / 2.0;
+        assert!((middle - 50.0).abs() < 2.0, "{run:?}");
+        let blank = Text::new("  ", Font::Ui, [0, 0, 0, 255], [0, 0, 100, 20]);
+        assert_eq!(fonts.run(&blank), None);
     }
 
     /// Six pixels per character.

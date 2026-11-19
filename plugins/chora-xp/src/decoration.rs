@@ -83,14 +83,17 @@ impl Button {
     }
 }
 
+/// The prefix of the id of the group of a window.
+pub const GROUP: &str = "xp-win-";
+
 /// The id of the group of a window.
 pub fn group_id(surface: &str) -> String {
-    format!("xp-win-{surface}")
+    format!("{GROUP}{surface}")
 }
 
 /// The surface of a group of [`group_id`].
 pub fn surface_of(group: &str) -> Option<&str> {
-    group.strip_prefix("xp-win-")
+    group.strip_prefix(GROUP)
 }
 
 fn frame_id(surface: &str) -> String {

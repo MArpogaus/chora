@@ -21,6 +21,10 @@ use serde_json::{Value, json};
 
 use crate::conn::Conn;
 
+mod script;
+
+pub use script::{Script, Subject, created, created_by, detach, output, owner, phases, surface};
+
 /// The scene model of the fake core, shared with the test.
 pub type Model = Arc<Mutex<Core>>;
 
@@ -43,6 +47,10 @@ pub struct Core {
     pub refusals: Vec<String>,
     /// The bindings that the plugin let go with `input.ungrab`.
     pub ungrabs: Vec<Value>,
+    /// Whether `activation.token` mints a token; without, it answers null.
+    pub mints_tokens: bool,
+    /// Whether `scene.query` answers every selector; else only `id:`.
+    pub selects: bool,
 }
 
 /// A fake core on a socket of its own, with one model for the
@@ -79,11 +87,25 @@ impl FakeCore {
         Self { path, model }
     }
 
+    /// Makes `scene.query` answer every selector (`kind:`, `owner:`, ...)
+    /// from the model, as the core does; by default it answers `id:` only.
+    #[must_use]
+    pub fn selecting(self) -> Self {
+        self.model.lock().unwrap().selects = true;
+        self
+    }
+
     /// Plants a refusal: the next call of `method` fails with
     /// `REJECTED`, as when the client of a method is gone. The call after
     /// it passes again.
     pub fn refuse_next(&self, method: &str) {
         self.model.lock().unwrap().refusals.push(method.to_owned());
+    }
+
+    /// Makes `activation.token` mint a new token on each call, as the
+    /// core does for a plugin that holds an act.
+    pub fn mint_tokens(&self) {
+        self.model.lock().unwrap().mints_tokens = true;
     }
 
     /// The scene model, shared with the fake core.
@@ -162,6 +184,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
                 )),
             }
         }
+        "activation.token" if model.lock().unwrap().mints_tokens => Ok(activation_token()),
         "input.grab" => Ok(params["binding"].clone()),
         "input.ungrab" => {
             let mut core = model.lock().unwrap();
@@ -175,23 +198,44 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
             core.called.push(params.clone());
             Ok(Value::Null)
         }
+        "output.list" => Ok(json!([])),
         "events.emit" => {
             model.lock().unwrap().emits.push(params.clone());
             Ok(Value::Null)
         }
-        "scene.query" => {
-            let id = params["selector"]
-                .as_str()
-                .and_then(|s| s.strip_prefix("id:"));
-            let mut core = model.lock().unwrap();
-            core.queries += 1;
-            let found = id
-                .and_then(|id| core.scene.node(id))
-                .map(|n| json!({"id": n.id}));
-            Ok(found.into_iter().collect())
-        }
+        "scene.query" => Ok(query(
+            model,
+            params["selector"].as_str().unwrap_or_default(),
+        )),
         _ => Ok(Value::Null),
     }
+}
+
+/// A new activation token, as the core mints one for a plugin.
+fn activation_token() -> Value {
+    static TOKENS: AtomicUsize = AtomicUsize::new(0);
+    let n = TOKENS.fetch_add(1, Ordering::Relaxed);
+    json!({"token": format!("fake-token-{}-{n}", std::process::id())})
+}
+
+/// The nodes that a selector finds: every selector when the core selects,
+/// else only `id:`.
+fn query(model: &Model, selector: &str) -> Value {
+    let mut core = model.lock().unwrap();
+    core.queries += 1;
+    let found: Vec<Value> = if core.selects {
+        let selector = selector.parse::<chora_scene::Selector>().unwrap();
+        (core.scene.query(&selector).into_iter())
+            .filter_map(|n| serde_json::to_value(n).ok())
+            .collect()
+    } else {
+        let id = selector.strip_prefix("id:");
+        (id.and_then(|id| core.scene.node(id)))
+            .and_then(|n| serde_json::to_value(n).ok())
+            .into_iter()
+            .collect()
+    };
+    Value::Array(found)
 }
 
 /// Whether the model has a node.

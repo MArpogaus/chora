@@ -18,13 +18,16 @@ pane_distance: 2000
 # The keys in the space, by their keysym name, and what each does:
 # forward, back, left, right (steps aside), turn_left, turn_right,
 # look_up, look_down, home (back to the start point), fly_in (into the
-# pane nearest the middle of the view), terminal (starts the terminal),
-# launcher (starts the launcher), close (asks the window of the pane
-# nearest the middle of the view to close), windows (opens and closes
-# the window list), help (shows and hides the panel of the bindings),
-# cube, chat (the chat with a helper), lock, power (the power menu),
-# screenshot, volume_up, volume_down or mute. F1 is no binding: it
-# reaches the program of a pane. The keys launcher, help, chat, lock,
+# pane nearest the middle of the view), windows (opens and closes the
+# window list), cube, and the actions that every look has: terminal
+# (starts the terminal), launcher (starts the launcher), close (asks the
+# window of the pane nearest the middle of the view to close), keys
+# (shows and hides the panel of the bindings), chat (the chat with a
+# helper), lock, power (the power menu), screenshot, `volume: up`,
+# `volume: down` or `volume: mute`, and `run: COMMAND`. The old names
+# help, volume_up, volume_down and mute and the old name `keys` of this
+# whole setting still load for one release. F1 is no binding: it
+# reaches the program of a pane. The keys launcher, keys, chat, lock,
 # power, screenshot and the volume keys work in the walk and while the
 # camera is in a pane. The space takes the keyboard, so the walk keys need no modifier. A key
 # that starts or closes something names Super, as in Super+t, so that
@@ -33,7 +36,7 @@ pane_distance: 2000
 # order, then Shift, as in Super+Shift+e. In the
 # window list, Up and Down move the selection, Return chooses, and
 # Escape or the windows key closes it.
-keys:
+bindings:
   w: forward
   s: back
   a: left
@@ -52,16 +55,16 @@ keys:
   Super+space: launcher
   Super+x: close
   Tab: windows
-  Super+F1: help
-  Super+slash: help
+  Super+F1: keys
+  Super+slash: keys
   Super+c: cube
   Super+a: chat
   Super+Shift+Escape: lock
   Super+Shift+e: power
   Super+Print: screenshot
-  XF86AudioRaiseVolume: volume_up
-  XF86AudioLowerVolume: volume_down
-  XF86AudioMute: mute
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
 # The shell command of the key terminal; its window becomes a pane in
 # the view direction.
 # For tests only: take the keys of input.inject as keys of the user. Off,

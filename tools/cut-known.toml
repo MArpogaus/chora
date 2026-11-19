@@ -1,0 +1,97 @@
+# The breaches of the cut that the crates still have (tools/cut-check, checks
+# "assets" and "names"). A count above its max blocks; a count below it is
+# reported as "lower max". A count only falls: lower the max in the merge that
+# fixes a breach, and add no row for a new one.
+
+[[known]]
+check = "assets"
+crate = "chora-chat"
+max = 1
+
+[[known]]
+check = "assets"
+crate = "chora-voice"
+max = 3
+
+[[known]]
+check = "assets"
+crate = "chora-xp"
+max = 1
+
+[[known]]
+check = "names"
+crate = "chora-assistant"
+max = 6
+other = "chora-chat"
+
+[[known]]
+check = "names"
+crate = "chora-construct"
+max = 1
+other = "chora-assistant"
+
+[[known]]
+check = "names"
+crate = "chora-construct"
+max = 2
+other = "chora-chat"
+
+[[known]]
+check = "names"
+crate = "chora-construct"
+max = 17
+other = "chora-mc"
+
+[[known]]
+check = "names"
+crate = "chora-construct"
+max = 2
+other = "chora-tiling"
+
+[[known]]
+check = "names"
+crate = "chora-construct"
+max = 5
+other = "chora-xp"
+
+[[known]]
+check = "names"
+crate = "chora-mc"
+max = 1
+other = "chora-assistant"
+
+[[known]]
+check = "names"
+crate = "chora-mc"
+max = 2
+other = "chora-construct"
+
+[[known]]
+check = "names"
+crate = "chora-tiling"
+max = 1
+other = "chora-xp"
+
+[[known]]
+check = "names"
+crate = "chora-voice"
+max = 2
+other = "chora-assistant"
+
+[[known]]
+check = "names"
+crate = "chora-voice"
+max = 6
+other = "chora-mc"
+
+[[known]]
+check = "names"
+crate = "chora-xp"
+max = 3
+other = "chora-assistant"
+
+[[known]]
+check = "names"
+crate = "chora-xp"
+max = 6
+other = "chora-chat"

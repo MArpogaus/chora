@@ -1,8 +1,9 @@
 //! Where HUD folders live: the folders of the user in
 //! `$XDG_DATA_HOME/chora/huds`, the shipped ones in `chora/huds` of each
 //! directory of `$XDG_DATA_DIRS` and, for a binary run from
-//! `target/<profile>/`, those of the host in the source tree. A folder of
-//! the user wins over a shipped one of the same name.
+//! `target/<profile>/`, those of the source tree: the neutral folder of the
+//! host and the folder of each look in the directory of that look. A folder
+//! of the user wins over a shipped one of the same name.
 
 use std::path::{Path, PathBuf};
 
@@ -14,8 +15,17 @@ const BELOW: &str = "chora/huds";
 /// The data directories of the system when `$XDG_DATA_DIRS` names none.
 const DATA_DIRS: &str = "/usr/local/share:/usr/share";
 
-/// The folders of the source tree that hold HUDs, below its root.
-const SOURCE: &[&str] = &["plugins/chora-assistant/huds"];
+/// The places of HUD folders in the source tree, below its root: a path
+/// that holds a folder for each name, and paths with `{}` where the name of
+/// the look stands, each of which is the folder of that look.
+const SOURCE: &[&str] = &[
+    "plugins/chora-assistant/huds",
+    "plugins/chora-{}/hud",
+    "flavors/{}/assets/assistant",
+];
+
+/// The mark in a root where the name of the folder stands.
+const NAME_MARK: &str = "{}";
 
 /// The most characters of the name of a folder.
 const MAX_NAME: usize = 64;
@@ -66,6 +76,40 @@ pub fn roots_in(exe: Option<&Path>, data_home: Option<&Path>, data_dirs: &str) -
     user.into_iter().chain(shipped).chain(source).collect()
 }
 
+/// Where the folder `name` would be below a root: in the root, or at the
+/// mark of a root that has one.
+fn place(root: &Path, name: &str) -> PathBuf {
+    let text = root.to_string_lossy();
+    if text.contains(NAME_MARK) {
+        PathBuf::from(text.replace(NAME_MARK, name))
+    } else {
+        root.join(name)
+    }
+}
+
+/// The names that a root may hold: its entries, or for a root with the
+/// mark those entries of the directory of the mark that fit its text.
+fn names_in(root: &Path) -> Vec<String> {
+    let text = root.to_string_lossy();
+    let Some((before, _)) = text.split_once(NAME_MARK) else {
+        return entries(root);
+    };
+    let (parent, stem) = before.rsplit_once('/').unwrap_or((".", before));
+    entries(Path::new(parent))
+        .into_iter()
+        .filter_map(|entry| entry.strip_prefix(stem).map(str::to_owned))
+        .collect()
+}
+
+fn entries(dir: &Path) -> Vec<String> {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect()
+}
+
 /// The folder `name`: the first of the directories that has it.
 #[must_use]
 pub fn find(roots: &[PathBuf], name: &str) -> Option<PathBuf> {
@@ -74,7 +118,7 @@ pub fn find(roots: &[PathBuf], name: &str) -> Option<PathBuf> {
     }
     roots
         .iter()
-        .map(|root| root.join(name))
+        .map(|root| place(root, name))
         .find(|dir| dir.join("hud.yaml").is_file())
 }
 
@@ -83,8 +127,7 @@ pub fn find(roots: &[PathBuf], name: &str) -> Option<PathBuf> {
 pub fn list(roots: &[PathBuf]) -> Vec<(String, PathBuf)> {
     let mut names: Vec<String> = roots
         .iter()
-        .flat_map(|root| std::fs::read_dir(root).into_iter().flatten().flatten())
-        .filter_map(|entry| entry.file_name().into_string().ok())
+        .flat_map(|root| names_in(root))
         .filter(|name| good_name(name))
         .collect();
     names.sort();
@@ -148,7 +191,7 @@ mod tests {
         let without = tree("/nonexistent/bin/chora-assistant");
         assert_eq!(
             tree("/nonexistent/x/target/debug/chora-assistant"),
-            without + 1
+            without + SOURCE.len()
         );
         assert_eq!(tree("/nonexistent/x/other/debug/chora-assistant"), without);
     }
@@ -181,10 +224,48 @@ mod tests {
     }
 
     #[test]
-    fn the_source_tree_has_the_folder_of_each_look() {
+    fn the_assistant_ships_only_the_neutral_folder() {
         let own = Path::new(env!("CARGO_MANIFEST_DIR")).join("huds");
-        let names: Vec<String> = list(&[own]).into_iter().map(|(name, _)| name).collect();
+        let mut names: Vec<String> = std::fs::read_dir(own)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["neutral"], "a look ships the folder of its costume");
+    }
+
+    #[test]
+    fn the_source_tree_has_the_folder_of_each_look() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let exe = repo.join("target/debug/chora-assistant");
+        let found = roots(Some(&exe));
+        let names: Vec<String> = ["construct", "mc", "neutral", "tiling", "xp"]
+            .into_iter()
+            .filter(|name| find(&found, name).is_some())
+            .map(str::to_owned)
+            .collect();
         assert_eq!(names, ["construct", "mc", "neutral", "tiling", "xp"]);
+        let tiling = find(&found, "tiling").unwrap().canonicalize().unwrap();
+        assert!(
+            tiling.ends_with("hud") && !tiling.starts_with(repo.join("plugins/chora-assistant")),
+            "{}",
+            tiling.display()
+        );
+    }
+
+    #[test]
+    fn a_fifth_look_gets_a_costume_from_its_own_directory() {
+        let source = tree("fifth", &[]);
+        let own = source.join("plugins/chora-fifth/hud");
+        std::fs::create_dir_all(&own).unwrap();
+        std::fs::write(own.join("hud.yaml"), "hud: 1\n").unwrap();
+        let exe = source.join("target/debug/chora-assistant");
+        let found = roots(Some(&exe));
+        assert_eq!(
+            find(&found, "fifth").and_then(|dir| dir.canonicalize().ok()),
+            own.canonicalize().ok()
+        );
+        let _ = std::fs::remove_dir_all(source);
     }
 
     #[test]
