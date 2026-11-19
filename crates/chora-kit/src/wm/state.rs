@@ -86,6 +86,9 @@ pub struct Open {
     pub kind: String,
     /// Whether it holds the keyboard and the pointer.
     pub modal: bool,
+    /// The window that opened it, when a window did.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
 }
 
 impl Origin {

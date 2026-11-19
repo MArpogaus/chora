@@ -201,6 +201,54 @@ mod tests {
         assert_eq!(wm.state().unwrap()["open"], json!([]));
     }
 
+    /// The ids of what is open, in the order Escape shuts them.
+    fn open_ids(wm: &super::Wm) -> Vec<String> {
+        let open = wm.state().unwrap()["open"].clone();
+        let ids = open.as_array().unwrap().iter();
+        ids.map(|o| o["id"].as_str().unwrap().to_owned()).collect()
+    }
+
+    /// I4 (sd-h2): a window that goes to another window manager, by the
+    /// give keys or by a drag out of the face, shuts the Start menu and
+    /// the context menu; they stayed open and covered the window.
+    #[test]
+    fn a_give_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-give-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        assert_eq!(open_ids(&wm), ["xp-menu"]);
+        wm.give("s1", "tiling")
+            .expect("the fake core takes the give");
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the give");
+    }
+
+    /// The same for the drag that carries the window out (`pull_out`).
+    #[test]
+    fn a_give_with_the_drag_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-drag-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let grab = chora_scene::GivenGrab {
+            point: [10.0, 10.0],
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        wm.give_dragged("s1", "tiling", Some(grab))
+            .expect("the give");
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the drag");
+    }
+
+    /// A press on a title bar, which starts a drag, shuts the menu too.
+    #[test]
+    fn a_press_on_a_title_bar_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-title-menu");
+        wm.windows.push(window("s1", 0));
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        let commands = wm.pressed("xp-title-s1", 272, [100.0, 100.0]);
+        wm.apply(commands).unwrap();
+        assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the press");
+    }
+
     /// `helper` is `none` until voice reports, follows its latest
     /// `voice.state`, and is `none` again when voice goes.
     #[test]

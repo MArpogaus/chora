@@ -606,6 +606,29 @@ def click(x, y, button=272):
     )
 
 
+def drag_title(look, dx, dy, index=-1):
+    """A cue: drag the title bar of the window `index` of the state of `look`
+    (the topmost by default) by `dx`, `dy`, in steps, and let go. The title
+    bar lies above the client, 25 px high; its middle is the grip."""
+
+    def cue(s):
+        x, y, w, _h = s.state(look)["windows"][index]["rect"]
+        start = [x + w / 2, y - 12]
+        events = [
+            {"pointer_move": {"position": start}},
+            {"button": {"button": 272, "state": "pressed"}},
+        ]
+        for i in range(1, 7):
+            point = [start[0] + dx * i / 6, start[1] + dy * i / 6]
+            events.append({"pointer_move": {"position": point}})
+            s.inject(events)
+            events = []
+            time.sleep(0.05)
+        s.inject([{"button": {"button": 272, "state": "released"}}])
+
+    return cue
+
+
 def program(name, *args, log=None):
     """A cue: start a program of the build; its window comes within 10 s."""
 

@@ -48,13 +48,7 @@ impl Tiling {
             holder: (held.is_some() || self.keys_open).then(|| NAME.to_owned()),
             surface: held.map(str::to_owned),
         };
-        let open = (self.keys_open.then(|| Open {
-            id: keys::KEYS.into(),
-            kind: "sheet".into(),
-            modal: true,
-        }))
-        .into_iter()
-        .collect();
+        let open = self.open_list();
         let running = [
             (self.effects.animating(), "effects"),
             (self.chip_until.is_some(), "chip"),
@@ -73,6 +67,19 @@ impl Tiling {
             more,
         }
         .value()
+    }
+}
+
+impl Tiling {
+    /// The open shell surfaces: the key list, a sheet.
+    fn open_list(&self) -> Vec<Open> {
+        let sheet = Open {
+            id: keys::KEYS.into(),
+            kind: "sheet".into(),
+            modal: true,
+            ..Open::default()
+        };
+        self.keys_open.then_some(sheet).into_iter().collect()
     }
 }
 
