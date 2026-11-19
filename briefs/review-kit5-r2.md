@@ -1,6 +1,6 @@
 # review kit5 r2 (F2): seeded check of the r3 fixes on claude/kit5b before its merge
 
-Model: sonnet, effort high (fix verification of 8 known findings; the design was reviewed by opus in r1)
+Model: sonnet, effort high (fix verification of 8 known findings; the design had its r1 review)
 Lane: cloud, read-only on code: claude/kit5b head 7b01dd5a; r1 head 4e003748; merge of the session branch d7cd08b9
 (daf83391, 7 conflicts). One round. Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run.
 Step 0, first 3 minutes: `cargo check -p chora` and `command -v foot fuzzel waybar`; if either fails, send_message
