@@ -1540,9 +1540,14 @@ answers what it shows and holds: its windows, the focus, what is open
 and what still moves (`busy`). `choractl state mc` prints it. All four
 looks answer it. `focus.holder` names the look only while the focus is
 on one of its windows (or, for the construct, on its space), else it is
-null. A field that a look does not fill is left out, never empty: mc
-has no `open` yet; xp and tiling add `desks` (counted from 1) and `z`;
-the construct adds `views`, the panes of windows, plugin nodes and
+null. A field that a look does not fill is left out, never empty. Every
+look fills `open`, the menus, popups, dialogs, sheets, launchers and
+switchers that show: each entry has `id`, `kind` (`menu`, `popup`,
+`dialog`, `sheet`, `launcher` or `switcher`), `modal` and, for a
+surface that belongs to a window, `by` (the surface of that window).
+The list runs newest first, the order in which Escape shuts the
+surfaces: a surface that opens again moves to the front. xp and tiling
+add `desks` (counted from 1) and `z`; the construct adds `views`, the panes of windows, plugin nodes and
 virtual outputs that it shows but does not own. tiling, mc and the
 construct add the `origin` of each window: `new`, `given` (another window manager gave it)
 or `kept` (over a restart). xp and chora-notify add `texts`, the runs
