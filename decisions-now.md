@@ -1,9 +1,10 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-19T06:52:00Z
-- 11-19 06:52Z "3%" -> reading: 3 % of the week used at 06:52 (reset 05:55)
+screened-through: 2026-11-19T06:56:00Z
+- 11-19 06:56Z "Only use stringer models where needed (complex task or planning). Rely on sonnet for routine tasks. haiku fort testing. Agree? Fable bursn tokens extremely fast. Use with goof care. Don't waste our additional time" -> order: opus only for complex tasks and planning, sonnet routine, haiku tests; Fable only by named need
+- 11-19 06:52Z "3%" -> reading: 3 % of week used (reset 05:55)
 - 11-19 06:21Z "Continuously realign and update plan as you proceed" -> order: at each handback, merge and train result the PM re-checks Queue 4-5 (rank, F moved, merge backlog, budget) and rewrites it; routines.md By event
 - 11-19 06:12Z "OK better, but use tokens wisely and don't burn on unseeded reviews. Use fable where beneficial prefer opus. Let opus reviewers the updated plan and priorities and check for resources waste or misalignment" -> order: reviews only seeded (diff, brief, criteria, known findings); opus default, Fable where it pays; two opus critics on Queue 4 now
-- 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone "Correct?" -> yes (F27 check at lane start); 06:01Z plan question -> answered
+- 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone -> yes (F27 check at lane start)
 - 11-19 05:59Z dialog: rc.4 tag "Keep local for now." -> no tag push; F27 "Yes, what do I have to do?" -> he re-saves (steps sent); D77 vs D95 "D95 holds, amends D77 (Recommended)" -> decision; release-rc4 "Yes, delete it (Recommended)" -> delete (proxy 403: owner deletes in GitHub)
 - 11-19 05:55Z "Reset. Continue and clarity open questions" -> reading: weekly reset done; order: continue (NET3, WM2 opus now); ask the open owner questions now
 
@@ -14,11 +15,9 @@ screened-through: 2026-11-19T06:52:00Z
 - 11-17 10:47Z "...quick and dirty rc now. Then run fable one..." -> rc now; one Fable plan lane (2 opus reviewers, 10:54), refactor sprint
 
 
-- 11-15 09:32Z "When finalizing the workday have a opus reflection and resolve frictions and sharpen our workflow." -> 12:50 UTC close; duties injected
 - 11-15 09:27Z week resets Sat 03:59 UTC; "you decide on model and effort and manage the token budget. This is your main job." -> even pace; haiku tests, sonnet builds, opus reviews, hard causes (+complex lanes 11-16)
 - 11-15 02:10Z "...We want to have very strong gates to catch every possible bug during compile time." -> harness rounds; reflections name the missing gate; 02:13 "newest harnessed updates immediately" -> harness first
 - 11-11 10:31Z "You may released when all clean." -> PM opens CI PR, tags, publishes when rc.md holds
 - 11-09 04:24Z "This shall never touch the main branches or dev branches." -> session files only on claude/session-log
 - 11-09 08:20Z "You shall use my github email and name as in all previous commits." -> his identity; no AI lines
 - 11-09 04:20Z "Fix them instead of working around." -> hooks: never --no-verify
-- 11-11 17:48Z "Make tiling more exiting and "hyperland like"..." -> own aesthetic per look

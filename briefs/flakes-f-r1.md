@@ -1,7 +1,7 @@
 # flakes-f r1 (F5, F17): causes of the gate flakes that cost trains
 
-Model: Fable, effort high, because timing races span core, gate scripts and load; each red train costs about
-55 min of the one serial merge gate, which caps merged work this week (owner 06:12: Fable where it pays)
+Model: opus, effort high, because timing races span core, gate scripts and load (hard causes); each red train
+costs about 55 min of the one serial merge gate (owner 06:56: Fable burns fast, opus only where complex)
 Lane: cloud, branch claude/flakes-f from dc4bc46d (train 56 head). One round, stop at 250 k. Cost about 3 %.
 Run `git fetch --unshallow` first.
 Seeds (read these, not the whole repo): backlog.md items F17 (line 120), F21 (145), F26 (164),
