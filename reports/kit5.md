@@ -111,3 +111,25 @@ has no notifications column).
 - `tests/merge-gate.sh` full run on 4e003748 in one run: all steps PASS (red-first to e2e, 41 steps), log dir
   /tmp/merge-gate.eoD64e, stdout /tmp/gate-kit5b.log (the container is not durable). This closes the open item of r1.
 - Not run: shellcheck, desktop-file-validate (not installed, as in r1).
+
+## Review r1
+
+claude/kit5b 4e003748 over 4548feb3 (18 commits, no merge, no dev commit). Verdict: **FIX** (0 BLOCK, 3 MAJOR, 5 MINOR).
+
+Checks run: `cargo test -p chora-kit --features testing --test notice` 4/4 ok, `cargo test -p chora-notify` 19/19 ok;
+red first replayed in a worktree: 6853fa1 (827ab5ab) kit 4/4 red, 6ddd808 (4ac59ac7) mc red, 8117979 (7589e533)
+tiling palette test and 3 cut-check rows red, 6ae8a8f (34e08b31) construct does not compile on kit5b (stale
+`shared_key(Action::Chat)`), red 3/3 once that call is patched; `python3 tools/cut-check` ok (no FAIL);
+`cargo tree -p chora-kit` has no zbus; no file crosses 1,500 lines (mc main.rs, region.rs and tiling main.rs were over
+before and shrink). Conflict picks: invariants.py untouched (NET3 I9 kept), notify main.rs keeps NET3 `state_value`,
+construct input/keys keep the session `System`/`Own` actions with `tell`; nothing of the session side lost.
+4e003748: the cut-check part is a real fix (words, copied icons); the act part drops the only expectations (rw-4).
+
+- rw-1, MAJOR, plugins/chora-notify/src/main.rs:224, when another daemon owns org.freedesktop.Notifications (mako was a recommended package until this diff and its D-Bus activation file wins any early notify-send) chora-notify returns `Ok(None)` and exits 0, so `notify.show`/`notify.close` are unserved and every kit::notice of all four looks is lost (Restart=on-failure does not restart it); fix: on `Taken` keep serving the live API with `bus: None`, as for no bus.
+- rw-2, MAJOR, flavors/construct/chora-construct.target:7, the construct flavor starts no chora-notify, yet the construct now draws no notice and `Construct::tell` only logs without the server, so every refusal, dead key and "no room" notice of a construct session is lost (mc has no unit for its slot either); fix: add chora-construct-notify.service to the target (and a unit or documented start for the mc slot), packaged in RPM and PKGBUILD.
+- rw-3, MAJOR, flavors/tiling/chora-tiling-notify.service:7, the mako `[mode=chat]` margin (424) and the `assistant.chat` follow in chora-tiling are deleted with no replacement, so a tiling notice can cover the chat panel input (deviation 3 of r1), against the vision card (never covers work) and done criterion 5 (visible behaviour unchanged); fix: chora-notify steps aside of the chat panel on `assistant.chat` (the S-M proposal 2 of r1) before the merge.
+- rw-4, MINOR, tests/acts/looks/common.py:78, the notice acts (and mc.py push/clear) carry no expectation after 4e003748: I9 is vacuous when nothing is accepted and never checks a dismissal or `notify.clear`, and no commit on kit5b shows I9 red (its red was seen live only in the kit5 merge); fix: in the acts wait on `s.state("notify")` for the summary in `shown` after show/push and the id in `closed` after close/clear.
+- rw-5, MINOR, plugins/chora-mc/src/agent.rs:826, `notify.clear` closes only the last 32 ids, which expired ones fill too, so an older critical notice (stays until a click) survives a clear, and `mem::take` drops the remaining ids on the first `Gone` (each dismiss may wait 2 s); fix: keep only ids not yet closed (critical ones always) and keep the ids whose dismissal failed.
+- rw-6, MINOR, docs/api.md:1552, api.md documents neither `notify.show {app, replaces, icon, summary, body, expire_ms, urgency} -> {id}` nor `notify.close {id}`, the id shared with the bus, nor `body` in `shown` and `node` as the card picture; fix: add the two methods and the changed `shown` entry to api.md.
+- rw-7, MINOR, flavors/shared/screenshot.sh:42, with CHORA_NOTIFIER gone a session without a session bus no longer gets the own-bus daemon, and chora-notify serves no bus there, so the screenshot notice only reaches stderr; fix: fall back to `choractl` `notify.show` when notify-send fails, and drop the dead CHORA_NOTIFIER path (proposal 3 of r1).
+- rw-8, MINOR, crates/chora/Cargo.toml:47, the RPM assets lack `plugins/chora-mc/notify/*` while PKGBUILD installs it to /usr/share/chora/mc/notify and docs/configuration.md tells the person to start chora-notify from there; fix: add the asset row to the generate-rpm list and to dist/build-arch.sh checks.
