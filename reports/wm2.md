@@ -118,3 +118,16 @@ Findings:
   (show.rs:159) write them directly, past `node`/`core`. Fix: a `Focus` method for "forgot, next is X" and private
   fields (fits proposal 3).
 Known, not findings: I3 for xp open (core proposal 1); no mc book on this base.
+
+## r2
+2026-11-19 UTC. Lane: cloud, sonnet, branch claude/wm2, head 12305e5a (base 751dfbcb). Brief: briefs/wm2-r2.md.
+Red first: fa6ba541, one cell per finding, each fails on 751dfbcb on its own assertion:
+rw-1 `a_click_on_its_window_after_another_look_took_the_keyboard_sends_the_focus` (mc, one Focus sent, none on the second click),
+rw-2 `a_free_keyboard_taken_by_the_page_shows_in_the_state` (state.get holder null), rw-3
+`the_key_place_is_not_the_window_owner_while_a_layer_has_the_keyboard` (core, Grab instead of Swallow; the layer is mapped).
+Fix: 12305e5a. rw-1 `focus.take()` and send when `focus.sends(Some(node))` (manage.rs); rw-2 `focus.to_node(Some(page_id))`
+(main.rs); rw-3 `State::layer_has_keyboard()` and `key_place` skips the window owner while it holds (place.rs; the node
+owner and the safety layer are unchanged); rw-4 one doc on `forget_window`. rw-5 not done (needs a Focus method and private fields, more than one line).
+Green: `cargo test -p chora --lib input::` 47, `-p chora-mc` 138, `-p chora-tiling` 153, `-p chora-kit --features testing` 223 + integration.
+`tests/merge-gate.sh --only keys,pane-keys,wm-pane,acts`: all four PASS (acts 53 s, wm-pane 22 s, pane-keys 8 s, keys 17 s). No full gate.
+Pushed claude/wm2 (751dfbcb..12305e5a). Commit hooks: no-inline-comments and commit-message-length (subject <= 68) each rejected one attempt; fixed, no --no-verify.
