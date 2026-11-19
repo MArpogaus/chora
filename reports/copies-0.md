@@ -2,7 +2,7 @@
 
 ## r1
 
-Lane: cloud, sonnet, 11-19. Branch claude/copies-0 from train 65 85764974, one commit ed9d62a1. Brief briefs/copies-0-r1.md.
+Lane: cloud, sonnet, 11-19. Branch claude/copies-0 from train 65 85764974: ed9d62a1 (the slice) and ee53e09c (one attribute, below). Head ee53e09c. Brief briefs/copies-0-r1.md.
 
 ### Step 1: copies rows before and after
 
@@ -33,9 +33,16 @@ Focus-port had already taken the rows of the audit (Command::Focus, Event::Focus
 
 None. Backlog: none.
 
-### Checks (head ed9d62a1)
+### Checks (head ee53e09c)
 
 - `tools/cut-check`: no copies REPORT; `tests/cut-check-selftest.sh` ok.
 - `cargo test --workspace`: green.
 - `cargo clippy --workspace --all-targets -- -D warnings`: clean.
-- `tests/merge-gate.sh --jobs 3`: see below.
+- `tests/merge-gate.sh --jobs 3`: run 2 on the head tree, 41 of 41 steps PASS, exit 0 (log dir /tmp/merge-gate.0q8FOT of the lane). Run 1 on ed9d62a1 stopped at `ci-check`: gate-0.8-plugin-runtime.sh found `"output.list"` in xp `wm_on_fake_core`, which had lost its `clippy::disallowed_methods` allow when its `Runtime::with` moved to `wm_on`. One attribute put back (ee53e09c); the grep passes. Run 2 was started before that commit was made (the first commit try failed the subject length hook), so it ran on the same tree as ee53e09c, uncommitted at the time; `git diff ed9d62a1 ee53e09c` is that one attribute.
+
+### Notes for the PM
+
+- Only xp, tiling and construct cells needed the `scene.apply` responder; mc, assistant, notify did not.
+- The audit's other rows (Focus 21, FocusChanged 9, ...) were already 0 on this head: focus-port is in.
+- Rank 4 of audit-f also named the four state.rs; the xp one is wm/state.rs. The "known-red" xp wm::state tests of audit section 0 pass on this head (also on 85764974).
+- Not done: nothing of the brief. The 18 remaining cut-check REPORT lines are names/assets/known rows, not copies rows.
