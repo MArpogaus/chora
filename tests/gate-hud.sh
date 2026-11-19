@@ -576,7 +576,75 @@ cell_construct_host_hud() {
     waiting "$settle_s" node_exists hud-card || return 1
     sleep 1
     ! node_shows construct-ask || return 1
-    [ "$(claims_now)" = "$before" ]
+    [ "$(claims_now)" = "$before" ] || return 1
+    end_question
+    host_detail || return 1
+    host_done_of_another_id || return 1
+    host_long_words
+}
+long_word=Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen
+big_detail=$(python3 -I -c '
+for k in range(96):
+    print(f"{k:03}  rm -rf /home/user/projects/build-cache/artifact-{k:03}/objects/deps  # 4.2 MiB")' | head -c 6144)
+card_text() { ctl query id:hud-card | jq -r '.[0].meta.text // ""'; }
+host_failed() {
+    printf 'construct-host-hud: %s\n' "$1" >>"$log"
+    return 1
+}
+inside_work_area() {
+    local area
+    area=$(ctl outputs | jq -c '.[0].work_area')
+    jq -ne --argjson a "$area" --argjson r "$(node_rect "$1")" \
+        '($r | to_entries[0].value) as $v | $v[0] >= $a[0] and $v[1] >= $a[1] and
+         $v[0] + $v[2] <= $a[0] + $a[2] and $v[1] + $v[3] <= $a[1] + $a[3]' >/dev/null 2>&1
+}
+confirm() {
+    emit voice.confirm "$(jq -nc --arg id "$1" --arg prompt "$2" --arg detail "$3" \
+        '{id: $id, prompt: $prompt, detail: $detail, physical: true,
+          keys: {yes: "Alt+y", no: "Alt+n"}, buttons: true}')"
+}
+detail_whole_or_refused() {
+    local text
+    text=$(card_text)
+    if node_exists hud-card-yes; then
+        [[ $text == *"095  rm -rf"* ]]
+    else
+        [ "$(wc -l <<<"$text")" -ge 2 ] && [[ $text != *"rm -rf"* ]]
+    fi
+}
+host_detail() {
+    emit voice.state '{"state": "question", "task": "", "said": ""}'
+    confirm 41 "Delete the build cache of 96 projects?" "$big_detail"
+    waiting "$settle_s" node_exists hud-card || { host_failed "no card for the detail of 6 KiB"; return 1; }
+    waiting "$settle_s" detail_whole_or_refused ||
+        { host_failed "the detail of 6 KiB is neither whole nor refused: $(card_text | head -c 300)"; return 1; }
+}
+host_done_of_another_id() {
+    emit voice.confirm '{"id": "40", "done": true}'
+    sleep 0.5
+    node_exists hud-card || { host_failed "a done of another id closed the question"; return 1; }
+    emit voice.confirm '{"id": "41", "done": true}'
+    waiting "$settle_s" not_node hud-card || { host_failed "the done did not close the question"; return 1; }
+}
+not_node() { ! node_exists "$1"; }
+host_long_words() {
+    local h
+    emit voice.state '{"state": "speaking", "task": "", "said": ""}'
+    emit voice.say "$(jq -nc --arg t "Ich habe die Datei $long_word-Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz.txt geöffnet, und jetzt starte ich den Build mit make -j8 install." '{text: $t, duration_ms: 6000}')"
+    waiting "$settle_s" node_has hud-figure 'make -j8 install' || { host_failed "the long sentence does not show"; return 1; }
+    sleep 0.5
+    h=$(node_rect hud-figure | jq '.[]? | .[3] | floor' | head -n 1)
+    printf 'construct-host-hud: the long sentence in a figure of %s px\n' "$h" >>"$log"
+    [ "${h:-999}" -le 64 ] || { host_failed "the long sentence shows more than two lines ($h px)"; return 1; }
+    inside_work_area hud-figure || { host_failed "the long sentence runs out of the work area"; return 1; }
+    emit voice.state '{"state": "question", "task": "", "said": ""}'
+    confirm 42 "Soll ich die $long_word mit foot -e sh -c \"cd /home/user/projekte/$long_word && make -j8 install\" starten?" \
+        "foot -e sh -c \"cd /home/user/projekte/$long_word/$long_word && make -j8 install\""
+    waiting "$settle_s" node_has hud-card "$long_word" || { host_failed "no long question"; return 1; }
+    sleep 0.5
+    inside_work_area hud-card || { host_failed "the long question runs out of the work area"; return 1; }
+    emit voice.confirm '{"id": "42", "done": true}'
+    waiting "$settle_s" not_node hud-card || { host_failed "the long question stays"; return 1; }
 }
 chat_at_right() {
     local area
