@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-19 04:29 UTC)
+## Now (2026-11-19 04:30 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: 98 % at 03:35 Thu (owner); tokens.py 03:44: PM 0.3 % today. Day cap lifted (owner 03:41); sonnet lanes now; owner resets about 05:10; then opus and Fable lanes with a reason, no waste.
 models: haiku low tests; sonnet builds, reviews; opus security, hard causes (reason). Rule 9 12:5x.
-session branch: 27bd60c7 (train 54 01:48: kit1; run 1 F29 flake); 22 greens (30b, 33-41, 43-54); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1 in.
+session branch: 27bd60c7 (train 54: kit1); 22 greens (30b, 33-41, 43-54); MV1, MV2 x3, CUT1, NET1, NET2, KIT2, WM1, KIT4, KIT1 in.
 burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths, words) in; F2-F5, F7, F8 open (F2: every look on kit, copies 0; F3: WM1b-d); F6 partly; 2.1 days.
 
 ## RC (design/rc.md)
@@ -26,7 +26,7 @@ burn-down: F1 done 14:55; NET1, NET2, KIT2 (mc), WM1 (tiling), KIT4, KIT1 (paths
 |---|---|---|
 | docs-f8-r1.md (F8) | sonnet medium, claude/docs-f8 | ba9dd020 MERGE-OK; train 55 04:16 |
 | wm1b-r1.md (F2, F3) | sonnet high, claude/wm1b | 0ffc53a8 gate 41/41; in review |
-| review-wm1b-r1.md | sonnet high, read-only | starting 04:3x |
+| review-wm1b-r1.md | sonnet high, read-only | session_016iS3kLdjZp21gVudH2FE8X 04:30 |
 | kit2b-r1.md (F2) | sonnet high, claude/kit2b | running session_016iS3kPbMHNnFH4xry3P2T5 03:44 |
 | mv3-r1.md (F4) | sonnet medium, claude/mv3 | running session_016iS3kMsyMCkCpM2VqW5X6N 03:44 |
 | testwatch-r1.md (rc 3) | haiku low, session branch | f1a353a2 3/3 x3 (05:27); idle |
