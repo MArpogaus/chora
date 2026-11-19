@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 15:02 UTC)
+## Now (2026-11-19 15:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu (owner); owner 13:50: 25 % week; tokens.py 14:41 PM 5.1 %; 38 h left: 75 % at 2 %/h; 6 lanes; use the week (06:04).
 models (owner 06:56): haiku tests; sonnet routine, port reviews; opus complex, planning, core reviews; Fable by need.
@@ -26,7 +26,7 @@ burn-down: F1 done; NET1-2, KIT1-2, KIT4, WM1 in; F2-F5, F7, F8 open; F6 partly;
 |---|---|---|
 | integ-r2.md (F6) | opus high | session_016iS3kM3xrCPULLrkVLWYGz (14:55; r1 FIX: ri-1 MAJOR, presenter ended before cube hides ring.frag fault) |
 | matrix-cap-r1.md (F5, F6) | sonnet high | session_016iS3kMpUWeyja15x89YQKL (14:51; base alone 235 s) |
-| focus-port-r1.md (F2, F3, F7) | opus high | session_016iS3kQVDi6exe5ECXeDNUD (14:20; audit rank 3; from integ 3619ccb3) |
+| review-focus-port-r1.md (F2, F3) | opus high | starting (focus-port 3b418008: rows at 0, kit7-a1 fixed, gate red on pull flake) |
 | moved-tests-xp-r2.md (F5) | haiku high | session_016iS3kNLneVa6Lit4p35nsS (14:29) |
 | review-flakes-g-r1.md (F5) | opus high | session_016iS3kL5NuNvVqVyCJSWr3G (15:02; flakes-g f075a20d: F28 fixed, call_all; xp give red inherited, integ fixes) |
 

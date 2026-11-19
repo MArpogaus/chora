@@ -419,3 +419,4 @@ in the verdict and the sha waits for that branch. Applied in procedures by hand 
 ## 11-19 14:34 UTC: train 64c red on the matrix time limit (255 s > 240 s, all cells pass, --jobs 3)
 Rerun 64d: 250 s. Bisect 14:50: base 05878d2a and the wm7b merge both 235 s alone: no branch at fault, the base drifted from 192 s to the cap. Rule: a time cap has headroom from measured data (slowest under --jobs 3 plus 25 %); lane matrix-cap. For FLAKE-SERIES: the matrix limit under
 --jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.
+- 15:08 focus-port r1: the lane's permission classifier refused `bash /tmp/setup.sh`; the lane did its repo steps by hand (all tools present). Watch: if a lane lacks tools and setup is refused, it is a blocker; check the next start checks.
