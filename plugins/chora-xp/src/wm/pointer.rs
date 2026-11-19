@@ -147,7 +147,7 @@ impl Wm {
                 });
                 commands
             }
-            taskbar::Part::Pager(desktop) => self.turn_to(desktop),
+            taskbar::Part::Pager(desktop) => self.go_to_desk(desktop),
             taskbar::Part::Speaker(_) => Vec::new(),
             taskbar::Part::Helper(_) => {
                 self.start_program(control::CHAT);

@@ -124,15 +124,25 @@ fn about(key: Key) -> Option<(&'static str, &'static str)> {
     })
 }
 
+/// The text of a turn key without a cube: a flat switch of the desktop.
+fn flat(key: Key) -> Option<&'static str> {
+    match key {
+        Key::Turn(-1) => Some("Switch to the desktop on the left"),
+        Key::Turn(_) => Some("Switch to the desktop on the right"),
+        _ => None,
+    }
+}
+
 /// The rows of the table, made from the bindings that the plugin
-/// holds: `held` tells whether a binding is held, and `cube` whether the
-/// cube is on.
-pub fn rows(held: impl Fn(&str) -> bool) -> Vec<Row> {
+/// holds: `held` tells whether a binding is held, and `flat_desks`
+/// whether the turn keys switch the desktops flat, without a cube.
+pub fn rows(held: impl Fn(&str) -> bool, flat_desks: bool) -> Vec<Row> {
     let mut rows: Vec<Row> = Vec::new();
     for (binding, fallback, key) in KEYS {
         let Some((group, text)) = about(key) else {
             continue;
         };
+        let text = flat(key).filter(|_| flat_desks).unwrap_or(text);
         let shown = [binding, fallback]
             .into_iter()
             .find(|b| !b.is_empty() && held(b));
@@ -443,9 +453,30 @@ mod tests {
     }
 
     #[test]
+    fn without_a_cube_the_turn_keys_switch_the_desktops_flat() {
+        let text = |flat_desks| {
+            rows(|b| b.starts_with("Ctrl+Alt+"), flat_desks)
+                .into_iter()
+                .map(|r| r.text)
+                .collect::<Vec<_>>()
+        };
+        assert!(text(false).contains(&"Turn the desktop cube to the right"));
+        let flat = text(true);
+        assert!(
+            flat.contains(&"Switch to the desktop on the right"),
+            "{flat:?}"
+        );
+        assert!(
+            flat.contains(&"Switch to the desktop on the left"),
+            "{flat:?}"
+        );
+        assert!(!flat.iter().any(|t| t.contains("cube")), "{flat:?}");
+    }
+
+    #[test]
     fn two_chords_of_one_binding_stand_apart_by_the_word_or() {
         let (theme, cache) = crate::sheets::tests::theme("help-or");
-        let all_rows = rows(all);
+        let all_rows = rows(all, false);
         let pairs = all_rows.iter().filter(|r| r.keys.len() > 1).count();
         let dialog = HelpDialog::new(KEYBOARD, all_rows, [0, 0, 1280, 800]);
         let page = dialog.page(&theme).body.expect("a page");
@@ -461,7 +492,7 @@ mod tests {
 
     #[test]
     fn every_bound_key_is_in_the_table() {
-        let rows = rows(all);
+        let rows = rows(all, false);
         let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
         for (binding, _, key) in KEYS {
             if about(key).is_some() {
@@ -480,7 +511,7 @@ mod tests {
 
     #[test]
     fn a_key_that_is_not_held_is_not_listed() {
-        let rows = rows(|b| b != "Super+a");
+        let rows = rows(|b| b != "Super+a", false);
         assert!(
             rows.iter()
                 .all(|r| !r.keys.contains(&"Super+A".to_string()))
@@ -489,7 +520,7 @@ mod tests {
 
     #[test]
     fn the_rows_follow_the_groups() {
-        let rows = rows(all);
+        let rows = rows(all, false);
         let order: Vec<usize> = rows
             .iter()
             .map(|r| GROUPS.iter().position(|g| *g == r.group).unwrap())
@@ -499,7 +530,7 @@ mod tests {
 
     #[test]
     fn the_last_row_of_the_table_is_inside_the_window() {
-        let rows = rows(all);
+        let rows = rows(all, false);
         for area in [[0, 0, 1280, 764], [0, 0, 1024, 728]] {
             let (size, row) = fit(&rows, area);
             let end = table_end(&rows, row);

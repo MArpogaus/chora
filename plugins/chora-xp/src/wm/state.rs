@@ -34,11 +34,11 @@ impl Wm {
             })
             .collect();
         let desks: Vec<Value> = (self.bars.iter())
-            .map(|b| json!({"output": b.output, "shown": [self.desktop + 1]}))
+            .map(|b| json!({"output": b.output, "shown": [self.desk_of(b) + 1]}))
             .collect();
         let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
             Some(surface) => json!({"holder": NAME, "surface": surface}),
-            None if !self.focus_away() => json!({"holder": NAME}),
+            None if !self.focus_away() && !self.cube_off() => json!({"holder": NAME}),
             None => json!({"holder": null}),
         };
         json!({"windows": windows, "desks": desks, "focus": focus,

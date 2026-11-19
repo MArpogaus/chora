@@ -62,6 +62,8 @@ impl Wm {
         commands
     }
 
+    /// An output went, and its windows move to another one. When the last
+    /// face of a hosted cube goes, its host closed the cube: the plugin ends.
     pub(super) fn output_removed(&mut self, name: &str) -> Vec<Command> {
         let mut commands = Vec::new();
         if self.menu.output() == Some(name) {
@@ -79,6 +81,9 @@ impl Wm {
             }
             commands.extend(self.refresh_icons());
             commands.extend(self.claim());
+            if self.bars.is_empty() && self.host.is_some() {
+                self.done = true;
+            }
             self.sync_cube_keys();
         }
         commands

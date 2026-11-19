@@ -8,6 +8,7 @@ mod desktops;
 mod dispatch;
 mod effects;
 mod float;
+mod hosted;
 mod items;
 mod keys;
 mod output;
@@ -44,7 +45,11 @@ use chora_scene::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use self::{desktops::desk_id, effects::Effects};
+use self::{
+    desktops::desk_id,
+    effects::Effects,
+    hosted::{CubeKeys, Host},
+};
 use crate::{
     apps,
     config::{Config, Picture, Wallpaper},
@@ -360,8 +365,12 @@ pub struct Wm {
     hover: Option<String>,
     /// The output that the pointer entered last, where a new window opens.
     pointer_output: Option<String>,
-    /// Whether the bindings of the cube are grabbed.
-    cube_keys: bool,
+    /// The bindings of the cube that are grabbed.
+    cube_keys: CubeKeys,
+    /// The client that hosts the faces of a cube on the outputs, and the
+    /// one that went, until it lists the same faces again.
+    host: Option<Host>,
+    left: Option<Host>,
     /// The windows that float off their virtual output.
     floats: float::Floats,
     effects: Effects,
@@ -750,7 +759,7 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 /// the pointer entered last, else the first output. Screens keep the
 /// first one, as before virtual outputs.
 fn home_bar<'a>(bars: &'a [Bar], entered: Option<&str>) -> Option<&'a Bar> {
-    let under_the_pointer = |b: &&Bar| !b.has_pager() && Some(b.output.as_str()) == entered;
+    let under_the_pointer = |b: &&Bar| b.is_virtual() && Some(b.output.as_str()) == entered;
     bars.iter().find(under_the_pointer).or(bars.first())
 }
 
@@ -852,12 +861,19 @@ fn window_icon(icons: &mut Icons, app_id: Option<&str>) -> Option<std::path::Pat
         .or_else(|| icons.program_sized(id, 16))
 }
 
-/// Grabs the keys of the plugin, with or without those of the cube; a
-/// key that another client holds falls back to its second binding.
+/// Grabs the keys of the plugin with those of the cube that `cube`
+/// names; a key that another client holds falls back to its second
+/// binding.
 #[allow(clippy::expect_used, reason = "the bindings are constants")]
-fn grab_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
-    let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
-    for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
+fn grab_keys(rt: &mut Runtime<Key>, cube: CubeKeys) -> Result<(), ClientError> {
+    let held = |key: &Key| {
+        !matches!(
+            (cube, key),
+            (CubeKeys::Hosted, Key::Turn(_) | Key::Carry(_))
+                | (CubeKeys::Flat | CubeKeys::Hosted, Key::Cube)
+        )
+    };
+    for (binding, fallback, key) in KEYS.into_iter().filter(|k| held(&k.2)) {
         for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
             let binding: Binding = binding.parse().expect("valid bindings");
             if rt.grab(binding, key)? {
@@ -870,7 +886,7 @@ fn grab_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
 
 /// Changes the grabs to the keys with or without those of the cube. A
 /// key of both sets stays with the core, so it never reaches a window.
-fn change_keys(rt: &mut Runtime<Key>, cube: bool) -> Result<(), ClientError> {
+fn change_keys(rt: &mut Runtime<Key>, cube: CubeKeys) -> Result<(), ClientError> {
     rt.start_grabs();
     grab_keys(rt, cube)?;
     rt.end_grabs()
@@ -1115,15 +1131,28 @@ mod tests {
         assert_eq!(wm.cube_grab, Some(100.0), "the press of the person");
     }
 
+    /// Without a cube on virtual outputs alone, the turn keys switch the
+    /// desks flat, and no drag turns anything.
+    #[test]
+    fn without_a_cube_the_turn_keys_stay_and_the_drag_goes() {
+        let (mut rt, _calls) = on_fake_core("flat-keys");
+        grab_keys(&mut rt, CubeKeys::Flat).unwrap();
+        assert!(matches!(rt.action("Ctrl+Alt+Left"), Some(Key::Turn(-1))));
+        assert!(
+            rt.action("Super+BTN_LEFT").is_none(),
+            "no drag without a cube"
+        );
+    }
+
     /// When the cube of xp goes, as on the faces of a cube of the
     /// construct, xp lets only the keys of the cube go: a key that it
     /// keeps is never free in between, where it would reach a window.
     #[test]
     fn a_change_of_the_cube_keys_keeps_the_other_keys() {
         let (mut rt, calls) = on_fake_core("cube-keys");
-        grab_keys(&mut rt, true).unwrap();
+        grab_keys(&mut rt, CubeKeys::Own).unwrap();
         calls.lock().unwrap().clear();
-        change_keys(&mut rt, false).unwrap();
+        change_keys(&mut rt, CubeKeys::Hosted).unwrap();
         let mut gone = std::mem::take(&mut *calls.lock().unwrap());
         gone.sort();
         assert_eq!(
@@ -1138,8 +1167,8 @@ mod tests {
         );
         assert!(matches!(rt.action("Super+d"), Some(Key::Desktop)));
         assert!(rt.action("Ctrl+Alt+Left").is_none());
-        change_keys(&mut rt, true).unwrap();
-        assert!(matches!(rt.action("Ctrl+Alt+Left"), Some(Key::Turn(-1))));
+        change_keys(&mut rt, CubeKeys::Own).unwrap();
+        assert!(matches!(rt.action("Super+BTN_LEFT"), Some(Key::Cube)));
         assert!(
             calls
                 .lock()

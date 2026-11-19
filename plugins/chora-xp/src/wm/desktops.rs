@@ -35,18 +35,17 @@ fn face_id(desktop: usize) -> String {
 impl Wm {
     /// Turns the cube to a desktop the short way round.
     pub(super) fn turn_to(&mut self, desktop: usize) -> Vec<Command> {
-        match (desktop + DESKTOPS - self.desktop) % DESKTOPS {
-            0 => Vec::new(),
-            3 => self.turn(-1),
-            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // below 4
-            steps => self.turn(steps as i32),
-        }
+        self.turn(chora_kit::cube::quarters_to(
+            self.desktop,
+            desktop,
+            DESKTOPS,
+        ))
     }
 
     /// Moves the focused window to the next desktop and turns the cube
     /// with it.
     pub(super) fn carry(&mut self, steps: i32) -> Vec<Command> {
-        if self.effects.turn.is_some() || self.cube_off() {
+        if self.effects.turn.is_some() {
             return Vec::new();
         }
         let target = cube::offset(self.desktop, steps);
@@ -65,13 +64,13 @@ impl Wm {
 
     /// Starts a turn of the cube by some quarter turns.
     pub(super) fn turn(&mut self, steps: i32) -> Vec<Command> {
-        if self.effects.turn.is_some() || steps == 0 || self.cube_off() {
+        if self.effects.turn.is_some() || steps == 0 {
             return Vec::new();
         }
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if !self.effects_on() || !self.effects.toggles.cube {
+        if !self.effects_on() || !self.effects.toggles.cube || self.cube_off() {
             return self.show_desktop(cube::offset(self.desktop, steps));
         }
         let duration = self
@@ -267,7 +266,7 @@ impl Wm {
     }
 
     /// Shows a desktop flat, without a turn.
-    fn show_desktop(&mut self, target: usize) -> Vec<Command> {
+    pub(super) fn show_desktop(&mut self, target: usize) -> Vec<Command> {
         self.desktop = target;
         let mut commands: Vec<Command> = (0..DESKTOPS)
             .map(|d| visible(&desk_id(d), d == self.desktop))

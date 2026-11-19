@@ -48,13 +48,6 @@ match = "construct and xp each say they hold the focus"
 slice = "WM7b"
 
 [[red]]
-finding = "wm7a-a2: hosted cube, xp shows no pager on a face, so the pager cannot turn the cube (cube.turn {to})"
-id = "act:the pager turns the cube"
-look = "construct"
-match = "xp shows no pager on a face"
-slice = "WM7b"
-
-[[red]]
 finding = "net3-t1: the key list of tiling: the long row 'Run a program or a typed command' runs into the heading 'System' of the next column"
 id = "I5"
 look = "tiling"

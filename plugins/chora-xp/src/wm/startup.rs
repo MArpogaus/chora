@@ -5,7 +5,7 @@ use super::{
     ExportMethod, HashMap, Helper, Icons, Instant, Key, Launches, MENUS, METHODS, Menu, Mixer,
     NAME, NodeKind, Notifier, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme,
     Tooltip, WALLPAPERS, WINDOWS, Wm, apps, desk_id, desktop_icons, float, give, grab_keys,
-    max_scale, move_method, settings, wallpaper, window, without_reserve,
+    hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window, without_reserve,
 };
 
 impl Wm {
@@ -67,7 +67,9 @@ impl Wm {
             desktop: 0,
             hover: None,
             pointer_output: None,
-            cube_keys: false,
+            cube_keys: CubeKeys::Own,
+            host: None,
+            left: None,
             floats: float::Floats::default(),
             dialog: None,
             fade: None,
@@ -107,6 +109,9 @@ impl Wm {
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
+        wm.sync_cube_keys();
+        let pagers = wm.pagers();
+        wm.apply(pagers)?;
         Ok(wm)
     }
 
@@ -244,7 +249,7 @@ impl Wm {
     }
 
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
-        let cube = !self.cube_off();
+        let cube = self.wanted_keys();
         self.cube_keys = cube;
         grab_keys(&mut self.rt, cube)?;
         self.rt

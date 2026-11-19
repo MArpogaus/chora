@@ -86,9 +86,10 @@ impl Wm {
                     self.helper = Helper::default();
                     self.trays()
                 } else {
-                    Vec::new()
+                    self.host_gone(&name)
                 }
             }
+            Event::Emitted { event, .. } if self.left.is_some() => self.host_back(&event),
             event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
             | Event::InputButton { .. } // injected: hears drops an injected event unless xp accepts them
             | Event::InputMoved { .. } // injected: hears drops an injected event unless xp accepts them

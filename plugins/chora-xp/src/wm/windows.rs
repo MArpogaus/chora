@@ -351,16 +351,18 @@ impl Wm {
     /// Whether the plugin has no desktop cube: all its outputs are virtual
     /// ones, which a construct shows on a cube of its own.
     pub(crate) fn cube_off(&self) -> bool {
-        !self.bars.is_empty() && !self.bars.iter().any(Bar::has_pager)
+        !self.bars.is_empty() && self.bars.iter().all(Bar::is_virtual)
     }
 
     /// Grabs or lets go the bindings of the cube after the outputs
-    /// changed: the cube is off while all outputs are virtual ones.
+    /// changed: all with a screen, the turn keys as flat desk switches on
+    /// virtual outputs alone, none on the faces of a hosted cube.
     pub(super) fn sync_cube_keys(&mut self) {
-        if self.cube_keys != self.cube_off() {
+        self.find_host();
+        let cube = self.wanted_keys();
+        if self.cube_keys == cube {
             return;
         }
-        let cube = !self.cube_off();
         self.cube_keys = cube;
         let grabbed = change_keys(&mut self.rt, cube).and_then(|()| self.rt.grab_give_keys());
         if let Err(err) = grabbed {
@@ -513,7 +515,8 @@ impl Wm {
         };
         let mut commands = Vec::new();
         for bar in &self.bars {
-            commands.extend(bar.pager(&mut self.theme, self.desktop, hovered));
+            let desk = self.desk_of(bar);
+            commands.extend(bar.pager(&mut self.theme, desk, hovered));
         }
         commands
     }

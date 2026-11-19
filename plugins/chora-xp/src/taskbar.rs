@@ -207,9 +207,6 @@ pub struct Bar {
     auto_hide: bool,
     /// The clock shows.
     clock: bool,
-    /// The buttons of the desktops show: not on a virtual output, where
-    /// the plugin has no cube of its own.
-    pager: bool,
     /// What shows the output.
     kind: Kind,
     /// How far the taskbar slid down, and how far it goes.
@@ -227,7 +224,6 @@ impl Bar {
             shown: HashMap::new(),
             auto_hide: false,
             clock: true,
-            pager: output.is_virtual != Some(true),
             kind: Kind::of(output),
             offset: 0.0,
             target: 0.0,
@@ -322,11 +318,6 @@ impl Bar {
             (false, true) => HIDDEN_STRIP,
             (false, false) => HEIGHT,
         }
-    }
-
-    /// Whether the taskbar shows the buttons of the desktops.
-    pub fn has_pager(&self) -> bool {
-        self.pager
     }
 
     /// Whether the output is a virtual one, which a client shows.
@@ -463,7 +454,7 @@ impl Bar {
     /// under the pointer.
     pub fn pager(&self, theme: &mut Theme, current: usize, hovered: Option<usize>) -> Vec<Command> {
         let left = self.area[2] - self.tray_width() - PAGER_WIDTH;
-        let visible = Some(self.pager);
+        let visible = Some(true);
         (0..DESKTOPS)
             .zip(0..)
             .map(|(desktop, i)| {
@@ -614,8 +605,7 @@ impl Bar {
     fn task_rect(&self, index: usize) -> Rect {
         let n = i32::try_from(self.tasks.len().max(1)).unwrap_or(i32::MAX);
         let i = i32::try_from(index).unwrap_or(0);
-        let pager = if self.pager { PAGER_WIDTH } else { 0 };
-        let room = self.area[2] - self.tray_width() - pager - 6 - TASKS_LEFT;
+        let room = self.area[2] - self.tray_width() - PAGER_WIDTH - 6 - TASKS_LEFT;
         let width = ((room - (n - 1) * TASK_GAP) / n).clamp(24, TASK_WIDTH);
         [
             TASKS_LEFT + i * (width + TASK_GAP),
@@ -858,7 +848,6 @@ mod tests {
             shown: HashMap::new(),
             auto_hide: false,
             clock: true,
-            pager: true,
             kind: Kind::Screen,
             offset: 0.0,
             target: 0.0,
