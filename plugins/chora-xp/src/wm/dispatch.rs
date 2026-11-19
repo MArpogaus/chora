@@ -17,7 +17,7 @@ impl Wm {
     /// Handles one event of the core, with one arm per event.
     #[allow(clippy::too_many_lines)]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
-        let heard = self.voiced.hear(&event);
+        let heard = self.voiced.hear_asking(&event, &mut self.rt.conn);
         if let Some(created) = Created::of(&event) {
             return self.window_created(&created);
         }
@@ -59,10 +59,12 @@ impl Wm {
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
             Event::Emitted { event, client, .. }
-                if (event == "voice.state" || event == "voice.remove") && client == "voice" =>
+                if (event == "voice.state" || event == "voice.say" || event == "voice.remove")
+                    && client == "voice" =>
             {
                 self.voice_state(heard)
             }
+            Event::ClientConnected { name } if name == "voice" && heard => self.trays(),
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
                 if name == "voice" && heard {

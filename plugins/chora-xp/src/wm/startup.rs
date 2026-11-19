@@ -102,6 +102,7 @@ impl Wm {
             volume_read: Instant::now(),
         };
         wm.clock = wm.now();
+        wm.voiced.ask(&mut wm.rt.conn);
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
         wm.create_scene(old_root)?;

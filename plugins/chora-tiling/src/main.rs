@@ -422,9 +422,11 @@ fn chat_open(event: &Event) -> Option<bool> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 20] = [
     "voice.state",
+    "voice.say",
     "voice.remove",
+    "client.connected",
     "client.disconnected",
     "assistant.ready",
     "assistant.chat",
@@ -555,6 +557,7 @@ impl Tiling {
     }
 
     fn start(&mut self) -> Result<(), ClientError> {
+        self.voiced.ask(&mut self.rt.conn);
         for output in self.rt.outputs()? {
             self.wm
                 .set_output(&output.name, output.layout_area(), full_area(&output));
@@ -669,7 +672,7 @@ impl Tiling {
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
-        self.voiced.hear(&event);
+        self.voiced.hear_asking(&event, &mut self.rt.conn);
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
             return self.name_theme();

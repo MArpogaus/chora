@@ -109,7 +109,8 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 24] = [
+    "client.connected",
     "client.disconnected",
     "surface.created",
     "surface.changed",
@@ -131,6 +132,7 @@ const EVENTS: [&str; 22] = [
     "effects.dropped",
     "node.requested",
     "voice.state",
+    "voice.say",
     "voice.remove",
 ];
 

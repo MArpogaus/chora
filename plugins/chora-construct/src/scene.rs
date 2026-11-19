@@ -18,6 +18,7 @@ impl Construct {
 
     /// Builds the space, then takes the events and the free windows.
     pub(crate) fn start(&mut self) -> Result<(), ClientError> {
+        self.voiced.ask(&mut self.rt.conn);
         if !self.rt.conn.query(&format!("id:{NAME}"))?.is_empty() {
             self.rt.conn.apply(vec![Command::Remove {
                 id: NAME.into(),

@@ -615,7 +615,7 @@ impl Plugin for Mc {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
             return Ok(());
         }
-        self.voiced_word.hear(&event);
+        self.voiced_word.hear_asking(&event, &mut self.rt.conn);
         if chora_kit::wm::Book::hears(&event) {
             self.lifecycle(&event)?;
         }
