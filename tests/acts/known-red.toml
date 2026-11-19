@@ -39,3 +39,10 @@ id = "act:the keys alias key opens the key list"
 look = "mc"
 match = "expected open ['mc-keys']"
 slice = "WM3"
+
+[[red]]
+finding = "net3-t1: the key list of tiling: the long row 'Run a program or a typed command' runs into the heading 'System' of the next column"
+id = "I5"
+look = "tiling"
+match = "tiling-keys-body"
+slice = "KIT3"

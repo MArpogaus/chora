@@ -170,6 +170,15 @@ class Expect:
         ]
 
 
+def work_rect(output):
+    """The work area of an output in its own logical pixels: `work_area`
+    is in scene coordinates, which the default camera moves by the
+    position of the output (a virtual output lies far off the screens)."""
+    x, y, w, h = output.get("work_area") or [*output.get("position", [0, 0]), *output["size"]]
+    px, py = output.get("position") or [0, 0]
+    return [x - px, y - py, w, h]
+
+
 class NotQuiet(Exception):
     """The looks did not get quiet within the timeout."""
 
@@ -372,6 +381,7 @@ class Session:
             XDG_STATE_HOME=str(self.work / "state"),
             XDG_PICTURES_DIR=str(self.work / "pictures"),
             CHORA_BIN=str(self.bin),
+            PATH=f"{self.bin}:{os.environ.get('PATH', '')}",
             CHORA_TEST_ACCEPT_INJECTED_KEYS="1",
         )
         command, extra = LOOKS[self.looks[0]]
@@ -512,7 +522,7 @@ class Session:
     def colours(self, output):
         """The number of colours in the work area of an output."""
         shot, png = self.capture(output["name"])
-        x, y, w, h = output.get("work_area") or [0, 0, *output["size"]]
+        x, y, w, h = work_rect(output)
         scale = shot["width"] / output["size"][0]
         x0, y0 = int(x * scale), int(y * scale)
         x1, y1 = int((x + w) * scale), int((y + h) * scale)

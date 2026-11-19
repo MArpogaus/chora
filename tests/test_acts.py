@@ -228,6 +228,20 @@ def helper_state(helper, shown=()):
     }
 
 
+class WorkRect(unittest.TestCase):
+    def test_a_screen_at_the_origin(self):
+        output = {"position": [0, 0], "size": [1280, 800], "work_area": [0, 0, 1280, 770]}
+        self.assertEqual(harness.work_rect(output), [0, 0, 1280, 770])
+
+    def test_a_virtual_output_far_off_the_screens(self):
+        output = {
+            "position": [-262144, -262144],
+            "size": [1280, 800],
+            "work_area": [-262144, -262144, 1280, 770],
+        }
+        self.assertEqual(harness.work_rect(output), [0, 0, 1280, 770])
+
+
 class I8(unittest.TestCase):
     def states(self, helper):
         return snap().states | {"assistant": helper_state(helper)}
