@@ -52,7 +52,7 @@ chat_close() {
 menu_open() { has_text "Turn Off Computer"; }
 menu_close() {
     key Escape
-    until_ok '! menu_open'
+    until_ok '! menu_open' 24
 }
 menu_show() {
     click 50 785
