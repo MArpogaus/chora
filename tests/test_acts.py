@@ -94,7 +94,7 @@ def boxes_of(nodes, size=(1280, 800)):
                     "rect": list(rect),
                     "opaque": node.get("kind") == "surface",
                 }
-                | {k: node[k] for k in ("text", "corners", "order") if k in node}
+                | {k: node[k] for k in ("text", "corners", "order", "font_size") if k in node}
             )
     return out
 
@@ -1280,6 +1280,143 @@ class PersonaContracts(unittest.TestCase):
 
     def test_no_contract_for_an_unknown_task(self):
         self.assertIsNone(check.contracts("T99", ctx(), snap()))
+
+
+def shot(width=1280, height=800, back=(255, 255, 255), ink=(0, 0, 0), at=None):
+    """A capture {output: (scale, rows)} of one colour, with a bar of ink
+    in the rect `at` (the stand-in for a line of text)."""
+    rows = [bytearray(bytes((*back, 255)) * width) for _ in range(height)]
+    if at:
+        x, y, w, h = at
+        for r in range(y, y + h):
+            for c in range(x, x + w):
+                rows[r][c * 4 : c * 4 + 4] = bytes((*ink, 255))
+    return {OUT: (width / 1280, [bytes(r) for r in rows])}
+
+
+class GuideContrast(unittest.TestCase):
+    """I6: contrast 4.5:1 for text, 7:1 for a key line and buttons."""
+
+    def after(self, ink, label="mc-line", back=(255, 255, 255)):
+        nodes = snap().nodes + [text_node(label, "Next step", (100, 100, 80, 20))]
+        return snap(nodes=nodes, shots=shot(back=back, ink=ink, at=(100, 104, 70, 10)))
+
+    def test_black_on_white_passes(self):
+        self.assertEqual(breaches("I6", snap(), self.after((0, 0, 0))), [])
+
+    def test_grey_on_white_fails(self):
+        self.assertTrue(any("contrast" in b for b in breaches("I6", snap(), self.after((200, 200, 200)))))
+
+    def test_a_key_line_wants_seven(self):
+        """A grey of about 4.5:1 on white passes as text, fails as a key line."""
+        mid = (118, 118, 118)
+        self.assertEqual(breaches("I6", snap(), self.after(mid)), [])
+        self.assertTrue(any("7" in b for b in breaches("I6", snap(), self.after(mid, "mc-key-line"))))
+
+    def test_no_capture_no_finding(self):
+        nodes = snap().nodes + [text_node("mc-line", "Next step", (100, 100, 80, 20))]
+        self.assertEqual(breaches("I6", snap(), snap(nodes=nodes)), [])
+
+
+class GuideSize(unittest.TestCase):
+    """I6: text a person must read is 14 px or more."""
+
+    def sized(self, px, label="mc-line"):
+        node = text_node(label, "Next step", (100, 100, 80, 20)) | {"font_size": px}
+        return snap(nodes=snap().nodes + [node])
+
+    def test_sixteen_passes(self):
+        self.assertEqual(breaches("I6", snap(), self.sized(16)), [])
+
+    def test_ten_fails(self):
+        self.assertTrue(any("14 px" in b for b in breaches("I6", snap(), self.sized(10))))
+
+    def test_a_state_word_may_be_small(self):
+        self.assertEqual(breaches("I6", snap(), self.sized(11, "mc-helper-state")), [])
+
+    def test_a_small_run_fails(self):
+        nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
+        states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14), px=10))
+        self.assertTrue(any("14 px" in b for b in breaches("I6", snap(), snap(states=states, nodes=nodes))))
+
+
+def surf(nid, rect, owner="assistant"):
+    return {
+        "id": nid,
+        "kind": "rect",
+        "owner": owner,
+        "parent": "root",
+        "meta": {"surface": nid},
+        "rects": {OUT: list(rect)},
+    }
+
+
+class GuideGaps(unittest.TestCase):
+    """I2: gaps between helper surfaces and tiles are whole units."""
+
+    def pair(self, gap, unit_owner="assistant"):
+        a = surf("hud-a", (400, 100, 200, 100), unit_owner)
+        b = surf("hud-b", (600 + gap, 100, 200, 100), unit_owner)
+        return snap(nodes=snap().nodes + [a, b])
+
+    def test_eight_passes(self):
+        self.assertEqual(breaches("I2", snap(), self.pair(8)), [])
+
+    def test_touching_passes(self):
+        self.assertEqual(breaches("I2", snap(), self.pair(0)), [])
+
+    def test_thirteen_fails(self):
+        self.assertTrue(any("gap" in b for b in breaches("I2", snap(), self.pair(13))))
+
+    def tiles(self, gap):
+        def tile(nid, x):
+            return {"id": nid, "kind": "rect", "owner": "tiling", "parent": "root", "rects": {OUT: [x, 40, 400, 300]}}
+
+        return snap(nodes=snap().nodes + [tile("tb-1", 100), tile("tb-2", 500 + gap)])
+
+    def test_tiles_on_the_grid_pass(self):
+        self.assertEqual(breaches("I2", snap(), self.tiles(8)), [])
+
+    def test_tiles_off_the_grid_fail(self):
+        self.assertTrue(any("gap" in b for b in breaches("I2", snap(), self.tiles(7))))
+
+
+class GuideHeld(unittest.TestCase):
+    """I2 held: a screen-fixed surface stays on its pixel in a held act."""
+
+    def at(self, x):
+        return snap(nodes=snap().nodes + [surf("hud-island", (x, 32, 300, 60))])
+
+    def test_still_passes(self):
+        self.assertEqual(breaches("I2", self.at(900), self.at(900), HELD), [])
+
+    def test_moved_fails(self):
+        self.assertTrue(any("held" in b for b in breaches("I2", self.at(900), self.at(903), HELD)))
+
+    def test_not_held_not_checked(self):
+        self.assertEqual(breaches("I2", self.at(900), self.at(903)), [])
+
+
+class GuideWords(unittest.TestCase):
+    """I10: the words of the table; no "agent", no "HUD"."""
+
+    def shown(self, words):
+        return snap(nodes=snap().nodes + [text_node("a", words, (0, 0, 120, 14))])
+
+    def test_table_words_pass(self):
+        self.assertEqual(breaches("I10", snap(), self.shown("Chat with a helper")), [])
+
+    def test_agent_fails(self):
+        self.assertTrue(breaches("I10", snap(), self.shown("Ask the agent")))
+
+    def test_hud_fails(self):
+        self.assertTrue(breaches("I10", snap(), self.shown("HUD on")))
+
+    def test_a_word_that_contains_it_passes(self):
+        self.assertEqual(breaches("I10", snap(), self.shown("Magenta, shudder")), [])
+
+    def test_a_long_key_name_fails(self):
+        self.assertTrue(breaches("I10", snap(), self.shown("Escape")))
 
 
 if __name__ == "__main__":

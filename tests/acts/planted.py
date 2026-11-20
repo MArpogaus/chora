@@ -123,6 +123,56 @@ def raw_entry(s):
     apply(s, text("planted-raw", "org.gnome.TextEditor.desktop", [400, 360]))
 
 
+def rect(nid, at, size, color, meta=None):
+    """A rect node of the harness under the overlay."""
+    props = {"size": size, "color": color, "transform": {"translate": at}}
+    if meta:
+        props["meta"] = meta
+    return {"create": {"id": nid, "kind": "rect", "parent": f"screen:{OUT}", "props": props}}
+
+
+def coloured(nid, words, at, size, color):
+    """A text node of a colour, in a font size."""
+    node = text(nid, words, at)
+    node["create"]["props"] |= {"font_size": size, "color": color}
+    return node
+
+
+def faint_text(s):
+    """A cue: grey text on a nearly grey panel (contrast about 1.1:1)."""
+    apply(
+        s,
+        rect("planted-faint-bg", [400, 400], [300, 40], [0.5, 0.5, 0.5, 1]),
+        coloured("planted-faint", "Next step", [410, 408], 16, [0.56, 0.56, 0.56, 1]),
+    )
+
+
+def small_text(s):
+    """A cue: white text of 10 px on a dark panel (contrast sound)."""
+    apply(
+        s,
+        rect("planted-small-bg", [400, 460], [300, 40], [0.05, 0.05, 0.05, 1]),
+        coloured("planted-small", "Next step", [410, 468], 10, [1, 1, 1, 1]),
+    )
+
+
+def odd_gaps(s):
+    """A cue: two helper surfaces 13 px apart and two tiles 7 px apart."""
+    surf = {"surface": "planted"}
+    apply(
+        s,
+        rect("planted-gap-a", [100, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
+        rect("planted-gap-b", [313, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
+        rect("tb-planted-1", [100, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
+        rect("tb-planted-2", [307, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
+    )
+
+
+def agent_word(s):
+    """A cue: a text with the word of the builders."""
+    apply(s, coloured("planted-agent", "Ask the agent", [400, 520], 16, [1, 1, 1, 1]))
+
+
 def remove(s, *ids):
     """Remove nodes of the harness."""
     apply(s, *({"remove": {"id": i}} for i in ids))
@@ -235,6 +285,20 @@ def run(results):
         remove(s, "planted-text-1", "planted-text-2")
         must("I10 a raw entry shows", cell(s, "raw", "I10", [raw_entry]), fail=True)
         remove(s, "planted-raw")
+
+        must("I6 faint text", cell(s, "faint", "I6", [faint_text]), fail=True)
+        remove(s, "planted-faint-bg", "planted-faint")
+        must("I6 small text", cell(s, "small", "I6", [small_text]), fail=True)
+        remove(s, "planted-small-bg", "planted-small")
+        must("I2 odd gaps", cell(s, "gaps", "I2", [odd_gaps]), fail=True)
+        remove(s, "planted-gap-a", "planted-gap-b", "tb-planted-1", "tb-planted-2")
+        must("I10 the word agent", cell(s, "agent", "I10", [agent_word]), fail=True)
+        remove(s, "planted-agent")
+        apply(s, rect("planted-fixed", [900, 40], [100, 60], [0.2, 0.2, 0.2, 1], {"surface": "p"}))
+        move = lambda _s: apply(s, {"update": {"id": "planted-fixed", "props": {"transform": {"translate": [903, 40]}}}})
+        must("I2 held, a fixed surface moves", cell(s, "moved", "I2", [move], held=0.3), fail=True)
+        must("I2 held, a fixed surface stays", cell(s, "stays", "I2", held=0.3), fail=False)
+        remove(s, "planted-fixed")
 
         planted = Core(s.env["CHORA_SOCKET"], name="planted")
         s.until(lambda: "planted" in s.clients(), 5, "planted client")
