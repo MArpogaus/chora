@@ -35,15 +35,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | mc-majors-r1.md (RC) | sonnet high | MERGE-OK 92ecd30a, t79 |
 | mc-answer-r1.md (RC) | sonnet high | session_016iS3kLHGWuV71ERbiX6uxP |
 | flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
-| review-kit-sec-r2.md | opus high | session_016iS3kLUq3QboLgTKsGNMoA |
 | persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t78b |
 | co-majors-r1.md (RC) | opus high | db4d703b in review |
 | review-co-majors-r1.md | sonnet hi | session_016iS3kLvHjFkMH5ZrK63ZV6 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): 78 red ci-check, fix 9c6bf589; 78b red 00:12 doors (xp helper-door); rerun 1/3 pass.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, REVIEW KIT-SEC r2 0.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, REVIEW CO 0.5 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
+4. Trains (F6): 78 red ci-check, fix 9c6bf589; 78b red 00:12 doors (xp helper-door); rerun 1/3 pass. 79: mc-majors 92ecd30a, kit-sec 6de357b9 (review r2 MERGE-OK).
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, REVIEW CO 0.5 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
