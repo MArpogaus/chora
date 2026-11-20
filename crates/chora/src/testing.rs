@@ -322,6 +322,23 @@ mod tests {
         wayland::{PointerEvent, Wayland},
     };
 
+    /// The spans of the seat, which smithay makes in `State::new`, are
+    /// parents of the spans of the keyboard that come later. A span made
+    /// under no subscriber carries the id 0xDEAD (57005), which the
+    /// registry of a subscriber that a test sets afterwards does not know:
+    /// "tried to clone Id(57005), but no span exists" (FLK-TR1).
+    #[test]
+    fn a_core_makes_its_spans_under_a_subscriber() {
+        let _core = Core::new();
+        let none = tracing::dispatcher::get_default(
+            tracing::Dispatch::is::<tracing::subscriber::NoSubscriber>,
+        );
+        assert!(
+            !none,
+            "the seat of the core got its spans from no subscriber"
+        );
+    }
+
     #[test]
     fn an_answer_stays_while_the_client_waits_for_another() {
         let mut core = Core::new();
