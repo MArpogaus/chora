@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 02:32 UTC)
+## Now (2026-11-20 02:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -28,7 +28,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
 | p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | session_016iS3kM43ZCTqr1jMu5yYFh |
 | launcher-click-r1.md (RC shared bar, Queue 5; tiling r1 done 1ca97496) | sonnet high | session_016iS3kMprawWbAXMgpN35Bw |
-| mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | starting |
+| mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
 | p2-harness-r1.md (RC 2, Queue 5; construct r1 done 123a4c71, harness slips) | sonnet high | session_016iS3kLa1LBGqhGyJjewzBc |
 
 ## Queue (% week; 5 % reserve)
