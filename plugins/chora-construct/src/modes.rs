@@ -371,7 +371,7 @@ impl Construct {
     /// again, through its window manager, when the person steps in and
     /// the face of then is at the front again. After a turn to another
     /// face it stays without. A step in by a method moves no keyboard.
-    fn give_the_keyboard_back(&mut self) {
+    pub(crate) fn give_the_keyboard_back(&mut self) {
         let Some(surface) = self.cube.as_mut().and_then(cube::Host::take_focus) else {
             return;
         };

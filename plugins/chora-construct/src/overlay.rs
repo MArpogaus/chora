@@ -316,7 +316,15 @@ impl Construct {
         if !(in_face || self.keys_with_pane()) {
             return Ok(());
         }
-        self.help_back = self.focused_surface()?;
+        let window = self.focused_surface()?;
+        match window.as_deref() {
+            Some(surface) if !self.own_window(surface) => {
+                if let Some(host) = &mut self.cube {
+                    host.note_focus(window);
+                }
+            }
+            _ => self.help_back = window,
+        }
         self.walk_keys = true;
         self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }
@@ -324,23 +332,22 @@ impl Construct {
     /// The help closed: the window that had the keyboard gets it back.
     fn help_gives_keyboard(&mut self) -> Result<(), ClientError> {
         let Some(surface) = self.help_back.take() else {
+            let in_face = (self.cube.as_ref())
+                .is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use);
+            if in_face {
+                self.give_the_keyboard_back();
+            }
             return Ok(());
         };
-        if self.own_window(&surface) {
-            let flown = self.flown.as_ref().is_some_and(|f| f.surface == surface);
-            let shown =
-                (self.panes.iter()).any(|p| p.window() == Some(&surface) && self.in_sight(p));
-            if !(flown || shown) {
-                return Ok(());
-            }
-            self.walk_keys = false;
-            return self
-                .rt
-                .conn
-                .apply(vec![chora_kit::wm::focus::give(surface)]);
+        let flown = self.flown.as_ref().is_some_and(|f| f.surface == surface);
+        let shown = (self.panes.iter()).any(|p| p.window() == Some(&surface) && self.in_sight(p));
+        if !(flown || shown) {
+            return Ok(());
         }
-        self.activate_in_face(&surface);
-        Ok(())
+        self.walk_keys = false;
+        self.rt
+            .conn
+            .apply(vec![chora_kit::wm::focus::give(surface)])
     }
 
     /// The help anew, with the keys that work now, while it shows.
