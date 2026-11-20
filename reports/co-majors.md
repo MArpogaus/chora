@@ -108,3 +108,25 @@ gate has no such step, so the 12 cells of r1 stand for it. Not run: the 640x720 
 capture of the pair case is kept).
 
 Head: 8e24dcb6.
+
+## Review r2
+
+Reviewer lane: cloud, read-only on code. claude/co-majors head 8e24dcb6 (merge of bb16f2ff), r2 range db4d703b..c5b143b1. Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 2 MINOR, 2 NIT).
+
+Checks run: `cargo check --workspace` ok; `cargo test -p chora-construct` 241 passed; `cargo clippy -p chora-construct --all-targets -- -D warnings` clean.
+
+1. Red first: db4d703b's code with the tests of 1ed59e8e (worktree): 4 FAILED (`two_panes_on_one_side_go_beside_the_cube_without_overlap`, `a_pane_with_no_room_on_its_side_goes_to_the_other_side`, `the_place_beside_the_cube_is_inside_the_leash`, `a_wide_pane_beside_the_cube_stays_on_the_screen`), the rest pass; at 3afe9285 all 241 pass. Not run by me: gate case 2c on db4d703b (needs the compositor gate); I read the gate instead (check 6).
+2. rv-1 `make_way` (aside.rs:143-175): sorted by `across.abs()` with `total_cmp` on a Vec in pane order, so nearest first and deterministic; `taken[k]` advances by pane width + GAP per side. Scratch unit tests (not committed) at 1280x800 and 640x720: 3 panes of 400 px on one side, 2 panes of 700 px on one side: no pane over a face or another pane, all on screen. The other-side fallback uses `taken[other]`; a mixed case (1000 px panes on both sides plus a 600 px one) breaks only through the shrink path (rv2-1).
+3. rv-1 shrink path: it can end over the cube and over earlier panes (rv2-1). Deterministic (no HashMap order in the placement; `asides` is a BTreeMap).
+4. rv-4: the place goes through `leashed` (as `move_pane_facing`) and `on_screen`. `the_place_beside_the_cube_is_inside_the_leash` tests the leash only (radius 1000, which is smaller than the distance to the cube); `a_wide_pane_beside_the_cube_stays_on_the_screen` and `a_pane_with_no_room_on_its_side_goes_to_the_other_side` test the screen bound at the default lens only, not 640x720. Scratch at 640x720: same results as at 1280x800 for the ordinary cases.
+5. rv-2: the six named tests assert exact `(at, yaw)` with `assert_eq!`, and the person-moved pane stays (POLS); gate 2a compares the home rect by string equality after `view.step_in` (tests/gate-construct-pull.sh:333), and the aside rect again after the second step back (:337).
+6. rv-3: `closed_cube_breaches` takes an edge pair only when both ends lie within 1 px of the neighbour's, so a 2 px gap between two faces prints "share no edge"; mirror x, height and depth at both edges, the shared edge length within 1 px, pane against pane, and pane over face (draw order) are checked. Not run.
+7. docs/cube-modes.md (rv2-3): r2 did not touch it; it says the pane "moves beside the cube", with no per-side order and no other-side fallback.
+8. Tests and clippy: green as above.
+
+| id | severity | where | finding | fix |
+|----|----------|-------|---------|-----|
+| rv2-1 | MINOR | plugins/chora-construct/src/cube/aside.rs:119,128 | The shrink path multiplies the whole offset (clearance + taken + half width) by 1.0 down to 0, so it can place a pane over the cube or over panes already placed; scratch at 1280x800: one 3000 px pane lies over the cube; two 2000 px panes lie over the cube and each other; two 1000 px panes beside the cube plus a 600 px pane put the third over the first. Only for panes too wide for either side; ordinary panes never reach it. | Shrink only the part beyond `clearance + taken[k]`, never below it, and let such a pane stay partly off screen. |
+| rv2-2 | MINOR | plugins/chora-construct/src/cube/tests_construct.rs:786 | No test covers 3 panes on one side, wide panes on both sides, or the shrink path against a pane or the cube (only against the screen), so rv2-1 passes; the 640x720 lens is not tested at all. | Add the scratch cases above (shrink, wide on both sides, 3 panes) and one at `Lens::new(640.0, 720.0)`. |
+| rv2-3 | NIT | docs/cube-modes.md:203 | Check 7 not met: nothing on the nearest-first order per side, the GAP, the other-side fallback or the shrink. | One sentence: the nearest pane takes the inner place on its side; a pane that does not show in full goes to the other side. |
+| rv2-4 | NIT | plugins/chora-construct/src/cube/aside.rs:120,161 | `leashed` runs after the running offset, so a leash smaller than the distance to the cube clamps places together and they overlap (scratch: radius 1000 or 1200 with the cube 3136 away; no breach at 3500 to 6000). Also `taken` starts at 0 although `make_way` can run again (step back during a step in) with panes still aside (filtered at :155), so a new covering pane may take the place of an aside. Both far from default use. | Start `taken` from the asides already beside the cube, and skip `leashed` when the cube is outside the leash. |
