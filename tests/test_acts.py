@@ -415,6 +415,31 @@ class KnownRed(unittest.TestCase):
                 with self.subTest(finding=row["finding"]):
                     self.assertTrue(row.get("flaky") or row.get("act") and (row.get("capture") or row.get("match")), row)
 
+    def test_a_new_acts_tray_breach_is_not_covered_by_a_flaky_row(self):
+        row = dict(
+            self.rows[0],
+            act="a",
+            capture="xp-tray-O",
+            match="the contrast",
+            flaky=True,
+            evidence="run 1 with, run 2 without, in act 'a'",
+        )
+        seen = "in act 'new': on O '12:00' (xp-tray-O) has the contrast 1.00:1 (a on a), the guide wants 4.5:1"
+        self.assertTrue(harness.judge({("xp", "I1"): [seen]}, [row]).blocking)
+
+    def test_a_flaky_row_needs_evidence_and_an_act(self):
+        row = dict(self.rows[0], capture="l1", flaky=True)
+        with self.assertRaises(ValueError):
+            harness.judge({("xp", "I1"): []}, [row])
+        with self.assertRaises(ValueError):
+            harness.judge({("xp", "I1"): []}, [dict(row, evidence="two runs")])
+
+    def test_the_list_has_no_flaky_row_without_evidence(self):
+        for row in harness.known_red():
+            if row.get("flaky"):
+                with self.subTest(finding=row["finding"]):
+                    self.assertTrue(row.get("evidence") and row.get("act"), row)
+
     def test_the_list_parses(self):
         rows = harness.known_red()
         self.assertIsInstance(rows, list)
@@ -1372,6 +1397,10 @@ class GuideContrast(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertTrue(any("7" in b for b in breaches("I6", snap(), self.after(mid, label))))
 
+    def test_a_mode_label_that_is_not_a_key_line_wants_four_and_a_half(self):
+        mid = (118, 118, 118)
+        self.assertEqual(breaches("I6", snap(), self.after(mid, "xp-mode-label")), [])
+
     def test_a_plain_label_keeps_four_and_a_half(self):
         mid = (118, 118, 118)
         self.assertEqual(breaches("I6", snap(), self.after(mid, "mc-monkey-line")), [])
@@ -1397,6 +1426,15 @@ class GuideSize(unittest.TestCase):
         node = text_node("mc-line", "Next step", (100, 100, 80, 20))
         after = snap(nodes=snap().nodes + [node], shots=shot(at=(100, 104, 70, 10)))
         self.assertTrue(any("no font size" in b for b in breaches("I6", snap(), after)))
+
+    def test_an_unknown_size_is_not_matched_by_a_size_row(self):
+        node = text_node("mc-line", "Next step", (100, 100, 80, 20))
+        after = snap(nodes=snap().nodes + [node], shots=shot(at=(100, 104, 70, 10)))
+        row = {"look": "x", "id": "I6", "match": "guide wants 14 px"}
+        found = [b for b in breaches("I6", snap(), after) if "no font size" in b]
+        self.assertTrue(found)
+        for b in found:
+            self.assertFalse(harness.row_covers(row, b), b)
 
     def test_only_a_state_label_is_exempt(self):
         self.assertTrue(any("14 px" in b for b in breaches("I6", snap(), self.sized(11, "mc-estate-line"))))
