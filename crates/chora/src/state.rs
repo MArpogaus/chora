@@ -26,7 +26,8 @@ use smithay::{
             shell::server::xdg_toplevel,
         },
         wayland_server::{
-            Display, DisplayHandle, backend::ClientData, protocol::wl_surface::WlSurface,
+            BindError, Display, DisplayHandle, ListeningSocket, backend::ClientData,
+            protocol::wl_surface::WlSurface,
         },
     },
     utils::{Clock, Logical, Monotonic, Point, SERIAL_COUNTER, Serial},
@@ -52,7 +53,6 @@ use smithay::{
             },
         },
         shm::ShmState,
-        socket::ListeningSocketSource,
         text_input::{TextInputManagerState, TextInputSeat},
         viewporter::ViewporterState,
         xdg_activation::XdgActivationState,
@@ -575,18 +575,37 @@ impl State {
         }
     }
 
-    /// Opens the Wayland socket with a free name.
-    pub fn listen(&mut self) -> std::io::Result<()> {
-        let socket = ListeningSocketSource::new_auto().map_err(std::io::Error::other)?;
-        self.socket_name = socket.socket_name().to_os_string();
+    /// Opens the Wayland socket with a free name below `dir`, an already
+    /// resolved and checked directory: the path does not go through the
+    /// environment again, so a link swapped after the check gets no socket.
+    ///
+    /// # Errors
+    ///
+    /// No socket can be bound.
+    pub fn listen_in(&mut self, dir: &std::path::Path) -> std::io::Result<()> {
+        let (name, socket) = (1..33)
+            .map(|n| format!("wayland-{n}"))
+            .find_map(
+                |name| match ListeningSocket::bind_absolute(dir.join(&name)) {
+                    Err(BindError::AlreadyInUse) => None,
+                    other => Some(other.map(|socket| (name, socket))),
+                },
+            )
+            .unwrap_or(Err(BindError::AlreadyInUse))
+            .map_err(std::io::Error::other)?;
+        self.socket_name = OsString::from(name);
+        let source = Generic::new(socket, Interest::READ, Mode::Level);
         self.loop_handle
-            .insert_source(socket, |stream, (), state| {
-                if let Err(err) = state
-                    .display_handle
-                    .insert_client(stream, Arc::new(ClientState::default()))
-                {
-                    tracing::warn!(?err, "a wayland client failed to connect");
+            .insert_source(source, |_, socket, state| {
+                while let Ok(Some(stream)) = socket.accept() {
+                    if let Err(err) = state
+                        .display_handle
+                        .insert_client(stream, Arc::new(ClientState::default()))
+                    {
+                        tracing::warn!(?err, "a wayland client failed to connect");
+                    }
                 }
+                Ok(PostAction::Continue)
             })
             .map_err(|err| std::io::Error::other(err.to_string()))?;
         Ok(())

@@ -68,10 +68,20 @@ struct Job {
     stop: Option<oneshot::Sender<()>>,
 }
 
-/// `$XDG_DATA_HOME/chora`, else `~/.local/share/chora`.
-pub fn data_dir() -> PathBuf {
-    let base = chora_scene::paths::data_home().unwrap_or_else(|| crate::expand("~/.local/share"));
-    base.join("chora")
+/// `$XDG_DATA_HOME/chora`, else `$HOME/.local/share/chora`.
+///
+/// # Errors
+///
+/// Neither variable is an absolute path: no relative path takes its place.
+pub fn data_dir() -> Result<PathBuf, String> {
+    data_dir_in(chora_scene::paths::data_home())
+}
+
+/// [`data_dir`] for a given data home.
+fn data_dir_in(data_home: Option<PathBuf>) -> Result<PathBuf, String> {
+    data_home.map(|base| base.join("chora")).ok_or_else(|| {
+        "no data directory: neither XDG_DATA_HOME nor HOME is an absolute path".into()
+    })
 }
 
 impl Coder {
@@ -526,6 +536,16 @@ mod tests {
     use std::sync::mpsc;
 
     use super::*;
+
+    #[test]
+    fn no_data_home_is_no_relative_path() {
+        let error = data_dir_in(None).expect_err("refused");
+        assert!(error.contains("HOME"), "{error}");
+        assert_eq!(
+            data_dir_in(Some("/home/a/.local/share".into())),
+            Ok("/home/a/.local/share/chora".into())
+        );
+    }
 
     #[test]
     fn steps_come_from_stream_json_and_plain_lines() {

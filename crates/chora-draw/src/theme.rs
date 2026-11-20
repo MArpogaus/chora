@@ -1173,15 +1173,31 @@ fn part(prefix: &str, name: &str) -> String {
 ///
 /// # Errors
 ///
-/// The runtime directory is not an absolute path.
+/// The runtime directory is not an absolute path or is not safe, or the
+/// directories are not private.
 pub fn cache_dir(name: &str) -> Result<PathBuf, String> {
-    let runtime =
-        chora_scene::paths::runtime_home().ok_or("no absolute runtime directory for the cache")?;
-    let instance = std::env::var_os(chora_scene::ipc::SOCKET_ENV)
+    cache_dir_in(
+        chora_scene::paths::runtime_home(),
+        std::env::var_os(chora_scene::ipc::SOCKET_ENV),
+        name,
+    )
+}
+
+fn cache_dir_in(
+    runtime: Option<PathBuf>,
+    socket: Option<std::ffi::OsString>,
+    name: &str,
+) -> Result<PathBuf, String> {
+    let base = chora_scene::paths::runtime_subdir_in(runtime, name)
+        .map_err(|error| format!("the cache of {name}: {error}"))?;
+    let instance = socket
         .map(PathBuf::from)
         .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "default".into());
-    Ok(runtime.join(name).join(instance))
+    let dir = base.join(instance);
+    chora_scene::paths::private_dir(&dir)
+        .map_err(|error| format!("the cache of {name}: {error}"))?;
+    Ok(dir)
 }
 
 /// Creates a directory, or removes the PNG files in it.
@@ -1201,6 +1217,36 @@ mod tests {
     use super::*;
 
     const SHEET: Sheet = Sheet("sheet.svg");
+
+    fn runtime_with(tag: &str, mode: u32) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-draw-rt-{tag}")).keep();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_cache_is_refused_in_a_runtime_dir_that_others_write() {
+        let runtime = runtime_with("open", 0o777);
+        let error = cache_dir_in(Some(runtime.clone()), None, "chora-x").unwrap_err();
+        assert!(error.contains("0777"), "{error}");
+        assert!(!runtime.join("chora-x").exists(), "no directory is made");
+        fs::remove_dir_all(runtime).unwrap();
+    }
+
+    #[test]
+    fn the_cache_and_its_instance_are_private_dirs() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let runtime = runtime_with("ok", 0o700);
+        let socket = Some("/run/user/1/chora/wayland-3.sock".into());
+        let cache = cache_dir_in(Some(runtime.clone()), socket, "chora-x").unwrap();
+        assert_eq!(cache, runtime.join("chora-x/wayland-3"));
+        for dir in [&cache, cache.parent().unwrap()] {
+            let mode = fs::metadata(dir).unwrap().permissions().mode();
+            assert_eq!(mode & 0o7777, 0o700, "{}", dir.display());
+        }
+        fs::remove_dir_all(runtime).unwrap();
+    }
 
     /// A theme with the sheet of the test data, and a cache of its own.
     fn theme(test: &str) -> (Theme, chora_kit::testing::TempDir) {

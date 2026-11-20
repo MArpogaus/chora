@@ -15,10 +15,25 @@ pub struct Icons {
     found: HashMap<String, Option<PathBuf>>,
     /// Private copies of sender icons, oldest first.
     copies: VecDeque<PathBuf>,
+    /// The private folder in the temp directory, made at the first copy
+    /// without a runtime directory; its name has a random part.
+    temp_dir: Option<PathBuf>,
 }
 
 /// Numbers the copies of all `Icons` of a process.
 static SERIAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A random number as hex, for a name that no other user can guess. The
+/// keys of `RandomState` come from the system.
+fn random_suffix() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    format!(
+        "{:016x}",
+        std::collections::hash_map::RandomState::new()
+            .build_hasher()
+            .finish()
+    )
+}
 
 /// Copies of sender icons kept at once.
 const KEPT_COPIES: usize = 16;
@@ -27,6 +42,9 @@ impl Drop for Icons {
     fn drop(&mut self) {
         for copy in self.copies.drain(..) {
             let _ = fs::remove_file(copy);
+        }
+        if let Some(dir) = self.temp_dir.take() {
+            let _ = fs::remove_dir(dir);
         }
     }
 }
@@ -41,6 +59,7 @@ impl Icons {
             themes: themes.into_iter().map(Into::into).collect(),
             found: HashMap::new(),
             copies: VecDeque::new(),
+            temp_dir: None,
         }
     }
 
@@ -73,11 +92,24 @@ impl Icons {
 
     /// Writes bytes to a new file of mode 0600 in a private folder.
     fn private_copy(&mut self, bytes: &[u8]) -> Option<PathBuf> {
-        let base = chora_scene::paths::runtime_home()
-            .filter(|d| d.is_dir())
-            .unwrap_or_else(std::env::temp_dir);
-        let dir = base.join(format!("chora-icons-{}", std::process::id()));
-        chora_scene::paths::private_dir(&dir).ok()?;
+        self.private_copy_in(chora_scene::paths::runtime_home(), bytes)
+    }
+
+    /// [`Self::private_copy`] below a given runtime directory.
+    fn private_copy_in(&mut self, runtime: Option<PathBuf>, bytes: &[u8]) -> Option<PathBuf> {
+        let name = format!("chora-icons-{}", std::process::id());
+        let dir = if let Some(runtime) = runtime.filter(|d| d.is_dir()) {
+            chora_scene::paths::runtime_subdir_in(Some(runtime), &name).ok()?
+        } else {
+            let dir = self
+                .temp_dir
+                .get_or_insert_with(|| {
+                    std::env::temp_dir().join(format!("{name}-{}", random_suffix()))
+                })
+                .clone();
+            chora_scene::paths::private_dir(&dir).ok()?;
+            dir
+        };
         let serial = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = dir.join(format!("{serial}.png"));
         let mut file = fs::OpenOptions::new()
@@ -266,6 +298,45 @@ mod tests {
         (dir, path)
     }
 
+    fn runtime_with(tag: &str, mode: u32) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = crate::testing::TempDir::new(&format!("chora-icons-rt-{tag}")).keep();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).unwrap();
+        dir
+    }
+
+    #[test]
+    fn no_copy_is_made_in_a_runtime_dir_that_others_write() {
+        let runtime = runtime_with("open", 0o777);
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.private_copy_in(Some(runtime.clone()), b"png"), None);
+        assert_eq!(
+            fs::read_dir(&runtime).unwrap().count(),
+            0,
+            "nothing is made"
+        );
+        fs::remove_dir_all(runtime).unwrap();
+    }
+
+    #[test]
+    fn a_copy_is_private_below_a_runtime_dir_of_the_user() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let runtime = runtime_with("ok", 0o700);
+        let mut icons = Icons::new(["none"]);
+        let copy = icons
+            .private_copy_in(Some(runtime.clone()), b"png")
+            .unwrap();
+        assert!(copy.starts_with(&runtime), "{}", copy.display());
+        let dir = fs::metadata(copy.parent().unwrap())
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(dir & 0o7777, 0o700);
+        let file = fs::metadata(&copy).unwrap().permissions().mode();
+        assert_eq!(file & 0o7777, 0o600);
+        fs::remove_dir_all(runtime).unwrap();
+    }
+
     #[test]
     fn a_sender_path_to_an_svg_is_refused() {
         let (_svg_dir, svg) = file("sender.svg", b"<svg xmlns='http://www.w3.org/2000/svg'/>");
@@ -344,6 +415,27 @@ mod tests {
         assert!(at(&mut icons, "k512.png", &png(8, 8, full)));
         assert!(!at(&mut icons, "k512p1.png", &png(8, 8, full + 1)));
         assert!(!at(&mut icons, "empty.png", b""));
+    }
+
+    #[test]
+    fn the_temp_fallback_dir_has_a_random_name_and_goes_with_the_icons() {
+        let predictable = format!("chora-icons-{}", std::process::id());
+        let mut first = Icons::new(["none"]);
+        let mut second = Icons::new(["none"]);
+        let one = first.private_copy_in(None, b"png").expect("a copy");
+        let two = second.private_copy_in(None, b"png").expect("a copy");
+        let (one_dir, two_dir) = (one.parent().unwrap(), two.parent().unwrap());
+        assert_ne!(
+            one_dir.file_name().unwrap(),
+            predictable.as_str(),
+            "a name another user can guess"
+        );
+        assert_ne!(one_dir, two_dir, "one dir for each of the icons");
+        let name = one_dir.file_name().unwrap().to_string_lossy();
+        assert!(name.starts_with("chora-icons-"), "{name}");
+        drop(first);
+        drop(second);
+        assert!(!one_dir.exists() && !two_dir.exists(), "the dirs go too");
     }
 
     #[test]
