@@ -260,7 +260,6 @@ impl Construct {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
                     Some(Grab::Swallow) => Ok(()),
-                    Some(Grab::CloseHelp) => self.close_help_by_escape(),
                     Some(&Grab::Own(Own::Windows)) => self.open_list(),
                     Some(&Grab::Own(_)) => {
                         self.cube_key();

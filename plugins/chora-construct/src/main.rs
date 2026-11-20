@@ -449,9 +449,6 @@ enum Grab {
     /// A chord of the modifier that nothing binds: held, so that no
     /// window gets it, and it does nothing (`swallow`).
     Swallow,
-    /// Escape while the key sheet shows: it closes the sheet whoever has
-    /// the keyboard, so that no program takes it first.
-    CloseHelp,
 }
 
 /// A drag with the modifier: the pane, the press, and its centre and
