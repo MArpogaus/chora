@@ -157,8 +157,25 @@ fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
     }
     let err = String::from_utf8_lossy(&out.stderr);
     match err.lines().find_map(|l| l.trim().strip_prefix("err:")) {
-        Some(why) => Asked::Failed(why.trim().to_owned()),
+        Some(why) => Asked::Failed(without_position(why.trim()).to_owned()),
         None => Asked::Closed,
+    }
+}
+
+/// The reason without the "<file>.c:<line>: " that fuzzel puts in front
+/// of it: a person has no use for its source position.
+fn without_position(why: &str) -> &str {
+    let rest = why.split_once(".c:").filter(|(file, _)| {
+        !file.is_empty()
+            && file
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_-".contains(c))
+    });
+    let Some((_, rest)) = rest else { return why };
+    let digits = rest.chars().take_while(char::is_ascii_digit).count();
+    match rest[digits..].strip_prefix(": ") {
+        Some(reason) if digits > 0 => reason,
+        _ => why,
     }
 }
 
@@ -422,10 +439,7 @@ mod tests {
         );
         let (got, said) = reports(&fuzzel);
         assert_eq!(got, None);
-        assert_eq!(
-            said,
-            ["Run could not start: config.c:17: [colors].prompt: invalid key"]
-        );
+        assert_eq!(said, ["Run could not start: [colors].prompt: invalid key"]);
     }
 
     #[test]
