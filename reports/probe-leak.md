@@ -20,3 +20,8 @@ Branch `claude/probe-leak` from d81c8293, head f5ac3500, pushed. Gate (`--jobs 2
 
 - Other scripts that start probes without gate-lib (agent.sh, nested.sh, xp.sh, 2d-guard.sh, doors/*, persona/*) are not touched; with item 1 a probe in `window` or `clip` mode ends when the sway or chora host dies, and the other modes are bounded by their own timeouts. agent.sh has its own trap and does not source gate-lib.
 - `merge-gate.sh` `keys` cell now also runs `tests/gate-probe-hangup.sh`.
+
+## PM review r1 (14:16 UTC)
+Diff d81c8293..f5ac3500: 5 files +138 -11 (tests/probe/src/main.rs, gate-lib.sh, gate-lib-selftest.sh, new gate-probe-hangup.sh in keys, merge-gate.sh).
+Checks: red 8e2f730d before fix 567464b5, red ac681d1a before fix f5ac3500. dispatch_until records a read, flush or dispatch error in Probe.lost (WouldBlock stays benign); window and clip return Err on it, so a probe exits when its compositor dies. gate_cleanup kills only probes that carry this gate's CHORA_GATE_PID or run in its session runtime dir, so a concurrent gate's probes survive. agent.sh, nested.sh, xp.sh keep their own traps (named, not in scope).
+0 BLOCK, 0 MAJOR. Verdict: MERGE-OK f5ac3500; harness branch, its own train next (routines).
