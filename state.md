@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 23:17 UTC)
+## Now (2026-11-20 23:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 22:12 PM 1.8 % (Bangkok day 11-21); disk 11 G free (t93b): one build (train) at a time; 4 lanes
 session branch: dcb77733; 51 greens; t94 red 23:16 again only construct-hud:138 at --jobs 2 (co-35, twice since co-pane: lane co-hud-load); t94b running 23:18 at --jobs 1 (procedure).
@@ -26,11 +26,12 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | guide-checks-r2.md (F7: review r1 FIX, rg-1..rg-3 MAJOR) | sonnet medium, claude/guide-checks a78b1a07 | session_016iS3kNHeeU1tRAuu1PvRx4 21:07 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
 | co-hud-load-r1.md (F5, co-35: Tab after pane.move, red t93b and t94) | sonnet medium, claude/co-hud-load 618ae513 | session_016iS3kL7FGQKkxiN4MJm5Z9 23:17 |
+| persona-begin-r1.md (RC 2: harness begin per goal, L1-L3, T7) | sonnet medium, claude/persona-begin dcb77733 | starting |
 | give-raise-r1.md (RC 2 T7: given window on top) | sonnet medium, claude/give-raise dcb77733 | session_016iS3kMBSo8hkNen2GevR6g 22:04 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, F5, rc 3) t94 running: co-pane, tour-diff, tour-one, xp-tidy; then the PM fixes dcb77733 and the check.py merge to a seeded review; co-35 to flake-series r4 if it repeats.
-5. (F5, F7, rc 2) Running: GUIDE-CHECKS r2 0.7 % (merges after tour-one), FLAKE-SERIES r3 haiku 1 %; GIVE-RAISE 0.8 %; after t93b: P2-R4-CO, PERSONA-BEGIN (harness), xp Start-menu check after xp-tidy; tour-v9 4-5 wait for xp-give.
+5. (F5, F7, rc 2) Running: GUIDE-CHECKS r2 0.7 % (merges after tour-one), FLAKE-SERIES r3 haiku 1 %; GIVE-RAISE 0.8 %; after t93b: P2-R4-CO, xp Start-menu check after xp-tidy; tour-v9 4-5 wait for xp-give.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
