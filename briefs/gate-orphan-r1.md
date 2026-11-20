@@ -1,0 +1,11 @@
+# gate-orphan r1 (F6, F5): a red step leaves no orphan behind (backlog GATE-ORPHAN)
+
+Model: sonnet, effort medium (one shell fix in the gate with a selftest)
+Lane: cloud, branch claude/gate-orphan from fee9c695. One round, stop at 250 k. Cost about 0.8 %. Harness branch: it gets its own train.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`; `cargo check --workspace`; a failure or missing tool: send_message the PM "gate-orphan BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: backlog.md row GATE-ORPHAN, reports/flakes-n.md "## r1". In chora: tests/merge-gate.sh (stop_children, trap EXIT, wait_step), tests/merge-gate-selftest.sh, tests/gate-lock.sh. Not yours: everything outside tests/merge-gate.sh and its selftests.
+Item: when a step fails at --jobs 2 or more, merge-gate exits and the steps running beside it (for example the matrix, and their children: compositors, probes) live on with parent 1; the next gate waits on the lock for them. First prove it: a selftest case where one fake step fails at once and a sibling fake step starts a child that sleeps 60 s; after the gate exits, no process of either step is alive (check by a marker in the command line, not by name). Red-first: commit this case red on fee9c695. Then fix: on exit, end each running step's whole process group (TERM, then KILL after 5 s), and wait for them; a green run keeps its exit code; never kill a process the gate did not start (hook no-foreign-kill).
+Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,gate-lib,build,matrix`; poll it in the same turn; never end a turn to wait. Also show by hand: a red step at --jobs 2 leaves `pgrep -f chora-probe` and `pgrep -f gate-handover` empty within 10 s.
+Done when: red sha, fix sha, the selftest output, the by-hand check; reports/gate-orphan.md "## r1" on claude/session-log; head sha.
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
+Rules: push claude/gate-orphan and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.
