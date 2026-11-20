@@ -147,6 +147,15 @@ def faint_text(s):
     )
 
 
+def blank_text(s):
+    """A cue: white text of 16 px on a white panel (contrast 1:1)."""
+    apply(
+        s,
+        rect("planted-blank-bg", [400, 520], [300, 40], [1, 1, 1, 1]),
+        coloured("planted-blank", "Next step", [410, 528], 16, [1, 1, 1, 1]),
+    )
+
+
 def small_text(s):
     """A cue: white text of 10 px on a dark panel (contrast sound)."""
     apply(
@@ -290,6 +299,8 @@ def run(results):
 
         must("I6 faint text", cell(s, "faint", "I6", [faint_text]), fail=True)
         remove(s, "planted-faint-bg", "planted-faint")
+        must("I6 text of its back's colour", cell(s, "blank", "I6", [blank_text]), fail=True)
+        remove(s, "planted-blank-bg", "planted-blank")
         must("I6 small text", cell(s, "small", "I6", [small_text]), fail=True)
         remove(s, "planted-small-bg", "planted-small")
         must("I2 odd gaps", cell(s, "gaps", "I2", [odd_gaps]), fail=True)

@@ -382,6 +382,34 @@ class KnownRed(unittest.TestCase):
         self.assertTrue(harness.judge({("syn", "I5"): [named, other]}, [row]).blocking)
         self.assertTrue(harness.judge({("syn", "I5"): [other]}, [row]).blocking)
 
+    def test_one_row_per_fault_of_a_cell(self):
+        rows = [
+            dict(self.rows[0], match="in act 'a': on O 'One' (l1)"),
+            dict(self.rows[0], match="in act 'b': on O 'Two' (l2)"),
+        ]
+        one = "in act 'a': on O 'One' (l1) is small"
+        two = "in act 'b': on O 'Two' (l2) is small"
+        three = "in act 'b': on O 'Three' (l3) is small"
+        self.assertEqual(harness.judge({("xp", "I1"): [one, two]}, rows).blocking, [])
+        self.assertTrue(harness.judge({("xp", "I1"): [one, three]}, rows).blocking)
+        self.assertTrue(harness.judge({("xp", "I1"): [one]}, rows).blocking, "row two is stale")
+
+    def test_a_cell_keeps_the_breaches_of_every_act(self):
+        s = object.__new__(harness.Session)
+        s.results = {}
+        s.runs = pathlib.Path(tempfile.mkdtemp())
+        s.outputs = lambda: [{"name": "O"}]
+        s.capture = lambda *a: ({}, b"png")
+        s.record("xp", "I6", ["one"], "a")
+        s.record("xp", "I6", ["two"], "b")
+        self.assertEqual(len(s.results[("xp", "I6")]), 2)
+
+    def test_the_rows_of_the_guide_checks_name_act_and_capture(self):
+        for row in harness.known_red():
+            if row["finding"].startswith("guide-checks"):
+                with self.subTest(finding=row["finding"]):
+                    self.assertRegex(row.get("match", ""), r"^in act '[^']+': on \S+ .*\(\S+\)")
+
     def test_the_list_parses(self):
         rows = harness.known_red()
         self.assertIsInstance(rows, list)
@@ -1313,9 +1341,33 @@ class GuideContrast(unittest.TestCase):
         self.assertEqual(breaches("I6", snap(), self.after(mid)), [])
         self.assertTrue(any("7" in b for b in breaches("I6", snap(), self.after(mid, "mc-key-line"))))
 
-    def test_no_capture_no_finding(self):
+    def test_no_capture_is_a_finding(self):
         nodes = snap().nodes + [text_node("mc-line", "Next step", (100, 100, 80, 20))]
-        self.assertEqual(breaches("I6", snap(), snap(nodes=nodes)), [])
+        self.assertTrue(any("no capture" in b for b in breaches("I6", snap(), snap(nodes=nodes))))
+
+    def test_a_box_that_cannot_be_measured_is_a_finding(self):
+        nodes = snap().nodes + [text_node("mc-line", "Next step", (100, 100, 0.5, 20))]
+        after = snap(nodes=nodes, shots=shot())
+        self.assertTrue(any("cannot be measured" in b for b in breaches("I6", snap(), after)))
+
+    def test_ink_of_the_colour_of_the_back_fails(self):
+        found = breaches("I6", snap(), self.after((255, 255, 255)))
+        self.assertTrue(any("1.00:1" in b for b in found), found)
+
+    def test_every_key_line_and_button_wants_seven(self):
+        mid = (118, 118, 118)
+        for label in (
+            "tiling-keys-body-1-k",
+            "construct-hints-open-keys-0",
+            "construct-mode-step-in",
+            "xp-session-button-3",
+        ):
+            with self.subTest(label=label):
+                self.assertTrue(any("7" in b for b in breaches("I6", snap(), self.after(mid, label))))
+
+    def test_a_plain_label_keeps_four_and_a_half(self):
+        mid = (118, 118, 118)
+        self.assertEqual(breaches("I6", snap(), self.after(mid, "mc-monkey-line")), [])
 
 
 class GuideSize(unittest.TestCase):
@@ -1323,7 +1375,7 @@ class GuideSize(unittest.TestCase):
 
     def sized(self, px, label="mc-line"):
         node = text_node(label, "Next step", (100, 100, 80, 20)) | {"font_size": px}
-        return snap(nodes=snap().nodes + [node])
+        return snap(nodes=snap().nodes + [node], shots=shot(at=(100, 104, 70, 10)))
 
     def test_sixteen_passes(self):
         self.assertEqual(breaches("I6", snap(), self.sized(16)), [])
@@ -1333,6 +1385,14 @@ class GuideSize(unittest.TestCase):
 
     def test_a_state_word_may_be_small(self):
         self.assertEqual(breaches("I6", snap(), self.sized(11, "mc-helper-state")), [])
+
+    def test_an_unknown_size_fails(self):
+        node = text_node("mc-line", "Next step", (100, 100, 80, 20))
+        after = snap(nodes=snap().nodes + [node], shots=shot(at=(100, 104, 70, 10)))
+        self.assertTrue(any("no font size" in b for b in breaches("I6", snap(), after)))
+
+    def test_only_a_state_label_is_exempt(self):
+        self.assertTrue(any("14 px" in b for b in breaches("I6", snap(), self.sized(11, "mc-estate-line"))))
 
     def test_a_small_run_fails(self):
         nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
@@ -1416,7 +1476,20 @@ class GuideWords(unittest.TestCase):
         self.assertEqual(breaches("I10", snap(), self.shown("Magenta, shudder")), [])
 
     def test_a_long_key_name_fails(self):
-        self.assertTrue(breaches("I10", snap(), self.shown("Escape")))
+        self.assertTrue(breaches("I10", snap(), self.cap("Escape")))
+
+    def cap(self, words, label="mc-key-line"):
+        return snap(nodes=snap().nodes + [text_node(label, words, (0, 0, 120, 14))])
+
+    def test_a_key_name_inside_a_text_fails(self):
+        self.assertTrue(breaches("I10", snap(), self.cap("Press Escape to close")))
+
+    def test_a_plain_label_may_say_left(self):
+        self.assertEqual(breaches("I10", snap(), self.shown("Left")), [])
+
+    def test_plural_and_snake_case_fail(self):
+        self.assertTrue(breaches("I10", snap(), self.shown("Two HUDs")))
+        self.assertTrue(breaches("I10", snap(), self.shown("agent_id")))
 
 
 if __name__ == "__main__":
