@@ -212,6 +212,34 @@ fn a_drag_takes_the_scene_along_with_the_hand() {
     assert!(middle(&pose)[1] < rest[1] - 1.0, "up with the hand");
 }
 
+/// The direction of the look is written in the same words in F5 and in
+/// the docs of the walk (rw-2): the scene follows the hand, and a press
+/// on the window of a pane starts no look.
+#[test]
+fn the_docs_say_the_direction_of_the_look_as_f5_does() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let words = |path: &str| {
+        let text = std::fs::read_to_string(root.join(path)).unwrap();
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    };
+    let sentences = [
+        "The drag grabs the world: the scene follows the hand, so a drag to \
+         the right turns the view to the left and a drag down tilts it up",
+        "A press that lands on the window of a pane gives that window the \
+         keyboard and starts no look",
+    ];
+    for path in [
+        "plans/construct-requirements.md",
+        "docs/cube-modes.md",
+        "docs/configuration.md",
+    ] {
+        let text = words(path);
+        for sentence in sentences {
+            assert!(text.contains(sentence), "{path}: {sentence}");
+        }
+    }
+}
+
 /// A walk during a drag stays: the drag turns only (live bug: the
 /// camera jumped back to the press when the key `w` was released).
 #[test]
