@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 06:04 UTC)
+## Now (2026-11-20 06:05 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
 session branch: 79c8d2b5 (train 81); 43 greens. Train 84 (t83 + harness) running 05:37, head 355cdbe5.
@@ -29,7 +29,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
 | review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | session_016iS3kQLLfhEJgLJAbKpZ1t |
 | xp-24-r2.md (RC 1 rule 6: xp-24 MAJOR; r1 blocked fuzzel 1.9.2; PM verifies cell) | sonnet high | session_016iS3kPNVdHxB3JTzsMW3gj |
-| review-co-majors-r3-r1.md (RC 2, seeded review of 68790912; Queue 4) | sonnet high | starting |
+| review-co-majors-r3-r1.md (RC 2, seeded review of 68790912; Queue 4) | sonnet high | session_016iS3kNWy5LG8p23SVaMcQ6 |
 
 ## Queue (% week; 5 % reserve)
 4. Trains: t84 running (t83 4 branches + debt-f4, harness-k, flakes-j). t85: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f, kit-minors 7a7e00a2, core-minors d23b03ae, docs-f8e c529242b.
