@@ -183,8 +183,11 @@ impl Mc {
     }
 
     /// Whether a plain turn started the program of scene `name` and that
-    /// scene shows: the start counts once, and only for its own scene, so
-    /// that a window of another scene in between leaves it (mc-42).
+    /// scene shows: the start counts once (mc-42). A window of another
+    /// scene does not leave the start: `show` of that scene clears it.
+    /// The name match stays as a guard of its own, because the kept name
+    /// is what keeps `plain_start` an `Option` and the struct at three
+    /// bools, the limit of clippy.
     fn take_plain_start(&mut self, name: &str) -> bool {
         let own = self.plain_start.as_deref() == Some(name);
         if own {
