@@ -25,11 +25,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | Lane | Model, branch | State |
 |---|---|---|
 | verify-maj-r2.md (RC 1, rule 6: ti-20, xp-24 asserts; Queue 5) | sonnet medium | session_016iS3kQa2hAkn1uRKgDKcHT |
-| harness-k-r1.md (F6 harness MINORs; Queue 5) | sonnet medium | starting |
+| harness-k-r1.md (F6 harness MINORs; Queue 5) | sonnet medium | session_016iS3kMWAgwosTJqnZDNTRz |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
-| kit-minors-r1.md (F5, F2 kit MINORs; Queue 5) | sonnet high | starting |
+| kit-minors-r1.md (F5, F2 kit MINORs; Queue 5) | sonnet high | session_016iS3kQaPGHWwijmggjat6x |
 | debt-f4-r1.md (F4 workarounds, hygiene; Queue 5) | sonnet high | session_016iS3kNYwtxZaiim9JXJjzh |
-| core-minors-r1.md (F5, F8 core MINORs; Queue 5) | sonnet high | starting |
+| core-minors-r1.md (F5, F8 core MINORs; Queue 5) | sonnet high | session_016iS3kNyrbRy98nAwMrpmiC |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t82e (launcher-click 741d6bca) running 04:22 (82c-d flakes). t83 harness: p2-harness 5dbd0ccf, voice-v12 ed4c7bf9, xp-fix a767790d. t84: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f.
