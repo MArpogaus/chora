@@ -184,13 +184,14 @@ fn icon(look: &Look, id: &str, parent: &str, [x, y]: [f64; 2]) -> Vec<Command> {
 }
 
 /// The footer at `y` of a panel `w` wide: hints of keys at the left, one
-/// at the right.
+/// at the right; with `button` the one at the right is a hit that a press
+/// takes, as the Close of the key sheet.
 fn footer(
     look: &Look,
     parent: &str,
     items: &[(Vec<String>, String)],
     y: f64,
-    w: f64,
+    (w, button): (f64, bool),
 ) -> Vec<Command> {
     let m = &look.glass;
     let small = face(Type::Small, 400);
@@ -221,7 +222,7 @@ fn footer(
             [x + used + gap, top + 2.0],
             m.muted,
         ));
-        if k == last {
+        if k == last && button {
             let [left, width] = [x - 8.0, used + gap + word_w.ceil() + 16.0];
             let mut hit = rect(
                 &format!("{parent}-foot-{k}-hit"),
@@ -282,7 +283,7 @@ pub fn list(look: &Look, model: &ListModel<'_>, parent: &str, out: [f64; 2]) -> 
         LIST_BODY,
         &model.footer,
         top + rows_h,
-        LIST_WIDTH,
+        (LIST_WIDTH, false),
     ));
     commands
 }
@@ -597,7 +598,7 @@ pub fn help(
             m.muted,
         ));
     }
-    commands.extend(footer(look, &body, &model.footer, foot + 1.0, w));
+    commands.extend(footer(look, &body, &model.footer, foot + 1.0, (w, true)));
     commands
 }
 
