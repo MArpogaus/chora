@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 02:49 UTC)
+## Now (2026-11-20 02:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -11,7 +11,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r1 red |
+| 2 | Persona round 4 | xp r2 red (xp-35 I5) |
 | 3 | Three greens in a row | 30b, 33-40 green (9); F26 held, F28 holds; F17 open |
 | 4 | CI green | green on 29e2cd77 13:13 (train 41, PR #106, all 10 checks) |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -26,14 +26,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 |---|---|---|
 | stray-grab-r2.md (RC sh-24, Queue 5; review r1 FIX: rv-1 MAJOR, ae09758d) | sonnet high | session_016iS3kLCUHNpWn4svX2uoxz |
 | black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
-| p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | session_016iS3kM43ZCTqr1jMu5yYFh |
+| xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | starting |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
 | co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:42 (launcher-click alone, harness: 741d6bca). t83 next: p2-harness 5dbd0ccf (harness, PM review MERGE-OK). Then stray-grab r2, black-pane r2.
-5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); STRAY-GRAB r2 0.8 % (r1 review FIX), BLACK-PANE r2 1 %, FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR); P2 R2 XP 1 %; then xp-11 MAJOR with the xp r2 findings; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 1 % Fri late.
+5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); STRAY-GRAB r2 0.8 % (r1 review FIX), BLACK-PANE r2 1 %, FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR), XP-FIX 1.5 % (xp-11, xp-35 MAJOR; P2 r2 xp red 02:50, 2 of 3 rounds); then P2 r3 xp; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
