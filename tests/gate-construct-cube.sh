@@ -176,11 +176,17 @@ for id_ in sorted(set(before) | set(after)):
 print("; ".join(lines[:12]) if lines else f"no node changed in {len(after)} nodes")
 PY
 }
+clock_clear() {
+    local second
+    second=$((10#$(date +%S)))
+    [ "$second" -ge 6 ] && [ "$second" -le 52 ]
+}
 still() {
     local before after at
     STILL_WHY=""
     [ -z "${CLOCK_EDGE:-}" ] || until_ok '[ "$((10#$(date +%S)))" = "$((60 - CLOCK_EDGE))" ]' 250
     for _ in 1 2; do
+        until_ok 'clock_clear' 240 || { STILL_WHY="no second 6 to 52 of a minute came"; return 1; }
         before=$(drawn)
         at=$(date +%T)
         scene_dump "$work/still-before.json"
