@@ -17,3 +17,11 @@ pre-commit,identity,gate-lib,ci-check,build,test,clippy`: green (ci-check
 Notes: the mkdir check tracks variables set from XDG_RUNTIME_DIR in the same
 file; only `mkdir -p` is flagged. Whole tree after the fix: 0 hits.
 Not built: a callee in another file is still not read (documented).
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 79c8d2b5..0dfdad8d, 9 files +95 -10, harness only (one waybar.sh line).
+Checks: reds first (11fe8147, 5311405d, 1c1961fa); ci-check moved before build with cut-check first (the scripts in it that need code run `cargo test -p chora --lib` themselves, so the step compiles alone, build then reuses the cache); mkdir-runtime.sh taints variables set from XDG_RUNTIME_DIR in the same file, skips comments, passes -m 700 forms; guards.sh proves it red and green; grab-gap recursion stops on `seen`.
+- rv-1 NIT: mkdir-runtime misses a path built in another file (sourced helper); the hook says "same file". Backlog HK-R1.
+- rv-2 NOTE: ci-check before build adds one lib compile to its time; the gate's first red comes sooner (TRAIN78 aim).
+- rv-3 NOTE: tests/merge-gate.sh conflicts with debt-f4 fc404a90 (step list, ci-check line); the PM resolves it in t84 keeping both.
+Verdict (computed): no open MAJOR: MERGE-OK 0dfdad8d; harness train t84 with debt-f4.
