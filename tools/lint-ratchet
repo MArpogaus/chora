@@ -8,10 +8,13 @@
 # The counts, by the commands of the debt report (reports/debt-2026-11-20.md
 # section 8):
 #   allow      lines of crates, plugins, services (*.rs) with #[allow( or #[expect(
-#   no-reason  the same lines without the word "reason" (an attribute that
-#              rustfmt wraps counts here, its reason is on a later line)
+#   no-reason  the same attributes without the word "reason" between the
+#              opening and the closing `)]`, over any number of lines (an
+#              attribute that rustfmt wraps keeps its reason on a later line)
 #   eprintln   lines with eprintln! in crates/chora/src, plugins, services
 # tools/lint-ratchet.list holds `NAME COUNT` per line, `#` starts a comment.
+# no-reason and eprintln only fall. A new allow with a reason raises `allow` in
+# the list in the same commit, and the commit message says why.
 # Fails (status 1) when a count is above the list; a count below only prints
 # "lower the list": run --update. Status 0 ok, 1 breach, 2 usage.
 set -eu
@@ -29,10 +32,41 @@ while [ $# -gt 0 ]; do
 done
 cd "$root"
 
-attrs() { grep -rE '#\[(allow|expect)\(' crates plugins services --include=*.rs --exclude-dir=target || true; }
-allow=$(attrs | wc -l)
-noreason=$(attrs | grep -vc reason || true)
-eprintln=$( (grep -rE 'eprintln!' crates/chora/src plugins services --include=*.rs --exclude-dir=target || true) | wc -l)
+dirs=
+for d in crates plugins services; do
+    if [ -d "$d" ]; then dirs="$dirs $d"; fi
+done
+rust_files() { find $dirs -name target -prune -o -name '*.rs' -type f -print | LC_ALL=C sort; }
+attr_counts=$(rust_files | xargs awk '
+    function close_attr() {
+        if (text !~ /reason/) noreason++
+        open = 0
+        text = ""
+    }
+    FNR == 1 && open { close_attr() }
+    {
+        line = $0
+        if (!open && match(line, /#\[(allow|expect)\(/)) {
+            allow++
+            open = 1
+            line = substr(line, RSTART)
+        }
+        if (open) {
+            if (match(line, /\)\]/)) {
+                text = text substr(line, 1, RSTART + 1)
+                close_attr()
+            } else {
+                text = text line "\n"
+            }
+        }
+    }
+    END {
+        if (open) close_attr()
+        print allow + 0, noreason + 0
+    }')
+allow=${attr_counts% *}
+noreason=${attr_counts#* }
+eprintln=$( (grep -rE 'eprintln!' $(for d in crates/chora/src plugins services; do [ -d "$d" ] && echo "$d"; done) --include=*.rs --exclude-dir=target 2>/dev/null || true) | wc -l)
 
 list=tools/lint-ratchet.list
 if [ "$update" = 1 ]; then

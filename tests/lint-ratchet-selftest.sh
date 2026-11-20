@@ -88,7 +88,7 @@ grep -q 'lower the list: allow is 0, listed 2' "$work/out" || fail "$label: a fa
 
 label="help"
 "$tool" --help >"$work/out"
-grep -q 'raises .allow. in the list in the same commit' "$work/out" || fail "$label: the help does not say a reasoned new allow raises the list: $(cat "$work/out")"
+tr '\n' ' ' <"$work/out" | grep -q 'raises .allow. in the list in the same commit' || fail "$label: the help does not say a reasoned new allow raises the list: $(cat "$work/out")"
 
 [ "$failures" = 0 ] && echo "ok: lint-ratchet-selftest"
 exit "$failures"
