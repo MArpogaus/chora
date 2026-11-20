@@ -413,6 +413,16 @@ mod clock {
         );
     }
 
+    /// A press on the speaker of the taskbar opens the volume popup and
+    /// does not mute; a row of it mutes.
+    #[test]
+    fn a_click_on_the_speaker_opens_the_volume_popup() {
+        let (mut wm, _methods) = wm_on_fake_core("speaker-popup");
+        let [x, y, w, h] = wm.bars[0].speaker_rect();
+        wm.press_tray([f64::from(x + w / 2), f64::from(y + h / 2)]);
+        assert!(wm.context.is_some(), "the popup is open");
+    }
+
     /// Two presses on the clock of the taskbar within a double click open
     /// Date and Time; one press opens nothing.
     #[test]

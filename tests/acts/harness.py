@@ -375,10 +375,15 @@ class Session:
     wallpaper  the outputs whose work area I7 checks; by default every
                output when the first look draws the wallpaper (tiling
                leaves it to swaybg)
+    stand_ins  programs of the system that the look calls, by name, with
+               their text (the `STAND_INS` of the look's module)
     """
 
-    def __init__(self, *looks, size="1280x800", wallpaper=None, results=None, runs=None):
+    def __init__(
+        self, *looks, size="1280x800", wallpaper=None, results=None, runs=None, stand_ins=None
+    ):
         self.looks = list(looks)
+        self.stand_ins = stand_ins or {}
         self.size = size
         self.wallpaper = wallpaper
         self.label = self.looks[0]
@@ -411,8 +416,9 @@ class Session:
             XDG_STATE_HOME=str(self.work / "state"),
             XDG_PICTURES_DIR=str(self.work / "pictures"),
             CHORA_BIN=str(self.bin),
-            PATH=f"{self.bin}:{os.environ.get('PATH', '')}",
+            PATH=f"{self.fakes()}{self.bin}:{os.environ.get('PATH', '')}",
             CHORA_TEST_ACCEPT_INJECTED_KEYS="1",
+            FAKE_STATE=str(self.work / "fake-state"),
         )
         command, extra = LOOKS[self.looks[0]]
         env = dict(self.env, CHORA_TEST_FLAGS="--test-injected-press-is-real", **extra)
@@ -507,6 +513,22 @@ class Session:
             with contextlib.suppress(subprocess.TimeoutExpired):
                 proc.wait(timeout=2)
         shutil.rmtree(self.work, ignore_errors=True)
+
+    def fakes(self):
+        """The folder of the stand-ins of this session, with a colon, as a
+        head of PATH; empty when the session has none. A stand-in is a
+        program of the system that the look calls (`wpctl`): its text
+        comes from `stand_ins`, and `$FAKE_STATE` names a file for its
+        state next to it."""
+        if not self.stand_ins:
+            return ""
+        folder = self.work / "fakes"
+        folder.mkdir(exist_ok=True)
+        for name, text in self.stand_ins.items():
+            path = folder / name
+            path.write_text(text)
+            path.chmod(0o755)
+        return f"{folder}:"
 
     def wait_env(self, env_file):
         """The KEY=VALUE lines of tests/headless-session.sh."""

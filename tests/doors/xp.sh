@@ -258,6 +258,8 @@ cell_volume_door() {
     [ "$(tip_of "xp-speaker-$output")" = "Volume 50%" ] || return 1
     unmark
     click_node "xp-speaker-$output"
+    until_ok 'node_exists xp-ctx-0-5' || return 1
+    click_node xp-ctx-0-5
     marked '^wpctl set-mute'
 }
 cell_clock_door() {

@@ -51,7 +51,12 @@ def main():
     for look in looks:
         module = importlib.import_module(look)
         try:
-            with harness.Session(look, results=results, runs=runs) as s:
+            with harness.Session(
+                look,
+                results=results,
+                runs=runs,
+                stand_ins=getattr(module, "STAND_INS", None),
+            ) as s:
                 module.run(s)
         except Exception:  # noqa: BLE001
             results[(look, "act:session")] = [traceback.format_exc()]

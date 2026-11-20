@@ -7,6 +7,10 @@
 
 use std::fmt::Write as _;
 
+use chora_kit::{
+    volume::{Change, Reading},
+    words::Language,
+};
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
@@ -34,6 +38,8 @@ pub const FOCUS: &str = "xp-ctx-0";
 const KEY_GAP: f64 = 20.0;
 /// The room of the sample of a color before the text.
 const SWATCH: i32 = 28;
+/// The levels of the volume popup, in percent, loud to quiet.
+const LEVELS: [u32; 4] = [100, 75, 50, 25];
 
 /// What a row does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +76,8 @@ pub enum Act {
     Window(Sys),
     /// A row of the menu of a desktop icon or a start menu entry.
     Item(Item),
+    /// A row of the volume popup of the speaker.
+    Volume(Change),
 }
 
 /// What a row of the menu of a desktop icon or of an entry of the start
@@ -271,6 +279,30 @@ pub fn taskbar(locked: bool) -> Vec<Entry> {
         Entry::item("Lock the Taskbar", Act::Lock).checked(locked),
         Entry::item("Properties", Act::TaskbarProperties),
     ]
+}
+
+/// The volume popup of the speaker, which a click on it opens: the
+/// levels from loud to quiet with the current one checked, a separator
+/// and Mute, checked while muted. Without a mixer it holds a gray row
+/// that says so and one that says why, in the language of the session.
+pub fn volume(reading: Reading) -> Vec<Entry> {
+    let Reading::Level(volume) = reading else {
+        let language = Language::of_session();
+        let why = reading.why(language).map(|why| Entry::gray(&why));
+        return std::iter::once(Entry::gray(&reading.words(language)))
+            .chain(why)
+            .collect();
+    };
+    let current = (!volume.muted).then_some(volume.percent);
+    let mut rows: Vec<Entry> = LEVELS
+        .into_iter()
+        .map(|v| {
+            Entry::item(&format!("{v}%"), Act::Volume(Change::Set(v))).checked(Some(v) == current)
+        })
+        .collect();
+    rows.push(Entry::separator());
+    rows.push(Entry::item("Mute", Act::Volume(Change::Mute)).checked(volume.muted));
+    rows
 }
 
 /// The rows of the clock menu: Adjust Date/Time and those of the
@@ -554,6 +586,11 @@ impl Menu {
             down: None,
             cues: false,
         }
+    }
+
+    /// The width and the height of the menu, shadow included.
+    pub fn size(&self) -> [i32; 2] {
+        [self.levels[0].rect[2], self.levels[0].rect[3]]
     }
 
     /// A drop-down list as wide as its field: it opens on its current
@@ -1024,6 +1061,25 @@ mod tests {
         // Larger than the room on both sides: inside the screen.
         assert_eq!(place([150, 700], [600, 400], SCREEN), [600, 0]);
         assert_eq!(place([150, 200], [-10, 0], SCREEN), [0, 0]);
+    }
+
+    /// The volume popup lists the levels loud to quiet, then Mute; the
+    /// current level or Mute is checked, and without a mixer the rows are
+    /// gray.
+    #[test]
+    fn the_volume_popup_checks_the_level_or_mute() {
+        use chora_kit::volume::Volume;
+        let rows = |percent, muted| volume(Reading::Level(Volume { percent, muted }));
+        let checked = |rows: &[Entry]| rows.iter().position(|e| e.checked);
+        let loud = rows(75, false);
+        assert_eq!(loud.len(), 6, "four levels, a separator and Mute");
+        assert_eq!(loud[1].act, Some(Act::Volume(Change::Set(75))));
+        assert_eq!(loud[5].act, Some(Act::Volume(Change::Mute)));
+        assert_eq!(checked(&loud), Some(1), "75% is the checked row");
+        assert_eq!(checked(&rows(55, false)), None, "55% is no row");
+        assert_eq!(checked(&rows(75, true)), Some(5), "Mute is checked");
+        let gone = volume(Reading::NoWpctl);
+        assert!(gone.iter().all(|e| !e.enabled && e.act.is_none()), "gray");
     }
 
     #[test]

@@ -1,14 +1,50 @@
 """The acts of xp. The door acts: the key list (Help and Support on its
 keys page), the Start menu by its button and the dialog Turn Off Computer
 by its key (tests/doors keys-key, keys-alias, power-key; the Start button
-is the door of launcher-door and power-door)."""
+is the door of launcher-door and power-door). The session has a `wpctl`
+that keeps its volume and mute (`STAND_INS`), so that what one act sets
+the next act reads back."""
 
-from common import door_acts, helper_acts, keysheet_acts, notice_acts, window_acts
+import contextlib
+
+from common import (
+    click_node,
+    door_acts,
+    helper_acts,
+    keysheet_acts,
+    notice_acts,
+    ready,
+    window_acts,
+)
 from harness import Expect, click, drag_title, key, program
 
 HELP = "xp-dlg-help"
 MENU = "xp-menu"
 POWER = "xp-session"
+CONTEXT = "xp-ctx"
+SPEAKER = "xp-speaker-HEADLESS-1"
+
+WPCTL = """#!/bin/sh
+state="$FAKE_STATE"
+[ -f "$state" ] || echo "0.50 0" >"$state"
+read -r volume mute <"$state"
+case "$1" in
+get-volume)
+    if [ "$mute" = 1 ]; then echo "Volume: $volume [MUTED]"; else echo "Volume: $volume"; fi ;;
+set-mute)
+    case "$3" in 1) mute=1 ;; 0) mute=0 ;; toggle) mute=$((1 - mute)) ;; esac
+    echo "$volume $mute" >"$state" ;;
+set-volume)
+    for last; do :; done
+    case "$last" in
+    *%+) volume=$(awk -v v="$volume" -v p="${last%\\%+}" 'BEGIN{v+=p/100; if (v>1) v=1; printf "%.2f", v}') ;;
+    *%-) volume=$(awk -v v="$volume" -v p="${last%\\%-}" 'BEGIN{v-=p/100; if (v<0) v=0; printf "%.2f", v}') ;;
+    *%) volume=$(awk -v p="${last%\\%}" 'BEGIN{printf "%.2f", p/100}') ;;
+    esac
+    echo "$volume $mute" >"$state" ;;
+esac
+"""
+STAND_INS = {"wpctl": WPCTL}
 
 
 def run(s):
@@ -20,6 +56,8 @@ def run(s):
     door_acts(s, HELP)
     keysheet_acts(s, HELP, drawn_in_state=True)
     helper_acts(s)
+    desktop_acts(s)
+    volume_acts(s)
     s.act(
         "the Start button opens the Start menu",
         [click(50, 785)],
@@ -56,3 +94,189 @@ def drag_acts(s):
         expect=Expect(open=[]),
     )
     s.act("the dragged window closes", [lambda s: s.procs.pop().terminate()])
+
+
+def windows_are(minimized):
+    """A check of the windows of xp: each one is away, or none is."""
+
+    def check(after):
+        windows = after.states["xp"]["windows"]
+        away = [w["surface"] for w in windows if bool(w.get("minimized")) != minimized]
+        return (
+            [f"windows not {'away' if minimized else 'back'}: {away}"]
+            if away or not windows
+            else []
+        )
+
+    return check
+
+
+def desktop_acts(s):
+    """Show the Desktop toggles (xp-31): Super+d puts the windows away,
+    Super+d again brings the same ones back, and the task button of a
+    window that is away brings it back."""
+    ready(s)
+    s.act(
+        "a window opens for Show Desktop",
+        [program("chora-probe", "window", "40", "120", "200")],
+        expect=Expect(new_window={"app_id": "chora-probe"}),
+    )
+
+    def task_button(s):
+        surface = s.state("xp")["windows"][-1]["surface"]
+        click_node(f"xp-task-{surface}-HEADLESS-1")(s)
+
+    s.act(
+        "Super+d puts the windows away", [key("Super+d")], expect=Expect(verify=windows_are(True))
+    )
+    s.act(
+        "a second Super+d brings them back",
+        [key("Super+d")],
+        expect=Expect(verify=windows_are(False)),
+    )
+    s.act(
+        "Super+d puts the windows away again",
+        [key("Super+d")],
+        expect=Expect(verify=windows_are(True)),
+    )
+    s.act(
+        "the task button brings the window back",
+        [task_button],
+        expect=Expect(verify=windows_are(False)),
+    )
+    s.act("the window of Show Desktop closes", [lambda s: s.procs.pop().terminate()])
+
+
+def mixer(s):
+    """The volume and the mute that the stand-in of wpctl holds."""
+    with open(s.work / "fake-state") as f:
+        volume, mute = f.read().split()
+    return round(float(volume) * 100), mute == "1"
+
+
+def tooltip_says(want):
+    """A check: the tooltip on screen has these words."""
+
+    def check(after):
+        text = ((after.by_id().get("xp-tooltip") or {}).get("meta") or {}).get("text")
+        return [] if text == want else [f"the tooltip says {text!r}, expected {want!r}"]
+
+    return check
+
+
+def mixer_is(percent, muted):
+    """A check: the mixer holds a level and a mute."""
+
+    def check(after):
+        got = mixer(after_session[0])
+        return [] if got == (percent, muted) else [f"the mixer is {got}"]
+
+    return check
+
+
+def mixer_settles(percent, muted):
+    """A cue: the mixer takes a change in the background; wait for it."""
+
+    def cue(s):
+        s.until(lambda: mixer(s) == (percent, muted), 6, f"the mixer at {percent} {muted}")
+
+    return cue
+
+
+after_session = [None]
+
+
+def hover(want):
+    """A cue: the pointer rests on the speaker until its tooltip says what
+    is wanted, or 8 s pass: the speaker reads the mixer every few seconds."""
+
+    def says(s):
+        node = s.core.call("scene.query", {"selector": "id:xp-tooltip"})
+        return bool(node) and (node[0].get("meta") or {}).get("text") == want
+
+    def cue(s):
+        x, y = speaker_middle(s)
+        s.inject(
+            [{"pointer_move": {"position": [640, 300]}}, {"pointer_move": {"position": [x, y]}}]
+        )
+        with contextlib.suppress(RuntimeError):
+            s.until(lambda: says(s), 8, f"the tooltip {want!r}")
+
+    return cue
+
+
+def speaker_middle(s):
+    """The middle of the speaker in the tray."""
+    x, y, w, h = next(
+        iter(s.core.call("scene.query", {"selector": f"id:{SPEAKER}"})[0]["rects"].values())
+    )
+    return x + w / 2, y + h / 2
+
+
+def volume_acts(s):
+    """The volume by the mouse (xp-26, xp-32): a click on the speaker opens
+    the volume popup, whose rows set the level and mute (rows 0 to 3: 100,
+    75, 50, 25 percent, row 5: Mute); a level that a key set shows in the
+    tooltip of the speaker."""
+    ready(s)
+    after_session[0] = s
+    s.act(
+        "the volume key raises the level",
+        [key("XF86AudioRaiseVolume"), mixer_settles(55, False)],
+        expect=Expect(verify=mixer_is(55, False)),
+    )
+    s.act(
+        "the tooltip of the speaker says the level that the key set",
+        [hover("Volume 55%")],
+        expect=Expect(verify=tooltip_says("Volume 55%")),
+    )
+    s.act(
+        "a click on the speaker opens the volume popup",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "a click on 75 percent sets the level and shuts the popup",
+        [click_node("xp-ctx-0-1"), mixer_settles(75, False)],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, False)),
+    )
+    s.act(
+        "the tooltip of the speaker says the level that the popup set",
+        [hover("Volume 75%")],
+        expect=Expect(verify=tooltip_says("Volume 75%")),
+    )
+    s.act(
+        "the speaker opens the volume popup again",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Mute of the popup mutes",
+        [click_node("xp-ctx-0-5"), mixer_settles(75, True)],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, True)),
+    )
+    s.act(
+        "the speaker opens the volume popup for Mute",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Mute of the popup unmutes",
+        [click_node("xp-ctx-0-5"), mixer_settles(75, False)],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, False)),
+    )
+    s.act(
+        "the speaker opens the volume popup to shut it",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Escape shuts the volume popup", [key("Escape")], closes=[CONTEXT], expect=Expect(open=[])
+    )
