@@ -1,0 +1,5 @@
+{"time": 1795212070.539, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.043, "result": {"path": "/tmp/persona.Q5jl6m/shots/018.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795212070.939, "action": "click", "args": {"x": 640.0, "y": 400.0, "button": "left", "double": false}, "ok": true, "seconds": 0.225, "result": "ok"}
+{"time": 1795212071.52, "action": "key", "args": {"combo": "Super+x"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795212071.889, "action": "key", "args": {"combo": "Super+g"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795212072.259, "action": "key", "args": {"combo": "Super+p"}, "ok": true, "seconds": 0.008, "result": "ok"}
