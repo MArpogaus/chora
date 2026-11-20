@@ -23,7 +23,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-pane-r2.md (RC 2: review r1 FIX, rv-1 MAJOR Super tap) | sonnet high, claude/co-pane f10842d8 | starting |
+| co-pane-r2.md (RC 2: review r1 FIX, rv-1 MAJOR Super tap) | sonnet high, claude/co-pane f10842d8 | session_016iS3kPGkbPMxf5N2LQ6v6F 18:22 |
 | handover-ti-r2.md (RC 2: review r1 FIX, rw-1 MAJOR click-back) | sonnet high, claude/handover-ti 371f0fa1 | session_016iS3kPR5QXNQa8cwi9z9fT 18:04 |
 | xp-tidy-r2.md (shared bar: pr3-1 Send To gray, e2e editor) | sonnet medium, claude/xp-tidy bd6fed1e | session_016iS3kLhEuJ3xguDmbYiMsy 18:05 |
 | tour-one-r1.md (F7, RC 11: design/tour-v9.md lane 1, one tour set) | sonnet medium, claude/tour-one 9dc384b3 | session_016iS3kNTVyCQRmPu3jQAyF1 18:06 |
