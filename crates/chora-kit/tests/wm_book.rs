@@ -251,9 +251,28 @@ fn a_window_given_in_has_the_origin_given() {
     let core = FakeCore::start();
     let mut look = Look::new(&core, false);
     surface(&core.model(), "s1");
+    look.hear(&created("s1", None));
+    detach(&core.model(), "s1");
+    core.model().lock().unwrap().scene.reserve("s1", Some(NAME));
+    look.hear(&Event::SurfaceDetached {
+        surface: "s1".into(),
+    });
+    assert_eq!(look.book.origin("s1"), Some(&Origin::Given));
+}
+
+#[test]
+fn a_window_reserved_by_the_core_is_new_and_keeps_its_token() {
+    let core = FakeCore::start();
+    let mut look = Look::new(&core, false);
+    surface(&core.model(), "s1");
     core.model().lock().unwrap().scene.reserve("s1", Some(NAME));
     look.hear(&created("s1", Some(NAME)));
-    assert_eq!(look.book.origin("s1"), Some(&Origin::Given));
+    assert_eq!(
+        look.book.origin("s1"),
+        Some(&Origin::New {
+            token: Some("t1".into())
+        })
+    );
 }
 
 #[test]
