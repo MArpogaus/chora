@@ -606,6 +606,10 @@ struct Construct {
     /// The surface with the keyboard as `focus.changed` last told: read by
     /// `state.get`, and by `regrab` for a pane whose window has it.
     core_focus: Option<String>,
+    /// Whether the walk took the keyboard with `focus_node` since a window
+    /// of a pane got it: the core keeps the focus of that surface then, but
+    /// its keys go to the look (`keys_with_pane`).
+    walk_keys: bool,
     /// The word of `state.get`; only reads.
     voiced: chora_kit::helper::Helper,
     /// Which windows are the construct's, and where each came from
@@ -707,6 +711,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             core_focus: None,
+            walk_keys: true,
             voiced: chora_kit::helper::Helper::default(),
             book: chora_kit::wm::Book::new(NAME, false),
         };

@@ -107,7 +107,17 @@ impl Construct {
     /// walk gave its window the keyboard where the pane stands. Either way
     /// the construct holds its chords for that window (`regrab`).
     pub(crate) fn keys_with_pane(&self) -> bool {
-        self.in_pane() || (self.core_focus.as_deref()).is_some_and(|f| self.own_window(f))
+        let pressed = (self.core_focus.as_deref()).is_some_and(|f| self.own_window(f));
+        self.in_pane() || (pressed && !self.walk_keys)
+    }
+
+    /// The command that gives the keyboard to the look node of the walk,
+    /// which notes that no window of a pane has it any more.
+    pub(crate) fn keys_to_the_walk(&mut self) -> Command {
+        self.walk_keys = true;
+        Command::FocusNode {
+            node: Some(LOOK.into()),
+        }
     }
 
     /// Whether the camera glides into a pane.
@@ -532,9 +542,7 @@ impl Construct {
             },
         )];
         if walk {
-            commands.push(Command::FocusNode {
-                node: Some(LOOK.into()),
-            });
+            commands.push(self.keys_to_the_walk());
         }
         let pane = surface.and_then(|s| self.panes.iter().find(|p| p.window() == Some(s)));
         if let (Some(surface), Some(pane)) = (surface, pane) {

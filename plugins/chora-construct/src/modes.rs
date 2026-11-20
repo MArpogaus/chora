@@ -363,6 +363,7 @@ impl Construct {
         if let Some(host) = &mut self.cube {
             host.note_focus(window);
         }
+        self.walk_keys = true;
         self.rt.conn.apply(the_keyboard_to_the_look())
     }
 

@@ -6,7 +6,7 @@ use chora_kit::actions::{System, perform::perform};
 use chora_kit::words::{Language, Word, say};
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
+    Action, BTN_LEFT, ClientError, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
     KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, WHEEL, cube,
     give, space, window_flown_into,
 };
@@ -217,9 +217,8 @@ impl Construct {
         if !self.active || self.in_pane() || self.cube.is_some() {
             return Ok(());
         }
-        self.rt.conn.apply(vec![Command::FocusNode {
-            node: Some(LOOK.into()),
-        }])
+        let walk = self.keys_to_the_walk();
+        self.rt.conn.apply(vec![walk])
     }
 
     /// The keys and the pointer of the walk, and the fly-out binding.
@@ -304,6 +303,7 @@ impl Construct {
                 if injected && !self.rt.accepts_injected() {
                     return Ok(());
                 }
+                self.walk_keys = false;
                 return self.rt.conn.apply(vec![focus::give(node)]);
             }
             Event::PointerPressed {
@@ -365,9 +365,8 @@ impl Construct {
             return Ok(());
         }
         if self.flown.is_none() {
-            self.rt.conn.apply(vec![Command::FocusNode {
-                node: Some(LOOK.into()),
-            }])?;
+            let walk = self.keys_to_the_walk();
+            self.rt.conn.apply(vec![walk])?;
         }
         if let Some(i) = self.pane_at(at).filter(|_| held) {
             let pane = &self.panes[i];
@@ -425,9 +424,8 @@ impl Construct {
         }
         if let Some(into) = take_flight(&mut self.glide) {
             self.glide_to(into.back, FLY_MS, None);
-            self.rt.conn.apply(vec![Command::FocusNode {
-                node: Some(LOOK.into()),
-            }])?;
+            let walk = self.keys_to_the_walk();
+            self.rt.conn.apply(vec![walk])?;
             return self.regrab();
         }
         Ok(())

@@ -187,6 +187,14 @@ fn a_pane_window_with_the_keyboard_from_a_press_holds_the_super_chords() {
         construct.rt.action("Super+F1").is_some(),
         "the key list keeps its key"
     );
+    let _ = construct.keys_to_the_walk();
+    construct.regrab().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "the walk took the keyboard; the core still focuses s1"
+    );
+    construct.event(focus(Some("s1"))).unwrap();
+    assert!(construct.rt.action("Super+q").is_some(), "s1 has it again");
     construct.event(focus(None)).unwrap();
     for chord in ["Super+q", "Super+Super_L", "Super+F1"] {
         assert!(
