@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, identity, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
@@ -21,7 +21,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane and nested; gate-construct-k2a.sh, -3d.sh and -windows.sh stay out of the gate until their findings (co-27, co-28 in findings/construct.md) are fixed. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
@@ -80,6 +80,10 @@
 #                     steps above (the self-test uses it)
 #   MERGE_GATE_RUNS   directory for the run directories (default: /tmp)
 #   CHORA_GATE_LOCK   the lock file of the gates (see tests/gate-lock.sh)
+# A run that starts has at least 6 GB free on / (D90): under that the gate prints df and exits 1.
+# A shallow clone fails at once (git fetch --unshallow first, R18).
+# When the session branch of BASE exists here, the gate fetches it and warns when its head differs
+# from the head on origin (a drift of the container).
 # Exit status: 0 all steps passed, 1 a step failed or the push was
 # refused, 2 a usage error.
 set -u
@@ -237,6 +241,7 @@ cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
 placed|BIN=$repo/target/debug tests/gate-construct-placed.sh
 construct-hud|BIN=$repo/target/debug tests/gate-construct-hud.sh
+construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh
 out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
@@ -310,6 +315,37 @@ if [ -n "$push_branch" ] && [ -z "$only" ]; then
         exit 1
     fi
 fi
+
+min_free_gb=6
+check_free_space() {
+    local free_kb
+    free_kb=$(df -Pk / | awk 'NR == 2 {print $4}')
+    [ "${free_kb:-0}" -ge $((min_free_gb * 1024 * 1024)) ] && return 0
+    df -h /
+    echo "merge-gate: only $((${free_kb:-0} / 1024 / 1024)) GB free on /, $min_free_gb GB are needed (D90); free space and run again" >&2
+    return 1
+}
+
+warn_on_drift() {
+    local branch=${base#origin/} local_sha origin_sha
+    local_sha=$(git -C "$repo" rev-parse --verify -q "refs/heads/$branch") || return 0
+    [ -n "$local_sha" ] || return 0
+    timeout 30 git -C "$repo" fetch -q origin "$branch" 2>/dev/null ||
+        echo "merge-gate: WARNING: cannot fetch origin $branch, so the drift check uses the last fetch"
+    origin_sha=$(git -C "$repo" rev-parse --verify -q "$base") || return 0
+    [ "$local_sha" = "$origin_sha" ] ||
+        echo "merge-gate: WARNING: drift: $branch is at ${local_sha:0:8}, $base at ${origin_sha:0:8} (D90)"
+}
+
+check_full_history() {
+    [ "$(git -C "$repo" rev-parse --is-shallow-repository)" != true ] && return 0
+    echo "merge-gate: this is a shallow clone; run git fetch --unshallow and start again (R18)" >&2
+    return 1
+}
+
+check_free_space || exit 1
+check_full_history || exit 1
+warn_on_drift
 
 . "$repo/tests/gate-lock.sh"
 gate_lock merge-gate || die "cannot take the gate lock"

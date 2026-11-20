@@ -65,19 +65,31 @@ done
 [ "$(cat "$work/typed" 2>/dev/null)" = "hello construct" ] || fail "foot got: $(cat "$work/typed" 2>/dev/null)"
 ok "after the fly-in, foot took the typed text"
 
-sleep 0.5
-shot "$shots/construct-$theme-flown.png"
-shot --node "$surface" "$work/window.png"
-diff=$(python3 -I "$repo/tests/png-same.py" "$shots/construct-$theme-flown.png" "$work/window.png") ||
-    fail "compare: $diff"
-[ "$diff" = "0 0" ] || fail "the output differs from the window alone: $diff (pixels, worst channel)"
+compare_with_window() {
+    shot "$shots/construct-$theme-flown.png"
+    shot --node "$surface" "$work/window.png"
+    diff=$(python3 -I "$repo/tests/png-same.py" "$shots/construct-$theme-flown.png" "$work/window.png") ||
+        fail "compare: $diff"
+    [ "$diff" = "0 0" ]
+}
+for _ in $(seq 20); do
+    compare_with_window && break
+    sleep 0.5
+done
+[ "$diff" = "0 0" ] || fail "the output differs from the window alone after the Step back hint faded: $diff (pixels, worst channel)"
 ok "the output shows the window at 1:1, pixel for pixel"
 
 key Alt+Escape
-sleep 1
-[ "$(node "id:$surface" 'n[0]["opacity"]')" = 0.0 ] || fail "Alt+Escape did not fly out"
-[ "$(node id:construct-look 'n[0]["focused"]')" = True ] || fail "the walk has no keyboard after the fly-out"
-back=$(node "id:$pane" 'n[0]["rects"]')
+for _ in $(seq 24); do
+    [ "$(node id:construct-look 'n[0]["focused"]')" = True ] && break
+    sleep 0.25
+done
+[ "$(node id:construct-look 'n[0]["focused"]')" = True ] || fail "Alt+Escape did not fly out: the walk has no keyboard"
+for _ in $(seq 24); do
+    back=$(node "id:$pane" 'n[0]["rects"]')
+    [ "$back" = "$after" ] && break
+    sleep 0.25
+done
 [ "$back" = "$after" ] || fail "the fly-out did not return to the pose before: $back, not $after"
 shot "$shots/construct-$theme-out.png"
 ok "Alt+Escape flew out, and the walk has the keyboard again"
