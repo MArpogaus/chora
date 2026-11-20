@@ -119,3 +119,83 @@ Counts: BLOCK 0, MAJOR 1, MINOR 1, NIT 3. Verdict: **FIX** (rw-1).
 
 ## PM note r1 (PM not the builder)
 Review r1 verdict computed: open MAJOR rw-1, so FIX. Round r2 (briefs/handover-ti-r2.md, sonnet high) fixes rw-1, rw-2, rw-4, rw-5 and notes rw-3; stacking by root order stays a known MINOR.
+
+## r2
+
+Lane: cloud, branch claude/handover-ti from 371f0fa1, now d1ba7e2c. Step 0
+green (unshallow, `cargo check --workspace`). Brief:
+briefs/handover-ti-r2.md. Every fix has its red commit first.
+
+| Item | Red | Green | Test | Cell |
+|---|---|---|---|---|
+| rw-1 MAJOR click back on tiling's window | 6153a0a0 | 47a6b2f0 | click step added to tests/gate-handover-shared.sh (red: "click: a click on s1 does not give it the keys back (tiling {holder:null}, xp {holder:xp})") | `click` of tests/gate-handover-shared.sh |
+| rw-2 MINOR first xp desktop click | e1ee7af2 | 7ab31a10 | `wm::state::tests::the_desktop_icons_take_the_keys_when_the_focus_leaves_a_foreign_window` (xp, red) and `..._leave_the_keys_of_a_node_of_another_client` (xp, guard, green from the start) | xp unit tests |
+| rw-4 NIT told node from key_node | ce9db2e8 | eaeedda7 | `state::tests::an_exclusive_layer_surface_is_told_as_the_end_of_the_node_focus` (chora; red: left [], right [Null]) | chora unit test |
+| rw-5 NIT holder and state agree | e670a521 | d1ba7e2c | `wm_focus::holder_and_state_agree_for_an_own_node_that_is_not_tracked` (kit; red: Foreign vs Window("t1")) | kit test |
+| rw-3 NIT | - | - | no code | see below |
+
+Fix rw-1 (47a6b2f0): new `Focus::lost_to_other(name)` in
+crates/chora-kit/src/wm/focus.rs: the look has lost the keys when `lost`
+is set, when `taken_by_other(name)`, or when it sent a surface and the
+core focuses another one or none. `Focus::reclaim()` clears `lost` and
+`sent`, so the next transaction sends the focus again, also when the core
+focus is still the sent surface (a node of xp had the keys).
+`Tiling::pointer_focus` passes `lost_to_other(NAME)` to
+`wm.pointer_focus` and reclaims after a take. The gate cell now writes
+`test_accept_injected_keys: true` for tiling and xp (helper
+`accept_injected`) so both hear the injected clicks.
+
+Fix rw-2 (7ab31a10): `Wm::focus_moved` (xp, keys.rs) remembers whether the
+core focus was on a window of another look, runs the old body
+(`window_focus_moved`), and when the focus left it with no xp window
+focused, no foreign focus and no node of another client with the keys, it
+adds `desktop_keys()`. `node_away` is `pub(super)` for it.
+
+Fix rw-4 (eaeedda7): `tell_key_node` takes `(node, owner)` from
+`key_node()` (`unzip`), so a lock or an exclusive layer surface is told as
+no node.
+
+Fix rw-5 (d1ba7e2c): `Focus::holder(name, own)` takes the look's name, as
+`state` does, and answers `Foreign` only for `taken_by_other(name)`;
+`state` now calls `holder`. Call sites (mc main.rs x2, tests/wm_focus.rs
+x9) pass the name; this signature edit is the only test edit in a green
+commit, and it is mechanical (name argument).
+
+rw-3 (NIT, no code): the `node` cell of tests/gate-handover-shared.sh
+(Start menu of xp over tiling's window) was green-only in r1: in cb953cfe
+it called `start_menu` without `open`, and f33684bf fixed the call with
+the fix, with `keys` red first. It stays a regression check, not a red
+witness for I3. In r2 test edits sit in the red commits only.
+
+Probe rerun (the table of Review r1, scratch copy of the cell; before r2
+in parentheses):
+
+```
+given             tiling {holder:tiling, s1}   xp {holder:null}   focused [s1]
+click-desktop     tiling {holder:null}         xp {holder:xp}     focused []
+click-desktop 2   tiling {holder:null}         xp {holder:xp}     focused []
+click s1          tiling {holder:tiling, s1}   xp {holder:null}   focused [s1]   (r1: tiling null, xp xp, focused [xp-icons])
+```
+
+The keys go back to s1 on the click and xp lets go (I3: one holder).
+
+Gate (`--jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,matrix,virtual,wm-pane,mc-handover,layout,xp-faces`, tests/persona unchanged, so no persona-selftest):
+
+```
+pre-commit PASS     3s /tmp/merge-gate.ZRQN3C/pre-commit.log
+gate-lib   PASS    75s /tmp/merge-gate.ZRQN3C/gate-lib.log
+ci-check   PASS    37s /tmp/merge-gate.ZRQN3C/ci-check.log
+build      PASS    23s /tmp/merge-gate.ZRQN3C/build.log
+test       PASS   197s /tmp/merge-gate.ZRQN3C/test.log
+clippy     PASS    15s /tmp/merge-gate.ZRQN3C/clippy.log
+matrix     PASS   286s /tmp/merge-gate.ZRQN3C/matrix.log
+virtual    PASS    43s /tmp/merge-gate.ZRQN3C/virtual.log
+xp-faces   PASS    15s /tmp/merge-gate.ZRQN3C/xp-faces.log
+layout     PASS   181s /tmp/merge-gate.ZRQN3C/layout.log
+wm-pane    PASS    21s /tmp/merge-gate.ZRQN3C/wm-pane.log
+mc-handover PASS    11s /tmp/merge-gate.ZRQN3C/mc-handover.log
+(sha d1ba7e2c; partial run, nothing pushed by the gate)
+```
+
+Left as known: stacking of a tiling and an xp window by root order (MINOR),
+I5 (key list over a notice).
