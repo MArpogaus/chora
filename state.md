@@ -26,7 +26,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 |---|---|---|
 | stray-grab-r2.md (RC sh-24, Queue 5; review r1 FIX: rv-1 MAJOR, ae09758d) | sonnet high | session_016iS3kLCUHNpWn4svX2uoxz |
 | black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
-| xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | starting |
+| xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | session_016iS3kQYqG4zQU8iHR299YZ |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
 | co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
