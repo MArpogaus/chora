@@ -228,11 +228,11 @@ mod tests {
     }
 
     #[test]
-    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_alias_and_one_for_the_page_and_the_give_keys()
+    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_aliases_and_one_for_the_page_and_the_give_keys()
      {
         let config = config();
         let rows = all(&config, false);
-        assert_eq!(rows.len(), config.common.bindings.len() - 1, "{rows:?}");
+        assert_eq!(rows.len(), config.common.bindings.len() - 3, "{rows:?}");
     }
 
     #[test]
