@@ -171,9 +171,7 @@ impl Mc {
             return Ok(false);
         }
         self.windows.insert(name.clone(), surface.into());
-        let plain = (self.plain_start.take()).is_some_and(|n| n == name)
-            && self.current.as_deref() == Some(name.as_str());
-        self.plain_turn = plain;
+        self.plain_turn = self.take_plain_start(&name);
         if let Err(err) = self.show(&name, user) {
             chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
@@ -182,6 +180,17 @@ impl Mc {
             self.renumber()?;
         }
         Ok(true)
+    }
+
+    /// Whether a plain turn started the program of scene `name` and that
+    /// scene shows: the start counts once, and only for its own scene, so
+    /// that a window of another scene in between leaves it (mc-42).
+    fn take_plain_start(&mut self, name: &str) -> bool {
+        let own = self.plain_start.as_deref() == Some(name);
+        if own {
+            self.plain_start = None;
+        }
+        own && self.current.as_deref() == Some(name)
     }
 
     /// Takes the window of a docked app that started. It waits hidden
