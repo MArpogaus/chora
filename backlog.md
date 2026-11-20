@@ -341,3 +341,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - xp-T7 (UX, P2 r3-r5 nurse): xp shows no way to hand the screen to another look (Control Panel, Desktop, Display grey; 3 rounds); the persona T7 passes vacuously. Next xp round after xp-minor; tour v9 must show the switch. -> xp-give r1 (16:5x).
 - xp volume slider: drag as in XP (xp-minor r1 pr1-2).
 - xp-minor pr2-1 NIT: the Run notice keeps fuzzel's "config.c:17: " source position; strip "<file>.c:<n>: " before the text (crates/chora-kit/src/launcher.rs ask).
+- co-fix pr2-1 MINOR: construct pull hint flashes on each title click (use mode, one screen); show it past a drag threshold. pr2-2 NIT: hint names the helper with no helper configured.
