@@ -59,7 +59,7 @@ mod sandbox;
 
 use std::{
     fs::File,
-    io::Write,
+    io::{ErrorKind, Write},
     os::fd::AsFd,
     process::ExitCode,
     time::{Duration, Instant},
@@ -71,7 +71,9 @@ use rustix::{
     time::{ClockId, clock_gettime},
 };
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop, event_created_child,
+    Connection, Dispatch, EventQueue, QueueHandle, WEnum,
+    backend::WaylandError,
+    delegate_noop, event_created_child,
     protocol::{
         wl_buffer::{self, WlBuffer},
         wl_callback::{self, WlCallback},
@@ -184,6 +186,8 @@ struct Probe {
     report: bool,
     /// The last point of the pointer on the surface.
     pointer_at: (f64, f64),
+    /// Why the connection to the compositor failed or hung up.
+    lost: Option<String>,
 }
 
 /// The answer to a request for presentation feedback.
@@ -678,6 +682,9 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
         dispatch_until(queue, probe, wait, |p| {
             p.sizes.len() > configures || (exit_on_close && p.closed)
         });
+        if let Some(why) = &probe.lost {
+            return Err(format!("the compositor is gone: {why}"));
+        }
     }
 }
 
@@ -756,6 +763,9 @@ fn clip(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     loop {
         let enters = probe.enters;
         if !dispatch_until(queue, probe, TIMEOUT, |p| p.enters != enters) {
+            if let Some(why) = &probe.lost {
+                return Err(format!("the compositor is gone: {why}"));
+            }
             continue;
         }
         if !offered {
@@ -801,7 +811,8 @@ fn paint(
 }
 
 /// Dispatches events until a condition holds or the time is up. Returns
-/// whether the condition holds.
+/// whether the condition holds. A failed or hung up connection sets
+/// `probe.lost`, so that a loop that waits for ever can end.
 fn dispatch_until(
     queue: &mut Queue,
     probe: &mut Probe,
@@ -810,14 +821,19 @@ fn dispatch_until(
 ) -> bool {
     let deadline = Instant::now() + timeout;
     loop {
-        if queue.dispatch_pending(probe).is_err() {
+        if let Err(e) = queue.dispatch_pending(probe) {
+            probe.lost = Some(e.to_string());
             return false;
         }
         if done(probe) {
             return true;
         }
         let left = deadline.saturating_duration_since(Instant::now());
-        if left.is_zero() || queue.flush().is_err() {
+        if left.is_zero() {
+            return false;
+        }
+        if let Err(e) = queue.flush() {
+            probe.lost = Some(e.to_string());
             return false;
         }
         if let Some(guard) = queue.prepare_read() {
@@ -827,8 +843,15 @@ fn dispatch_until(
                 tv_sec: 1,
                 tv_nsec: 0,
             });
-            if poll(&mut fds, Some(&timeout)).unwrap_or(0) > 0 && guard.read().is_err() {
-                return false;
+            if poll(&mut fds, Some(&timeout)).unwrap_or(0) > 0 {
+                match guard.read() {
+                    Ok(_) => {}
+                    Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => {}
+                    Err(e) => {
+                        probe.lost = Some(e.to_string());
+                        return false;
+                    }
+                }
             }
         }
     }
