@@ -98,3 +98,9 @@ I1 and I3: probably the checker, which reads only the state of the looks of the 
 3. `check.py begin` per task is now available; a driver that checks tasks one at a time (begin, task, end) avoids the T1/T2 "key list left open" reds.
 4. I1/I3 on a window owned by the cube's xp: make the checker read the xp child's state (Session looks) before the next round.
 5. Persona findings of r1b: feedback/2026-11-20-p2r1b-{explorer,max,demo}.md; captures and logs media/2026-11-20/persona-r1b-{explorer,max,demo}/. No ledger edits.
+
+## Review r1b (PM, 2026-11-20 02:55 UTC; PM not the builder; harness diff of claude/p2-harness 5dbd0ccf)
+Base 79c8d2b5...5dbd0ccf, 7 files under tests/ (+275 -15); 4 red commits each before its fix. check.py begin per task, C2 = no window lost (new windows fine), T5 probe via round.sh with a dead-probe red, letter and Tab codes; session.sh sets CHORA_XP_THEME for snapshot binaries.
+Findings: ph-1 NIT round.sh probe waits a fixed 3 s (wait for the probe window in the scene). ph-2 NIT the I1/I3 x21 on the cube's xp window (checker reads only the construct state) stays a harness lead for the next round.
+Verdict (computed): no BLOCK or MAJOR: MERGE-OK; train 83 (harness first, after train 82).
+Decision (lane question 1): Super+D/Q/Tab into a client in construct is a defect (co-25 MAJOR; precedent docs/configuration.md:324-330). Super+F1 in a face: co-26 MAJOR (verify). Construct gets the co-p2-fix lane; construct stop rule reopened.
