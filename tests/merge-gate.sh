@@ -79,6 +79,9 @@
 #                     steps above (the self-test uses it)
 #   MERGE_GATE_RUNS   directory for the run directories (default: /tmp)
 #   CHORA_GATE_LOCK   the lock file of the gates (see tests/gate-lock.sh)
+# A run that starts has at least 6 GB free on / (D90): under that the gate prints df and exits 1.
+# When the session branch of BASE exists here, the gate fetches it and warns when its head differs
+# from the head on origin (a drift of the container).
 # Exit status: 0 all steps passed, 1 a step failed or the push was
 # refused, 2 a usage error.
 set -u
@@ -306,6 +309,30 @@ if [ -n "$push_branch" ] && [ -z "$only" ]; then
         exit 1
     fi
 fi
+
+min_free_gb=6
+check_free_space() {
+    local free_kb
+    free_kb=$(df -Pk / | awk 'NR == 2 {print $4}')
+    [ "${free_kb:-0}" -ge $((min_free_gb * 1024 * 1024)) ] && return 0
+    df -h /
+    echo "merge-gate: only $((${free_kb:-0} / 1024 / 1024)) GB free on /, $min_free_gb GB are needed (D90); free space and run again" >&2
+    return 1
+}
+
+warn_on_drift() {
+    local branch=${base#origin/} local_sha origin_sha
+    local_sha=$(git -C "$repo" rev-parse --verify -q "refs/heads/$branch") || return 0
+    [ -n "$local_sha" ] || return 0
+    timeout 30 git -C "$repo" fetch -q origin "$branch" 2>/dev/null ||
+        echo "merge-gate: WARNING: cannot fetch origin $branch, so the drift check uses the last fetch"
+    origin_sha=$(git -C "$repo" rev-parse --verify -q "$base") || return 0
+    [ "$local_sha" = "$origin_sha" ] ||
+        echo "merge-gate: WARNING: drift: $branch is at ${local_sha:0:8}, $base at ${origin_sha:0:8} (D90)"
+}
+
+check_free_space || exit 1
+warn_on_drift
 
 . "$repo/tests/gate-lock.sh"
 gate_lock merge-gate || die "cannot take the gate lock"

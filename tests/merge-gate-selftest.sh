@@ -13,12 +13,30 @@ mkdir "$work/bin"
 cat >"$work/bin/git" <<'FAKE'
 #!/bin/bash
 echo "$*" >>"$FAKE_GIT_LOG"
-if [ "$1" = status ]; then
+[ "$1" != -C ] || shift 2
+case $1 in
+status)
     [ -z "${FAKE_GIT_DIRTY:-}" ] || echo " M file"
-fi
+    ;;
+rev-parse)
+    case $* in
+    *refs/heads/*)
+        [ -n "${FAKE_GIT_LOCAL:-}" ] || exit 1
+        echo "$FAKE_GIT_LOCAL"
+        ;;
+    *) echo "${FAKE_GIT_ORIGIN:-}" ;;
+    esac
+    ;;
+esac
 exit 0
 FAKE
 chmod +x "$work/bin/git"
+cat >"$work/bin/df" <<'FAKE'
+#!/bin/bash
+echo "Filesystem     1024-blocks      Used Available Capacity Mounted on"
+echo "/dev/fake      262144000 100000000 ${FAKE_DF_FREE_KB:-100000000}      40% /"
+FAKE
+chmod +x "$work/bin/df"
 
 failures=0
 check() {
@@ -405,7 +423,7 @@ gate_only() {
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
 check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
 mkdir "$work/nopc"
-for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env; do
+for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout; do
     ln -s "$(command -v "$tool")" "$work/nopc/$tool"
 done
 rm -rf "$work/runs"
@@ -506,6 +524,26 @@ check "identity: the override is printed when MERGE_GATE_IDENTITY is set" \
     "$(ident | grep -c "^identity: MERGE_GATE_IDENTITY overrides the expected identity: $good\$")" 1
 check "identity: no override line without MERGE_GATE_IDENTITY" \
     "$(env -u MERGE_GATE_IDENTITY "$idr/tests/merge-gate.sh" --identity-check --base base 2>&1 | grep -c 'overrides the expected identity')" 0
+printf 'one|touch %s/ran\n' "$work" >"$work/steps"
+rm -f "$work/ran"
+FAKE_DF_FREE_KB=5242880 run_gate
+check "df: 5 GB free on / fails the gate" "$rc" 1
+check "df: the gate names the free space and the need" "$(grep -c 'only 5 GB free on /, 6 GB are needed' "$work/out")" 1
+check "df: the gate prints df" "$(grep -c '^/dev/fake ' "$work/out")" 1
+check "df: no step runs under the limit" "$(test -e "$work/ran" && echo ran)" ""
+FAKE_DF_FREE_KB=6291456 run_gate
+check "df: exactly 6 GB free passes" "$rc" 0
+check "df: a pass prints no df line" "$(grep -c 'GB free on /' "$work/out")" 0
+FAKE_DF_FREE_KB=5242880 run_gate --list
+check "df: --list needs no free space" "$rc" 0
+FAKE_GIT_LOCAL=aaaaaaaa11111111 FAKE_GIT_ORIGIN=bbbbbbbb22222222 run_gate
+check "drift: a session branch that differs from origin warns" "$(grep -c 'WARNING: drift: claude/autonomous-dev-session-3w-i33pg7 is at aaaaaaaa, origin/claude/autonomous-dev-session-3w-i33pg7 at bbbbbbbb' "$work/out")" 1
+check "drift: the warning does not fail the gate" "$rc" 0
+check "drift: the gate fetches the branch first" "$(grep -c ' fetch -q origin claude/autonomous-dev-session-3w-i33pg7$' "$work/git.log")" 1
+FAKE_GIT_LOCAL=aaaaaaaa11111111 FAKE_GIT_ORIGIN=aaaaaaaa11111111 run_gate
+check "drift: equal heads print no warning" "$(grep -c 'WARNING' "$work/out")" 0
+FAKE_GIT_ORIGIN=bbbbbbbb22222222 run_gate
+check "drift: no local session branch prints no warning" "$(grep -c 'WARNING' "$work/out")" 0
 check "gate-lib: the step runs merge-gate-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
 check "gate-lib: the step runs cells-for-selftest.sh" \
