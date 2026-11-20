@@ -286,3 +286,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLAKE candidate (11-20 review mc-answer): tiling-look ink-1280x800 failed once at 12 s under --jobs 3 (tag colour 1 1 1 255), PASS alone.
 - XP-MAJORS review r1 MINOR rv-1..4 (11-20): question-card gate asserts no placement or font; paperclip gate asserts no art; popup guarded at 1280x800 only, no outside-click or key-leak act; stepped list for volume. Next xp round.
 - MC-ANSWER MINOR-1 (review r2): card.size message printed per notification in Card::new; log it once when values.yaml loads.
+- KIT-SEC MINOR-1 (PM review r3): tiling scripts' mktemp fallback without XDG_RUNTIME_DIR makes a new dir per run (no earlier pid found, duplicate bar, leaked dirs); use `: "${XDG_RUNTIME_DIR:?}"`.
