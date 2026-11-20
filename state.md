@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:14 UTC)
+## Now (2026-11-20 00:19 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -25,7 +25,6 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-h-r2.md | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
-| temp-rest-r1.md | sonnet med | OK 2e8e67f3 t78 |
 | temp-dirs-r2.md | sonnet med | OK 86f42d1f t78 |
 | flake-k-r1.md | sonnet high | MERGE-OK 9dde8523, t78 |
 | f24-rest-r1.md | sonnet med | OK 7231b51a t78 |
@@ -37,13 +36,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | mc-answer-r1.md (RC) | sonnet high | session_016iS3kLHGWuV71ERbiX6uxP |
 | flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | review-kit-sec-r2.md | opus high | session_016iS3kLUq3QboLgTKsGNMoA |
-| persona-env-r1.md (RC2) | sonnet med | starting |
+| persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t78b |
-| co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
+| co-majors-r1.md (RC) | opus high | done db4d703b; review |
+| review-co-majors-r1.md | sonnet high | starting |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): 78 red 23:51 ci-check (pid temp, fix 9c6bf589); 78b red 00:12 doors xp helper-door missing; rerun x3.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, REVIEW KIT-SEC r2 0.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, CO-MAJORS 1.5 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, REVIEW KIT-SEC r2 0.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, REVIEW CO 0.5 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
