@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 19:14 UTC)
+## Now (2026-11-20 19:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 18:39 PM 0.7 % since compaction, 11.4 % before; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: 9dc384b3; 49 greens (t90 gate-silent green 17:44); t91 gate-orphan red 18:44 on construct-hud (FLK-HUD-TAB, cell alone 3/3 green): rerun t91b running.
@@ -23,7 +23,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-pane-r3.md (RC 2: review r2 FIX, rw-1 MAJOR Super chords lost) | opus high, claude/co-pane 628bb930 | starting |
+| co-pane-r3.md (RC 2: review r2 FIX, rw-1 MAJOR Super chords lost) | opus high, claude/co-pane 628bb930 | session_016iS3kLd6s3WSrsoC56J1YL 19:14 |
 | tour-one-r1.md (F7, RC 11: design/tour-v9.md lane 1, one tour set) | sonnet medium, claude/tour-one 9dc384b3 | session_016iS3kNTVyCQRmPu3jQAyF1 18:06 |
 
 ## Queue (% week; 5 % reserve)
