@@ -227,6 +227,7 @@ impl Construct {
             to
         };
         self.panes[i].put(to, eye);
+        self.asides.remove(&self.panes[i].name);
         self.rt.conn.apply(self.placed(&self.panes[i]))?;
         self.frame()
     }
