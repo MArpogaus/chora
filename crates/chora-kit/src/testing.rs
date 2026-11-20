@@ -55,6 +55,8 @@ pub struct Core {
     pub calls: Vec<String>,
     /// How often the plugin asked `scene.query`.
     pub queries: usize,
+    /// The selectors that the plugin asked `scene.query`, in order.
+    pub selectors: Vec<String>,
     /// The parameters of each `methods.call`: client, method and params.
     pub called: Vec<Value>,
     /// The events that the plugin emitted through `events.emit`.
@@ -328,6 +330,7 @@ fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, St
         "scene.query" => Ok(query(
             model,
             params["selector"].as_str().unwrap_or_default(),
+            params["filter"]["focused"].as_bool().unwrap_or(false),
         )),
         _ => Ok(Value::Null),
     }
@@ -341,10 +344,12 @@ fn activation_token() -> Value {
 }
 
 /// The nodes that a selector finds: every selector when the core selects,
-/// else only `id:`.
-fn query(model: &Model, selector: &str) -> Value {
+/// else only `id:`; with `focused` only the node or surface that has the
+/// keyboard.
+fn query(model: &Model, selector: &str, focused: bool) -> Value {
     let mut core = model.lock().unwrap();
     core.queries += 1;
+    core.selectors.push(selector.to_owned());
     let found: Vec<Value> = if core.selects {
         let selector = selector.parse::<chora_scene::Selector>().unwrap();
         (core.scene.query(&selector).into_iter())
@@ -357,6 +362,11 @@ fn query(model: &Model, selector: &str) -> Value {
             .into_iter()
             .collect()
     };
+    let focus = [core.scene.focused_surface(), core.scene.focused_node()];
+    let found: Vec<Value> = found
+        .into_iter()
+        .filter(|n| !focused || focus.contains(&n["id"].as_str()))
+        .collect();
     Value::Array(found)
 }
 

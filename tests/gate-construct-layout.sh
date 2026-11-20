@@ -146,6 +146,7 @@ panes_are() { [ "$(panes_n)" = "$1" ]; }
 parent_is() { [ "$(ctl query "id:$1" | jq -r '.[0].parent')" = "$2" ]; }
 front_count() { ctl query 'app_id:startcell kind:surface' | jq '[.[] | select(.parent == "construct-front")] | length'; }
 panes_n() { ctl call construct construct.list | jq '.panes | length'; }
+walk_hints_up() { local ids; ids=$(hint_ids); [ -n "$ids" ] && [[ $ids != *step-back* ]]; }
 hint_up() { ctl query id:construct-hint-step-back | jq -e 'length > 0 and (.[0].rects | length > 0)' >/dev/null 2>&1; }
 typed_is() { [ "$(cat "$work/typed" 2>/dev/null)" = "$1" ]; }
 until_shows() {
@@ -321,6 +322,7 @@ use_mode() {
     until_ok 'typed_is e' || { echo "FAIL: $tag: a key typed after the second terminal did not reach it: $(cat "$work/typed")"; failed=1; }
     key Alt+Escape
     until_ok 'front_is 0' || { echo "FAIL: $tag: Alt+Escape after the second terminal did not step back"; failed=1; return; }
+    until_ok walk_hints_up || { echo "FAIL: $tag: no hints of the walk after Alt+Escape: '$(hint_ids)'"; failed=1; return; }
     key Super+t
     until_ok 'panes_are 3' || { echo "FAIL: $tag: Super+T in the walk started no third terminal"; failed=1; return; }
     until_ok 'front_is 1' || { echo "FAIL: $tag: the third terminal did not open flown in"; failed=1; return; }

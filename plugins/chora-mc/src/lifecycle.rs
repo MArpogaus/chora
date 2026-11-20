@@ -11,6 +11,24 @@ use super::{
 /// tell its end.
 const FADE_GRACE: Duration = Duration::from_secs(2);
 
+/// Whether `node` is `id` or below it. Inside the scenes (`mc-s-<name>`)
+/// the children have known shapes: the group of the panels, the page, the
+/// wheel, a chapter, a panel, the rule of a panel; a string prefix would
+/// also take a scene whose name starts the same (`foot` and `foot-server`).
+/// Above them (the root, the region sets) every id below the prefix is a
+/// descendant.
+fn is_part_of(node: &str, id: &str) -> bool {
+    let Some(rest) = node.strip_prefix(id).and_then(|r| r.strip_prefix('-')) else {
+        return node == id;
+    };
+    if !id.starts_with("mc-s-") {
+        return true;
+    }
+    matches!(rest, "panels" | "page" | "wheel" | "rule")
+        || rest.starts_with("panels-")
+        || rest.starts_with("chapter-")
+}
+
 impl Mc {
     /// The end of an empty animation of a hidden node that times
     /// something.
@@ -122,13 +140,12 @@ impl Mc {
                     props,
                     duration,
                     ..
-                } if props.opacity.is_some() && *duration > 0.0 => {
+                } if (props.opacity.is_some() || props.color.is_some()) && *duration > 0.0 => {
                     let over = Duration::from_secs_f64(duration / 1000.0) + FADE_GRACE;
                     self.fading.insert(id.clone(), Instant::now() + over);
                 }
                 Command::Remove { id, .. } => {
-                    let below = format!("{id}-");
-                    let gone = |node: &String| node == id || node.starts_with(&below);
+                    let gone = |node: &String| is_part_of(node, id);
                     self.writing.retain(|node, _| !gone(node));
                     self.fading.retain(|node, _| !gone(node));
                 }
@@ -188,7 +205,10 @@ impl Mc {
             let Some(id) = node["id"].as_str().filter(|_| node["owner"].is_null()) else {
                 continue;
             };
-            let named = Named::Is(node["surface"]["app_id"].as_str().map(str::to_owned));
+            let named = Named::Is {
+                app_id: node["surface"]["app_id"].as_str().map(str::to_owned),
+                token: None,
+            };
             let changes = self.book.claim(id, node["to"].as_str(), None);
             self.settle(changes, &named)?;
         }

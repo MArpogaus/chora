@@ -39,7 +39,9 @@ I13  the projected corners of neighbouring cube faces meet within 1 px;
 Limits: the texts are text nodes and the runs that chora-draw reports;
 text of outside programs (waybar, mako) and SVG text in a picture are not
 seen. Images count as not opaque, so a menu image over a label does not
-hide it for I5. I12 sees a held window only where a look reports `held`
+hide it for I5, except a picture of the whole output that belongs to the
+look of the upper text (a wallpaper): the look under it is not on the
+screen. I12 sees a held window only where a look reports `held`
 in its `windows`, which acts snapshot once quiet. I13 reads the faces
 as the acts hold them, at rest and halfway through a turn.
 """
@@ -382,9 +384,39 @@ def i2(_before, after, _act):
     return out
 
 
-def covered(boxes, low, high, rect):
+def shown_look(after, output, boxes):
+    """The look that is shown on an output: the one that holds the focus,
+    else the owner of the topmost picture of the whole output."""
+    states = looks_with_state(after)
+    holders = [look for look, s in states.items() if (s.get("focus") or {}).get("holder") == look]
+    if len(holders) == 1:
+        return holders[0]
+    size = sizes_of(after).get(output)
+    owners = [b.get("owner") for b in boxes if is_whole(b, size)]
+    return owners[-1] if owners else None
+
+
+def sizes_of(after):
+    return {o: e.get("size") or [0, 0] for o, e in (after.boxes or {}).items()}
+
+
+def is_whole(box, size):
+    return box.get("kind") == "image" and list(box["rect"]) == [0, 0, *(size or [0, 0])]
+
+
+def hides(box, size, shown):
+    """Whether a box is opaque or the wallpaper of the look shown: a
+    picture of the whole output that belongs to that look. The boxes report
+    no opacity, so a picture of another look (mc drawn over xp while xp is
+    shown) is no cover and an overlap under it stays a breach."""
+    return bool(box.get("opaque")) or (is_whole(box, size) and box.get("owner") == shown)
+
+
+def covered(boxes, low, high, rect, size, shown):
     """Whether an opaque box between two indices covers a rect."""
-    return any(b.get("opaque") and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1])
+    return any(
+        hides(b, size, shown) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1]
+    )
 
 
 def i5(_before, after, _act):
@@ -393,14 +425,17 @@ def i5(_before, after, _act):
     whose boxes share a quarter of the smaller height or less pass."""
     out = []
     boxes = boxes_on(after)
+    sizes = sizes_of(after)
     for output, items in sorted(screen_texts(after).items()):
+        shown = shown_look(after, output, boxes[output])
         for n, (ia, la, ta, ra) in enumerate(items):
             for ib, lb, tb, rb in items[n + 1 :]:
                 where = overlap(ra, rb)
                 if where is None or where[3] <= LEADING * min(ra[3], rb[3]):
                     continue
                 low, high = sorted((ia, ib))
-                if low != high and covered(boxes[output], low, high, where):
+                size = sizes[output]
+                if low != high and covered(boxes[output], low, high, where, size, shown):
                     continue
                 out.append(f"on {output} {ta!r} ({la}) overlaps {tb!r} ({lb}) at {where}")
     return out
