@@ -23,7 +23,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-r5-r1.md (F5: K5 race, rv-5) | sonnet high, claude/co-r5 | starting 11:08 |
+| co-r5-r1.md (F5: K5 race, rv-5) | sonnet high, claude/co-r5 | session_016iS3kMFvB6oM18XzG5egto 11:06 |
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ; idle 09:30-10:17 w/o report, nudged 10:17 |
 
 ## Queue (% week; 5 % reserve)
