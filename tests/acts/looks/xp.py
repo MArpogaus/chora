@@ -5,7 +5,7 @@ is the door of launcher-door and power-door). The session has a `wpctl`
 that keeps its volume and mute (`STAND_INS`), so that what one act sets
 the next act reads back."""
 
-import time
+import contextlib
 
 from common import (
     click_node,
@@ -168,24 +168,39 @@ def mixer_is(percent, muted):
     """A check: the mixer holds a level and a mute."""
 
     def check(after):
-        return (
-            [] if (got := mixer(after_session[0])) == (percent, muted) else [f"the mixer is {got}"]
-        )
+        got = mixer(after_session[0])
+        return [] if got == (percent, muted) else [f"the mixer is {got}"]
 
     return check
+
+
+def mixer_settles(percent, muted):
+    """A cue: the mixer takes a change in the background; wait for it."""
+
+    def cue(s):
+        s.until(lambda: mixer(s) == (percent, muted), 6, f"the mixer at {percent} {muted}")
+
+    return cue
 
 
 after_session = [None]
 
 
-def hover(x, y):
-    """A cue: the pointer rests at a point, long enough for a tooltip."""
+def hover(want):
+    """A cue: the pointer rests on the speaker until its tooltip says what
+    is wanted, or 8 s pass: the speaker reads the mixer every few seconds."""
+
+    def says(s):
+        node = s.core.call("scene.query", {"selector": "id:xp-tooltip"})
+        return bool(node) and (node[0].get("meta") or {}).get("text") == want
 
     def cue(s):
+        x, y = speaker_middle(s)
         s.inject(
             [{"pointer_move": {"position": [640, 300]}}, {"pointer_move": {"position": [x, y]}}]
         )
-        time.sleep(1.8)
+        with contextlib.suppress(RuntimeError):
+            s.until(lambda: says(s), 8, f"the tooltip {want!r}")
 
     return cue
 
@@ -207,12 +222,12 @@ def volume_acts(s):
     after_session[0] = s
     s.act(
         "the volume key raises the level",
-        [key("XF86AudioRaiseVolume")],
+        [key("XF86AudioRaiseVolume"), mixer_settles(55, False)],
         expect=Expect(verify=mixer_is(55, False)),
     )
     s.act(
         "the tooltip of the speaker says the level that the key set",
-        [lambda s: hover(*speaker_middle(s))(s)],
+        [hover("Volume 55%")],
         expect=Expect(verify=tooltip_says("Volume 55%")),
     )
     s.act(
@@ -223,13 +238,13 @@ def volume_acts(s):
     )
     s.act(
         "a click on 75 percent sets the level and shuts the popup",
-        [click_node("xp-ctx-0-1")],
+        [click_node("xp-ctx-0-1"), mixer_settles(75, False)],
         closes=[CONTEXT],
         expect=Expect(open=[], verify=mixer_is(75, False)),
     )
     s.act(
         "the tooltip of the speaker says the level that the popup set",
-        [lambda s: hover(*speaker_middle(s))(s)],
+        [hover("Volume 75%")],
         expect=Expect(verify=tooltip_says("Volume 75%")),
     )
     s.act(
@@ -240,7 +255,7 @@ def volume_acts(s):
     )
     s.act(
         "Mute of the popup mutes",
-        [click_node("xp-ctx-0-5")],
+        [click_node("xp-ctx-0-5"), mixer_settles(75, True)],
         closes=[CONTEXT],
         expect=Expect(open=[], verify=mixer_is(75, True)),
     )
@@ -252,7 +267,7 @@ def volume_acts(s):
     )
     s.act(
         "Mute of the popup unmutes",
-        [click_node("xp-ctx-0-5")],
+        [click_node("xp-ctx-0-5"), mixer_settles(75, False)],
         closes=[CONTEXT],
         expect=Expect(open=[], verify=mixer_is(75, False)),
     )

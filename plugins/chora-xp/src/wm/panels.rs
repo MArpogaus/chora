@@ -9,6 +9,11 @@ use super::{
 
 use chora_kit::notice::{self, Notice, Urgency};
 
+/// How far the right edge of the volume popup reaches past the left edge
+/// of the speaker: the popup stands left of the helper, which sits at
+/// the right edge of the screen above the tray, and does not hide under it.
+const POPUP_OVERLAP: i32 = 6;
+
 impl Wm {
     /// Shows a notice of chora-xp, or replaces the one `replaces` names.
     pub(super) fn notice(
@@ -380,8 +385,8 @@ impl Wm {
         commands
     }
 
-    /// A click on the speaker of a taskbar mutes or unmutes, and a double
-    /// click on the clock opens Date and Time.
+    /// A click on the speaker of a taskbar opens the volume popup above
+    /// it, and a double click on the clock opens Date and Time.
     pub(super) fn press_tray(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
         #[expect(
             clippy::cast_possible_truncation,
@@ -389,8 +394,15 @@ impl Wm {
         )]
         let [x, y] = [px.floor() as i32, py.floor() as i32];
         let on = |[cx, cy, cw, ch]: Rect| (cx..cx + cw).contains(&x) && (cy..cy + ch).contains(&y);
-        if self.bars.iter().any(|b| on(b.speaker_rect())) {
-            return self.change_volume(volume::Change::Mute, false);
+        if let Some(bar) = self.bars.iter().find(|b| on(b.speaker_rect())) {
+            let [sx, sy, ..] = bar.speaker_rect();
+            let (area, usable) = (bar.area(), bar.usable());
+            let reading = self.volume.unwrap_or(volume::Reading::Failed);
+            let rows = context::volume(reading);
+            let [width, _] = context::Menu::new(&self.theme, rows.clone(), [0, 0], area, 0).size();
+            let point = [sx + POPUP_OVERLAP - width, sy];
+            let menu = context::Menu::new(&self.theme, rows, point, area, 0);
+            return self.show_context(menu, usable);
         }
         let Some(bar) = self.bars.iter().find(|b| b.clock_rect().is_some_and(on)) else {
             return Vec::new();
