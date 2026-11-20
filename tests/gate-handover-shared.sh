@@ -8,6 +8,9 @@
 #   give  Super+Alt+1 gives the window of xp to tiling: tiling owns and
 #         focuses it, and it shows on the screen, not under the desktop of
 #         xp (the pixel at its centre is not the pixel there before)
+#   click a click on the desktop of xp takes the keys to its icons, and a
+#         click on the window of tiling takes them back: the core focuses
+#         the window, tiling holds the focus, xp none (rw-1)
 #   node  tiling focuses the window, and the Start menu of xp opens and
 #         closes (method start_menu): its menu, then its desktop icons take
 #         the keyboard with a node; one look says it holds the focus
@@ -26,6 +29,11 @@ need foot
 need python3
 need_bins chora choractl chora-tiling chora-xp
 temp_config
+accept_injected() {
+    printf 'test_accept_injected_keys: true\n' >"$XDG_CONFIG_HOME/chora-$1.yaml"
+}
+accept_injected tiling
+accept_injected xp
 shots=${SHOTS:-$XDG_CONFIG_HOME}
 mkdir -p "$shots"
 export PATH=$bin:$PATH
@@ -99,6 +107,21 @@ was=$(pixel "$shots/before.png" "$cx" "$cy")
 now=$(pixel "$shots/give.png" "$cx" "$cy")
 [ "$now" != "$was" ] || fail "give: $w is not on the screen: at $cx,$cy the desktop of xp ($now), capture $shots/give.png"
 ok "give: Super+Alt+1 hands $w to tiling, focused and on the screen ($now at its centre)"
+
+click() {
+    echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" |
+        ctl inject >/dev/null || fail "inject click $1,$2"
+    sleep 0.5
+}
+holder_of() { ctl state "$1" | jq -r '.focus.holder // "none"'; }
+click 5 400
+[ "$(holder_of xp)" = xp ] || fail "click: the desktop of xp is clicked and xp holds no focus: $(ctl state xp | jq -c .focus)"
+click "$cx" "$cy"
+focused 5 || fail "click: a click on $w does not give it the keys back (tiling $(ctl state tiling | jq -c .focus), xp $(ctl state xp | jq -c .focus))"
+holds click
+[ "$(holder_of tiling)" = tiling ] && [ "$(holder_of xp)" = none ] ||
+    fail "click: holders tiling $(holder_of tiling), xp $(holder_of xp)"
+ok "click: the desktop of xp takes the keys, a click on $w at $cx,$cy takes them back to tiling"
 
 ctl call xp start_menu '{"open": true}' >/dev/null || fail "node: open the Start menu of xp"
 sleep 0.5
