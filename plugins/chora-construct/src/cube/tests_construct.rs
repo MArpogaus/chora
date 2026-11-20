@@ -813,3 +813,47 @@ fn a_pane_with_no_room_on_its_side_goes_to_the_other_side() {
         "the slim pane is right of the cube: {slim:?}"
     );
 }
+
+/// co-pane r1: the key sheet takes the keyboard from the window of a
+/// face, so that Escape reaches the sheet and not the program (an XP
+/// Start menu took it), and gives it back when the sheet closes.
+#[test]
+fn the_key_sheet_takes_the_keyboard_from_a_face_and_closes_on_escape() {
+    let (mut construct, core, _lines) = on_core("help-keyboard", cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    let last = || core.model().lock().unwrap().focuses.last().cloned();
+    construct.toggle_help().unwrap();
+    assert!(construct.help, "the sheet is open");
+    assert_eq!(last(), Some(None), "no surface keeps the keyboard");
+    assert!(construct.walk_keys, "the look holds the keys");
+    let escape = Event::NodeKey {
+        node: crate::LOOK.into(),
+        key: "Escape".into(),
+        state: crate::PressState::Pressed,
+        modifiers: Vec::new(),
+        text: None,
+        code: 1,
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, escape).unwrap();
+    assert!(!construct.help, "Escape closes the sheet first");
+    assert!(construct.cube.is_some(), "and nothing else");
+}
+
+/// co-pane r1: the Close of the key sheet is a button.
+#[test]
+fn a_press_on_the_close_of_the_key_sheet_closes_it() {
+    let (mut construct, _core, _lines) = on_core("help-close", cube_core(json!([])));
+    construct.toggle_help().unwrap();
+    assert!(construct.help);
+    let press = Event::PointerPressed {
+        node: "construct-help-body-foot-0-hit".into(),
+        button: 272,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press).unwrap();
+    assert!(!construct.help, "the Close button closes the sheet");
+}
