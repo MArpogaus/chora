@@ -259,6 +259,43 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["windows"][0]["shown"], json!(true));
     }
 
+    /// A glide that ends with the pane of the focused window out of sight
+    /// gives the keyboard back to the walk and lets go of the chords that
+    /// the construct held for that window (co-pane r2, rv-5): no look or
+    /// event wraps `animation_frame`, so the glide regrabs itself.
+    #[test]
+    fn a_step_that_takes_the_pane_out_of_sight_lets_go_of_the_chords() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut c, _core) = construct("state-step-away", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.event(chora_kit::testing::focus_changed(Some("s1")))
+            .unwrap();
+        assert!(c.keys_with_pane(), "the pressed window has the keys");
+        assert!(c.rt.action("Super+q").is_some(), "its chords are held");
+        let away = crate::Pose {
+            pitch: -1.2,
+            ..c.pose
+        };
+        c.glide = Some(crate::Glide {
+            from: c.pose,
+            to: away,
+            start: chora_kit::clock::now(),
+            ms: 1.0,
+            into: None,
+            smooth: false,
+        });
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        c.step_glide().unwrap();
+        assert_eq!(c.state().unwrap()["windows"][0]["shown"], json!(false));
+        assert!(!c.keys_with_pane(), "the walk has the keyboard");
+        assert!(
+            c.rt.action("Super+q").is_none(),
+            "the glide let go of the chords of the window"
+        );
+    }
+
     /// The help is open while it shows.
     #[test]
     fn the_help_is_open_while_it_shows() {
