@@ -319,3 +319,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 
 - CO-R4-RV (MINOR, construct gate): rv-5 tests/gate-construct-3d.sh:280 view_of hashes HUD rows, so the walk-step check passes on any HUD change; assert the camera itself (reports/co-majors.md Review r4).
 - MC-FIX-RV (MINOR, mc): reports/mc-fix.md Review r1 rv-1 lifecycle.rs:130 prefix match clears sibling ids; rv-2 build.rs:221 theme fades via try_apply not noted; rv-3 check.py:364 T1/T4 accept an unasked key list; rv-4, rv-5 NIT.
+- MC-47-CELL (MINOR, mc gate): bring back the mc-sofa launcher-click-row cell (reports/mc-fix/mc-47-cell.patch) with a fuzzel version guard (skip below 1.11, not red); PM verifies on a train (review mc-fix r1).
