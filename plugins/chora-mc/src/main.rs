@@ -36,6 +36,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
     process::ExitCode,
+    time::Instant,
 };
 
 use chora_kit::{
@@ -335,6 +336,10 @@ struct Mc {
     /// the transaction that started it: those of one transaction end in
     /// the same frame.
     writing: HashMap<String, u64>,
+    /// The nodes whose fade runs, each with the time that it is over at
+    /// the latest: a fade whose end the core never tells does not keep mc
+    /// busy for ever.
+    fading: HashMap<String, Instant>,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -531,6 +536,7 @@ impl Mc {
             blur,
             shaders: Shaders::On,
             writing: HashMap::new(),
+            fading: HashMap::new(),
             put: Vec::new(),
             toggled: BTreeMap::new(),
             docks: HashMap::new(),
@@ -2375,7 +2381,6 @@ mod tests {
     /// busy with a write that nobody finishes (mc-49).
     #[test]
     fn a_build_in_the_midst_of_a_write_leaves_mc_quiet() {
-        use chora_kit::runtime::Plugin as _;
         let (mut mc, model) = crate::testing::mc("write-build", [1920, 1080]);
         mc.shader = "/write.frag".into();
         mc.show("agenda", true).unwrap();
@@ -2388,21 +2393,33 @@ mod tests {
             "the new node rests"
         );
         assert_eq!(
-            mc.state().unwrap()["busy"],
-            json!([]),
+            busy_words(&mc, "write:"),
+            Vec::<String>::new(),
             "mc waits for the end of a write that was removed"
         );
     }
 
-    /// The words of `busy` that name a fade.
-    fn fades(mc: &super::Mc) -> Vec<String> {
+    /// The words of `busy` that start with a prefix.
+    fn busy_words(mc: &super::Mc, prefix: &str) -> Vec<String> {
         use chora_kit::runtime::Plugin as _;
         let state = mc.state().unwrap();
         let busy = state["busy"].as_array().unwrap();
         (busy.iter().filter_map(|b| b.as_str()))
-            .filter(|b| b.starts_with("fade:"))
+            .filter(|b| b.starts_with(prefix))
             .map(str::to_owned)
             .collect()
+    }
+
+    /// Tells mc that every fade that it waits for ended.
+    fn end_fades(mc: &mut super::Mc) {
+        use chora_kit::runtime::Plugin as _;
+        for word in busy_words(mc, "fade:") {
+            mc.event(chora_scene::Event::AnimationDone {
+                node: Some(word.trim_start_matches("fade:").to_owned()),
+                output: None,
+            })
+            .unwrap();
+        }
     }
 
     /// A page turn cross-fades its regions for a moment: both sets are
@@ -2411,21 +2428,21 @@ mod tests {
     /// (mc-48).
     #[test]
     fn a_cross_fade_keeps_mc_busy_until_its_end() {
-        use chora_kit::runtime::Plugin as _;
         let (mut mc, _model) = crate::testing::mc("fade-busy", [1920, 1080]);
         mc.show("agenda", true).unwrap();
-        assert_eq!(fades(&mc), Vec::<String>::new(), "no fade yet");
+        end_fades(&mut mc);
+        assert_eq!(busy_words(&mc, "fade:"), Vec::<String>::new());
         mc.show("morning", true).unwrap();
-        let busy = fades(&mc);
-        assert!(!busy.is_empty(), "the cross-fade of the page is not busy");
-        for word in &busy {
-            mc.event(chora_scene::Event::AnimationDone {
-                node: Some(word.trim_start_matches("fade:").to_owned()),
-                output: None,
-            })
-            .unwrap();
-        }
-        assert_eq!(fades(&mc), Vec::<String>::new(), "the fades ended");
+        assert!(
+            !busy_words(&mc, "fade:").is_empty(),
+            "the cross-fade of the page is not busy"
+        );
+        end_fades(&mut mc);
+        assert_eq!(
+            busy_words(&mc, "fade:"),
+            Vec::<String>::new(),
+            "the fades ended"
+        );
     }
 
     /// After the watchdog of the core dropped the effects of mc, a scene

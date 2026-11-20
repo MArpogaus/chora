@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::windows::Named;
 
 use super::{
@@ -5,10 +7,15 @@ use super::{
     Query, Shaders, TICK, VOLUME, VOLUME_AGAIN, Value, WAIT, needs_claim, panel_id, volume_wait,
 };
 
+/// How long after its duration a fade keeps mc busy when the core does not
+/// tell its end.
+const FADE_GRACE: Duration = Duration::from_secs(2);
+
 impl Mc {
     /// The end of an empty animation of a hidden node that times
     /// something.
     pub(crate) fn timer(&mut self, node: &str) -> Result<(), ClientError> {
+        self.fading.remove(node);
         match node {
             TICK => self.type_next(),
             WAIT => self.look_at_launched(),
@@ -99,9 +106,10 @@ impl Mc {
         self.apply(commands)
     }
 
-    /// Remembers the panels that the commands start to write, and forgets
-    /// those that they remove: a removed node ends no animation, so its
-    /// panel would stay busy for ever (mc-49).
+    /// Remembers the panels that the commands start to write and the
+    /// nodes that they fade, and forgets those that they remove: a
+    /// removed node ends no animation, so its panel would stay busy for
+    /// ever (mc-49).
     pub(crate) fn note_writes(&mut self, commands: &[Command]) {
         let batch = self.writing.values().max().map_or(0, |b| b + 1);
         for command in commands {
@@ -109,10 +117,20 @@ impl Mc {
                 Command::Animate { id, props, .. } if props.effects.is_some() => {
                     self.writing.insert(id.clone(), batch);
                 }
+                Command::Animate {
+                    id,
+                    props,
+                    duration,
+                    ..
+                } if props.opacity.is_some() && *duration > 0.0 => {
+                    let over = Duration::from_secs_f64(duration / 1000.0) + FADE_GRACE;
+                    self.fading.insert(id.clone(), Instant::now() + over);
+                }
                 Command::Remove { id, .. } => {
                     let below = format!("{id}-");
-                    self.writing
-                        .retain(|node, _| node != id && !node.starts_with(&below));
+                    let gone = |node: &String| node == id || node.starts_with(&below);
+                    self.writing.retain(|node, _| !gone(node));
+                    self.fading.retain(|node, _| !gone(node));
                 }
                 _ => {}
             }
