@@ -1,6 +1,6 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
 screened-through: 2026-11-20T09:13:00Z
-- 11-20 09:13Z "61% half of which comes from other agent" -> reading: 61 % (session ~30 %); on time pace, hold lanes
+- 11-20 09:13Z "61% half of which comes from other agent" -> reading: 61 % (session ~30 %); spend the rest by Sat (06:04 order)
 - 11-20 08:30Z "Update status page" -> order: status page refreshed
 - 11-20 08:00Z "What's again at ng with env?" -> question (env): fuzzel 1.11.1 in lanes; nothing open
 - 11-20 01:45Z "40% how are things going?" -> reading: 40 %; fill 6 lanes
