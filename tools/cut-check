@@ -227,15 +227,20 @@ def check_copies(root):
         return [], []
     blocks, reports = [], []
     for row in tomllib.loads(rows_file.read_text()).get("row", []):
-        pattern = re.compile(row["pattern"])
+        by_name = "files" in row
+        pattern = re.compile(row["files"] if by_name else row["pattern"])
         allow = tuple(row.get("allow", []))
         count = 0
         for top in row.get("paths", ["crates", "plugins", "services"]):
-            for f in rust_files(root / top) if (root / top).is_dir() else []:
+            found = sorted(p for p in (root / top).rglob("*") if p.is_file() and "/target/" not in p.as_posix()) if by_name and (root / top).is_dir() else rust_files(root / top) if (root / top).is_dir() else []
+            for f in found:
                 path = rel(root, f)
                 if path.startswith(allow):
                     continue
-                count += sum(1 for line in f.read_text(errors="replace").splitlines() if pattern.search(line))
+                if by_name:
+                    count += 1 if pattern.search(path) else 0
+                else:
+                    count += sum(1 for line in f.read_text(errors="replace").splitlines() if pattern.search(line))
         limit = row["max"]
         if limit == 0 and count > 0:
             blocks.append(f"copies: {row['name']}: {count} left, the row allows 0")

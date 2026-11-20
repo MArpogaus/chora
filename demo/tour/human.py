@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""A person's pace for the tour: pointer paths with overshoot and a short
+"""A person's pace for the tour (`Human`, and `Quick`, the pace of v4 to v9: short pauses, about 12
+characters a second, `cut` for waits a viewer should not sit through): pointer paths with overshoot and a short
 hesitation, typing with pauses and one corrected typo, a look at what is
 new. Built on `Tour`; the random source is seeded, so a run repeats."""
 
 import math
 import random
 
+import os
+
 from tour import FPS, MOVE, Tour
+
+OUT = os.environ.get("TOUR_OUT", "/tmp/claude-0/tour-v9")
 
 SEED = 1116
 
@@ -95,3 +100,33 @@ class Human(Tour):
     def tap(self, name, after=0.4):
         self.key(name)
         self.wait(after)
+
+
+class Quick(Human):
+    def act(self, kind, description, expected, still=None, settle=0.3, lead=0.1, tail=0.1, **row):
+        """The row fields of `Tour.act` (expect, contract, cells, capture, todo) go through."""
+        return super().act(kind, description, expected, still=still, settle=settle, lead=lead, tail=tail, **row)
+
+    def type_quick(self, text, typo_at=None, typo_char="x"):
+        """About 12 characters a second; one typo is typed, noticed within
+        0.5 s and corrected."""
+        for i, ch in enumerate(text):
+            if typo_at is not None and i == typo_at:
+                self.inject([{"text": {"text": typo_char}}])
+                self.wait(0.35)
+                self.inject([{"key": {"key": "BackSpace", "state": "pressed"}}, {"key": {"key": "BackSpace", "state": "released"}}])
+                self.wait(0.15)
+            if ch == "\n":
+                self.inject([{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}])
+            else:
+                self.inject([{"text": {"text": ch}}])
+            self.wait(self.rng.uniform(0.05, 0.12) + (0.08 if ch in " ,.\n" else 0))
+
+    def tap(self, name, after=0.15):
+        self.key(name)
+        self.wait(after)
+
+    def reach(self, x, y, overshoot=True, hesitate=True):
+        super().reach(x, y, overshoot=overshoot, hesitate=False)
+        if hesitate:
+            self.wait(0.1)
