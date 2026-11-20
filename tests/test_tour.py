@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "tests" / "acts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import contextlib  # noqa: E402
+import dataclasses  # noqa: E402
 import importlib.util  # noqa: E402
 import io  # noqa: E402
 
@@ -207,6 +208,23 @@ class TourRows(unittest.TestCase):
         t.quiet_gap = 0
         self.act(t, expect=Expect(new_window={"owner": "xp"}))
         self.assertEqual(t.rows[0]["status"], "green")
+
+    def test_the_tours_own_choractl_is_not_a_disconnect(self):
+        """A `choractl` call of the script is not a client of the product: its end is no I14."""
+        before = dataclasses.replace(snap("xp"), clients={"xp", "acts", "choractl"})
+        row = {"description": "an act"}
+        self.assertEqual(tour.Checker(lambda: snap("xp")).judge(row, None, before, snap("xp")), [])
+
+    def test_dismiss_notices_closes_every_shown_card(self):
+        calls = []
+
+        class Notify(tour.Session):
+            def call(self, client, method, params=None):
+                calls.append((client, method, params))
+                return {"shown": [{"id": 7}, {"id": 9}]} if method == "state.get" else {}
+
+        Notify({}, [], "").dismiss_notices()
+        self.assertEqual([c for c in calls if c[1] == "notify.close"], [("notify", "notify.close", {"id": 7}), ("notify", "notify.close", {"id": 9})])
 
     def test_notify_config_is_one_helper(self):
         """rt-2: the notify timing lives in one place."""

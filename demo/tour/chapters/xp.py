@@ -62,6 +62,8 @@ def run(ctx):
         t.reach(x, y); t.click(); t.wait(6.0); t.done()
         t.act("look", "No text editor is installed: Notepad says so", "A notice names the missing editor (mousepad); no terminal editor opens", still=None, settle=0.2, lead=0.1, contract="T6", cells=["act: the balloon goes when the window of Notepad shows"], capture="Q", expect=Expect(verify=notice_shown))
         t.wait(1.0); t.still("01-02b-no-editor"); t.wait(1.5); t.done()
+        t.flush("card gone")
+        S.dismiss_notices()
         open(f"{stub}/mousepad", "w").write("#!/bin/sh\nexec foot --app-id=Notepad --title=Notepad -o pad=14x12 -o colors.background=ffffff -o colors.foreground=000000 -o 'font=DejaVu Sans Mono:size=11' -o cursor.blink=no -e sh -c 'cat >>/home/user/notes/letter.txt'\n")
         os.chmod(f"{stub}/mousepad", 0o755)
         print("SET", S.ctl("call", "xp", "settings.set", json.dumps({"editor": "mousepad"})), flush=True)

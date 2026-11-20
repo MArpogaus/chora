@@ -39,6 +39,8 @@ def checking():
     return bool(os.environ.get("TOUR_CHECK"))
 
 
+SCRIPT_CLIENTS = {"choractl"}
+"""The clients of the script itself (each `choractl` call connects and goes): not a client of the product, so its end is no disconnect (I14)."""
 KNOWN = re.compile(r"^((?:I\d+|expect)(?:,(?:I\d+|expect))*)(?::\s*(.*))?$", re.DOTALL)
 
 
@@ -92,6 +94,14 @@ class Session:
         except ValueError:
             return out
 
+    def dismiss_notices(self):
+        """Close the cards that chora-notify shows: `launch.notify_config` keeps a card up for the
+        whole recording, so the chapter lets it go where a person would have (a card shows for
+        about ten seconds), and it does not lie over the acts that follow."""
+        state = self.call("notify", "state.get")
+        for note in (state.get("shown") if isinstance(state, dict) else None) or []:
+            self.call("notify", "notify.close", {"id": note["id"]})
+
     def query(self, selector):
         out = self.ctl("query", selector, check=False)
         try:
@@ -141,9 +151,12 @@ class Checker:
         return self.source()
 
     def judge(self, row, expect, before, after):
+        import dataclasses
+
         import harness
         import invariants
 
+        before, after = (dataclasses.replace(s, clients=s.clients - SCRIPT_CLIENTS) for s in (before, after))
         act = harness.Act(row["description"], list(row.get("opens") or ()), list(row.get("closes") or ()), list(row.get("disconnects") or ()), False)
         red = expect.check(before, after) if expect else []
         for key, check in invariants.ALL.items():

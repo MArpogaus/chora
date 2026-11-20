@@ -99,6 +99,8 @@ panels:
         S.call("mc", "hud.say", {"state": "speaking", "text": "Four cloves, sliced thin.", "duration_ms": 3000})
         t.act("voice event", "The helper answers on the page (and aloud)", "The HUD line shows the answer: four cloves, sliced thin", still=f"03-04c-answer-{THEME}", settle=1.2, lead=0.1, contract="T3", cells=["act: the helper answers"], capture="Q+1", known="I5: the Power glyph of the column lies under the card body (v8 open row)")
         t.done()
+        t.flush("card gone")
+        S.dismiss_notices()
         x, y = door("mc-r1-footer-next")
         t.act("pointer", "Mouse path: clicks Next in the footer to the sauce", "The page turns to Step 2: the sauce", still=f"03-05-sauce-{THEME}", settle=0.8, lead=0.1)
         t.reach(x, y); t.click(); t.wait(0.9); t.done()
