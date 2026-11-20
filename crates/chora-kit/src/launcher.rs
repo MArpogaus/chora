@@ -421,6 +421,15 @@ mod tests {
     }
 
     #[test]
+    fn a_warning_then_escape_stays_silent() {
+        let (_dir, fuzzel) = stand_in(
+            "chora-launcher-warn-escape",
+            "echo 'warning: [colors].prompt ignored' >&2; exit 1",
+        );
+        assert_eq!(reports(&fuzzel), (None, vec![]));
+    }
+
+    #[test]
     fn a_launcher_that_cannot_spawn_says_so() {
         let (got, said) = reports(&["/chora-no-such-dir/fuzzel".to_owned()]);
         assert_eq!(got, None);
