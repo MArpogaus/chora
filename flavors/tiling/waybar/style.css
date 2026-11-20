@@ -66,6 +66,7 @@ tooltip label {
 
 #clock {
   font-weight: 500;
+  min-width: 127px;
 }
 
 #custom-apps,
