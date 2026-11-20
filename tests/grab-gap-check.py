@@ -29,9 +29,11 @@ def body_of(text, name):
     return text[head.end() : i - 1]
 
 
-def skips_grab(body):
+def skips_grab(body, text="", seen=()):
     """True if a path of `body` ends with no grab: a return before the
-    first grab, or a first grab inside an if, else or match block."""
+    first grab, or a first grab inside an if, else or match block. When
+    the first grab is a call to a callee of the same file, that callee is
+    read the same way (`seen` stops a recursion)."""
     first = GRAB.search(body)
     if not first:
         return False
@@ -46,13 +48,19 @@ def skips_grab(body):
                 open_blocks.append(stripped)
             elif ch == "}" and open_blocks:
                 open_blocks.pop()
-    return any(re.match(r"(\}\s*)?(if|else|match)\b", b) for b in open_blocks)
+    if any(re.match(r"(\}\s*)?(if|else|match)\b", b) for b in open_blocks):
+        return True
+    name = re.search(r"grab\w*", first.group())
+    if name and name.group() not in seen:
+        callee = body_of(text, name.group())
+        return callee is not None and skips_grab(callee, text, (*seen, name.group()))
+    return False
 
 
 def skipping_callees(text, between):
     for call in re.finditer(r"(?<![A-Za-z_])(grab\w*)\(", between):
         body = body_of(text, call.group(1))
-        if body is not None and skips_grab(body):
+        if body is not None and skips_grab(body, text, (call.group(1),)):
             yield call.group(1)
 
 

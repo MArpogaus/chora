@@ -96,7 +96,7 @@ fn own_words(look: Look) -> Option<String> {
             Look::Desktop => "Show the desktop; press again for the windows",
             Look::Cube => "Turn the desktop cube with the pointer",
             Look::Switch(Step::Next) => "Switch between windows",
-            Look::Switch(Step::Previous) => return None,
+            Look::Switch(Step::Previous) | Look::Swallow => return None,
             Look::Files => "Open the file manager",
             Look::Carry(Turn::Left) => "Carry the window to the left",
             Look::Carry(Turn::Right) => "Carry the window to the right",
@@ -122,7 +122,8 @@ const fn place(action: &KeyAction) -> (&'static str, u8) {
         KeyAction::System(System::Cube(Turn::Right)) => (GROUPS[2], 16),
         KeyAction::Look(Look::Carry(Turn::Left)) => (GROUPS[2], 17),
         KeyAction::Look(Look::Carry(Turn::Right)) => (GROUPS[2], 18),
-        KeyAction::System(System::Give(_) | System::Drag | System::Desk(_)) => (GROUPS[2], 20),
+        KeyAction::Look(Look::Swallow)
+        | KeyAction::System(System::Give(_) | System::Drag | System::Desk(_)) => (GROUPS[2], 20),
         KeyAction::System(System::Lock) => (GROUPS[3], 4),
         KeyAction::System(System::Power) => (GROUPS[3], 5),
         KeyAction::System(System::Screenshot) => (GROUPS[3], 6),

@@ -1,10 +1,11 @@
-/* The look of the panel: three floating islands on the wallpaper, in the
- * language of the windows. An island has the radius 12 of a window's border
- * and an edge in the gradient of the focus border, accent to accent-2, with
- * an inner glow; the current tag is a lit accent pill; readouts are in the
- * mono face of the key list. Everything sits on a 4 px grid; the colours
- * come from colors.css (Ink and Paper), and the icons are the pictures in
- * icons/, which carry the colours of the theme. */
+/* The look of the panel (tiling-v2, "Bar"): three floating islands on the
+ * wallpaper, 32 px high, 8 px from the top and 12 px from the sides. An
+ * island is `surface` at 92 % with a 1 px `line` hairline and the radius 10
+ * of a window; the current tag is the one lit accent pill. Text is Inter 14
+ * px, weight 500 for the doors, the tags and the clock; the mono face is
+ * for keys only. Everything sits on a 4 px grid; the colours come from
+ * colors.css (Ink and Paper), and the icons are the pictures in icons/,
+ * which carry the colours of the theme. */
 @import url("colors.css");
 
 * {
@@ -26,15 +27,9 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-  background-color: @surface;
-  background-image:
-    linear-gradient(@surface, @surface),
-    linear-gradient(to right, @accent, @accent-2);
-  background-clip: padding-box, border-box;
-  background-origin: border-box;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  box-shadow: inset 0 0 4px alpha(@accent, 0.3);
+  background-color: alpha(@surface, 0.92);
+  border: 1px solid @line;
+  border-radius: 10px;
   padding: 0 6px;
 }
 
@@ -44,13 +39,8 @@ tooltip {
 }
 
 tooltip > box {
-  background-color: @surface;
-  background-image:
-    linear-gradient(@surface, @surface),
-    linear-gradient(to right, @accent, @accent-2);
-  background-clip: padding-box, border-box;
-  background-origin: border-box;
-  border: 1px solid transparent;
+  background-color: alpha(@surface, 0.92);
+  border: 1px solid @line;
   border-radius: 10px;
   padding: 4px 8px;
   margin: 0 6px;
@@ -75,9 +65,8 @@ tooltip label {
 }
 
 #clock {
-  font-family: "JetBrains Mono", monospace;
   font-weight: 500;
-  font-feature-settings: "tnum";
+  min-width: 127px;
 }
 
 #custom-apps,
@@ -149,9 +138,7 @@ tooltip label {
   margin: 3px 1px;
   padding: 0;
   border-radius: 8px;
-  font-family: "JetBrains Mono", monospace;
   font-weight: 500;
-  font-feature-settings: "tnum";
   color: @text;
 }
 

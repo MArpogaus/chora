@@ -3277,6 +3277,38 @@ mod tests {
         );
     }
 
+    /// The kept nodes of a window manager with `resume` stay shown during
+    /// the grace time: no hide, no flicker on a quick restart.
+    #[test]
+    fn kept_nodes_stay_visible_during_the_resume_grace() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (wm, _wayland) = resumable(&mut core);
+        let shown = |reader: &mut Client, core: &mut Core| {
+            let all = owned(reader, core);
+            let hidden = all
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|n| n["visible"] != json!(true))
+                .count();
+            (all, hidden)
+        };
+        let (all, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(all.as_array().map(Vec::len), Some(4));
+        assert_eq!(hidden, 0, "shown before the disconnect");
+        drop(wm);
+        core.dispatch();
+        core.advance(GRACE.saturating_sub(Duration::from_millis(1)));
+        let (during, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(during, all, "the nodes are kept");
+        assert_eq!(hidden, 0, "and still visible in the grace");
+        let _wm = hello_resume(&mut core);
+        let (after, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(after, all, "unchanged after the resume hello");
+        assert_eq!(hidden, 0);
+    }
+
     /// A core whose main socket would be in a fresh directory.
     fn socket_dir(tag: &str) -> (Core, PathBuf) {
         let dir = crate::testing::scratch_dir(&format!("chora-{tag}"));
@@ -4621,6 +4653,39 @@ mod tests {
             heard(&mut b, &mut core),
             [json!({"event": "focus.changed", "surface": null})]
         );
+    }
+
+    /// A node that takes the keyboard does not change the focused surface:
+    /// the focus returns to it when the node lets go (docs/api.md, Keyboard
+    /// focus of nodes), so `focus.changed` says nothing for the node (rw-3).
+    #[test]
+    fn a_node_that_takes_the_keyboard_sends_no_focus_changed() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "one");
+        let mut a = core.named("a");
+        let mut b = core.named("b");
+        b.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.changed"]}),
+        );
+        let setup = json!({"commands": [
+            {"create": {"id": "menu", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]});
+        a.ok(&mut core, "scene.apply", setup);
+        b.events_now(&mut core);
+        let node = json!({"commands": [{"focus_node": {"node": "menu"}}]});
+        a.ok(&mut core, "scene.apply", node);
+        let back = json!({"commands": [{"focus_node": {}}]});
+        a.ok(&mut core, "scene.apply", back);
+        let heard = (b.events_now(&mut core).into_iter())
+            .filter(|e| e["params"]["event"] == "focus.changed")
+            .collect::<Vec<_>>();
+        assert!(heard.is_empty(), "{heard:?}");
     }
 
     /// `surface.created` carries the `parent` of a dialog as it is at the

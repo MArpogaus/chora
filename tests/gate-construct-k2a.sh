@@ -14,6 +14,7 @@
 #    (D31), and typed text arrives. construct.leave gives the output
 #    back: the space is gone, and the cameras are as before.
 #
+# Known red, not in merge-gate.sh: the load of an overlay construct makes no pane of its own program window (line 179, finding co-27 in findings/construct.md).
 # Usage: tests/gate-construct-k2a.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as construct-k2a-*.png
 set -u
@@ -126,7 +127,7 @@ echo "[{\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
 sleep 1
 after=$(poses | grep '^mission')
 [ "$after" != "$before" ] || fail "a drag and the wheel with Super changed nothing: $after"
-[ "$(node 'kind:surface owner:construct' 'n[0]["opacity"]')" = 0.0 ] || fail "the drag flew into a pane"
+[ "$(node id:construct-look 'n[0]["focused"]')" = True ] || fail "the drag flew into a pane"
 ok "Super with a drag and the wheel moved the mc pane: $before -> $after"
 sleep 1
 saved=$(poses)

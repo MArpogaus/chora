@@ -547,6 +547,60 @@ pub fn companion(name: &str, word: &str) -> Option<u32> {
     runs(&line, word).then_some(pid)
 }
 
+/// The panel and the wallpaper of the flavor as scripts: the file of the
+/// pid, the script in the flavor directory, and whether it takes the folder
+/// of the script as its argument (waybar.sh takes its folder).
+const COMPANIONS: [(&str, &str, bool); 2] = [
+    ("panel", "waybar/waybar.sh", true),
+    ("wallpaper", "wallpaper.sh", false),
+];
+
+/// Starts the panel and the wallpaper of the flavor, each when its pid
+/// file names no running one, so that a session whose units, gate or
+/// earlier tiling started them gets no second panel. A panel in a session
+/// with no D-Bus session bus, which waybar needs, runs in
+/// `dbus-run-session`; a login session has a bus and needs no wrapper.
+/// Without a runtime directory, which the scripts need for their pid
+/// files, or without the script in a flavor directory, it writes a line to
+/// stderr and starts nothing.
+pub fn start_companions() {
+    use std::os::unix::process::CommandExt;
+    if runtime_dir().is_none() {
+        eprintln!(
+            "chora-tiling: --with-companions needs the runtime directory; no panel, no wallpaper"
+        );
+        return;
+    }
+    let dirs = flavor_dirs();
+    for (name, script, folder) in COMPANIONS {
+        let word = script.rsplit('/').next().unwrap_or(script);
+        if companion(name, word).is_some() {
+            continue;
+        }
+        let Some(file) = dirs.iter().map(|d| d.join(script)).find(|f| f.is_file()) else {
+            eprintln!("chora-tiling: --with-companions: no {script} in {dirs:?}");
+            continue;
+        };
+        let bus =
+            folder && std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none_or(|v| v.is_empty());
+        let mut command = std::process::Command::new(if bus { "dbus-run-session" } else { "sh" });
+        if bus {
+            command.args(["--", "sh"]);
+        }
+        command.arg(&file);
+        if folder {
+            command.args(file.parent());
+        }
+        command.stdin(std::process::Stdio::null()).process_group(0);
+        match command.spawn() {
+            Ok(mut child) => {
+                std::thread::spawn(move || child.wait());
+            }
+            Err(err) => eprintln!("chora-tiling: --with-companions: {script}: {err}"),
+        }
+    }
+}
+
 /// Sends a signal, by the name that `kill -s` takes, to a process.
 pub fn signal(pid: u32, name: &str) {
     let _ = std::process::Command::new("kill")

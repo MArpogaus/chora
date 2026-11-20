@@ -957,7 +957,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
-| `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
+| `managers` | `xp: chora-xp`, `tiling: chora-tiling --with-companions`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME` (`--with-companions` starts the panel and the wallpaper of the tiling flavor, `waybar.sh` and `wallpaper.sh`, once, unless their pid files name running ones, so a tiling pane is no black screen); the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it connects as the client of its program without the prefix `chora-`, `xp` for `chora-xp`; it outlives the construct: a construct that dies leaves it flat on the screens with every window, and a construct that starts again opens the cube around it again; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings, the keys of the window list and its pointer presses take the input of `input.inject` as the user's (see [Injected keys](#injected-keys)) |
@@ -986,6 +986,23 @@ While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
 after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
+
+With `modifier: Super`, no `Super` chord that the construct does not bind
+reaches a window while the camera is in a pane, as under `chora-tiling`
+(see its paragraph above): the construct grabs `Super+KEY`,
+`Super+Shift+KEY` and `Super+Ctrl+KEY` for the same keys, the list of
+`chora_kit::swallow`, and swallows the ones that no binding uses, so
+`Super+q` types no `q` in a terminal and `Super+Tab` sends no Tab. The
+bindings with a modifier keep their actions there, `Super+F1` among them,
+which shows the key list also on a face of the cube. Plain keys reach the
+window. On a face of a cube the construct swallows nothing: the window
+manager of the faces owns its windows and the chords for them, as the
+construct does in a pane. A chord that nobody grabs but `Super` pressed and
+let go still opens the Start menu of xp. With `modifier: Alt` nothing is
+swallowed, in a pane as under `chora-tiling`: programs keep `Alt+b` of
+readline and `Alt+Left` of a browser.
+`tests/gate-construct-keys.sh` (pane) and `tests/gate-construct-cube.sh`
+(face) check it.
 
 The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes

@@ -30,6 +30,7 @@
 # pane lies under a point of the output, and `pressed_at NAME U V`
 # whether the last press of a pane lies within 1.5 pixels of (U, V).
 #
+# Known red, not in merge-gate.sh: three cells fail: the label of pane b (line 187), the frames of a recording (line 272) and the click on pane b after them (finding co-28 in findings/construct.md).
 # Usage: tests/gate-construct-3d.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the panes
 #   SHOT_WOBBLE  a PNG path that keeps a capture during the wobble

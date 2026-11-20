@@ -421,7 +421,12 @@ a toplevel, the core reserves it for one window manager:
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
-window manager gets the next new windows there. A key of the user that
+window manager gets the next new windows there. That press also takes
+the keyboard from whatever had it (a window, or a node of any plugin),
+so that no key typed next strays into the look the person left, unless
+an input node lies under the press or the session is locked; until the
+chosen manager focuses a window, no client gets a key, and only the
+grabs of managers of virtual outputs wait for it (sh-23). A key of the user that
 a window manager grabbed chooses that one in the same way when its
 claim holds the pointer or the keyboard focus, unless it has the
 keyboard focus anyway: the window that its key starts, such as the
@@ -721,7 +726,7 @@ node; a plugin reports such runs in the `texts` of its `state.get`.
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). `pid` is the process of the client as the socket reports it, a hint that a pid namespace can hide; `token` is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit. An activation in the same batch of requests counts too, as in foot. The core sends the event at the end of that batch. `parent` is the surface of the xdg parent of a dialog, as it is at the first commit, when it has one; a later `set_parent` sends no event. |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
 | `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, or does not attach the surface within 5 seconds, the surface is free again, and all clients get `surface.detached`. With `resume`, a disconnect frees it at the end of the grace time. |
-| `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
+| `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). A node that takes the keyboard with `focus_node` sends none: the focused surface stays, and the keyboard returns to it when the node lets go. |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; the press of a button binding of another client ends a binding of a lone modifier, such as `Super+Super_L`, without a `released`, so a drag with Super is no tap of Super; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
@@ -990,6 +995,8 @@ node end as at any disconnect, and `client.disconnected` follows at once.
   for surfaces without an owner.
 - The emergency reset and a disconnect of the watchdog end the grace time
   at once.
+- The kept nodes stay shown during the grace time: the core does not hide
+  them, so a quick restart causes no flicker.
 
 A reserve of `output.reserve` belongs to a connection and ends with it,
 also when its client crashes. The reserves of all connections on an
@@ -1013,7 +1020,9 @@ manager that a click on its empty claim chose, else the owner of the
 keyboard focus (of a node or a window), else the owner of the smallest
 claim under the pointer. Elsewhere the key goes to nobody, not to the
 focused window. The keyboard goes before the pointer, which may rest
-on another pane while the person types. A pointer button binding has one
+on another pane while the person types. An injected key follows the
+same rule without the pointer, which an injection moves too: with no
+click choice and no keyboard focus of a manager it goes to the grab. A pointer button binding has one
 owner too, unless each client that grabs it holds a claim and is on the
 main socket (D55): then a
 press goes to the client of the smallest claim that contains the pointer,

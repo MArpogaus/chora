@@ -935,9 +935,21 @@ impl State {
     /// A button press of the user chooses the window manager of the next
     /// new windows (D55): on a point of a claim with no window under it,
     /// the owner of the smallest such claim, unless it has the keyboard
-    /// focus anyway. Any other press of the user ends the choice.
+    /// focus anyway. The press takes the keyboard from the window or node
+    /// that had it, so that no key typed next strays into another look
+    /// (sh-23), unless it lands on an input node, which takes the press
+    /// for itself; the keys go to the manager chosen. Any other press of
+    /// the user ends the choice, and so does every press while the session
+    /// is locked: no claim is shown then.
     pub fn choose_manager(&mut self) {
+        if self.lock.is_some() {
+            self.chosen_manager = None;
+            return;
+        }
         let spot = self.spot(self.pointer_layout);
+        let on_input = spot
+            .as_ref()
+            .is_some_and(|spot| crate::render::node_under(self, spot).is_some());
         let empty = spot
             .as_ref()
             .is_some_and(|spot| crate::render::surface_under(self, spot).is_none());
@@ -950,6 +962,14 @@ impl State {
         let claimant = chora_scene::claimant_at(scene.nodes(), point, |n| self.ipc.live(n))
             .filter(|manager| empty && Some(*manager) != focused)
             .map(String::from);
+        if claimant.is_some() && !on_input {
+            self.scene.unfocus_node();
+            if self.focused_surface().is_some() {
+                self.focus(None);
+            } else {
+                self.update_focus();
+            }
+        }
         self.chosen_manager = claimant.map(|manager| (manager, self.focus_now()));
     }
 
