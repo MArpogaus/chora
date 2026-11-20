@@ -29,7 +29,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | xp-majors-r1.md (RC) | sonnet high | 81a29fe8 in review |
 | review-xp-majors-r1.md | sonnet hi | session_016iS3kLM9RpnbLLNk85sNfu |
 | mc-majors-r1.md (RC) | sonnet high | OK 92ecd30a t79 |
-| mc-answer-r2.md (RC) | sonnet med | r1 FIX rv-1 card size; starting |
+| mc-answer-r2.md (RC) | sonnet med | session_016iS3kPstTEwtKTtu6Sk7pr |
 | flake-l-r1.md | sonnet high | MERGE-OK f52ee86d (PM review) t79 |
 | persona-env-r1.md (RC2) | sonnet med | MERGE-OK 370495ad (PM review) t80 |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
