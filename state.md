@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-20 01:48 UTC)
+## Now (2026-11-20 01:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
-session branch: bb16f2ff (train 79); 41 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
+session branch: b97369d1 (train 80); 42 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
 burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next wk.
 
 ## RC (design/rc.md)
@@ -24,16 +24,16 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| stray-grab-r1.md (RC sh-24) | opus high | session_016iS3kQiKWvRdXmmZ12b8Tw |
-| xp-majors-r1.md (RC) | sonnet high | MERGE-OK 81a29fe8 (review: 4 MINOR) t81 |
-| mc-answer-r2.md (RC) | sonnet med | MERGE-OK 92f2e52f (PM review: 1 MINOR) t81 |
-| black-pane-r1.md (RC sd-h1) | sonnet high | session_016iS3kPY5q7FRF2zYvKecmv |
-| co-majors-r2 (RC) | sonnet high | MERGE-OK 8e24dcb6 (review r2: 2 MINOR, 2 NIT) t81 |
-| kit-sec-r3.md | sonnet med | MERGE-OK 1c25af7e (PM review: 1 MINOR) t81 |
+| stray-grab-r1.md (RC sh-24, Queue 5) | opus high | session_016iS3kQiKWvRdXmmZ12b8Tw |
+| black-pane-r1.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kPY5q7FRF2zYvKecmv |
+| t81 (Queue 4, F6): kit-sec-r3.md, xp-majors-r1.md, mc-answer-r2.md, co-majors-r2 | sonnet | MERGE-OK 1c25af7e 81a29fe8 92f2e52f 8e24dcb6; gate 01:54 |
+| p2-r1-tiling.md (RC 2, Queue 5) | sonnet med | starting |
+| p2-r1-mc.md (RC 2, Queue 5) | sonnet med | starting |
+| p2-r1-construct.md (RC 2, Queue 5) | sonnet med | starting |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t79 green 01:19 (78b, mc-majors, ti-majors, flake-l; bb16f2ff). t80 = persona-env 370495ad + flake-h b0564df2: gate 01:20. t81: kit-sec 1c25af7e, xp-majors 81a29fe8, mc-answer 92f2e52f, co-majors 8e24dcb6.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: STRAY-GRAB 1.5 %, BLACK-PANE 1 %; P2 r1 tiling, mc, construct 3.3 % after t80; P2 r1 xp: RC2 red, persona env fixed (t80), P2 r2 xp after t81; AUDIT-F r3 1 % Fri late.
+4. Trains (F6): t80 green 01:52 (persona-env, flake-h; b97369d1). t81 gate 01:54: kit-sec 1c25af7e, xp-majors 81a29fe8, mc-answer 92f2e52f, co-majors 8e24dcb6.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: STRAY-GRAB 1.5 %, BLACK-PANE 1 %; P2 r1 tiling, mc, construct 3.3 % started 01:55; P2 r1 xp: RC2 red, persona env fixed (t80), P2 r2 xp after t81; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
