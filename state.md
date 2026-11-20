@@ -34,7 +34,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
 | co-majors-r1.md (RC) | opus high | db4d703b in review |
 | review-co-majors-r1.md | sonnet hi | session_016iS3kLvHjFkMH5ZrK63ZV6 |
-| kit-sec-r3.md | sonnet med | starting |
+| kit-sec-r3.md | sonnet med | session_016iS3kP2sBAKuSnG7vt9bjh |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): train 79 = 78b + mc-majors 92ecd30a, running 00:38; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors if MERGE-OK, kit-sec r3.
