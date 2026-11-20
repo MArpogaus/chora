@@ -239,3 +239,11 @@ Lane: cloud, branch claude/mc-fix from bb7cbeb8. The session head had not moved 
 `tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,mc-paths,mc-sofa,mc-column,acts` at 929de144 (run dir /tmp/merge-gate.bItx4L): 9 PASS (pre-commit 5 s, gate-lib 71 s, ci-check 119 s, build 32 s, test 252 s, clippy 21 s, mc-paths 130 s with all 15 cells, mc-sofa 49 s, mc-column 62 s). acts FAIL 250 s: 172 pass, 1 blocking, `xp act:session` at "the volume key raises the level". tests/acts/looks/xp.py:167 `mixer` read the stand-in's state file while it was empty (`ValueError: not enough values to unpack`), a read/write race in the xp harness. Not caused by this round (no xp or harness code touched). Rerun alone once (`tests/acts/run.py --no-selftest xp`): 72 pass, 0 blocking, that act passes. Flake candidate for the flakes lane. The first gate run (at bf507872) failed ci-check on the cut-check row WM1b (`Event::SurfaceCreated` in mc); 929de144 fixed that. Partial run, nothing pushed by it.
 
 Not touched: tests/acts/invariants.py I5 timing (flakes-l), doors/lib.sh (flakes-m). Ux rows of round 4 (Super+F1 under the chat, Listening pill over the date) are not in this brief.
+
+## PM review r6 (16:19)
+Base bb7cbeb8..929de144, 5 files +186 -26; reds be9a1bdd (mc-42) and 0b1253ed (I3) first.
+- mc-42: a window the core reserved for mc (origin given) now keeps the token of its surface.created, so the scene that started it gets it, not a new page. Root cause named: gate-mc-paths ran mc without --manage-windows; the gate now runs it, with cell first-turn. Closed by cell mc-paths first-turn.
+- I3: kit Focus::lose keeps core; only mc calls lose() (git grep), gave() still clears core, moved() still updates it, so another client's real window still ends the holder. Closed by cell window-chat.
+- pr6-1 MINOR: the Book origin labels "given"/"new" are the reverse of api.md (lane note): backlog, kit.
+- pr6-2: acts FAIL xp act:session (xp.py:167 read an empty mixer file) is a harness race, not this branch: FLK-ACTS-MIXER in backlog.
+Verdict: MERGE-OK; 929de144 replaces bb7cbeb8 in t92. mc persona r5 runs on fee9c695 + 929de144 now.
