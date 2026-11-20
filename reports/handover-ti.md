@@ -199,3 +199,55 @@ mc-handover PASS    11s /tmp/merge-gate.ZRQN3C/mc-handover.log
 
 Left as known: stacking of a tiling and an xp window by root order (MINOR),
 I5 (key list over a notice).
+
+## Review r2
+
+Seeded review (briefs/review-handover-ti-r2.md) of claude/handover-ti
+d1ba7e2c against 371f0fa1; read-only on code. Step 0 green (unshallow,
+`cargo check --workspace`). `cargo test -p chora-kit --features testing
+--test wm_focus` 7 ok; `cargo test -p chora-xp` 310 ok; `cargo test -p
+chora` 639 ok; `cargo test -p chora-tiling -p chora-mc` ok.
+tests/gate-handover-shared.sh PASS at d1ba7e2c (keys, give, click, node).
+
+Probe (scratch copy of the cell, `choractl events` alongside):
+
+```
+given           tiling {holder:tiling, s1}  xp {holder:null}  focused [s1]
+click-desktop   tiling {holder:null}        xp {holder:xp}    focused [xp-icons]
+click-desktop 2 tiling {holder:null}        xp {holder:xp}    focused [xp-icons]
+click s1        tiling {holder:tiling, s1}  xp {holder:null}  focused [s1]
+click s1 again  tiling {holder:tiling, s1}  xp {holder:null}  focused [s1]
+```
+
+Click s1 makes 5 events (focus.changed s1, focus.node null), then 0 in the
+next 2 s, also after the second click: no resend loop.
+
+Checks: 1) rw-1 fixed: `lost_to_other` covers lost, a node of another
+client and a core focus off the sent surface; `reclaim` only after a take
+while lost, so the resend happens once and the core focus on s1 ends xp's
+node focus. 2) rw-2 fixed: the first desktop click gives xp-icons the keys
+(probe row 2); the node of another client keeps them (guard test), but
+xp's own Start menu does not (rx-1). 3) rw-4: `tell_key_node` takes
+`key_node()`, so lock and exclusive layer are told as no node; escape
+hatch and lock path untouched; still once per change (told_node). 4) rw-5:
+`state` calls `holder(name, own)`; mc sets its nodes only through
+`to_node`, so its two call sites behave as before; the d1ba7e2c test edit
+is the name argument only, expected values unchanged. 5) the
+accept_injected switch is test-only (temp XDG_CONFIG_HOME) and cannot
+weaken the keys guard, but it is dead (rx-2). 6) red first, each built on
+its own commit: 6153a0a0 cell fails "click: a click on s1 does not give
+it the keys back (tiling {holder:null}, xp {holder:xp})"; e1ee7af2 fails
+"the icons get no keys: []"; ce9db2e8 fails "the launcher has the keys, no
+node" (left [], right [Null]); e670a521 fails Foreign vs Window("t1").
+Order red < green for all four.
+
+Findings:
+
+- rx-1, MINOR, plugins/chora-xp/src/wm/keys.rs:331: `focus_moved` resends `desktop_keys` when the core focus leaves a foreign window even while xp's own node (the open Start menu) has the keys: give s1 to tiling, open the Start menu, s1 exits, then focused [xp-icons] with xp-menu still open (at 371f0fa1 xp-menu keeps the keys; probe with base xp); fix: add `!self.own_node()` to the condition, with a unit test beside the rw-2 guard test.
+- rx-2, NIT, tests/gate-handover-shared.sh:33: `accept_injected` writes `$XDG_CONFIG_HOME/chora-NAME.yaml`, but settings read `$XDG_CONFIG_HOME/chora/NAME.yaml`, so the switch is dead (the clicks pass through `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` of gate-lib.sh) and the r2 report's "so both hear the injected clicks" is wrong; fix: drop the helper or write under `chora/` as gate-mc-*.sh do.
+- rx-3, NIT, reports/handover-ti.md "## r2" probe: the click-desktop rows show focused [] where the cell at d1ba7e2c gives [xp-icons] on the first click, so the table does not show the rw-2 fix; fix: rerun the probe and correct the rows (the table above).
+
+Known, not findings: stacking of a tiling and an xp window by root order
+(MINOR, known); rw-3 (noted, no code).
+
+Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 2. Verdict: **MERGE-OK**.
