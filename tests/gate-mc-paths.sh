@@ -1,12 +1,20 @@
 #!/bin/bash
 # Gate of the main paths of chora-mc for a person with arrows, Escape and a
-# mouse: chora-mc with `voice_hud: host`, the mc folder of the HUD host and
+# mouse: chora-mc with `--manage-windows` (it holds the claim of its output,
+# as in a session of the mc look, so the core reserves new windows for mc)
+# and `voice_hud: host`, the mc folder of the HUD host and
 # a fake voice agent on a headless output of 1280x800, where an injected
 # press is an act of the person (--test-injected-press-is-real). One cell
 # for each path; a cell that fails prints `FAIL:` and the next one runs.
 #
 #   first-page     the first page says how to start and no text is under
 #                  14 px
+#   first-turn     in a fresh session (no terminal yet) the first plain
+#                  Right from page 4 shows page 5, the terminal page that
+#                  the footer names, and its window lands in that page,
+#                  not in a page of its own; Right, Left and Escape then
+#                  act on the page (mc-42, persona round 4: mc claims its
+#                  output, so the core reserves the window for mc)
 #   arrows         plain Right and Left turn the page, Escape goes back one
 #                  step, and the key list names the same keys as the footer
 #   terminal-keys  on the terminal page the arrows belong to the shell, the
@@ -144,7 +152,7 @@ FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$w
     <"$work/voice.in" >"$work/voice.log" 2>&1 &
 pids+=($!)
 exec 3>"$work/voice.in"
-"$bin/chora-mc" >"$work/mc.log" 2>&1 &
+"$bin/chora-mc" --manage-windows >"$work/mc.log" 2>&1 &
 pids+=($!)
 ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
 "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
@@ -270,6 +278,40 @@ turn_arrive() {
     for _ in 1 2 3 4; do key Right; sleep 0.4; done
     until_ok '[ "$(current)" = terminal ] && foot_alive' 40 || return 1
     sleep 2
+}
+no_page_of_its_own() {
+    local scenes
+    scenes=$(ctl call mc scene.list '{}' | jq -r '[.scenes[] | .name? // .] | join(" ")')
+    [[ " $scenes " != *" foot "* ]] || { echo "the window has a page of its own: $scenes"; return 1; }
+}
+cell_first_turn() {
+    local k page why
+    foot_alive && fail "a terminal runs before the first turn"
+    for _ in 1 2 3; do key Right; sleep 0.4; done
+    until_ok '[ "$(current)" = mission ]' 20 || fail "no page 4 by Right x3: $(current)"
+    until_ok 'has_text "→ 5  Terminal"' 20 || fail "the footer of page 4 does not name page 5 Terminal: $(texts | grep -F '→' | tr '\n' '|')"
+    key Right
+    until_ok '[ "$(ctl query kind:surface | jq length)" -ge 1 ]' 40 || { foot_end; fail "the first Right from page 4 starts no terminal"; }
+    sleep 2
+    page=$(current)
+    [ "$page" = terminal ] || { foot_end; fail "the first Right from page 4 shows $page, not the terminal page 5"; }
+    why=$(no_page_of_its_own) || { foot_end; fail "the first Right from page 4: $why"; }
+    texts | grep -qE '^←.*→$' || { foot_end; fail "the page of the first start names no plain arrows: $(texts | grep -F '←' | tr '\n' '|')"; }
+    key Right
+    until_ok '[ "$(current)" = overview ]' 20 || { foot_end; fail "Right on the page of the first start does not go on: $(current)"; }
+    foot_end
+    for k in Left:mission Escape:mission; do
+        key Super+Home
+        until_ok '[ "$(current)" = agenda ]' 20 || fail "no first page before $k: $(current)"
+        for _ in 1 2 3 4; do key Right; sleep 0.4; done
+        until_ok '[ "$(ctl query kind:surface | jq length)" -ge 1 ]' 40 || { foot_end; fail "Right x4 starts no terminal before $k"; }
+        sleep 2
+        page=$(current)
+        why=$(no_page_of_its_own) && [ "$page" = terminal ] || { foot_end; fail "Right x4 before $k shows $page: $why"; }
+        key "${k%%:*}"
+        until_ok "[ \"\$(current)\" = ${k##*:} ]" 20 || { foot_end; fail "${k%%:*} on the page that Right started does not go to ${k##*:}: $(current)"; }
+        foot_end
+    done
 }
 cell_terminal_turn() {
     local k want
@@ -514,7 +556,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
+for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

@@ -1699,6 +1699,56 @@ mod tests {
         );
     }
 
+    /// The window of the program that the first plain Right from page 4
+    /// started comes as `surface.created` that the core reserved for mc
+    /// (mc holds the claim of its output, `to` names it): it lands in the
+    /// terminal page, not in a page of its own, and the page keeps the
+    /// keyboard (mc-42, persona round 4).
+    #[test]
+    fn a_window_that_the_core_reserved_for_mc_lands_in_the_page_that_started_it() {
+        let (mut mc, model) = crate::testing::mc("reserved-start", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        for _ in 0..4 {
+            press_key(&mut mc, "Right", &[]);
+        }
+        assert_eq!(mc.current.as_deref(), Some("terminal"));
+        mc.starting
+            .insert("t1".into(), crate::Target::Scene("terminal".into()));
+        model
+            .lock()
+            .unwrap()
+            .scene
+            .add_surface("s1", chora_scene::SurfaceInfo::default());
+        let created = chora_scene::Event::SurfaceCreated {
+            surface: "s1".into(),
+            app_id: Some("foot".into()),
+            title: Some("foot".into()),
+            decoration: None,
+            to: Some(super::NAME.into()),
+            pid: None,
+            token: Some("t1".into()),
+            parent: None,
+        };
+        mc.lifecycle(&created).unwrap();
+        assert_eq!(mc.current.as_deref(), Some("terminal"));
+        assert_eq!(mc.windows.get("terminal").map(String::as_str), Some("s1"));
+        assert!(
+            !mc.scenes.contains_key("foot"),
+            "the window has a page of its own"
+        );
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_node()
+            .map(str::to_owned);
+        assert_eq!(
+            focused,
+            Some(super::page_id("terminal")),
+            "the page keeps the keyboard"
+        );
+    }
+
     /// The default file binds the keys of a remote, and mc grabs them
     /// only with a claim, as the media keys.
     #[test]
