@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, identity, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, voice-acp, voice-events, agent, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
@@ -23,6 +23,7 @@
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
 # beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
+# `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
 # a committer other than the identity in `expected_identity` below (a lane hook has
 # re-authored commits as another identity); it prints one FAIL line with the sha, the
@@ -247,6 +248,9 @@ mc-paths|BIN=$repo/target/debug tests/gate-mc-paths.sh
 mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh
 mc-column|BIN=$repo/target/debug tests/gate-mc-column.sh
 mc-handover|BIN=$repo/target/debug tests/gate-mc-handover.sh
+voice-acp|BIN=$repo/target/debug tests/voice-acp.sh
+voice-events|BIN=$repo/target/debug tests/voice-events.sh
+agent|out=\$(mktemp -d /tmp/chora-agent-gate.XXXXXX) && tests/agent.sh "$repo/target/debug" "\$out" && rm -rf "\$out"
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }
