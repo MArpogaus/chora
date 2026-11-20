@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 17:12 UTC)
+## Now (2026-11-20 17:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 16:44 PM 10.9 %; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: ce2c436b; 48 greens (t89b green 16:25); t90 gate-silent running.
@@ -25,13 +25,12 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 |---|---|---|
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | mc-minor-r1.md (mc MINOR: one fade tracker, rv-1..3) | sonnet medium, claude/mc-minor 929de144 | starting |
-| xp-give-r1.md (RC 2: xp-T7 Send To a look by mouse) | sonnet medium, claude/xp-give ce2c436b | session_016iS3kQeput28U3AD7toYA5 16:49 |
 | co-pane-r1.md (RC 2: co r3 pane drag I3, key sheet, checker) | sonnet high, claude/co-pane bbaad12b | session_016iS3kNKpN5aPruPuWBdAXM 17:12 |
 | handover-ti-r1.md (RC 2: tiling->xp hand-over, I3) | opus high, claude/handover-ti ce2c436b | session_016iS3kNK9SGs6sLHT39bpWD 17:06 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t90 gate-silent baac5dcf alone (running); t91 gate-orphan 437173e1 alone; t92 lint-down 78ec62e1 + mc-fix 929de144 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix bbaad12b + xp-minor fca4f8b5 + flakes-l cc1282db + kit-minor 939acf6a (then --jobs 2).
-5. (F5, F4, shared bar) MERGE-OK: the t91, t92 shas. Running: MC-MINOR r1 1 %, FLAKES-O r1 1 %, XP-GIVE r1 1 %, CO-PANE r1 1.5 %, HANDOVER-TI r1 opus 2 %; then P2-R3-TILING, P2-R4-CO. Later FLAKE-SERIES r3 haiku 1 %.
+4. (F6, rc 3) t90 gate-silent baac5dcf (running); t91 gate-orphan 437173e1 alone; t92 lint-down 78ec62e1, mc-fix 929de144, flakes-m ecfa2029, flakes-n d7c69aac, persona-check e3763f69, co-fix bbaad12b, xp-minor fca4f8b5, flakes-l cc1282db, kit-minor 939acf6a, xp-give 22fead94; then --jobs 2.
+5. (F5, F4, shared bar) MERGE-OK: the t91, t92 shas. Running: MC-MINOR r1 1 %, FLAKES-O r1 1 %, CO-PANE r1 1.5 %, HANDOVER-TI r1 opus 2 %; then P2-R3-TILING, P2-R4-CO. Later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
