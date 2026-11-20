@@ -66,6 +66,30 @@ fresh_runtime run-wallpaper
 got=$(mode_of "$work/run-wallpaper/chora-tiling")
 [ "$got" = 700 ] || fail "wallpaper.sh made chora-tiling with mode $got, not 700"
 
+mkdir -p "$work/tmp"
+touch "$work/stamp"
+(
+    umask 022
+    env -u XDG_RUNTIME_DIR PATH="$work/bin:$PATH" HOME="$work/home" TMPDIR="$work/tmp" \
+        timeout 20 sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$work/nofallback-waybar.out" 2>&1
+    env -u XDG_RUNTIME_DIR PATH="$work/bin:$PATH" TMPDIR="$work/tmp" \
+        sh "$flavor/wallpaper.sh" >"$work/nofallback-wallpaper.out" 2>&1 &
+    script=$!
+    sleep 1
+    kill -TERM "$script" 2>/dev/null
+    wait "$script" 2>/dev/null
+)
+fixed=$(find /tmp -maxdepth 1 -name 'chora-tiling*' -newer "$work/stamp" 2>/dev/null)
+[ -z "$fixed" ] || fail "without XDG_RUNTIME_DIR the scripts used a fixed name in /tmp: $fixed"
+unset fixed
+made=$(find "$work/tmp" -mindepth 2 -maxdepth 2 -name chora-tiling -type d)
+[ -n "$made" ] || fail "without XDG_RUNTIME_DIR the scripts made no chora-tiling in a mktemp dir"
+for dir in $made; do
+    got=$(mode_of "$(dirname "$dir")")
+    [ "$got" = 700 ] || fail "the mktemp dir has mode $got, not 700"
+done
+find /tmp -maxdepth 1 -name 'chora-tiling*' -newer "$work/stamp" -exec rm -rf {} + 2>/dev/null
+
 if [ "$failures" -gt 0 ]; then
     exit 1
 fi
