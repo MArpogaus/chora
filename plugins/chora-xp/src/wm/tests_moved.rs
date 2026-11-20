@@ -1079,8 +1079,8 @@ mod press {
 #[test]
 fn the_window_menu_opens_without_asking_the_core_for_the_clients() {
     let core = chora_kit::testing::FakeCore::start();
+    core.outputs(json!([fake_output()]));
     core.respond(|method, _| match method {
-        "output.list" => Some(json!([fake_output()])),
         "scene.apply" => Some(Value::Null),
         "clients.list" => Some(json!([{"name": "mc", "methods": ["window.give"]}])),
         _ => None,
@@ -1121,8 +1121,8 @@ fn the_window_menu_opens_without_asking_the_core_for_the_clients() {
 fn a_failed_clients_list_warns_once() {
     if chora_kit::testing::in_child() {
         let core = chora_kit::testing::FakeCore::start();
+        core.outputs(json!([fake_output()]));
         core.respond(|method, _| match method {
-            "output.list" => Some(json!([fake_output()])),
             "scene.apply" => Some(Value::Null),
             "clients.list" => Some(json!([])),
             _ => None,
