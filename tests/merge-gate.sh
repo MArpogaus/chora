@@ -39,7 +39,8 @@
 # has a line `No test: <reason>`. `pre-commit` runs the hooks over the same
 # range, with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
-# `ci-check` also runs tools/size-ratchet (a file over 1,500 production lines may not grow) and
+# `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
+# tools/size-ratchet (a file over 1,500 production lines may not grow) and
 # tools/cut-check (blocking: a plugin depending on a plugin or an extra workspace crate, an asset or
 # link that leaves its crate, a name of another plugin beyond tools/cut-known.toml; it reports the
 # new match arms on a kit enum since the merge base), each with its self-test.
@@ -212,7 +213,7 @@ gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/c
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
-ci-check|tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh
+ci-check|tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh
 2d-guard|tests/2d-guard.sh 8742dee
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
