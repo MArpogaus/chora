@@ -41,6 +41,12 @@ def surface(sid, owner, output="HEADLESS-1", focused=False, rect=(10, 10, 300, 2
     return node
 
 
+def probe_surface(sid="p1"):
+    node = surface(sid, "construct")
+    node["surface"] = {"app_id": "chora-probe"}
+    return node
+
+
 def window(sid, shown=True):
     return {"surface": sid, "shown": shown, "output": "HEADLESS-1"}
 
@@ -1038,6 +1044,25 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("T7", ctx(), snap(), snap()), [])
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost ['s1']", verdict("T7", ctx(), snap(), gone)[0])
+
+    def test_t5_a_dead_probe_is_red(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = pathlib.Path(tmp) / "probe.report"
+            report.write_text("")
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
+            self.assertEqual(verdict("T5", ctx(probe=str(report)), snap(), alive), [])
+            out = verdict("T5", ctx(probe=str(report)), snap(), snap())
+            self.assertIn("no chora-probe window", out[0])
+            missing = verdict("T5", ctx(probe=str(report) + ".none"), snap(), alive)
+            self.assertIn("no report", missing[0])
+
+    def test_t5_a_key_that_reached_the_probe_is_red(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = pathlib.Path(tmp) / "probe.report"
+            report.write_text("key 32\n")
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
+            out = verdict("T5", ctx(probe=str(report), keys=[32]), snap(), alive)
+            self.assertIn("got the key 32", out[0])
 
     def test_x1_window_shown_again_with_the_focus(self):
         hidden = {"xp": {"windows": [window("s1", shown=False)], "focus": {"holder": "xp"}}}
