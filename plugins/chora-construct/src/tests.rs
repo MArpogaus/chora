@@ -186,6 +186,32 @@ fn the_shadow_packs_the_lift_and_the_yaw() {
     }
 }
 
+/// A drag grabs the world (co-pane r2, rv-6): the scene follows the hand,
+/// as the cube does (docs/cube-modes.md). A drag to the right moves the
+/// pane ahead to the right on the screen, a drag down moves it down.
+#[test]
+fn a_drag_takes_the_scene_along_with_the_hand() {
+    let lens = space::Lens::new(1280.0, 800.0);
+    let (at, size) = ([0.0, 2000.0], [640.0, 400.0]);
+    let middle = |pose: &Pose| {
+        let m = space::pane_matrix(&lens, pose, at, size, 0.0);
+        space::project(&m, 320.0, 200.0)
+    };
+    let rest = middle(&Pose::default());
+    let mut pose = Pose::default();
+    turn(&mut pose, None, 40.0, 0.0);
+    assert!(middle(&pose)[0] > rest[0] + 1.0, "right with the hand");
+    let mut pose = Pose::default();
+    turn(&mut pose, None, -40.0, 0.0);
+    assert!(middle(&pose)[0] < rest[0] - 1.0, "left with the hand");
+    let mut pose = Pose::default();
+    turn(&mut pose, None, 0.0, 40.0);
+    assert!(middle(&pose)[1] > rest[1] + 1.0, "down with the hand");
+    let mut pose = Pose::default();
+    turn(&mut pose, None, 0.0, -40.0);
+    assert!(middle(&pose)[1] < rest[1] - 1.0, "up with the hand");
+}
+
 /// A walk during a drag stays: the drag turns only (live bug: the
 /// camera jumped back to the press when the key `w` was released).
 #[test]
