@@ -25,7 +25,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 |---|---|---|
 | review-mc-fix-r3.md (RC 2: seeded review of mc-fix b0997b71) | opus high, claude/mc-fix b0997b71 | session_016iS3kLLmrd2xP52Xgy7QsZ 13:22 |
 | flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
-| lint-down-r3.md (F4: ratchet list matches the head) | sonnet medium, claude/lint-down 2254d32a | starting |
+| lint-down-r3.md (F4: ratchet list matches the head) | sonnet medium, claude/lint-down 2254d32a | session_016iS3kPQ1tpf2D2bGkqyu3d 13:31 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
