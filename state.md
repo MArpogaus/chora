@@ -24,7 +24,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ |
-| review-mc-fix-r1.md (RC 2: b4104cae; mc-48, 49 fixed, mc-47 fuzzel, P2-CHECK) | sonnet high | starting |
+| review-mc-fix-r1.md (RC 2: b4104cae; mc-48, 49 fixed, mc-47 fuzzel, P2-CHECK) | sonnet high | session_016iS3kNGeN79e99qkcgpHnF |
 | review-flakes-k-r1.md (F5: e2508ec1, AG1 IN1 TR1 SIG doors; HUD1 open) | opus high | session_016iS3kLoLmkKJBTvFYkXghw |
 | co-r4.md (RC 2: co-30 grab rule, co-28, rv-1..3; Queue 5) | opus high | session_016iS3kPhQfF1B27WLPDCdyc |
 
