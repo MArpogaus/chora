@@ -269,3 +269,101 @@ to close or fence the rest, and then about 8 h of trains with no flaky rerun. Li
   Next debt count: recheck each item on the tree, as section 2 does.
 - r2's F1 count (24) was a grep miscount; the plan file did not change after 11-17 14:53.
 - Pending eprintln growth (+6 over trains 84-85) keeps F4 met (131 <= 135) but eats the margin; rank 4 re-measures it.
+
+## r4
+
+Lane: cloud, opus, read-only on code, 11-20 14:15-14:45 UTC. Brief briefs/audit-f-r4.md.
+Tree: **P** = session head d81c8293 (train 87e; origin had nothing newer at 14:40). Step 0: `git fetch --unshallow`; `cargo check -p chora`
+green. Pending MERGE-OK shas co-r5 c2b0310f, probe-leak f5ac3500, co-majors-r4 e0c3a266, lint-down 78ec62e1 measured with
+`git diff`/`git show` from their merge base with P, not merged. flakes-l and flakes-m have pushed no commit yet (both branch tips are
+their start shas) and no report; mc-fix is at a8cd0de0 (r4, under review). I built none of the slices measured here.
+
+### 1. F4 on P (each bar against its RC value)
+
+| bar | value on P (RC) | with pending MERGE-OK | command | state |
+|---|---|---|---|---|
+| files over 1,500 production lines | **0** (RC: xp wm.rs, AR7) | 0 | `tools/size-ratchet` → `ok: size-ratchet (0 files over 1500)` | met |
+| `#[allow]`/`#[expect]` | **360** (378) | 359 (lint-down drops testing.rs's stale allow) | r3 grep `grep -rE '#\[(allow\|expect)\(' crates plugins services --include=*.rs \| wc -l`; `tools/lint-ratchet` of 78ec62e1 with its list on P: `FAIL: allow is 360, the list holds 359` (expected: the list already counts lint-down's -1) | met |
+| without reason | **150** by lines (238 by lines); **0** by attribute (lint-ratchet) | 0 | r3 grep `\| grep -vc reason`; the tool reads each attribute to its `)]` | met |
+| `eprintln!` | **131** (135) | 131 (every pending sha adds 0; lint-down r3 delta table) | `grep -rE 'eprintln!' crates/chora/src plugins services --include=*.rs \| wc -l` | met, margin 4 (was 10 in r3: black-pane +3, mc-p2-fix/mc-remote +3 landed in t85) |
+| workarounds | **6** (9): B2 `GIVE_UP` launch.rs:27; B3 CHANGELOG.md:1 `## Unreleased`, 0 hits rc.4; B4 gate-construct-k2a, -3d, -windows in no gate line (merge-gate.sh:245 runs k1, mcpane, nested; k2a only in the comment); B6 F16-F19/F28 no fix commit; W9 698 `sleep` lines in tests/*.sh (r3 640 by another regex; RC 779); N5 gate-construct-hud.sh:22 pointer move | **5**: co-r5 c2b0310f adds k2a, windows and 3d to `construct-extra` (B4 closed) | per item grep as listed | met |
+| refactors | **5** (7): RF2 two `on_path` in kit (desktop_entry.rs:188, launcher.rs:290); RF3 voice client.rs:113 `ConfirmParams`; RF7 construct main.rs:237 `placed: bool`, xp window.rs:111 `held: bool`; N1 DB6; N2 `wm_with_window` 0 hits | 5 | `grep -rn 'fn on_path\|struct ConfirmParams\|wm_with_window'` | met |
+| design questions, records | **0, 0** (8, 9) | 0, 0 | as r3 (D1-D8 records; D96-D118) | met |
+| hygiene | **12** (14): open H2 (tokens.py no test; only tests_triage.py), H3 (3 construct scripts of B4), H5 (9 "verify" lines in docs/known-issues.md), H6, H7 (CHANGELOG), H9, H10 (gate-mc-handover.sh:35 820 ms, narrowed), H13, H14, DB7, DB8, DB9. **Closed since r3**: H4 (merge-gate.sh:258 `voice-acp`, and `voice-events` cells; voice-v12 in t84/85), H11 (merge-gate.sh:83-86, :323 df 6 GB, shallow and drift checks; debt-f4 in t85) | **11** (co-r5 closes H3) | per item grep; `git ls-tree -r --name-only origin/claude/session-log \| grep -i test.*tokens` (empty) | met (r3's gap "hygiene at RC, margin 0" is gone: 12 < 14) |
+| total debt | **25** (47) | 23 | sum | met |
+
+**F4: met** on P, every count below RC. Gap: none. Risk: eprintln margin 4; the ratchet (lint-down, t90) freezes it at 131.
+
+### 2. F6 on P
+
+24 first-parent commits since 79c8d2b5, **all merges**; 0 direct commits (`git log --first-parent --format='%h %p %s' 79c8d2b5..P \| grep -v ' Merge '`: empty).
+Each second parent is the MERGE-OK sha named in state.md for its train: t83-t85c launcher-click 741d6bca, p2-harness 5dbd0ccf,
+voice-v12 ed4c7bf9, xp-fix a767790d, debt-f4 fc404a90, harness-k 0dfdad8d, flakes-j 6192f696, co-p2-fix ab4cbb4f, stray-grab 591e98f8,
+black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f, kit-minors 7a7e00a2,
+core-minors d23b03ae, docs-f8e c529242b, xp-p2r3 f89f785c (head 9973d0eb, green t85c 08:38); t86 harness-l 75dfa4b9 (adf71956, green
+09:27); t87e mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4 (d81c8293, green 12:50 at --jobs 1).
+Merge content beyond the two parents (`git show --remerge-diff`): only the PM's conflict resolutions in tests/merge-gate.sh (launcher-click,
+voice-v12, debt-f4, harness-k, tiling-bar), tests/persona/README.md (xp-fix) and the two tiling scripts plus merge-gate.sh (black-pane,
+the t85 -> t85b re-resolution); all inside a train tree that went green. Three heads reached origin (9973d0eb, adf71956, d81c8293), each
+after its train's green in the state.md log; the session branch stayed at 79c8d2b5 through the red t84/t85/t85b. The origin reflog is not
+readable from a lane (the local reflog has only this fetch), so push order rests on state.md times. Cut gate: `tests/cut-check-selftest.sh`
+→ `ok: cut-check-selftest`; `tools/cut-check` → `ok: cut-check (8 crates, 18 reported)`, 0 copies lines.
+**F6: met.** Note: the PM's semantic fix commit of r3 (9c6bf589) has no successor; conflict resolutions are the only PM-authored lines.
+
+### 3. F5 on P
+
+Test half: chora-kit **91.87 %** lines (9,955 lines, 809 missed) `env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-kit --features chora-kit/testing --summary-only`, rc 0. Met (r3's per-look and moved-module figures not rerun; no module moved since).
+
+Flake half: **open flake rows with no merged fix on P: 14**, 12 if the pending MERGE-OK land (sh-30 by probe-leak f5ac3500; K5 3D
+wobble race by co-r5 c2b0310f).
+- Owned by flakes-l r2 (no commit yet): tiling-look ink@2 (t84, t87d; 5 hits in all), FLK-ACT1 xp mixer read, FLK-ACT1 persona sound I5
+  overlap (mc-fix a8cd0de0 also changes I5 counting: 5c422e10/6508d95d; overlap with flakes-l item 6), FLK-HUD1 (flakes-k: seen 1 of 20,
+  cause not named), FLK-HUD2, FLK-LAY1, FLK-TA1 = 7.
+- Owned by flakes-m r1 (no commit yet): FLAKE-CUBE-QUEUE, FJ-R2 construct Escape (tiling and mc fixed in flakes-k), xp "no helper word" = 3.
+- **No owner: 2**: co-p2-fix rw-3 tiling `panel::the_layout_word_is_a_word_of_a_person` (unit test, red once in a full run); MX-CAP
+  gate-handover-matrix cap 315 s (t85b red at 320 s; t88 red at the cap with the leaked probes of sh-30: after probe-leak it may hold, unmeasured).
+- Legacy rows (debt B6/H14): F22, F24, F26, F28 have no fix commit and are unreproduced (not closed); F23, F29 belong to ink@2/TA1;
+  F27 is launcher-click.
+- Not a flake but a red-by-host: launcher-click red 10 of 10 with fuzzel 1.9.2 (every lane container); green with 1.11.1 (PM PATH).
+  GATE-SILENT (a cell that does not run must show SKIP) and MC-47-CELL are open: a lane-run series is 0/5 by construction.
+
+Train record since r3 (05:20): t84 (ink@2), t85 (merge fault, not a flake), t85b (MX-CAP), t87 (FLK-LAY1), t87b (FLK-HUD2), t87c (K5,
+real test race), t87d (ink@2), t88 (sh-30 probes, matrix cap): **6 flaky reds at --jobs 2**; the only greens since t86 are t87e at
+**--jobs 1**. flake-series r2: 0 of 5 at --jobs 3 (3 launcher-click/host, 1 ACT1, 1 TA1).
+Greens at --jobs 1 hide flakes: every hit above is a load race (HUD timeouts at load 5-7, ink at load 5-6), and --jobs 1 removes the
+load; state.md already says they do not count. **The bar needs --jobs 2** (the train setting from t83 that the flakes were found at, and
+the setting of the r3 series slice): 5 of 5 full `tests/merge-gate.sh --jobs 2` on the final head with fuzzel >= 1.11 on PATH, and
+no train red on a flake from the series' start to 03:59 (trains at --jobs 2 again).
+**F5: open** (flake half). Gap: 14 open rows, 0 greens at --jobs 2 since t86, no series.
+
+### 4. F1-F3, F8 on P
+
+| # | value | command | state |
+|---|---|---|---|
+| F1 | 26 slice rows, plan unchanged since 11-17 14:53 | `git show origin/claude/session-log:reports/arch-plan-fable.md \| grep -cE '^\| *(WM\|KIT\|NET\|CUT\|MV)'`; `git log -1 -- reports/arch-plan-fable.md` | met |
+| F2 | 0 copies lines; 42 rows all `max = 0` (41 in r3 + swallow); each look uses book, keysheet, notice (grep of `chora_kit` users per look: mc book manage.rs:160, main.rs:306); `grab_swallowed` in xp, tiling, construct (mc has no face manager) | `python3 tools/cut-check \| grep -ci copies` (0); `grep '^max' tools/copies.toml \| sort \| uniq -c` | met |
+| F3 | kit wm/ = book, focus, give, kept, open, stack, state | `ls crates/chora-kit/src/wm` | met |
+| F8 | every kit module has a CONTRIBUTING line (only `lib` missing, by design); CONTRIBUTING.md:44 `swallow`, decisions D118 (docs-f8e c529242b in t85): r3's risk is gone | r3 for-loop; `grep -n swallow CONTRIBUTING.md docs/decisions.md` | met |
+
+**Met on P: 6 of 8** (F1, F2, F3, F4, F6, F8). Open: F5 (flake half), F7 (by design, next week; known-red 0 rows).
+
+### 5. Slices by Sat 03:59 UTC (13.5 h)
+
+F4 needs no slice. Ranked by F moved per % budget; no new feature. Running: mc-fix r4 (mc, acts I5), flakes-l r2 (tiling-look, acts,
+hud, layout, tiling-audit), flakes-m r1 (cube, doors, chat-keys).
+
+| rank | name | F | files | done criterion | model | cost | conflicts |
+|---|---|---|---|---|---|---|---|
+| 1 | FLAKE-SERIES r3 | F5 (the only way to met) | none (gate runs); backlog rows | on the head after t89 (probe-leak), t90 (co-majors-r4, lint-down) and the flakes-l, flakes-m trains (~Sat 00:00): 5 full `tests/merge-gate.sh --jobs 2` in a row, no rerun, with fuzzel 1.11.1 on PATH (PM host, or rank 3 first); 5 of 5 green; each red a backlog row with cell, line, log. Then the PM logs each train's first-run result to 03:59 | haiku | 1 % | none; must run on the head the last trains build on; a lane container fails launcher-click by host unless rank 3 is in |
+| 2 | FLAKES-N r1 (the two unowned) | F5 | plugins/chora-tiling/src/panel tests (rw-3); tests/gate-handover-matrix.sh cap (MX-CAP) | rw-3: red count of 20 loaded runs of the chora-tiling lib before, cause, fix, 0 of 20 after (or "not reproduced in 20", named); MX-CAP: 5 timed runs on the head with probe-leak, cap = slowest + 25 % per its comment, red-first selftest of the cap rule | sonnet high | 0.5 % | flakes-l owns tests/gate-tiling-look.sh, not the panel unit tests; merge-gate.sh lines touched by probe-leak and lint-down: start from the t90 head |
+| 3 | GATE-SILENT (fuzzel guard) | F5 (lane series and lane gates stop being red by host), F6 evidence | tests/merge-gate.sh summary (a cell that does not run prints SKIP with its reason); launcher-click and the fuzzel cells: skip with SKIP below fuzzel 1.11 (MC-47-CELL's guard) | red selftest first: a cell whose tool is missing prints no SKIP; after: SKIP line in the summary, gate exit 0 only when every skip is a named host gap; PM host (1.11.1) still runs the cells | sonnet | 0.3 % | mc-fix (MC-47-CELL patch, mc-sofa cell) and probe-leak/lint-down on merge-gate.sh: after t90 |
+
+Sum 1.8 %. Order: rank 2 and 3 now (both ~2 h), rank 1 after the last flake trains. If flakes-l or flakes-m come back with rows "not
+reproduced", rank 1 is the test of them. Honest outlook: F5 met needs flakes-l (7 rows) and flakes-m (3) to land by ~22:00, trains back
+at --jobs 2 green, and a 5/5 series by ~03:00. Likely: test half met, flake half open at 03:59; F5 then goes to next week with the rows named.
+
+### 6. Notes
+
+- r3 counted hygiene 14 with H4 and H11 open; both closed on P by merged shas (voice-v12, debt-f4), so 12 is a recount, not new work.
+- r3's workaround W9 count (640) and this one (698, `grep -h -E '(^|[^a-z_])sleep ' tests/*.sh`) use different regexes; neither is a bar.
+- eprintln rose 125 -> 131 since r3 (t85 merges); still under RC 135; lint-down's list (131) freezes it.

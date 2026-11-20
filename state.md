@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-20 14:19 UTC)
+## Now (2026-11-20 14:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent) at 59 % time; 39 % left in 15 h = 2.6 %/h shared: under-spending (critic 13:05); tokens.py 13:47 PM 9.5 %; 6 lanes; fill to 4-5 lanes
 session branch: d81c8293; 46 greens. t87e green 12:50 (--jobs 1; mc-fix, xp-24, core-l, flakes-k, xp-36 in). t87-t87d reds: flakes FLK-LAY1, FLK-HUD2, ink@2 under load (flakes-l r2); K5 race fixed by co-r5.
-burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 0.6 d. F4/F6 recheck: audit-f r4 after t88.
+burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
@@ -25,12 +25,12 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 |---|---|---|
 | review-mc-fix-r4.md (RC 2: seeded review of mc-fix a8cd0de0) | sonnet high, claude/mc-fix a8cd0de0 | session_016iS3kPuqmxv3n5rzT1YmdJ 14:19 |
 | flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
-| audit-f-r4.md (F4, F5, F6 recheck, last slices) | opus high, claude/audit-f-r4 d81c8293 | session_016iS3kQew7v6rwzyo8XyHL7 14:15 |
+| flakes-n-r1.md (F5: rw-3 panel test, MX-CAP) | sonnet high, claude/flakes-n f5ac3500 | session_016iS3kQcJMyvpDghzxqqp5X 14:24 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) Trains: t88b co-r5 c2b0310f (head fee9c695, --jobs 1) from 13:45 (t88 red: leaked probes, sh-30); next t89 probe-leak f5ac3500 alone (harness), t90 co-majors-r4 e0c3a266 + lint-down 78ec62e1 (PM MERGE-OK), mc-fix after r4 and its review.
-5. (F5, F4, shared bar) PROBE-LEAK r1 MERGE-OK; running: FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, MC-FIX r4 done a8cd0de0, REVIEW r4 0.4 %, then mc persona r4 1 %; running AUDIT-F r4 opus 0.6 % (F4, F5, F6 recheck); LINT-DOWN r3 MERGE-OK (F4 lint counts gated). Greens at --jobs 1 do not count for F5.
+5. (F5, F4, shared bar) PROBE-LEAK, LINT-DOWN r3 MERGE-OK; running FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, FLAKES-N r1 0.5 %, REVIEW mc-fix r4 0.4 %, then mc persona r4 1 %; AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %, GATE-SILENT 0.3 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
