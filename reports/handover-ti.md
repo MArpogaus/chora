@@ -119,3 +119,138 @@ Counts: BLOCK 0, MAJOR 1, MINOR 1, NIT 3. Verdict: **FIX** (rw-1).
 
 ## PM note r1 (PM not the builder)
 Review r1 verdict computed: open MAJOR rw-1, so FIX. Round r2 (briefs/handover-ti-r2.md, sonnet high) fixes rw-1, rw-2, rw-4, rw-5 and notes rw-3; stacking by root order stays a known MINOR.
+
+## r2
+
+Lane: cloud, branch claude/handover-ti from 371f0fa1, now d1ba7e2c. Step 0
+green (unshallow, `cargo check --workspace`). Brief:
+briefs/handover-ti-r2.md. Every fix has its red commit first.
+
+| Item | Red | Green | Test | Cell |
+|---|---|---|---|---|
+| rw-1 MAJOR click back on tiling's window | 6153a0a0 | 47a6b2f0 | click step added to tests/gate-handover-shared.sh (red: "click: a click on s1 does not give it the keys back (tiling {holder:null}, xp {holder:xp})") | `click` of tests/gate-handover-shared.sh |
+| rw-2 MINOR first xp desktop click | e1ee7af2 | 7ab31a10 | `wm::state::tests::the_desktop_icons_take_the_keys_when_the_focus_leaves_a_foreign_window` (xp, red) and `..._leave_the_keys_of_a_node_of_another_client` (xp, guard, green from the start) | xp unit tests |
+| rw-4 NIT told node from key_node | ce9db2e8 | eaeedda7 | `state::tests::an_exclusive_layer_surface_is_told_as_the_end_of_the_node_focus` (chora; red: left [], right [Null]) | chora unit test |
+| rw-5 NIT holder and state agree | e670a521 | d1ba7e2c | `wm_focus::holder_and_state_agree_for_an_own_node_that_is_not_tracked` (kit; red: Foreign vs Window("t1")) | kit test |
+| rw-3 NIT | - | - | no code | see below |
+
+Fix rw-1 (47a6b2f0): new `Focus::lost_to_other(name)` in
+crates/chora-kit/src/wm/focus.rs: the look has lost the keys when `lost`
+is set, when `taken_by_other(name)`, or when it sent a surface and the
+core focuses another one or none. `Focus::reclaim()` clears `lost` and
+`sent`, so the next transaction sends the focus again, also when the core
+focus is still the sent surface (a node of xp had the keys).
+`Tiling::pointer_focus` passes `lost_to_other(NAME)` to
+`wm.pointer_focus` and reclaims after a take. The gate cell now writes
+`test_accept_injected_keys: true` for tiling and xp (helper
+`accept_injected`) so both hear the injected clicks.
+
+Fix rw-2 (7ab31a10): `Wm::focus_moved` (xp, keys.rs) remembers whether the
+core focus was on a window of another look, runs the old body
+(`window_focus_moved`), and when the focus left it with no xp window
+focused, no foreign focus and no node of another client with the keys, it
+adds `desktop_keys()`. `node_away` is `pub(super)` for it.
+
+Fix rw-4 (eaeedda7): `tell_key_node` takes `(node, owner)` from
+`key_node()` (`unzip`), so a lock or an exclusive layer surface is told as
+no node.
+
+Fix rw-5 (d1ba7e2c): `Focus::holder(name, own)` takes the look's name, as
+`state` does, and answers `Foreign` only for `taken_by_other(name)`;
+`state` now calls `holder`. Call sites (mc main.rs x2, tests/wm_focus.rs
+x9) pass the name; this signature edit is the only test edit in a green
+commit, and it is mechanical (name argument).
+
+rw-3 (NIT, no code): the `node` cell of tests/gate-handover-shared.sh
+(Start menu of xp over tiling's window) was green-only in r1: in cb953cfe
+it called `start_menu` without `open`, and f33684bf fixed the call with
+the fix, with `keys` red first. It stays a regression check, not a red
+witness for I3. In r2 test edits sit in the red commits only.
+
+Probe rerun (the table of Review r1, scratch copy of the cell; before r2
+in parentheses):
+
+```
+given             tiling {holder:tiling, s1}   xp {holder:null}   focused [s1]
+click-desktop     tiling {holder:null}         xp {holder:xp}     focused []
+click-desktop 2   tiling {holder:null}         xp {holder:xp}     focused []
+click s1          tiling {holder:tiling, s1}   xp {holder:null}   focused [s1]   (r1: tiling null, xp xp, focused [xp-icons])
+```
+
+The keys go back to s1 on the click and xp lets go (I3: one holder).
+
+Gate (`--jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,matrix,virtual,wm-pane,mc-handover,layout,xp-faces`, tests/persona unchanged, so no persona-selftest):
+
+```
+pre-commit PASS     3s /tmp/merge-gate.ZRQN3C/pre-commit.log
+gate-lib   PASS    75s /tmp/merge-gate.ZRQN3C/gate-lib.log
+ci-check   PASS    37s /tmp/merge-gate.ZRQN3C/ci-check.log
+build      PASS    23s /tmp/merge-gate.ZRQN3C/build.log
+test       PASS   197s /tmp/merge-gate.ZRQN3C/test.log
+clippy     PASS    15s /tmp/merge-gate.ZRQN3C/clippy.log
+matrix     PASS   286s /tmp/merge-gate.ZRQN3C/matrix.log
+virtual    PASS    43s /tmp/merge-gate.ZRQN3C/virtual.log
+xp-faces   PASS    15s /tmp/merge-gate.ZRQN3C/xp-faces.log
+layout     PASS   181s /tmp/merge-gate.ZRQN3C/layout.log
+wm-pane    PASS    21s /tmp/merge-gate.ZRQN3C/wm-pane.log
+mc-handover PASS    11s /tmp/merge-gate.ZRQN3C/mc-handover.log
+(sha d1ba7e2c; partial run, nothing pushed by the gate)
+```
+
+Left as known: stacking of a tiling and an xp window by root order (MINOR),
+I5 (key list over a notice).
+
+## Review r2
+
+Seeded review (briefs/review-handover-ti-r2.md) of claude/handover-ti
+d1ba7e2c against 371f0fa1; read-only on code. Step 0 green (unshallow,
+`cargo check --workspace`). `cargo test -p chora-kit --features testing
+--test wm_focus` 7 ok; `cargo test -p chora-xp` 310 ok; `cargo test -p
+chora` 639 ok; `cargo test -p chora-tiling -p chora-mc` ok.
+tests/gate-handover-shared.sh PASS at d1ba7e2c (keys, give, click, node).
+
+Probe (scratch copy of the cell, `choractl events` alongside):
+
+```
+given           tiling {holder:tiling, s1}  xp {holder:null}  focused [s1]
+click-desktop   tiling {holder:null}        xp {holder:xp}    focused [xp-icons]
+click-desktop 2 tiling {holder:null}        xp {holder:xp}    focused [xp-icons]
+click s1        tiling {holder:tiling, s1}  xp {holder:null}  focused [s1]
+click s1 again  tiling {holder:tiling, s1}  xp {holder:null}  focused [s1]
+```
+
+Click s1 makes 5 events (focus.changed s1, focus.node null), then 0 in the
+next 2 s, also after the second click: no resend loop.
+
+Checks: 1) rw-1 fixed: `lost_to_other` covers lost, a node of another
+client and a core focus off the sent surface; `reclaim` only after a take
+while lost, so the resend happens once and the core focus on s1 ends xp's
+node focus. 2) rw-2 fixed: the first desktop click gives xp-icons the keys
+(probe row 2); the node of another client keeps them (guard test), but
+xp's own Start menu does not (rx-1). 3) rw-4: `tell_key_node` takes
+`key_node()`, so lock and exclusive layer are told as no node; escape
+hatch and lock path untouched; still once per change (told_node). 4) rw-5:
+`state` calls `holder(name, own)`; mc sets its nodes only through
+`to_node`, so its two call sites behave as before; the d1ba7e2c test edit
+is the name argument only, expected values unchanged. 5) the
+accept_injected switch is test-only (temp XDG_CONFIG_HOME) and cannot
+weaken the keys guard, but it is dead (rx-2). 6) red first, each built on
+its own commit: 6153a0a0 cell fails "click: a click on s1 does not give
+it the keys back (tiling {holder:null}, xp {holder:xp})"; e1ee7af2 fails
+"the icons get no keys: []"; ce9db2e8 fails "the launcher has the keys, no
+node" (left [], right [Null]); e670a521 fails Foreign vs Window("t1").
+Order red < green for all four.
+
+Findings:
+
+- rx-1, MINOR, plugins/chora-xp/src/wm/keys.rs:331: `focus_moved` resends `desktop_keys` when the core focus leaves a foreign window even while xp's own node (the open Start menu) has the keys: give s1 to tiling, open the Start menu, s1 exits, then focused [xp-icons] with xp-menu still open (at 371f0fa1 xp-menu keeps the keys; probe with base xp); fix: add `!self.own_node()` to the condition, with a unit test beside the rw-2 guard test.
+- rx-2, NIT, tests/gate-handover-shared.sh:33: `accept_injected` writes `$XDG_CONFIG_HOME/chora-NAME.yaml`, but settings read `$XDG_CONFIG_HOME/chora/NAME.yaml`, so the switch is dead (the clicks pass through `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` of gate-lib.sh) and the r2 report's "so both hear the injected clicks" is wrong; fix: drop the helper or write under `chora/` as gate-mc-*.sh do.
+- rx-3, NIT, reports/handover-ti.md "## r2" probe: the click-desktop rows show focused [] where the cell at d1ba7e2c gives [xp-icons] on the first click, so the table does not show the rw-2 fix; fix: rerun the probe and correct the rows (the table above).
+
+Known, not findings: stacking of a tiling and an xp window by root order
+(MINOR, known); rw-3 (noted, no code).
+
+Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 2. Verdict: **MERGE-OK**.
+
+## PM note r2 (PM not the builder)
+Review r2 computed MERGE-OK (0 BLOCK, 0 MAJOR); d1ba7e2c joins train 92. rx-1 MINOR (xp Start menu open while a tiling window exits) and the NITs rx-2, rx-3 go to backlog.md.
