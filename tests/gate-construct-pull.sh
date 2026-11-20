@@ -47,6 +47,12 @@
 #    past the edge the window is still with xp, and no pane shows it;
 #    back in the face it goes on with the drag, and stays after the
 #    release.
+# 5. On one output the title drag cannot leave the face (co-33): in use
+#    mode the press on a title bar shows the hint that names the path that
+#    works, the helper (`cube.pull`), and it moves no window across; the
+#    hint is gone with the release. Stood back, a plain drag on a plane
+#    turns the cube with no hint (K12), and with a second output the
+#    designed pull works with no hint.
 # 4. A construct on a client socket opens no cube: the core refuses its
 #    virtual outputs, so it has no face to pull from or to drop on, and
 #    never calls the privileged window.move of xp.
@@ -105,6 +111,13 @@ import json, sys
 nodes = json.load(sys.stdin)
 r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
 print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
+}
+hint_text() {
+    call window.list '{}' >/dev/null
+    ctl query "id:construct-hints-pull-word" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+print(nodes[0].get("text", "") if nodes and nodes[0].get("visible", True) else "")'
 }
 prop() { ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); print(n[0].get('$2', False) if n else 'gone')"; }
 width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
@@ -217,6 +230,7 @@ pull() {
     until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" != "$x"' 20 ||
         fail "the drag of the title bar does not move the window: $(probe)"
     [ "$(owner)" = xp ] || fail "the window left xp inside its face: $(probe)"
+    [ -z "$(hint_text)" ] || fail "with a second output the title drag shows the pull hint: $(hint_text)"
     inject "[{\"pointer_move\": {\"position\": [200, 300], \"output\": \"$edge\"}}]"
 }
 end_session() {
@@ -428,6 +442,7 @@ stood() {
 }
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real stood plane_beside
+[ -z "$(hint_text)" ] || fail "stood back, a plain drag on a plane shows the pull hint: $(hint_text)"
 inject '[{"pointer_move": {"position": [1200, 100]}}, {"button": {"state": "released"}}]'
 sleep 1
 [ "$(owner)" = xp ] || fail "a drag on a floating plane pulled the window out: $(probe)"
@@ -492,6 +507,35 @@ sleep 1
 [ "$(owner)" = xp ] || fail "the window left xp after the refused give: $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "a refused give made a pane: $(pane_of "$surface")"
 ok "after the refused give the window goes on with the drag and stays with xp: $(probe)"
+end_session
+
+env_file=$work/hint.env CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-construct"
+grant input.inject screen.capture
+ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+call cube.open '{}' >/dev/null || fail "cube.open"
+until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
+inject '[{"pointer_move": {"position": [640, 400]}}]'
+"$bin/chora-probe" window 40 120 200 --server-deco >"$work/hint-probe.log" 2>&1 &
+pids+=($!)
+until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
+read -r surface _ _ x y <<<"$(probe)"
+until_ok 'ctl query "id:xp-title-$surface" | grep -q VIRTUAL-1' 40 || fail "the window has no title bar"
+[ -z "$(hint_text)" ] || fail "the pull hint shows before a drag: $(hint_text)"
+inject "[{\"pointer_move\": {\"position\": [$((x + 90)), $((y - 12))]}},
+    {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+    {\"pointer_move\": {\"position\": [600, 300]}},
+    {\"pointer_move\": {\"position\": [0, 300]}}]"
+case "$(hint_text)" in
+*"pull this window out"*) ;;
+*) fail "one output: a title drag to the screen edge shows no pull hint: '$(hint_text)'" ;;
+esac
+[ -z "${HINT_SHOT:-}" ] || ctl capture "$HINT_SHOT" >/dev/null
+inject '[{"pointer_move": {"position": [300, 300]}}]'
+[ "$(owner)" = xp ] || fail "a one-screen title drag moved the window out of xp: $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "a one-screen title drag made a pane: $(pane_of "$surface")"
+inject '[{"button": {"state": "released"}}]'
+[ -z "$(hint_text)" ] || fail "the pull hint stays after the drag: $(hint_text)"
+ok "one output: a title drag to the edge and back shows the hint \"pull this window out\", moves no window across, and the hint is gone after the drag"
 end_session
 
 session_start 1280x800 -- sleep 600
