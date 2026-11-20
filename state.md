@@ -23,7 +23,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tour-one-r2.md (F7, RC 11: r2 done c7bac047, rt-1..rt-7 fixed) | sonnet high, claude/tour-one c7bac047 | starting 21:47 |
+| review-tour-one-r2.md (F7, RC 11: r2 done c7bac047, rt-1..rt-7 fixed) | sonnet high, claude/tour-one c7bac047 | session_016iS3kM7JmGq5WqN6S6naDo 21:46 |
 | guide-checks-r2.md (F7: review r1 FIX, rg-1..rg-3 MAJOR) | sonnet medium, claude/guide-checks a78b1a07 | session_016iS3kNHeeU1tRAuu1PvRx4 21:07 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
 | p2-r3-tiling.md (RC 2: tiling round 3 after handover-ti) | sonnet medium, claude/p2-r3-tiling dcb77733 | session_016iS3kLkKwwSV6HmeApSXPK 21:29 |
