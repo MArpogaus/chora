@@ -327,3 +327,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLK-ACT1 (flake, F5, flake-series r2): acts xp act:session tests/acts/looks/xp.py:167 ValueError on an empty mixer read (2 of 15); acts selftest persona sound I5 overlap on the mc header (1 of 10). Into flakes-l r2.
 - FLK-TA1 (flake, F5, flake-series r2): tiling-audit fullscreen paper-2560x1600@2 bar does not hide within 20 s (1 of 15). Into flakes-l r2.
 - H-ID (harness, 11-20): pre-commit identity check on claude/session-log (author must be the owner); lanes.py: Queue % total vs "left - 5 %".
+- MC-ACTS-OUTPUT (NIT, acts harness): tests/acts/invariants.py `shown_look` takes the focus holder per look, not per output; with two outputs the shown look is wrong on one (PM review mc-fix r5 pr5-1).

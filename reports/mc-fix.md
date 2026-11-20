@@ -200,3 +200,12 @@ Lane: cloud, branch claude/mc-fix from a8cd0de0. The session head is still d81c8
 
 ### Gate
 `tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,mc-paths,acts` (run dir /tmp/merge-gate.hABOAX, at bb7cbeb8): all 8 PASS (pre-commit 5 s, gate-lib 70 s, ci-check 119 s, build 156 s, test 238 s, clippy 21 s, mc-paths 112 s, acts 269 s). A red cell I did not cause: none. Partial run, nothing pushed by it.
+
+## PM review r5
+
+PM (not the builder), 11-20 14:58 UTC, a8cd0de0..bb7cbeb8 (4 files +66 -21). Verdict computed: **MERGE-OK bb7cbeb8** (0 BLOCK, 0 MAJOR, 1 NIT).
+- rv-r4-1 closed: red 609395bf `python3 -m unittest tests.test_acts.I5` FAILED (failures=1); at bb7cbeb8 `python3 -m unittest tests.test_acts` OK. `hides` now covers only with a whole-output picture of the shown look (focus holder, else topmost whole picture); the r4 cases stay green.
+- rv-r4-2: name match kept with a reason in the doc comment; accepted (KISS, clippy bool limit).
+- rv-r4-3: `focus_query_error` logs each new error text once and clears on success; correct.
+- pr5-1 NIT tests/acts/invariants.py `shown_look`: the focus holder is per look, not per output, so on two outputs with two looks shown the holder's look counts as shown on both. To backlog (multi-output acts); no single-output run is affected.
+Lane gate 8/8 PASS at bb7cbeb8 (lane report r5). Joins train t90.
