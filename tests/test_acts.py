@@ -1125,6 +1125,30 @@ class PersonaContracts(unittest.TestCase):
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost", verdict("C2", ctx("construct"), snap(), gone)[0])
 
+    def test_c2_a_window_opened_during_the_task_is_no_breach(self):
+        empty = snap(nodes=[], toplevels=set())
+        opened = snap()
+        self.assertEqual(verdict("C2", ctx("construct"), empty, opened), [])
+
+    def test_c2_a_window_seen_during_the_task_and_gone_is_lost(self):
+        empty = snap(nodes=[], toplevels=set())
+        hist = [dict(seen(look="construct"), toplevels=["s1"])]
+        out = verdict("C2", ctx("construct", hist=hist), empty, empty)
+        self.assertIn("windows lost ['s1']", out[0])
+
+    def test_end_reads_the_newest_begin_else_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = object.__new__(check.Run)
+            run.state_dir = pathlib.Path(tmp)
+            run.calls = pathlib.Path(tmp) / "calls.log"
+            run.calls.write_text("")
+            run.save("start", snap(), {})
+            self.assertEqual(check.baseline(run), "start")
+            run.save("begin", snap(), {})
+            self.assertEqual(check.baseline(run), "begin")
+            run.state_dir.joinpath("begin.json").unlink()
+            self.assertEqual(check.baseline(run), "start")
+
     def test_c3_the_look_holds_the_focus(self):
         self.assertEqual(verdict("C3", ctx(), snap(), snap()), [])
         lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": None}}})
