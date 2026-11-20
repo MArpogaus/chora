@@ -1,0 +1,14 @@
+# launcher-click-r1 (RC shared bar "a visible way to start a program"): a click on a launcher row starts the first row
+
+Model: sonnet, effort high (pointer path from act.py through the launcher in two looks; root cause first)
+Lane: cloud, branch claude/launcher-click from b97369d1 (session branch, train 80). One round, stop at 250 k. Cost about 1 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow` and `cargo check --workspace`, then `cargo build --workspace`; a failure: send_message the PM "launcher-click BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: feedback/2026-11-20-p2r1-beginner.md (Apps, click Foot at 276,230, 3 times: helper chat opened, first row highlighted) and feedback/2026-11-20-p2r1-explorer.md (Programs > Foot: helper chat), their shots under media/2026-11-20/; reports/p2-r1-tiling.md, p2-r1-construct.md. On the branch: tests/persona/act.py (click: is a motion sent to the target before the button?), the tiling Apps door and launcher, the construct Programs strip, tests/doors/lib.sh.
+Items:
+1. Root cause, one of: (a) act.py clicks without moving the pointer to the target first (harness), (b) the launcher activates the highlighted row on any click instead of the row under the pointer (product), (c) something else. Show it with a repro command and log lines.
+2. Red first, committed alone: a gate test that opens the launcher (tiling Apps, construct Programs), clicks the third row (Foot or its stand-in) the way a real pointer does (motion, then press, release) and asserts that program starts and the helper chat does not; if (a), also a test of act.py's click that asserts the motion event. Then the fix. Wire the test as a cell `launcher-click` in tests/merge-gate.sh.
+3. If (a), check that act.py's other actions (drag, scroll) also move first; fix with a test.
+Gate: merge origin/claude/autonomous-dev-session-3w-i33pg7 first, then `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,doors,keys,tiling-look,launcher-click`; poll it in the same turn; never end a turn to wait. A red cell you did not cause: rerun it alone once and name it. Do not touch crates/chora input.rs (stray-grab lane).
+Done when: root cause named with its evidence, red commit before the fix, gate cells pass, reports/launcher-click.md "## r1" on claude/session-log (red sha, fix sha, test, gate cell, capture).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
+Rules: push claude/launcher-click and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages; no host power call (stand-ins only).
