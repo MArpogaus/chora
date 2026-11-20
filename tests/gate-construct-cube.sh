@@ -57,6 +57,9 @@
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
 #   INJECT_LAG  seconds before each injection (default 0): the start of a
 #         choractl on a loaded machine, the stress of the keys in a row
+#   CLOCK_EDGE  seconds before a minute change at which a still check starts
+#         (default: at once): the clocks of the construct and of xp draw at
+#         the change, the stress of a check across a minute
 # pid_of NAME gives the first process of the binary NAME in this session.
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
@@ -176,6 +179,7 @@ PY
 still() {
     local before after at
     STILL_WHY=""
+    [ -z "${CLOCK_EDGE:-}" ] || until_ok '[ "$((10#$(date +%S)))" = "$((60 - CLOCK_EDGE))" ]' 250
     for _ in 1 2; do
         before=$(drawn)
         at=$(date +%T)
