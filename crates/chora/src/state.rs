@@ -577,6 +577,16 @@ impl State {
 
     /// Opens the Wayland socket with a free name.
     pub fn listen(&mut self) -> std::io::Result<()> {
+        self.listen_in(std::path::Path::new(""))
+    }
+
+    /// [`State::listen`] with the Wayland socket below `dir`.
+    ///
+    /// # Errors
+    ///
+    /// No socket can be bound.
+    pub fn listen_in(&mut self, dir: &std::path::Path) -> std::io::Result<()> {
+        tracing::debug!(dir = %dir.display(), "listen");
         let socket = ListeningSocketSource::new_auto().map_err(std::io::Error::other)?;
         self.socket_name = socket.socket_name().to_os_string();
         self.loop_handle
