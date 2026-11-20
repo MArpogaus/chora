@@ -190,38 +190,47 @@ def run_end(run, *args):
 
 
 class BeginPerTask(unittest.TestCase):
-    """A task left open by an earlier goal cannot leak into the next: `end`
-    leaves the end state as the begin of what follows, so a driver that
-    forgets `begin` still holds the next goal against the state it found."""
+    """Every goal is held against the `begin` taken right before it: `end`
+    uses that begin up, so the next goal never compares with the begin or the
+    end of the one before (r3: a repeat `end` compared with the end state of
+    the previous one and meant nothing)."""
 
-    def test_the_end_of_a_task_is_the_begin_of_the_next(self):
+    def test_end_without_a_begin_is_no_verdict(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
             run.save("start", snap(), {})
+            with self.assertRaises(SystemExit) as raised:
+                run_end(run, "T7")
+            self.assertIn("begin", str(raised.exception))
+
+    def test_the_end_of_a_goal_leaves_no_begin_for_the_next(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, one_window("s1"))
+            run.save("start", snap(), {})
+            run.save("begin", snap(), {})
             run_end(run, "T7")
-            saved = run.load("begin")
-            self.assertIsNotNone(saved, "no begin after the end")
-            self.assertEqual(saved[0].toplevels, {"s1"})
+            self.assertIsNone(run.load("begin"), "the begin of goal one is left for goal two")
 
     def test_a_window_left_open_by_goal_one_is_no_new_window_of_goal_two(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
             run.save("start", snap(), {})
+            run.save("begin", snap(), {})
             status, out = run_end(run, "T1")
             self.assertEqual(status, 0, out)
+            run.save("begin", run.scene, {})
             status, out = run_end(run, "T1")
             self.assertEqual(status, 1, "the window of goal one counts for goal two")
             self.assertIn("no new focused window", out)
 
-    def test_an_explicit_begin_still_wins(self):
+    def test_a_second_end_without_a_begin_does_not_pass_on_the_first_end(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
             run.save("start", snap(), {})
-            run_end(run, "T7")
-            run.scene = one_window("s2")
             run.save("begin", snap(), {})
-            status, out = run_end(run, "T1")
-            self.assertEqual(status, 0, out)
+            run_end(run, "T1")
+            with self.assertRaises(SystemExit):
+                run_end(run, "T1")
 
 
 def pane_node(visible=True):
