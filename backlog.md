@@ -335,3 +335,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - MC-ACTS-OUTPUT (NIT, acts harness): tests/acts/invariants.py `shown_look` takes the focus holder per look, not per output; with two outputs the shown look is wrong on one (PM review mc-fix r5 pr5-1).
 - GATE-SILENT-NITS (NIT, harness): gate-mc-sofa.sh launcher-click-row pins the Foot row at (540, 256) (fuzzel row pitch); click_end has a no-op line (PM review gate-silent r1 pr1-1, pr1-2).
 - FLAKES-M-NITS (NIT, harness): cube queue check has no real-time spaced keys; construct late_field 6 s vs 2 s elsewhere (PM review flakes-m r1 pr1-1, pr1-2).
+- PERSONA-CHECK (harness, p2-r2-co r2): check.py ignores the xp child of a construct face (I1 x23, I3 x21 on demo); `check.py begin` runs once per persona, not per task; the persona report inferred "cube open" where shot 012 shows the pane room. Read the state from the scene.
