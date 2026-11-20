@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 20:04 UTC)
+## Now (2026-11-20 20:14 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 19:48 PM 0.9 % since compaction, 11.4 % before; disk 12 G free: one build (train) at a time; 6 lanes
-session branch: b0aa1c75; 50 greens; t92 red 20:02 only on lint-ratchet: t92b of 8 running; xp-tidy r3 lint fix; co-fix rides in co-pane.
+session branch: b0aa1c75; 50 greens; t92b red 20:10 build: mc-minor vs handover-ti Focus::holder; PM fix dcb77733 (2 lines); t92c running.
 burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
 ## RC (design/rc.md)
@@ -30,7 +30,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 | guide-checks-r1.md (F7: tour-v9 lane 3) | sonnet medium, claude/guide-checks 8b996cee | session_016iS3kPbqYusAxcH6mxYMgD 19:49 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t92b running: lint-down, mc-minor, flakes-o, flakes-n, persona-check, flakes-l, kit-minor, handover-ti; then --jobs 2; xp-tidy after r3; co-fix with co-pane (needs the lint fix too).
+4. (F6, rc 3) t92c running: lint-down, mc-minor, flakes-o, flakes-n, persona-check, flakes-l, kit-minor, handover-ti; then --jobs 2; xp-tidy after r3; co-fix with co-pane (needs the lint fix too).
 5. (F5, F7, shared bar) Running: REVIEW-CO-PANE r3 opus 0.6 %, REVIEW-TOUR-ONE 0.5 %, TOUR-DIFF 1.3 %, GUIDE-CHECKS 1 % (tour-v9 4-5 wait for xp-give); after t92: P2-R3-TILING (I5), FLAKE-SERIES r3 haiku 1 % (+FLK-HUD-TAB); then P2-R4-CO.
 
 ## Needs owner
