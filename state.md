@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:53 UTC)
+## Now (2026-11-20 00:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -32,14 +32,14 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | mc-answer-r1.md (RC) | sonnet high | a271df2b in review |
 | review-mc-answer-r1.md | sonnet hi | session_016iS3kMDR7M1khmKyPxucfW |
 | flake-l-r1.md | sonnet high | MERGE-OK f52ee86d (PM review) t79 |
-| persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
+| persona-env-r1.md (RC2) | sonnet med | MERGE-OK 370495ad (PM review) t80 |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
 | co-majors-r2.md (RC) | sonnet high | session_016iS3kMuqEBEFQcYi1oqqVo |
 | kit-sec-r3.md | sonnet med | session_016iS3kNR1eMLFo3QLJq3f7X |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): train 79 = 78b + mc-majors + ti-majors + flake-l f52ee86d (xp 17b race fix; 3x rerun green): gate 00:53; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors r2, kit-sec r3.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: REVIEW MC 0.5 %, REVIEW XP 0.5 %, FLAKE-H r2 0.5 %, CO r2 0.8 %, KIT-SEC r3 0.8 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
+4. Trains (F6): train 79 = 78b + mc-majors + ti-majors + flake-l f52ee86d (xp 17b race fix; 3x rerun green): gate 00:53; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: persona-env 370495ad, co-majors r2, kit-sec r3, xp-majors if OK.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: REVIEW MC 0.5 %, REVIEW XP 0.5 %, FLAKE-H r2 0.5 %, CO r2 0.8 %, KIT-SEC r3 0.8 %; P2 r1 xp: RC2 red, persona env fixed (t80), P2 r2 xp after t80; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

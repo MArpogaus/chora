@@ -16,3 +16,9 @@ Decisions: the real swaylock is not run any more (loginctl stand-in too): a real
 Gate: merge-gate --only pre-commit,ci-check,build,test,clippy,gate-lib all PASS (before the follow-up commit, which touches only tests/persona*); `bash tests/persona-selftest.sh` PASS on 370495ad.
 Smoke (round.sh snapshot, xp, scripted driver, no persona): T1 pass, T4:lock pass, X2 pass, T3 pass, breaches 0 each. First scripted try failed on my own driver (logical pixels after a look) and on the lock/lowriter points above.
 Not done: `tests/persona/smoke.sh` itself was not run (it is the tiling driver smoke); the xp smoke is the scripted run above, not a committed script.
+
+## PM review r1 (2026-11-20 00:57 UTC)
+Head 370495ad, own diff a2f50532..370495ad: 6 test files, +143 -13. Red 6814eebd before 3b5293a7 and 370495ad.
+Checked: session.sh stand-ins log only (swaylock, loginctl), mousepad and the probe are chora-probe windows, shared flavor copied, editor set to mousepad in the session copy of xp.yaml only; check.py lock accepts swaylock (power.sh calls it); fake-voice answers by FAKE_VOICE_ANSWER; no product code.
+Findings: none BLOCK or MAJOR. Note (MINOR): the xp smoke driver is not committed; P2 r2 runs it through round.sh.
+Verdict: MERGE-OK; joins train 80.
