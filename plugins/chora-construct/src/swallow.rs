@@ -1,7 +1,7 @@
 //! The chords of `Super` that no binding of the construct uses, which a
 //! window must not get while the keyboard may be with it (in a pane or
-//! on a face of the cube): `chora-tiling` holds them the same way
-//! (`docs/configuration.md`, Tiling). A program keeps the keys of other
+//! on a face of the cube): the tiling flavor holds them the same way
+//! (`docs/configuration.md`). A program keeps the keys of other
 //! modifiers, such as `Alt+b` of readline.
 
 /// The keys that `Super` chords swallow when no binding uses them: letters,
