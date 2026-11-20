@@ -20,3 +20,10 @@ Harness (tests/persona, tests/acts; red 8d430a70, fixes 8f61c32b and a767790d):
 - d. persona-probe reports to PERSONA_PROBE with the look's title bar; T5 uses it, not a bare chora-probe window.
 - e. swaylock stand-in draws a window `Screen locked` for 8 s.
 tests/persona-selftest.sh passes with all five. The acts session now has a `lowriter` stand-in (the first editor Notepad tries) that shows its window when an act lets it, and `notify_up` in tests/acts/looks/common.py.
+
+## PM review r1 (2026-11-20 03:37 UTC)
+Base 79c8d2b5..a767790d, 10 files +430 -36 (kit launch.rs, xp surfaces.rs, tests/persona, tests/acts). Red first: f72943f2 (xp-35), 8d430a70 (harness). Builder gate 15 cells PASS.
+- rv-1 MINOR (kit launch.rs check): `silent` counts every window, also one that carries the token of another start; with two starts, the window of B ends the Starting message of A while A still loads. Honest state: end only on a window without a token. Next xp or kit round.
+- rv-2 NIT (persona session.sh mousepad): foot or probe by host; a persona run differs between hosts. Name the one used in the run log.
+- c (left_open): accepted; a key list is a window the person may leave, menus and dialogs stay red.
+Verdict (computed): no open MAJOR -> MERGE-OK a767790d. Touches tests/persona and tests/acts: harness, own train.

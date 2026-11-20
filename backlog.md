@@ -112,6 +112,7 @@ W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflect
 H5 | 11-11 | later | the construct bindings overlay as a shared plugin that every window manager can use (owner 11-11 19:45).
 H6 | 11-09 | later | users ship their own HUDs easily (owner 11-09 feature request).
 F15 | 11-14 | rc | a lost first key after a keyboard hand-over (mc terminal page; gate-mc-paths types a leading space, reports/review-mc-r3.md F4): a dedicated check types one character after focus, reads it back, logs wl_keyboard enter and key events; cause in core, foot or shell unproven. Next flakes round.
+XPF-R1 | 11-20 | rc-minor | xp-fix review r1 (reports/xp-fix.md): rv-1 kit launch check ends the Starting message of every start on any window, also one with another start's token; end only on a window without a token. rv-2 persona mousepad stand-in names foot or probe in the run log.
 V12 | 11-14 | rc | voice scripts failing on the session branch already (core r2 report): voice-acp.sh (a yes without the key counts as nothing), voice-events.sh (after voice sleep mc shows none), agent.sh step 2 (xs_are 0 640); triage in the voice and mc lanes.
 MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R5-4 (reports/review-mc-r5.md).
 DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500 ms wake, wpctl every 5 s), dr2-9 state word case (reports/review-doors-r2.md).
