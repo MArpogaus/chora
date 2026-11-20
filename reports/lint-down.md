@@ -40,3 +40,20 @@ Base 79c8d2b5..0d1394f1, 5 files +76 -6. Red first 74525d85. PM recount on 79c8d
 - rv-3 MINOR: a reasoned new allow can only pass by raising the list; the help does not say so.
 - eprintln in chat and notify: kept (PM decision: their stderr is the plugin log; no new dependency, KISS).
 Verdict (computed): open MAJOR -> FIX; r2 brief briefs/lint-down-r2.md.
+
+## r2 (2026-11-20)
+Branch claude/lint-down, 0d1394f1..2254d32a. Gate (tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy): all five cells PASS (pre-commit 2 s, build 136 s, test 175 s, clippy 16 s, ci-check 73 s). The session tip 79c8d2b5 was already in the branch, so there was no merge before the gate.
+- rv-2 fixed: 41c18c02 (red, tests/lint-ratchet-selftest.sh over a fixture tree: a wrapped attribute with its reason on a later line, one without reason, one eprintln; the line count gave no-reason 2, want 1) then aaecfccd (green). no-reason now reads each #[allow( or #[expect( up to its closing )] over any number of lines (POSIX sh and awk). The selftest is on the ci-check line of tests/merge-gate.sh. Counts at 79c8d2b5: allow 360 (359 on this branch), no-reason 0 (was 149 by lines; a Python cross-check agrees with 0), eprintln 125.
+- rv-3 fixed in aaecfccd: the help says no-reason and eprintln only fall, and a new allow with a reason raises `allow` in the list in the same commit, the commit message saying why.
+- rv-1 fixed: 2254d32a, the list holds allow 360, no-reason 0, eprintln 130: the scratch merge of the session branch 79c8d2b5 with 741d6bca 5dbd0ccf a767790d 591e98f8 91e6a114 17d9a798 40b61f28, in that order. Base alone: 360, 0, 125; the queued merges add 5 eprintln. This branch holds one allow less (3a302a7a), so after its merge the ratchet prints "lower the list" for allow (359 vs 360) and eprintln (125 vs 130) and passes; lower the list then.
+- Conflicts of the scratch merge (the list is the only thing it feeds, nothing of it is pushed): 741d6bca in tests/merge-gate.sh (mc-column and launcher-click, both kept; PM's 88258c87 used as the start), a767790d in tests/persona/README.md (HEAD's text, plus a767790d's sentence on the key list), 91e6a114 in flavors/tiling/wallpaper.sh, flavors/tiling/waybar/waybar.sh and tests/merge-gate.sh (both sides kept, git merge-file --union). No .rs conflict. The scratch merge commits were written with git commit-tree, so no hook ran on them; they are not on any pushed branch.
+- A valid commit is not blocked (throwaway worktree of 2254d32a): a wrapped #[allow( with its reason on a later line, allow 359 to 360, passes (exit 0); an #[allow(dead_code)] without reason fails (allow 361 over 360, no-reason 1 over 0, exit 1).
+
+## PM review r2 (2026-11-20, PM is not the builder)
+Range: 0d1394f1..2254d32a (41c18c02 red selftest, aaecfccd fix and help, 2254d32a list 360/0/130).
+- rv-1 r1 (list vs queued merges): fixed for the seven shas of the brief.
+- rv-2 r1 (wrapped attributes): fixed; red selftest first. PM cross-check by a paren-matching scan of origin/claude/lint-down: 402 allow/expect openers, 6 without `reason =` (wobbly.rs:22, gl.rs:8, shm.rs, choractl main.rs, services/voice main.rs:6, tests/probe main.rs:471); each carries a comment reason on the line above or after, which the tool counts as a reason. Consistent with 0.
+- rv-3 r1 (help): fixed.
+- rv-4 MAJOR (new): mc-remote dac835dd (MERGE-OK 03:50, after the brief) adds one eprintln (plugins/chora-mc/src/main.rs step_back), so after train 85 the tree has 131 > list 130 and the lint-down train goes red. Fix in r3: recount the list on the session head after train 85 (one tool run, no other change).
+- rv-5 NIT: the help should say that a comment next to the attribute counts as a reason (it does, and the RC row counted the same way).
+Verdict (computed): open MAJOR rv-4: FIX; r3 starts when train 85 is green.

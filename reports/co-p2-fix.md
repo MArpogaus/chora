@@ -31,3 +31,29 @@ Range 79c8d2b5..7b43b063 on claude/co-p2-fix (4 commits, +340 -14, 10 files). Re
 - rv-3 NIT: `chords()` returns nothing when the modifier is not Super; a user who sets modifier Alt gets no swallow and stray Alt chords. Doc line or swallow the configured modifier.
 - Open, pre-existing: xp opens Start on a swallowed chord (to xp backlog).
 Verdict (computed): rv-1 MAJOR open -> FIX. Round r2: briefs/co-p2-fix-r2.md.
+
+## r2
+Head ab4cbb4f on claude/co-p2-fix (pushed; 4 commits on 7b43b063; base already merged, up to date). Step 0: unshallow, cargo check green.
+Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,doors,construct-hud,cube,out,pull,matrix,tiling-look,gate-lib`: all 14 cells PASS (run dir /tmp/merge-gate.YYEbPn). A first run had ci-check red by my own code (tests/grab-gap-check.py: `grab_swallowed` had its first grab behind an `if`); fixed in ab4cbb4f, whole gate rerun green. gate-tiling-swallow.sh alone also green.
+
+### rv-1 MAJOR: no timer, the construct swallows in a pane only
+- Red: 837d9913. gate-construct-cube binds Super+k in xp 3 s after it connected (`ctl call xp settings.set` bindings) and presses it on a face; at 7b43b063 it failed: "Super+k, bound by the xp of the faces 3 s after it connected, did not reach it: visible True (rv-1)". (A late start alone does not show it, the old timer ran from the connect event; a late grab does.)
+- Fix: 00469c80. SWALLOW_AFTER, `swallow_at`, `swallowing`, `swallows`, `swallow_deadline`, `swallow_due` of cube::Host and the swallow arm of `cube_deadline` and `check_cube` are gone; `regrab` swallows only `in_pane()`. Unit test of the timer deleted, `a_connected_manager_brings_the_faces_up` now asserts no deadline after connect.
+- Green: gate-construct-cube "rv-1: a chord that the xp of the faces binds late is its own, the construct holds none on a face"; cell `cube` PASS.
+- Face cases kept, marked `known: face manager swallow (xp lane)` (a `known()` helper in the gate; each case still asserts the good outcome when it holds and prints the known line when not):
+  1. "co-25: on the front face a Super chord that nothing binds reaches the probe window" (Super+q, Tab, 1, Shift+x, Ctrl+z on the front face),
+  2. "co-25: stood back, Super+Tab reaches the probe window".
+  Both print `known:` in cube.log now. co-26 (Super+F1 on a face shows the key list of the construct) still passes as ok: the bound chords stay grabbed on a cube; no change.
+- For the xp lane: xp must swallow the unbound Super chords of its faces itself (`Runtime::grab_swallowed` of the kit is the helper); then the two known cases turn back to ok.
+
+### rv-2 MINOR (F2): one list in chora-kit
+- Red: 9131008d (copies row with max 0 plus the kit module and its tests; `tools/cut-check` copies: "own list of swallowed keys (chora_kit::swallow): 1 left, the row allows 0" with the tiling list in place).
+- Fix: 00469c80 (+ ab4cbb4f). New `crates/chora-kit/src/swallow.rs`: `KEYS`, `chords(modifier)`, `Runtime::grab_swallowed(modifier, &action)` (grabs the chords the plugin holds no action for; after the grab set, before `end_grabs`; the first grab wins). Construct (pane) and tiling use it; plugins/chora-construct/src/swallow.rs, tiling `SWALLOWED`, `SWALLOW_WITH`, `Config::swallowed` and their tests are deleted. tools/copies.toml row, max 0, allow crates/chora-kit/.
+- Tests (kit, through FakeCore): super_chords_with_shift_and_ctrl_are_swallowed, another_modifier_keeps_the_keys_of_the_programs, a_bound_chord_keeps_its_action_and_the_rest_is_swallowed, a_chord_that_another_client_holds_stays_with_it, the_swallowed_chords_stay_in_the_set_of_the_old_grabs. Cells: ci-check, test, clippy, tiling-look PASS; gate-tiling-swallow PASS; keys PASS (pane).
+
+### rv-3 NIT: modifier other than Super
+Decision: doc line, not code. A user of `modifier: Alt` keeps `Alt+b`, `Alt+Left` in programs (same rule in tiling and the kit module doc); docs/configuration.md (construct section) now says so with the reason. Fix commit 00469c80. Test: kit another_modifier_keeps_the_keys_of_the_programs (nothing grabbed for Alt).
+
+### For the PM
+- One more doc change in the same paragraph: the construct no longer swallows on a face; the 1 s sentence is gone.
+- `Host::connected` is still called on every client event of the manager (cube_client); harmless now it resets nothing.
