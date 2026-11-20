@@ -59,3 +59,11 @@ Open for the PM: Q1 of tiling-v2 (bar shape) is not answered in the files
 read; this keeps three islands (1A, the recommendation). The spec line
 "empty tag = `muted` 50 %" is not done: gate-tiling-bar asserts 4.5:1 on
 empty tags (P7), and 50 % muted fails it.
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: merge-base..3a9a426f, 4 files +211 -35 (style.css, gate-tiling-bar-palette.sh, new gate-tiling-bar-spec.sh, merge-gate.sh tiling-look cell).
+Checks: red 3149f16f before the fix; spec cells height, top, sides, radius, hairline, font, each with its exact device-px bound at 1x and 2x; palette gate now asserts line on both island edges (2 tolerance), focus border unchanged; gate cells per handback.
+- rv-1 MINOR: the clock drops `tnum` and holds its box with `min-width: 127px`; Inter has tabular digits, so `font-feature-settings: "tnum"` on #clock would stop the digit jitter without a magic width. Backlog TB-R1.
+- rv-2 NIT: gate-tiling-bar.sh (island width 436 vs 411) and gate-tiling-spacing.sh (13 vs 12) are red before this branch and run in no cell. Backlog TB-R2 (needs ti-20 verify first, rule 6).
+PM decisions: Q1 bar shape: three islands (1A, the spec's recommendation). Empty tag: the 4.5:1 contrast wins over "muted 50 %" (a legible bar is POLS); the spec line becomes a known deviation.
+Verdict (computed): no open MAJOR: MERGE-OK 3a9a426f; train 85.

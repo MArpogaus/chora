@@ -31,3 +31,12 @@ First tried in gate-mc-paths terminal-back: that gate starts mc without `--manag
 
 - nit: a page reached by a plain turn onto an app scene whose window maps late (the terminal page) hands the keyboard to the window as it maps; a second Right of a remote is then lost. Pre-existing; the XF86Back of this round is the way out now.
 - The page of a window does not say how to type into it (Return) nor does the key list name XF86Back; not built (PM to rule, as in mc-p2-fix).
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 17d9a798 (mc-p2-fix, in train 85)..dac835dd, 10 files +142 -16. Core: crates/chora/src/ipc.rs adds XF86_Back and XF86_HomePage to MEDIA_KEYS (11), with the unit test listing both.
+Checks: red 7b40a523 (gate-mc-sofa remote-back) first; `step_back` takes the keyboard from a window only when the chat is closed, else `back()`; `needs_claim` keeps both keys behind --manage-windows; unit tests back_leaves_a_window..., the_keys_of_a_remote_are_bound...; keys.rs count -3 (two aliases).
+- rv-1 MINOR: in mc a laptop's XF86Back now goes to mc, not to the focused browser (no history back in a browser window under mc). Acceptable for the remote path of the vision; known issue line. Backlog MCR-R1.
+- rv-2 NIT: the key list does not name XF86Back or XF86HomePage (aliases). Backlog MCR-R2.
+- rv-3 NOTE: +1 eprintln (main.rs step_back), house style of mc; the lint-down list must count it (lint-down train after t85).
+Core change is two keysyms in a whitelist with a test; a PM review suffices (no new IPC, no security surface beyond the media-key rule D-record already covers).
+Verdict (computed): no open MAJOR: MERGE-OK dac835dd (contains 17d9a798); train 85.
