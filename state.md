@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:20 UTC)
+## Now (2026-11-20 00:31 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -32,16 +32,16 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | xp-majors-r1.md (RC) | sonnet high | session_016iS3kMhTLUxwUHZdCQtBSJ |
 | nits-3-r1.md | sonnet med | OK 0b5f8c34 t78 |
 | block-v-r2.md | sonnet med | OK ce230288 t78 |
-| mc-majors-r1.md (RC) | sonnet high | MERGE-OK 92ecd30a, t79 |
+| mc-majors-r1.md (RC) | sonnet high | OK 92ecd30a t79 |
 | mc-answer-r1.md (RC) | sonnet high | session_016iS3kLHGWuV71ERbiX6uxP |
 | flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
-| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t78b |
+| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
 | co-majors-r1.md (RC) | opus high | db4d703b in review |
 | review-co-majors-r1.md | sonnet hi | session_016iS3kLvHjFkMH5ZrK63ZV6 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): 78 red ci-check, fix 9c6bf589; 78b red 00:12 doors (xp helper-door); rerun 1/3 pass. 79: mc-majors 92ecd30a, kit-sec 6de357b9 (review r2 MERGE-OK).
+4. Trains (F6): 78b doors red = flake (3/3 green, FLAKE-DOORS backlog); train 79 = 78b + mc-majors 92ecd30a + kit-sec 6de357b9 (conflict fixed: scratch takes TempDir) running 00:33.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, REVIEW CO 0.5 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
