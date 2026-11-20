@@ -1,0 +1,50 @@
+# co-fix (RC 2 persona stop rule; shared RC bar "no stray keys"; construct MAJORs from p2-r2-co)
+
+## r1
+Lane: cloud, branch claude/co-fix from 59efbc17 (base claude/autonomous-dev-session-3w-i33pg7 already merged). Step 0: unshallow, `cargo check --workspace` green.
+Head: e97b55f0 on claude/co-fix (pushed). Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,keys,construct-hud,construct-extra,cube,walk,pane-keys,pull,doors`: all 14 cells PASS (run dir /tmp/merge-gate.j8QUBn); keys includes persona-path. No red cell I did not cause.
+
+### Item 1, co-25 MAJOR, persona path: fixed
+- Red b08c5936: new tests/gate-construct-keys-persona.sh, part of cell `keys` (persona-path). It replays steps 0-27 of persona-r2-max/actions.jsonl with tests/persona/act.py in a persona session (session.sh construct 1280x800, a reporting chora-probe as round.sh probe, Foot the one Programs row). Red: the probe report was byte for byte the persona's: `press 640.0 592.3 enter leave enter leave press 640.0 400.0 enter key 125 key 32 key 125 key 16 key 125 key 15`.
+- State difference to the old pane cell, with evidence: the old cell flies the camera into the probe pane (`pane.fly`), so `in_pane()` holds. The persona focused the probe by a click in walk mode (step 25, click 400,250; shot 012: the walk room, probe pane focused with a glow, no cube; probe report `press 640.0 400.0` then the keys). input.rs PointerPressed on an own window does `focus::give(node)` in place, the camera stays out, and `regrab` grabbed the bound chords and the swallow only when `in_pane()`. Not the Tab/Return select and not the drags (those landed on the Foot pane: Return went to foot, shot 011). Not a cube face: no cube was open in the run (shots 005-015), so the report's "face case" reading was wrong.
+- Fix ff617c83: `regrab` keys on `keys_with_pane()` (in a pane, or the core focuses the window of a pane and the walk does not hold the keys); the bound chords (Super+F1, Super+t ...) are grabbed and, without a cube, the unbound Super chords swallowed then; the tap of Super alone (`Super+Super_L`, `Super+Super_R`) is swallowed too, so key 125 no longer reaches the window (the core intercepts a grabbed lone-modifier press). With a cube open nothing changes (rv-1: the face manager swallows).
+- Fix e97b55f0 (my own regression, caught by cell keys before the gate: "a Super press that ended the flight into a pane left keys grabbed: Super+t is grabbed already"): the core keeps a surface focus under a node focus, so `core_focus` alone said "window" after the walk took the keys. The construct now notes `walk_keys` where it sends `focus_node` to the look and clears it where a press or the core gives a pane window the keyboard; `event()` regrabs when `keys_with_pane()` flips.
+- Tests: unit `a_pane_window_with_the_keyboard_from_a_press_holds_the_super_chords` (red without the fix, checked by stash); gate-construct-keys-persona `ok: persona-path: after the steps of persona Max (a click on the probe pane in walk mode), Super+d, q and Tab reach no window, nor Super itself`; gate-construct-keys and gate-construct-pane-keys green alone before the merge gate. Capture: scratch run of the persona cell with SHOTS (construct-keys-persona-probe-clicked.png matches persona shot 012). The old cells stay. Doc: docs/configuration.md construct swallow paragraph names the clicked pane and the new script.
+
+### Item 2, C2 MAJOR (contract): decision hint, not built this round
+- Designed pull: a title drag that leaves the face (chora-xp wm/pointer.rs `pull_out`, docs/cube-modes.md:198 "A window that a title drag pulls out of a face becomes a pane"). In use mode the front face fills the screen at 1:1, so the drag must leave over the screen edge onto a second output; tests/gate-construct-pull.sh says so in its header and adds one. Stood back a plain drag turns the cube by design (K12, docs/cube-modes.md:139-141, gate-construct-pull 2b).
+- The persona drags: Max, three drags on the Foot pane in walk mode with no cube open (shots 005-008): there is no face to pull from; the drag reached foot. Demo r2, a title drag down, to the left edge and back in use mode: the designed gesture, but on one screen the pointer stops at the edge, so it can never leave the face. Demo r1b, a drag onto a taskbar tile: inside xp. Max r1b, drags on a stood-back face: turn the cube by design.
+- Verdict: the designed gesture does not work on one screen (every persona run, and most laptops), so the drag fix branch does not apply; the brief's other branch, a one-line hint where a drag starts, does. Which pull path the hint names is open: on one screen only `cube.pull` (helper or API) pulls today. Not built: the round stopped for budget after item 1's regression; measuring the persona drags in gate-construct-pull is not done (read from the code paths and the captures, not measured). Ledger co-33 open.
+
+### Item 3, C1 (demo): not a bug
+Designed step-in: docs/cube-modes.md:33-34 "The session starts in use mode when a cube opens"; the face is square at 1:1, so the cube row and Super+C show a flat XP desktop with the hint "Alt Esc Step back". No red cell (closed as designed, per the brief). Lead: with a cube open Super+C does nothing (input.rs `cube_key` returns), so the demo's second Super+C changed nothing; a step back on that key would answer it. Ledger co-34 closed.
+
+### Ledger
+findings/construct.md: co-25 `fixed ff617c83 + e97b55f0 (red b08c5936) cell:keys (persona-path)`; co-33 (C2) open with the decision; co-34 (C1) closed not a bug.
+
+## PM review r1 (16:12)
+Base 59efbc17..e97b55f0, 11 files +336 -84; red b08c5936 first (persona path replay in cell keys).
+- co-25: keys_with_pane (core focus on an own window and no walk_keys) drives regrab; event() regrabs when it flips; every FocusNode LOOK goes through keys_to_the_walk. Closed by cell keys (persona-path), lane gate --jobs 2 14 cells PASS.
+- pr1-1 NIT: event() skips the regrab when on_event returns Err; the next event repairs it.
+- pr1-2 NIT: the Super tap swallow logs a held tap and goes on; the docs name it.
+- co-33 (C2) decision (PM): no new gesture before the tag (rules 1). The hint at a drag start on one screen names the helper path ("ask the helper to pull this window out"); a one-screen pull gesture goes to backlog. Built in co-fix r2 with the gate-construct-pull measure.
+- co-34 closed as designed; the lead (Super+C with a cube open does nothing) goes to backlog.
+Verdict: MERGE-OK (no open MAJOR on the branch); joins t91. co-33 stays open for co-fix r2.
+
+## r2
+Lane: cloud, branch claude/co-fix from e97b55f0 (the local branch was stale at 59efbc17; moved to e97b55f0 before any work). Step 0: unshallow, `cargo check --workspace` green.
+Head: bbaad12b on claude/co-fix (pushed), base merged (ce2c436b; one conflict in tests/merge-gate.sh, the keys cell keeps persona and probe-hangup). Gate `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,keys,construct-hud,construct-extra,cube,pull,doors`: all 12 cells PASS (run dir /tmp/merge-gate.JDHz8o). No red cell.
+
+### co-33 (C2): fixed
+- Red 7fa79f58, cell pull (gate-construct-pull section 5, plus two negative checks): one output, use mode, a title drag to the screen edge and back: the hint text "pull this window out" shows at the drag, no window leaves xp, no pane; gone after the release. Stood back (K12) a plain plane drag shows no hint; with a second output the designed drag shows none. Red: `FAIL: one output: a title drag to the screen edge shows no pull hint: ''`.
+- Fix f92f06bb: the construct hears the press and release of `xp-title-*` (a title bar of xp on a face; the face forwards the pointer, so no other press reaches the construct). `title_hint` in pull.rs sets `pull_hint` when the left button goes down on a title in use mode with one non-virtual output (`all_outputs`), clears it on the release. New hint set `Set::Pull` (overlay.rs) in the dark capsule of the hints at the bottom centre, no keycaps, new word `Word::PullHint` "Ask the helper to pull this window out" (German too). No new gesture. docs/cube-modes.md one sentence beside line 198.
+- Capture: HINT_SHOT of the gate (scratch run): the dark capsule at the bottom with the words over the XP desktop, the window half over the left edge.
+- Hint shows only while the button is down; a lost release leaves it until the next title release (hint_set also needs use mode).
+
+## PM review r2
+
+e97b55f0..bbaad12b: red 7fa79f58 (gate-construct-pull section 5 plus two negative checks), fix f92f06bb (pull.rs title_hint, overlay Set::Pull, docs/cube-modes.md one sentence), merge of ce2c436b (merge-gate.sh `keys` keeps keys-persona and probe-hangup: checked against ce2c436b, the only gate-list diff).
+- co-33 closed by cell pull: one output, use mode, a title press shows "Ask the helper to pull this window out"; the window stays with xp, no pane; the hint goes on a release away from the title bar (the cell releases at 300,300, so the implicit grab path is tested). With a second output and stood back: no hint.
+- pr2-1 MINOR: the hint shows on every left press on a title bar in use mode on one screen, a plain click to focus included, so it flashes on each click. Show it only once the pointer has moved past a drag threshold. Backlog (construct, after the rc).
+- pr2-2 NIT: the hint names the helper even when no helper is configured (vision: honest states). Backlog.
+Verdict (computed): no open MAJOR -> MERGE-OK bbaad12b (replaces e97b55f0 in train 92). Worker archived.
