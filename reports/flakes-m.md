@@ -69,3 +69,11 @@ twice more at --jobs 3: cube 128 s and 119 s, doors 375 s and 376 s: PASS.
 - FLK-XP-HW: evidence only.
 - Not done: no 20 loaded runs of the full cube cell (130 s each); the head of the cell (where the
   fix is) ran 20 loaded times.
+
+## PM review r1 (2026-11-20 15:24 UTC)
+Diff d81c8293..ecfa2029: 3 files, +18 -8, tests only. Red first: 52bc5371 (INJECT_LAG=0.4 red 3/3, lane evidence; default 0 passes, a stress knob, accepted for a flake), 5c5a1a79 (late_field 6: helper-key red 3/3). Red runs not repeated by the PM (no PM selftests during a train); the gate's red-first step checks order.
+- cube: three `key` calls become one inject of three shortcuts; `key()` sends the same shortcut action, so the path is unchanged. The check now asserts the queue rule (one queued, third dropped) without choractl start timing.
+- doors: wait_for_field now needs chat open, window without keyboard and no focused non-surface node; chat_close waits for it; the note names the state. construct runs late_field 6 like the other looks (2 s).
+- pr1-1 NIT: the cube check no longer covers keys spaced in real time during a turn (e.g. 150 ms apart); a later cell could inject with a sleep inside one call.
+- pr1-2 NIT: construct late_field 6 s adds about 4 s per doors run against the 2 s of the other looks; the commit gives no reason for 6.
+Verdict: 0 BLOCK, 0 MAJOR, 2 NIT -> MERGE-OK ecfa2029. New rows FLK-CUBE-STILL, FLK-XP-HW to the flake list (evidence only).
