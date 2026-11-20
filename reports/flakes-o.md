@@ -64,3 +64,9 @@ and 119 s, doors 372 s and 372 s: PASS.
 ## Open
 - FLK-XP-HW: evidence only, next sighting has the state.
 - pr1-1: needs a pause in the inject API; a core item.
+
+## PM review r1 (PM not the builder)
+MERGE-OK 16da7bc7 (tests only); diag dd7d463a, red f17cae94 (CLOCK_EDGE=2: 7 of 15 loaded fail), fix 38ca5b26 (20 of 20 loaded); cube and doors PASS at --jobs 1 and twice at --jobs 3. Checks: the still check now runs only in seconds 6-52, so the minute redraw of the construct door clock and the xp tray clock cannot fall in its 2 s windows; the failure line names the nodes that changed. No product change; the clocks redraw once a minute as they should (POLS). No open MAJOR.
+- pr1-1 NIT: still() can wait up to ~10 s for a clear second; fine for one gate, note it if more cells copy it (a kit helper then).
+- FLK-XP-HW stays open (0 of 20 loaded); 16da7bc7 names tooltip, tray node and voice state on the next failure. F5 not met yet.
+Contains flakes-m ecfa2029: in t92 it replaces flakes-m.
