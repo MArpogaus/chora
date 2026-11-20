@@ -1445,6 +1445,43 @@ mod tests {
         assert_eq!(core.state.key_node(), None);
     }
 
+    /// `focus.node` tells the node that has the keys (`key_node`): an
+    /// exclusive layer surface takes them from the node of a client, so the
+    /// clients hear that no node has them, and hear the node again when the
+    /// layer surface goes (rw-4).
+    #[test]
+    fn an_exclusive_layer_surface_is_told_as_the_end_of_the_node_focus() {
+        let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.node"]}),
+        );
+        let desk = apply(&json!([
+            {"create": {"id": "desk", "kind": "rect", "parent": "root", "props": {"size": [1, 1]}}},
+            {"focus_node": {"node": "desk"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", desk);
+        let told = |wm: &mut Client, core: &mut Core| -> Vec<Value> {
+            (wm.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
+                .filter(|e| e["event"] == "focus.node")
+                .map(|e| e["node"].clone())
+                .collect()
+        };
+        assert_eq!(told(&mut wm, &mut core), [json!("desk")]);
+        let launcher = wayland.layer(&mut core, Layer::Overlay, KeyboardInteractivity::Exclusive);
+        assert_eq!(
+            told(&mut wm, &mut core),
+            [Value::Null],
+            "the launcher has the keys, no node"
+        );
+        wayland.destroy_layer(&mut core, &launcher);
+        assert_eq!(told(&mut wm, &mut core), [json!("desk")]);
+    }
+
     #[test]
     fn a_click_on_an_exclusive_launcher_keeps_the_node_focus() {
         let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
