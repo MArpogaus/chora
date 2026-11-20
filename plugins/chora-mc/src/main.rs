@@ -1098,7 +1098,7 @@ impl Mc {
     /// holds them only while the page has the keyboard.
     pub(crate) fn page_keys_work(&self) -> bool {
         let page = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
-        let holds_page = matches!(self.focus.holder(|_| false), Holder::Node(_));
+        let holds_page = matches!(self.focus.holder(NAME, |_| false), Holder::Node(_));
         self.page_keys == keys::PageKeys::Plain && (page || holds_page)
     }
 
@@ -1701,7 +1701,10 @@ mod tests {
             "the page keeps the keyboard"
         );
         assert!(
-            matches!(mc.focus.holder(|s| s == "s1"), super::Holder::Node(_)),
+            matches!(
+                mc.focus.holder(super::NAME, |s| s == "s1"),
+                super::Holder::Node(_)
+            ),
             "the window did not take the keyboard"
         );
     }
