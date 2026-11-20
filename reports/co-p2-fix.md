@@ -31,3 +31,46 @@ Range 79c8d2b5..7b43b063 on claude/co-p2-fix (4 commits, +340 -14, 10 files). Re
 - rv-3 NIT: `chords()` returns nothing when the modifier is not Super; a user who sets modifier Alt gets no swallow and stray Alt chords. Doc line or swallow the configured modifier.
 - Open, pre-existing: xp opens Start on a swallowed chord (to xp backlog).
 Verdict (computed): rv-1 MAJOR open -> FIX. Round r2: briefs/co-p2-fix-r2.md.
+
+## r2
+Head ab4cbb4f on claude/co-p2-fix (pushed; 4 commits on 7b43b063; base already merged, up to date). Step 0: unshallow, cargo check green.
+Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,doors,construct-hud,cube,out,pull,matrix,tiling-look,gate-lib`: all 14 cells PASS (run dir /tmp/merge-gate.YYEbPn). A first run had ci-check red by my own code (tests/grab-gap-check.py: `grab_swallowed` had its first grab behind an `if`); fixed in ab4cbb4f, whole gate rerun green. gate-tiling-swallow.sh alone also green.
+
+### rv-1 MAJOR: no timer, the construct swallows in a pane only
+- Red: 837d9913. gate-construct-cube binds Super+k in xp 3 s after it connected (`ctl call xp settings.set` bindings) and presses it on a face; at 7b43b063 it failed: "Super+k, bound by the xp of the faces 3 s after it connected, did not reach it: visible True (rv-1)". (A late start alone does not show it, the old timer ran from the connect event; a late grab does.)
+- Fix: 00469c80. SWALLOW_AFTER, `swallow_at`, `swallowing`, `swallows`, `swallow_deadline`, `swallow_due` of cube::Host and the swallow arm of `cube_deadline` and `check_cube` are gone; `regrab` swallows only `in_pane()`. Unit test of the timer deleted, `a_connected_manager_brings_the_faces_up` now asserts no deadline after connect.
+- Green: gate-construct-cube "rv-1: a chord that the xp of the faces binds late is its own, the construct holds none on a face"; cell `cube` PASS.
+- Face cases kept, marked `known: face manager swallow (xp lane)` (a `known()` helper in the gate; each case still asserts the good outcome when it holds and prints the known line when not):
+  1. "co-25: on the front face a Super chord that nothing binds reaches the probe window" (Super+q, Tab, 1, Shift+x, Ctrl+z on the front face),
+  2. "co-25: stood back, Super+Tab reaches the probe window".
+  Both print `known:` in cube.log now. co-26 (Super+F1 on a face shows the key list of the construct) still passes as ok: the bound chords stay grabbed on a cube; no change.
+- For the xp lane: xp must swallow the unbound Super chords of its faces itself (`Runtime::grab_swallowed` of the kit is the helper); then the two known cases turn back to ok.
+
+### rv-2 MINOR (F2): one list in chora-kit
+- Red: 9131008d (copies row with max 0 plus the kit module and its tests; `tools/cut-check` copies: "own list of swallowed keys (chora_kit::swallow): 1 left, the row allows 0" with the tiling list in place).
+- Fix: 00469c80 (+ ab4cbb4f). New `crates/chora-kit/src/swallow.rs`: `KEYS`, `chords(modifier)`, `Runtime::grab_swallowed(modifier, &action)` (grabs the chords the plugin holds no action for; after the grab set, before `end_grabs`; the first grab wins). Construct (pane) and tiling use it; plugins/chora-construct/src/swallow.rs, tiling `SWALLOWED`, `SWALLOW_WITH`, `Config::swallowed` and their tests are deleted. tools/copies.toml row, max 0, allow crates/chora-kit/.
+- Tests (kit, through FakeCore): super_chords_with_shift_and_ctrl_are_swallowed, another_modifier_keeps_the_keys_of_the_programs, a_bound_chord_keeps_its_action_and_the_rest_is_swallowed, a_chord_that_another_client_holds_stays_with_it, the_swallowed_chords_stay_in_the_set_of_the_old_grabs. Cells: ci-check, test, clippy, tiling-look PASS; gate-tiling-swallow PASS; keys PASS (pane).
+
+### rv-3 NIT: modifier other than Super
+Decision: doc line, not code. A user of `modifier: Alt` keeps `Alt+b`, `Alt+Left` in programs (same rule in tiling and the kit module doc); docs/configuration.md (construct section) now says so with the reason. Fix commit 00469c80. Test: kit another_modifier_keeps_the_keys_of_the_programs (nothing grabbed for Alt).
+
+### For the PM
+- One more doc change in the same paragraph: the construct no longer swallows on a face; the 1 s sentence is gone.
+- `Host::connected` is still called on every client event of the manager (cube_client); harmless now it resets nothing.
+
+## Review r2
+Range 79c8d2b5..ab4cbb4f on claude/co-p2-fix (8 commits, 13 files, +396 -138). Reviewer: seeded cloud lane, read-only on code. Step 0: `cargo check -p chora-kit -p chora-construct -p chora-tiling` green. No merge gate run (the lane's 14 cells stand).
+Checks:
+1. rv-1 timer: `git grep -n SWALLOW_AFTER` empty; `regrab` swallows only `in_pane()` (camera.rs:476), the cube arm grabs bound chords only, so a chord the face manager binds late is not held by construct. `cargo test -p chora-construct` 241 ok. OK (see rw-2 for one edge).
+2. Red first: 837d9913 and 9131008d precede 00469c80 (`git log --oneline 7b43b063..ab4cbb4f`). OK.
+3. rv-2 one list: kit `swallow.rs` has KEYS, `chords()`, `Runtime::grab_swallowed`; tiling `SWALLOWED`, `SWALLOW_WITH`, `Config::swallowed` and tests gone; tiling and construct call the kit; copies.toml row max 0; `tools/cut-check` ok; kit tests (288, `--features testing`) ok. OK.
+4. Tiling unchanged: old list (79c8d2b5 config.rs) and kit KEYS are identical, 75 items in the same order; chord order (none, Shift, Ctrl) the same; tiling `grab_all` grabs every bound binding, the drag and the give keys first, then `grab_swallowed` (first), and `grab_swallowed` skips any chord with an action. OK.
+5. rv-3 doc: docs/configuration.md construct paragraph (Alt keeps readline and browser keys) matches `chords()` (nothing unless "Super") and the kit test `another_modifier_keeps_the_keys_of_the_programs`. OK.
+6. Grab loop: `grab_swallowed` is a plain loop; `tests/grab-gap-check.py` rc 0; `Runtime::grab` keeps a chord of the old set (no free moment), a chord that another client holds stays with it (kit tests). OK.
+
+Findings:
+- rw-1 NIT plugins/chora-construct/src/cube.rs:156: the doc comment "When the construct starts to hold the chords of `Super` ... would be lost to it" (4 lines) is left over from the removed `swallow_at` and now sits on top of the doc of `told`, which it misdescribes. Fix: delete those four lines.
+- rw-2 MINOR (plausible, not reproduced) plugins/chora-construct/src/camera.rs:476: `in_pane()` can hold with a cube open (modes.rs:322 steps back from a flown pane with `cube` present; input.rs:217 guards both), and then `grab_swallowed` holds every unbound Super chord, so a chord the face manager binds later (the rv-1 case) is lost until the camera leaves the pane. Fix: swallow only when `self.cube.is_none()`, or show by a cell that a pane and a cube cannot coexist and say so in a comment.
+- rw-3 NIT plugins/chora-tiling/src/panel.rs (test `panel::the_layout_word_is_a_word_of_a_person`): red once in the first full `cargo test -p chora-tiling` here (175 of 176), green alone, green on a full rerun, and green at the base 79c8d2b5; the diff does not touch panel or its words. Named, not caused. Fix: find the order or timing dependency of that test.
+Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 2.
+Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK.

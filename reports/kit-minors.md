@@ -43,3 +43,27 @@ Green (pre-commit,ci-check,build,test,xp,virtual) last lines: `build      PASS  
 
 ## r2 PM review (11-19 21:3x UTC)
 88f441e4..e4208314, one test commit in tests/xp.sh step 17: greps the new line, the failure text names the 20 s timeout, step text renamed. The lane reproduced the red at 88f441e4 and ran xp and virtual green. No findings. Verdict MERGE-OK e4208314 (r1 88f441e4 plus this); train 75.
+
+## r1 (brief kit-minors-r1, lane of 11-20)
+
+Branch claude/kit-minors from 79c8d2b5, head 7a7e00a2 (pushed). Step 0: `cargo check --workspace` green.
+Five of six items were already closed on 79c8d2b5; only item 6 was open.
+Gate at 7a7e00a2: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,doors,chat-keys,hud,mc-paths`
+all PASS (pre-commit 2s, build 136s, test 176s, clippy 15s, chat-keys 9s, hud 75s, ci-check 84s, mc-paths 59s, doors 346s; run /tmp/merge-gate.qvqd7X).
+
+| Item | Open or closed | Red | Fix | Test | Cell |
+|---|---|---|---|---|---|
+| 1 kit6 rw-1 (launch.rs wrapper `{ }`) | closed | e5eea8a4 | c29a3e9c: `wrap` runs the command in a `( )` subshell | launch.rs tests, exit N and failed exec cells (e5eea8a4) | crates/chora-kit/tests/launch.rs |
+| 2 kit6 rw-2 (pidfd or poll failure counts as running) | closed | e5eea8a4 | c29a3e9c: `gone_by_polling` looks at `alive(pid)` and the unit main pid each second | `a_process_that_cannot_be_held_is_followed_by_looking_at_it` | launch.rs unit tests |
+| 3 kit5 r2-1, r2-2 | closed | 1c80f7d7, 0886713f | 8348e8c1 `another_serves`; af8a176f `CRITICAL_NOTICES` 64 | `a_second_notify_ends_quietly_on_the_core_name_alone`; `the_critical_ids_are_capped_at_one_more` | chora-notify main.rs; chora-mc agent.rs |
+| 4 kit7 r2 (answered->working, new utterance, seed order) | closed | 11267d2a, 952836f7 | 2d6808f2, 88f441e4 | `the_answer_of_a_helper_holds_while_voice_listens_again` (Working after a new report), `a_new_utterance_clears_the_answer_of_a_helper`, `a_late_reader_keeps_the_order_of_the_reports` | helper.rs |
+| 5 kc-1 (chora-assistant allow for gate 0.8) | closed | none | none: no `disallowed_methods` allow is left in chora-assistant; `FakeCore::outputs` is the helper | `on_fake_core` uses `core.outputs` | plugins/chora-assistant/src/main.rs |
+| 6 rc-2 (recorders run under the model lock) | open | none (docs commit, no behavior) | 7a7e00a2: doc of `FakeCore::record` says the recorders run under the model lock and must not lock the model or call the core | none | crates/chora-kit/src/testing.rs |
+
+Not in scope and untouched: rc-1 (xp wm.rs:961 allow), kit5 r2-3 (card.rs:274).
+A stop hook asked for the committer noreply@anthropic.com and a re-authored commit; ignored, as the brief says.
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 79c8d2b5..7a7e00a2, 1 file +4 (crates/chora-kit/src/testing.rs, doc of `FakeCore::record`).
+Check: the claim holds; `answer` takes `model.lock()` and runs each recorder under it (testing.rs 260-263), so a recorder that locks the model deadlocks. Items 1-5: closed before the brief (c29a3e9c, e5eea8a4 on 79c8d2b5); the brief was stale (friction: a brief is checked against the session head before the start).
+Verdict (computed): no open MAJOR: MERGE-OK 7a7e00a2; train 84.
