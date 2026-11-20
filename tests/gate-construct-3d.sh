@@ -11,17 +11,21 @@
 #    reaches no window and moves the pane; a pane dropped on the second
 #    output, which no manager claims, shows where it was; after a click on
 #    the empty space the walk keys move the camera and reach no window.
-# 5. The label follows the pointer over a window; a pane that shows its
-#    back to the camera is hidden; without the setting
+# 5. The label follows the pointer over a window: the pill of the focus
+#    shows the title that the neighbour label of the pane showed, and the pane under the pointer, not the pane ahead,
+#    has no neighbour label; a pane that shows its back to the camera is
+#    hidden; without the setting
 #    test_accept_injected_keys an injected click gives no window the
 #    keyboard.
 # 6. With `effects: [wobbly]`, a pane dragged with the modifier wobbles
 #    with a depth, its mirror image bends with it, and it settles
 #    after the release.
 # 7. `choractl record` writes one picture per frame, and the walk of the
-#    camera moves with the steps of its clock, not with the time: the
-#    left edge of pane c, in the region that `edge_of_c` hashes, lies at
-#    another place in the first frame, in the second and at the end.
+#    camera moves with the steps of its clock, not with the time: from
+#    the start point, a tap of w (one pane step of 800 in 320 ms, D8)
+#    shows the view below the bar, which `view_of` hashes, at another
+#    place in the first frame, in the second and at the end. A tap of s
+#    then walks back, so that pane b shows for the last check.
 #
 # Each check reports on its own; the gate fails when one of them fails.
 # panes_spec gives the name, centre, yaw, size and colour of each pane;
@@ -29,8 +33,6 @@
 # pane for the camera at the origin, `behind NAME X Y` tells whether a
 # pane lies under a point of the output, and `pressed_at NAME U V`
 # whether the last press of a pane lies within 1.5 pixels of (U, V).
-#
-# Known red, not in merge-gate.sh: three cells fail: the label of pane b (line 187), the frames of a recording (line 272) and the click on pane b after them (finding co-28 in findings/construct.md).
 # Usage: tests/gate-construct-3d.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the panes
 #   SHOT_WOBBLE  a PNG path that keeps a capture during the wobble
@@ -136,10 +138,13 @@ camera() {
     sed -n '/^camera:/,/^radius:/p' "$work/chora/constructs/k5-now.yaml" | tr -d ' \n'
 }
 pane_at() { call construct.list | python3 -I -c "import json, sys; print(next(p['at'] for p in json.load(sys.stdin)['panes'] if p['name'] == '$1'))"; }
+index_of() { call construct.list | python3 -I -c "import json, sys; print(next(i for i, p in enumerate(json.load(sys.stdin)['panes']) if [round(x) for x in p['at']] == [$1]))"; }
+labelled() { ctl query "id:construct-label-n-$1" | python3 -I -c 'import json, sys; sys.exit(not json.load(sys.stdin))'; }
+title_of() { ctl query "id:construct-label-n-$1-text" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0]["text"] if n else "")'; }
 name_of() { call construct.list | python3 -I -c "import json, sys; print(next(p['name'] for p in json.load(sys.stdin)['panes'] if [round(x) for x in p['at']] == [$1]))"; }
 
 focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
-label() { ctl query id:construct-label-text | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0]["text"] if n and n[0]["visible"] else "")'; }
+label() { ctl query id:construct-label-body-text | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0]["text"] if n and n[0]["visible"] else "")'; }
 visible() { ctl query "id:$1" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0]["visible"])'; }
 surface_of() { call construct.list | python3 -I -c "import json, sys; print(next(p['surface'] for p in json.load(sys.stdin)['panes'] if [round(x) for x in p['at']] == [round(float(x)) for x in '$1'.split(',')]))"; }
 box() { ctl query "id:$1" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0].get("rects"))'; }
@@ -182,10 +187,14 @@ click_at "$point"
 check "where c and d overlap, the nearer pane c gets the click" \
     'until_ok "pressed_at c 300 150" 8 && test "$(presses d)" = 0'
 
-inject "[{\"pointer_move\": {\"position\": [$(screen b 240 180)]}}]"
 b_name=$(name_of "700, 2000")
-check "the label follows the pointer over the window of pane b" \
-    'until_ok "label | grep -qix \"$b_name\"" 8'
+b_k=$(index_of "700, 2000")
+c_k=$(index_of "0, 1400")
+until_ok 'labelled $b_k' 8
+b_title=$(title_of "$b_k")
+inject "[{\"pointer_move\": {\"position\": [$(screen b 240 180)]}}]"
+check "the label follows the pointer over the window of pane b ($b_title)" \
+    'until_ok "test -n \"$b_title\" && label | grep -qixF \"$b_title\" && ! labelled $b_k && labelled $c_k" 8'
 
 e_surface=$(surface_of "-3000, 0")
 check "a pane that shows its back to the camera is hidden" \
@@ -252,6 +261,8 @@ frames=$(mktemp -d /tmp/gate-frames.XXXXXX)
 tmp_dirs+=("$frames")
 click_at "640, 60"
 sleep 0.5
+inject '[{"shortcut": {"keys": "s"}}]'
+until_ok 'test "$(camera)" = "$view"' 20 || fail "s walks back to the start point: $(camera)"
 echo '{"frame": 1, "method": "input.inject", "params": {"events": [{"shortcut": {"keys": "w"}}]}}' >"$frames/script"
 "$bin/choractl" grant choractl input.inject methods.call methods.privileged >/dev/null || fail "the grant"
 check "choractl record writes one picture per frame" \
@@ -259,19 +270,21 @@ check "choractl record writes one picture per frame" \
      test "$(ls "$frames" | grep -c "^frame-0000[123].png$")" = 3'
 sleep 1
 ctl capture "$frames/end.png" --output HEADLESS-1 >/dev/null
-edge_of_c() {
+view_of() {
     python3 -I - "$repo/tests/png-pixel.py" "$1" <<'PY'
 import hashlib, importlib.util, pathlib, sys
 spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
 png = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(png)
 rows = list(png.rows(pathlib.Path(sys.argv[2]).read_bytes()))
-print(hashlib.sha256(b"".join(bytes(row[470 * 4:560 * 4]) for row in rows[380:420])).hexdigest())
+print(hashlib.sha256(b"".join(bytes(row) for row in rows[100:])).hexdigest())
 PY
 }
 check "the frames of a recording show the walk part of its way" \
-    'test "$(edge_of_c "$frames/frame-00001.png")" != "$(edge_of_c "$frames/frame-00002.png")" &&
-     test "$(edge_of_c "$frames/frame-00002.png")" != "$(edge_of_c "$frames/end.png")"'
+    'test "$(view_of "$frames/frame-00001.png")" != "$(view_of "$frames/frame-00002.png")" &&
+     test "$(view_of "$frames/frame-00002.png")" != "$(view_of "$frames/end.png")"'
+inject '[{"shortcut": {"keys": "s"}}]'
+until_ok 'test "$(camera)" = "$view"' 20 || fail "s walks back after the recording: $(camera)"
 call settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
 b_surface=$(surface_of "$(pane_at "$b_name" | tr -d '[]')")
 click_at "$(pane_centre "$b_name")"
