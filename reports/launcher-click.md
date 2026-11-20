@@ -24,3 +24,12 @@ Gate cell: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,c
 Capture: media/2026-11-20/launcher-click/after-door-launcher-open.png (Apps list, Alpha highlighted) and after-fix-click-mid.png (after `act.py click` on Mid: the Mid window opened, Alpha not); actions-fixed.jsonl.
 
 Not touched: crates/chora input.rs, flavors, the launcher config. Open for the PM: whether a compositor that sends an enter and then a motion for an injected `pointer_move` that enters a surface is wanted, so that a one-move click works by itself (input.rs, the stray-grab lane); not needed for the personas now.
+
+## Review r1 (PM, 2026-11-20 02:50 UTC; PM not the builder; small harness diff)
+Base b97369d1..741d6bca, 4 files, +269 -6 (tests/persona/act.py, tests/test_act_pointer.py, tests/gate-launcher-click.sh, tests/merge-gate.sh).
+1) Red first: ce194597 (test) before 741d6bca (fix). Pass.
+2) approach(): 3 moves at offsets 3, 2, 1 px then the target, each injected alone with 50 ms; click and drag press use it, move and scroll unchanged; pinned by test_act_pointer.py. Pass.
+3) Cell isolation: own XDG_CACHE_HOME and XDG_DATA_DIRS; session stopped in a trap. Pass.
+Findings: lc-1 NIT act.py approach: a target at x or y below 3 gets a negative start point (clamped by the core, untested). lc-2 NIT gate-launcher-click.sh: fixed `sleep 2` before the row click (wait on the launcher's first frame instead). lc-3 NIT: the four door and row positions are hard-coded capture pixels.
+Open question of the lane (one-move click in input.rs): backlog, not RC.
+Verdict (computed): no BLOCK or MAJOR: MERGE-OK. Train 82 alone (harness branch first); merge conflict in merge-gate.sh step list with mc-column resolved (both kept).
