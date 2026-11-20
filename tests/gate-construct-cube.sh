@@ -309,9 +309,7 @@ key Ctrl+Alt+Right
 until_ok 'front_is 1' 20 || fail "Ctrl+Alt+Right did not turn the cube in use mode"
 key Ctrl+Alt+Left
 until_ok 'front_is 0' 20 || fail "Ctrl+Alt+Left did not turn the cube back in use mode"
-key Ctrl+Alt+Right
-key Ctrl+Alt+Right
-key Ctrl+Alt+Right
+inject '[{"shortcut": {"keys": "Ctrl+Alt+Right"}}, {"shortcut": {"keys": "Ctrl+Alt+Right"}}, {"shortcut": {"keys": "Ctrl+Alt+Right"}}]'
 until_ok 'front_is 2' 20 || fail "a turn key during a turn did not queue one turn: $(prop construct-cube-face-1 forward) $(prop construct-cube-face-2 forward) $(prop construct-cube-face-3 forward)"
 sleep 1
 front_is 2 || fail "a third turn key during a turn turned on"
