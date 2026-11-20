@@ -27,6 +27,7 @@ setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$fak
 run_pid $!
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
+late_field 2
 doors_assistant || fail "the HUD host does not start"
 helper_start || fail "no helper starts"
 doors_window
