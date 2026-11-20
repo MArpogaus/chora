@@ -239,6 +239,9 @@ echo "$out" | grep -q '^task C2 pass' || fail "construct: C2 is red with a windo
 echo "$out" | grep -E '^breach I[13] ' >/dev/null &&
     fail "construct: the checker reads no state of the xp child: $(echo "$out" | grep -E '^breach I[13] ' | head -n 3)"
 ok "the checker counts the windows of the xp child of a cube as shown (no I1, no I3)"
+python3 -I "$repo/tests/test_acts.py" WithChildren >/dev/null 2>"$dir.unit" ||
+    fail "the checker reads a child that is no face manager, or shows a face behind the front: $(tail -n 5 "$dir.unit")"
+ok "the checker reads a child only as a face manager, and shows only the front face (negative cases)"
 
 stop_session
 ok "persona session"

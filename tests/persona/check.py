@@ -70,7 +70,15 @@ LETTERS = dict(
         strict=True,
     )
 )
-CODES = LETTERS | {"Space": 57, "Return": 28, "Escape": 1, "F1": 59, "Print": 210, "Tab": 15, "/": 53}
+CODES = LETTERS | {
+    "Space": 57,
+    "Return": 28,
+    "Escape": 1,
+    "F1": 59,
+    "Print": 210,
+    "Tab": 15,
+    "/": 53,
+}
 POWER = r"(systemctl .*(suspend|poweroff|reboot|hibernate|halt|kexec)|loginctl terminate)"
 
 
@@ -90,14 +98,25 @@ def with_children(session, snap):
     """The snapshot with the states of the looks that a flavor runs as its
     children, a cube's window manager on its faces: a window that such a
     child owns is a window of a look, shown or not as the child says, and
-    the child holds the focus of it."""
+    the child holds the focus of it. A client counts as such a child only
+    when `cube.list` names it as the manager of a face, and a window of it
+    shows only while its face is at the front."""
     if session.label != "construct":
         return snap
+    listing = snap.cube or {}
+    faces = listing.get("faces") or []
+    managers = {f.get("manager") for f in faces}
+    front = (
+        faces[listing["front"]].get("output") if listing.get("front") in range(len(faces)) else None
+    )
     for child in CHILDREN:
-        if child in snap.clients and child not in snap.states:
+        if child in managers and child in snap.clients and child not in snap.states:
             state = session.state(child)
-            if state is not None:
-                snap.states[child] = state
+            if state is None:
+                continue
+            for w in state.get("windows") or []:
+                w["shown"] = bool(w.get("shown")) and w.get("output") == front
+            snap.states[child] = state
     return snap
 
 
