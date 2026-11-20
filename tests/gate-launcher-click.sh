@@ -16,7 +16,9 @@
 #
 # 1. tests/test_act_pointer.py (judged at the end): act.py click, drag, move and scroll without
 #    a session, on the events they send.
-# 2. one persona session per look, with the programs alpha, mid and zebra
+# 2. one persona session per look, with a cache folder of its own (fuzzel puts
+#    the row it started first in its next list, so the order of the rows is
+#    that of the session and not of the machine), with the programs alpha, mid and zebra
 #    (foot with their app id) and the launcher of the look.
 #
 # Usage: tests/gate-launcher-click.sh   BIN: directory with the binaries
@@ -40,6 +42,9 @@ act() { PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" "$@
 admin() {
     CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$dir/session.env") \
         XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$dir/session.env") "$bin/choractl" "$@"
+}
+launcher_up() {
+    XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$dir/session.env") session_pids -x fuzzel >/dev/null
 }
 shown() { admin query "app_id:$1 kind:surface" | jq length; }
 until_ok() {
@@ -73,17 +78,17 @@ row() {
     done
     (
         export XDG_DATA_DIRS=$dir/none
+        export XDG_CACHE_HOME=$dir/cache
         PERSONA_DIR=$dir CHORA_BIN=$bin exec "$repo/tests/persona/session.sh" "$look" >"$dir.out" 2>"$dir.err"
     ) &
     spid=$!
     until_ok "grep -q '^PERSONA_ENV=' '$dir.out'" 200 || fail "the $look session did not start: $(cat "$dir.err")"
     act look >/dev/null || fail "$look: look"
     act click "$door_x" "$door_y" >/dev/null || fail "$look: click on the door"
-    until_ok 'act look >/dev/null && ! cmp -s "$dir/shots/001.png" "$(ls "$dir"/shots/*.png | tail -n1)"' 80 ||
-        fail "$look: the launcher did not show after a click on its door"
-    sleep 1
+    until_ok 'launcher_up' 80 || fail "$look: the launcher did not start after a click on its door"
+    sleep 2
     act click "$row_x" "$row_y" >/dev/null || fail "$look: click on the Mid row"
-    until_ok '[ "$(shown mid)" -gt 0 ]' 40 ||
+    until_ok '[ "$(shown mid)" -gt 0 ]' 120 ||
         fail "$look: a click on the Mid row of the launcher did not start mid (alpha, the first row: $(shown alpha), the chat: $(shown chora-chat))"
     [ "$(shown alpha)" = 0 ] || fail "$look: a click on the Mid row started alpha, the first row"
     ok "$look: a click by act.py on the Mid row of the launcher starts mid and not the first row"

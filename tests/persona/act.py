@@ -21,6 +21,11 @@ With PERSONA_CHECK=1 each action is followed by tests/persona/check.py, which
 runs the invariants of the acts and writes $PERSONA_DIR/breaches.jsonl; the
 persona sees nothing of it.
 
+A click, and the press of a drag, come after four small moves that end on
+the target, each sent alone, as a hand moves: a launcher (fuzzel) selects the
+row under the pointer only from its second motion on, and a click after one
+move starts the row that was highlighted before.
+
 Coordinates of click, move and drag are pixels of the last capture, as the
 persona sees them on the PNG; act.py scales them to the logical pixels of
 the output (the capture size divided by the scale that `look` printed).
@@ -40,6 +45,8 @@ BUTTONS = {"left": 272, "right": 273}
 TIMEOUT = 20
 CHECK_TIMEOUT = 60
 LAST_LOOK = "last_look.json"
+APPROACH_STEPS = 3
+APPROACH_PAUSE = 0.05
 
 
 def load_env(path):
@@ -115,24 +122,45 @@ def look(env, args):
     return True, {"path": path, "info": info}
 
 
+def approach(env, x, y):
+    """Move the pointer onto (x, y) as a hand does: several small moves, each
+    sent alone with a pause, that end on the target. A program that reads the
+    first motion as the start of the pointer (fuzzel) selects the row under it
+    only from the second motion on, a move that enters its surface is an
+    enter, not a motion, and moves that arrive in one frame count as one."""
+    for d in range(APPROACH_STEPS, 0, -1):
+        ok, text = inject(env, [{"pointer_move": {"position": [x - d, y - d]}}])
+        if not ok:
+            return False, text
+        time.sleep(APPROACH_PAUSE)
+    return inject(env, [{"pointer_move": {"position": [x, y]}}])
+
+
 def do_click(env, args):
-    """Move, then click once or twice."""
+    """Approach, then click once or twice."""
     b = BUTTONS[args.button]
     x, y = to_screen(env, args.x, args.y)
-    events = [{"pointer_move": {"position": [x, y]}}, {"click": {"button": b}}]
+    ok, text = approach(env, x, y)
+    if not ok:
+        return False, text
+    time.sleep(APPROACH_PAUSE)
+    events = [{"click": {"button": b}}]
     if args.double:
         events.append({"click": {"button": b}})
     return inject(env, events)
 
 
 def do_drag(env, args):
-    """Press at the start, move to the end, release."""
+    """Approach the start, press, move to the end, release."""
     x1, y1 = to_screen(env, args.x1, args.y1)
     x2, y2 = to_screen(env, args.x2, args.y2)
+    ok, text = approach(env, x1, y1)
+    if not ok:
+        return False, text
+    time.sleep(APPROACH_PAUSE)
     return inject(
         env,
         [
-            {"pointer_move": {"position": [x1, y1]}},
             {"button": {"state": "pressed", "hold": True}},
             {"pointer_move": {"position": [(x1 + x2) / 2, (y1 + y2) / 2]}},
             {"pointer_move": {"position": [x2, y2]}},
