@@ -28,7 +28,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
 | xp-minor-r1.md (RC 2 known issues: 5 xp MINOR) | sonnet medium, claude/xp-minor fee9c695 | session_016iS3kLKnKNMM5NJqp8UV7Y 15:58 |
 | co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
-| ti-minor-r1.md (RC 2 known issues: ti-5, ti-6/19, ti-7) | sonnet medium, claude/ti-minor fee9c695 | starting |
+| ti-minor-r1.md (RC 2 known issues: ti-5, ti-6/19, ti-7) | sonnet medium, claude/ti-minor fee9c695 | session_016iS3kMtfHHYuxz7yDwxtzX 16:18 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) t89b probe-leak f5ac3500 alone (running); t90 gate-silent baac5dcf, t91 gate-orphan 437173e1: each alone (harness); t92 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0.
