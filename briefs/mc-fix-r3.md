@@ -1,0 +1,15 @@
+# mc-fix-r3 (RC 2 persona round 4; rule 6, mc BLOCK): mc-42 page-turn path, mc-46 first Back, xp+mc I3/I5 verify
+
+Model: sonnet, effort high (named findings with captures and a cell to extend; a seeded review follows)
+Lane: cloud, branch claude/mc-fix at cb2b80f1 (in train 87e; merge origin/claude/autonomous-dev-session-3w-i33pg7 first when it moved past adf71956). One round, stop at 250 k. Cost about 1.5 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`; `cargo check --workspace`; a failure: send_message the PM "mc-fix r3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/p2-r3-mc.md "## r3" (fix check, triage, breaches), feedback/2026-11-20-p2r3-{cook,sofa,nurse}.md, captures media/2026-11-20/p2r3-cook/007-009, p2r3-sofa/008-010; findings/mc.md rows mc-42, mc-46, mc-50. On the branch: plugins/chora-mc (pages, focus, remote keys), tests/gate-mc-paths.sh terminal-back, tests/gate-mc-sofa.sh remote-back, tests/persona/check.py I3, I5.
+Items (severity order; each a red gate test commit first, then the fix):
+1. mc-42 BLOCK reopened: a Foot page reached by a page turn (Right from the page before, cook page 5) keeps Right and Escape: the shell gets them, no page change. terminal-back covers only arrival by the launcher. Extend terminal-back (or a new cell `mc-paths terminal-turn`) to arrive by page turn and assert Left, Right, Escape and XF86Back act as on a launcher arrival; then fix so both arrivals give the same key rule (POLS; docs mc section names it).
+2. mc-46 MAJOR partly: XF86Back pressed once on a window page does nothing (sofa 009, mc-50 sofa nit). Red: gate-mc-sofa remote-back presses Back once from a fresh window page; fix so the first press acts.
+3. I3 and I5 on xp+mc (nurse, 77 lines): verify first. If check.py counts the hidden look as shown (mc nodes while xp is the shown look, both looks as focus holders), fix the checker with a unit test on a recorded state (no loosening for the shown look). If mc really draws over xp or holds focus while hidden, red cell then fix. Say which in the report with the state dump.
+Not in scope: T1 checker end-time gap (backlog), fuzzel 1.9.2 launcher click (known), mc-50 yellow square (MINOR, rule 6).
+Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,chat-keys,doors,mc-paths,mc-sofa,mc-handover,matrix,layout`; poll in the same turn; never end a turn to wait. A red cell you did not cause: rerun it alone once and name it.
+Done when: red commits before fixes; cells pass; reports/mc-fix.md "## r3" on claude/session-log (per item: red sha, fix sha, test, cell, capture); ledger rows mc-42, mc-46 state `fixed <sha>`, the I3/I5 result as a new row or not-a-bug line.
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
+Rules: push claude/mc-fix and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.

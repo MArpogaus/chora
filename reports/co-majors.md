@@ -243,3 +243,38 @@ Head c2b0310f.
 - Diff: one file, tests/gate-construct-3d.sh (+44 -31); fixed sleeps replaced by until_ok waits on state. wobbles() moves the pointer each poll: the hold continues, so the check still asks "does a held pane wobble with depth". Accepted, no finding.
 - Gate: 10 cells PASS plus construct-extra twice (155 s, 153 s).
 - Findings open: 0 BLOCK, 0 MAJOR. Verdict computed: MERGE-OK. co-31, co-32 fixed. Joins train 88 (carries co-r4; its 12 h ends ~20:38).
+
+## r4 (brief co-majors-r4: co-25, co-26)
+
+Lane: cloud, branch claude/co-majors-r4 from d81c8293 (origin/claude/autonomous-dev-session-3w-i33pg7 had not moved). Step 0 green (`git fetch --unshallow`, `cargo check --workspace`).
+
+Both items were already fixed in the base: the co-p2-fix lane (reports/co-p2-fix.md r1, r2) and the xp lane put red and fix in d81c8293's history. The brief's red-first step had nothing left to turn red, so I measured at the base and added one pin.
+
+| item | red | fix | cell | state |
+|------|-----|-----|------|-------|
+| co-25 MAJOR | cf27cfcb (pane, probe saw d, q, Tab, 1), c50beafa (cube face), 06c900b6 (xp face) | b061930f, 00469c80 (construct, pane only), b9f4f5f3 (xp, face) | keys, cube | fixed before this lane |
+| co-25, walk mode | none (not a fault: the walk has the keyboard) | none | keys (new cell, e0c3a266) | pinned |
+| co-26 MAJOR verify | cube face: Super+F1 reached xp; pane focus drew before the fix | b061930f | keys, cube | not open at the base |
+
+Gate at d81c8293: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,keys,construct-hud,construct-extra,cube,walk,pane-keys,doors`: all 13 cells PASS (run /tmp/merge-gate.HsReJ1). After e0c3a266: `--only keys,pre-commit` PASS (run /tmp/merge-gate.lJ43m7).
+
+Captures (keys and cube cells at the base):
+- `ok: co-25: Super+d, q, Tab and 1 reach no window in a pane, a plain a does`
+- `ok: co-26: Super+F1 in a pane shows the key list`
+- `ok: co-25: on the front face Super+q, Tab, 1, Shift+x and Ctrl+z reach no window, a plain a does`
+- `ok: co-26: Super+F1 on the front face shows the key list of the construct, and a second one hides it`
+- `ok: co-25: stood back, Super+Tab reaches no window`
+- keys cell at e0c3a266: `ok: co-25: in walk mode Super+d, q, Tab and 1 reach no window of a pane`
+
+Docs: docs/configuration.md (construct section, "With `modifier: Super`, no `Super` chord ...") already names the rule.
+
+Notes for the PM:
+1. The pre-commit hook refused my first commit twice (an inline comment in the gate script, then a 68-character subject). Both fixed in the commit, no bypass.
+2. The heading "## r4" was already used by the co-r4 lane in this file, so this section is titled "r4 (brief co-majors-r4 ...)".
+3. The walk-mode cell passes by design and cannot go red by a mutant of the swallow, since the construct swallows in a pane only. It pins the walk keyboard.
+
+Head e0c3a266 (claude/co-majors-r4, pushed).
+
+## PM review co-majors r4 (claude/co-majors-r4 e0c3a266, 13:31 UTC; PM not the builder)
+Diff d81c8293..e0c3a266: tests/gate-construct-keys.sh +11 -1, test only (a pin, no fix). After Escape from Super+F1 the walk takes the keyboard, then Super+d, q, Tab, 1 in walk mode; the probe counters for 32, 16, 15, 2 must stay 0. The pane part above already asserts 0 for the same codes, so the cumulative counters are sound. Lane gate: keys, pre-commit PASS at e0c3a266; 13 cells at d81c8293.
+Findings: none. Verdict: MERGE-OK (no open BLOCK or MAJOR). co-25, co-26 were fixed before this round (b061930f, 00469c80, b9f4f5f3); joins the next train.

@@ -1,0 +1,75 @@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+systemctl --user is-system-running
+systemctl --user is-system-running
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+systemctl --user is-system-running
+mousepad stand-in foot
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 75%
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+grim /tmp/persona.6DxJXu/pictures/Screenshots/2026-11-20_15-28-07.png
+notify-send -a Screenshot Screenshot saved /tmp/persona.6DxJXu/pictures/Screenshots/2026-11-20_15-28-07.png
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+systemctl --user is-system-running
+fuzzel --config /home/user/chora/flavors/xp/theme/fuzzel.ini --dmenu
+fuzzel-first-row Chat with a helper
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+fuzzel --config /home/user/chora/flavors/xp/theme/fuzzel.ini --dmenu
+fuzzel-first-row Nothing found for "nosuchprogram"
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@

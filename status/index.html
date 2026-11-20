@@ -57,25 +57,25 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-20T11:35:00Z",
+  updated: "2026-11-20T16:26:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
-  budget: 61,                      // % of the week used (owner's reading)
+  budget: 65,                      // % of the week used (owner's reading)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
-    ["F4", "No file over 1,500 lines", "risk", "0 production files over; lint counts at or below RC (PM recount 11-20); open: workarounds 13 > 9, hygiene 16 > 14; lint ratchet round 3 queued after train 85c"],
-    ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.06 %; only flakes open: flakes-k passed review (merges in train 87d); a 5-gate flake series runs on the 85c head; launcher-click red is checked against the old fuzzel in lanes"],
-    ["F6", "Every change through the merge gate", "done", "45 green merges: train 86 (harness) green 09:27; train 87e (5 reviewed branches, one cell at a time) in the gate"],
+    ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.87 %; 12 flaky rows open, three flake lanes fix them now; the bar: 5 full gate runs green in a row at 2 jobs; only then met"],
+    ["F6", "Every change through the merge gate", "done", "48 green merges, all reviewed (audit r4); train 89b (fix for leaked test probes) green 16:25 UTC"],
     ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Trains 87 to 87d went red: three flakes under load and one real test race in the 3D construct gate (that branch goes back for a fix). Train 87d then hit a known border flake under load; the same head reruns one cell at a time from 11:34 UTC (18:34 Bangkok).",
-    "xp persona round 3: 0 breaches; MAJOR xp-36 (Run... failed silently) fixed and reviewed, merges in train 87d.",
-    "Lanes: flake series (haiku), construct 3D race fix (sonnet); mc persona round 3 after train 87d.",
-    "Week: 61 % used at 59 % of the time (half by another agent); 5-hour window resets 12:00 UTC (19:00 Bangkok)."
+    "Train 89b (fix for leaked test probes) merged green at 16:25 UTC (23:25 Bangkok). Train 90, the gate guard that turns a silently skipped check into a visible SKIP, runs now; train 91 (gate cleans up its child processes) and the batch train 92 (seven approved fixes) follow.",
+    "Audit r4 (14:23 UTC): 6 of 8 goals met with evidence; F5 (flakes) still open, F7 by design next week.",
+    "mc's first-arrival fix (opus lane) is approved; simulated-user round 5 on mc started 16:20 UTC to confirm it. Construct gets a hint for pulling a window on one screen.",
+    "Six lanes: two flake lanes, xp and tiling small fixes, construct hint, mc round 5. Week: 65 % used at 71 % of the time (owner 14:39 UTC); all slots full to spend the rest."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };

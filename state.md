@@ -1,17 +1,17 @@
 # State
 
-## Now (2026-11-20 11:59 UTC)
+## Now (2026-11-20 16:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent, session ~30 %) at 59 % time: on pace; 39 % left, 2.1 %/h shared; tokens.py 11:05 PM 8.8 %; 5-h window resets 12:00, binds; 2-4 lanes
-session branch: adf71956; 45 greens. t87 layout red = flake FLK-LAY1; t87b hud red = flake FLK-HUD2 (voice-state-rate timeout, load 5); t87c K5 wobble race (co-r4 out, co-r5); t87d tiling-look ink@2 red = known flake (4th, load 5-6); t87e same head d81c8293 --jobs 1 from 11:34.
-burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 16:44 PM 10.9 %; disk 12 G free: one build (train) at a time; 6 lanes
+session branch: ce2c436b; 48 greens (t89b green 16:25); t90 gate-silent running.
+burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r3 09:15: 0 breaches, xp-35 fixed; xp-36 fixed 3290f1d4 (MERGE-OK, next train), 2 harness reds; mc r3 after t87 |
-| 3 | Three greens in a row | 30b, 33-40 green (9) |
+| 2 | Persona round 4 | xp r4 15:35 meets the stop rule; mc r5 16:33 meets the stop rule (mc-42, I3 PASS; 0 breaches); co r2 not met; co-25 fixed (co-fix r1 MERGE-OK); co-33 hint in co-fix r2, co r3 after t92 |
+| 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
 | 6 | Code review per area | 08:59, no HIGH; MEDIUM fixed or known issues |
@@ -23,12 +23,16 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| p2-r3-mc.md (RC 2: mc persona r3) | sonnet medium, claude/p2-r3-mc 3d23a3f0 | session_016iS3kPx3VFHZSyQBYMNruX 11:59 |
+| flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
+| kit-minor-r1.md (kit MINOR: Book origin, kit7 r2 helper) | sonnet medium, claude/kit-minor e7f2410a | session_016iS3kN7xygsb7sS4PkKmav 16:34 |
+| xp-give-r1.md (RC 2: xp-T7 Send To a look by mouse) | sonnet medium, claude/xp-give ce2c436b | session_016iS3kQeput28U3AD7toYA5 16:49 |
+| co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
+| p2-r2-tiling.md (RC 2: tiling persona round 2) | sonnet medium + haiku, claude/p2-r2-tiling ce2c436b | session_016iS3kNo5CzwTTqXM8x3PEa 16:37 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains: t87e (--jobs 1, flakes) in the gate from 11:34 (d81c8293 = adf71956 + mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4); next: t88 co-r5 c2b0310f (MERGE-OK 11:58, carries co-r4; 12 h ~20:38); fuzzel 1.11.1 PATH.
-5. F work: running: FLAKES-L r2 sonnet 1.2 % (F5; series r2 0/5: launcher-click fuzzel 1.9.2, acts, tiling-audit; kit 91.73 %); running: MC persona r3 sonnet 1 % (RC 2, on adf71956+mc-fix); next: LINT-DOWN r3 0.1 %, co-26 pane, AUDIT-F r4 Sat 0.6 %.
+4. (F6, rc 3) t90 gate-silent baac5dcf alone (running); t91 gate-orphan 437173e1 alone (harness); t92 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix 929de144 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0 + xp-minor fca4f8b5.
+5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r6, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r1, GATE-ORPHAN r1, XP-MINOR r2. Running: FLAKES-L r2 1.2 %, FLAKES-O r1 1 %, KIT-MINOR r1 1 %, XP-GIVE r1 1 %, CO-FIX r2 1 %, P2-R2-TILING 1 %. Later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
