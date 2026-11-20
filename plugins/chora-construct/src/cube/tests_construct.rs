@@ -910,6 +910,41 @@ fn the_key_sheet_gives_the_keyboard_back_only_to_the_front_face() {
     assert_eq!(activated(&lines), 0, "another face is at the front now");
 }
 
+/// co-pane r2 (rv-6, by design): a press on the window of a pane gives that
+/// window the keyboard and starts no look, so the first drag of a session
+/// that begins on a shown window does not look (F5).
+#[test]
+fn a_press_on_a_pane_window_starts_no_look() {
+    let (mut construct, core, _lines) = on_core("press-window", cube_core(json!([])));
+    construct.active = true;
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    let press = Event::PointerPressed {
+        node: "s1".into(),
+        button: 272,
+        position: [640.0, 400.0],
+        local: [320.0, 200.0],
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press).unwrap();
+    assert!(construct.drag.is_none(), "no look starts on the window");
+    assert_eq!(
+        core.model().lock().unwrap().focuses.last().cloned(),
+        Some(Some("s1".into())),
+        "the window has the keyboard"
+    );
+}
+
 /// co-pane r1: the Close of the key sheet is a button.
 #[test]
 fn a_press_on_the_close_of_the_key_sheet_closes_it() {
