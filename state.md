@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:05 UTC)
+## Now (2026-11-20 00:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -41,7 +41,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): 77 green 23:39 (harness-gp). 78 red 23:51 ci-check (pid temp, fix 9c6bf589); 78b running a2f50532, adds ti-majors.
+4. Trains (F6): 78 red 23:51 ci-check (pid temp, fix 9c6bf589); 78b red 00:12 doors xp helper-door missing; rerun x3.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, KIT-SEC r2 0.8 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, CO-MAJORS 1.5 %; P2 r1 xp: RC2 red, H-PERSONA-ENV 0.6 % next; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
