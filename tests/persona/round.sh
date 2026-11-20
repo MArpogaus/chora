@@ -94,7 +94,6 @@ probe() {
         echo "the probe did not stay up (WAYLAND_DISPLAY=$socket): $(cat "$report.err" 2>/dev/null)" >&2
         exit 1
     fi
-    mv "$report.pid" "$dir/run/$name.probe.pid"
     echo "PROBE_REPORT=$report"
 }
 
