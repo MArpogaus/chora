@@ -25,7 +25,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 |---|---|---|
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
-| kit-minor-r1.md (kit MINOR: Book origin, kit7 r2 helper) | sonnet medium, claude/kit-minor e7f2410a | starting |
+| kit-minor-r1.md (kit MINOR: Book origin, kit7 r2 helper) | sonnet medium, claude/kit-minor e7f2410a | session_016iS3kN7xygsb7sS4PkKmav 16:34 |
 | xp-minor-r2.md (RC 2 bar: Run... err vs Escape, pr1-1) | sonnet medium, claude/xp-minor 22884a79 | session_016iS3kQfMuef1xFRc5ak7to 16:27 |
 | co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
 | ti-minor-r1.md (RC 2 known issues: ti-5, ti-6/19, ti-7) | sonnet medium, claude/ti-minor fee9c695 | session_016iS3kMtfHHYuxz7yDwxtzX 16:18 |
