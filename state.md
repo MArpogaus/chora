@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 04:41 UTC)
+## Now (2026-11-20 04:42 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 03:13 PM 5.4 %; 25 h left: 60 %, 2.4 %/h; 6 lanes full
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -27,7 +27,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | verify-maj-r2.md (RC 1, rule 6: ti-20, xp-24 asserts; Queue 5) | sonnet medium | session_016iS3kQa2hAkn1uRKgDKcHT |
 | harness-k-r1.md (F6 harness MINORs; Queue 5) | sonnet medium | session_016iS3kMWAgwosTJqnZDNTRz |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
-| xp-p2r3-r1.md (RC 2, shared bar: face swallow, XPF-R1, co rw-1/2; Queue 5) | sonnet high | starting |
+| xp-p2r3-r1.md (RC 2, shared bar: face swallow, XPF-R1, co rw-1/2; Queue 5) | sonnet high | session_016iS3kNNbYNpanv6161XNnY |
 | debt-f4-r1.md (F4 workarounds, hygiene; Queue 5) | sonnet high | session_016iS3kNYwtxZaiim9JXJjzh |
 | core-minors-r1.md (F5, F8 core MINORs; Queue 5) | sonnet high | session_016iS3kNyrbRy98nAwMrpmiC |
 
