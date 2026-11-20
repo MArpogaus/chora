@@ -84,7 +84,31 @@ row() {
     spid=$!
     until_ok "grep -q '^PERSONA_ENV=' '$dir.out'" 200 || fail "the $look session did not start: $(cat "$dir.err")"
     act look >/dev/null || fail "$look: look"
+    local base=$dir/before.png t_click ms n
+    admin grant choractl screen.capture >/dev/null || fail "$look: grant of the capture"
+    admin capture "$base" >/dev/null || fail "$look: capture before the click"
+    t_click=$(date +%s%N)
     act click "$door_x" "$door_y" >/dev/null || fail "$look: click on the door"
+    if [ "$look" = tiling ]; then
+        local shot=0 shots_ms=() found=
+        while :; do
+            shot=$((shot + 1))
+            admin capture "$dir/after-$shot.png" >/dev/null || fail "$look: capture after the click"
+            shots_ms[shot]=$((($(date +%s%N) - t_click) / 1000000))
+            [ "${shots_ms[shot]}" -le "${LAUNCHER_MS_MAX:-1500}" ] || break
+        done
+        for i in $(seq "$shot"); do
+            n=$(python3 -I "$repo/tests/capture-diff.py" "$base" "$dir/after-$i.png" 400 150 880 650)
+            if [ "$n" != 0 ] && [ "$n" != size ]; then
+                found=$i
+                break
+            fi
+        done
+        [ -n "$found" ] || fail "$look: no launcher in $shot captures up to ${shots_ms[shot]} ms after the click on the door"
+        ms=${shots_ms[found]}
+        [ "$ms" -le "${LAUNCHER_MS_MAX:-1500}" ] || fail "$look: the launcher was drawn after $ms ms, not within 1500 ms"
+        ok "$look: the launcher is visible $ms ms after the click on the Apps door ($n pixels changed, capture $found of $shot; limit 1500 ms)"
+    fi
     until_ok 'launcher_up' 80 || fail "$look: the launcher did not start after a click on its door"
     sleep 2
     act click "$row_x" "$row_y" >/dev/null || fail "$look: click on the Mid row"
