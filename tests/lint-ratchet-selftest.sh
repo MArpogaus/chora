@@ -112,6 +112,7 @@ done
 label="help"
 "$tool" --help >"$work/out"
 tr '\n' ' ' <"$work/out" | grep -q 'raises .allow. in the list in the same commit' || fail "$label: the help does not say a reasoned new allow raises the list: $(cat "$work/out")"
+tr '\n' ' ' <"$work/out" | grep -q 'comment on the line above or next to the attribute counts as a reason' || fail "$label: the help does not say a comment above or next to the attribute is a reason"
 
 [ "$failures" = 0 ] && echo "ok: lint-ratchet-selftest"
 exit "$failures"
