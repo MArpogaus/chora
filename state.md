@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 06:21 UTC)
+## Now (2026-11-20 06:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
 session branch: 79c8d2b5 (train 81); 43 greens. Train 85 red 06:17 on ci-check: my merge of black-pane took its XDG_RUNTIME_DIR:? over the merged mktemp fallback (tiling-scripts-selftest); rebuilt as 85b (head 9973d0eb, only the 2 scripts differ), running 06:20.
