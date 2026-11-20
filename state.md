@@ -24,7 +24,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| tiling-bar-r1.md (RC look, ti-21 MAJOR, Queue 5) | sonnet high | starting |
+| tiling-bar-r1.md (RC look, ti-21 MAJOR, Queue 5) | sonnet high | session_016iS3kM8MGNJCBw8qRRcTmr |
 | xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | session_016iS3kQYqG4zQU8iHR299YZ |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
