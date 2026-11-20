@@ -562,6 +562,17 @@ check "ci-check: the step runs before build in the step list" \
 check "ci-check: tools/cut-check is the first command of the step" \
     "$(grep '^ci-check|' "$gate" | cut -d'|' -f2 | grep -c '^tools/cut-check ')" 1
 
+mark="orphan-mark-$$-$RANDOM"
+rm -f "$work/orphan.pids"
+printf 'fail|sleep 1; exit 1\nsib|bash -c "echo \\$\\$ >>%s; sleep 60; : %s" & wait\n' "$work/orphan.pids" "$mark" >"$work/steps"
+run_gate --jobs 2
+check "orphan: a red step fails the gate" "$rc" 1
+sleep 0.5
+# shellcheck disable=SC2009
+check "orphan: no process of a sibling step is alive after the gate exits" \
+    "$(ps -eo args= | grep -c -e "${mark/mark/mar[k]}" | tr -d " ")" 0
+while read -r orphan_pid; do kill -KILL "$orphan_pid" 2>/dev/null; done <"$work/orphan.pids"
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1
