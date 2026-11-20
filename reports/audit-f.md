@@ -162,3 +162,110 @@ Fri late, after the last train, its report before Sat 03:00.
 - The PM marked F8 met at train 68; this re-check agrees on the measure, with the five doc defects of rank 5 to backlog.
 - F5 "every moved module" was believed met at mk r3; cube/construct.rs fell through because the ct round ran before the
   cube split and named it for a re-measure that no round took.
+
+## r3
+
+Lane: cloud, opus, read-only on code, 11-20 05:00-05:20 UTC. Brief briefs/audit-f-r3.md.
+Tree: **P** = session head 79c8d2b5 (train 81; origin had nothing newer). Step 0: `git fetch --unshallow`; `cargo check -p chora`
+green (the first try died in a rustup component race at toolchain install, the retry passed; not a code fault).
+Pending MERGE-OK shas (trains 83-85) were measured with `git grep`/`git diff` from their merge base with P, not merged.
+I built none of the slices measured here.
+
+### 1. F1-F8 on P
+
+| # | value on P | command | state | gap (one line) |
+|---|---|---|---|---|
+| F1 | reports/arch-plan-fable.md (unchanged since 11-17 14:53): 26 slice rows MV1-2, CUT1-2, NET1-4, WM1-WM7b, KIT1-KIT8, each with gate and cost; reviews review-arch-plan-risk.md, review-arch-plan-fit.md, plan-critique-1119.md present. (r2 printed 24 rows by the same grep; the plan file has not changed since, so r2 miscounted) | `grep -cE '^\| *(WM\|KIT\|NET\|CUT\|MV)' reports/arch-plan-fable.md` (26); `git log -- reports/arch-plan-fable.md` | **met** | none |
+| F2 | tools/copies.toml 41 rows, all `max = 0`; `tools/cut-check`: `ok (8 crates, 18 reported)`, the 18 are assets, names, known; **0 copies lines**. Each look (mc, xp, tiling, construct) uses `book`, `actions`, `keysheet`, `notice`, `launch`, `settings`, `helper`, `wm::focus`, `wm::open` (>= 1 file each; tiling `notice` via the `use chora_kit::{..., notice}` block at main.rs:40). r2 risk gone: `fn report(` exists once outside core render helpers and voice's own method (kit runtime.rs:652); `fn on_path` only in the kit (desktop_entry.rs:188 pub, launcher.rs:222 private copy: RF2, see F4); `LC_MESSAGES` read only in kit words.rs; no `XDG_RUNTIME_DIR` read outside scene paths | `python3 tools/cut-check \| grep -ci copies` (0); `grep '^max' tools/copies.toml \| sort \| uniq -c` (41 x 0); per-part grep `chora_kit::(wm::)?<part>` or a `use` block per look | **met** | none on P. Pending: co-p2-fix ab4cbb4f adds kit `swallow` and moves tiling's swallow into it (F2 +); xp-p2r3 (running) makes xp the second user |
+| F3 | `crates/chora-kit/src/wm/` = book, focus, give, kept, open, stack, state (+ mod.rs); records D99, D107-D109, D113 | `ls crates/chora-kit/src/wm` | **met** | WM4 desks, WM6 seams cut to next week (as r1, r2) |
+| F4 | sizes: `ok: size-ratchet (0 files over 1500)`. Lints: `#[allow]`/`#[expect]` **360** (RC 378), without `reason` **150** (RC 238), `eprintln!` **125** (RC 135). Debt categories recounted item by item (section 2): workarounds **6** (RC 9), refactors **5** (RC 7), design questions 0 (RC 8), records 0 (RC 9), hygiene **14** (RC 14), total **25** (RC 47) | `tools/size-ratchet`; `grep -rE '#\[(allow\|expect)\(' crates plugins services --include=*.rs \| wc -l`; same `\| grep -vc reason`; `grep -rE 'eprintln!' crates/chora/src plugins services --include=*.rs \| wc -l`; per item the grep or sha of section 2 | **met** | hygiene sits at RC, not below (margin 0 until debt-f4 and voice-v12 merge: 12) |
+| F5 | chora-kit lines **91.52 %** (9,674 lines, 820 missed; under 80 %: runtime.rs 72.6, launcher.rs 76.2, conn.rs 79.2). 55 modules added since fe8ba6d0 in the four looks and the kit (tests excluded): **0 under 70 %** (cube/construct.rs now 96.7 %, was 41.8 % in r2; kit cube.rs 99.2 %). Per look: mc 91.2, xp 89.9, tiling 88.2, construct **70.3 %**. llvm-cov run: 0 failed, rc 0. **Flakes: since r2 (11-19 20:10) 10 train runs went red on a flake**: 73b hud, 76 xp (rm-2), 78b doors, 79 xp, 82 cube queue, 82b tiling-look ink, 82c FLK-AG1, 82d FLK-IN1, 82e FLK-TR1, 82f FLK-HUD1. Open flake rows without a merged fix: FLK-AG1, FLK-IN1, FLK-TR1, FLK-HUD1 (flakes-k running), FLAKE-CUBE-QUEUE, tiling-look ink x2 (F23 family), co-p2-fix rw-3 tiling panel unit test, flakes-j "no helper word" (unexplained), doors Escape in tiling, mc, construct (FJ-R2, flakes-k item 5). FLAKE-DOORS xp and FLAKE-SIG are fixed on flakes-j 6192f696 (MERGE-OK, t84, not in P). flake-series 5/5 (7d9ec18e, 11-19) is void: the r1 bar is "5 of 5 and no train rerun on a flake from then to Sat" | `env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-kit --features chora-kit/testing --summary-only`; `env -u XDG_RUNTIME_DIR cargo llvm-cov --no-fail-fast -p chora-mc -p chora-xp -p chora-tiling -p chora-construct -p chora-kit --features chora-kit/testing --summary-only` joined with `git diff --name-only --diff-filter=A fe8ba6d0 HEAD -- plugins/chora-{mc,xp,tiling,construct} crates/chora-kit` (tests excluded); `git log origin/claude/session-log --since="2026-11-19 20:10" --format='%ci %s' \| grep -iE 'red\|flake\|rerun'` | open | test half met; flake half: 10 flaky train reds in 9 h, at least 9 flake rows open; needs flakes-k + a second flake round + a new 5/5 series and zero flaky reruns to 03:59 |
+| F6 | 73 first-parent commits on the session branch since 11-17 10:56; 72 are train merges, one is not: **9c6bf589** "test(voice): GR2 test takes the counted TempDir" (PM, 11-19 23:52, the train 78 semantic fix of backlog "HARNESS (train 78 red 23:51)"); it was inside the train 78/79 tree and reached origin with train 79's green gate (bb16f2ff, 01:20). `tests/cut-check-selftest.sh`: ok (plugin-to-plugin deps blocked) | `git log --first-parent --since="2026-11-17 10:56" --format='%h %s' origin/claude/autonomous-dev-session-3w-i33pg7 \| grep -v ' Merge '` (one line); `tests/cut-check-selftest.sh` | **met** | none for the measure (every pushed head went through a green gate); note: a PM fix commit in a train tree is a commit with no lane review; record it in the train log |
+| F7 | `tests/acts/known-red.toml`: **0 rows** on P and on every pending sha. Tour v9 not this week (owner 11-17 14:20) | `grep -c '^\[\[red' tests/acts/known-red.toml`; same via `git show <sha>:` per pending sha | open | by design: v9 against v8 per look is next week; the state part holds |
+| F8 | every module of `crates/chora-kit/src` (29 .rs, dirs actions, testing, wm) and the 7 wm parts has a line in CONTRIBUTING.md "Where shared code lives" (script: no output); CONTRIBUTING.md:17 now names `wm` (`book`, `focus`, `give`, `kept`, `open`, `stack`, `state`); records D96-D117; no `D-ungrab`; the only "proposed" hits are the historical D87-D94 preamble (decisions.md:126) | `for m in $(ls crates/chora-kit/src/*.rs \| xargs -n1 basename \| sed 's/\.rs$//'); do grep -q "^- \`$m\`" CONTRIBUTING.md \|\| echo missing $m; done` (only `lib`); `grep -n 'proposed\|Proposed' docs/decisions.md`; `grep -rn D-ungrab docs` (empty) | **met** on P | **at risk at train 85**: co-p2-fix ab4cbb4f adds `crates/chora-kit/src/swallow.rs` (226 lines, a kit API used by tiling and construct, xp next) with no CONTRIBUTING line and no record (`git grep swallow ab4cbb4f -- CONTRIBUTING.md docs/decisions.md`: empty); kit wm/mod.rs:12 "Desks follow in a later slice" is true (WM4 cut) |
+
+**Met on P: 6 of 8** (F1, F2, F3, F4, F6, F8). F5 open on its flake half; F7 open by design. With trains 83-85 merged as they are: 5 of 8
+(F8 drops on co-p2-fix) unless DOCS-F8e (rank 1) rides train 85.
+
+### 2. F4 recount (categories of debt-2026-11-20.md, each item rechecked on P)
+
+debt-f4 r1 kept workarounds at 13; that count carried four items that are closed on P. Proof per item:
+
+| item | debt-f4 | P | proof |
+|---|---|---|---|
+| W7 xp ESCAPE_WAIT 15 ms x 4 | open | **closed** | 6b918eee (11-19 16:26, in P) removed it; `grep -rn ESCAPE_WAIT plugins/chora-xp` empty |
+| W8 construct sleep before reading a dead child's tail | open | **closed** | 07eb024c "wait for the tail reader, not 150 ms"; the only `thread::sleep` left in plugins/chora-construct/src is a test (cube/start.rs:280) |
+| N1-N4 known-red rows | open | **closed** | `tests/acts/known-red.toml` 0 rows (mc-i5, construct-red) |
+| N6 FRICTION "timeout with tail of CHORA_LOG" | open | **closed** | tests/battle/FRICTION.md:55-60 "*Fixed:* ... no workaround is left" |
+| B2, B3, B4, B6, W9, N5 | open | open | launch.rs:27 `GIVE_UP`; CHANGELOG.md:1 "Unreleased", no rc.4; 3 of 6 construct scripts gated only on debt-f4 (pending); F16-F19, F28 no fix; 640 shell sleep lines (RC 779); gate-construct-hud.sh:137 pointer move (co-29) |
+
+Workarounds 6. Refactors: RF2 narrowed (two `on_path` in kit only), RF3 (voice client.rs:113 own `ConfirmParams`, 15 lines), RF7
+(construct main.rs:237 `placed: bool`, xp window.rs:111 `held: bool`), N1 DB6, N2 `wm_with_window` (0 hits) open; N3
+UnixListener row closed (copies row at 0) = 5. Hygiene: H2 (tokens.py still has no test; triage has tests_triage.py: narrowed),
+H3, H4, H5 (8 "verify" lines in docs/known-issues.md), H6, H7, H9, H10 (narrowed, 820 ms), H11 (closed only on debt-f4 fc404a90),
+H13, H14, DB7, DB8, DB9 = 14; H1, H8 (README.md:201 section), H12 (log dev-rules.md) closed.
+
+### 3. Pending MERGE-OK shas: which F each moves
+
+Values are the sha against its own merge base with P (`git grep` counts, `git diff --name-only`).
+
+| sha | F moved | by how much |
+|---|---|---|
+| launcher-click 741d6bca | none of F1-F8 (RC shared bar sh-29) | tests only; adds the launcher-click cell (F6 coverage of the gate) |
+| p2-harness 5dbd0ccf | none (RC 2 harness) | tests/persona only |
+| voice-v12 ed4c7bf9 | F4 hygiene -1 (H4: voice-acp, voice-events now gate cells) | 14 -> 13 |
+| xp-fix a767790d | F5 small (kit launch.rs, xp surfaces.rs with tests) | lints unchanged |
+| debt-f4 fc404a90 | F4 hygiene -1 (H11 df, drift, shallow checks), B4 narrowed (3 of 6 construct scripts gated); F6 stronger (gate refuses a full disk, warns on drift) | 13 -> 12 with voice-v12 |
+| harness-k 0dfdad8d | F6 (guards, grab-gap and mkdir-runtime checks in pre-commit) | gate-only |
+| co-p2-fix ab4cbb4f | F2 + (one kit `swallow` for tiling and construct); **F8 - (new kit module, no CONTRIBUTING line, no record)** | F8 met -> open until DOCS-F8e |
+| stray-grab 591e98f8 | F8 + (D-record amended for the press that chooses a manager; api.md) | records stay current |
+| black-pane 91e6a114 | F4 eprintln +3 | 125 -> 128 |
+| mc-p2-fix 17d9a798 | F4 eprintln +2 | contained in mc-remote |
+| mc-remote dac835dd | F4 eprintln +3 (with mc-p2-fix); core ipc.rs change (api.md updated) | 128 -> 131 (RC 135, still met) |
+| kit-tests 40b61f28 | F5 + (FakeCore cells wm give, kept, conn, state edges) | kit 92.02 -> 92.13 % (its own run, kit+looks) |
+| tiling-bar 3a9a426f | none (RC look, tests) | - |
+| kit-minors 7a7e00a2 | F5 nit (4 lines testing.rs doc) | - |
+| flakes-j 6192f696 (t84) | F5 flake half: FLAKE-DOORS xp, FLAKE-SIG fixed | 2 of ~11 flake rows |
+
+### 4. Split review candidates (review_due.py: six units over 5,000 lines)
+
+1. **chora-construct (21,117 lines): highest risk.** It holds four open MAJORs (co-25 face part, co-26 verify, co-27, co-29) under
+   rule 6, the lowest coverage of the four looks (70.3 % lines; 4,196 missed of 7,440 missed in all four looks, 56 %), and three
+   lanes edit it at once (co-majors r3; xp-p2r3 on camera.rs and cube.rs; co-p2-fix pending on camera.rs, cube.rs, input.rs, main.rs).
+   The faults sit where key routing (input.rs, camera.rs: swallow, Tab after a flight, co-29), pane ownership on an overlay start
+   (co-27) and the cube's child lifecycle (cube.rs 1,817 lines by `wc -l`) meet; a split review should map those three seams and
+   say which state each owns before the next MAJOR fix lands on top.
+2. **chora-xp (23,730 lines, the largest): second.** Most churn since 11-17 (76 commits, +8,131/-4,947 over 45 files: the wm.rs
+   split into wm/*), and it now becomes the face manager inside the construct (xp-p2r3: swallow on a face; XPF-R1 launch tokens),
+   so its key and launch paths gain a second host. Coverage is good (89.9 %), so the risk is structure, not tests: startmenu.rs
+   1,764 and taskbar.rs 1,341 lines (`wc -l`) and the wm/* module borders after the split have had no whole-unit review.
+   (mc is third: main.rs 2,511 lines and two pending branches on main.rs, acts.rs, plus a core ipc.rs change in mc-remote.)
+
+### 5. Slices by Sat 03:59 UTC
+
+Ranked by F moved per % budget. No new feature. Running lanes: verify-maj-r2 (tests/ launcher-click, xp-fields), flakes-k (agent.sh,
+chora inject/ipc tests, images.rs, gate-hud, tests/doors), core-minors (crates/chora ipc, state, input, grabs; api.md; decisions.md
+D116), xp-p2r3 (xp, kit launch.rs, construct camera.rs ~476, cube.rs ~156, gate-construct-cube.sh, persona), co-majors-r3
+(construct overlay, input; gate-construct-k2a, windows, hud, 3d; merge-gate.sh construct-extra).
+
+| rank | name | F | files | done criterion | model | cost | conflicts |
+|---|---|---|---|---|---|---|---|
+| 1 | DOCS-F8e | F8 (keeps it met) | CONTRIBUTING.md (a `- \`swallow\`` line; summary line 17), docs/decisions.md (D118: one list of swallowed chords in kit, who grabs it: tiling, construct pane, xp face; the `Alt` exception), crates/chora-kit/src/swallow.rs nothing | from ab4cbb4f (or the t85 head): the F8 script of section 1 prints no missing module; `grep -n swallow docs/decisions.md CONTRIBUTING.md` hits both; a reviewer who did not write it checks D118 against swallow.rs and the xp-p2r3 use | sonnet | 0.2 % | core-minors edits decisions.md (D116 text): append D118 at the end, trivial; ride train 85 with co-p2-fix or the next one |
+| 2 | FLAKES-L r2 (the flakes no lane owns) | F5 | tests/gate-tiling-look.sh (ink: wait for the first drawn focus border, no retry), plugins/chora-tiling/src/panel tests (rw-3 `the_layout_word_is_a_word_of_a_person`), tests/doors/xp.sh "no helper word" (evidence only); FLAKE-CUBE-QUEUE (construct cube turn queue, gate-construct-cube.sh) only after xp-p2r3 merges | each: cause with evidence under `--jobs 2` load, red first, fix, then 10 loaded runs of the cell or test; a row not reproduced in 20 loaded runs says so with the count; backlog rows closed or named | sonnet high | 1 % | flakes-k (none of these files); xp-p2r3 owns gate-construct-cube.sh: cube-queue item last, from the head after its merge; tiling-look also in verify-maj-r2's gate list (read only there) |
+| 3 | FLAKE-SERIES r2 | F5 (flake half) | none (gate runs); backlog rows | after flakes-k and rank 2 are on the head (Fri ~20:00): 5 full `tests/merge-gate.sh --jobs 2` runs (the train setting since t83) on that head, no rerun, 5 of 5 green; each red a backlog row with step, cell, log. F5 flake half met only with 5/5 and no train rerun on a flake from the series' start to 03:59 (PM logs each train's first-run result) | haiku | 1 % | none; own container; it must run on the head that the last trains build on |
+| 4 | AUDIT-F r4 (Sat check) | F2, F4, F5, F8 re-measure | reports/audit-f.md "## r4" (log branch) | on the last head (Sat ~02:00, after trains 83-86): the commands of section 1 for F2, F4 (lints: eprintln must stay <= 135 after black-pane and mc-remote; hygiene with debt-f4 and voice-v12 in), F5 (series result plus the train log), F8 (swallow line); one verdict per F with value, command, check | sonnet | 0.6 % | none (read-only); after the last train |
+
+Sum 2.8 %. Per F: F8 0.2 %, F5 2 %, re-check 0.6 %. Nothing moves F7 this week (tour v9 next week; known-red at 0 on P and every
+pending sha). F1, F3, F6 need no slice. If budget is short, drop rank 2's cube-queue item first, then rank 2 entirely; rank 3 without
+rank 2 is likely red again (the ink and panel flakes have hit trains twice and once). Best use of budget beyond these for stability
+and looks: the construct split review of section 4 (it carries the open MAJORs and the lowest coverage).
+
+Honest outlook for F5: 10 flaky train reds in the 9 h since r2, at --jobs 3. Met by Sat needs flakes-k to close its four, rank 2
+to close or fence the rest, and then about 8 h of trains with no flaky rerun. Likely outcome: test half met, flake half open.
+
+### 6. Notes
+
+- debt-f4 r1 counted W7, W8, N1-N4 and N6 open from the 11-20 debt list without rechecking; the PM's lint erratum (03:42) was right.
+  Next debt count: recheck each item on the tree, as section 2 does.
+- r2's F1 count (24) was a grep miscount; the plan file did not change after 11-17 14:53.
+- Pending eprintln growth (+6 over trains 84-85) keeps F4 met (131 <= 135) but eats the margin; rank 4 re-measures it.
