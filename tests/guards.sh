@@ -69,6 +69,29 @@ missing_pre_commit_case() {
 
 missing_pre_commit_case
 
+hook_case() {
+  local label=$1 want=$2 base=$3 added=$4 other=$5
+  [ -n "${GUARDS_NESTED:-}" ] && return
+  new_repo
+  cd "$work/repo" || exit 1
+  mkdir tests
+  printf '%b' "$base" >tests/guards.sh
+  printf 'x\n' >other.txt
+  git add tests/guards.sh other.txt
+  git commit -q -m base
+  printf '%b' "$added" >>tests/guards.sh
+  git add tests/guards.sh
+  [ -n "$other" ] && { printf 'y\n' >>other.txt; git add other.txt; }
+  printf 'exit 1\n' >"$work/red.sh"
+  GUARDS_SCRIPT="$work/red.sh" bash "$tests_dir/guards-hook.sh" >/dev/null 2>&1
+  verdict "guards-hook: $label" "$want" $?
+}
+
+hook_case "a commit that only adds failing cases" pass 'kill_case a pass x\n' 'kill_case b fail y\n' ""
+hook_case "a red guards.sh with another changed file" fail 'kill_case a pass x\n' 'kill_case b fail y\n' other
+hook_case "a red guards.sh with another added line" fail 'kill_case a pass x\n' 'rm -rf /\n' ""
+hook_case "a red guards.sh with no change at all" fail 'kill_case a pass x\n' '' ""
+
 comment_case() {
   local label=$1 want=$2 path=$3 base=$4 added=$5
   new_repo
