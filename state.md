@@ -27,7 +27,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | guide-checks-r2.md (F7: review r1 FIX, rg-1..rg-3 MAJOR) | sonnet medium, claude/guide-checks a78b1a07 | session_016iS3kNHeeU1tRAuu1PvRx4 21:07 |
 | xp-tidy-r4.md (F6: t93 red, gate-tiling-power.sh:99 stale) | sonnet medium, claude/xp-tidy efe85512 | session_016iS3kQJQ6b8NeeQoAjek63 22:02 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
-| give-raise-r1.md (RC 2 T7: given window on top) | sonnet medium, claude/give-raise dcb77733 | starting |
+| give-raise-r1.md (RC 2 T7: given window on top) | sonnet medium, claude/give-raise dcb77733 | session_016iS3kMBSo8hkNen2GevR6g 22:04 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) t93b at --jobs 2: co-pane 79787d9f with co-fix, tour-diff 4f4f1897; XP-TIDY r4 0.3 % (stale gate line) then next train; PM fixes dcb77733 and t93 check.py merge to the next seeded review.
@@ -35,4 +35,4 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
-- setup.sh refused in lanes (apt): default skip. rc.4 tag: kept local (owner).
+- rc.4 tag: kept local (owner).
