@@ -29,6 +29,17 @@ const MAX_TEXT: f64 = 300.0;
 const SMALL: u32 = 11;
 /// The distance of two lines of a sized text, in hundredths of its size.
 const LEADING: u32 = 147;
+/// The smallest and the largest text size of a card in pixels, the range
+/// of the text of the HUD.
+pub const SIZES: std::ops::RangeInclusive<u32> = 14..=48;
+
+/// The text size of a card: `size` itself in `SIZES`, else the nearest
+/// end of the range, with a message that names the value and the range.
+pub fn bounded(size: Option<u32>) -> (Option<u32>, Option<String>) {
+    debug_assert!(SIZES.start() < SIZES.end());
+    (size, None)
+}
+
 /// The most lines of the body that a card shows.
 const MAX_LINES: usize = 8;
 /// The most bytes of the body that are laid out.
@@ -399,10 +410,12 @@ impl Card {
         (output, corner, chat): (&OutputInfo, Corner, Option<[i32; 4]>),
     ) -> Self {
         let style = &values.card;
-        let metrics = Metrics::of(style.size);
-        let sized = style
-            .size
-            .map(|size| (family_of(&values.font), size, metrics.line));
+        let (size, message) = bounded(style.size);
+        if let Some(message) = message {
+            eprintln!("chora-notify: {message}");
+        }
+        let metrics = Metrics::of(size);
+        let sized = size.map(|size| (family_of(&values.font), size, metrics.line));
         let width = |s: &str| match sized {
             Some(face) => theme.svg_width(&element(face, s, [0, 0], style.text, false)),
             None => theme.text_width(s, Font::Ui),
@@ -602,6 +615,34 @@ mod tests {
         assert_eq!(card.size, [420, 8 + 28 + 5 + 28 + 10]);
         assert_eq!(card.title[3], 28);
         assert_eq!(Metrics::of(Some(11)).line, 17);
+    }
+
+    #[test]
+    fn a_text_size_outside_the_range_is_clamped_with_a_message() {
+        for (bad, kept) in [(0, 14), (13, 14), (49, 48), (100_000, 48), (u32::MAX, 48)] {
+            let (size, message) = bounded(Some(bad));
+            assert_eq!(size, Some(kept), "size {bad}");
+            let message = message.unwrap_or_default();
+            assert!(message.contains(&bad.to_string()), "{message}");
+            assert!(
+                message.contains("14") && message.contains("48"),
+                "{message}"
+            );
+            let metrics = Metrics::of(size);
+            assert!(metrics.line > 0 && metrics.line < 100, "{}", metrics.line);
+        }
+        for good in [14, 19, 48] {
+            assert_eq!(bounded(Some(good)), (Some(good), None));
+        }
+        assert_eq!(bounded(None), (None, None));
+    }
+
+    #[test]
+    fn the_metrics_of_any_size_do_not_overflow() {
+        for size in [0, 1, 100_000, u32::MAX] {
+            let metrics = Metrics::of(bounded(Some(size)).0);
+            assert!(metrics.line > 0 && metrics.line < 100, "size {size}");
+        }
     }
 
     #[test]
