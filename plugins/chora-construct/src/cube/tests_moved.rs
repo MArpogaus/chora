@@ -149,26 +149,24 @@ fn a_pane_and_a_cube_hold_no_unbound_super_chord() {
     );
 }
 
-/// A grabbed Super chord leaves a bare tap of Super for the client that
-/// has the keyboard: the program of a face (xp) then opens its Start menu
-/// unasked (rv-1). A cube in use mode swallows the lone tap; the cube that
-/// stands back has no program that takes the keys, so it leaves the tap.
+/// The program of a face (xp) holds the tap of Super and its own Super
+/// chords: a cube in use mode grabs no lone tap, or the press of Super
+/// would go to the construct and xp would never see Super go down, nor
+/// get its Win+E (rw-1). The tap that a chord of the construct leaves is
+/// no tap for xp: the core ends it without its release
+/// (`a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client`).
 #[test]
-fn a_cube_in_use_mode_swallows_the_lone_super_tap() {
+fn a_cube_in_use_mode_leaves_the_super_tap_to_the_program() {
     use chora_kit::modes::Act;
-    let (mut construct, _) = on_core("swallow-tap", |_, _| None);
+    let (mut construct, _) = on_core("leave-tap", |_, _| None);
     construct.cube = Some(host_of(FACES));
     construct.regrab().unwrap();
-    for tap in ["Super+Super_L", "Super+Super_R"] {
+    for chord in ["Super+Super_L", "Super+Super_R", "Super+e", "Super+q"] {
         assert!(
-            construct.rt.action(tap).is_some(),
-            "{tap} is swallowed in a face, so xp sees no bare tap after a chord"
+            construct.rt.action(chord).is_none(),
+            "{chord} stays with the program of the face in use mode"
         );
     }
-    assert!(
-        construct.rt.action("Super+q").is_none(),
-        "the other Super chords stay with the face manager"
-    );
     let host = construct.cube.as_mut().expect("the cube");
     assert!(host.view.act(Act::StepBack), "the cube stands back");
     construct.regrab().unwrap();

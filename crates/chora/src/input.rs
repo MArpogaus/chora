@@ -1625,6 +1625,84 @@ mod tests {
         );
     }
 
+    const E: u32 = 18;
+    const F1: u32 = 59;
+
+    /// The `input.key` events of a client, as `BINDING STATE`.
+    fn key_stream(client: &mut Client, core: &mut Core) -> Vec<String> {
+        events(client, core)
+            .into_iter()
+            .filter(|e| e["event"] == "input.key")
+            .map(|e| {
+                format!(
+                    "{} {}",
+                    e["binding"].as_str().unwrap_or_default(),
+                    e["state"].as_str().unwrap_or_default()
+                )
+            })
+            .collect()
+    }
+
+    /// The program of a face, xp, holds the tap of Super and its own
+    /// Super chords; the construct holds its own chords. Super, `e` and
+    /// the release reach xp as its tap and its `Super+e` (rw-1): the
+    /// Super press goes to the program, and no other client takes it.
+    #[test]
+    fn a_super_chord_of_the_program_reaches_it_while_another_client_holds_chords() {
+        let (mut core, _wayland, _window, mut construct, mut xp) = window_and_menu();
+        construct.ok(&mut core, "events.subscribe", json!({"events": []}));
+        construct.ok(&mut core, "input.grab", json!({"binding": "Super+F1"}));
+        for binding in ["Super+Super_L", "Super+e"] {
+            xp.ok(&mut core, "input.grab", json!({"binding": binding}));
+        }
+        press(&mut core, SUPER, true);
+        tap(&mut core, E);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_stream(&mut xp, &mut core),
+            [
+                "Super+Super_L pressed",
+                "Super+e pressed",
+                "Super+Super_L released",
+                "Super+e released"
+            ],
+            "xp gets Super down and its chord"
+        );
+        assert_eq!(key_stream(&mut construct, &mut core), Vec::<String>::new());
+    }
+
+    /// A key grab of one client during the tap of a lone modifier that
+    /// another client holds ends the tap without its release, as a
+    /// grabbed button does: Super with a chord of the construct is no tap
+    /// of Super for the program of a face, which would open its Start
+    /// menu unasked (rw-1). A tap alone still ends with its release.
+    #[test]
+    fn a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client() {
+        let (mut core, _wayland, _window, mut construct, mut xp) = window_and_menu();
+        construct.ok(&mut core, "events.subscribe", json!({"events": []}));
+        construct.ok(&mut core, "input.grab", json!({"binding": "Super+F1"}));
+        xp.ok(&mut core, "input.grab", json!({"binding": "Super+Super_L"}));
+        press(&mut core, SUPER, true);
+        tap(&mut core, F1);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_stream(&mut xp, &mut core),
+            ["Super+Super_L pressed"],
+            "no lone tap after the chord of the construct"
+        );
+        assert_eq!(
+            key_stream(&mut construct, &mut core),
+            ["Super+F1 pressed", "Super+F1 released"]
+        );
+        press(&mut core, SUPER, true);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_stream(&mut xp, &mut core),
+            ["Super+Super_L pressed", "Super+Super_L released"],
+            "a tap alone ends with its release"
+        );
+    }
+
     #[test]
     fn a_grabbed_button_goes_with_its_moves_to_the_grab_and_to_no_surface() {
         let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
