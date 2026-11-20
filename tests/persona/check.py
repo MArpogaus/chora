@@ -129,6 +129,7 @@ class Run:
             "action": action,
             "open": open_ids,
             "helper": {k: (v or {}).get("helper") for k, v in snap.states.items()},
+            "page": page_of(snap, look),
             "toplevels": sorted(snap.toplevels),
             "keysheet": None,
         }
@@ -373,6 +374,52 @@ def shown_scene(snap, look="mc"):
     ]
 
 
+def page_of(snap, look="mc"):
+    """The pages that mc has on: the ids of its scene groups that are shown.
+    A page that fades is not on yet."""
+    return sorted(
+        str(n["id"])
+        for n in snap.nodes
+        if n.get("owner") == look
+        and n.get("parent") == look
+        and str(n.get("id")).startswith(f"{look}-s-")
+        and n.get("visible")
+        and (n.get("opacity") or 0) >= 0.5
+    )
+
+
+def verify_page_changed(ctx, before):
+    """The page, or the window of a page, differed from the start at the end
+    or at any look in between: a persona that turned and came back has
+    changed it."""
+    start = page_of(before, ctx.look)
+
+    def verify(after_):
+        pages = [page_of(after_, ctx.look)] + [h["page"] for h in ctx.hist if h.get("page")]
+        if any(page != start for page in pages) or shown_scene(after_) != shown_scene(before):
+            return []
+        return [f"nothing changed: still {start!r}"]
+
+    return verify
+
+
+def verify_only_keys_open(ctx):
+    """Nothing is open but the key list, which the persona may have opened
+    and left open."""
+    sheet = SHEETS[ctx.look]
+
+    def verify(after_):
+        extra = [i for i in invariants.open_ids(after_) if i != sheet]
+        return [f"expected open [], got {sorted(extra)}"] if extra else []
+
+    return verify
+
+
+def verify_all(*verifiers):
+    """The mismatches of every verifier."""
+    return lambda after_: [m for verifier in verifiers for m in verifier(after_)]
+
+
 def notice_ids(snap):
     """The ids of the notices that the snapshot shows, closed or accepted."""
     block = snap.blocks.get("notify") or {}
@@ -383,15 +430,19 @@ def notice_ids(snap):
     return ids
 
 
-def verify_notice(before):
-    """A notice that is new against `before`, or the words No helper."""
+def verify_notice(ctx, before):
+    """A notice that is new against `before`, the words No helper, or the
+    row Nothing found that the launcher shows first (the stand-in of fuzzel
+    logs the first row of each list)."""
 
     def verify(after_):
         if any("No helper" in str(n) for n in after_.nodes):
             return []
+        if ctx.called(r"fuzzel-first-row Nothing found for "):
+            return []
         if notice_ids(after_) - notice_ids(before):
             return []
-        return ["neither a new notice nor the words No helper"]
+        return ["neither a new notice, the words No helper nor a launcher row Nothing found"]
 
     return verify
 
@@ -401,12 +452,18 @@ def contracts(task, ctx, before):
     name, _, part = task.partition(":")
     same = verify_same_windows(before)
     table = {
-        "T1": Expect(open=ctx.left, verify=verify_new_window(ctx, before)),
+        "T1": Expect(
+            open=ctx.left,
+            verify=verify_all(verify_only_keys_open(ctx), verify_new_window(ctx, before)),
+        ),
         "T2": Expect(open=ctx.left, verify=verify_sheet(ctx)),
         "T3": Expect(verify=verify_helper(ctx)),
-        "T4": Expect(open=ctx.left, verify=verify_system(ctx, part)),
+        "T4": Expect(
+            open=ctx.left,
+            verify=verify_all(verify_only_keys_open(ctx), verify_system(ctx, part)),
+        ),
         "T5": Expect(verify=verify_probe(ctx)),
-        "T6": Expect(verify=verify_notice(before)),
+        "T6": Expect(verify=verify_notice(ctx, before)),
         "T7": Expect(verify=same),
         "X1": Expect(focus=ctx.look, verify=verify_shown_focused(ctx)),
         "X2": Expect(
@@ -419,7 +476,7 @@ def contracts(task, ctx, before):
         "L1": Expect(gone=1, focus=ctx.look),
         "L2": Expect(focus=ctx.look),
         "L3": Expect(focus=ctx.look, verify=verify_shown_focused(ctx)),
-        "M1": Expect(verify=verify_changed(before, shown_scene)),
+        "M1": Expect(verify=verify_page_changed(ctx, before)),
         "M2": Expect(open=ctx.left, focus="mc"),
         "C1": Expect(cube={}),
         "C2": Expect(verify=verify_no_window_lost(ctx, before)),
