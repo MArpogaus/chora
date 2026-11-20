@@ -19,7 +19,7 @@
 # in walk mode; a window audit checks that no window is lost; in a pane
 # that the camera flew into, no Super chord that the construct does not
 # bind (d, q, Tab, 1) reaches the window, a plain key does, and Super+F1
-# and Super+t keep their actions (co-25, co-26).
+# and Super+t keep their actions (co-25, co-26), and in walk mode the same chords reach no window.
 # The launcher here is a foot window that starts a second foot; where
 # fuzzel is installed, the programs that it starts become panes too.
 #
@@ -219,6 +219,16 @@ until_ok help_shown || fail "Super+F1 in a pane shows no key list (co-26)"
 key Escape
 until_ok '! help_shown' || fail "Escape after Super+F1 in a pane keeps the key list"
 ok "co-26: Super+F1 in a pane shows the key list"
+until_ok 'test "$(focused id:construct-look)" = True' || fail "walk mode: the walk has no keyboard after the key list"
+chord d
+chord q
+chord Tab
+chord 1
+sleep 1
+for code in 32 16 15 2; do
+    [ "$(got "$code")" = 0 ] || fail "walk mode: a Super chord that the construct does not bind reached the window of a pane (key $code): $(grep ^key "$work/probe.log" | tr '\n' ' ')"
+done
+ok "co-25: in walk mode Super+d, q, Tab and 1 reach no window of a pane"
 ctl call construct pane.fly '{"name": "chora-probe"}' >/dev/null || fail "pane.fly chora-probe again"
 until_ok 'test "$(app_focused chora-probe)" = True' || fail "the probe pane has no keyboard again"
 before=$(panes)
