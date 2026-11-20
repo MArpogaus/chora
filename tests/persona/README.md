@@ -100,7 +100,7 @@ $ export PERSONA_ENV=FILE
 $ tests/persona/round.sh probe erika       # T5 only: a chora-probe window; prints PROBE_REPORT=FILE
 $ tests/persona/round.sh begin erika           # before EACH goal (check.py begin): the windows open now, the goal is held against them
   ... the persona works with act.py; PERSONA_CHECK=1 is set by round.sh ...
-$ python3 -I tests/persona/check.py end T1 T4:volume   # one line per task, then the breaches; the next goal starts from this state
+$ python3 -I tests/persona/check.py end T1 T4:volume   # one line per task, then the breaches; `end` uses the begin up, the next goal needs its own `begin`
 $ tests/persona/round.sh stop erika
 ```
 
@@ -129,9 +129,9 @@ $ tests/persona/round.sh stop erika
   the report is missing or no `chora-probe` window is in the scene).
   `start` is the first snapshot of the run (round.sh runs it); `begin`
   takes the one a task is held against (one `begin` per goal, never once
-  per persona), and `end` reads the newest `begin` and leaves its own end
-  state as the begin of the next goal, so a task left open by one goal
-  cannot leak into the next even when a driver forgets `begin`.
+  per persona), and `end` holds the goal to that `begin` and uses it up: a
+  goal without its own `begin` gets no verdict (never the `start`, the begin or
+  the end of the goal before), so every goal is compared with its own begin.
   C2 fails only for a window that was open at the begin, or came while the
   task ran, and is gone at the end. A key list left open by the persona is no
   red of a contract. Exit status 1 when a contract is red or a breach is outside

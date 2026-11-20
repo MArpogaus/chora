@@ -9,10 +9,9 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
   begin                  take the snapshot a task is held against: the
                          windows open when the task starts; the driver runs
                          it before each goal (`round.sh begin NAME`). `end`
-                         reads the newest begin, or `start` when there is
-                         none, and leaves its own end state as the begin of
-                         the next goal, so a task left open by one goal
-                         cannot leak into the next
+                         holds the goal to that begin and uses it up: a goal
+                         without its own begin is no verdict, never the
+                         begin or the end of the goal before
   after ACTION           run the invariants on what ACTION changed since the
                          last snapshot and append the breaches to
                          $PERSONA_DIR/breaches.jsonl; act.py runs it after
@@ -22,7 +21,7 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
                          failed effects)
   end [--look L] [--probe FILE] TASK...
                          the contract of each task against the snapshot of
-                         the newest `begin`: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
+                         the `begin` of this goal: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
                          T4 takes its part as T4:volume|clock|screenshot|
                          lock|power. Prints `task T pass|FAIL: why [scene: ...]` (the
                          look state read from the scene) and the
@@ -550,8 +549,11 @@ def parse_chords(actions):
 
 
 def baseline(run):
-    """The snapshot a task is held against: the newest `begin`, else `start`."""
-    return "begin" if run.load("begin") else "start"
+    """The snapshot a goal is held against: the `begin` taken right before it.
+    `start` and the end of an earlier goal are no baseline."""
+    if run.load("begin") is None:
+        sys.exit("check.py: no `begin` for this goal (round.sh begin NAME before each goal)")
+    return "begin"
 
 
 def scene_state(snap, look):
@@ -588,7 +590,7 @@ def scene_line(snap, look):
 
 
 def end(run, args):
-    """Check the tasks against the snapshot of `start`."""
+    """Check the tasks against the snapshot of this goal's `begin`."""
     look, probe, tasks = run.s.label, None, []
     it = iter(args)
     for a in it:
@@ -601,7 +603,7 @@ def end(run, args):
     name = baseline(run)
     saved = run.load(name)
     if saved is None:
-        sys.exit("check.py: no `start` yet")
+        sys.exit("check.py: no `begin` yet")
     before, _marks, n_calls = saved
     since = (run.state_dir / f"{name}.json").stat().st_mtime
     now = run.snapshot()
@@ -631,7 +633,7 @@ def end(run, args):
     for b in breaches:
         print(f"breach {b['invariant']} in {b['action']}: {b['breach']}")
     print(f"breaches {len(breaches)}")
-    run.save("begin", now, run.marks())
+    (run.state_dir / "begin.json").unlink(missing_ok=True)
     return 1 if bad or breaches else 0
 
 

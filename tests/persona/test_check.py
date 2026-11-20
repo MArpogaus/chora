@@ -281,7 +281,7 @@ class SceneState(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, cube_snap("navigate", front=3))
             run.s.label = "construct"
-            run.save("start", cube_snap("navigate", front=3), {})
+            run.save("begin", cube_snap("navigate", front=3), {})
             _, out = run_end(run, "T7")
             line = next(x for x in out.splitlines() if x.startswith("task T7"))
             self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)
