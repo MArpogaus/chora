@@ -1,16 +1,16 @@
 # State
 
-## Now (2026-11-20 18:04 UTC)
+## Now (2026-11-20 18:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 17:45 PM 11.4 % today; disk 19 G free: one build (train) at a time; 6 lanes
 session branch: 9dc384b3; 49 greens (t90 gate-silent green 17:44); t91 gate-orphan running (merge-gate.sh conflict with t90 resolved, selftest ok).
-burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
+burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r4 15:35 meets the stop rule; mc r5 16:33 meets the stop rule (mc-42, I3 PASS; 0 breaches); co-25, co-33 fixed (co-fix MERGE-OK); co r3 17:12 fails (pane drag I3, C2 checker): co-pane; tiling r2 17:04 fails (I3, T7 hand-over high): handover-ti |
+| 2 | Persona round 4 | xp r4 15:35 meets the stop rule; mc r5 16:33 meets the stop rule (mc-42, I3 PASS; 0 breaches); co-25, co-33 fixed (co-fix MERGE-OK); co r3 17:12 fails; co-pane review r1 FIX (rv-1 Super tap): co-pane r2; tiling r2 17:04 fails (I3, T7 hand-over high): handover-ti |
 | 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -23,14 +23,13 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-pane-r1.md (RC 2: co r3 pane drag I3, key sheet, checker) | sonnet high, claude/co-pane bbaad12b | session_016iS3kNKpN5aPruPuWBdAXM 17:12 |
-| xp-tidy-r1.md (shared bar: open xp MINORs) | sonnet medium, claude/xp-tidy 22fead94 | session_016iS3kLbXcJARDTBAnvHK6j 17:23 |
+| co-pane-r2.md (RC 2: review r1 FIX, rv-1 MAJOR Super tap) | sonnet high, claude/co-pane f10842d8 | session_016iS3kPGkbPMxf5N2LQ6v6F 18:22 |
 | handover-ti-r2.md (RC 2: review r1 FIX, rw-1 MAJOR click-back) | sonnet high, claude/handover-ti 371f0fa1 | session_016iS3kPR5QXNQa8cwi9z9fT 18:04 |
-| tour-plan-r1.md (F7, RC 11: tour v9 plan with checks) | opus high, read-only 9dc384b3 | session_016iS3kLiFgdDgZF2q6KQxay 17:56 |
+| tour-one-r1.md (F7, RC 11: design/tour-v9.md lane 1, one tour set) | sonnet medium, claude/tour-one 9dc384b3 | session_016iS3kNTVyCQRmPu3jQAyF1 18:06 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t91 gate-orphan 437173e1 alone (running); t92 lint-down 78ec62e1, mc-minor f7735e43, flakes-o 16da7bc7, flakes-n d7c69aac, persona-check e3763f69, co-fix bbaad12b, xp-minor fca4f8b5, flakes-l cc1282db, kit-minor 939acf6a, xp-give 22fead94; then --jobs 2.
-5. (F5, F4, shared bar) MERGE-OK: the t91, t92 shas. Running: CO-PANE r1 1.5 %, HANDOVER-TI r2 1.5 % (review r1 FIX rw-1), XP-TIDY r1 1.5 %, TOUR-PLAN r1 opus 1 %; then P2-R3-TILING (I5 open), P2-R4-CO. Later FLAKE-SERIES r3 haiku 1 %.
+4. (F6, rc 3) t91 gate-orphan 437173e1 alone (running); t92 lint-down 78ec62e1, mc-minor f7735e43, flakes-o 16da7bc7, flakes-n d7c69aac, persona-check e3763f69, co-fix bbaad12b, flakes-l cc1282db, kit-minor 939acf6a, xp-tidy 74b423bb (has xp-minor, xp-give; r2 MERGE-OK); then --jobs 2.
+5. (F5, F4, shared bar) MERGE-OK: the t91, t92 shas. Running: CO-PANE r2 2 % (review FIX rv-1), HANDOVER-TI r2 1.5 % (review r1 FIX rw-1), TOUR-ONE r1 1.5 % (tour-v9 accepted, 9.5 % plan); then P2-R3-TILING (I5 open), P2-R4-CO. Later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
