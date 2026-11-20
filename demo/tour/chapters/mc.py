@@ -167,7 +167,7 @@ def dark(ctx):
         x, y = door("mc-r1-right-chat-door")
         t.act("pointer", "Mouse path: opens the chat in the column", "The chat opens with the helper list", still="03-13-chat-dark", settle=0.8, lead=0.1, contract="T3", cells=["doors helper-door"], capture="Q")
         t.reach(x, y); t.click(); t.wait(0.6); t.done()
-        t.act("key", "Escape closes the chat", "The chat closes", still=None, settle=0.2, lead=0.1, known="I5: the headers of two pages are drawn at once after the chat closes (mc-r0 and mc-r1 overlap)")
+        t.act("key", "Escape closes the chat", "The chat closes", still=None, settle=0.2, lead=0.1)
         t.tap("Escape", 0.2); t.done()
         slide(f"{L.dir}/slide.png", 3, "mc: the sofa, dark", ["Evening, dark theme: the plan in large print,", "pages turned by the remote, the mouse as a second path."], accent=(247, 118, 142))
         t.finish("03b-mc-dark.mp4", slide=f"{L.dir}/slide.png")
