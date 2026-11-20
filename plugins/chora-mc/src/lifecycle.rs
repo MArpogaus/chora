@@ -99,14 +99,22 @@ impl Mc {
         self.apply(commands)
     }
 
-    /// Remembers the panels that the commands start to write.
+    /// Remembers the panels that the commands start to write, and forgets
+    /// those that they remove: a removed node ends no animation, so its
+    /// panel would stay busy for ever (mc-49).
     pub(crate) fn note_writes(&mut self, commands: &[Command]) {
         let batch = self.writing.values().max().map_or(0, |b| b + 1);
         for command in commands {
-            if let Command::Animate { id, props, .. } = command
-                && props.effects.is_some()
-            {
-                self.writing.insert(id.clone(), batch);
+            match command {
+                Command::Animate { id, props, .. } if props.effects.is_some() => {
+                    self.writing.insert(id.clone(), batch);
+                }
+                Command::Remove { id, .. } => {
+                    let below = format!("{id}-");
+                    self.writing
+                        .retain(|node, _| node != id && !node.starts_with(&below));
+                }
+                _ => {}
             }
         }
     }

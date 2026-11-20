@@ -103,6 +103,7 @@ impl Mc {
         } else {
             Vec::new()
         };
+        self.note_writes(&commands);
         self.finish_typing();
         let [w, h] = output.size.map(f64::from);
         let [x, y] = output.position.map(f64::from);
