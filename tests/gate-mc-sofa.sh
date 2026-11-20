@@ -38,9 +38,19 @@
 #               KEYS, and the alarm is a card in full that stands over
 #               the page, not in the footer line (mc-35)
 #
+#   launcher-none  Super+Space and a program name that does not exist, then
+#               Return: the list shows again under the row "Nothing found
+#               for ..." and does not close without a word, as in xp and
+#               tiling (mc-44)
+#
 #   card-size   the text of the card of chora-notify is at least as high
 #               as the body of the page, and its ink is no grey: 7 to 1
 #               (mc-40)
+#
+#   remote-back a remote without Super leaves a window that has the keys:
+#               XF86Back gives the keyboard to the page of the window,
+#               where Left turns the page, and XF86HomePage goes to the
+#               first page, which holds the keyboard (mc-46)
 #
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
@@ -51,6 +61,7 @@
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-mc chora-assistant chora-chat chora-notify
 need jq
+need foot
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
@@ -86,6 +97,16 @@ cat >"$work/entries.json" <<'JSON'
 [{"seq": 1, "role": "user", "text": "Please tidy the notes for Friday."},
  {"seq": 2, "role": "agent", "text": "I will go through your notes and group them by day."}]
 JSON
+mkdir -p "$work/fake"
+cat >"$work/fake/fuzzel" <<FAKE
+#!/bin/sh
+n=\$((\$(cat "$work/fake/calls" 2>/dev/null || echo 0) + 1))
+echo "\$n" >"$work/fake/calls"
+case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
+case " \$* " in *" --dmenu "*) [ "\$n" != 1 ] || echo nosuchprogram ;; esac
+FAKE
+chmod +x "$work/fake/fuzzel"
+export PATH=$work/fake:$PATH
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x720 -- "$bin/chora-mc" --manage-windows
 grant screen.capture input.inject methods.call
 mkfifo "$work/voice.in"
@@ -322,6 +343,45 @@ cell_card_size() {
     ctl call mc notify.clear '{}' >/dev/null
 }
 
+cell_launcher_none() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    rm -f "$work/fake/calls" "$work"/fake/rows.*
+    key Super+space
+    until_ok '[ -s "$work/fake/rows.2" ]' 40 || fail "a program that does not exist closes the launcher without a word: calls $(cat "$work/fake/calls" 2>/dev/null), rows: $(echo "$work"/fake/rows.*)"
+    [ "$(head -n 1 "$work/fake/rows.2")" = 'Nothing found for "nosuchprogram"' ] ||
+        fail "the list after the unknown name does not say so: $(head -n 1 "$work/fake/rows.2")"
+}
+
+remote_alive() { session_pids -f -- "--app-id=mcremote" >/dev/null; }
+remote_end() {
+    local pid
+    for pid in $(session_pids -f -- "--app-id=mcremote"); do kill "$pid"; done
+    until_ok '! remote_alive' 20
+}
+cell_remote_back() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    foot --app-id=mcremote &
+    until_ok 'remote_alive && [ "$(current)" = mcremote ]' 40 || { remote_end; fail "the window has no page: $(current)"; }
+    sleep 2
+    key XF86Back
+    sleep 2
+    [ "$(current)" = mcremote ] || { remote_end; fail "XF86Back left the page of the window: $(current)"; }
+    key Left
+    until_ok '[ "$(current)" != mcremote ]' 40 || { remote_end; fail "after XF86Back the page does not hold the keyboard, Left does not turn it"; }
+    ctl call mc scene.show '{"name": "mcremote"}' >/dev/null || { remote_end; fail "scene.show of the window page"; }
+    until_ok '[ "$(current)" = mcremote ]' 20 || { remote_end; fail "no page of the window again: $(current)"; }
+    sleep 2
+    key XF86HomePage
+    until_ok '[ "$(current)" = agenda ]' 40 || { remote_end; fail "XF86HomePage in the window does not go to the first page: $(current)"; }
+    sleep 1
+    key Right
+    until_ok '[ "$(current)" = morning ]' 40 || { remote_end; fail "after XF86HomePage the page does not hold the keyboard: $(current)"; }
+    shot remote-back
+    remote_end
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -332,7 +392,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

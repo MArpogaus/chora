@@ -123,6 +123,32 @@ fn the_hand_waits_while_the_camera_is_in_a_window() {
     assert!(construct.cube.as_ref().expect("the cube").press.is_none());
 }
 
+/// With a pane and a cube open, the construct holds no unbound Super chord:
+/// the window manager of the faces swallows for its own windows, and a
+/// chord that it binds later must not be lost to the construct.
+#[test]
+fn a_pane_and_a_cube_hold_no_unbound_super_chord() {
+    let (mut construct, _) = on_core("swallow-both", |_, _| None);
+    construct.flown = Some(Flown {
+        surface: "s1".into(),
+        back: Pose::default(),
+        attached: true,
+        plugin: None,
+    });
+    construct.regrab().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_some(),
+        "a pane alone swallows"
+    );
+    construct.cube = Some(host_of(FACES));
+    construct.regrab().unwrap();
+    assert!(construct.in_pane(), "the camera stays in the pane");
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "with a cube open the face manager swallows, not the construct"
+    );
+}
+
 /// A held cube turns with the hand; a hand that holds nothing moves nothing
 /// and releases nothing.
 #[test]

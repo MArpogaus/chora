@@ -180,4 +180,61 @@ mod tests {
         assert_eq!(Origin::Given.word(), "given");
         assert_eq!(Origin::Kept.word(), "kept");
     }
+
+    /// One window with no origin, title or app id: the optional keys are
+    /// left out, and the desks and the stacking order are its own.
+    #[test]
+    fn one_window_has_its_keys_and_leaves_out_the_unknown_ones() {
+        let state = State {
+            windows: vec![Window {
+                surface: "s1".into(),
+                output: "DP-1".into(),
+                desks: vec![1],
+                rect: Some([0.0, 0.0, 10.0, 5.0]),
+                shown: true,
+                z: Some(0),
+                ..Window::default()
+            }],
+            ..State::default()
+        }
+        .value();
+        let window = &state["windows"][0];
+        assert_eq!(window["surface"], "s1");
+        assert_eq!(window["desks"], json!([1]));
+        assert_eq!(window["z"], 0);
+        assert_eq!(window["rect"], json!([0.0, 0.0, 10.0, 5.0]));
+        for key in ["origin", "title", "app_id"] {
+            assert!(window.get(key).is_none(), "{key} is left out");
+        }
+        assert_eq!(state["windows"].as_array().map(Vec::len), Some(1));
+    }
+
+    /// The focused window goes: the core focuses nothing, so the look holds
+    /// no keyboard any more and `state.get` shows no holder and no window.
+    #[test]
+    fn a_removed_focused_window_leaves_no_holder() {
+        let mut focus = crate::wm::focus::Focus::default();
+        focus.to(Some("s1".into()));
+        focus.moved(Some("s1"));
+        let own = |s: &str| s == "s1";
+        assert_eq!(
+            focus.state("look", own),
+            Focus {
+                holder: Some("look".into()),
+                surface: Some("s1".into()),
+            },
+            "while the window holds the keyboard"
+        );
+        focus.moved(None);
+        let after = focus.state("look", own);
+        assert_eq!(after, Focus::default());
+        assert_eq!(
+            State {
+                focus: after,
+                ..State::default()
+            }
+            .value()["focus"],
+            json!({"holder": null})
+        );
+    }
 }

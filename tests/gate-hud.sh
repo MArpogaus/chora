@@ -392,7 +392,11 @@ cell_context_picks_folder() {
     local figure
     figure=$(node_rect hud-figure)
     end_question
-    waiting "$settle_s" figure_left "$figure"
+    waiting "$settle_s" figure_left "$figure" && return 0
+    local late=never
+    waiting 30 figure_left "$figure" && late="after more than ${settle_s}s"
+    echo "figure_left: the figure left $late; the folder switch is slow or lost" >>"$log"
+    return 1
 }
 card_rect_is() { [ "$(node_rect hud-card)" = "$1" ]; }
 new_window() {

@@ -519,14 +519,16 @@ class Session:
         head of PATH; empty when the session has none. A stand-in is a
         program of the system that the look calls (`wpctl`): its text
         comes from `stand_ins`, and `$FAKE_STATE` names a file for its
-        state next to it."""
+        state next to it. `@WORK@` in a text is the folder of the session,
+        for a stand-in that a unit starts without the variables of the
+        session."""
         if not self.stand_ins:
             return ""
         folder = self.work / "fakes"
         folder.mkdir(exist_ok=True)
         for name, text in self.stand_ins.items():
             path = folder / name
-            path.write_text(text)
+            path.write_text(text.replace("@WORK@", str(self.work)))
             path.chmod(0o755)
         return f"{folder}:"
 

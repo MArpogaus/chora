@@ -135,89 +135,6 @@ pub const fn acts_in_tiling(system: &System) -> bool {
     )
 }
 
-/// The keys that `MOD` chords swallow when no binding uses them: letters,
-/// digits, punctuation, the function keys and the keys of navigation.
-const SWALLOWED: &[&str] = &[
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r",
-    "s",
-    "t",
-    "u",
-    "v",
-    "w",
-    "x",
-    "y",
-    "z",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "F1",
-    "F2",
-    "F3",
-    "F4",
-    "F5",
-    "F6",
-    "F7",
-    "F8",
-    "F9",
-    "F10",
-    "F11",
-    "F12",
-    "Return",
-    "Tab",
-    "space",
-    "Escape",
-    "BackSpace",
-    "Delete",
-    "Insert",
-    "Home",
-    "End",
-    "Prior",
-    "Next",
-    "Left",
-    "Right",
-    "Up",
-    "Down",
-    "minus",
-    "equal",
-    "bracketleft",
-    "bracketright",
-    "semicolon",
-    "apostrophe",
-    "grave",
-    "backslash",
-    "comma",
-    "period",
-    "slash",
-    "Print",
-];
-
-/// The extra modifiers of the swallowed chords: none, Shift and Ctrl.
-const SWALLOW_WITH: [&str; 3] = ["", "Shift+", "Ctrl+"];
-
 /// How a new window looks (#99).
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -496,26 +413,6 @@ impl Config {
         )
     }
 
-    /// The `MOD` chords that a program must not get: every key of
-    /// [`SWALLOWED`] with `MOD`, `MOD+Shift` and `MOD+Ctrl`, when `MOD` is
-    /// `Super`. With another modifier none: the programs keep keys such as
-    /// `Alt+b` of readline and `Alt+Left` of a browser.
-    pub fn swallowed(&self) -> impl Iterator<Item = Binding> + '_ {
-        let with: &[&str] = if self.modifier == "Super" {
-            &SWALLOW_WITH
-        } else {
-            &[]
-        };
-        with.iter().flat_map(move |with| {
-            SWALLOWED.iter().filter_map(move |key| {
-                let mut parts = vec!["MOD"];
-                parts.extend(with.strip_suffix('+'));
-                parts.push(key);
-                self.binding(&parts.join("+")).ok()
-            })
-        })
-    }
-
     /// A binding of the file, with `MOD` replaced by the modifier.
     pub fn binding(&self, text: &str) -> Result<Binding, String> {
         let replaced: Vec<&str> = text
@@ -553,23 +450,6 @@ mod tests {
         assert_ne!(nan, DEFAULT);
         let err = parse::<Config>(&nan).unwrap_err();
         assert!(err.contains("non-finite"), "{err}");
-    }
-
-    #[test]
-    fn every_mod_chord_is_swallowed_unless_bound() {
-        let config = parse::<Config>(DEFAULT).unwrap();
-        let chords: Vec<String> = config.swallowed().map(|b| b.to_string()).collect();
-        for chord in ["Super+q", "Super+F5", "Shift+Super+x", "Ctrl+Super+z"] {
-            assert!(chords.contains(&chord.to_owned()), "{chord}");
-        }
-        assert!(!chords.iter().any(|c| c.starts_with("Alt+")));
-    }
-
-    #[test]
-    fn an_alt_user_keeps_the_keys_of_the_programs() {
-        let alt = DEFAULT.replace("modifier: Super", "modifier: Alt");
-        let config = parse::<Config>(&alt).unwrap();
-        assert_eq!(config.swallowed().count(), 0);
     }
 
     #[test]

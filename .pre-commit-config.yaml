@@ -64,11 +64,17 @@ repos:
     files: ^tests/.*\.sh$
     exclude: ^tests/(no-foreign-kill\.sh|guards\.sh)$
     stages: [pre-commit]
+  - id: mkdir-runtime
+    name: mkdir -p under XDG_RUNTIME_DIR has -m 700 in flavors/ and plugins/ shell scripts
+    entry: tests/mkdir-runtime.sh
+    language: script
+    files: ^(flavors|plugins)/.*\.sh$
+    stages: [pre-commit]
   - id: guards
     name: guard test (tests/guards.sh proves the commit guards red and green)
-    entry: bash tests/guards.sh
+    entry: bash tests/guards-hook.sh
     language: system
-    files: ^(tests/(guards\.sh|no-inline-comments\.py|injected-optout\.py|commit-message-length\.py|no-foreign-kill\.sh|clippy-config-sync\.sh)|\.pre-commit-config\.yaml)$
+    files: ^(tests/(guards\.sh|guards-hook\.sh|no-inline-comments\.py|injected-optout\.py|commit-message-length\.py|no-foreign-kill\.sh|mkdir-runtime\.sh|clippy-config-sync\.sh)|\.pre-commit-config\.yaml)$
     pass_filenames: false
     stages: [pre-commit]
   - id: lychee

@@ -22,8 +22,10 @@ for example a nested or a test session, logs to stderr only and leaves
 the file of the first alone. `chora-voice` writes `voice.log` only when
 it runs as the agent; `chora-voice --version`, `--print-config` and its
 subcommands (`ask`, `tts`, ...) log to stderr only and move no file.
-The folder has mode 0700 and the files 0600; a log file that is a
-symlink is not opened.
+The folder has mode 0700 and the files 0600; a log file or a log
+folder that is a symlink is not used: the program logs one warning
+`no log file` and goes on with stderr only, and the symlink and its
+target stay as they are.
 
 The plugins (`chora-tiling`, `chora-xp`, `chora-mc`, `chora-construct`,
 `chora-notify`, `chora-assistant`) write to stderr only. In a session,

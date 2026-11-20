@@ -113,6 +113,11 @@ pub enum Look {
     Carry(Turn),
     /// With a pointer button: the pointer turns the cube.
     Cube,
+    /// Does nothing and keeps the key from the window: the action of
+    /// every Super chord that no binding uses, on a face of a cube. It is
+    /// not a setting.
+    #[serde(skip)]
+    Swallow,
 }
 
 /// What a binding does: an action of every look, or one of xp.

@@ -58,10 +58,17 @@
 #                   services/voice/tests/fake-acp.sh and the project demo;
 #                   with `none` it has no project, so no helper can exist.
 #                   voice_stop ends it
+#   late_field S    before doors_assistant: the host runs from a tree of its
+#                   own (links to the folders of the repository, a hard
+#                   link of the host) where its chora-chat starts S s
+#                   after the host asks for it, as a field does on a
+#                   loaded machine
 #   doors_assistant starts the HUD host chora-assistant
 #   helper_start    starts the helper `coder` for the project demo
 #   doors_window    shows a window that writes `key CODE` for each key it
-#                   gets to $work/window; got_key CODE reads it
+#                   gets to $work/window; got_key CODE reads it;
+#                   wait_for_field waits until the window has lost the
+#                   keyboard to the chat field, which an Escape needs
 #   fuzzel_stand_in a fuzzel in $fakes that writes `fuzzel ARGS`, a line
 #                   `data XDG_DATA_DIRS` and its rows as `row TEXT` to
 #                   $marks, and answers the content of $fakes/choice
@@ -151,8 +158,20 @@ voice_stop() {
     wait "$voice_pid" 2>/dev/null
     until_ok '! ctl call voice state >/dev/null 2>&1' 40
 }
+late_field() {
+    local tree=$fakes/late name
+    mkdir -p "$tree/target/debug"
+    for name in "$repo"/*; do
+        [ "${name##*/}" = target ] || ln -s "$name" "$tree/"
+    done
+    ln "$bin/chora-assistant" "$tree/target/debug/" 2>/dev/null ||
+        cp "$bin/chora-assistant" "$tree/target/debug/"
+    printf '#!/bin/sh\nsleep %s\nexec "%s" "$@"\n' "$1" "$bin/chora-chat" >"$tree/target/debug/chora-chat"
+    chmod +x "$tree/target/debug/chora-chat"
+    assistant_exe=$tree/target/debug/chora-assistant
+}
 doors_assistant() {
-    "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
+    "${assistant_exe:-$bin/chora-assistant}" >"$work/assistant.log" 2>&1 &
     pids+=($!)
     until_ok "ctl query owner:assistant | jq -e 'length > 0' >/dev/null" 80
 }
@@ -165,6 +184,8 @@ doors_window() {
     sleep 2
 }
 got_key() { until_ok "grep -qx 'key $1' \"$work/window\"" 12; }
+field_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = leave ]; }
+wait_for_field() { until_ok field_has_keyboard || { echo "note: the chat field never took the keyboard from the window" >&2; return 1; }; }
 fuzzel_stand_in() {
     cat >"$fakes/fuzzel" <<SH
 #!/bin/sh

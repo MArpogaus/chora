@@ -69,6 +69,29 @@ missing_pre_commit_case() {
 
 missing_pre_commit_case
 
+hook_case() {
+  local label=$1 want=$2 base=$3 added=$4 other=$5
+  [ -n "${GUARDS_NESTED:-}" ] && return
+  new_repo
+  cd "$work/repo" || exit 1
+  mkdir tests
+  printf '%b' "$base" >tests/guards.sh
+  printf 'x\n' >other.txt
+  git add tests/guards.sh other.txt
+  git commit -q -m base
+  printf '%b' "$added" >>tests/guards.sh
+  git add tests/guards.sh
+  [ -n "$other" ] && { printf 'y\n' >>other.txt; git add other.txt; }
+  printf 'exit 1\n' >"$work/red.sh"
+  GUARDS_SCRIPT="$work/red.sh" bash "$tests_dir/guards-hook.sh" >/dev/null 2>&1
+  verdict "guards-hook: $label" "$want" $?
+}
+
+hook_case "a commit that only adds failing cases" pass 'kill_case a pass x\n' 'kill_case b fail y\n' ""
+hook_case "a red guards.sh with another changed file" fail 'kill_case a pass x\n' 'kill_case b fail y\n' other
+hook_case "a red guards.sh with another added line" fail 'kill_case a pass x\n' 'rm -rf /\n' ""
+hook_case "a red guards.sh with no change at all" fail 'kill_case a pass x\n' '' ""
+
 comment_case() {
   local label=$1 want=$2 path=$3 base=$4 added=$5
   new_repo
@@ -98,6 +121,24 @@ rename_case() {
   python3 -I "$tests_dir/no-inline-comments.py" "$new" >/dev/null
   verdict "no-inline-comments: $label" "$want" $?
 }
+
+move_case() {
+  local label=$1 want=$2 path=$3 base=$4 changed=$5
+  new_repo
+  cd "$work/repo" || exit 1
+  printf '%b' "$base" >"$path"
+  git add "$path"
+  git commit -q -m base
+  printf '%b' "$changed" >"$path"
+  git add "$path"
+  python3 -I "$tests_dir/no-inline-comments.py" "$path" >/dev/null
+  verdict "no-inline-comments: $label" "$want" $?
+}
+
+move_case "a new comment in a changed file" fail a.rs 'fn a() {}\n' 'fn a() {}\n// explain\n'
+move_case "a comment edited in place" fail a.rs 'fn a() {\n    // old\n}\n' 'fn a() {\n    // new\n}\n'
+move_case "a comment moved to another function" pass a.rs 'fn a() {\n    // why\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    z();\n}\n' 'fn a() {\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    // why\n    z();\n}\n'
+move_case "a comment copied to another function" fail a.rs 'fn a() {\n    // why\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    z();\n}\n' 'fn a() {\n    // why\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    // why\n    z();\n}\n'
 
 rename_case "rust rename keeps old comments" pass a.rs b.rs '// old\nfn a() {}\n' 'fn b() {}\n'
 rename_case "rust rename checks new comments" fail a.rs b.rs '// old\nfn a() {}\n' '// new\n'
@@ -286,6 +327,43 @@ kill_case "a scope in a variable" pass 'pgrep \x24scope -x foot\n'
 kill_case "an awk program over several lines" pass "awk '\n    /pkill chora/ { n++ }\n' log\n"
 kill_case "an arithmetic shift is no here-document" fail 'n=\x24((n << shift))\npkill chora\n'
 kill_case "a comment naming environ is no filter" fail 'core=\x24(pgrep -x chora)\n# /proc/PID/environ\n'
+kill_case "quoted tool names in a check" pass 'need "pgrep" "pkill"\n'
+kill_case "quoted tool names after command -v" pass 'command -v "pgrep" "pkill" >/dev/null\n'
+kill_case "a negated check does not excuse a pkill after it" fail 'if ! command -v pgrep; then pkill chora; fi\n'
+kill_case "a check for the tool after a negation" pass 'if ! command -v pgrep pkill jq >/dev/null; then\n    exit 1\nfi\n'
+
+runtime_case() {
+  local label=$1 want=$2 text=$3
+  rm -rf "${work:?}/plugins"
+  mkdir -p "$work/plugins/p"
+  printf '%b' "$text" >"$work/plugins/p/a.rs"
+  CHORA_GATE_LOCK_HELD=1 bash "$tests_dir/gate-0.8-plugin-runtime.sh" "$work/plugins" >/dev/null 2>&1
+  verdict "plugin-runtime: $label" "$want" $?
+}
+
+runtime_case "a bare call" fail 'let c = client::connect();\n'
+runtime_case "a call under an allow" pass '#[allow(clippy::disallowed_methods)]\nfn t() {\n    let c = client::connect();\n}\n'
+runtime_case "an allow ending in a comment" pass '#[allow(clippy::disallowed_methods)] // fake core\nfn t() {\n    let c = client::connect();\n}\nfn u() {}\n'
+runtime_case "a call after an allow of another lint" fail '#[allow(dead_code)]\nfn t() {}\nlet c = client::connect();\n'
+runtime_case "an attribute followed by code on its line closes the window" fail '#[allow(clippy::needless_return)] /* c */ let z = 2;\nlet c = client::connect();\n'
+runtime_case "reconnect in a string" fail 'let s = "reconnect";\n'
+
+mkdir_case() {
+  local label=$1 want=$2 text=$3
+  printf '%b' "$text" >"$work/script.sh"
+  bash "$tests_dir/mkdir-runtime.sh" "$work/script.sh" >/dev/null
+  verdict "mkdir-runtime: $label" "$want" $?
+}
+
+mkdir_case "mkdir -p on the runtime directory" fail 'mkdir -p "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "mkdir -p -m 700" pass 'mkdir -p -m 700 "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "mkdir -pm 700" pass 'mkdir -pm 700 "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "mkdir -p -m 755 is no 700" fail 'mkdir -p -m 755 "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "a variable set from the runtime directory" fail 'runtime=\x24{XDG_RUNTIME_DIR:-/tmp}\nmkdir -p "\x24runtime/x"\n'
+mkdir_case "a variable set from a variable" fail 'r=\x24XDG_RUNTIME_DIR\nstyle=\x24r/s\nmkdir -p "\x24style/icons"\n'
+mkdir_case "a path elsewhere" pass 'mkdir -p "\x24HOME/Pictures"\n'
+mkdir_case "a comment" pass '# mkdir -p "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "a variable of a longer name" pass 'runtime=\x24XDG_RUNTIME_DIR\nmkdir -p "\x24runtime_other/x"\n'
 
 sync_case() {
   local label=$1 want=$2 root=$3 plugin=$4

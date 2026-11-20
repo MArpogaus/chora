@@ -27,6 +27,7 @@ setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$fak
 run_pid $!
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
+late_field 2
 doors_assistant || fail "the HUD host does not start"
 helper_start || fail "no helper starts"
 doors_window
@@ -55,6 +56,7 @@ keys_close() {
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 chat_close() {
     chat_open || return 0
+    wait_for_field || return 1
     key Escape
     until_ok '! chat_open'
 }

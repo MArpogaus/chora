@@ -156,8 +156,9 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
 }
 
 /// The media keys that a window manager grabs without a modifier: they
-/// type no text, and a person expects the session to answer them.
-const MEDIA_KEYS: [Keysym; 9] = [
+/// type no text, and a person expects the session to answer them. The
+/// Back and Home keys of a remote are among them: a remote has no Super.
+const MEDIA_KEYS: [Keysym; 11] = [
     Keysym::XF86_AudioRaiseVolume,
     Keysym::XF86_AudioLowerVolume,
     Keysym::XF86_AudioMute,
@@ -167,6 +168,8 @@ const MEDIA_KEYS: [Keysym; 9] = [
     Keysym::XF86_AudioPrev,
     Keysym::XF86_MonBrightnessUp,
     Keysym::XF86_MonBrightnessDown,
+    Keysym::XF86_Back,
+    Keysym::XF86_HomePage,
 ];
 
 /// Whether a key is one of [`MEDIA_KEYS`].
@@ -1384,7 +1387,7 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
-    use crate::testing::{Client, Core, rect, wayland::Wayland};
+    use crate::testing::{Client, Core, logged, rect, wayland::Wayland};
 
     const REJECTED: i64 = RpcError::REJECTED;
 
@@ -2222,53 +2225,6 @@ mod tests {
         let (error_code, message) = agent.fails(&mut core, "grants.set", grant);
         assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY);
         assert!(message.contains("only on the admin socket"), "{message}");
-    }
-
-    type Lines = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
-
-    thread_local! {
-        static LINES: std::cell::RefCell<Option<Lines>> = const { std::cell::RefCell::new(None) };
-    }
-
-    /// The writer of the test-wide subscriber: a line goes to the sink of
-    /// the thread that logged it, and nowhere when the thread has none.
-    struct Route;
-
-    impl std::io::Write for Route {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            LINES.with(|lines| {
-                if let Some(sink) = lines.borrow().as_ref() {
-                    sink.lock().unwrap().extend_from_slice(buf);
-                }
-            });
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    /// The log lines of every level that `run` writes in this thread. One
-    /// subscriber serves the whole test binary: a subscriber of one test
-    /// thread loses to the interest in a callsite that another thread
-    /// cached without one.
-    fn logged(run: impl FnOnce()) -> String {
-        static SUBSCRIBER: std::sync::Once = std::sync::Once::new();
-        SUBSCRIBER.call_once(|| {
-            let subscriber = tracing_subscriber::fmt()
-                .with_ansi(false)
-                .with_max_level(tracing::Level::TRACE)
-                .with_writer(|| Route)
-                .finish();
-            tracing::subscriber::set_global_default(subscriber)
-                .expect("no other subscriber of the test binary");
-        });
-        let lines = Lines::default();
-        LINES.with(|l| *l.borrow_mut() = Some(std::sync::Arc::clone(&lines)));
-        run();
-        LINES.with(|l| *l.borrow_mut() = None);
-        String::from_utf8_lossy(&lines.lock().unwrap()).into_owned()
     }
 
     /// A refused request leaves a line at info with the client and the
@@ -3274,6 +3230,38 @@ mod tests {
         );
     }
 
+    /// The kept nodes of a window manager with `resume` stay shown during
+    /// the grace time: no hide, no flicker on a quick restart.
+    #[test]
+    fn kept_nodes_stay_visible_during_the_resume_grace() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (wm, _wayland) = resumable(&mut core);
+        let shown = |reader: &mut Client, core: &mut Core| {
+            let all = owned(reader, core);
+            let hidden = all
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|n| n["visible"] != json!(true))
+                .count();
+            (all, hidden)
+        };
+        let (all, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(all.as_array().map(Vec::len), Some(4));
+        assert_eq!(hidden, 0, "shown before the disconnect");
+        drop(wm);
+        core.dispatch();
+        core.advance(GRACE.saturating_sub(Duration::from_millis(1)));
+        let (during, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(during, all, "the nodes are kept");
+        assert_eq!(hidden, 0, "and still visible in the grace");
+        let _wm = hello_resume(&mut core);
+        let (after, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(after, all, "unchanged after the resume hello");
+        assert_eq!(hidden, 0);
+    }
+
     /// A core whose main socket would be in a fresh directory.
     fn socket_dir(tag: &str) -> (Core, PathBuf) {
         let dir = crate::testing::scratch_dir(&format!("chora-{tag}"));
@@ -3988,6 +3976,8 @@ mod tests {
             "XF86AudioPrev",
             "XF86MonBrightnessUp",
             "XF86MonBrightnessDown",
+            "XF86Back",
+            "XF86HomePage",
         ] {
             let grabbed = wm.ok(&mut core, "input.grab", json!({"binding": key}));
             assert_eq!(grabbed, key);
@@ -4616,6 +4606,39 @@ mod tests {
             heard(&mut b, &mut core),
             [json!({"event": "focus.changed", "surface": null})]
         );
+    }
+
+    /// A node that takes the keyboard does not change the focused surface:
+    /// the focus returns to it when the node lets go (docs/api.md, Keyboard
+    /// focus of nodes), so `focus.changed` says nothing for the node (rw-3).
+    #[test]
+    fn a_node_that_takes_the_keyboard_sends_no_focus_changed() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "one");
+        let mut a = core.named("a");
+        let mut b = core.named("b");
+        b.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.changed"]}),
+        );
+        let setup = json!({"commands": [
+            {"create": {"id": "menu", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]});
+        a.ok(&mut core, "scene.apply", setup);
+        b.events_now(&mut core);
+        let node = json!({"commands": [{"focus_node": {"node": "menu"}}]});
+        a.ok(&mut core, "scene.apply", node);
+        let back = json!({"commands": [{"focus_node": {}}]});
+        a.ok(&mut core, "scene.apply", back);
+        let heard = (b.events_now(&mut core).into_iter())
+            .filter(|e| e["params"]["event"] == "focus.changed")
+            .collect::<Vec<_>>();
+        assert!(heard.is_empty(), "{heard:?}");
     }
 
     /// `surface.created` carries the `parent` of a dialog as it is at the

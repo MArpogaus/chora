@@ -188,6 +188,8 @@ bindings:
   XF86AudioRaiseVolume: {volume: up}
   XF86AudioLowerVolume: {volume: down}
   XF86AudioMute: {volume: mute}
+  XF86Back: back
+  XF86HomePage: {scene: agenda}
   Super+F12: {solo: {content: overlay, region: drawer}}
   Super+BTN_LEFT: drag
 # The states of an agent of agent.set: the sign and the color of each,

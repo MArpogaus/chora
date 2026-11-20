@@ -36,13 +36,14 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
     process::ExitCode,
+    time::Instant,
 };
 
 use chora_kit::{
     launch,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
-    wm::focus::Focus,
+    wm::focus::{Focus, Holder},
 };
 use chora_scene::{
     Command, Easing, Event, MAX_DURATION, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -288,6 +289,10 @@ struct Mc {
     manage_windows: bool,
     /// Whether a page takes the keyboard for its plain keys.
     page_keys: keys::PageKeys,
+    /// A turn of a plain key is going on: the page that it shows keeps the
+    /// keyboard also when a window stands in it, so that the next plain key
+    /// still turns the page (mc-42).
+    plain_turn: bool,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -331,6 +336,10 @@ struct Mc {
     /// the transaction that started it: those of one transaction end in
     /// the same frame.
     writing: HashMap<String, u64>,
+    /// The nodes whose fade runs, each with the time that it is over at
+    /// the latest: a fade whose end the core never tells does not keep mc
+    /// busy for ever.
+    fading: HashMap<String, Instant>,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -405,12 +414,30 @@ struct Mc {
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.first().is_some_and(|a| a == "--launch") {
+        return launch(&words[1..]);
+    }
     let args = Args::parse();
     if args.print_config {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
     runtime::run(NAME, || play(&args))
+}
+
+/// `--launch fuzzel`: the Apps list, the installed programs and those of
+/// the shared entries, as [`chora_kit::launcher`] shows them, so that text
+/// that finds nothing shows the list again under the row "Nothing found"
+/// and the launcher never closes without a word (mc-44). Another program
+/// is no launch of mc.
+fn launch(argv: &[String]) -> ExitCode {
+    if argv != ["fuzzel"] {
+        eprintln!("usage: chora-mc --launch fuzzel");
+        return ExitCode::from(2);
+    }
+    chora_kit::launcher::run(&["fuzzel".to_owned()], "foot", None);
+    ExitCode::SUCCESS
 }
 
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -483,6 +510,7 @@ impl Mc {
             rt,
             manage_windows: false,
             page_keys: keys::PageKeys::Plain,
+            plain_turn: false,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -508,6 +536,7 @@ impl Mc {
             blur,
             shaders: Shaders::On,
             writing: HashMap::new(),
+            fading: HashMap::new(),
             put: Vec::new(),
             toggled: BTreeMap::new(),
             docks: HashMap::new(),
@@ -994,10 +1023,59 @@ impl Mc {
             "Home" | "XF86HomePage" => Look::Scene(self.settings.value.default_scene.clone()),
             "Right" => Look::NextScene,
             "Left" => Look::PreviousScene,
-            "Escape" => return self.back(),
+            "Escape" => {
+                self.plain_turn = true;
+                self.back();
+                self.plain_turn = false;
+                return;
+            }
+            "Return" => return self.enter_window(),
             _ => return,
         };
+        self.plain_turn = true;
         self.turn(look);
+        self.plain_turn = false;
+    }
+
+    /// Return on a page that stands over a window gives the window the
+    /// keyboard: the keys of the person then belong to the program, and
+    /// only the bindings with Super turn the page (mc-42).
+    fn enter_window(&mut self) {
+        let window = self
+            .current
+            .as_ref()
+            .and_then(|c| self.windows.get(c))
+            .cloned();
+        if let Some(window) = window
+            && self.chat == Chat::Closed
+        {
+            let focus = self.focus.to(Some(window));
+            if let Err(err) = self.apply(vec![focus]) {
+                eprintln!("chora-mc: enter window: {err}");
+            }
+        }
+    }
+
+    /// The binding `back`, `XF86Back` of a remote: a window that holds the
+    /// keyboard leaves it to its page, which keeps it as after a plain turn;
+    /// on a page it is one step back as Escape (mc-46).
+    pub(crate) fn step_back(&mut self) {
+        let current = self.current.clone();
+        let window = current.as_ref().and_then(|c| self.windows.get(c)).cloned();
+        let holds = window.as_ref().is_some_and(|w| {
+            matches!(self.focus.holder(|s| s == w), Holder::Window(_)) && self.chat == Chat::Closed
+        });
+        self.plain_turn = true;
+        match current {
+            Some(name) if holds => {
+                let commands = self.keyboard_to(&name, window);
+                if let Err(err) = self.apply(commands) {
+                    eprintln!("chora-mc: leave window: {err}");
+                }
+            }
+            _ => self.back(),
+        }
+        self.plain_turn = false;
     }
 
     /// One step back: the full key list closes; else the page that showed
@@ -1243,12 +1321,16 @@ impl Mc {
     }
 }
 
-/// Whether an action is grabbed only with the claim of a window manager.
-fn needs_claim(action: &Action) -> bool {
+/// The keys of a remote without Super: the core lets a window manager with
+/// a claim grab them without a modifier (mc-46).
+const REMOTE_KEYS: [&str; 2] = ["XF86Back", "XF86HomePage"];
+
+/// Whether a binding is grabbed only with the claim of a window manager.
+fn needs_claim(key: &str, action: &Action) -> bool {
     matches!(
         action,
         Action::System(chora_kit::actions::System::Drag | chora_kit::actions::System::Volume(_))
-    )
+    ) || REMOTE_KEYS.iter().any(|k| k.eq_ignore_ascii_case(key))
 }
 
 /// Keeps the regions over a scene group that was just created.
@@ -1282,6 +1364,7 @@ fn wait() -> Command {
 
 #[cfg(test)]
 mod tests {
+    use crate::{Action, Look};
     use chora_scene::{Command, NodeKind, PropsUpdate};
 
     /// The line that a page that cannot be shown leaves in the log (a
@@ -1484,6 +1567,51 @@ mod tests {
         press_key(&mut mc, "Right", &[]);
         press_key(&mut mc, "XF86HomePage", &[]);
         assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// A remote without Super: `back` (`XF86Back`) takes the keyboard from a
+    /// window to its page, which keeps the page; on a page it goes one step
+    /// back; `XF86HomePage` goes to the first page. A plain key that the
+    /// window got stays the window's (mc-46).
+    #[test]
+    fn back_leaves_a_window_for_its_page_and_home_goes_first() {
+        let (mut mc, _model) = crate::testing::mc("remote-back", [1280, 800]);
+        mc.windows.insert("terminal".into(), "s1".into());
+        mc.show("agenda", true).unwrap();
+        press_key(&mut mc, "Right", &[]);
+        mc.show("terminal", true).unwrap();
+        press_key(&mut mc, "Return", &[]);
+        let window =
+            |mc: &super::Mc| matches!(mc.focus.holder(|s| s == "s1"), super::Holder::Window(_));
+        assert!(window(&mc), "Return gave the window the keyboard");
+        mc.turn(Look::Back);
+        assert!(!window(&mc), "XF86Back took the keyboard from the window");
+        assert_eq!(mc.current.as_deref(), Some("terminal"), "the page stays");
+        mc.turn(Look::Back);
+        assert_ne!(mc.current.as_deref(), Some("terminal"), "a page goes back");
+        mc.show("terminal", true).unwrap();
+        press_key(&mut mc, "Return", &[]);
+        mc.turn(Look::Scene("agenda".into()));
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
+        assert!(!window(&mc), "the first page holds the keyboard");
+    }
+
+    /// The default file binds the keys of a remote, and mc grabs them
+    /// only with a claim, as the media keys.
+    #[test]
+    fn the_keys_of_a_remote_are_bound_and_need_a_claim() {
+        let config =
+            chora_kit::settings::parse::<crate::config::Config>(crate::config::DEFAULT).unwrap();
+        let keys = &config.common.bindings;
+        assert_eq!(keys["XF86Back"], Action::Look(Look::Back));
+        assert_eq!(
+            keys["XF86HomePage"],
+            Action::Look(Look::Scene("agenda".into()))
+        );
+        for key in ["XF86Back", "XF86HomePage"] {
+            assert!(super::needs_claim(key, &keys[key]), "{key}");
+        }
+        assert!(!super::needs_claim("Super+Home", &keys["Super+Home"]));
     }
 
     /// On a page the arrows alone turn it, Escape goes back along the
@@ -2246,6 +2374,75 @@ mod tests {
         .unwrap();
         assert_eq!(ids.iter().map(effects).sum::<usize>(), 0);
         assert!(mc.writing.is_empty());
+    }
+
+    /// A build removes the nodes whose write animation runs and makes new
+    /// ones without it, so no end of it comes: mc is quiet at once, not
+    /// busy with a write that nobody finishes (mc-49).
+    #[test]
+    fn a_build_in_the_midst_of_a_write_leaves_mc_quiet() {
+        let (mut mc, model) = crate::testing::mc("write-build", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it writes");
+        assert!(!mc.writing.is_empty());
+        mc.build().unwrap();
+        assert_eq!(
+            panel_effects(&mc, &model, "agenda"),
+            0,
+            "the new node rests"
+        );
+        assert_eq!(
+            busy_words(&mc, "write:"),
+            Vec::<String>::new(),
+            "mc waits for the end of a write that was removed"
+        );
+    }
+
+    /// The words of `busy` that start with a prefix.
+    fn busy_words(mc: &super::Mc, prefix: &str) -> Vec<String> {
+        use chora_kit::runtime::Plugin as _;
+        let state = mc.state().unwrap();
+        let busy = state["busy"].as_array().unwrap();
+        (busy.iter().filter_map(|b| b.as_str()))
+            .filter(|b| b.starts_with(prefix))
+            .map(str::to_owned)
+            .collect()
+    }
+
+    /// Tells mc that every fade that it waits for ended.
+    fn end_fades(mc: &mut super::Mc) {
+        use chora_kit::runtime::Plugin as _;
+        for word in busy_words(mc, "fade:") {
+            mc.event(chora_scene::Event::AnimationDone {
+                node: Some(word.trim_start_matches("fade:").to_owned()),
+                output: None,
+            })
+            .unwrap();
+        }
+    }
+
+    /// A page turn cross-fades its regions for a moment: both sets are
+    /// shown then, so mc is busy until the end of each fade, and a check
+    /// that waits for quiet never reads two sets one over the other
+    /// (mc-48).
+    #[test]
+    fn a_cross_fade_keeps_mc_busy_until_its_end() {
+        let (mut mc, _model) = crate::testing::mc("fade-busy", [1920, 1080]);
+        mc.show("agenda", true).unwrap();
+        end_fades(&mut mc);
+        assert_eq!(busy_words(&mc, "fade:"), Vec::<String>::new());
+        mc.show("morning", true).unwrap();
+        assert!(
+            !busy_words(&mc, "fade:").is_empty(),
+            "the cross-fade of the page is not busy"
+        );
+        end_fades(&mut mc);
+        assert_eq!(
+            busy_words(&mc, "fade:"),
+            Vec::<String>::new(),
+            "the fades ended"
+        );
     }
 
     /// After the watchdog of the core dropped the effects of mc, a scene

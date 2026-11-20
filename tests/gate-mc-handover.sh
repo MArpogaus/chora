@@ -4,7 +4,9 @@
 # a red background that xp shows. In each cell the window shows on the
 # page of mc within 820 ms, and no window is lost. The limit is the
 # slowest of five runs beside mc-paths and mc-sofa, as merge-gate.sh
-# --jobs 3 runs them (653 ms, the key cell), plus 25 %:
+# --jobs 3 runs them (653 ms, the key cell), plus 25 %. Alone, 10 runs of the three cells that
+# wait took 224 to 456 ms (p95 448 ms); twice the p95 is above the cap of 500 ms, so the limit
+# stays (debt F4 row H10, finding in the report):
 #
 #   - give: `choractl give mc` of the focused window;
 #   - key: Super+Alt+3 of xp;

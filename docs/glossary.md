@@ -22,7 +22,7 @@ terms and no synonyms.
 | **Claim** | A scene area of one window manager (D55). |
 | **Virtual output** | An output that a client adds and that no screen shows. Its frames go into a texture that a shader node of its owner reads; a window manager runs on it as on a screen. |
 | **Work area** | The part of the scene that an output shows, without the zones that panels and IPC clients reserve. Plugins place windows in it. |
-| **Log file** | The file `$XDG_STATE_HOME/chora/logs/NAME.log` of the core (`chora`) or the voice agent (`voice`), next to stderr. It moves to `NAME.log.1` at 4 MiB and at each start; three old files stay (see [Logs](logs.md)). |
+| **Log file** | The file `$XDG_STATE_HOME/chora/logs/NAME.log` of the core (`chora`) or the voice agent (`voice`), next to stderr. It moves to `NAME.log.1` at 4 MiB and at the start of the process that holds the lock; three old files stay (see [Logs](logs.md)). |
 | **chora-report** | The script that bundles the versions, log files, journal and settings into an anonymised `.tar.gz` that the person reads and sends by hand. It uploads nothing. |
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
 | **Order** | The band a group under `root` draws in: `background`, `normal`, `held`, `overlay` or `lock`, bottom first (D89). The core keeps the roots sorted by it; inside one order the plugins order with `move`. `lock` belongs to the core. Not a layer: a layer is a node that draws through a texture of its own. |

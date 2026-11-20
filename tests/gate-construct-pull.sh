@@ -417,6 +417,7 @@ stood() {
     until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
     read -r surface _ <<<"$(probe)"
     call view.step_back '{}' >/dev/null || fail "view.step_back"
+    until_ok "$stood_back" 40 || fail "view.step_back did not stand back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
     until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
     sleep 1
     read -r px py <<<"$(plane_middle)"
@@ -467,6 +468,7 @@ inject "[{\"pointer_move\": {\"position\": [$((x + 50)), $((y - 12))]}},
     {\"button\": {\"state\": \"released\"}}]"
 until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" -gt 1100' 20 || fail "the window does not hang over the right edge: $(probe)"
 call view.step_back '{}' >/dev/null || fail "view.step_back"
+until_ok "$stood_back" 40 || fail "view.step_back did not stand back with the window over the edge: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
 sleep 1
 plane_right=$(right_of "construct-cube-float-0-$surface")

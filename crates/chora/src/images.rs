@@ -904,6 +904,29 @@ mod tests {
         assert_eq!(rgba(png::ColorType::Grayscale, &[7]), [7, 7, 7, 255]);
     }
 
+    /// Whether a thread of this process that is named `chora-images` has
+    /// SIGUSR1 blocked. The tests of this binary run in one process, so
+    /// the threads of other tests are in the list too, and one of them can
+    /// end between the read of its name and the read of its status.
+    fn some_worker_blocks_usr1() -> bool {
+        std::fs::read_dir("/proc/self/task")
+            .unwrap()
+            .flatten()
+            .any(|task| {
+                let dir = task.path();
+                let comm = std::fs::read_to_string(dir.join("comm")).unwrap_or_default();
+                if !comm.starts_with("chora-images") {
+                    return false;
+                }
+                let Ok(status) = std::fs::read_to_string(dir.join("status")) else {
+                    return false;
+                };
+                let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
+                let mask = u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
+                mask & (1 << 9) != 0
+            })
+    }
+
     /// The worker of `Images` blocks the emergency signal on its own,
     /// because it starts before the loop owns SIGUSR1.
     #[test]
@@ -911,27 +934,46 @@ mod tests {
         let (done, _watch) = channel::channel();
         let mut images = Images::default();
         images.start_worker(done);
-        let blocked = || {
-            std::fs::read_dir("/proc/self/task")
-                .unwrap()
-                .flatten()
-                .any(|task| {
-                    let dir = task.path();
-                    let comm = std::fs::read_to_string(dir.join("comm")).unwrap_or_default();
-                    if !comm.starts_with("chora-images") {
-                        return false;
-                    }
-                    let status = std::fs::read_to_string(dir.join("status")).unwrap();
-                    let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
-                    let mask =
-                        u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
-                    mask & (1 << 9) != 0
-                })
-        };
         let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while !blocked() {
+        while !some_worker_blocks_usr1() {
             assert!(std::time::Instant::now() < end, "the worker blocks SIGUSR1");
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
+    }
+
+    /// Starts and ends threads named `chora-images` until `stop`.
+    fn churn_workers(stop: &std::sync::atomic::AtomicBool) {
+        while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+            let started = std::thread::Builder::new()
+                .name("chora-images".into())
+                .spawn(|| ());
+            let _ = started.map(std::thread::JoinHandle::join);
+        }
+    }
+
+    /// The other tests of the binary start and end workers of their own
+    /// (FLAKE-SIG): the scan of the threads must go on when one of them is
+    /// gone by the time its status is read.
+    #[test]
+    fn the_scan_of_the_workers_survives_a_worker_that_ends() {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let churn: Vec<_> = (0..4)
+            .map(|_| {
+                let stop = stop.clone();
+                std::thread::spawn(move || churn_workers(&stop))
+            })
+            .collect();
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        let scans = std::thread::spawn(move || {
+            while std::time::Instant::now() < end {
+                let _ = some_worker_blocks_usr1();
+            }
+        });
+        let scanned = scans.join();
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        for t in churn {
+            let _ = t.join();
+        }
+        assert!(scanned.is_ok(), "a scan of the threads panicked");
     }
 }

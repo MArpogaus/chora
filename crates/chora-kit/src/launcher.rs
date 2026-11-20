@@ -110,33 +110,70 @@ pub fn answer<'a>(
     }
 }
 
-/// Shows the rows with `fuzzel --dmenu` and answers the line that it
-/// printed: the row that the person chose, the text that matched no row,
-/// or nothing when the person closed it or fuzzel did not run.
-fn ask(fuzzel: &[String], rows: &[&str]) -> Option<String> {
-    let (program, args) = fuzzel.split_first()?;
-    let mut child = Command::new(program)
+/// What the list of fuzzel came to.
+enum Asked {
+    /// The line that it printed: the row that the person chose, or the
+    /// text that matched no row.
+    Line(String),
+    /// The person closed it.
+    Closed,
+    /// It did not run: the first line that tells why.
+    Failed(String),
+}
+
+/// Shows the rows with `fuzzel --dmenu`. A fuzzel that prints nothing
+/// and exits was closed by the person (it exits 1 on Escape); one that
+/// exits non-zero with a message on stderr, or cannot start, failed.
+fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
+    let Some((program, args)) = fuzzel.split_first() else {
+        return Asked::Failed("no launcher command".into());
+    };
+    let spawned = Command::new(program)
         .args(args)
         .arg("--dmenu")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()
-        .map_err(|err| eprintln!("cannot start {program}: {err}"))
-        .ok()?;
+        .stderr(Stdio::piped())
+        .spawn();
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(err) => return Asked::Failed(format!("cannot start {program}: {err}")),
+    };
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(rows.join("\n").as_bytes());
     }
-    let out = child.wait_with_output().ok()?;
+    let out = match child.wait_with_output() {
+        Ok(out) => out,
+        Err(err) => return Asked::Failed(format!("cannot wait for {program}: {err}")),
+    };
     let line = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-    (!line.is_empty()).then_some(line)
+    if !line.is_empty() {
+        return Asked::Line(line);
+    }
+    let err = String::from_utf8_lossy(&out.stderr);
+    match err.lines().map(str::trim).find(|l| !l.is_empty()) {
+        Some(first) if !out.status.success() => Asked::Failed(first.to_owned()),
+        _ => Asked::Closed,
+    }
 }
 
 /// Lets the person choose a program with `fuzzel`, the command line of
 /// fuzzel with its config file, and answers the shell command to run.
 /// After text that found nothing the list shows again, with the row of
-/// [`nothing_found`] first.
+/// [`nothing_found`] first. A list that cannot start is logged.
 #[must_use]
 pub fn choose(fuzzel: &[String], apps: &[App]) -> Option<String> {
+    choose_reporting(fuzzel, apps, &mut |why| eprintln!("{why}"))
+}
+
+/// Like [`choose`], and `report` gets, once, the line "Run could not
+/// start: ..." when the list did not run. Closing the list is silent.
+#[must_use]
+pub fn choose_reporting(
+    fuzzel: &[String],
+    apps: &[App],
+    report: &mut dyn FnMut(&str),
+) -> Option<String> {
     let all: Vec<&str> = apps.iter().map(|a| a.name.as_str()).collect();
     let mut rows = all.clone();
     let mut notice: Option<String> = None;
@@ -146,7 +183,14 @@ pub fn choose(fuzzel: &[String], apps: &[App]) -> Option<String> {
             .into_iter()
             .chain(rows.iter().copied())
             .collect();
-        let line = ask(fuzzel, &shown)?;
+        let line = match ask(fuzzel, &shown) {
+            Asked::Line(line) => line,
+            Asked::Closed => return None,
+            Asked::Failed(why) => {
+                report(&format!("Run could not start: {why}"));
+                return None;
+            }
+        };
         match answer(apps, &line, notice.as_deref(), desktop_entry::on_path) {
             Answer::Closed => return None,
             Answer::Run(command) => return Some(command),
@@ -161,6 +205,30 @@ pub fn choose(fuzzel: &[String], apps: &[App]) -> Option<String> {
         }
     }
     None
+}
+
+/// Shows `why` as a notice of the look, on a short connection of its
+/// own (the launcher is a process that the look started); the log has it
+/// too, so a look without a notice server loses nothing.
+fn tell(why: &str) {
+    eprintln!("{why}");
+    let Ok(mut conn) = crate::conn::Conn::connect("launcher")
+        .inspect_err(|err| eprintln!("launcher: the notice cannot connect: {err}"))
+    else {
+        return;
+    };
+    let _ = crate::notice::show_or_log(
+        &mut conn,
+        None,
+        &crate::notice::Notice {
+            app: "launcher",
+            icon: "dialog-error",
+            summary: "Run could not start",
+            body: why.strip_prefix("Run could not start: ").unwrap_or(why),
+            expire_ms: -1,
+            urgency: crate::notice::Urgency::Normal,
+        },
+    );
 }
 
 /// The data directories of the launcher: `first`, the one of a flavor,
@@ -181,7 +249,7 @@ pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
     let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
     let apps = apps(entries, terminal, desktop_entry::on_path);
-    if let Some(command) = choose(fuzzel, &apps) {
+    if let Some(command) = choose_reporting(fuzzel, &apps, &mut tell) {
         crate::launch::run(&command, None);
     }
 }
@@ -321,5 +389,54 @@ mod tests {
             answer(&list, &notice, Some(&notice), on_path),
             Answer::Closed
         );
+    }
+
+    /// A stand-in for fuzzel: a shell script with the `body`, run by `sh`
+    /// (as a program, a script that a parallel test just wrote can fail
+    /// to exec with "text file busy").
+    fn stand_in(name: &str, body: &str) -> (crate::testing::TempDir, Vec<String>) {
+        let dir = crate::testing::TempDir::new(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("fuzzel");
+        std::fs::write(&file, format!("#!/bin/sh\ncat >/dev/null\n{body}\n")).unwrap();
+        let command = vec!["sh".to_owned(), file.to_string_lossy().into_owned()];
+        (dir, command)
+    }
+
+    fn reports(fuzzel: &[String]) -> (Option<String>, Vec<String>) {
+        let mut said = Vec::new();
+        let got = choose_reporting(fuzzel, &list(), &mut |line| said.push(line.to_owned()));
+        (got, said)
+    }
+
+    #[test]
+    fn a_launcher_that_fails_says_why_once() {
+        let (_dir, fuzzel) = stand_in(
+            "chora-launcher-fail",
+            "echo 'bad key' >&2; echo 'second line' >&2; exit 1",
+        );
+        let (got, said) = reports(&fuzzel);
+        assert_eq!(got, None);
+        assert_eq!(said, ["Run could not start: bad key"]);
+    }
+
+    #[test]
+    fn a_launcher_that_cannot_spawn_says_so() {
+        let (got, said) = reports(&["/chora-no-such-dir/fuzzel".to_owned()]);
+        assert_eq!(got, None);
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].starts_with("Run could not start: "), "{said:?}");
+    }
+
+    #[test]
+    fn a_cancel_stays_silent() {
+        let (_dir, fuzzel) = stand_in("chora-launcher-cancel", "exit 1");
+        assert_eq!(reports(&fuzzel), (None, vec![]));
+    }
+
+    #[test]
+    fn a_choice_runs_and_says_nothing() {
+        let (_dir, fuzzel) = stand_in("chora-launcher-ok", "echo Screenshot");
+        assert_eq!(reports(&fuzzel), (Some("shot".to_owned()), vec![]));
     }
 }

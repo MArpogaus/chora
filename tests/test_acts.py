@@ -41,6 +41,12 @@ def surface(sid, owner, output="HEADLESS-1", focused=False, rect=(10, 10, 300, 2
     return node
 
 
+def probe_surface(sid="p1"):
+    node = surface(sid, "construct")
+    node["surface"] = {"app_id": "chora-probe"}
+    return node
+
+
 def window(sid, shown=True):
     return {"surface": sid, "shown": shown, "output": "HEADLESS-1"}
 
@@ -916,17 +922,30 @@ sys.path.insert(0, str(ROOT / "tests" / "persona"))
 import check  # noqa: E402
 
 
-def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=()):
-    return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries))
+def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=(), left=()):
+    more = {"left": list(left)} if left else {}
+    return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries), **more)
 
 
-def seen(open_ids=(), helper="idle", keysheet=None, look="xp"):
+def seen(open_ids=(), helper="idle", keysheet=None, look="xp", page=None):
     return {
         "t": 1.0,
         "action": "a",
         "open": list(open_ids),
         "helper": {look: helper},
+        "page": page,
         "keysheet": keysheet,
+    }
+
+
+def page_node(name, visible=True, opacity=1.0):
+    return {
+        "id": f"mc-s-{name}",
+        "kind": "group",
+        "owner": "mc",
+        "parent": "mc",
+        "visible": visible,
+        "opacity": opacity,
     }
 
 
@@ -956,6 +975,22 @@ class PersonaContracts(unittest.TestCase):
         two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
         after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
         self.assertIn("expected open []", verdict("T1", ctx(), before, after)[0])
+
+    def test_t1_the_key_list_of_the_persona_may_stay_open(self):
+        before = snap()
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
+        after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
+        self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"]), before, after), [])
+
+    def test_t4_the_key_list_of_the_persona_may_stay_open(self):
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
+        call = ctx(calls=calls, left=["xp-dlg-help"])
+        self.assertEqual(verdict("T4:volume", call, snap(), snap(states=states)), [])
+        call = ctx(calls=calls)
+        menu = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-menu"}], "busy": []}}
+        self.assertIn("expected open", verdict("T4:volume", call, snap(), snap(states=menu))[0])
 
     def test_t2_key_list_opened_spoke_and_shut(self):
         hist = [seen(["xp-dlg-help"], keysheet=[]), seen()]
@@ -1009,10 +1044,11 @@ class PersonaContracts(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".report") as report:
             report.write("key 30\nkey 57\n")
             report.flush()
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
             quiet = ctx(probe=report.name, keys=[28])
-            self.assertEqual(verdict("T5", quiet, snap(), snap()), [])
+            self.assertEqual(verdict("T5", quiet, snap(), alive), [])
             stray = ctx(probe=report.name, keys=[57])
-            self.assertIn("key 57", verdict("T5", stray, snap(), snap())[0])
+            self.assertIn("key 57", verdict("T5", stray, snap(), alive)[0])
         self.assertIn("--probe", verdict("T5", ctx(), snap(), snap())[0])
 
     def test_t5_chords_become_codes(self):
@@ -1023,10 +1059,21 @@ class PersonaContracts(unittest.TestCase):
         ]
         self.assertEqual(check.parse_chords(actions), [57])
 
+    def test_t5_the_chords_of_the_persona_briefs_have_codes(self):
+        combos = ["Super+d", "Super+q", "Super+Tab", "Super+Shift+Escape", "Super+t", "Super+c"]
+        actions = [{"action": "key", "args": {"combo": c}} for c in combos]
+        self.assertEqual(check.parse_chords(actions), [32, 16, 15, 1, 20, 46])
+
     def test_t6_a_notice_or_no_helper(self):
         say = snap(nodes=[surface("s1", "xp"), {"id": "t", "kind": "text", "text": "No helper"}])
         self.assertEqual(verdict("T6", ctx(), snap(), say), [])
         self.assertIn("neither", verdict("T6", ctx(), snap(), snap())[0])
+
+    def test_t6_the_launcher_row_nothing_found_counts(self):
+        row = ctx(calls=['fuzzel-first-row Nothing found for "nosuchprogram"'])
+        self.assertEqual(verdict("T6", row, snap(), snap()), [])
+        other = ctx(calls=["fuzzel-first-row Foot"])
+        self.assertIn("neither", verdict("T6", other, snap(), snap())[0])
 
     def test_t6_an_old_notice_alone_is_red(self):
         old = snap(blocks=notify(1))
@@ -1038,6 +1085,25 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("T7", ctx(), snap(), snap()), [])
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost ['s1']", verdict("T7", ctx(), snap(), gone)[0])
+
+    def test_t5_a_dead_probe_is_red(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = pathlib.Path(tmp) / "probe.report"
+            report.write_text("")
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
+            self.assertEqual(verdict("T5", ctx(probe=str(report)), snap(), alive), [])
+            out = verdict("T5", ctx(probe=str(report)), snap(), snap())
+            self.assertIn("no chora-probe window", out[0])
+            missing = verdict("T5", ctx(probe=str(report) + ".none"), snap(), alive)
+            self.assertIn("no report", missing[0])
+
+    def test_t5_a_key_that_reached_the_probe_is_red(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = pathlib.Path(tmp) / "probe.report"
+            report.write_text("key 32\n")
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
+            out = verdict("T5", ctx(probe=str(report), keys=[32]), snap(), alive)
+            self.assertIn("got the key 32", out[0])
 
     def test_x1_window_shown_again_with_the_focus(self):
         hidden = {"xp": {"windows": [window("s1", shown=False)], "focus": {"holder": "xp"}}}
@@ -1051,6 +1117,23 @@ class PersonaContracts(unittest.TestCase):
         before = snap(states=page("agenda"))
         self.assertEqual(verdict("M1", ctx("mc"), before, snap(states=page("photos"))), [])
         self.assertIn("nothing changed", verdict("M1", ctx("mc"), before, before)[0])
+
+    def test_m1_a_page_that_turned_and_came_back_counts(self):
+        agenda = snap(nodes=[page_node("agenda"), page_node("morning", False, 0.0)])
+        hist = [
+            seen(page=["mc-s-agenda"]),
+            seen(page=["mc-s-morning"]),
+            seen(page=["mc-s-agenda"]),
+        ]
+        self.assertEqual(verdict("M1", ctx("mc", hist=hist), agenda, agenda), [])
+        still = [seen(page=["mc-s-agenda"]), seen(page=["mc-s-agenda"])]
+        self.assertIn("nothing changed", verdict("M1", ctx("mc", hist=still), agenda, agenda)[0])
+
+    def test_m1_a_page_that_fades_is_not_on(self):
+        agenda = snap(nodes=[page_node("agenda"), page_node("morning", True, 0.2)])
+        self.assertEqual(check.page_of(agenda, "mc"), ["mc-s-agenda"])
+        turned = snap(nodes=[page_node("agenda", True, 0.1), page_node("morning")])
+        self.assertEqual(verdict("M1", ctx("mc"), agenda, turned), [])
 
     def test_c1_the_cube_answers(self):
         self.assertEqual(verdict("C1", ctx("construct"), snap(), snap(cube={"faces": []})), [])
@@ -1125,10 +1208,75 @@ class PersonaContracts(unittest.TestCase):
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost", verdict("C2", ctx("construct"), snap(), gone)[0])
 
+    def test_c2_a_window_opened_during_the_task_is_no_breach(self):
+        empty = snap(nodes=[], toplevels=set())
+        opened = snap()
+        self.assertEqual(verdict("C2", ctx("construct"), empty, opened), [])
+
+    def test_c2_a_window_seen_during_the_task_and_gone_is_lost(self):
+        empty = snap(nodes=[], toplevels=set())
+        hist = [dict(seen(look="construct"), toplevels=["s1"])]
+        out = verdict("C2", ctx("construct", hist=hist), empty, empty)
+        self.assertIn("windows lost ['s1']", out[0])
+
+    def test_end_reads_the_newest_begin_else_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = object.__new__(check.Run)
+            run.state_dir = pathlib.Path(tmp)
+            run.calls = pathlib.Path(tmp) / "calls.log"
+            run.calls.write_text("")
+            run.save("start", snap(), {})
+            self.assertEqual(check.baseline(run), "start")
+            run.save("begin", snap(), {})
+            self.assertEqual(check.baseline(run), "begin")
+            run.state_dir.joinpath("begin.json").unlink()
+            self.assertEqual(check.baseline(run), "start")
+
     def test_c3_the_look_holds_the_focus(self):
         self.assertEqual(verdict("C3", ctx(), snap(), snap()), [])
         lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": None}}})
         self.assertIn("the focus", verdict("C3", ctx(), snap(), lost)[0])
+
+    def test_a_key_list_left_open_is_no_red_but_a_menu_is(self):
+        help_open = snap(
+            states={
+                "xp": {
+                    "windows": [],
+                    "focus": {"holder": "xp"},
+                    "open": [{"id": "xp-dlg-help"}],
+                    "busy": [],
+                }
+            }
+        )
+        menu_open = snap(
+            states={
+                "xp": {
+                    "windows": [],
+                    "focus": {"holder": "xp"},
+                    "open": [{"id": "xp-menu"}],
+                    "busy": [],
+                }
+            }
+        )
+        left = ["xp-dlg-help"]
+        lock = ["swaylock -f"]
+        self.assertIn("expected open", verdict("T4:lock", ctx(calls=lock), snap(), help_open)[0])
+        self.assertEqual(verdict("T4:lock", ctx(calls=lock, left=left), snap(), help_open), [])
+        self.assertIn(
+            "expected open",
+            verdict("T4:lock", ctx(calls=lock, left=left), snap(), menu_open)[0],
+        )
+        hist = [seen(["xp-dlg-help"], keysheet=[])]
+        self.assertEqual(verdict("T2", ctx(hist=hist, left=left), snap(), help_open), [])
+
+    def test_the_key_list_is_left_open_only_when_it_is_open(self):
+        help_open = snap(
+            states={"xp": {"windows": [], "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        )
+        menu_open = snap(states={"xp": {"windows": [], "open": [{"id": "xp-menu"}], "busy": []}})
+        self.assertEqual(check.left_open("xp", help_open), ["xp-dlg-help"])
+        self.assertEqual(check.left_open("xp", menu_open), [])
+        self.assertEqual(check.left_open("xp", snap()), [])
 
     def test_no_contract_for_an_unknown_task(self):
         self.assertIsNone(check.contracts("T99", ctx(), snap()))
