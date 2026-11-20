@@ -69,3 +69,42 @@ Check 3: at 1280x800 the pane is on screen on both sides (203-376 left, 950-1113
 | rv-2 | MINOR | plugins/chora-construct/src/cube/aside.rs:139 | The only unit test covers `Aside::at`; nothing covers `make_way` (placed, in front, overlap, side), `step_asides` (exact home, cleared on close or step in), or the removal at panes.rs:230, and gate 2a never steps in again (I checked these by hand, they hold). | Add unit tests for these in the construct test harness and a step-in rect compare to gate 2a. |
 | rv-3 | MINOR | tests/gate-construct-pull.sh:131-135 | `closed_cube_breaches` compares the mirror in x only (not its top or height), its 2 % length rule cannot fire for an edge over about 140 px when both ends are within 1 px, and it never checks pane against pane, so rv-1 passes the gate. | Compare the mirror y range with the face, drop or tighten the length rule, add a pane-pane overlap check and a second pane to the scene. |
 | rv-4 | NIT | plugins/chora-construct/src/cube/aside.rs:95 | The aside place is not clamped to the leash `radius()` that `move_pane_facing` applies, nor to the screen, so a pane much wider than a face lands partly off screen (not run). | Clamp `to` to the radius, and shrink the offset when the pane would leave the screen. |
+
+## r2
+
+Lane: cloud, branch claude/co-majors from db4d703b; head 8e24dcb6 (pushed). Step 0:
+`git fetch --unshallow` and `cargo check --workspace` passed. Review r1 items rv-1 to rv-4.
+
+| id | red | fix | test |
+|----|-----|-----|------|
+| rv-3 | d155d807: gate `closed_cube_breaches` compares the mirror corners with the face corners (x, height, depth at both edges), takes 1 px for the length of the shared edge, checks pane against pane, and the new case `pair` has a second pane on the same side. Fails on db4d703b: `construct-pane-s1 [203, 317, 173, 165] and construct-pane-s2 [-9, 283, 387, 235] overlap` | d155d807 itself (the gate is the fix) | tests/gate-construct-pull.sh, case 2c |
+| rv-1 MAJOR | d155d807 (gate) and 1ed59e8e (unit) | 3afe9285 | gate case 2c; `two_panes_on_one_side_go_beside_the_cube_without_overlap`, `a_pane_with_no_room_on_its_side_goes_to_the_other_side` |
+| rv-2 | 1ed59e8e (tests of the existing behaviour, green on db4d703b) and c5b143b1 (gate) | none needed | `a_placed_pane_in_front_of_the_cube_goes_beside_it_on_its_side` (placed, in front, overlap, side), `a_pane_that_does_not_cover_the_cube_stays`, `panes_on_both_sides_go_to_their_own_sides`, `a_pane_that_gave_way_goes_home_exactly_when_the_cube_steps_in_or_closes`, `a_pane_is_aside_until_the_step_in_has_ended`, `a_pane_that_the_person_moves_while_aside_stays_there` (the removal at panes.rs:230); gate 2a steps in with view.step_in and compares the home rect, then steps back and compares the aside rect |
+| rv-4 NIT | 1ed59e8e | 3afe9285 | `the_place_beside_the_cube_is_inside_the_leash`, `a_wide_pane_beside_the_cube_stays_on_the_screen` |
+
+Red run on db4d703b's aside.rs with the new tests: 4 FAILED (the two rv-1, the leash and the screen
+test), the other 6 pass. After the fix `cargo test -p chora-construct` 241 passed, clippy
+`--all-targets -D warnings` clean.
+
+### What changed in aside.rs
+
+- `make_way` takes the covering panes nearest the cube first (by their distance across the view) and keeps
+  `taken` per side, advanced by the pane width plus GAP (0.15 face widths) for each pane placed; the pane
+  centre is `clearance + taken + width / 2` from the cube centre, so no two places overlap.
+- First try (found by the gate, not by the review): with only the shrink of rv-4, the second pane of the gate
+  (a 1280 px window next to a 600 px one) did not fit on screen at its running offset and shrank back over the
+  first one. So a pane that does not show in full on its side takes the other side (with that side's
+  running offset); only a pane that fits on neither shrinks its offset on its own side until it shows
+  (20 steps), and never moves out of the leash.
+- The place is clamped to `radius()` like `move_pane_facing`.
+
+### Gate
+
+Merged origin/claude/autonomous-dev-session-3w-i33pg7 (bb16f2ff, 8e24dcb6 is the merge), then
+`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,cube,construct-hud,pull,placed,keys,doors,out`:
+all 12 PASS (pre-commit 4 s, build 1 s, test 225 s, clippy 17 s, ci-check 111 s, cube 120 s, placed 14 s,
+pull 80 s, out 15 s, keys 18 s, construct-hud 120 s, doors 341 s). The brief names a step `construct`; the
+gate has no such step, so the 12 cells of r1 stand for it. Not run: the 640x720 case and the screenshots (no
+capture of the pair case is kept).
+
+Head: 8e24dcb6.
