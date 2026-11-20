@@ -147,3 +147,22 @@ Findings:
 - rv-5, NIT, plugins/chora-mc/src/main.rs:657, `refresh` changes `focus` only when somebody calls `state.get`, so mc's holder (and `page_keys_work`) depends on being watched, and a failed query is silent. Fix: log the error, and name the backlog (rw-3, node focus events) in the doc comment.
 
 Known, not findings: launcher click red in lane containers (fuzzel 1.9.2), mc-50 yellow square, T1 end-time gap.
+
+## r4 (RC 2 persona round 4, review r3 rv-1 to rv-5)
+Lane: cloud, branch claude/mc-fix from b0997b71. The session head was still d81c8293 (already in the branch), so nothing was merged. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. Pushed a8cd0de0 to claude/mc-fix. Each fix has a red commit before it.
+
+| item | red | fix | test / cell |
+|---|---|---|---|
+| rv-1 MAJOR mc-42 | ad1f2ded (unit test; cell variant a8cd0de0) | 0b72ff84 | mc unit `a_turn_away_and_back_while_the_program_starts_keeps_the_keyboard_on_the_page`; gate-mc-paths `terminal-turn` |
+| rv-2 MINOR | ee8b0ada | 75272909 | mc unit `refresh_asks_the_core_for_its_own_node_only` |
+| rv-3 MINOR | 5c422e10 | 6508d95d | tests/test_acts.py I5 (2 new cases) |
+| rv-4 NIT | ee8b0ada (keep case; FakeCore records `selectors`, honours `filter.focused`) | 75272909 | mc unit `state_says_mc_when_its_node_still_has_the_keyboard`, `state_says_nobody_...` now has xp take the keyboard |
+| rv-5 NIT | none (log line, doc comment) | 75272909 | none |
+
+- rv-1: `show` sets `plain_start` whenever `user && plain_turn && app && no window`, also while the program waits; `adopt` takes it only for its own scene (`take_plain_start`), so a window of another scene in between leaves it. Red cell: the first cell I wrote (Right, Left, Right with 0.4 s between keys) did NOT fail at ad1f2ded (the window mapped first); a8cd0de0 sends the three keys in one inject, which fails at ad1f2ded ("Left after Right, Left, Right before the window mapped does not go to mission", twice) and passes at 0b72ff84 and on the head. So the cell is red only from a8cd0de0, which is after the fix in the history; the unit test is red at ad1f2ded.
+- rv-2: `refresh` asks `id:<own node>` with the focused filter; the unit test counts the selectors the FakeCore got.
+- rv-3: the rule of the review ("owner differs from both texts' looks") would break the r3 guard (xp wallpaper over an mc text, xp text above), so the cover is a whole-output picture that belongs to the look of the upper text and not to the look of the lower one. A translucent picture of mc between two xp texts, or of mc between two mc texts, stays a breach. Limit: opacity is still not in `scene.boxes`.
+- rv-5: a failed `refresh` query is logged; the doc comment names the backlog (rw-3, node focus events).
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,keys,mc-paths,mc-sofa,mc-handover,acts` (run dir /tmp/merge-gate.ztZoxP, at 6508d95d): all 11 PASS (pre-commit 4 s, gate-lib 71 s, ci-check 119 s, build 157 s, test 228 s, clippy 17 s, keys 23 s, mc-paths 111 s, mc-sofa 45 s, mc-handover 13 s, acts 263 s). The gate ran before a8cd0de0 (cell only); `CELLS=terminal-turn tests/gate-mc-paths.sh` passes on a8cd0de0. A red cell I did not cause: none. Partial run, nothing pushed by it.
