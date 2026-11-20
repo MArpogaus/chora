@@ -24,7 +24,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| harness-l-r1.md (F6 gates: R15, R12, R14, H-move; Queue 5) | sonnet medium | starting |
+| harness-l-r1.md (F6 gates: R15, R12, R14, H-move; Queue 5) | sonnet medium | session_016iS3kND6YHtNvLZZ3zyyMN |
 | p2-r2-mc.md (RC 2 persona round 4, mc; Queue 5) | sonnet medium | session_016iS3kQWQuaukrpP1MwhJDd |
 | docs-f8e-r1.md (F8: kit swallow line, D118, CM-R1; Queue 5) | sonnet medium | session_016iS3kPf7kV5rnZAz313Ehk |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
