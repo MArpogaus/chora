@@ -371,6 +371,34 @@ mod tests {
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
+    /// co-29: the window list opens under a pointer that stood still, so a
+    /// row is hovered at once and the list is drawn again within its fade;
+    /// the redraw must not leave the list half faded.
+    #[test]
+    fn a_row_hovered_while_the_list_fades_in_leaves_it_fully_opaque() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "list-hover");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct.open_list().unwrap();
+        core.model().lock().unwrap().scene.advance(40.0);
+        construct
+            .event(Event::PointerEntered {
+                node: format!("{}0", crate::command::LIST_ROW),
+                moved: false,
+                injected: false,
+            })
+            .unwrap();
+        let model = core.model();
+        let mut model = model.lock().unwrap();
+        model.scene.advance(1000.0);
+        let opacity = model.scene.node(crate::hud::LIST).unwrap().props.opacity;
+        assert!(
+            (opacity - 1.0).abs() < f64::EPSILON,
+            "the list fades in to the end: {opacity}"
+        );
+    }
+
     /// kit7-a2 (D116): a press on the window of a pane gives it the
     /// keyboard; a new window that comes as a pane without a flight takes
     /// the keyboard back to the walk, as a new window takes it in the
