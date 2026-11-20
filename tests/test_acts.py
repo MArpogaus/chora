@@ -1015,10 +1015,11 @@ class PersonaContracts(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".report") as report:
             report.write("key 30\nkey 57\n")
             report.flush()
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
             quiet = ctx(probe=report.name, keys=[28])
-            self.assertEqual(verdict("T5", quiet, snap(), snap()), [])
+            self.assertEqual(verdict("T5", quiet, snap(), alive), [])
             stray = ctx(probe=report.name, keys=[57])
-            self.assertIn("key 57", verdict("T5", stray, snap(), snap())[0])
+            self.assertIn("key 57", verdict("T5", stray, snap(), alive)[0])
         self.assertIn("--probe", verdict("T5", ctx(), snap(), snap())[0])
 
     def test_t5_chords_become_codes(self):

@@ -281,9 +281,13 @@ def verify_system(ctx, part):
 def verify_probe(ctx):
     """The probe window got no key of a Super chord the persona pressed."""
 
-    def verify(_after):
+    def verify(after_):
         if not ctx.probe:
             return ["no --probe FILE: the report of chora-probe window --report"]
+        if not pathlib.Path(ctx.probe).exists():
+            return [f"no report {ctx.probe}: round.sh probe NAME starts the probe"]
+        if not any((n.get("surface") or {}).get("app_id") == "chora-probe" for n in after_.nodes):
+            return ["no chora-probe window in the scene: the probe died or never showed"]
         got = {
             line.split()[1]
             for line in pathlib.Path(ctx.probe).read_text(encoding="utf-8").splitlines()
