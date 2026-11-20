@@ -1,0 +1,4 @@
+{"time": 1795142262.42, "action": "click", "look": "xp", "invariant": "I5", "breach": "on HEADLESS-1 'Starting Notepad' (notify-card-body) overlaps '25%' (xp-ctx-0-3) at [1132.0, 719.5488662719727, 22.75732421875, 7.68310546875]"}
+{"time": 1795142263.02, "action": "look", "look": "xp", "invariant": "I5", "breach": "on HEADLESS-1 'Starting Notepad' (notify-card-body) overlaps '25%' (xp-ctx-0-3) at [1132.0, 719.5488662719727, 22.75732421875, 7.68310546875]"}
+{"time": 1795142271.698, "action": "click", "look": "xp", "invariant": "I5", "breach": "on HEADLESS-1 'Starting Notepad' (notify-card-body) overlaps '25%' (xp-ctx-0-3) at [1132.0, 719.5488662719727, 22.75732421875, 7.68310546875]"}
+{"time": 1795142272.315, "action": "look", "look": "xp", "invariant": "I5", "breach": "on HEADLESS-1 'Starting Notepad' (notify-card-body) overlaps '25%' (xp-ctx-0-3) at [1132.0, 719.5488662719727, 22.75732421875, 7.68310546875]"}
