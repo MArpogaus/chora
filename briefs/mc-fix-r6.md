@@ -1,0 +1,14 @@
+# mc-fix-r6 (RC 2 persona round 4; rule 6, mc BLOCK): mc-42 first arrival, I3 with the chat open over a window page
+
+Model: opus, effort high, because mc-42 was fixed three times (r2, r3, r4) and the persona still breaks it on the first arrival: the cause is in the order of page turn, program start and keyboard grant, and needs a design-level look, not a fourth patch.
+Lane: cloud, branch claude/mc-fix at bb7cbeb8 (r5, PM MERGE-OK, waits for train 91; merge origin/claude/autonomous-dev-session-3w-i33pg7 first when it moved past fee9c695). One round, stop at 250 k. Cost about 2 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`; `cargo check --workspace`; a failure: send_message the PM "mc-fix r6 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/p2-r4-mc.md "## r4" (fix check, cook and sofa rows); feedback/2026-11-20-p2r4-cook.md and -sofa.md; findings/mc.md rows mc-42, mc-52; reports/mc-fix.md "## r2" to "## r5".
+Items (a red test commit first, then the fix):
+1. mc-42 first arrival: on a fresh session a plain Right from page 4 starts Foot and lands on "7 FOOT" with the keyboard in the window; Right is then dead (a later arrival works). Also: the footer names page 5 Terminal but page 7 arrives. Red: a gate-mc-paths cell that starts from a fresh session (no Foot yet), Right from page 4 to the program page, then Right, Left and Escape each act on the page (cell terminal-turn does not cover this: it starts after a window exists). Fix in mc so the first arrival equals the later one: a window started by a page turn does not take the keyboard until Return. Write in reports/mc-fix.md why r2-r4 missed this path.
+2. I3 with the chat open over a launcher-started window page (sofa, 8 lines: "the core focuses s2 of mc, no look says it holds the focus", Super+a to Super+F1): red as a check.py or acts case, then fix the holder that mc reports. Leave xp+mc I3 at a click (nurse, 1 line) as evidence unless the same cause.
+Not yours: tests/acts/invariants.py I5 timing (flakes-l), doors/lib.sh (flakes-m done).
+Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,mc-paths,mc-sofa,mc-column,acts`; poll it in the same turn; never end a turn to wait. A red cell you did not cause: rerun it alone once and name it.
+Done when: red commit before each fix; cells pass; reports/mc-fix.md "## r6" on claude/session-log (per item: red sha, fix sha, test, cell, why earlier rounds missed it); findings/mc.md rows updated; head sha.
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
+Rules: push claude/mc-fix and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.

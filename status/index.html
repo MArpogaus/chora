@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-20T14:52:00Z",
+  updated: "2026-11-20T15:20:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 65,                      // % of the week used (owner's reading)
@@ -67,15 +67,15 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.87 %; 12 flaky rows open, three flake lanes fix them now; the bar: 5 full gate runs green in a row at 2 jobs; only then met"],
-    ["F6", "Every change through the merge gate", "done", "47 green merges, all reviewed (audit r4); train 88b (construct 3D race fix) green 14:49; train 89 (leaked test probes fix) in the gate"],
+    ["F6", "Every change through the merge gate", "done", "47 green merges, all reviewed (audit r4); train 88b (construct 3D race fix) green 14:49; train 89 (leaked test probes fix) had one flaky red, rerun 89b in the gate"],
     ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 88b went green at 14:49 UTC (21:49 Bangkok): the construct 3D race fix is in. Train 89 (fix for leaked test probes) runs from 14:51 UTC.",
+    "Train 89 (fix for leaked test probes) went red on one button-size check that passes 3 of 3 alone (a flake under load); rerun 89b in the gate since about 15:15 UTC (22:15 Bangkok). Next: train 90, the gate guard that turns a silently skipped check into a visible SKIP (approved).",
     "Audit r4 (14:23 UTC): 6 of 8 goals met with evidence; F5 (flakes) still open, F7 by design next week.",
-    "mc: review of the remote fix found one MAJOR (a test check let mc drawn over xp pass); fix round 5 runs.",
-    "Six lanes: three flake lanes, mc fix, gate SKIP guard. Week: 65 % used at 71 % of the time; all lane slots full to spend the rest."
+    "Simulated-user round 4 (RC 2) runs for xp and mc, round 2 for construct; mc's remote fix and construct's fixes are approved and wait for train 91.",
+    "Six lanes: three flake lanes and three simulated-user rounds. Week: 65 % used at 71 % of the time (owner 14:39 UTC, 21:39 Bangkok); all slots full to spend the rest."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
