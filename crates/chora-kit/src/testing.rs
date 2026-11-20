@@ -173,6 +173,10 @@ impl FakeCore {
 
     /// Plants a recorder: `line` gets the method and the parameters of each
     /// request, and a `Some` is appended to the log that this returns.
+    ///
+    /// The recorders run under the lock of the model, before the fake core
+    /// answers: `line` must not lock [`Self::model`] or call the core, or
+    /// the test deadlocks; keep it to reading its arguments.
     #[must_use]
     pub fn record(
         &self,
