@@ -14,6 +14,10 @@ use crate::{ClientError, Command, Construct, Pose, space};
 /// The gap between the cube and a pane beside it, in widths of a face.
 const GAP: f64 = 0.15;
 
+/// How many steps a pane that is too wide for the room shrinks its offset
+/// in, from the full offset to none.
+const SHRINKS: u32 = 20;
+
 /// A pane that gave way: its centre and yaw at home and beside the cube.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Aside {
@@ -49,11 +53,24 @@ impl Host {
         stood
     }
 
-    /// The centre of a pane `width` wide beside the cube at `centre`, to
-    /// the right for a positive `side`: clear of the cube in every turn.
-    fn beside(&self, centre: [f64; 2], side: f64, width: f64) -> [f64; 2] {
+    /// How far the inner edge of the first pane beside the cube lies from
+    /// its centre, across the view: clear of the cube in every turn.
+    fn clearance(&self) -> f64 {
+        self.cube.size[0] * (SQRT_2 / 2.0 + GAP)
+    }
+
+    /// How far the centre of a pane `width` wide lies from the centre of
+    /// the cube, across the view, with `taken` of the room beside the
+    /// cube used by the panes there already.
+    fn offset(&self, taken: f64, width: f64) -> f64 {
+        self.clearance() + taken + width / 2.0
+    }
+
+    /// The point `off` to the right of `centre`, to the left for a
+    /// negative `side`, across the view of the cube.
+    fn beside(&self, centre: [f64; 2], side: f64, off: f64) -> [f64; 2] {
         let (s, c) = self.yaw.sin_cos();
-        let off = side.signum() * (self.cube.size[0] * (SQRT_2 / 2.0 + GAP) + width / 2.0);
+        let off = side.signum() * off;
         [centre[0] + c * off, centre[1] - s * off]
     }
 
@@ -66,9 +83,63 @@ impl Host {
 }
 
 impl Construct {
+    /// `to` inside the leash.
+    fn leashed(&self, to: [f64; 2]) -> [f64; 2] {
+        let (len, r) = (to[0].hypot(to[1]), self.radius());
+        if len > r {
+            [to[0] * r / len, to[1] * r / len]
+        } else {
+            to
+        }
+    }
+
+    /// Whether a pane of `extent` at `to`, its face to the eye, shows
+    /// between the left and the right edge of the screen.
+    fn on_screen(&self, to: [f64; 2], extent: [f64; 2]) -> bool {
+        let (lens, pose) = (self.lens, self.pose);
+        let yaw = space::facing([pose.x, pose.z], to);
+        space::screen_box(&lens, &pose, to, extent, yaw)
+            .is_some_and(|b| b[0] >= 0.0 && b[2] <= lens.w)
+    }
+
+    /// The place of a pane of `extent` beside the cube at `centre`, on
+    /// the side `sides[0]` (0 left, 1 right) or else on `sides[1]`, when
+    /// the pane shows in full there: out from the cube past the room
+    /// that `taken` holds on each side, and inside the leash. A pane that
+    /// shows in full on neither side shrinks its offset on the first
+    /// until it does. Answers the side and the place.
+    fn place_beside(
+        &self,
+        host: &Host,
+        centre: [f64; 2],
+        (sides, taken): ([usize; 2], [f64; 2]),
+        extent: [f64; 2],
+    ) -> (usize, [f64; 2]) {
+        let place = |k: usize, shrink: f64| {
+            let off = host.offset(taken[k], extent[0]) * shrink;
+            self.leashed(host.beside(centre, [-1.0, 1.0][k], off))
+        };
+        let whole = sides.into_iter().find_map(|k| {
+            let to = place(k, 1.0);
+            self.on_screen(to, extent).then_some((k, to))
+        });
+        whole.unwrap_or_else(|| {
+            let k = sides[0];
+            let shrunk = (0..=SHRINKS).map(|n| place(k, 1.0 - f64::from(n) / f64::from(SHRINKS)));
+            (
+                k,
+                shrunk
+                    .into_iter()
+                    .find(|to| self.on_screen(*to, extent))
+                    .unwrap_or_else(|| place(k, 1.0)),
+            )
+        })
+    }
+
     /// As the cube starts to step back: each pane that the person placed
     /// in front of it, and that would cover it once it stands back, gets
-    /// a place beside it.
+    /// a place beside it. The panes nearest the cube take the places
+    /// nearest it, and no place overlaps another.
     pub(crate) fn make_way(&mut self) {
         let (lens, pose) = (self.lens, self.pose);
         let Some((centre, Some(cube))) = (self.cube.as_mut()).map(|h| h.stood(&lens, &pose)) else {
@@ -79,20 +150,21 @@ impl Construct {
         };
         let depth = space::depth(&pose, centre);
         let eye = [pose.x, pose.z];
+        let mut covering: Vec<(usize, f64)> = (self.panes.iter().enumerate())
+            .filter(|(_, p)| p.placed)
+            .filter(|(_, p)| !self.asides.contains_key(&p.name))
+            .filter(|(_, p)| space::depth(&pose, p.at) < depth)
+            .filter(|(_, p)| crate::frame::overlaps(cube, self.screen_box_of(p)))
+            .map(|(i, p)| (i, host.across(centre, p.at)))
+            .collect();
+        covering.sort_by(|a, b| a.1.abs().total_cmp(&b.1.abs()));
+        let mut taken = [0.0; 2];
         let mut asides = Vec::new();
-        for pane in self.panes.iter().filter(|p| p.placed) {
-            if self.asides.contains_key(&pane.name)
-                || space::depth(&pose, pane.at) >= depth
-                || !crate::frame::overlaps(cube, self.screen_box_of(pane))
-            {
-                continue;
-            }
-            let side = if host.across(centre, pane.at) < 0.0 {
-                -1.0
-            } else {
-                1.0
-            };
-            let to = host.beside(centre, side, pane.size[0]);
+        for (i, across) in covering {
+            let pane = &self.panes[i];
+            let sides = if across < 0.0 { [0, 1] } else { [1, 0] };
+            let (k, to) = self.place_beside(host, centre, (sides, taken), pane.size);
+            taken[k] += pane.size[0] + GAP * host.cube.size[0];
             let aside = Aside {
                 home: (pane.at, pane.yaw),
                 beside: (to, space::facing(eye, to)),
