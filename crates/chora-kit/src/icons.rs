@@ -300,9 +300,7 @@ mod tests {
 
     fn runtime_with(tag: &str, mode: u32) -> PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
-        let dir = std::env::temp_dir().join(format!("chora-icons-rt-{tag}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::TempDir::new(&format!("chora-icons-rt-{tag}")).keep();
         fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).unwrap();
         dir
     }
@@ -421,13 +419,17 @@ mod tests {
 
     #[test]
     fn the_temp_fallback_dir_has_a_random_name_and_goes_with_the_icons() {
-        let predictable = std::env::temp_dir().join(format!("chora-icons-{}", std::process::id()));
+        let predictable = format!("chora-icons-{}", std::process::id());
         let mut first = Icons::new(["none"]);
         let mut second = Icons::new(["none"]);
         let one = first.private_copy_in(None, b"png").expect("a copy");
         let two = second.private_copy_in(None, b"png").expect("a copy");
         let (one_dir, two_dir) = (one.parent().unwrap(), two.parent().unwrap());
-        assert_ne!(one_dir, predictable, "a name another user can guess");
+        assert_ne!(
+            one_dir.file_name().unwrap(),
+            predictable.as_str(),
+            "a name another user can guess"
+        );
         assert_ne!(one_dir, two_dir, "one dir for each of the icons");
         let name = one_dir.file_name().unwrap().to_string_lossy();
         assert!(name.starts_with("chora-icons-"), "{name}");

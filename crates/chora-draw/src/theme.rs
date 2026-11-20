@@ -1220,9 +1220,7 @@ mod tests {
 
     fn runtime_with(tag: &str, mode: u32) -> PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
-        let dir = std::env::temp_dir().join(format!("chora-draw-rt-{tag}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-draw-rt-{tag}")).keep();
         fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).unwrap();
         dir
     }

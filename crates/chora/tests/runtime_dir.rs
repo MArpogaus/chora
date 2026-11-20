@@ -14,9 +14,7 @@ use std::{
 
 /// A scratch directory with a mode, for the runtime directory.
 fn runtime(name: &str, mode: u32) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("chora-rt-{name}-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).unwrap();
+    let dir = chora_scene::testing::TempDir::new(&format!("chora-rt-{name}")).keep();
     fs::set_permissions(&dir, fs::Permissions::from_mode(mode)).unwrap();
     dir
 }
