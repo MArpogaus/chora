@@ -223,6 +223,48 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
     }
 
+    /// A look that takes the focused pane out of sight gives the keyboard
+    /// back to the walk: the focus is never a window that is no shown
+    /// window (co-pane r1, I3 of the persona round 3).
+    #[test]
+    fn a_look_away_from_the_focused_pane_takes_the_focus_off_it() {
+        let (mut c, _core) = construct("state-look-away", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.core_focus = Some("s1".into());
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        c.drag = Some(crate::Drag {
+            press: [640.0, 400.0],
+            last: [640.0, 400.0],
+            moved: false,
+        });
+        c.look([640.0, 800.0]).unwrap();
+        let state = c.state().unwrap();
+        assert_eq!(state["windows"][0]["shown"], json!(false), "looked away");
+        assert_eq!(state["focus"], json!({"holder": "construct"}));
+    }
+
+    /// A look that keeps the pane in sight leaves the focus where it is.
+    #[test]
+    fn a_small_look_keeps_the_focus_on_the_pane_in_sight() {
+        let (mut c, _core) = construct("state-look-near", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.core_focus = Some("s1".into());
+        c.drag = Some(crate::Drag {
+            press: [640.0, 400.0],
+            last: [640.0, 400.0],
+            moved: false,
+        });
+        c.look([640.0, 410.0]).unwrap();
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        assert_eq!(c.state().unwrap()["windows"][0]["shown"], json!(true));
+    }
+
     /// The help is open while it shows.
     #[test]
     fn the_help_is_open_while_it_shows() {
