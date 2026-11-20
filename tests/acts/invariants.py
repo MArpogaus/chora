@@ -39,8 +39,9 @@ I13  the projected corners of neighbouring cube faces meet within 1 px;
 Limits: the texts are text nodes and the runs that chora-draw reports;
 text of outside programs (waybar, mako) and SVG text in a picture are not
 seen. Images count as not opaque, so a menu image over a label does not
-hide it for I5, except a picture of the whole output (a wallpaper): the
-look under it is not on the screen. I12 sees a held window only where a look reports `held`
+hide it for I5, except a picture of the whole output that belongs to the
+look of the upper text (a wallpaper): the look under it is not on the
+screen. I12 sees a held window only where a look reports `held`
 in its `windows`, which acts snapshot once quiet. I13 reads the faces
 as the acts hold them, at rest and halfway through a turn.
 """
@@ -383,16 +384,23 @@ def i2(_before, after, _act):
     return out
 
 
-def hides(box, size):
-    """Whether a box is opaque or a picture of the whole output, which is a
-    wallpaper: a look under the wallpaper of another is not on the screen."""
+def hides(box, size, low, high):
+    """Whether a box is opaque or the wallpaper of the look of the upper
+    text over the look of the lower text: a picture of the whole output
+    that belongs to the look above. The boxes report no opacity, so a
+    picture of the look of the lower text, or of a third look, is no cover
+    and an overlap under it stays a breach."""
     whole = box.get("kind") == "image" and list(box["rect"]) == [0, 0, *size]
-    return bool(box.get("opaque")) or whole
+    wallpaper = whole and box.get("owner") == high and box.get("owner") != low
+    return bool(box.get("opaque")) or wallpaper
 
 
 def covered(boxes, low, high, rect, size):
     """Whether an opaque box between two indices covers a rect."""
-    return any(hides(b, size) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1])
+    owners = (boxes[low].get("owner"), boxes[high].get("owner"))
+    return any(
+        hides(b, size, *owners) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1]
+    )
 
 
 def i5(_before, after, _act):
