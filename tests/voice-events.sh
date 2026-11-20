@@ -1,8 +1,13 @@
 #!/bin/bash
 # Smoke test of client events (D65): chora-mc and chora-voice in a
 # headless session. The voice agent emits voice.state on a change of its
-# state, and chora-mc shows it as the agent `voice`. The agent runs
-# without audio and with servers that do not answer.
+# state. The HUD host draws it, not chora-mc: mc takes no state of the
+# voice agent itself and shows only its helpers (docs/configuration.md,
+# "The HUD host chora-assistant draws the voice HUD of mc"; the unit test
+# the_host_draws_the_voice_status of chora-mc). So the script reads the
+# events with `choractl events`, and checks that mc shows no agent
+# `voice`. The agent runs without audio and with servers that do not
+# answer.
 #
 # Usage: tests/voice-events.sh   (needs the debug binaries, or BIN)
 set -euo pipefail
@@ -55,7 +60,6 @@ PATH=$bin:$PATH "$bin/chora-voice" >"$tmp/voice.log" 2>&1 &
 voice=$!
 until ctl call voice state >/dev/null 2>&1; do sleep 0.2; done
 
-# A watcher sees the event, and mc shows each state.
 ctl events voice.state >"$tmp/events" &
 watcher=$!
 sleep 0.3
@@ -66,18 +70,33 @@ agents = json.load(sys.stdin)
 agents = agents.get("agents", agents) if isinstance(agents, dict) else agents
 print(next((a["state"] for a in agents if a["name"] == "voice"), "none"))'
 }
+event_states() {
+    python3 -c '
+import json, sys
+for line in open(sys.argv[1]):
+    event = json.loads(line)
+    data = event.get("data") or {}
+    if event.get("client") == "voice" and "name" not in data:
+        print(data.get("state", ""))' "$tmp/events"
+}
 for call in sleep:asleep wake:listening; do
     ctl call voice "${call%%:*}" >/dev/null
     for _ in $(seq 25); do
-        [[ $(state_of_voice) == "${call#*:}" ]] && break
+        [[ $(event_states | tail -1) == "${call#*:}" ]] && break
         sleep 0.2
     done
-    got=$(state_of_voice)
+    got=$(event_states | tail -1)
     [[ $got == "${call#*:}" ]] || {
-        echo "FAIL: after voice ${call%%:*}, mc shows voice as $got" >&2
+        echo "FAIL: after voice ${call%%:*}, the last voice.state is '$got', not ${call#*:}" >&2
+        cat "$tmp/events" >&2
         exit 1
     }
-    echo "ok: voice ${call%%:*} shows as $got in mc"
+    echo "ok: voice ${call%%:*} emits voice.state ${call#*:}"
+    [[ $(state_of_voice) == none ]] || {
+        echo "FAIL: mc shows the voice agent as $(state_of_voice); the HUD host draws it" >&2
+        exit 1
+    }
+    echo "ok: mc shows no agent voice after voice ${call%%:*}"
 done
 kill $watcher
 grep -q '"event":"voice.state".*"client":"voice"' "$tmp/events" || {
