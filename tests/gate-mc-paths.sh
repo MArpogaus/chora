@@ -48,6 +48,10 @@
 #                  Left, Right, Escape and XF86Back of a remote act on the
 #                  page, XF86Back one step back as Escape (mc-42, mc-46);
 #                  also Right, Left, Right before the window maps (rv-1)
+#   window-chat    the chat opens over a window that holds the keyboard:
+#                  state.get of mc names the surface that the core still
+#                  focuses under the field (I3); after Escape the window
+#                  holds it again
 #   chat-focus     after a request to the helper and Escape in the chat
 #                  the page holds the keyboard again, state.get says mc
 #                  (mc-45)
@@ -221,6 +225,30 @@ cell_chat_focus() {
     until_ok '[ "$(focus_holder)" = mc ]' 20 || fail "after the chat closed the focus is with $(focus_holder), not mc: $(ctl call mc state.get '{}' | jq -c .focus)"
     key Right
     until_ok '[ "$(current)" = morning ]' 20 || fail "after the chat closed Right does not turn the page: $(current)"
+}
+
+core_window() { ctl query kind:surface | jq -r '[.[] | select(.focused) | .id][0] // "none"'; }
+mc_focus() { ctl call mc state.get '{}' | jq -c .focus; }
+cell_window_chat() {
+    local core focus
+    key Super+Return
+    until_ok '[ "$(current)" = terminal ] && [ "$(core_window)" != none ]' 40 || fail "Super+Return gives no terminal the keyboard: $(current)"
+    sleep 1
+    core=$(core_window)
+    [ "$(mc_focus)" = "{\"holder\":\"mc\",\"surface\":\"$core\"}" ] || fail "the terminal of Super+Return holds no keyboard: $(mc_focus)"
+    key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat over the terminal"
+    sleep 1
+    core=$(core_window)
+    focus=$(mc_focus)
+    if [ "$core" = none ]; then
+        [ "$(jq -r .holder <<<"$focus")" = null ] || fail "with the chat open the core focuses nothing, mc says $focus"
+    else
+        [ "$focus" = "{\"holder\":\"mc\",\"surface\":\"$core\"}" ] || fail "with the chat open over the terminal the core focuses $core, mc says $focus (I3)"
+    fi
+    key Escape
+    until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat over the terminal"
+    until_ok '[ "$(mc_focus)" = "{\"holder\":\"mc\",\"surface\":\"$(core_window)\"}" ]' 20 || fail "after the chat the terminal does not hold the keyboard: $(mc_focus), core $(core_window)"
 }
 
 back_alive() { session_pids -f -- "--app-id=mcback" >/dev/null; }
@@ -549,7 +577,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
+for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat window-chat chat-click-turn chat-focus all-keys; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

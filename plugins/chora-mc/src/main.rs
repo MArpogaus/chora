@@ -1749,6 +1749,38 @@ mod tests {
         );
     }
 
+    /// The chat field of the host takes the keys over a window that holds
+    /// the keyboard: the core still focuses that window under the field,
+    /// so `state.get` says mc holds it (I3, persona round 4 sofa: a window
+    /// of the launcher, then Super+a).
+    #[test]
+    fn the_chat_field_over_a_window_leaves_the_window_the_holder() {
+        let (mut mc, model) = crate::testing::mc("chat-over-window", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        model
+            .lock()
+            .unwrap()
+            .scene
+            .add_surface("s1", chora_scene::SurfaceInfo::default());
+        mc.adopt("s1", Some("foot"), None).unwrap();
+        let focus = |mc: &super::Mc| mc.state_value()["focus"].clone();
+        assert_eq!(
+            focus(&mc),
+            serde_json::json!({"holder": "mc", "surface": "s1"})
+        );
+        mc.emitted(
+            "assistant.chat.keyboard",
+            super::ASSISTANT,
+            serde_json::json!({"on": true}),
+        )
+        .unwrap();
+        assert_eq!(
+            focus(&mc),
+            serde_json::json!({"holder": "mc", "surface": "s1"}),
+            "the core focuses s1 under the chat field"
+        );
+    }
+
     /// The default file binds the keys of a remote, and mc grabs them
     /// only with a claim, as the media keys.
     #[test]
