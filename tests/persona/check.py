@@ -69,7 +69,16 @@ LETTERS = dict(
         strict=True,
     )
 )
-CODES = LETTERS | {"Space": 57, "Return": 28, "Escape": 1, "F1": 59, "Print": 210, "Tab": 15, "/": 53}
+CODES = LETTERS | {
+    "Space": 57,
+    "Return": 28,
+    "Escape": 1,
+    "F1": 59,
+    "Print": 210,
+    "Tab": 15,
+    "/": 53,
+}
+CLOCK = re.compile(r"\b\d{1,2}:\d{2}\b")
 POWER = r"(systemctl .*(suspend|poweroff|reboot|hibernate|halt|kexec)|loginctl terminate)"
 
 
@@ -279,6 +288,19 @@ def verify_helper(ctx):
     return verify
 
 
+def clock_nodes(snap):
+    """The nodes that draw the clock, as the cell clock-door of the doors
+    gate reads it: the text of a node (`meta.text` or `text`) of the tray
+    `xp-tray-OUTPUT` shows a time; a node whose id says clock counts too."""
+    found = []
+    for n in snap.nodes:
+        nid = str(n.get("id"))
+        text = str((n.get("meta") or {}).get("text") or n.get("text") or "")
+        if "clock" in nid or (nid.startswith("xp-tray-") and CLOCK.search(text)):
+            found.append(nid)
+    return found
+
+
 def verify_system(ctx, part):
     """The stand-in of the part got its call; a power menu that was
     cancelled left nothing open and called no systemctl."""
@@ -290,8 +312,7 @@ def verify_system(ctx, part):
 
     def verify(after_):
         if part == "clock":
-            clock = [n["id"] for n in after_.nodes if "clock" in str(n.get("id"))]
-            return [] if clock else ["no clock node in the scene"]
+            return [] if clock_nodes(after_) else ["no clock node in the scene"]
         if part == "power":
             return [f"systemctl was called: {line}" for line in ctx.calls if re.match(POWER, line)]
         return [] if ctx.called(want[part]) else [f"no call of {want[part]} in PERSONA_CALLS"]
