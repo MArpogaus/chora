@@ -19,3 +19,11 @@ Item 5: docs/api.md (Window managers, resume, ~l.965) says the core keeps tree, 
 Gate (`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,matrix,acts,wm-pane`): pre-commit, build, test, clippy, ci-check, wm-pane, matrix PASS. One flake each, green on the re-run alone: keys (`the program notify-false of fuzzel is no pane`) and acts (selftest persona sound, mc I5 overlap). The diff is a test and a doc line, so no binary changes; both are timing flakes outside this lane.
 
 Notes: the commit hooks of the repo refuse `Co-Authored-By`/`Claude-Session` trailers and a subject over 68 characters; commits carry neither. Commit author is Marcel Arpogaus (git config).
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 79c8d2b5..d23b03ae, 2 files +34 -1 (ipc.rs one unit test, api.md one sentence on the focus.changed row).
+Checks: items 1-3 closed on the head with named tests (tell_ungrabbed_does_not_tell_a_move_binding, surface_created_carries_the_parent_of_the_first_commit) and api.md lines; item 4 test subscribes b to focus.changed, focuses s1, then focus_node menu and back, and asserts no event both ways; the doc line matches "Keyboard focus of nodes". No red commit: a pinning test of documented behaviour with no code change (rule 8 needs red only for a fix).
+- rv-1 NOTE: item 5 (rw-2) PM decision: option (a), kept nodes stay shown during the resume grace (POLS: a quick restart must not flicker; no new behaviour before the rc); doc line plus pinning test, backlog CM-R1.
+- rv-2 NOTE: keys and acts flaked once each in the lane (fuzzel pane, persona sound); both already in FLK items of flakes-k or backlog; no change here.
+Diff is one test and one doc sentence, so a PM review suffices instead of opus (core, but no code change).
+Verdict (computed): no open MAJOR: MERGE-OK d23b03ae; train 85.

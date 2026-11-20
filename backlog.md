@@ -307,3 +307,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - HK-R1 NIT (harness-k rv-1): mkdir-runtime.sh misses runtime paths built in a sourced file.
 - FJ-R1 MINOR (flakes-j rv-1): images.rs churn test: 4 threads 5 s in cargo test; cut to 1 s.
 - FJ-R2 MINOR (flakes-j rv-3): tiling, mc, construct doors press Escape before the chat field holds the keyboard (xp fixed 6192f696).
+- CM-R1 (core-minors rv-1, rw-2 option a): api.md Window managers resume: kept nodes stay shown during the grace; pinning test in ipc.rs. MINOR, core, sonnet, 0.2 %.
