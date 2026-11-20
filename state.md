@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-20 15:36 UTC)
+## Now (2026-11-20 15:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 14:48 PM 9.8 %; 6 lanes
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 15:46 PM 10.3 %; 6 lanes
 session branch: fee9c695; 47 greens. t89 red xp-question 1x Yes 32 px; t89b running. t88b green 14:49.
 burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
