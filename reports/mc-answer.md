@@ -75,3 +75,12 @@ Verdict: **FIX** (1 MAJOR open, 0 BLOCK, 0 MINOR).
 8. `cargo test -p chora-notify -p chora-kit -p chora-assistant` PASS (all binaries ok); `cargo clippy --workspace --all-targets -- -D warnings` PASS.
 
 Known, not findings: mc-41 and the open mc MINORs of findings/mc.md.
+
+## r2
+
+rv-1 (card.size unbounded): fixed.
+- red: d3b2a9cc (tests for 0, 13, 49, 100000, u32::MAX: clamp to 14..48 with a message naming the value and range; metrics never overflow)
+- fix: 92f2e52f (`bounded` clamps to 14..48 with one log line; `saturating_mul` in `Metrics::of`; row height at least 1 in `write`; range named in docs/configuration.md and plugins/chora-notify/assets/README.md)
+- cell: `cargo test -p chora-notify` 27 passed.
+- gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,mc-sofa,mc-column` on 92f2e52f (merge of origin/claude/autonomous-dev-session-3w-i33pg7: already up to date): all 7 PASS.
+- head: 92f2e52f
