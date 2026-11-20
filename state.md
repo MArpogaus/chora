@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 13:31 UTC)
+## Now (2026-11-20 13:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent) at 59 % time; 39 % left in 15 h = 2.6 %/h shared: under-spending (critic 13:05); tokens.py 12:51 PM 9.1 %; fill to 4-5 lanes
 session branch: d81c8293; 46 greens. t87e green 12:50 (--jobs 1; mc-fix, xp-24, core-l, flakes-k, xp-36 in). t87-t87d reds: flakes FLK-LAY1, FLK-HUD2, ink@2 under load (flakes-l r2); K5 race fixed by co-r5.
