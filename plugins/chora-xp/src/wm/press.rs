@@ -376,7 +376,7 @@ impl Wm {
 
 /// The words of the notice that no file manager is installed.
 fn no_file_manager() -> String {
-    "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.".into()
+    "No file manager is installed. Ask whoever looks after this computer to install one.\nTo name one yourself: file_manager in chora-xp.yaml".into()
 }
 
 #[cfg(test)]
