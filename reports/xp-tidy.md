@@ -21,3 +21,11 @@ Branch claude/xp-tidy at 74b423bb (on bd6fed1e).
 2. pr3-3: red bdaa8095 (`a_failed_clients_list_warns_once` with two failures, failed with two lines), fix in 1f14d9a8: `looks_failed` flag, one warn per failure streak.
 3. e2e: 74b423bb adds a cell to gate-xp-notepad-gui-only.sh: editor `foot -a notepad-terminal nano` in chora-xp.yaml, the Start menu Notepad opens its window. Passes at once (no code change; test-only, so no red).
 Gate (--jobs 1, brief list): pre-commit, gate-lib, ci-check, build, test, clippy, xp, matrix, xp-faces, xp-notepad PASS. launcher-click failed once ("tiling: no launcher in 26 captures", a tiling timing flake) and PASSed on rerun alone.
+
+## PM review r2 (bd6fed1e..74b423bb, 5 files +62 -11; PM not the builder)
+Verdict: MERGE-OK 74b423bb (no BLOCK or MAJOR).
+- pr3-1: red edba63f6 then fix 1f14d9a8: the menu open refreshes only when the cache is empty.
+- pr4-1 MINOR press.rs:121: with one look already cached, a second look that exports give later stays gray until the next client event. The usual order (a look connects and exports at once) works. Known issue; backlog.
+- pr3-3: one warn per streak; the test now refuses twice. OK.
+- e2e editor cell: passes at once (coverage, no fix), accepted.
+- launcher-click red once and then green alone: a flake row for FLAKE-SERIES r3 (FLK-LAUNCHER).
