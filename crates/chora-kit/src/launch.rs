@@ -493,6 +493,16 @@ impl Launches {
         }
     }
 
+    /// The messages that say a program starts, taken from their starts:
+    /// a menu or a popup is about to open where they show. The starts go
+    /// on, and one that fails still says so.
+    pub fn take_notes(&mut self) -> Vec<u32> {
+        self.entries
+            .iter_mut()
+            .filter_map(|e| e.note.take())
+            .collect()
+    }
+
     /// What the programs that wait for a window call for at `now`. A
     /// program that ended without a window fails at once, unless a
     /// window of another start opened meanwhile, which a launcher that
@@ -520,6 +530,12 @@ impl Launches {
                     failed.push((entry.take(), Why::Slow));
                 }
                 return false;
+            }
+            if entry.shown
+                && !silent
+                && let Some(note) = entry.note.take()
+            {
+                changes.push(Change::Done { note: Some(note) });
             }
             if age >= SHOW_AFTER && !entry.shown {
                 entry.shown = true;
@@ -951,6 +967,23 @@ mod tests {
             [Change::Done { note: Some(12) }]
         );
         assert_eq!(launches.check(seconds(now, 4)), none());
+    }
+
+    #[test]
+    fn a_popup_takes_the_messages_and_the_start_still_gives_up() {
+        let (mut launches, now) = launches();
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        assert_eq!(launches.take_notes(), [12]);
+        assert_eq!(launches.take_notes(), Vec::<u32>::new());
+        assert_eq!(
+            launches.check(seconds(now, GIVE_UP.as_secs())),
+            [Change::Failed {
+                name: "writer".into(),
+                note: None,
+                why: Why::Slow
+            }]
+        );
     }
 
     #[test]
