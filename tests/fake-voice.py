@@ -24,6 +24,12 @@ entries after `after`, `agent` answers `agent_list` with one helper, and
 every call of these goes as a line of JSON to the file of the first
 argument plus `.chat`.
 
+With FAKE_VOICE_ANSWER (a text), a call of `agent` with `agent_say` makes the
+helper `atlas` answer: the transcript gets a user entry and, after
+FAKE_VOICE_WORK seconds (default 3) of `working`, an agent entry with that
+text, and `atlas` is `idle` again. `atlas` reports `idle` 2 seconds after the start, when the looks
+hear it, and is in `agents` of the answer of `state`.
+
 The agent exports `state` too: it answers the data of the last
 `voice.state` without a name that it emitted, or FAKE_VOICE_STATE (a
 JSON object) before the first, or `{}`. It exports `mute` as well: a call
@@ -50,6 +56,7 @@ next_id = 0
 state = json.loads(os.environ.get("FAKE_VOICE_STATE", "{}"))
 state_delay = float(os.environ.get("FAKE_VOICE_STATE_DELAY", "0"))
 pending = {"id": None}
+agents = {"atlas": "idle"} if os.environ.get("FAKE_VOICE_ANSWER") else {}
 
 
 def send(method, params):
@@ -61,12 +68,45 @@ def send(method, params):
         sock.sendall((json.dumps(line) + "\n").encode())
 
 
+def add_entry(role, text):
+    """Append an entry to the transcript file and return its seq."""
+    with open(entries_file, encoding="utf-8") as f:
+        entries = json.load(f)
+    seq = entries[-1]["seq"] + 1 if entries else 1
+    entries.append({"seq": seq, "role": role, "text": text})
+    with open(entries_file, "w", encoding="utf-8") as f:
+        json.dump(entries, f)
+    return seq
+
+
+def helper_state(name, state, seq):
+    agents[name] = state
+    send(
+        "events.emit",
+        {"event": "voice.state", "data": {"name": name, "state": state, "task": "", "seq": seq, "epoch": 1}},
+    )
+
+
+def answer_say(name, text):
+    """The helper works on the text of the person and answers."""
+    seq = add_entry("user", text)
+    helper_state(name, "working", seq)
+
+    def finish():
+        helper_state(name, "idle", add_entry("agent", os.environ["FAKE_VOICE_ANSWER"]))
+
+    threading.Timer(float(os.environ.get("FAKE_VOICE_WORK", "3")), finish).start()
+
+
 def chat_answer(method, params):
     """The answer of a chat method, and a line of its call in the log."""
     with open(claims_file + ".chat", "a", encoding="utf-8") as f:
         f.write(json.dumps({"method": method, "params": params}, sort_keys=True) + "\n")
     if method == "agent" and params.get("tool") == "agent_list":
         return "projects: demo; agents: atlas (demo, working)"
+    if method == "agent" and params.get("tool") == "agent_say" and os.environ.get("FAKE_VOICE_ANSWER"):
+        answer_say(params.get("name", "atlas"), params.get("text", ""))
+        return "ok"
     if method == "agent":
         return "ok"
     if method == "agent.read":
@@ -123,7 +163,7 @@ def serve():
             if params.get("method") == "state":
                 if os.environ.get("FAKE_VOICE_HANG_STATE") == "1":
                     continue
-                result = state
+                result = dict(state, agents=[{"name": n, "state": v} for n, v in agents.items()])
             if entries_file and params.get("method") in CHAT_METHODS:
                 result = chat_answer(params["method"], params.get("params") or {})
             send("methods.return", {"call": params["call"], "result": result})
@@ -144,6 +184,8 @@ if os.environ.get("FAKE_VOICE_KEYS") == "1":
 if state_delay:
     threading.Timer(state_delay, send, ["methods.export", {"names": ["state"]}]).start()
 threading.Thread(target=serve, daemon=True).start()
+if os.environ.get("FAKE_VOICE_ANSWER"):
+    threading.Timer(2.0, helper_state, ["atlas", "idle", 0]).start()
 for line in sys.stdin:
     event, _, data = line.strip().partition(" ")
     if event == "voice.state" and "name" not in json.loads(data or "{}"):

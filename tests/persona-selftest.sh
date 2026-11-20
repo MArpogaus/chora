@@ -116,7 +116,8 @@ session_path=$(env_value PATH)
 mapfile -d '' core_env <"/proc/$(env_value CHORA_CORE_PID)/environ"
 state() { admin call xp state.get '{}'; }
 wayland=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$dir/headless.out")
-run_in_session() { env "${core_env[@]}" WAYLAND_DISPLAY="$wayland" "$bin/choractl" run "$@" >/dev/null; }
+run_in_session() { PATH=$session_path WAYLAND_DISPLAY=$wayland admin run "$@" >/dev/null; }
+until_ok "state >/dev/null 2>&1" 80 || fail "the look xp does not answer state.get"
 
 shared=$(printf '%s\n' "${core_env[@]}" | sed -n 's/^CHORA_SHARED_DIR=//p')
 [ -n "$shared" ] || fail "the core has no CHORA_SHARED_DIR: the look cannot find power.sh and screenshot.sh"
@@ -160,7 +161,7 @@ PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" drag "$tx" 
 until_ok "[ \"\$(rect)\" != '$before' ]" 20 || fail "the probe window did not move: still $before"
 ok "the probe window has a title bar and a drag moves it ($before to $(rect))"
 
-[ "$(state | jq -r .helper)" = idle ] || fail "the helper is $(state | jq -c .helper), not idle, before anything was said"
+until_ok "[ \"\$(state | jq -r .helper)\" = idle ]" 40 || fail "the helper is $(state | jq -c .helper), not idle, before anything was said"
 admin call voice agent '{"tool": "agent_say", "name": "atlas", "text": "hello"}' >/dev/null ||
     fail "the call agent_say failed"
 until_ok "[ \"\$(state | jq -r .helper)\" = working ]" 20 || fail "the helper never worked after hello: $(state | jq -c .helper)"
