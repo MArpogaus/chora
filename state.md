@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 16:48 UTC)
+## Now (2026-11-20 16:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 16:44 PM 10.9 %; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: ce2c436b; 48 greens (t89b green 16:25); t90 gate-silent running.
@@ -26,7 +26,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 | kit-minor-r1.md (kit MINOR: Book origin, kit7 r2 helper) | sonnet medium, claude/kit-minor e7f2410a | session_016iS3kN7xygsb7sS4PkKmav 16:34 |
-| xp-give-r1.md (RC 2: xp-T7 Send To a look by mouse) | sonnet medium, claude/xp-give ce2c436b | starting |
+| xp-give-r1.md (RC 2: xp-T7 Send To a look by mouse) | sonnet medium, claude/xp-give ce2c436b | session_016iS3kQeput28U3AD7toYA5 16:49 |
 | co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
 | p2-r2-tiling.md (RC 2: tiling persona round 2) | sonnet medium + haiku, claude/p2-r2-tiling ce2c436b | session_016iS3kNo5CzwTTqXM8x3PEa 16:37 |
 
