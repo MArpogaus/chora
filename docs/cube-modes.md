@@ -48,6 +48,13 @@ in a construct without a cube and in xp (principle 1).
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
 | close the cube, in navigate mode | none | `Escape`; the key list names it | `cube.close` |
 
+In navigate mode a drag on the empty space looks around, as in the
+space without a cube (F5 of `plans/construct-requirements.md`). The
+drag grabs the world: the scene follows the hand, so a drag to the right
+turns the view to the left and a drag down tilts it up. A press that
+lands on the window of a pane gives that window the keyboard and starts
+no look.
+
 `Ctrl+Alt+Left` and `Ctrl+Alt+Right` are the turn keys of the cube of
 xp on a screen. On virtual outputs xp does not grab them, so the cube of
 the construct is the one cube that they turn.

@@ -917,9 +917,13 @@ like `Super+space`, and `A cube of desktops` opens the cube like
 bar stays away while it shows.
 
 A press on the empty space gives the keyboard back to the walk, so its
-keys need no modifier. A drag there looks around, and the wheel there or
-over a pane that shows the window of another client or a plugin walks;
-over a window of the construct, the wheel scrolls the window.
+keys need no modifier. A drag there looks around. The drag grabs the
+world: the scene follows the hand, so a drag to the right turns the view
+to the left and a drag down tilts it up. A press that lands on the window
+of a pane gives that window the keyboard and starts no look. The wheel
+on the empty space or over a pane that shows the window of another
+client or a plugin walks; over a window of the construct, the wheel
+scrolls the window.
 A walk slows down in the outer quarter of the leash radius and stops at
 it. `Return` flies into the pane nearest the middle of the view, and a
 click on a pane that shows the window of another client or a plugin
