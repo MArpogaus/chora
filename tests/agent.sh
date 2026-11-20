@@ -492,6 +492,12 @@ wait_for grep -q "\"token\":\"$token\"" "$out/token.jsonl"
 kill "$token_events_pid"
 if "$bin/choractl" restart nobody 2>/dev/null; then fail "a restart of no client worked"; fi
 
+injector_exits_slowly() {
+    timeout "$1" "$bin/choractl" --name "$ctl_name" events pointer.released >/dev/null 2>&1 &
+    pids+=($!)
+    sleep 0.3
+}
+
 step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"
 ctl_name=user
@@ -511,6 +517,7 @@ wait_for min_y_is 74
 inject '[{"pointer_move": {"position": [70, 30]}}, {"click": {}}]' || fail "the click failed"
 sleep 0.5
 kill -0 "$panel_pid" || fail "the client ended after the left button: $(cat "$out/panel.log")"
+injector_exits_slowly 3
 inject '[{"pointer_move": {"position": [190, 30]}}, {"click": {}}]' || fail "the click failed"
 wait "$panel_pid" || fail "the MCP client: $(cat "$out/panel.log")"
 grep -q "moved the camera from its panel" "$out/panel.log" || fail "panel: $(cat "$out/panel.log")"
