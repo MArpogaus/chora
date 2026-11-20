@@ -642,20 +642,24 @@ impl Plugin for Mc {
         &mut self.rt
     }
 
+    /// Drops the node that mc holds the keyboard with when the core does
+    /// not focus it: the core sends no event for the focus of a node
+    /// (backlog rw-3), so the answer of `state.get` depends on this call.
     fn refresh(&mut self) {
         let Some(node) = self.focus.node().map(str::to_owned) else {
             return;
         };
         let query = Query {
-            selector: "*".into(),
+            selector: format!("id:{node}"),
             filter: Some(chora_scene::ipc::Filter {
                 focused: true,
                 ..chora_scene::ipc::Filter::default()
             }),
         };
-        let focused: Result<Vec<Value>, _> = self.rt.conn.call("scene.query", query);
-        if focused.is_ok_and(|nodes| nodes.iter().all(|n| n["id"] != node.as_str())) {
-            self.focus.drop_node();
+        match self.rt.conn.call::<_, Vec<Value>>("scene.query", query) {
+            Ok(nodes) if nodes.is_empty() => self.focus.drop_node(),
+            Ok(_) => {}
+            Err(err) => chora_kit::runtime::report(NAME, &format_args!("focus query: {err}")),
         }
     }
 
