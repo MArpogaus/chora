@@ -39,7 +39,8 @@ I13  the projected corners of neighbouring cube faces meet within 1 px;
 Limits: the texts are text nodes and the runs that chora-draw reports;
 text of outside programs (waybar, mako) and SVG text in a picture are not
 seen. Images count as not opaque, so a menu image over a label does not
-hide it for I5. I12 sees a held window only where a look reports `held`
+hide it for I5, except a picture of the whole output (a wallpaper): the
+look under it is not on the screen. I12 sees a held window only where a look reports `held`
 in its `windows`, which acts snapshot once quiet. I13 reads the faces
 as the acts hold them, at rest and halfway through a turn.
 """
@@ -382,9 +383,16 @@ def i2(_before, after, _act):
     return out
 
 
-def covered(boxes, low, high, rect):
+def hides(box, size):
+    """Whether a box is opaque or a picture of the whole output, which is a
+    wallpaper: a look under the wallpaper of another is not on the screen."""
+    whole = box.get("kind") == "image" and list(box["rect"]) == [0, 0, *size]
+    return bool(box.get("opaque")) or whole
+
+
+def covered(boxes, low, high, rect, size):
     """Whether an opaque box between two indices covers a rect."""
-    return any(b.get("opaque") and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1])
+    return any(hides(b, size) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1])
 
 
 def i5(_before, after, _act):
@@ -393,6 +401,7 @@ def i5(_before, after, _act):
     whose boxes share a quarter of the smaller height or less pass."""
     out = []
     boxes = boxes_on(after)
+    sizes = {o: e.get("size") or [0, 0] for o, e in (after.boxes or {}).items()}
     for output, items in sorted(screen_texts(after).items()):
         for n, (ia, la, ta, ra) in enumerate(items):
             for ib, lb, tb, rb in items[n + 1 :]:
@@ -400,7 +409,8 @@ def i5(_before, after, _act):
                 if where is None or where[3] <= LEADING * min(ra[3], rb[3]):
                     continue
                 low, high = sorted((ia, ib))
-                if low != high and covered(boxes[output], low, high, where):
+                size = sizes[output]
+                if low != high and covered(boxes[output], low, high, where, size):
                     continue
                 out.append(f"on {output} {ta!r} ({la}) overlaps {tb!r} ({lb}) at {where}")
     return out
