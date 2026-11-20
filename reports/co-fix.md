@@ -21,3 +21,12 @@ Designed step-in: docs/cube-modes.md:33-34 "The session starts in use mode when 
 
 ### Ledger
 findings/construct.md: co-25 `fixed ff617c83 + e97b55f0 (red b08c5936) cell:keys (persona-path)`; co-33 (C2) open with the decision; co-34 (C1) closed not a bug.
+
+## PM review r1 (16:12)
+Base 59efbc17..e97b55f0, 11 files +336 -84; red b08c5936 first (persona path replay in cell keys).
+- co-25: keys_with_pane (core focus on an own window and no walk_keys) drives regrab; event() regrabs when it flips; every FocusNode LOOK goes through keys_to_the_walk. Closed by cell keys (persona-path), lane gate --jobs 2 14 cells PASS.
+- pr1-1 NIT: event() skips the regrab when on_event returns Err; the next event repairs it.
+- pr1-2 NIT: the Super tap swallow logs a held tap and goes on; the docs name it.
+- co-33 (C2) decision (PM): no new gesture before the tag (rules 1). The hint at a drag start on one screen names the helper path ("ask the helper to pull this window out"); a one-screen pull gesture goes to backlog. Built in co-fix r2 with the gate-construct-pull measure.
+- co-34 closed as designed; the lead (Super+C with a cube open does nothing) goes to backlog.
+Verdict: MERGE-OK (no open MAJOR on the branch); joins t91. co-33 stays open for co-fix r2.
