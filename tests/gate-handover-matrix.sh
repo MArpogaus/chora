@@ -236,6 +236,18 @@ owner_of() { ctl query "id:$w" | jq -r '.[0].owner // "none"'; }
 surfaces_clean='all(.[] | select(.id == $w); .owner != null and .parent != null and ((.rects // {}) | length) > 0
     and ([.rects[] | select(.[2] > 0 and .[3] > 0)] | length) > 0)'
 
+on_top() {
+    local id=$w parent root top c
+    while parent=$(ctl query "id:$id" | jq -r '.[0].parent // "root"'); [ "$parent" != root ]; do
+        id=$parent
+    done
+    top=$id
+    for c in $(ctl query id:root | jq -r '.[0].children[]'); do
+        [ "$(ctl query "id:$c" | jq -r '.[0].order // "normal"')" = normal ] && root=$c
+    done
+    [ "$root" = "$top" ]
+}
+
 arrived() {
     local all owned=0
     for _ in $(seq "$(awk -v s="$2" 'BEGIN {print s * 5}')"); do
@@ -251,7 +263,7 @@ arrived() {
         last_all=$all
         echo "$all" | jq -e --arg w "$w" --arg o "$1" "
             $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused == true)" >/dev/null &&
-            return 0
+            on_top && return 0
         sleep 0.2
     done
     return 1
