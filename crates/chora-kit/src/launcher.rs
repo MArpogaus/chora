@@ -152,7 +152,7 @@ fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
     }
     let err = String::from_utf8_lossy(&out.stderr);
     match err.lines().map(str::trim).find(|l| !l.is_empty()) {
-        Some(first) if !out.status.success() => Asked::Failed(first.to_owned()),
+        Some(first) if out.status.code().is_none_or(|c| c >= 2) => Asked::Failed(first.to_owned()),
         _ => Asked::Closed,
     }
 }
@@ -413,7 +413,7 @@ mod tests {
     fn a_launcher_that_fails_says_why_once() {
         let (_dir, fuzzel) = stand_in(
             "chora-launcher-fail",
-            "echo 'bad key' >&2; echo 'second line' >&2; exit 1",
+            "echo 'bad key' >&2; echo 'second line' >&2; exit 2",
         );
         let (got, said) = reports(&fuzzel);
         assert_eq!(got, None);
