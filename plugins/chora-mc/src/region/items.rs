@@ -503,8 +503,8 @@ impl Mc {
         }
         let config = &self.settings.value;
         let full = self.keys == crate::keys::List::All;
-        let page = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
-        let plain = self.page_keys == crate::keys::PageKeys::Plain && page;
+        let plain = self.page_keys_work();
+        self.keys_plain.set(plain);
         let rows = if full {
             crate::keys::all(config, plain)
         } else {

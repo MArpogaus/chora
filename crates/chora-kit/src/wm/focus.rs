@@ -85,6 +85,18 @@ impl Focus {
         Some(surface)
     }
 
+    /// The own node that has the keyboard, as the look sent it.
+    #[must_use]
+    pub fn node(&self) -> Option<&str> {
+        self.node.as_deref()
+    }
+
+    /// The core does not focus the own node any more: another client took
+    /// the keyboard with a node, which tells the look nothing.
+    pub fn drop_node(&mut self) {
+        self.node = None;
+    }
+
     /// The surface that the core focuses, as it told or the look sent.
     #[must_use]
     pub fn core(&self) -> Option<&str> {
@@ -110,15 +122,17 @@ impl Focus {
         if self.surface.as_deref() == Some(surface) {
             self.lose();
             self.surface = None;
+            self.core = None;
         }
     }
 
     /// Another client took the keyboard without a window, as a chat that
-    /// opens over the look.
+    /// opens over the look. Its field is a layer surface: the node of the
+    /// look loses the keyboard, but the core still focuses the window
+    /// under the field, which stays the holder (I3).
     pub fn lose(&mut self) {
         self.lost = true;
         self.node = None;
-        self.core = None;
     }
 
     /// A window of the look takes the focus back: the next transaction

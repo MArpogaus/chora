@@ -637,7 +637,9 @@ with `settings.reload`:
   only the bindings with Super act. A page that you reach with a plain key
   of a remote (Right, Left, Escape, Home) keeps the keyboard, so Right,
   Left and Escape still turn it and go back; Return gives the window the
-  keyboard, and a click on the window does too. A remote without Super
+  keyboard, and a click on the window does too. The key list beside the
+  window names the plain arrows while the page has the keyboard, and the
+  arrows with Super while the window has it. A remote without Super
   leaves the window by its Back key: `XF86Back` (the binding `back`)
   takes the keyboard from the window to its page, which then keeps it as
   after a plain turn, and on a page it goes one step back as Escape;

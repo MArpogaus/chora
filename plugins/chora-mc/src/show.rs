@@ -100,6 +100,7 @@ impl Mc {
             return Err(invalid(format!("no scene {name}")));
         };
         let app = scene.app.clone();
+        self.plain_start = None;
         let mut commands = Vec::new();
         if self.current.as_deref() != Some(name) {
             if let Some(old) = &self.current {
@@ -144,6 +145,9 @@ impl Mc {
         self.apply(commands).map_err(rejected)?;
         self.align(name).map_err(rejected)?;
         let waiting = (self.starting.values()).any(|t| *t == Target::Scene(name.into()));
+        if user && self.plain_turn && app.is_some() && window.is_none() {
+            self.plain_start = Some(name.to_owned());
+        }
         if let (Some(command), None, false) = (app, window, waiting) {
             self.launch_scene(name, &command)
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
