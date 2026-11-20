@@ -174,6 +174,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             if !injected && key_state == KeyState::Pressed {
                 state.choose_manager_of(conn);
             }
+            end_lone_taps_of_others(state, conn);
             hold_grab(state, conn, binding, code, injected);
         }
         Some(KeyAction::Node(owner, event)) => {
@@ -300,6 +301,14 @@ fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState, i
         injected,
     };
     state.ipc.send_to(conn, &event);
+}
+
+/// Ends the held taps of a lone modifier of the clients other than `conn`
+/// without their release, at a press that a grab of `conn` takes: Super
+/// with a chord or a drag of another client is no tap of Super, so a
+/// Start menu of the program of a face does not open unasked (rw-1).
+fn end_lone_taps_of_others(state: &mut State, conn: u64) {
+    (state.held.grabs).retain(|h| h.conn == conn || !lone_modifier(&h.binding));
 }
 
 /// True for a binding whose key is a modifier itself, as `Super+Super_L`:
@@ -900,8 +909,8 @@ pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial
 /// an output under the pointer the event has the pointer in the layout
 /// and no output name, so that a release always arrives. `injected` is
 /// set when the press of the grab did not come from the person. A press
-/// ends the held taps of a lone modifier of other clients without their
-/// release: a drag with Super is no tap of Super.
+/// ends the held taps of a lone modifier of other clients
+/// ([`end_lone_taps_of_others`]).
 fn send_button(
     state: &mut State,
     (conn, binding): (u64, String),
@@ -910,7 +919,7 @@ fn send_button(
     injected: bool,
 ) {
     if press == PressState::Pressed {
-        (state.held.grabs).retain(|h| h.conn == conn || !lone_modifier(&h.binding));
+        end_lone_taps_of_others(state, conn);
     }
     let (surface, grab) = window.unzip();
     let layout = [state.pointer_layout.x, state.pointer_layout.y];

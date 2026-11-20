@@ -61,13 +61,12 @@ person is never stuck in it; `Return` steps in. `F1` reaches the program
 of a pane, but stood back no program is there, so it shows the keys.
 An open key list takes `Escape` first and closes itself.
 
-In use mode the construct swallows the lone tap of `Super`. Every
-grabbed `Super` chord, such as `Super+F1`, leaves a bare press and
-release of `Super` for the program that has the keyboard, and xp takes
-that for its Start key and opens its Start menu unasked. The price is
-that a tap of `Super` inside a face no longer opens the Start menu; the
-Start menu opens by a click, and a tap of `Super` works again while the
-cube stands back or is closed.
+In use mode the program of the face keeps `Super`: the press of `Super`
+reaches it, and so do its own `Super` chords, such as `Super+E` and
+`Super+D` of xp, and its tap of `Super`, which opens the Start menu of
+xp. A grabbed `Super` chord of the construct, such as `Super+F1`, is
+no tap: the core ends the tap that the program holds without its
+release, so the Start menu does not open unasked.
 
 ## The visible way in
 
