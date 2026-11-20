@@ -55,6 +55,8 @@
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
+#   INJECT_LAG  seconds before each injection (default 0): the start of a
+#         choractl on a loaded machine, the stress of the keys in a row
 # pid_of NAME gives the first process of the binary NAME in this session.
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
@@ -81,7 +83,7 @@ quick() {
 }
 now_ms() { echo $(($(date +%s%N) / 1000000)); }
 call() { ctl call construct "$@"; }
-inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
+inject() { sleep "${INJECT_LAG:-0}"; echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 virtuals() { ctl outputs | python3 -I -c 'import json, sys; print(" ".join(sorted(o["name"] for o in json.load(sys.stdin) if o.get("virtual"))))'; }
 bars() {
     local n=0 o
