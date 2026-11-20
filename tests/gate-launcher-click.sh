@@ -29,7 +29,7 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need python3
 need foot
-need fuzzel
+need_fuzzel 1.11
 need jq
 need_bins chora choractl chora-tiling chora-construct chora-assistant chora-probe
 

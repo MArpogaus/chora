@@ -97,8 +97,7 @@ runbox_cell() {
     gate_cleanup 0
     pids=()
 }
-fuzzel_minor=$(fuzzel --version | sed -n 's/^fuzzel version: 1\.\([0-9]*\).*/\1/p')
-[ "${fuzzel_minor:-0}" -ge 11 ] || [ -n "${RUNBOX_INI:-}" ] || skip "fuzzel $(fuzzel --version | cut -d' ' -f3) does not read the Run box file of xp (1.11 and later do)"
+[ -n "${RUNBOX_INI:-}" ] || need_fuzzel 1.11
 runbox_cell 1
 runbox_cell 2
 if [ -z "${RUNBOX_ONLY:-}" ]; then

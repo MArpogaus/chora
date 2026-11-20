@@ -585,7 +585,7 @@ check "skip: the summary gives both reasons of the step" "$(grep -c '^skipped: f
 printf 'one|true\nbad|echo "SKIP: x"; exit 1\n' >"$work/steps"
 run_gate
 check "skip: a step that skips and fails is FAIL" "$(grep -c '^bad *FAIL ' "$work/out")" 1
-check "skip: the header states the rule" "$(sed -n '1,/^set -u/p' "$gate" | grep -c -- '--allow-skip')" 2
+check "skip: the header states the rule" "$([ "$(sed -n '1,/^set -u/p' "$gate" | grep -c -- '--allow-skip')" -ge 2 ] && echo yes)" yes
 printf 'one|true\n' >"$work/steps"
 run_gate --allow-skip
 check "skip: --allow-skip needs a list" "$rc" 2

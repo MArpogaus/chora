@@ -67,6 +67,12 @@
 need_bins chora choractl chora-mc chora-assistant chora-chat chora-notify
 need jq
 need foot
+fuzzel_old=
+if ! command -v fuzzel >/dev/null 2>&1; then
+    fuzzel_old="fuzzel is not installed here"
+elif fuzzel_older 1.11; then
+    fuzzel_old="fuzzel $fuzzel_version < 1.11"
+fi
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
@@ -421,10 +427,18 @@ cell_launcher_click_row() {
 }
 
 failed=()
+skipped=()
+ran=0
 run_cell() {
     local name=$1
     [[ $name =~ ${CELLS:-.} ]] || return 0
+    if [ "$name" = launcher-click-row ] && [ -n "$fuzzel_old" ]; then
+        cell_skip "$name" "$fuzzel_old"
+        skipped+=("$name")
+        return 0
+    fi
     if ("cell_${name//-/_}"); then
+        ran=$((ran + 1))
         ok "$name ($theme)"
     else
         failed+=("$name")
@@ -435,4 +449,5 @@ for name in "${cells[@]}"; do
     run_cell "$name"
 done
 [ ${#failed[@]} = 0 ] || fail "cells failed: ${failed[*]}"
-ok "every cell of the mc sofa gate ($theme)"
+cells_end "$ran" "${skipped[*]}"
+[ ${#skipped[@]} != 0 ] || ok "every cell of the mc sofa gate ($theme)"
