@@ -422,9 +422,11 @@ A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
 window manager gets the next new windows there. That press also takes
-the keyboard from the window or node that had it, so that no key typed
-next strays into the look the person left; the keys go to the manager
-chosen until it focuses a window (sh-23). A key of the user that
+the keyboard from whatever had it (a window, or a node of any plugin),
+so that no key typed next strays into the look the person left, unless
+an input node lies under the press or the session is locked; until the
+chosen manager focuses a window, no client gets a key, and only the
+grabs of managers of virtual outputs wait for it (sh-23). A key of the user that
 a window manager grabbed chooses that one in the same way when its
 claim holds the pointer or the keyboard focus, unless it has the
 keyboard focus anyway: the window that its key starts, such as the
