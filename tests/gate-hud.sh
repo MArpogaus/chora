@@ -186,6 +186,7 @@ log=$shots/hud.log
 fixtures=$repo/tests/hud
 settle_s=5
 grace_s=15
+card_of_6_kib_s=20
 
 waiting() {
     local limit=$1 n
@@ -612,17 +613,28 @@ detail_whole_or_refused() {
         [ "$(wc -l <<<"$text")" -ge 2 ] && [[ $text != *"rm -rf"* ]]
     fi
 }
+card_of_detail_question() {
+    local text
+    text=$(card_text)
+    [ -n "$text" ] && [[ $text != *"notes.txt"* ]]
+}
 host_detail() {
     emit voice.state '{"state": "question", "task": "", "said": ""}'
     confirm 41 "Delete the build cache of 96 projects?" "$big_detail"
-    waiting "$settle_s" node_exists hud-card || { host_failed "no card for the detail of 6 KiB"; return 1; }
+    waiting "$card_of_6_kib_s" card_of_detail_question || { host_failed "no card for the detail of 6 KiB: $(card_text | head -c 100)"; return 1; }
     waiting "$settle_s" detail_whole_or_refused ||
         { host_failed "the detail of 6 KiB is neither whole nor refused: $(card_text | head -c 300)"; return 1; }
 }
+host_took_the_events() {
+    emit voice.state '{"state": "thinking", "task": "", "said": ""}'
+    waiting "$card_of_6_kib_s" node_has hud-state Thinking || return 1
+    emit voice.state '{"state": "question", "task": "", "said": ""}'
+    waiting "$card_of_6_kib_s" node_has hud-state Question
+}
 host_done_of_another_id() {
     emit voice.confirm '{"id": "40", "done": true}'
-    sleep 0.5
-    node_exists hud-card || { host_failed "a done of another id closed the question"; return 1; }
+    host_took_the_events || { host_failed "the host does not take the done of another id"; return 1; }
+    waiting "$settle_s" card_of_detail_question || { host_failed "a done of another id closed the question"; return 1; }
     emit voice.confirm '{"id": "41", "done": true}'
     waiting "$settle_s" not_node hud-card || { host_failed "the done did not close the question"; return 1; }
 }
@@ -640,7 +652,7 @@ host_long_words() {
     emit voice.state '{"state": "question", "task": "", "said": ""}'
     confirm 42 "Soll ich die $long_word mit foot -e sh -c \"cd /home/user/projekte/$long_word && make -j8 install\" starten?" \
         "foot -e sh -c \"cd /home/user/projekte/$long_word/$long_word && make -j8 install\""
-    waiting "$settle_s" node_has hud-card "$long_word" || { host_failed "no long question"; return 1; }
+    waiting "$card_of_6_kib_s" node_has hud-card "$long_word" || { host_failed "no long question"; return 1; }
     sleep 0.5
     inside_work_area hud-card || { host_failed "the long question runs out of the work area"; return 1; }
     emit voice.confirm '{"id": "42", "done": true}'
@@ -828,7 +840,9 @@ run_cell() {
     if "$fn"; then got[$id]=pass; else got[$id]=missing; fi
     echo "$id ${got[$id]} $((SECONDS - t0))s" >>"$log"
     if [ "$session" != static ] && [ "$session_up" = 1 ]; then
+        for qid in 41 42; do emit voice.confirm "{\"id\": \"$qid\", \"done\": true}"; done
         end_question
+        waiting "$card_of_6_kib_s" not_node hud-card
         ctl call assistant chat.hide '{}' >/dev/null 2>&1
         emit voice.state '{"name": "Atlas", "state": "idle", "task": "", "said": ""}'
     fi

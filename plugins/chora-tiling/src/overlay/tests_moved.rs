@@ -191,14 +191,13 @@ fn the_system_is_asked_only_when_the_check_is_due() {
 /// A tiling on a fake core that answers each scene query with what
 /// `answer` gives for its selector; the other requests get null.
 fn on_scene(tag: &str, answer: fn(&str) -> Value) -> Tiling {
-    let dir = std::env::temp_dir().join(format!("chora-tiling-moved-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-moved-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = chora_kit::testing::FakeCore::start();
     core.respond(move |method, params| {
         (method == "scene.query").then(|| answer(params["selector"].as_str().unwrap_or_default()))
     });
-    crate::tests::tiling_on(core.connect(NAME), &dir, &[])
+    crate::tests::tiling_on(core.runtime(NAME), &dir, &[])
 }
 
 /// The renderer's answer to the scene queries of the key list and of the

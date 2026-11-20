@@ -7,8 +7,7 @@ use std::{fs, process::Command};
 
 #[test]
 fn a_cli_call_leaves_the_log_of_the_agent() {
-    let work = std::env::temp_dir().join(format!("chora-voice-log-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&work);
+    let work = chora_kit::testing::TempDir::unmade("chora-voice-log");
     let logs = work.join("state/chora/logs");
     fs::create_dir_all(&logs).unwrap();
     fs::create_dir_all(work.join("config")).unwrap();

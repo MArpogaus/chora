@@ -4,9 +4,10 @@ A persona is an LLM subagent that uses a chora session like a person: it
 looks at the screen and acts through input, and has no other way in. The
 driver here gives it exactly that.
 
-- `session.sh FLAVOR [WxH]` starts a private headless session (`tiling`,
+- `session.sh FLAVOR[+FLAVOR] [WxH]` starts a private headless session (`tiling`,
   `xp`, `mc`, `construct`) and grants the client `persona` only
-  `screen.capture` and `input.inject`. It also starts the companions of
+  `screen.capture` and `input.inject`, and the client `persona-check`
+  `screen.capture` and `methods.call`. It also starts the companions of
   the flavor with `choractl run`, as its units do: `tiling` gets swaybg
   (the wallpaper) and waybar (the panel with the tags), each when its
   program is installed. `xp` gets `chora-notify` on a session bus of its
@@ -19,6 +20,14 @@ driver here gives it exactly that.
   `$PERSONA_DIR/fake/calls.log` (and, on `xp`, also reaches `chora-notify`
   on the session bus) and a `loginctl` that logs `lock-session` and runs
   `swaylock` when it is installed.
+- The programs that a click can run on the host are stand-ins in the PATH
+  of the session: `systemctl` (xp Stand By runs `systemctl suspend`),
+  `loginctl`, `wpctl` (`get-volume` answers `Volume: 0.50`), `grim` (writes
+  its file) and `notify-send`. Each writes `NAME ARGS` to
+  `$PERSONA_DIR/fake/calls.log` (`PERSONA_CALLS` in `session.env`) and none
+  reaches the host. `tests/persona-selftest.sh` shows it.
+- `session.sh tiling+xp` starts a second look beside the first, as the
+  looks of a handover are (`PERSONA_FLAVORS` in `session.env`).
 - `act.py` is the only command of the persona: `look`, `click`, `move`,
   `drag`, `type`, `key`, `scroll`. It logs every action.
 - `smoke.sh` checks the driver on a tiling session and that each of the four
@@ -64,6 +73,47 @@ last capture, as the persona reads them off the picture. `act.py` keeps
 the scale of the last `look` in `$PERSONA_DIR/last_look.json` and turns
 the position into logical pixels of the output. Before the first `look`
 they are logical pixels. `scroll` takes no position and is not scaled.
+
+## Round and check (driver)
+
+A driver runs a round with `round.sh`, and the checker tells what the
+persona cannot: whether the screen state is right and whether an invariant
+of the acts (`tests/acts/invariants.py`) broke on the way.
+
+```console
+$ tests/persona/round.sh start erika xp   # a free slot (2 at once), prints PERSONA_ENV=FILE
+$ export PERSONA_ENV=FILE
+$ python3 -I tests/persona/check.py start      # before each task: the snapshot it is held against
+  ... the persona works with act.py; PERSONA_CHECK=1 is set by round.sh ...
+$ python3 -I tests/persona/check.py end T1 T4:volume   # one line per task, then the breaches
+$ tests/persona/round.sh stop erika
+```
+
+- `round.sh snapshot` copies the binaries of `target/debug` once (one sha
+  per round); `start` does it when there is no copy. The folder is
+  `ROUND_DIR` (default `/tmp/persona-round`), the kept captures `ROUND_KEEP`.
+  `round.sh smoke` starts each of the four looks, runs one `act.py` action
+  and `check.py end T7`.
+- With `PERSONA_CHECK=1` in the session (round.sh sets it) `act.py` runs
+  `check.py after ACTION` after each action. It takes a snapshot once the
+  looks are quiet and runs the invariants on the change since the last one,
+  but not I4 (a persona declares no open) and with every disconnect declared
+  (I14 still reads panics and failed effects). A breach is one line of
+  `$PERSONA_DIR/breaches.jsonl` (time, action, look, invariant, breach) and
+  a capture in `$PERSONA_DIR/evidence/`. The persona never sees them;
+  `PERSONA_KEEP` keeps them. A checker that fails writes
+  `$PERSONA_DIR/check/errors.log` and changes nothing for the persona.
+- `check.py end TASK...` holds the end state to the contracts of
+  `reports/p2-plan.md` section 1: T1 to T7 (`T4:volume|clock|screenshot|lock|power`),
+  X1 and X2, L1 to L3, M1 and M2, C1 to C3. It reads `state.get`,
+  `scene.boxes`, the stand-in calls and the history of the run, never pixels.
+  `--look LOOK` names the look of the task when it is the second one,
+  `--probe FILE` the `--report` output of the `chora-probe window` that T5
+  needs. Exit status 1 when a contract is red or a breach is outside
+  `tests/acts/known-red.toml`.
+- A task passes when `check.py end` is green and the persona says reached.
+  Contracts are selftested in `tests/test_acts.py`, a planted breach in
+  `tests/acts/planted.py`.
 
 ## Brief for the persona subagent
 

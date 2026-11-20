@@ -255,12 +255,14 @@ fn body_lines(body: &str, width: impl Fn(&str) -> f64) -> Vec<String> {
 /// its output that it must not cover: the panel of the chat of the HUD
 /// host. A card that would cover the box moves along the edge of its
 /// corner to the side of the box toward the middle of the output, `margin`
-/// away from it, and stays on the output.
+/// away from it, and stays on the output. Where the box is wider than the
+/// room beside it, the card steps above or below it instead.
 pub fn aside(
     origin: [i32; 2],
     size: [i32; 2],
     chat: Option<[i32; 4]>,
     (margin, right): (i32, bool),
+    out: [i32; 2],
 ) -> [i32; 2] {
     let Some([cx, cy, cw, ch]) = chat else {
         return origin;
@@ -274,7 +276,20 @@ pub fn aside(
     } else {
         cx + cw + margin
     };
-    [x.max(0), y]
+    if x >= 0 && x + w <= out[0] {
+        return [x, y];
+    }
+    let above = cy - margin - h;
+    let below = cy + ch + margin;
+    let steps = if y * 2 > out[1] - h {
+        [above, below]
+    } else {
+        [below, above]
+    };
+    match steps.into_iter().find(|&v| v >= 0 && v + h <= out[1]) {
+        Some(y) => [origin[0], y],
+        None => [x.max(0), origin[1]],
+    }
 }
 
 /// A card on the overlay root of an output.
@@ -315,6 +330,7 @@ impl Card {
             [w, height],
             chat,
             (values.margin[0], corner.right()),
+            output.size,
         );
         let mut picture =
             Picture::new(w, height).svg(style.shape(layout.size, style.tail_x(w, corner)));
@@ -455,20 +471,33 @@ mod tests {
     /// The chat panel of tiling stands at the right edge, 400 pixels
     /// wide: a card in a right corner steps to its left, one that does
     /// not touch it stays, and one in a left corner beside a panel at the
-    /// left steps to its right.
+    /// left steps to its right. A chat wider than the room beside it: the
+    /// card steps above it from a bottom corner, below it from a top
+    /// corner, never over it.
     #[test]
     fn the_card_steps_aside_of_the_chat_panel() {
         let size = [300, 80];
+        let out = [1280, 800];
         let corner = |right| (16, right);
         let panel = Some([856, 24, 400, 752]);
-        assert_eq!(aside([964, 704], size, panel, corner(true)), [540, 704]);
-        assert_eq!(aside([964, 704], size, None, corner(true)), [964, 704]);
+        assert_eq!(
+            aside([964, 704], size, panel, corner(true), out),
+            [540, 704]
+        );
+        assert_eq!(aside([964, 704], size, None, corner(true), out), [964, 704]);
         let high = Some([856, 24, 400, 300]);
-        assert_eq!(aside([964, 704], size, high, corner(true)), [964, 704]);
+        assert_eq!(aside([964, 704], size, high, corner(true), out), [964, 704]);
         let left = Some([24, 24, 400, 752]);
-        assert_eq!(aside([16, 704], size, left, corner(false)), [440, 704]);
+        assert_eq!(aside([16, 704], size, left, corner(false), out), [440, 704]);
         let wide = Some([100, 0, 1180, 800]);
-        assert_eq!(aside([964, 704], size, wide, corner(true)), [0, 704]);
+        assert_eq!(aside([964, 704], size, wide, corner(true), out), [0, 704]);
+        let broad = Some([100, 300, 1180, 450]);
+        assert_eq!(
+            aside([964, 704], size, broad, corner(true), out),
+            [964, 204]
+        );
+        let low = Some([100, 60, 1180, 450]);
+        assert_eq!(aside([964, 16], size, low, corner(true), out), [964, 526]);
     }
 
     #[test]

@@ -1069,17 +1069,17 @@ mod tests {
         fake::{self, Reply},
     };
 
-    fn temp(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-voice-chat-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir.join(name)
+    fn temp(name: &str) -> (chora_kit::testing::TempDir, PathBuf) {
+        let dir = chora_kit::testing::TempDir::new("chora-voice-chat");
+        let path = dir.join(name);
+        (dir, path)
     }
 
     /// A chat with the fake LLM and the fake tools, a short prompt and
     /// one small document.
     async fn chat(script: Vec<Reply>, config: Config) -> (Chat, fake::Server) {
         let server = fake::llm(script).await;
-        let doc = temp("doc.md");
+        let (_doc_dir, doc) = temp("doc.md");
         std::fs::write(&doc, "Ein Dokument.").unwrap();
         let config = Config {
             llm_url: server.url.clone(),
@@ -2040,7 +2040,7 @@ mod tests {
         let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
             .await
             .unwrap();
-        let file = temp("reload.yaml");
+        let (_file_dir, file) = temp("reload.yaml");
         chat.settings_file = Some(file.clone());
         let asked = Mutex::new(Vec::new());
         let on = |event: Event| {
@@ -2079,7 +2079,7 @@ mod tests {
         let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
             .await
             .unwrap();
-        let file = temp("reload-language.yaml");
+        let (_file_dir, file) = temp("reload-language.yaml");
         chat.settings_file = Some(file.clone());
         let asked = Mutex::new(Vec::new());
         let on = |event: Event| {
@@ -2358,7 +2358,7 @@ mod tests {
     #[tokio::test]
     async fn the_history_file_is_private() {
         use std::os::unix::fs::PermissionsExt;
-        let file = temp("history-mode.json");
+        let (_file_dir, file) = temp("history-mode.json");
         let _ = std::fs::remove_file(&file);
         let (mut chat, _server) = chat(vec![], Config::default()).await;
         chat.file = Some(file.clone());
@@ -2369,7 +2369,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_history_file_keeps_the_requests_for_the_next_prompt() {
-        let file = temp("history.json");
+        let (_file_dir, file) = temp("history.json");
         let _ = std::fs::remove_file(&file);
         let config = Config {
             saved_requests: 2,

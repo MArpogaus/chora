@@ -13,8 +13,14 @@ no `open` yet, so the sound baseline gets it through the same filter.
 """
 
 import contextlib
+import json
+import os
+import pathlib
+import subprocess
+import tempfile
+import types
 
-from harness import Core, Expect, Session, program
+from harness import REPO, Core, Expect, Session, program
 
 OUT = "HEADLESS-1"
 
@@ -131,6 +137,66 @@ def filtered(s, change):
     s.state_filter = state_filter
 
 
+def persona_check(must):
+    """tests/persona/check.py in a persona session of mc: a sound action
+    leaves nothing in breaches.jsonl, a planted black screen leaves an I7
+    line there."""
+    persona = REPO / "tests" / "persona"
+    with tempfile.TemporaryDirectory(prefix="planted-persona-") as work:
+        env = dict(
+            os.environ,
+            PERSONA_DIR=work,
+            CHORA_BIN=os.environ.get("BIN", str(REPO / "target" / "debug")),
+        )
+        session = subprocess.Popen(
+            [str(persona / "session.sh"), "mc"],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            start_new_session=True,
+        )
+        env_file = pathlib.Path(work) / "session.env"
+        try:
+            if not session.stdout.readline().startswith("PERSONA_ENV="):
+                raise RuntimeError("the persona session did not start")
+            sock = next(
+                line.split("=", 1)[1]
+                for line in env_file.read_text().splitlines()
+                if line.startswith("CHORA_SOCKET=")
+            )
+            check = env | {"PERSONA_ENV": str(env_file)}
+
+            def after(action):
+                subprocess.run(
+                    [str(persona / "check.py"), "after", action],
+                    env=check,
+                    check=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                path = pathlib.Path(work) / "breaches.jsonl"
+                return (
+                    [json.loads(line) for line in path.read_text().splitlines()]
+                    if path.exists()
+                    else []
+                )
+
+            subprocess.run([str(persona / "check.py"), "start"], env=check, check=True, timeout=60)
+            must("persona sound", after("sound"), fail=False)
+            planted = Core(sock, name="planted-persona")
+            black_screen(
+                types.SimpleNamespace(core=planted, outputs=lambda: planted.call("output.list"))
+            )
+            found = [b for b in after("planted-black") if b["invariant"] == "I7"]
+            must("persona I7 planted", found, fail=True)
+            planted.close()
+        finally:
+            session.terminate()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                session.wait(timeout=20)
+
+
 def run(results):
     """Run the planted cells; results maps the cell to its failures."""
     checks = []
@@ -238,4 +304,5 @@ def run(results):
             fail=True,
         )
         s.state_filter = None
+    persona_check(must)
     return checks

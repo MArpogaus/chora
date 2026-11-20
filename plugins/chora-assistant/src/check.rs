@@ -298,10 +298,8 @@ mod tests {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("huds/neutral")
     }
 
-    fn temp(test: &str) -> PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn temp(test: &str) -> chora_kit::testing::TempDir {
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-assistant-{test}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -332,7 +330,8 @@ mod tests {
 
     #[test]
     fn a_fine_folder_outside_the_search_path_names_the_path() {
-        let roots = [temp("search-a"), temp("search-b")];
+        let (a, b) = (temp("search-a"), temp("search-b"));
+        let roots = [a.to_path_buf(), b.to_path_buf()];
         let (text, ok) = check_report(&fixture("mine"), &roots);
         assert!(ok, "{text}");
         assert!(!text.contains("Turn it on"), "{text}");

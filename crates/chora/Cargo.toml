@@ -17,6 +17,7 @@ wayland-client = "0.31"
 xcursor.workspace = true
 
 [dev-dependencies]
+chora-scene = { workspace = true, features = ["testing"] }
 wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 

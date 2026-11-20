@@ -185,7 +185,7 @@ impl Construct {
 #[cfg(test)]
 mod tests {
     use chora_kit::{
-        runtime::{Plugin, Runtime},
+        runtime::Plugin,
         settings,
         testing::{
             FakeCore, Script, Subject, created, created_child, focus_changed, output, owner,
@@ -197,16 +197,10 @@ mod tests {
     use crate::{Construct, NAME, config};
 
     /// The construct as the flavor, built on a fake core of the test.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn flavor(core: &FakeCore, tag: &str) -> Construct {
-        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        let mut rt = core.runtime(NAME);
         rt.pin_accepts_injected(false);
-        let dir =
-            std::env::temp_dir().join(format!("chora-construct-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-construct-{tag}")).keep();
         let file = dir.join("chora-construct.yaml");
         let settings = settings::File::load(file, config::DEFAULT).unwrap();
         let shaders = |name: &str, _: &str| Ok(dir.join(name).to_string_lossy().into_owned());

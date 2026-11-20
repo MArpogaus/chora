@@ -171,7 +171,8 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # the scripts that every look shares, or {volume: up|down|mute}, which
 # changes the volume of the default sound output.
 # On a page, which has no program, Right and Left alone also turn the
-# page, and Escape goes back one step; these three keys are not bindings.
+# page, Home and XF86HomePage alone go to the first page, and Escape goes
+# back one step; these keys are not bindings.
 # With --output, beside other window managers, a page takes no keyboard
 # and only the bindings turn it.
 bindings:

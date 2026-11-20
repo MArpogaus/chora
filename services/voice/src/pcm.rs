@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn a_wav_header_round_trips() {
-        let dir = std::env::temp_dir().join(format!("chora-voice-wav-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-voice-wav");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("a.wav");
         let samples = [1i16, -2, 300, i16::MIN];

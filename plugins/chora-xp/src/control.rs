@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn wallpapers_are_the_pictures_of_the_first_level() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-walls-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::unmade("chora-xp-walls");
         std::fs::create_dir_all(dir.join("sub")).expect("a directory");
         for name in ["b.PNG", "a.svg", "c.jpg", "d.txt", "sub/e.png"] {
             std::fs::write(dir.join(name), "").expect("a file");
@@ -449,7 +449,7 @@ mod tests {
         for i in 0..25 {
             std::fs::write(dir.join(format!("z{i:02}.png")), "").expect("a file");
         }
-        let found = wallpapers(&[dir.clone(), dir.join("missing")]);
+        let found = wallpapers(&[dir.to_path_buf(), dir.join("missing")]);
         assert_eq!(found.len(), MAX_WALLPAPERS);
         assert_eq!(
             found[..3],

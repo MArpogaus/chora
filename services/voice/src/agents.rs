@@ -1552,8 +1552,7 @@ mod tests {
     /// is spoken: a late yes still allows.
     #[tokio::test(flavor = "multi_thread")]
     async fn a_question_waits_until_it_is_spoken() {
-        let data = std::env::temp_dir().join(format!("chora-voice-wait-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+        let data = chora_kit::testing::TempDir::unmade("chora-voice-wait");
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
@@ -1565,7 +1564,7 @@ mod tests {
             ..Config::default()
         };
         let (tx, rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         agents.start("demo", None, None);
         let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
         agents.prompt("demo", "Schreib notes.txt");
@@ -1588,8 +1587,7 @@ mod tests {
     /// and the user is told, so that no part of it hides the rest.
     #[tokio::test(flavor = "multi_thread")]
     async fn a_request_too_long_to_show_is_rejected() {
-        let data = std::env::temp_dir().join(format!("chora-voice-long-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+        let data = chora_kit::testing::TempDir::unmade("chora-voice-long");
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
@@ -1600,7 +1598,7 @@ mod tests {
             ..Config::default()
         };
         let (tx, rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         agents.start("demo", None, None);
         let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
         agents.prompt("demo", "LONG");
@@ -1623,8 +1621,7 @@ mod tests {
     /// another command than the one that runs (sh-26).
     #[tokio::test(flavor = "multi_thread")]
     async fn a_detail_with_hidden_characters_is_refused() {
-        let data = std::env::temp_dir().join(format!("chora-voice-hidden-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+        let data = chora_kit::testing::TempDir::unmade("chora-voice-hidden");
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
@@ -1635,7 +1632,7 @@ mod tests {
             ..Config::default()
         };
         let (tx, rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         agents.start("demo", None, None);
         let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
         agents.prompt("demo", "HIDDEN");
@@ -1712,8 +1709,7 @@ mod tests {
     /// a command between two pieces loses none of it.
     #[tokio::test(flavor = "multi_thread")]
     async fn a_line_in_pieces_survives_commands() {
-        let data = std::env::temp_dir().join(format!("chora-voice-split-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+        let data = chora_kit::testing::TempDir::unmade("chora-voice-split");
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = r#"read -r _ || exit 0
@@ -1728,7 +1724,7 @@ exec cat >/dev/null"#;
             ..Config::default()
         };
         let (tx, rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         assert!(agents.start("demo", Some("split"), None).contains("starts"));
         let pokes = agents.clone();
         let poke = tokio::spawn(async move {
@@ -1748,8 +1744,7 @@ exec cat >/dev/null"#;
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn the_agent_gets_no_api_key_variable() {
         assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
-        let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+        let data = chora_kit::testing::TempDir::unmade("chora-voice-keys");
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = r#"echo "${HOME-unset}" > seen.tmp; mv seen.tmp seen; exec cat >/dev/null"#;
@@ -1761,7 +1756,7 @@ exec cat >/dev/null"#;
             ..Config::default()
         };
         let (tx, _rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         assert!(agents.start("demo", Some("keys"), None).contains("starts"));
         let seen = project.join("seen");
         for _ in 0..100 {
@@ -1782,8 +1777,7 @@ exec cat >/dev/null"#;
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::too_many_lines, reason = "one conversation, step by step")]
     async fn an_agent_works_asks_answers_and_stops() {
-        let data = std::env::temp_dir().join(format!("chora-voice-acp-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+        let data = chora_kit::testing::TempDir::unmade("chora-voice-acp");
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
@@ -1794,7 +1788,7 @@ exec cat >/dev/null"#;
             ..Config::default()
         };
         let (tx, rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         assert_eq!(agents.specs().len(), TOOLS.len());
         assert!(agents.start("nope", None, None).contains("no project"));
         assert!(agents.start("Demo", Some("Coder"), None).contains("starts"));
@@ -1887,9 +1881,8 @@ exec cat >/dev/null"#;
     }
 
     /// A project with the fake agent, started and idle.
-    async fn idle_agent(tag: &str) -> (Agents, mpsc::Receiver<Input>, PathBuf) {
-        let data = std::env::temp_dir().join(format!("chora-voice-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&data);
+    async fn idle_agent(tag: &str) -> (Agents, mpsc::Receiver<Input>, chora_kit::testing::TempDir) {
+        let data = chora_kit::testing::TempDir::unmade(&format!("chora-voice-{tag}"));
         let project = data.join("demo");
         std::fs::create_dir_all(&project).unwrap();
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
@@ -1900,7 +1893,7 @@ exec cat >/dev/null"#;
             ..Config::default()
         };
         let (tx, rx) = mpsc::channel();
-        let agents = Agents::new(&config, data.clone(), tx);
+        let agents = Agents::new(&config, data.to_path_buf(), tx);
         agents.start("demo", Some("coder"), None);
         let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
         (agents, rx, data)

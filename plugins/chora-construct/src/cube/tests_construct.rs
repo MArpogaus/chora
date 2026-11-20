@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 
 use super::tests::host_of;
 use super::{CUBE, EDGE, EDGE_GLOW, EDGE_WIDTH, FACES, Health, face_id, fill_id, mirror_id};
-use crate::{Config, Construct, MIRRORS, NAME, PANES, Runtime, config, settings};
+use crate::{Config, Construct, MIRRORS, NAME, PANES, config, settings};
 
 /// A manager that runs until the cube closes it.
 const RUNS: &str = "sh -c 'sleep 30' #";
@@ -31,17 +31,11 @@ const EXITS: &str = "sh -c 'echo the manager broke >&2; exit 3' #";
 /// mirrors exist, as the plugin makes them at its start, and the virtual
 /// outputs `VIRTUAL-1` to `VIRTUAL-4` are owned by the plugin, as the
 /// core makes an output of `output.add`.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "the test connects to its fake core"
-)]
 fn on_core(
     tag: &str,
     answer: impl Fn(&str, &Value) -> Option<Value> + Send + Sync + 'static,
 ) -> (Construct, FakeCore, Log) {
-    let dir =
-        std::env::temp_dir().join(format!("chora-construct-cube-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = chora_kit::testing::TempDir::new(&format!("chora-construct-cube-{tag}")).keep();
     std::fs::create_dir_all(&dir).unwrap();
     let core = FakeCore::start();
     core.respond(answer);
@@ -61,7 +55,8 @@ fn on_core(
             .scene
             .set_output_owner(&format!("VIRTUAL-{n}"), Some(NAME));
     }
-    let mut rt = Runtime::with(conn, NAME, Vec::new());
+    drop(conn);
+    let mut rt = core.runtime(NAME);
     rt.pin_accepts_injected(false);
     let settings =
         settings::File::<Config>::load(dir.join("chora-construct.yaml"), config::DEFAULT).unwrap();

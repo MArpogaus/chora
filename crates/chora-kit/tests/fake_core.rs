@@ -107,3 +107,35 @@ fn the_claimant_under_a_point_is_never_the_connection_itself() {
         "outside every claim of the others"
     );
 }
+
+/// The runtime of the helper is a plugin on a connection to the fake core:
+/// its requests reach the core, and it holds no grab of its own.
+#[test]
+fn a_runtime_of_the_fake_core_reaches_the_core() {
+    let core = FakeCore::start();
+    let methods = core.record(|method, _| Some(method.to_owned()));
+    let mut rt: chora_kit::runtime::Runtime<()> = core.runtime("probe");
+    assert!(!rt.holds("Super+x"), "no grab of its own");
+    rt.subscribe(&["window.opened"]).unwrap();
+    assert_eq!(
+        *methods.lock().unwrap(),
+        ["hello", "events.subscribe"],
+        "the connect says hello, then the request follows"
+    );
+}
+
+/// `outputs` plants the answer of `output.list`; without it the list is
+/// empty.
+#[test]
+fn the_fake_core_answers_output_list_with_its_outputs() {
+    let core = FakeCore::start();
+    let mut rt: chora_kit::runtime::Runtime<()> = core.runtime("probe");
+    assert!(rt.all_outputs().unwrap().is_empty(), "none by default");
+    core.outputs(serde_json::json!([{
+        "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
+        "scale": 1.0, "camera": {}, "work_area": [0, 0, 1920, 1080]
+    }]));
+    let outputs = rt.all_outputs().unwrap();
+    assert_eq!(outputs.len(), 1);
+    assert_eq!(outputs[0].name, "DP-1");
+}

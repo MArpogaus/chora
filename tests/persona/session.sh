@@ -1,21 +1,32 @@
 #!/bin/bash
 # Starts a private headless chora session with a flavor for a simulated
 # user (persona), and grants the client `persona` screen.capture and
-# input.inject only. It stays in the foreground until SIGTERM or INT, then
-# stops the core by its pid and removes the session directory, unless the
-# caller gave it in PERSONA_DIR.
+# input.inject only, and the client `persona-check` (tests/persona/check.py)
+# screen.capture and methods.call. It stays in the foreground until SIGTERM
+# or INT, then stops the core by its pid and removes the session directory,
+# unless the caller gave it in PERSONA_DIR.
 #
-# Usage: tests/persona/session.sh FLAVOR [WxH]
+# The programs that a click can run on the host are stand-ins in the PATH of
+# the session: systemctl (xp Stand By runs `systemctl suspend`), loginctl,
+# wpctl, grim and notify-send write `NAME ARGS` to PERSONA_CALLS, and never
+# reach the host.
+#
+# Usage: tests/persona/session.sh FLAVOR[+FLAVOR] [WxH]
 #        tests/persona/session.sh --stop ENV_FILE
-#   FLAVOR  tiling, xp, mc or construct
+#   FLAVOR  tiling, xp, mc or construct; with a second one (tiling+xp) the
+#           first starts with the core and the second joins it, as a window
+#           can be handed from one to the other
 #   WxH     the size of the virtual output (default 1280x800)
 #
 # Environment:
 #   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX,
 #                which the script removes at the end; a directory that
 #                you give stays)
-#   PERSONA_KEEP a directory that gets a copy of shots/ and actions.jsonl
+#   PERSONA_KEEP a directory that gets a copy of shots/, actions.jsonl,
+#                breaches.jsonl, evidence/ and the stand-in calls.log
 #                when the session ends (default: nothing is kept)
+#   PERSONA_CHECK  1: act.py runs tests/persona/check.py after each action
+#                (written to the env file, so the driver need not export it)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
 #   CHORA_TEST_FLAGS  flags of the core, as tests/headless-session.sh
 #                takes them; --test-injected-press-is-real lets the
@@ -29,7 +40,8 @@
 # $PERSONA_DIR/session.env and prints "PERSONA_ENV=<that file>" as its
 # first output line. The file has PERSONA_ENV, PERSONA_DIR, PERSONA_LOG,
 # PERSONA_SHOTS, CHORA_SOCKET, XDG_RUNTIME_DIR, PATH (with the binaries),
-# CHORA_CORE_PID and PERSONA_SESSION_PID. act.py reads it.
+# CHORA_CORE_PID, PERSONA_SESSION_PID, PERSONA_CALLS, PERSONA_VOICE and
+# PERSONA_FLAVORS (the flavors joined by +). act.py reads it.
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/../.." && pwd)
@@ -56,8 +68,23 @@ fi
     echo "usage: $0 FLAVOR [WxH]" >&2
     exit 2
 }
-flavor=$1
+IFS=+ read -ra flavors <<<"$1"
+flavor=${flavors[0]}
 size=${2:-1280x800}
+((${#flavors[@]} <= 2)) && [[ ${flavors[1]:-x} != "$flavor" ]] || {
+    echo "usage: $0 FLAVOR[+FLAVOR] [WxH] (two different flavors at most)" >&2
+    exit 2
+}
+for f in "${flavors[@]}"; do
+    case $f in
+    tiling | xp | mc | construct) ;;
+    *)
+        echo "unknown flavor $f (tiling, xp, mc, construct)" >&2
+        exit 2
+        ;;
+    esac
+done
+has_flavor() { [[ " ${flavors[*]} " == *" $1 "* ]]; }
 
 if [[ -n ${PERSONA_KEEP:-} && -n $(ls -A "$PERSONA_KEEP" 2>/dev/null) ]]; then
     echo "PERSONA_KEEP $PERSONA_KEEP is not empty; give a new or empty directory" >&2
@@ -74,6 +101,7 @@ rm -f "$dir/last_look.json"
 dir=$(cd "$dir" && pwd)
 env_file=$dir/session.env
 
+real_systemctl=$(command -v systemctl || true)
 fakes=$dir/fake
 mkdir -p "$fakes" "$dir/voice" "$dir/data/chora/huds"
 marks=$fakes/calls.log
@@ -96,7 +124,14 @@ if [ "\${1:-}" = lock-session ] && command -v swaylock >/dev/null; then
 fi
 exit 0
 EOF
-chmod +x "$fakes/notify-send" "$fakes/loginctl"
+printf '#!/bin/sh\necho systemctl "$@" >>"%s"\n' "$marks" >"$fakes/systemctl"
+printf '#!/bin/sh\necho wpctl "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$marks" >"$fakes/wpctl"
+# shellcheck disable=SC2016 # the stand-in expands its own arguments
+printf '#!/bin/sh\necho grim "$@" >>"%s"\nfor last; do :; done\n: >"$last"\n' "$marks" >"$fakes/grim"
+mkdir -p "$dir/pictures"
+printf '#!/bin/sh\necho "%s"\n' "$dir/pictures" >"$fakes/xdg-user-dir"
+chmod +x "$fakes/xdg-user-dir"
+chmod +x "$fakes/notify-send" "$fakes/loginctl" "$fakes/systemctl" "$fakes/wpctl" "$fakes/grim"
 while read -r name hud; do
     ln -sfn "$hud" "$dir/data/chora/huds/$name"
 done < <("$repo/tests/hud-folders.sh")
@@ -105,6 +140,7 @@ echo '[]' >"$dir/voice/entries.json"
 # The plugins start apps with `choractl run` from PATH (D42).
 export PATH="$fakes:$bin:$PATH"
 export XDG_DATA_HOME=$dir/data
+export XDG_PICTURES_DIR=$dir/pictures
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 unset DBUS_SESSION_BUS_ADDRESS
 # A private config home: the settings of the user stay out of the run.
@@ -117,37 +153,38 @@ if [[ -d $egl ]]; then
 fi
 export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 
-case $flavor in
-tiling) startup=("$bin/chora-tiling") ;;
-xp)
-    # No sounds in a headless run.
-    sed 's/^  sounds: true/  sounds: false/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
-    startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
-    ;;
-mc) startup=("$bin/chora-mc" --manage-windows) ;;
-construct) startup=("$bin/chora-construct") ;;
-*)
-    echo "unknown flavor $flavor (tiling, xp, mc, construct)" >&2
-    exit 2
-    ;;
-esac
+startup_of() {
+    case $1 in
+    tiling) startup=("$bin/chora-tiling") ;;
+    xp)
+        sed 's/^  sounds: true/  sounds: false/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
+        startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
+        ;;
+    mc) startup=("$bin/chora-mc" --manage-windows) ;;
+    construct) startup=("$bin/chora-construct") ;;
+    esac
+}
+startup_of "$flavor"
 
-case $flavor in
-tiling)
-    companions=(
-        "sh $repo/flavors/tiling/wallpaper.sh"
-        "sh $repo/flavors/tiling/waybar/waybar.sh $repo/flavors/tiling/waybar"
-        "chora-assistant"
-    )
-    ;;
-xp)
-    companions=(
-        "chora-notify --assets $repo/flavors/xp/assets/notify"
-        "chora-assistant"
-    )
-    ;;
-mc | construct) companions=("chora-assistant") ;;
-esac
+companions=()
+for f in "${flavors[@]}"; do
+    case $f in
+    tiling)
+        companions+=(
+            "tiling sh $repo/flavors/tiling/wallpaper.sh"
+            "tiling sh $repo/flavors/tiling/waybar/waybar.sh $repo/flavors/tiling/waybar"
+            "tiling chora-assistant"
+        )
+        ;;
+    xp)
+        companions+=(
+            "xp chora-notify --assets $repo/flavors/xp/assets/notify"
+            "xp chora-assistant"
+        )
+        ;;
+    mc | construct) companions+=("$f chora-assistant") ;;
+    esac
+done
 
 if ((${#companions[@]})); then
     for tool in jq setsid dbus-daemon dbus-run-session; do
@@ -183,7 +220,7 @@ cleanup() {
         kill -TERM "$bus_pid" 2>/dev/null || true
     fi
     for unit in "${companion_units[@]}"; do
-        systemctl --user stop "$unit" 2>/dev/null || true
+        [[ -z $real_systemctl ]] || "$real_systemctl" --user stop "$unit" 2>/dev/null || true
     done
     for pid in "${companion_pids[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null || true
@@ -191,7 +228,8 @@ cleanup() {
     if [[ -n ${PERSONA_KEEP:-} ]]; then
         mkdir -p "$PERSONA_KEEP"
         cp -r "$dir/shots" "$PERSONA_KEEP/"
-        cp "$dir/actions.jsonl" "$PERSONA_KEEP/" 2>/dev/null || true
+        cp "$dir/actions.jsonl" "$dir/breaches.jsonl" "$fakes/calls.log" "$PERSONA_KEEP/" 2>/dev/null || true
+        cp -r "$dir/evidence" "$PERSONA_KEEP/" 2>/dev/null || true
     fi
     if [[ -n $created_dir ]]; then
         rm -rf "$created_dir"
@@ -201,7 +239,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 
-if [[ $flavor == xp ]]; then
+if has_flavor xp; then
     export DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus
     dbus-daemon --session --nofork --address="$DBUS_SESSION_BUS_ADDRESS" >"$dir/dbus.log" 2>&1 &
     bus_pid=$!
@@ -229,6 +267,7 @@ core=$(pgrep -P "$session" -x chora | head -n 1 || true)
 
 # The admin socket grants; persona gets these two and nothing else.
 CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona screen.capture input.inject >/dev/null
+CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona-check screen.capture methods.call >/dev/null
 
 mkfifo "$dir/voice/in"
 exec 4<>"$dir/voice/in"
@@ -237,18 +276,27 @@ CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime FAKE_VOICE_ENTRIES=$dir/voice/entr
 voice_pid=$!
 echo 'voice.state {"state": "listening", "task": "", "said": ""}' >&4
 
+if ((${#flavors[@]} == 2)); then
+    startup_of "${flavors[1]}"
+    companions=("${flavors[1]} ${startup[*]}" "${companions[@]}")
+fi
+started_once=" "
 for line in "${companions[@]}"; do
     read -ra argv <<<"$line"
+    cflavor=${argv[0]}
+    argv=("${argv[@]:1}")
+    [[ $started_once != *" ${argv[*]} "* ]] || continue
+    started_once+="${argv[*]} "
     command -v "${argv[0]}" >/dev/null || {
         echo "companion ${argv[0]} not found" >>"$dir/companions.log"
         continue
     }
     session_wrapper=(dbus-run-session --)
-    if [[ $flavor == xp ]]; then
+    if [[ $cflavor == xp ]]; then
         session_wrapper=()
     fi
     started=$(
-        WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$out") CHORA_FLAVOR_DIR=$repo/flavors/$flavor \
+        WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$out") CHORA_FLAVOR_DIR=$repo/flavors/$cflavor \
             CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime \
             "$bin/choractl" run setsid "${session_wrapper[@]}" "${argv[@]}"
     )
@@ -272,6 +320,8 @@ done
     echo "PERSONA_SESSION_PID=$$"
     echo "PERSONA_CALLS=$marks"
     echo "PERSONA_VOICE=$dir/voice"
+    echo "PERSONA_FLAVORS=$1"
+    [[ -z ${PERSONA_CHECK:-} ]] || echo "PERSONA_CHECK=$PERSONA_CHECK"
 } >"$env_file"
 echo "PERSONA_ENV=$env_file"
 

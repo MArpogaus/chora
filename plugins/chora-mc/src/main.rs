@@ -986,10 +986,12 @@ impl Mc {
     }
 
     /// A key without a modifier while a page has the keyboard: Right and
-    /// Left turn the page, Escape goes back one step.
+    /// Left turn the page, Home and `XF86HomePage` go to the first page,
+    /// Escape goes back one step.
     fn page_key(&mut self, key: &str, modifiers: &[String], injected: bool) {
         let look = match key {
             _ if !modifiers.is_empty() || !self.by_person(injected) => return,
+            "Home" | "XF86HomePage" => Look::Scene(self.settings.value.default_scene.clone()),
             "Right" => Look::NextScene,
             "Left" => Look::PreviousScene,
             "Escape" => return self.back(),
@@ -1313,10 +1315,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn the_root_of_mc_lies_in_the_background_order_below_every_other_root() {
         let core = chora_kit::testing::FakeCore::start();
         let mut xp = core.connect("xp");
@@ -1470,6 +1468,22 @@ mod tests {
             injected,
         })
         .unwrap();
+    }
+
+    /// Home and `XF86HomePage` alone go to the first page; with a modifier
+    /// they are no key of the page.
+    #[test]
+    fn plain_home_goes_to_the_first_page() {
+        let (mut mc, _model) = crate::testing::mc("plain-home", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        press_key(&mut mc, "Right", &[]);
+        press_key(&mut mc, "Home", &["Shift"]);
+        assert_eq!(mc.current.as_deref(), Some("morning"));
+        press_key(&mut mc, "Home", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
+        press_key(&mut mc, "Right", &[]);
+        press_key(&mut mc, "XF86HomePage", &[]);
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
     }
 
     /// On a page the arrows alone turn it, Escape goes back along the
@@ -2453,7 +2467,7 @@ mod tests {
 /// A plugin on the fake core of the kit, for the tests of this crate.
 #[cfg(test)]
 mod testing {
-    use chora_kit::{runtime::Runtime, settings, testing::FakeCore};
+    use chora_kit::{settings, testing::FakeCore};
     use chora_scene::{OutputInfo, Transform};
 
     use crate::{Mc, NAME, config};
@@ -2462,25 +2476,16 @@ mod testing {
 
     /// A plugin on a fake core with the default settings, no scene files,
     /// one output of `size` and its nodes built; and the model.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         let core = FakeCore::start();
         (mc_on(&core, dir, size), core.model())
     }
 
     /// As [`mc`], on a fake core of the test.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     pub fn mc_on(core: &FakeCore, dir: &str, size: [i32; 2]) -> Mc {
-        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        let mut rt = core.runtime(NAME);
         rt.pin_accepts_injected(false);
-        let dir = std::env::temp_dir().join(format!("chora-mc-{dir}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-mc-{dir}")).keep();
         let file = dir.join("chora-mc.yaml");
         let settings = settings::File::load(file, config::DEFAULT).unwrap();
         let mut mc = Mc::new(

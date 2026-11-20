@@ -1328,16 +1328,15 @@ pub fn fill(file: &std::fs::File, (w, h): (i32, i32), pixel: u32) {
 }
 
 fn tempfile() -> std::fs::File {
-    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path = std::env::temp_dir().join(format!("chora-test-{}-{n}", std::process::id()));
+    let dir = chora_scene::testing::TempDir::new("chora-test");
+    let path = dir.join("file");
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .create_new(true)
         .open(&path)
         .expect("a temporary file");
-    std::fs::remove_file(&path).expect("the file goes");
+    drop(dir);
     file
 }
 delegate_noop!(App: ignore WlSurface);
