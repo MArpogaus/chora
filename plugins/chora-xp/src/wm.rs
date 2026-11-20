@@ -1068,6 +1068,47 @@ mod tests {
         );
     }
 
+    /// On a face of a cube, xp is the window manager: a Super chord that
+    /// it binds no action for is its own, so no window gets it. A chord
+    /// it binds keeps its action, and on a screen of its own xp swallows
+    /// nothing.
+    #[test]
+    fn on_a_face_xp_swallows_the_super_chords_it_binds_nothing_for() {
+        for cube in [CubeKeys::Flat, CubeKeys::Hosted] {
+            let (mut rt, _calls) = on_fake_core("face-swallow");
+            let bindings = crate::config::defaults().common.bindings;
+            rt.start_grabs();
+            grab_keys(&mut rt, &bindings, cube).unwrap();
+            rt.end_grabs().unwrap();
+            for chord in [
+                "Super+q",
+                "Super+Tab",
+                "Super+1",
+                "Shift+Super+x",
+                "Ctrl+Super+z",
+            ] {
+                assert!(rt.action(chord).is_some(), "{cube:?}: {chord} is not held");
+            }
+            assert_eq!(
+                rt.action("Super+d"),
+                Some(&KeyAction::Look(Look::Desktop)),
+                "{cube:?}: a bound chord keeps its action"
+            );
+            assert_eq!(
+                rt.action("Super+e"),
+                Some(&KeyAction::Look(Look::Files)),
+                "{cube:?}"
+            );
+        }
+        let (mut rt, _calls) = on_fake_core("own-no-swallow");
+        let bindings = crate::config::defaults().common.bindings;
+        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        assert!(
+            rt.action("Super+q").is_none(),
+            "a screen of xp swallows none"
+        );
+    }
+
     /// A press of the binding `Super+BTN_RIGHT` that the user moved to
     /// `close`: the focused window closes, and no cube turns (rw-1).
     #[test]
