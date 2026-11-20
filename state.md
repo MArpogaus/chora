@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 01:53 UTC)
+## Now (2026-11-20 01:54 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -27,9 +27,9 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | stray-grab-r1.md (RC sh-24, Queue 5) | opus high | session_016iS3kQiKWvRdXmmZ12b8Tw |
 | black-pane-r1.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kPY5q7FRF2zYvKecmv |
 | t81 (Queue 4, F6): kit-sec-r3.md, xp-majors-r1.md, mc-answer-r2.md, co-majors-r2 | sonnet | MERGE-OK 1c25af7e 81a29fe8 92f2e52f 8e24dcb6; gate 01:54 |
-| p2-r1-tiling.md (RC 2, Queue 5) | sonnet med | starting |
-| p2-r1-mc.md (RC 2, Queue 5) | sonnet med | starting |
-| p2-r1-construct.md (RC 2, Queue 5) | sonnet med | starting |
+| p2-r1-tiling.md (RC 2, Queue 5) | sonnet med | session_016iS3kQJpeA8rRTKmK6JD4M |
+| p2-r1-mc.md (RC 2, Queue 5) | sonnet med | session_016iS3kPdQowtx92y35qnBx4 |
+| p2-r1-construct.md (RC 2, Queue 5) | sonnet med | session_016iS3kMEKgriQXGBac4N2cv |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t80 green 01:52 (persona-env, flake-h; b97369d1). t81 gate 01:54: kit-sec 1c25af7e, xp-majors 81a29fe8, mc-answer 92f2e52f, co-majors 8e24dcb6.
