@@ -582,6 +582,11 @@ printf 'one|true\nfuzz|echo "SKIP: cell a: x"; echo "SKIP: cell b: y"\n' >"$work
 run_gate
 check "skip: two SKIP lines of one step give one SKIP step line" "$(grep -c '^fuzz *SKIP ' "$work/out")" 1
 check "skip: the summary gives both reasons of the step" "$(grep -c '^skipped: fuzz (cell a: x; cell b: y)$' "$work/out")" 1
+printf 'one|true\nfuzz|echo "SKIP: cell a: x"\nfizz|echo "SKIP: y"\n' >"$work/steps"
+run_gate --push session
+check "skip: the refusal hint is a comma list of the steps" "$(grep -c -- '--allow-skip fuzz,fizz to push' "$work/out")" 1
+run_gate --push session --allow-skip fuzz,fizz
+check "skip: the comma list of the hint lets the push through" "$pushes" 1
 printf 'one|true\nbad|echo "SKIP: x"; exit 1\n' >"$work/steps"
 run_gate
 check "skip: a step that skips and fails is FAIL" "$(grep -c '^bad *FAIL ' "$work/out")" 1

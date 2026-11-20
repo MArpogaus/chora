@@ -462,7 +462,8 @@ for name in "${skipped_steps[@]}"; do
     case ",$allow_skip," in *",$name,"*) ;; *) refused+=("$name") ;; esac
 done
 if [ "${#refused[@]}" -gt 0 ]; then
-    echo "merge-gate: refusing to push: ${refused[*]} skipped; pass --allow-skip ${refused[*]// /,} to push with a host gap you know" >&2
+    refused_list=$(IFS=,; echo "${refused[*]}")
+    echo "merge-gate: refusing to push: ${refused[*]} skipped; pass --allow-skip $refused_list to push with a host gap you know" >&2
     exit 1
 fi
 cd "$repo" && git push origin "HEAD:$push_branch"
