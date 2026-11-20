@@ -18,11 +18,18 @@ driver here gives it exactly that.
   `$PERSONA_DIR/data/chora/huds` (`XDG_DATA_HOME` points there),
   `tests/fake-voice.py` as the voice agent, a `notify-send` that logs to
   `$PERSONA_DIR/fake/calls.log` (and, on `xp`, also reaches `chora-notify`
-  on the session bus) and a `loginctl` that logs `lock-session` and runs
-  `swaylock` when it is installed.
+  on the session bus) and a `loginctl` that logs `lock-session`.
+- An xp session also has what a real one has: the shared scripts as a
+  package installs them (`CHORA_SHARED_DIR` is a copy of `flavors/shared`
+  under `$PERSONA_DIR/share`), a `swaylock` that only logs (a real lock
+  would shut the checker out), the editor `mousepad` (the `editor` of the
+  generated `xp.yaml`; a stand-in window titled `Untitled - Notepad`), the
+  command `persona-probe` (a window `Probe window` with a frame that the
+  look draws, so that a drag moves it) and a helper `atlas` that answers
+  `agent_say` with `Hello` after 3 seconds of `working`.
 - The programs that a click can run on the host are stand-ins in the PATH
   of the session: `systemctl` (xp Stand By runs `systemctl suspend`),
-  `loginctl`, `wpctl` (`get-volume` answers `Volume: 0.50`), `grim` (writes
+  `loginctl`, `swaylock`, `wpctl` (`get-volume` answers `Volume: 0.50`), `grim` (writes
   its file) and `notify-send`. Each writes `NAME ARGS` to
   `$PERSONA_DIR/fake/calls.log` (`PERSONA_CALLS` in `session.env`) and none
   reaches the host. `tests/persona-selftest.sh` shows it.
