@@ -19,7 +19,7 @@ awk '/^## /{on=($0 ~ /^## Lanes/)} on && /^\|/' "$root/state.md" | grep -qF -- "
 model="$(grep -m1 -E '^Model: (haiku|sonnet|opus|Fable)' "$root/$rel" || true)"
 [ -n "$model" ] || die "$rel has no 'Model: haiku|sonnet|opus|Fable, effort low|medium|high (reason)' line"
 case "$model" in
-  *opus*|*Fable*) printf '%s' "$model" | grep -qE 'because .{12,}' || die "an opus lane needs 'because <reason>' in its Model line (rules.md 5: opus only reviews and hard root causes)" ;;
+  "Model: opus"*|"Model: Fable"*) printf '%s' "$model" | grep -qE 'because .{12,}' || die "an opus lane needs 'because <reason>' in its Model line (rules.md 5: opus only reviews and hard root causes)" ;;
 esac
 # Waiting rule (friction 11-17 15:07, second time 11-18): a lane polls its gate in the same turn.
 grep -qE 'same turn|never end a turn to wait' "$root/$rel" || die "$rel lacks 'poll it in the same turn' or 'never end a turn to wait' (a worker that ends its turn to wait stalls)"
