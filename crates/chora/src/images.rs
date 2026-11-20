@@ -918,7 +918,9 @@ mod tests {
                 if !comm.starts_with("chora-images") {
                     return false;
                 }
-                let status = std::fs::read_to_string(dir.join("status")).unwrap();
+                let Ok(status) = std::fs::read_to_string(dir.join("status")) else {
+                    return false;
+                };
                 let line = status.lines().find(|l| l.starts_with("SigBlk")).unwrap();
                 let mask = u64::from_str_radix(line.split(':').nth(1).unwrap().trim(), 16).unwrap();
                 mask & (1 << 9) != 0
