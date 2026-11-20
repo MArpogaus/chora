@@ -211,3 +211,21 @@ fn a_node_of_another_look_takes_the_focus_from_the_window() {
         "an own node is no loss"
     );
 }
+
+/// rw-5: an own node that the look does not track (the key list of
+/// tiling, no `to_node`) is no loss for `holder` either: it answers the
+/// window of the look, as `state` does.
+#[test]
+fn holder_and_state_agree_for_an_own_node_that_is_not_tracked() {
+    let mut tiling = Look::new("tiling", &["t1"]);
+    tiling.focus.sent(Some("t1".into()));
+    tiling.focus.hear(&changed(Some("t1")));
+    tiling
+        .focus
+        .hear(&node_event(Some("tiling-keys"), Some("tiling")));
+    assert_eq!(tiling.state(), holds("tiling", Some("t1")));
+    assert_eq!(
+        tiling.focus.holder(|s| tiling.book.has(s)),
+        Holder::Window("t1".into())
+    );
+}
