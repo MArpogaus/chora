@@ -21,7 +21,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane and nested; gate-construct-k2a.sh, -3d.sh and -windows.sh stay out of the gate until their findings (co-27, co-28 in findings/construct.md) are fixed. `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested and k2a; gate-construct-3d.sh and -windows.sh stay out of the gate until their findings (co-28, co-30 in findings/construct.md) are fixed. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
 # a committer other than the identity in `expected_identity` below (a lane hook has
@@ -240,7 +240,7 @@ cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
 placed|BIN=$repo/target/debug tests/gate-construct-placed.sh
 construct-hud|BIN=$repo/target/debug tests/gate-construct-hud.sh
-construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh
+construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh
 out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh

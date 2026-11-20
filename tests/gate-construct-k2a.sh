@@ -13,8 +13,6 @@
 #    A fly-in gives the keyboard to the pane's window through its owner
 #    (D31), and typed text arrives. construct.leave gives the output
 #    back: the space is gone, and the cameras are as before.
-#
-# Known red, not in merge-gate.sh: the load of an overlay construct makes no pane of its own program window (line 179, finding co-27 in findings/construct.md).
 # Usage: tests/gate-construct-k2a.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as construct-k2a-*.png
 set -u
