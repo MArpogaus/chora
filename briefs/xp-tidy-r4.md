@@ -1,0 +1,11 @@
+# xp-tidy r4 (RC 2, xp; F6 merge gate): the tiling-power gate reads the screenshot notice from chora-notify
+
+Model: sonnet, effort medium (a one-line gate expectation after a reviewed order change)
+Lane: cloud, claude/xp-tidy at efe85512 (review MERGE-OK, r3 lint fix). Cost at most 0.3 %; stop at 120 k context.
+Why: train 93 (21:58 UTC) failed only on tiling-look: tests/gate-tiling-power.sh:99 `grep -q '^notify.*Screenshot saved' "$marks" || fail "Super+Print showed no notice"`. a4010f03 sends the screenshot notice to chora-notify first (choractl notify.show, 6 s) and notify-send only as fallback; the gate fakes notify-send in "$marks", so it no longer sees the notice. The product change is right (reviewed); the gate is stale.
+Step 0 (no setup script): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`; a failure: send_message the PM "xp-tidy r4 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Red: on efe85512 run `bash tests/gate-tiling-power.sh` (or the tiling-look cell) and record the FAIL line.
+2) Fix: line 99 checks the chora-notify notice the way tests/gate-tiling-notice.sh:49 does (`shown_notices | grep -q "Screenshot saved.*$(basename "$file")"`, polled, not a bare sleep); keep a check that the fallback notify-send path still works when choractl fails, if the gate can fake that cheaply, else leave it to tests/screenshot-notice.sh. Grep every other gate for a notify-send fake that expects the screenshot notice; fix the same way. No product change.
+3) Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,gate-lib,build,test,xp,tiling-look,tiling-audit,hud,launcher-click`. Poll in the same turn; never end a turn to wait.
+Report: append "## r4" to reports/xp-tidy.md on claude/session-log (shas, gate cells); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/xp-tidy and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.

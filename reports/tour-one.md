@@ -62,3 +62,36 @@ Checks: `cargo check` and `cargo build --workspace` ok; `python3 -I tests/test_t
 - rt-7, nit, demo/tour/probe.py:1, demo/tour/ip.py:1: two stand-alone exploration scripts outside the brief's set; `probe.py` runs at import and repeats the xp launch (without the F-1 config); the row files keep the `rows-ch1..5.json` names (assemble.py:14-19, run.py:24-28). Fix: delete `ip.py`, move `probe.py` to `tools/` or into the xp chapter's check, rename the row files to the chapter names.
 
 Counts: BLOCK 0, MAJOR 2, MINOR 4, nit 1 (7 findings).
+
+## r2 (tour-one r2, claude/tour-one c7bac047, 2026-11-20)
+
+Commits on 8b996cee: red `0af4658a` (tests only; 8 failures and 2 errors on 8b996cee), green `64672014` (rt-1 to rt-7), `354cabf0` and `c7bac047` (two findings of the check runs, below). Step 0: `git fetch --unshallow`, `cargo check --workspace` ok.
+
+**Per finding**
+- rt-1: a row without `expect` is `inv`, `green` only when an `expect` held; `run.py` tally counts `inv` apart. Tests `test_row_without_expect_is_inv_not_green`, `test_inv_row_with_broken_invariant_is_red`.
+- rt-2: `launch.notify_config()` (600 s) is the default `chora-notify.yaml` of every `Launcher.start`; xp no longer carries its own copy; chora-notify is untouched (notify on the scene clock: backlog). RECORD run of xp and mc (`run.py xp mc`, 0 red): the stills `01-02b-no-editor`, `03-04-timer-light`, `03-08-alarm-light` show the card (xp notice bottom right, mc timer and "Spaghetti is ready" over the column). The critical note is white, not red as the act says (product, backlog). Test `test_notify_config_is_one_helper`.
+- rt-3: `Tour.quiet_snapshot` reads until no look says `busy` (20 s at most). The mc dark "Escape closes the chat" act was green in both full `--check` runs ("drop known" printed twice), so its `known` is dropped (`c7bac047`). Test `test_read_waits_for_busy_empty`.
+- rt-4: `known="I4: why"` hides only red lines of that invariant (`expect` for a mismatch of the expect), another red stays `RED`, a known act that turns green prints `known act N is green: drop known`; a `known` that names no invariant raises. Tests `test_known_hides_only_its_invariant`, `test_known_keeps_its_own_red_known`, `test_known_and_another_red_is_red`, `test_known_act_that_is_green_says_drop_known`, `test_known_must_name_an_invariant`.
+- rt-5: `construct.pane_and_face` raises `no pane` / `no face`; the C2 act has `Expect(verify=window_back_on_face)` on the owner of s1 and always runs. Test `test_missing_pane_raises`.
+- rt-6: the timeline has `contract`, `cells`, `capture`. Test `test_timeline_shows_contract_cells_capture`.
+- rt-7: `ip.py` deleted; `probe.py` is `tools/tour-probe.py` (a `main()`, no run at import); row files are `rows-xp|tiling|mc-light|mc-dark|construct|handover.json`; README updated.
+
+**Two more findings, from the first `--check` runs after the fix** (not in review r1):
+- With the card held 600 s (rt-2) it overprinted the Power glyph in mc acts 7, 8, 10, 11 (I5, new reds). Fix `354cabf0`: `Session.dismiss_notices()` (state.get, notify.close) after the xp notice act and after the mc "answer" act, where a person would have let the card go. The three known rows of the card (m3 to m5) stay.
+- I14 "choractl disconnected" hit a different tiling act each run (2 reds, then 1, then 0): the script's own `choractl` calls are not clients of the product; `Checker.judge` drops `choractl` from the client sets. Test `test_the_tours_own_choractl_is_not_a_disconnect`. Red-first was not kept for these two (found on the check runs; the tests came with the fix in the same commit).
+
+**`demo/tour/run.py --check`, all five chapters, twice** (commit `354cabf0` code; both runs print the same; 0 red, 0 broken)
+
+| chapter | green | inv | known | red | todo |
+|---|---|---|---|---|---|
+| xp | 2 | 18 | 1 | 0 | 0 |
+| tiling | 0 | 21 | 0 | 0 | 0 |
+| mc | 0 | 15 | 3 | 0 | 0 |
+| construct | 1 | 17 | 0 | 0 | 0 |
+| handover | 1 | 8 | 2 | 0 | 1 |
+
+`known` in mc (m3, m4, m5) and handover (h1, h2) are I5 and I3 rows of the product; xp's is I4 (Super release). After `c7bac047` (one `known` less in mc) mc was run twice more alone and once in the RECORD run: 0 green, 15 inv, 3 known, 0 red each time; the other four chapters did not change code after the two full runs. Before the fix, runs showed tiling 2 red, mc 4 red (above).
+
+`green` is 4 acts of 90 (xp 2, construct 1, handover 1): the rest are `inv`. Giving the 86 `inv` acts an `expect` is the next slice; this round only makes the number honest.
+
+**Gate** `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,gate-lib,build,test,acts` on c7bac047: all six PASS (acts includes `tests/test_tour.py`, 20 tests ok). No other cell imports demo/tour. Pushed: claude/tour-one only.
