@@ -154,6 +154,7 @@ impl Construct {
             give: None,
             query: String::new(),
             hovered: None,
+            opened: std::time::Instant::now(),
         });
         self.draw_list(true)
     }

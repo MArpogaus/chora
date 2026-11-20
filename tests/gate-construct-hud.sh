@@ -19,9 +19,6 @@
 # Then Super+F1 shows the help panel with the bindings; settings.set of the
 # modifier changes it at once, and help.toggle hides it.
 #
-# The pointer move before the last Tab (line 140) stays: without it Tab opens no
-# list after a flight in and out at 1280x720@1.5 (2 of 2 runs, finding co-29
-# in findings/construct.md, backlog DB10).
 # Usage: tests/gate-construct-hud.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as
 #          construct-hud-THEME-SIZE-CASE.png
@@ -125,7 +122,7 @@ round() {
     key Alt+Escape
     until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(not (c[\"z\"] == 0.0 and c[\"x\"] == 0.0))"' ||
         fail "$tag: no flight back out of the black pane"
-    ok "$tag: a flight in and out, which Tab needs after the press and a new window (kit7-a2, known red in the acts)"
+    ok "$tag: a flight in and out, which Tab needs after the press and a new window"
 
     foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
     pids+=($!)
