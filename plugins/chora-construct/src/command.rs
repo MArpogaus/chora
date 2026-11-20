@@ -889,4 +889,62 @@ mod tests {
             );
         }
     }
+
+    /// co-pane r2 (rv-4): only the key sheet has a Close that a press hits;
+    /// the footer of the window list has no node that nothing handles.
+    #[test]
+    fn only_the_key_sheet_makes_the_close_a_hit() {
+        let config: crate::config::Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
+            metrics: &metrics,
+        };
+        let close = || (vec!["Esc".to_owned()], "Close".to_owned());
+        let hits = |commands: &[Command]| {
+            commands
+                .iter()
+                .filter_map(|c| match c {
+                    Command::Create { id, .. } if id.contains("-foot-") && id.ends_with("-hit") => {
+                        Some(id.clone())
+                    }
+                    _ => None,
+                })
+                .count()
+        };
+        let sheet = HelpModel {
+            groups: &[],
+            query: "",
+            sel: 0,
+            scope: String::new(),
+            placeholder: String::new(),
+            every_look: String::new(),
+            or: String::new(),
+            note: String::new(),
+            footer: vec![close()],
+        };
+        let sheet = help(&look, &sheet, ("help", "root"), [1280.0, 720.0]);
+        assert_eq!(hits(&sheet), 1, "the key sheet has a Close to press");
+        let model = ListModel {
+            rows: &[],
+            sel: 0,
+            hovered: None,
+            query: "",
+            count: String::new(),
+            placeholder: String::new(),
+            footer: [close(), close(), close()],
+            thumb_shader: None,
+        };
+        let windows = list(&look, &model, "root", [1280.0, 720.0]);
+        assert_eq!(
+            hits(&windows),
+            0,
+            "the window list has no hit nothing handles"
+        );
+    }
 }
