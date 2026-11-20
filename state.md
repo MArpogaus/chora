@@ -29,7 +29,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | (free; Queue 5 LINT-DOWN r3 after t85) | - | - |
 | debt-f4-r1.md (F4 workarounds, hygiene; Queue 5) | sonnet high | session_016iS3kNYwtxZaiim9JXJjzh |
-| review-co-p2-fix-r2.md (RC bar, Queue 5; r2 ab4cbb4f) | sonnet high | starting |
+| review-co-p2-fix-r2.md (RC bar, Queue 5; r2 ab4cbb4f) | sonnet high | session_016iS3kMDMe9WtGxrrgRXPq9 |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t82c (launcher-click 741d6bca) running 03:46. t83: p2-harness 5dbd0ccf. t83b: voice-v12 ed4c7bf9 (harness). t84: xp-fix a767790d (harness). t85: stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f.
