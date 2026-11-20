@@ -59,7 +59,8 @@
 # so N=3 on 4 CPUs keeps their times. red-first to clippy and 2d-guard (a
 # cold cargo build of its base) run one at a time. A line is printed when
 # a step ends; after a failed step no further step starts and the running
-# ones are stopped.
+# ones are stopped: each step runs in its own process group, and the gate ends
+# the whole group of each running step on exit (TERM, KILL after 5 s) and waits.
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
 #                            [--base REF] [--jobs N] [--allow-skip STEP,...] [--red-first-check]
@@ -373,10 +374,24 @@ declare -A running=()
 declare -A started=()
 skipped_steps=()
 skipped_reasons=()
+group_alive() {
+    kill -0 -- "-$1" 2>/dev/null
+}
 stop_children() {
-    local pid
+    local pid tries alive
     for pid in "${!running[@]}"; do
-        kill "$pid" 2>/dev/null
+        kill -TERM -- "-$pid" 2>/dev/null
+    done
+    for ((tries = 0; tries < 50; tries++)); do
+        alive=0
+        for pid in "${!running[@]}"; do
+            ! group_alive "$pid" || alive=1
+        done
+        [ "$alive" = 1 ] || break
+        sleep 0.1
+    done
+    for pid in "${!running[@]}"; do
+        ! group_alive "$pid" || kill -KILL -- "-$pid" 2>/dev/null
     done
     for pid in "${!running[@]}"; do
         wait "$pid" 2>/dev/null
@@ -401,7 +416,7 @@ log_failed() {
 
 start_step() {
     local log=$run_dir/${step_names[$1]}.log
-    (cd "$repo" && exec bash -c "${step_commands[$1]}") >"$log" 2>&1 &
+    (cd "$repo" && exec setsid bash -c "${step_commands[$1]}") >"$log" 2>&1 &
     running[$!]=$1
     started[$!]=$SECONDS
 }
