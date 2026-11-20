@@ -66,7 +66,8 @@ def main():
         word = "red" if key in verdict.red else "pass" if key in verdict.passed else "FAIL"
         print(f"cell {key[0]} {key[1]} {word}")
         if word == "red":
-            print(f"  red: {results[key][0][:300]}")
+            for line in results[key]:
+                print(f"  red: {line[:400]}")
     blocking += verdict.blocking
     if blocking:
         print(f"acts: evidence kept in {runs}")

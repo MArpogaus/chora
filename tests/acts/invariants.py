@@ -236,8 +236,8 @@ MARGIN = 32
 SEAM = 1.0
 HELD_SLACK = 0.5
 LEAST_PX = 14
-STATE_WORD = re.compile(r"state")
-KEY_LINE = re.compile(r"(?:^|[-_])(?:key|keycap|button|btn)(?:[-_]|$)")
+STATE_WORD = re.compile(r"-state$")
+KEY_LINE = re.compile(r"(?:^|[-_])(?:keys?|keycap|button|btn|mode)(?:[-_]|$)|-k$")
 READ = 4.5
 READ_KEY = 7.0
 LEADING = 0.25
@@ -250,7 +250,7 @@ RAW = [
     ),
     (re.compile(r"(?:^|\s)/(?:usr/)?(?:local/)?s?bin/\S+"), "the path of a binary"),
 ]
-WORDS = re.compile(r"\b(?:agents?|HUD)\b", re.I)
+WORDS = re.compile(r"(?<![A-Za-z])(?:agents?|HUDs?)(?![A-Za-z])", re.I)
 FACE = re.compile(r"-cube-face-(\d+)$")
 
 
@@ -493,20 +493,25 @@ def guide_breaches(snap):
     contrast = tool("png-contrast")
     for output, items in sorted(screen_texts(snap).items()):
         scale, rows = snap.shots.get(output) or (None, None)
+        if rows is None and items:
+            out.append(f"no capture of {output}: the contrast of its text cannot be measured")
         for _i, label, words, rect in items:
             px = sizes.get((label, words))
-            if px is not None and px < LEAST_PX and not STATE_WORD.search(label):
+            if px is None:
+                out.append(f"on {output} {words!r} ({label}) has no font size, the guide wants {LEAST_PX} px")
+            elif px < LEAST_PX and not STATE_WORD.search(label):
                 out.append(f"on {output} {words!r} ({label}) is {px:g} px, the guide wants {LEAST_PX} px")
-            if rows is None or rect[2] < 1 or rect[3] < 1:
+            if rows is None:
                 continue
             x, y = max(int(rect[0] * scale), 0), max(int(rect[1] * scale), 0)
             w = min(int((rect[0] + rect[2]) * scale), len(rows[0]) // 4) - x
             h = min(int((rect[1] + rect[3]) * scale), len(rows)) - y
             if w < 2 or h < 2:
+                out.append(f"on {output} {words!r} ({label}) box {rect} cannot be measured on the capture")
                 continue
             ratio, back, fore = contrast.contrast_rows(rows, x, y, w, h)
             want = READ_KEY if KEY_LINE.search(label) else READ
-            if back != fore and ratio < want:
+            if ratio < want:
                 out.append(
                     f"on {output} {words!r} ({label}) has the contrast {ratio:.2f}:1 "
                     f"({fore} on {back}), the guide wants {want:g}:1"
@@ -606,11 +611,12 @@ def i10(_before, after, _act):
             ]
             if found := WORDS.search(text):
                 out.append(f"on {output} {label} says {found.group(0)!r}, a word of the builders: {text!r}")
-            if text.strip() in caps:
-                out.append(
-                    f"on {output} {label} spells the key {text!r}, the word table says "
-                    f"{caps[text.strip()]!r}"
-                )
+            if KEY_LINE.search(label):
+                out += [
+                    f"on {output} {label} spells the key {name!r}, the word table says {cap!r}: {text!r}"
+                    for name, cap in caps.items()
+                    if re.search(rf"(?<![A-Za-z]){re.escape(name)}(?![A-Za-z])", text)
+                ]
     return out
 
 

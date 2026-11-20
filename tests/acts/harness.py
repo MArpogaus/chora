@@ -253,11 +253,21 @@ def known_red(path=KNOWN_RED):
         return tomllib.load(f).get("red", [])
 
 
+def row_covers(row, breach):
+    """Whether a row names the breach: its `act` and `capture` (the label
+    of a node, in brackets) and `match` all occur in the breach text."""
+    return (
+        (not row.get("act") or breach.startswith(f"in act {row['act']!r}: "))
+        and (not row.get("capture") or f"({row['capture']})" in breach)
+        and row.get("match", "") in breach
+    )
+
+
 def judge(results, rows, full=False):
     """Hold the results, {(look, id): [breach, ...]}, against the rows.
 
-    A row needs `look`, `id`, `finding` and `slice`; an optional `match`
-    must occur in every breach text of the cell. With `full`, a row
+    A row needs `look`, `id`, `finding` and `slice`; an optional `act`, `capture` and `match`
+    name a breach; each breach of the cell needs a row that covers it. With `full`, a row
     that did not run blocks too: the list names only what runs.
     """
     listed = {}
@@ -265,20 +275,20 @@ def judge(results, rows, full=False):
         missing = [k for k in ("look", "id", "finding", "slice") if not row.get(k)]
         if missing:
             raise ValueError(f"known-red row {row} lacks {', '.join(missing)}")
-        listed[(row["look"], row["id"])] = row
+        listed.setdefault((row["look"], row["id"]), []).append(row)
     blocking, red, passed = [], [], []
     for key, breaches in sorted(results.items()):
-        row = listed.get(key)
-        if row and breaches and row.get("match"):
-            row = row if all(row["match"] in b for b in breaches) else None
-        if breaches and row:
+        cell = listed.get(key, [])
+        unmatched = [b for b in breaches if not any(row_covers(r, b) for r in cell)]
+        stale = [r for r in cell if not any(row_covers(r, b) for b in breaches)]
+        if breaches and cell and not unmatched and not stale:
             red.append(key)
-        elif breaches:
-            blocking.append(f"FAIL: {key[0]} {key[1]}: {breaches[0]}")
-        elif row:
+        elif unmatched or (breaches and not cell):
+            blocking.append(f"FAIL: {key[0]} {key[1]}: {(unmatched or breaches)[0]}")
+        elif stale:
             blocking.append(
                 f"FAIL: {key[0]} {key[1]} passes but is listed in known-red.toml "
-                f"({row['finding']}); remove the row"
+                f"({stale[0]['finding']}); remove the row"
             )
         else:
             passed.append(key)
@@ -727,19 +737,24 @@ class Session:
         return after
 
     def record(self, look, key, breaches, act, before=None, after=None):
-        """Keep the first breaches of a cell, with the act, a still and the diff."""
+        """Keep the breaches of a cell, each once at the act that first shows it, with the act, a still and the diff."""
         cell = self.results.setdefault((look, key), [])
-        if not breaches or cell:
+        if not breaches:
             return
         evidence = self.runs / f"{look}-{key.replace(':', '-').replace(' ', '_')}"
+        fresh = not cell
         evidence.mkdir(parents=True, exist_ok=True)
-        if before and after:
+        if fresh and before and after:
             diff = {"before": before.states, "after": after.states}
             (evidence / "states.json").write_text(json.dumps(diff, indent=1))
         with contextlib.suppress(RuntimeError, OSError, KeyError):
-            _, png = self.capture(self.outputs()[0]["name"], 1280)
-            (evidence / "still.png").write_bytes(png)
-        cell += [f"in act {act!r}: {b} (evidence {evidence})" for b in breaches]
+            if fresh:
+                _, png = self.capture(self.outputs()[0]["name"], 1280)
+                (evidence / "still.png").write_bytes(png)
+        seen = {c.split(": ", 1)[1].rsplit(" (evidence", 1)[0] for c in cell}
+        cell += [
+            f"in act {act!r}: {b} (evidence {evidence})" for b in dict.fromkeys(breaches) if b not in seen
+        ]
 
 
 def key(keys):

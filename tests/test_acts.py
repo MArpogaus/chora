@@ -384,8 +384,8 @@ class KnownRed(unittest.TestCase):
 
     def test_one_row_per_fault_of_a_cell(self):
         rows = [
-            dict(self.rows[0], match="in act 'a': on O 'One' (l1)"),
-            dict(self.rows[0], match="in act 'b': on O 'Two' (l2)"),
+            dict(self.rows[0], act="a", capture="l1"),
+            dict(self.rows[0], act="b", capture="l2"),
         ]
         one = "in act 'a': on O 'One' (l1) is small"
         two = "in act 'b': on O 'Two' (l2) is small"
@@ -408,7 +408,7 @@ class KnownRed(unittest.TestCase):
         for row in harness.known_red():
             if row["finding"].startswith("guide-checks"):
                 with self.subTest(finding=row["finding"]):
-                    self.assertRegex(row.get("match", ""), r"^in act '[^']+': on \S+ .*\(\S+\)")
+                    self.assertTrue(row.get("act") and (row.get("capture") or row.get("match")), row)
 
     def test_the_list_parses(self):
         rows = harness.known_red()
@@ -615,8 +615,9 @@ class I5(unittest.TestCase):
 class I6(unittest.TestCase):
     def test_sound(self):
         nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
-        states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14)))
-        self.assertEqual(breaches("I6", snap(), snap(states=states, nodes=nodes)), [])
+        states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14), px=16))
+        after = snap(states=states, nodes=nodes, shots=shot(at=(100, 104, 70, 10)))
+        self.assertEqual(breaches("I6", snap(), after), [])
 
     def test_a_run_leaves_its_picture(self):
         nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
@@ -1326,7 +1327,8 @@ class GuideContrast(unittest.TestCase):
     """I6: contrast 4.5:1 for text, 7:1 for a key line and buttons."""
 
     def after(self, ink, label="mc-line", back=(255, 255, 255)):
-        nodes = snap().nodes + [text_node(label, "Next step", (100, 100, 80, 20))]
+        node = text_node(label, "Next step", (100, 100, 80, 20)) | {"font_size": 16}
+        nodes = snap().nodes + [node]
         return snap(nodes=nodes, shots=shot(back=back, ink=ink, at=(100, 104, 70, 10)))
 
     def test_black_on_white_passes(self):
