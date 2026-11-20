@@ -24,7 +24,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ |
-| xp-36-r1.md (RC bar honest failure: Run... silent on launcher fail; xp MAJOR) | sonnet medium | starting |
+| xp-36-r1.md (RC bar honest failure: Run... silent on launcher fail; xp MAJOR) | sonnet medium | session_016iS3kLTuyjo2azqRJL1sKy |
 
 ## Queue (% week; 5 % reserve)
 4. Trains: t86 running: harness-l 75dfa4b9; t87 next: mc-fix cb2b80f1 (r2 merge, PM review MERGE-OK 09:15), co-r4 42c9304b (contains co-majors-r3; merge-gate.sh comment conflict, PM joins both), xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1; fuzzel 1.11.1 PATH.
