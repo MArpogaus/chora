@@ -94,6 +94,22 @@ def dump(snap):
     return json.dumps(dataclasses.asdict(snap), default=sorted)
 
 
+MANAGER = "xp"
+
+
+def read_states(s):
+    """The states of the looks of the session. In a construct session the
+    xp that a face starts is a client of its own and owns the windows of its
+    face: the construct lists such a window as a view of xp and the core
+    focuses it for xp, so I1 and I3 hold for it only with the state of xp
+    read beside the construct's (round p2r2: I1 x23, I3 x21 on demo)."""
+    states = s.states()
+    if s.label == "construct" and MANAGER in s.clients() and MANAGER not in states:
+        if (child := s.state(MANAGER)) is not None:
+            states[MANAGER] = child
+    return states
+
+
 class Run:
     """The files of the run in $PERSONA_DIR and the connection to the session."""
 
@@ -107,7 +123,7 @@ class Run:
     def snapshot(self, marks=None):
         """A snapshot once quiet; the logs since `marks` (path: size)."""
         self.s.log_marks = {pathlib.Path(k): v for k, v in (marks or {}).items()}
-        return self.s.snapshot(wait_quiet(self.s.states, QUIET), self.s.watch.drain())
+        return self.s.snapshot(wait_quiet(lambda: read_states(self.s), QUIET), self.s.watch.drain())
 
     def marks(self):
         """The end of every log now."""
