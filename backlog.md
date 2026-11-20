@@ -289,7 +289,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - H-pane-overlap (co-majors review r1 FIX 00:40): earliest gate gate-construct-pull (no pane-pane check, mirror x only); fixed in co-majors r2 item 1. 0 %.
 - FLAKE-H MINOR-1 (11-20): helper-door click count in the doors cell; a count above 1 means a lost first click, then a product check (input inject under load).
 - FLAKE candidate (11-20 review mc-answer): tiling-look ink-1280x800 failed once at 12 s under --jobs 3 (tag colour 1 1 1 255), PASS alone.
-- FLAKE (t82b 11-20 03:35, --jobs 3): tiling-look ink-2560x1600@2 "the focus border starts in 0 0 0 255, not the accent"; PASS alone 03:46 (633 s). Second tiling-look ink hit this day (with the line above); F23 family (effects dropped under load?). Next flakes round: a wait for the first drawn border, not a retry.
+- FLAKE (t82b 11-20 03:35, --jobs 3): tiling-look ink-2560x1600@2 "the focus border starts in 0 0 0 255, not the accent"; PASS alone 03:46 (633 s). Second tiling-look ink hit this day (with the line above); F23 family (effects dropped under load?). Next flakes round: a wait for the first drawn border, not a retry. Third hit t84 06:10 (--jobs 2, same line): t84 folded into t85, one full run.
 - XP-MAJORS review r1 MINOR rv-1..4 (11-20): question-card gate asserts no placement or font; paperclip gate asserts no art; popup guarded at 1280x800 only, no outside-click or key-leak act; stepped list for volume. Next xp round.
 - CO-P2-FIX r1 (11-20): xp opens Start on a construct-swallowed Super chord (pre-existing); a face manager (xp) must swallow unbound Super chords for its own windows on a cube face (co-26 face part), kit helper from co-p2-fix r2. Next xp round.
 - MC-ANSWER MINOR-1 (review r2): card.size message printed per notification in Card::new; log it once when values.yaml loads.
@@ -308,3 +308,6 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FJ-R1 MINOR (flakes-j rv-1): images.rs churn test: 4 threads 5 s in cargo test; cut to 1 s.
 - FJ-R2 MINOR (flakes-j rv-3): tiling, mc, construct doors press Escape before the chat field holds the keyboard (xp fixed 6192f696).
 - CM-R1 (core-minors rv-1, rw-2 option a): api.md Window managers resume: kept nodes stay shown during the grace; pinning test in ipc.rs. MINOR, core, sonnet, 0.2 %.
+- P2-CHECK (11-20 06:00, p2-r2-mc): check.py gaps: M1 compares start with end (needs any page change during the task); T6 must accept "Nothing found"; T1 and T4 read `open` after the persona's own key list; the wpctl stand-in always answers 0.50. Into the mc round 3 lane. 0.2 %.
+- AGENDA-OPEN (idea, post-RC; PM M2 ruling 11-20): an agenda row opens its source (panel.set with an action per line).
+- TI-XDG (MINOR, tiling; PM 11-20 06:20): black-pane 91e6a114 made wallpaper.sh and waybar.sh refuse to run without XDG_RUNTIME_DIR ("every run would use a directory of its own and never find the pid of an earlier panel"); the merged selftest (29b5611b) wants a mktemp fallback. Train 85b keeps the fallback. Decide one rule (refuse with a clear message vs fallback) in the next tiling round, test first.

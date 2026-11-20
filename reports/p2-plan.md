@@ -139,3 +139,6 @@ opus vision on frames (only in the new tour).
 
 ## PM review r1 (2026-11-19 22:45 UTC)
 Accepted as the P2 plan. Checks: 138 lines (<= 150); every task names a contract and a scripted twin; lanes 24.2 % <= 25 %; stop rule and P2-met line present; voice out of scope named. The systemctl stand-in (item 2) is a safety fix: a persona click must never suspend a host. PW starts now (slot free, test code only, budget underspent), TRI when a slot frees.
+
+## PM ruling 11-20 06:00 UTC: M2
+An agenda row is display content of panel.set with no action behind it; it does not open in this RC. M2 leaves the plan for mc (cook keeps M1, T2, T4; nurse keeps T6, T7). Backlog AGENDA-OPEN (post-RC). mc round 3 after mc-47, mc-48, mc-49 are routed (mc-fix-r1).
