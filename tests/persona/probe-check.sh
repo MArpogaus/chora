@@ -40,6 +40,7 @@ ctl() {
 
 probe_out=$("$round" probe probe-check 2>&1) || fail "round.sh probe failed: $probe_out"
 report=$(sed -n 's/^PROBE_REPORT=//p' <<<"$probe_out")
+[[ $probe_out == "PROBE_REPORT=$ROUND_DIR/run/probe-check.probe" ]] || fail "round.sh probe printed more than the report path: $probe_out"
 [[ -n $report ]] || fail "round.sh probe printed no PROBE_REPORT"
 ctl wait 'kind:surface' --timeout 10 >/dev/null 2>&1 || fail "no window in the scene after round.sh probe"
 ctl query 'kind:surface' | jq -e 'any(.[]; .surface.app_id == "chora-probe")' >/dev/null || fail "no chora-probe window in the scene"

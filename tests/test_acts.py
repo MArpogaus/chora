@@ -1030,6 +1030,11 @@ class PersonaContracts(unittest.TestCase):
         ]
         self.assertEqual(check.parse_chords(actions), [57])
 
+    def test_t5_the_chords_of_the_persona_briefs_have_codes(self):
+        combos = ["Super+d", "Super+q", "Super+Tab", "Super+Shift+Escape", "Super+t", "Super+c"]
+        actions = [{"action": "key", "args": {"combo": c}} for c in combos]
+        self.assertEqual(check.parse_chords(actions), [32, 16, 15, 1, 20, 46])
+
     def test_t6_a_notice_or_no_helper(self):
         say = snap(nodes=[surface("s1", "xp"), {"id": "t", "kind": "text", "text": "No helper"}])
         self.assertEqual(verdict("T6", ctx(), snap(), say), [])
