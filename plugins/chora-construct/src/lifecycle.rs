@@ -373,7 +373,9 @@ mod tests {
 
     /// co-29: the window list opens under a pointer that stood still, so a
     /// row is hovered at once and the list is drawn again within its fade;
-    /// the redraw must not leave the list half faded.
+    /// the redraw carries on the fade for the time left. The list opened
+    /// 60 ms ago, so the carried fade ends within 110 ms, where neither the
+    /// stopped fade nor a fresh `FADE_IN` of 160 ms has reached 1 (rv-1).
     #[test]
     fn a_row_hovered_while_the_list_fades_in_leaves_it_fully_opaque() {
         let core = FakeCore::start();
@@ -381,7 +383,10 @@ mod tests {
         surface(&core.model(), "s1");
         construct.event(created("s1", None)).unwrap();
         construct.open_list().unwrap();
-        core.model().lock().unwrap().scene.advance(40.0);
+        let back = std::time::Duration::from_millis(60);
+        let list = construct.list.as_mut().unwrap();
+        list.opened = list.opened.checked_sub(back).unwrap();
+        core.model().lock().unwrap().scene.advance(60.0);
         construct
             .event(Event::PointerEntered {
                 node: format!("{}0", crate::command::LIST_ROW),
@@ -391,11 +396,11 @@ mod tests {
             .unwrap();
         let model = core.model();
         let mut model = model.lock().unwrap();
-        model.scene.advance(1000.0);
+        model.scene.advance(110.0);
         let opacity = model.scene.node(crate::hud::LIST).unwrap().props.opacity;
         assert!(
             (opacity - 1.0).abs() < f64::EPSILON,
-            "the list fades in to the end: {opacity}"
+            "the list fades in for the time left, not anew: {opacity}"
         );
     }
 
