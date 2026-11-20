@@ -323,7 +323,7 @@ fn cube_manager() -> String {
 fn managers() -> std::collections::BTreeMap<String, String> {
     [
         ("xp", "chora-xp"),
-        ("tiling", "chora-tiling"),
+        ("tiling", "chora-tiling --with-companions"),
         ("mc", "chora-mc --manage-windows"),
     ]
     .map(|(name, command)| (name.to_owned(), command.to_owned()))

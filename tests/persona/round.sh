@@ -8,6 +8,13 @@
 #                                   waits for a free slot, starts the session
 #                                   and prints PERSONA_ENV=<file>; the checker
 #                                   has its first snapshot
+#        tests/persona/round.sh probe NAME
+#                                   starts a chora-probe window with
+#                                   --report in the session of NAME, on the
+#                                   socket name (WAYLAND_DISPLAY, not the
+#                                   path), fails when it does not stay up and
+#                                   prints PROBE_REPORT=<file> for
+#                                   check.py end --probe (T5)
 #        tests/persona/round.sh stop NAME
 #        tests/persona/round.sh smoke              each look: start, one action,
 #                                   check.py end T7, stop
@@ -68,9 +75,35 @@ start() {
     done
 }
 
+probe() {
+    local env_file session_dir socket report pid
+    env_file=$(cat "$dir/run/$name.env" 2>/dev/null) || { echo "no session $name" >&2; exit 1; }
+    session_dir=$(dirname "$env_file")
+    socket=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$session_dir/headless.out")
+    [[ -n $socket ]] || { echo "session $name has no WAYLAND_DISPLAY in headless.out" >&2; exit 1; }
+    socket=$(basename "$socket")
+    report=$dir/run/$name.probe
+    : >"$report"
+    # shellcheck disable=SC2016 # the inner shell expands its own $$ and arguments
+    WAYLAND_DISPLAY=$socket XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file") \
+        setsid bash -c 'echo $$ >"$1"; shift; exec "$@"' _ "$report.pid" \
+        "$dir/bin/chora-probe" window 200 200 200 --report >"$report" 2>"$report.err" </dev/null &
+    sleep 3
+    pid=$(cat "$report.pid" 2>/dev/null || true)
+    if [[ -z $pid ]] || ! kill -0 "$pid" 2>/dev/null; then
+        echo "the probe did not stay up (WAYLAND_DISPLAY=$socket): $(cat "$report.err" 2>/dev/null)" >&2
+        exit 1
+    fi
+    echo "PROBE_REPORT=$report"
+}
+
 stop() {
     local env_file
     env_file=$(cat "$dir/run/$name.env" 2>/dev/null) || { echo "no session $name" >&2; exit 1; }
+    if [[ -f $dir/run/$name.probe.pid ]]; then
+        kill "$(cat "$dir/run/$name.probe.pid")" 2>/dev/null || true
+        rm -f "$dir/run/$name.probe.pid"
+    fi
     "$repo/tests/persona/session.sh" --stop "$env_file" && echo "stopped $name"
 }
 
@@ -96,6 +129,7 @@ smoke() {
 case $cmd in
 snapshot) snapshot ;;
 start) [[ -n $name ]] && start "$@" ;;
+probe) [[ -n $name ]] && probe ;;
 stop) [[ -n $name ]] && stop ;;
 smoke) smoke ;;
 *) sed -n '2,/^set -u/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 2 ;;

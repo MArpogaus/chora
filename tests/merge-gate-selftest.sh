@@ -557,6 +557,11 @@ check "gate-lib: the step runs merge-gate-selftest.sh" \
 check "gate-lib: the step runs cells-for-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
 
+check "ci-check: the step runs before build in the step list" \
+    "$("$gate" --list | grep -nx -e ci-check -e build | head -1 | cut -d: -f2)" ci-check
+check "ci-check: tools/cut-check is the first command of the step" \
+    "$(grep '^ci-check|' "$gate" | cut -d'|' -f2 | grep -c '^tools/cut-check ')" 1
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1

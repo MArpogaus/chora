@@ -39,6 +39,22 @@ name = "notice"
 required-features = ["testing"]
 
 [[test]]
+name = "perform"
+required-features = ["testing"]
+
+[[test]]
+name = "conn"
+required-features = ["testing"]
+
+[[test]]
+name = "wm_give"
+required-features = ["testing"]
+
+[[test]]
+name = "wm_kept"
+required-features = ["testing"]
+
+[[test]]
 name = "wm_book"
 required-features = ["testing"]
 

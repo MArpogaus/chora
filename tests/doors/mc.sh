@@ -16,6 +16,10 @@
 # on which mc measures a text under a group of opacity 0, are no words
 # of the screen.
 #
+# The cells run on the page of a window that mc adopted (the probe window),
+# which shows its column as every page does and draws the key list beside
+# the window (mc-42, mc-43).
+#
 # Usage: tests/doors/mc.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
 #   SIZE  the size of the output (default 1280x800)
@@ -52,8 +56,7 @@ click_text() {
     # shellcheck disable=SC2086 # two words, X and Y
     click $at
 }
-key Super+n
-until_ok 'shows "Start a program or run a command"' 80 || fail "no column: $(texts | tr '\n' '|')"
+until_ok 'shows "Start a program or run a command"' 80 || fail "no column beside the window: $(texts | tr '\n' '|')"
 
 keys_open() { shows "Show overview"; }
 keys_close() {
@@ -171,8 +174,7 @@ cell_launcher_door() {
 cell_launcher_chat() {
     unmark
     key Super+space
-    marked "^data .*$repo/flavors/shared" &&
-        grep -qx 'Name=Chat with a helper' "$repo/flavors/shared/applications/chora-chat.desktop"
+    marked '^row Chat with a helper$'
 }
 cell_helper_key() {
     key Super+a

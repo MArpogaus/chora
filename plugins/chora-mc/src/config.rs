@@ -34,6 +34,9 @@ const MAX_DEPTH: usize = 8;
 pub enum Look {
     NextScene,
     PreviousScene,
+    /// One step back as Escape on a page; a window that holds the keyboard
+    /// leaves it to its page first.
+    Back,
     /// Shows a scene by its name.
     Scene(String),
     /// Shows or hides a region; a docked app takes the focus first.

@@ -193,7 +193,7 @@ impl Wm {
                 Step::Previous => -1,
             }),
             Look::Start => self.toggle_start(),
-            Look::Tap | Look::Cube => Vec::new(),
+            Look::Tap | Look::Cube | Look::Swallow => Vec::new(),
         }
     }
 

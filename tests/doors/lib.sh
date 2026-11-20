@@ -58,6 +58,11 @@
 #                   services/voice/tests/fake-acp.sh and the project demo;
 #                   with `none` it has no project, so no helper can exist.
 #                   voice_stop ends it
+#   late_field S    before doors_assistant: the host runs from a tree of its
+#                   own (links to the folders of the repository, a hard
+#                   link of the host) where its chora-chat starts S s
+#                   after the host asks for it, as a field does on a
+#                   loaded machine
 #   doors_assistant starts the HUD host chora-assistant
 #   helper_start    starts the helper `coder` for the project demo
 #   doors_window    shows a window that writes `key CODE` for each key it
@@ -151,8 +156,20 @@ voice_stop() {
     wait "$voice_pid" 2>/dev/null
     until_ok '! ctl call voice state >/dev/null 2>&1' 40
 }
+late_field() {
+    local tree=$fakes/late name
+    mkdir -p "$tree/target/debug"
+    for name in "$repo"/*; do
+        [ "${name##*/}" = target ] || ln -s "$name" "$tree/"
+    done
+    ln "$bin/chora-assistant" "$tree/target/debug/" 2>/dev/null ||
+        cp "$bin/chora-assistant" "$tree/target/debug/"
+    printf '#!/bin/sh\nsleep %s\nexec "%s" "$@"\n' "$1" "$bin/chora-chat" >"$tree/target/debug/chora-chat"
+    chmod +x "$tree/target/debug/chora-chat"
+    assistant_exe=$tree/target/debug/chora-assistant
+}
 doors_assistant() {
-    "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
+    "${assistant_exe:-$bin/chora-assistant}" >"$work/assistant.log" 2>&1 &
     pids+=($!)
     until_ok "ctl query owner:assistant | jq -e 'length > 0' >/dev/null" 80
 }

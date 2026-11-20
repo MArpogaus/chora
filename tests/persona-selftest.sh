@@ -70,7 +70,17 @@ grep -qx 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+' "$calls" || fail "wpctl did
 PATH=$session_path grim "$dir/shot.png"
 [ -e "$dir/shot.png" ] || fail "grim wrote no file"
 grep -qx "grim $dir/shot.png" "$calls" || fail "grim did not reach PERSONA_CALLS: $(cat "$calls")"
-ok "wpctl answers and logs, grim writes its file and logs"
+PATH=$session_path wpctl set-volume @DEFAULT_AUDIO_SINK@ 80%
+volume=$(PATH=$session_path wpctl get-volume @DEFAULT_AUDIO_SINK@)
+[ "$volume" = "Volume: 0.80" ] || fail "wpctl get-volume answered '$volume' after set-volume 80%, not the level that was set"
+PATH=$session_path wpctl set-mute @DEFAULT_AUDIO_SINK@ 1
+volume=$(PATH=$session_path wpctl get-volume @DEFAULT_AUDIO_SINK@)
+[ "$volume" = "Volume: 0.80 [MUTED]" ] || fail "wpctl get-volume answered '$volume' after set-mute 1"
+PATH=$session_path wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+PATH=$session_path wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+volume=$(PATH=$session_path wpctl get-volume @DEFAULT_AUDIO_SINK@)
+[ "$volume" = "Volume: 0.75" ] || fail "wpctl get-volume answered '$volume' after set-volume 5%-"
+ok "wpctl answers and logs, keeps the level and the mute, grim writes its file and logs"
 
 mapfile -d '' core_env <"/proc/$(env_value CHORA_CORE_PID)/environ"
 host_before=$(find "$HOME" -path '*Screenshots/*.png' 2>/dev/null | sort)
@@ -137,6 +147,13 @@ env "${core_env[@]}" sh "$shared/power.sh" lock || fail "power.sh lock failed"
 grep -Eq '^(swaylock|loginctl lock-session)' "$calls" || fail "power.sh lock left no mark in PERSONA_CALLS: $(cat "$calls")"
 ok "shared scripts installed under the session, lock leaves a mark"
 
+run_in_session swaylock -f
+until_ok "state | jq -e 'any(.windows[]; .title == \"Screen locked\")' >/dev/null" 40 ||
+    fail "swaylock draws no lock: $(state | jq -c '[.windows[].title]')"
+until_ok "state | jq -e 'any(.windows[]; .title == \"Screen locked\") | not' >/dev/null" 60 ||
+    fail "the lock of the stand-in stays: $(state | jq -c '[.windows[].title]')"
+ok "swaylock stand-in draws a visible lock and goes"
+
 found=$(PATH=$session_path command -v mousepad || true)
 case $found in
 "$dir"/fake/*) ;;
@@ -155,6 +172,11 @@ click_node "$notepad" || fail "no click on Notepad"
 until_ok "state | jq -e 'any(.windows[]; .title == \"Untitled - Notepad\")' >/dev/null" 40 ||
     fail "mousepad shows no window titled Untitled - Notepad: $(state | jq -c '[.windows[].title]')"
 ok "mousepad stand-in starts a window Untitled - Notepad"
+PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" type "a note for Erika" >/dev/null || fail "act.py type failed"
+PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" key Return >/dev/null || fail "act.py key failed"
+until_ok "grep -q 'a note for Erika' '$dir/notepad.txt'" 40 ||
+    fail "the Notepad stand-in took no typed text: $(cat "$dir/notepad.txt" 2>&1)"
+ok "mousepad stand-in takes the text that is typed"
 
 run_in_session persona-probe
 until_ok "state | jq -e 'any(.windows[]; .title == \"Probe window\")' >/dev/null" 40 ||
@@ -169,6 +191,14 @@ PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" drag "$tx" 
     fail "act.py drag failed"
 until_ok "[ \"\$(rect)\" != '$before' ]" 20 || fail "the probe window did not move: still $before"
 ok "the probe window has a title bar and a drag moves it ($before to $(rect))"
+body=$(state | jq -r --arg s "$surface" '.windows[] | select(.surface == $s) | .rect | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"')
+read -r bx by <<<"$body"
+PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" click "$bx" "$by" >/dev/null || fail "act.py click failed"
+report=$(env_value PERSONA_PROBE)
+[ -n "$report" ] || fail "session.env has no PERSONA_PROBE, the report of the probe window for T5"
+until_ok "grep -q '^press ' '$report'" 40 ||
+    fail "the report of the probe window shows no press after a click in it: $(cat "$report" 2>&1)"
+ok "the probe window reports its presses to PERSONA_PROBE"
 
 until_ok "[ \"\$(state | jq -r .helper)\" = idle ]" 40 || fail "the helper is $(state | jq -c .helper), not idle, before anything was said"
 admin call voice agent '{"tool": "agent_say", "name": "atlas", "text": "hello"}' >/dev/null ||

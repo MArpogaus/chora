@@ -473,7 +473,7 @@ impl Construct {
             }
         }
         self.grab_cube_keys();
-        if self.in_pane() {
+        if self.in_pane() && self.cube.is_none() {
             self.rt
                 .grab_swallowed(&self.settings.value.modifier, &Grab::Swallow)?;
         }

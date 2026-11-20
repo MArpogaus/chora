@@ -179,7 +179,8 @@ struct Probe {
     decoration_manager: Option<ZxdgDecorationManagerV1>,
     /// Kept alive so that the compositor keeps drawing the frame.
     decorations: Vec<ZxdgToplevelDecorationV1>,
-    /// Mode `window --report`: print the presses of buttons and keys.
+    /// Mode `window --report`: print the presses of buttons and keys, and
+    /// `enter` and `leave` when the keyboard comes and goes.
     report: bool,
     /// The last point of the pointer on the surface.
     pointer_at: (f64, f64),
@@ -1004,12 +1005,14 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Probe {
             wl_keyboard::Event::Enter { serial, .. } => {
                 probe.keyboard = true;
                 probe.enter_serial = serial;
-                if probe.clip.is_some() {
+                if probe.clip.is_some() || probe.report {
                     probe.enters += 1;
                     println!("enter");
                 }
             }
-            wl_keyboard::Event::Leave { .. } if probe.clip.is_some() => println!("leave"),
+            wl_keyboard::Event::Leave { .. } if probe.clip.is_some() || probe.report => {
+                println!("leave");
+            }
             wl_keyboard::Event::RepeatInfo { rate, delay } => probe.repeat = Some((rate, delay)),
             wl_keyboard::Event::Key {
                 key,

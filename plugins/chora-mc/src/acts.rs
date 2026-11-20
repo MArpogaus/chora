@@ -69,6 +69,7 @@ impl Mc {
         let next = match look {
             Look::NextScene => names[(at + 1) % names.len()].clone(),
             Look::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
+            Look::Back => return self.step_back(),
             Look::Scene(name) => name,
             Look::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {
@@ -97,6 +98,23 @@ impl Host for Mc {
     fn volume(&mut self, change: chora_kit::volume::Change) -> Result<(), Infallible> {
         self.volume.change(change, true);
         Ok(())
+    }
+
+    /// `fuzzel` is the Apps list of kit, which says "Nothing found" for
+    /// text that matches nothing; the real fuzzel closes without a word
+    /// (mc-44). Another command runs as it is.
+    fn run(&mut self, command: &str) -> Result<(), Infallible> {
+        let command = match command.trim() {
+            "fuzzel" => "chora-mc --launch fuzzel",
+            other => other,
+        };
+        let token = self.rt.conn.activation_token();
+        let started =
+            chora_kit::launch::start(&chora_kit::shared::launcher(command), token.as_deref());
+        match started {
+            Some(_) => Ok(()),
+            None => self.failed(Failure::NotStarted(command.to_owned())),
+        }
     }
 
     fn keys(&mut self) -> Result<(), Infallible> {

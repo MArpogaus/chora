@@ -25,6 +25,7 @@ mkdir -p "$HOME"
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
+late_field 2
 doors_assistant || fail "the HUD host does not start"
 helper_start || fail "no helper starts"
 doors_window
@@ -45,9 +46,16 @@ help_close() {
     until_ok '! help_open'
 }
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
+escapes() { grep -c '^key 1$' "$work/window"; }
+field_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = leave ]; }
 chat_close() {
+    local before
+    until_ok field_has_keyboard || { echo "note: the chat field never took the keyboard from the window" >&2; return 1; }
+    before=$(escapes)
     key Escape
-    until_ok '! chat_open'
+    until_ok '! chat_open' && return 0
+    echo "note: the chat stays open; Escapes that the probe window got meanwhile: $(($(escapes) - before))" >&2
+    return 1
 }
 menu_open() { has_text "Turn Off Computer"; }
 menu_close() {
@@ -187,6 +195,7 @@ cell_helper_door() {
         click_node "xp-helper-$output" || { echo "FAIL: helper-door: no helper node to click" >&2; return 1; }
         until_ok chat_open && break
     done
+    echo "note: helper-door clicks $clicks" >&2
     chat_open || { echo "FAIL: helper-door: three clicks opened no chat" >&2; return 1; }
     chat_close || { echo "FAIL: helper-door: the chat did not close" >&2; return 1; }
 }

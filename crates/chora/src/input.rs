@@ -2663,4 +2663,153 @@ mod tests {
             "the layer has the keyboard: the key place is where the pointer is"
         );
     }
+
+    /// sh-24: the keyboard is on a node of the manager on the screen, and
+    /// the manager of a face bound Alt+y. An injected Alt+y follows the
+    /// rule of a real one: the person is not on the face, so the key
+    /// reaches no client, neither the face nor the focused node.
+    #[test]
+    fn an_injected_key_follows_the_keyboard_place_as_a_real_one() {
+        let (mut core, _face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let field = json!([{"create": {"id": "field", "kind": "rect", "parent": "space",
+            "props": {"size": [10, 10], "color": [1, 1, 1, 1]}}}]);
+        apply(&mut space, &mut core, &field);
+        apply(&mut space, &mut core, &focus_node(Some("field")));
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "a real key of the face waits for the face"
+        );
+        assert!(
+            matches!(alt_y(&core, true), Some(super::KeyAction::Swallow)),
+            "an injected key waits for the face too"
+        );
+    }
+
+    /// sh-23: the window of the manager of a face has the keyboard, and
+    /// the person clicks the empty claim of the manager on the screen.
+    /// The click takes the keyboard from the window of the face: a typed
+    /// key reaches it no more, and a binding of the face waits for it.
+    #[test]
+    fn a_click_into_the_empty_claim_of_another_look_takes_the_keyboard() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        wayland.roundtrip(&mut core);
+        assert!(surface_has_keyboard(&core), "the window of the face types");
+        let before = wayland.key_serials().len();
+        move_to(&mut core, 50.0, 40.0);
+        click(&mut core, true);
+        click(&mut core, false);
+        tap(&mut core, Y);
+        wayland.roundtrip(&mut core);
+        assert!(
+            !surface_has_keyboard(&core),
+            "the click took the keyboard from the window of the face"
+        );
+        assert_eq!(
+            wayland.key_serials().len(),
+            before,
+            "a key typed after the click does not stray into the face"
+        );
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "the keys of the face wait for the face"
+        );
+    }
+
+    /// rv-1: the same fixture, but an input node of the manager on the
+    /// screen (a chip, a door, a hint) lies under the click. The press is
+    /// for that node: the window of the face keeps the keyboard.
+    #[test]
+    fn a_click_on_an_input_node_over_another_claim_keeps_the_keyboard() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        let chip = json!([{"create": {"id": "chip", "kind": "rect", "parent": "root",
+            "props": {"size": [20, 20], "color": [1, 1, 1, 1], "input": "accept",
+                "transform": {"translate": [40, 30]}}}}]);
+        apply(&mut space, &mut core, &chip);
+        wayland.roundtrip(&mut core);
+        assert!(surface_has_keyboard(&core), "the window of the face types");
+        move_to(&mut core, 50.0, 40.0);
+        click(&mut core, true);
+        click(&mut core, false);
+        wayland.roundtrip(&mut core);
+        assert!(
+            surface_has_keyboard(&core),
+            "a press on an input node takes no keyboard from the window"
+        );
+    }
+
+    /// rv-2: while the session is locked, an output without a lock surface
+    /// shows nothing and its press is no click into a claim. The focus
+    /// that the person had comes back with the unlock. The lock client
+    /// cannot unlock before the confirmation, so the test calls the unlock
+    /// of the handler.
+    #[test]
+    fn a_press_while_locked_does_not_end_the_focus_after_the_unlock() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        wayland.roundtrip(&mut core);
+        assert!(surface_has_keyboard(&core), "the window of the face types");
+        let _lock = wayland.lock(&mut core);
+        assert!(core.state.lock.is_some());
+        move_to(&mut core, 50.0, 40.0);
+        click(&mut core, true);
+        click(&mut core, false);
+        smithay::wayland::session_lock::SessionLockHandler::unlock(&mut core.state);
+        assert!(core.state.lock.is_none(), "unlocked");
+        assert!(
+            surface_has_keyboard(&core),
+            "the window has the keyboard again after the unlock"
+        );
+    }
+
+    /// rv-4: a click on the empty claim of the look that has the keyboard
+    /// changes nothing: its window keeps the keyboard.
+    #[test]
+    fn a_click_into_the_empty_claim_of_the_focused_look_keeps_the_keyboard() {
+        let (mut core, _face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let take = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut space, &mut core, &take);
+        wayland.roundtrip(&mut core);
+        assert!(
+            surface_has_keyboard(&core),
+            "the window of the screen types"
+        );
+        move_to(&mut core, 50.0, 40.0);
+        click(&mut core, true);
+        click(&mut core, false);
+        wayland.roundtrip(&mut core);
+        assert!(
+            surface_has_keyboard(&core),
+            "the click on its own empty claim keeps the keyboard"
+        );
+    }
 }

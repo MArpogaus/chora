@@ -158,7 +158,6 @@ still() {
     done
     return 1
 }
-known() { echo "known: face manager swallow (xp lane): $*"; }
 key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
 plain() { inject "[{\"key\": {\"key\": \"$1\", \"state\": \"pressed\"}}, {\"key\": {\"key\": \"$1\", \"state\": \"released\"}}]"; }
 keys_got() { grep -c "^key $1\$" "$work/probe.log"; }
@@ -192,7 +191,7 @@ until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the swallowed c
 if [ "$reached" = 0 ]; then
     ok "co-25: on the front face Super+q, Tab, 1, Shift+x and Ctrl+z reach no window, a plain a does"
 else
-    known "co-25: on the front face a Super chord that nothing binds reaches the probe window, as the face manager swallows none"
+    fail "co-25: on the front face a Super chord that nothing binds reaches the probe window, as the face manager swallows none"
 fi
 key Super+F1
 if until_ok help_shown 12; then
@@ -200,7 +199,7 @@ if until_ok help_shown 12; then
     until_ok '! help_shown' || fail "a second Super+F1 on the front face keeps the key list"
     ok "co-26: Super+F1 on the front face shows the key list of the construct, and a second one hides it"
 else
-    known "co-26: Super+F1 on the front face shows no key list of the construct, as the face manager owns the chord"
+    fail "co-26: Super+F1 on the front face shows no key list of the construct"
 fi
 before=$(keys_got 30)
 plain a
@@ -226,7 +225,7 @@ fi
 if [ "$stood_back_reached" = 0 ]; then
     ok "co-25: stood back, Super+Tab reaches no window"
 else
-    known "co-25: stood back, Super+Tab reaches the probe window, as the face manager swallows none"
+    fail "co-25: stood back, Super+Tab reaches the probe window, as the face manager swallows none"
 fi
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True' 20 || fail "stood back, the next face does not show: the cube rests square"
 [ "$(prop construct-cube-face-3 visible)" = False ] || fail "stood back, the face before the front shows"
