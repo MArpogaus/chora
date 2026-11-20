@@ -446,3 +446,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 - 2026-11-20 08:00 UTC owner: "What's again at ng with env?" -> question. PM: lanes report fuzzel 1.11.1 now (xp-24 r2), so the fuzzel item is closed; setup.sh is refused by auto mode in lanes and skipped (env setup carries the tools); the trains skip fuzzel cells because the PM gate PATH lacks ~/.local/bin (PM fix, GATE-SILENT). Nothing open for the owner on env.
 - 2026-11-20 08:30 UTC owner: "Update status page" -> order. PM: status page refreshed (goals F4-F6, trains 85c-87, lanes, new "Running now" box), published 08:32 (v145).
+- 2026-11-20 09:13 UTC owner: "61% half of which comes from other agent" -> reading. PM: 61 % of the week used at 59 % of the time (Thu 05:55 to Sat 03:59), so on pace; about 30 % is this session. 39 % left over 18.8 h is 2.1 %/h shared with the other agent: keep 2-4 lanes, no new opus lanes, trains first; tokens.py checked hourly.

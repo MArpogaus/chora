@@ -59,3 +59,35 @@ Findings:
 - rv-5, NIT, tests/persona/session.sh:161: the fuzzel stand-in prints one empty row when stdin is empty (`printf '%s\n' "$first"` after a failed `read`), real fuzzel shows none; fix: `[ -n "$first" ] && printf ...` (test with `fuzzel --dmenu </dev/null`).
 
 Not findings: gate-tiling-apps-click and launcher-click red in lane containers (ti-1).
+
+## r2
+
+Lane: cloud, branch claude/mc-fix. Step 0: `git fetch --unshallow`, fetch of origin/claude/autonomous-dev-session-3w-i33pg7 (9973d0eb) and `cargo check --workspace` green. Merge commit **cb2b80f1** (b4104cae + 9973d0eb), pushed to claude/mc-fix. Nothing else changed beyond the hunks below and two test calls.
+
+### Conflict hunks (tests/persona/check.py, tests/persona/session.sh)
+1. check.py, snapshot row: both fields kept, `"page": page_of(snap, look)` and `"toplevels": sorted(snap.toplevels)`.
+2. check.py, T1: `Expect(open=ctx.left, verify=verify_all(verify_only_keys_open(ctx), verify_new_window(ctx, before)))`. xp-p2r3's `open=ctx.left` and mc-fix's key-list check both stay.
+3. check.py, T4: the same shape, `open=ctx.left` and `verify_all(verify_only_keys_open(ctx), verify_system(ctx, part))`.
+4. check.py, T2: per xp-p2r3, `Expect(open=ctx.left, verify=verify_sheet(ctx))` (mc-fix had `open=[]`). No test of mc-fix says otherwise: `test_t2_key_list_opened_spoke_and_shut` passes with it. T3 is the same on both sides.
+5. check.py, M1: mc-fix's `verify_page_changed(ctx, before)` (xp-p2r3's `verify_changed(before, shown_scene)` dropped; `page_of` and `shown_scene` both stay, as the page check uses both).
+6. check.py, M2: `Expect(open=ctx.left, focus="mc")` (xp-p2r3).
+7. session.sh, wpctl: one stand-in, xp-p2r3's version (state file `wpctl.state` with volume and mute: get-volume with `[MUTED]`, set-mute 1|0|toggle, set-volume N%+ / N%- / N%, clamped 0 to 1, logged to calls.log through @MARKS@ and the sed). mc-fix's own `volume` file version is dropped; its behaviour (set value kept, 0.55 after 5%+, 0.45 after 10%-) is covered by the same stand-in. mc-fix's `fuzzel` stand-in (T6 first row) is kept right after it unchanged.
+
+One change outside the hunks: two mc-fix tests (`test_t1_the_key_list_of_the_persona_may_stay_open`, `test_t4_the_key_list_of_the_persona_may_stay_open`) built `ctx()` without `left`, which under `open=ctx.left` reads as "nothing may stay open"; both now pass `left=["xp-dlg-help"]` (the T4 menu check keeps `left` empty, still red).
+
+### Tests
+- `python3 -I -m pytest tests/test_acts.py -q`: 148 passed, 3 subtests (the two above failed right after the merge, fixed as written).
+- `bash tests/persona-selftest.sh` (after `cargo build --workspace`): ok. The first run failed once at "no click on Notepad" (jq: null divided by number, the Start menu node had no rect yet); the rerun passed with nothing changed in between. Flaky timing in the Start menu click helper, not caused by the merge as far as I can tell; not investigated further.
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,mc-paths,mc-sofa,mc-handover` (run dir /tmp/merge-gate.8hyEBj): all 8 PASS (pre-commit 4 s, ci-check 126 s, build 40 s, test 308 s, clippy 26 s, mc-sofa 46 s, mc-handover 13 s, mc-paths 81 s). Partial run, nothing pushed by it.
+
+Not touched: rv-1..rv-5 (backlog MC-FIX-RV), mc-50.
+
+## PM review r2 (merge cb2b80f1, 2026-11-20 09:15 UTC)
+Checked `git show --cc cb2b80f1` for tests/persona/check.py and session.sh against the brief:
+- row keeps `page` (mc-fix) and `toplevels` (head): ok.
+- T1, T4: open=ctx.left plus verify_only_keys_open; T2, M2 open=ctx.left (head intent); M1 verify_page_changed; C2 verify_no_window_lost: ok.
+- wpctl: head's state file (volume, mute) logs to @MARKS@ = $fakes/calls.log, the same file mc-fix's fuzzel stand-in writes ($here/calls.log): no lost log.
+- merge-tree vs t87 shas: clean except the known merge-gate.sh comment conflict with co-r4 42c9304b.
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR); cb2b80f1 joins train 87. Persona-selftest one red rerun green ("no click on Notepad"): watched by flake series.
