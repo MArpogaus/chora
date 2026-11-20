@@ -31,3 +31,18 @@ Clean cases (2 px move, 3x3 change, masked change, below-threshold colour, a ste
 - "Empty or wrongly themed frame at a change" (section 6) is not built: it needs the act timeline's change times; RECORD can add it by passing the stills of the checker.
 - The snapshot JSON (`nodes`, `masks`, `checks` per capture) is the format `run.py` must write for a capture; tour-one rows carry `capture` but do not write it yet (RECORD lane).
 - Pixel diff reads PNG in pure Python: 3 s per 1280x720 pair; fine for about 100 captures.
+
+## Review r1 (F7 tour-diff, fa796bb9 on 8b996cee, 2026-11-20)
+
+Verdict: **FIX** (2 MAJOR, 0 BLOCK, 5 MINOR, 1 NIT). Step 0 green (unshallow, `cargo check --workspace`). `python3 -I tests/test_tour_diff.py` on fa796bb9: 25 OK; on a58a39f6: 12 failures + 6 errors (the report says 14 + 1); the parent has no tool or test. v8 runs reproduce: t3 tile_left vs tile_bottom = regression (exit 1), with a pixel row = change, same vs same = same; 01-xp gives 21 freezes, 04-construct 7, nothing else.
+
+- rd-1, MAJOR, tests/tour-diff.py:177: the loop runs over CAND stills only, so a capture in BASE that CAND lacks gives no row, and an empty or missing CAND folder prints "0 same" and exits 0 (verified; a missing capture turns into a pass). Fix: iterate the union of BASE and CAND, make a capture missing in CAND a regression, and exit 1 on zero captures.
+- rd-2, MAJOR, tests/test_tour_diff.py:150: `skipUnless(ffmpeg)` skips all 7 video tests and the gate-acts hook passes (verified with PATH emptied: OK, skipped=7), so a runner without ffmpeg passes the gate with no video check. Fix: fail (not skip) in the hook when ffmpeg is absent, e.g. a `need ffmpeg` in tests/gate-acts.sh.
+- rd-3, MINOR, tests/tour-video-check.py:27: ffmpeg or ffprobe missing is a raw FileNotFoundError traceback, not a clear error. Fix: `shutil.which` at the start, exit 2 with "ffmpeg missing: cannot check".
+- rd-4, MINOR, demo/tour/intended.toml:9: the only row is `kind = "*"` for h2, which names every diff of h2 (pixel regressions included) as intended. Fix: list the kinds (meta, rect, added) of the Send To row, keep `*` for no row.
+- rd-5, MINOR, tests/tour-diff.py:181: a BASE file that is absent reads as `baseline: none`, so a failed replay capture hides as none, not declared. Fix: take the `baseline: none` acts from a list (intended.toml or a file) and flag an undeclared absence.
+- rd-6, MINOR, tests/tour-diff.py:154: a check absent or red on CAND with no BASE entry, and every red check of a `none` row, is not a regression (design: judged by checks). Fix: a check red on CAND that is missing from BASE is a regression unless intended.
+- rd-7, MINOR, tests/tour-video-check.py:21: FLICKER_STEP 8.0, the 32x18 grey size and blackdetect pix_th 0.1 have no justification, and a 2-frame flash is not caught; the flicker test only uses flat colours and a `cuts` argument that flicker ignores. Fix: comment each threshold with the v8 data it came from and add a flicker test on testsrc2 with a 2-frame flash.
+- rd-8, NIT, reports/tour-diff.md r1: the red counts differ from what a58a39f6 gives (12 + 6 against 14 + 1). Fix: restate the counts.
+
+Not covered by a test: the CLI exit code, H50 (scene only), a size mismatch, `baseline: none`. The "empty or wrongly themed frame" check is open as the report says.
