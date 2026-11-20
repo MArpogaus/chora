@@ -748,7 +748,7 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
     };
     let view = View::of(state, &output);
     let pointer = pointer_on(state, &output);
-    let frame = crate::safety::FrameClock::start();
+    let frame = state.watchdog.clock(&output.name());
     let queued = draw(state, node, crtc, &view, pointer)
         .and_then(|damaged| Ok(damaged && queue(state, node, crtc, &output)?))
         .unwrap_or_else(|err| {

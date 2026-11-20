@@ -168,7 +168,7 @@ fn redraw(state: &mut State) {
     let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
-    let frame = crate::safety::FrameClock::start();
+    let frame = state.watchdog.clock(&output.name());
     let rendered = render_frame(state, &output);
     state.frame_rendered(&output.name(), frame_duration(&output), frame);
     let submitted = shown(state, &output, rendered);
