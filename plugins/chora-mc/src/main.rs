@@ -642,6 +642,23 @@ impl Plugin for Mc {
         &mut self.rt
     }
 
+    fn refresh(&mut self) {
+        let Some(node) = self.focus.node().map(str::to_owned) else {
+            return;
+        };
+        let query = Query {
+            selector: "*".into(),
+            filter: Some(chora_scene::ipc::Filter {
+                focused: true,
+                ..chora_scene::ipc::Filter::default()
+            }),
+        };
+        let focused: Result<Vec<Value>, _> = self.rt.conn.call("scene.query", query);
+        if focused.is_ok_and(|nodes| nodes.iter().all(|n| n["id"] != node.as_str())) {
+            self.focus.drop_node();
+        }
+    }
+
     fn state(&self) -> Option<Value> {
         Some(self.state_value())
     }
