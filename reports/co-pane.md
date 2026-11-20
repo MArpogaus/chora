@@ -129,3 +129,41 @@ Seeded review of claude/co-pane 628bb930 against f10842d8 (13 files, +434 -38), 
 4) rv-6: `turn` inverts dx and dy, the projection test checks the four directions on the screen; the "first drag does not look" is pinned by design (`a_press_on_a_pane_window_starts_no_look`, d762d10f) and written in F5. The persona and gates read no drag direction (grep). Docs: rw-2. POLS against the look of the cube: the same hand-follows direction, consistent.
 5) rv-7: `with_children` takes a child only when `cube.list` names it as a face manager and counts `shown` only for the output of the front face; the three `WithChildren` cases are the negative cases (no manager: I1; face behind the front: I3), and the live positive case of the selftest is still green.
 6) Red first, run by me on the red commit: fabe366e (rv-1) fails `a_cube_in_use_mode_swallows_the_lone_super_tap` at tests_moved.rs:163 (no tap grabbed); 0207d17b (rv-3) fails `the_key_sheet_gives_the_keyboard_back_only_to_the_front_face` at tests_construct.rs:910 (left 1, right 0: a window of a face that is not at the front got the keyboard); b22397b9 (rv-6) fails `a_drag_takes_the_scene_along_with_the_hand` at tests.rs:203 ("right with the hand"). All three are the named reasons; each fix commit follows its red commit. rv-8: the regrab stays with a test that is red without it (reading of the test; not run without the line).
+
+## r3
+Lane: cloud, branch claude/co-pane from 628bb930, head 18417f06 (pushed). Step 0: unshallow, `cargo check --workspace` green. No attribution lines, identity Marcel Arpogaus on every commit. Each item: red test commit first, then the fix.
+
+| Item | Red | Fix | Test | Cell |
+|---|---|---|---|---|
+| rw-1 MAJOR Super of the program | cf1d028a (unit), 04a05d31 (gate step) | 68a97ef0 | core `input::tests::a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client` (b: Super, construct's Super+F1, release: xp gets `Super+Super_L pressed` and no release; a tap alone still ends with its release), `input::tests::a_super_chord_of_the_program_reaches_it_while_another_client_holds_chords` (a: Super, e, release reaches xp as its tap and `Super+e`), construct `cube::tests_moved::a_cube_in_use_mode_leaves_the_super_tap_to_the_program` (replaces the r2 swallow test) | unit + pull gate step (`rw-1: in use mode a tap of Super opens the Start menu of the xp of the face, and Super with F1 of the construct opens none`, separate press and release events via `input.inject`) |
+| rw-2 MINOR F5 sentence | 876f028b | c7679e69 | `tests::the_docs_say_the_direction_of_the_look_as_f5_does` (the two F5 sentences word for word in plans/construct-requirements.md, docs/cube-modes.md, docs/configuration.md) | unit |
+| rw-3 NIT | - | 18417f06 | none (a doc comment rewrap) | - |
+
+rw-1, what happens: core key grabs are exclusive, so construct's grab of `Super+Super_L` took the Super press from xp. A press of the person also makes core choose construct as manager (`choose_manager_of`: construct's claim holds the pointer). After that, xp's own `Super+e`/`Super+d` were held back and swallowed (lost, not typed as a bare `e`). Fix, in core (the plugin alone cannot keep xp from getting its tap release): a press that a key grab takes ends the held lone-modifier taps of the other clients without their release. This is the existing button rule (`send_button`), now one helper `end_lone_taps_of_others` for both. Construct no longer grabs the tap in use mode (the pane-window swallow stays). The escape hatch (safety layer, `press_action`) is untouched. docs/cube-modes.md now says that the program keeps Super, its chords (`Super+E`, `Super+D` of xp) and its Start tap; docs/api.md `input.key` names key grabs next to buttons.
+
+Red checks: the gate step fails at the r2 code ("in use mode a tap of Super does not reach the xp of the face: no Start menu"). The core stream test (a) is green before the fix as well: it pins the stream, and the red of (a) is the construct grab test.
+
+### Not done
+- Not covered by a gate: the swallowed `Super+e` after a manager choice. `choose_manager_of` runs only for non-injected keys, even with `--test-injected-press-is-real`, so no gate can show it; the unit tests cover it by reading the code path.
+
+### Gate
+`tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,cube,pull,placed,construct-hud,construct-extra,wm-pane,pane-keys,walk,keys,xp` at 18417f06:
+```
+pre-commit PASS     6s
+gate-lib   PASS    75s
+ci-check   PASS    42s
+build      PASS    28s
+test       PASS   230s
+clippy     PASS    19s
+xp         PASS    86s
+cube       PASS   120s
+pull       PASS    85s
+placed     PASS    15s
+construct-hud PASS   114s
+construct-extra PASS   165s
+wm-pane    PASS    22s
+pane-keys  PASS     9s
+walk       PASS     4s
+keys       PASS    39s
+```
+`bash tests/persona-selftest.sh`: all `ok`, ending `ok: persona session`.
