@@ -388,11 +388,26 @@ cell_context_held_for_question() {
     figure_near "$figure"
 }
 figure_left() { ! figure_near "$1"; }
+figure_image() { ctl query id:hud-figure | jq -re '.[0].image'; }
+look_settled() {
+    local seen
+    seen=$(figure_image) || return 1
+    for _ in 1 2 3 4 5; do
+        sleep 0.5
+        [ "$(figure_image)" = "$seen" ] || return 1
+    done
+    settled_image=$seen
+}
+look_is_not() { [ "$(figure_image)" != "$1" ]; }
 cell_context_picks_folder() {
-    local figure
-    figure=$(node_rect hud-figure)
+    local before asked
+    waiting "$grace_s" look_settled || return 1
+    before=$settled_image
+    ask_notes
+    waiting "$grace_s" look_is_not "$before" || return 1
+    asked=$(figure_image)
     end_question
-    waiting "$settle_s" figure_left "$figure"
+    waiting "$grace_s" look_is_not "$asked"
 }
 card_rect_is() { [ "$(node_rect hud-card)" = "$1" ]; }
 new_window() {
