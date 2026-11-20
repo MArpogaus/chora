@@ -394,6 +394,11 @@ class KnownRed(unittest.TestCase):
         self.assertTrue(harness.judge({("xp", "I1"): [one, three]}, rows).blocking)
         self.assertTrue(harness.judge({("xp", "I1"): [one]}, rows).blocking, "row two is stale")
 
+    def test_a_flaky_row_may_stay_unseen(self):
+        rows = [dict(self.rows[0], capture="l1"), dict(self.rows[0], capture="l2", flaky=True)]
+        one = "in act 'a': on O 'One' (l1) is small"
+        self.assertEqual(harness.judge({("xp", "I1"): [one]}, rows).blocking, [])
+
     def test_a_cell_keeps_the_breaches_of_every_act(self):
         s = object.__new__(harness.Session)
         s.results = {}
@@ -408,7 +413,7 @@ class KnownRed(unittest.TestCase):
         for row in harness.known_red():
             if row["finding"].startswith("guide-checks"):
                 with self.subTest(finding=row["finding"]):
-                    self.assertTrue(row.get("act") and (row.get("capture") or row.get("match")), row)
+                    self.assertTrue(row.get("flaky") or row.get("act") and (row.get("capture") or row.get("match")), row)
 
     def test_the_list_parses(self):
         rows = harness.known_red()

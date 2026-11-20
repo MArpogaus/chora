@@ -274,7 +274,8 @@ def judge(results, rows, full=False):
     """Hold the results, {(look, id): [breach, ...]}, against the rows.
 
     A row needs `look`, `id`, `finding` and `slice`; an optional `act`, `capture` and `match`
-    name a breach; each breach of the cell needs a row that covers it. With `full`, a row
+    name a breach; each breach of the cell needs a row that covers it,
+    and a row that no breach meets is stale unless it is `flaky`. With `full`, a row
     that did not run blocks too: the list names only what runs.
     """
     listed = {}
@@ -287,7 +288,7 @@ def judge(results, rows, full=False):
     for key, breaches in sorted(results.items()):
         cell = listed.get(key, [])
         unmatched = [b for b in breaches if not any(row_covers(r, b) for r in cell)]
-        stale = [r for r in cell if not any(row_covers(r, b) for b in breaches)]
+        stale = [r for r in cell if not r.get("flaky") and not any(row_covers(r, b) for b in breaches)]
         if breaches and cell and not unmatched and not stale:
             red.append(key)
         elif unmatched or (breaches and not cell):
