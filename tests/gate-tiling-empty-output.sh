@@ -11,8 +11,17 @@
 #    of the pane of tiling shows the bar and the wallpaper at once, with
 #    no click.
 #
-# Usage: tests/gate-tiling-empty-output.sh [outputs|panes]   (default: both,
-#   each in a session of its own)   BIN: directory with the binaries
+# 3. flag: no gate-started companion at all (COMPANIONS=0 is the rule of
+#    this part): `chora-tiling --with-companions` starts waybar.sh and
+#    wallpaper.sh itself, so its output shows the bar and the wallpaper, and
+#    a second `--with-companions` tiling on a third output starts no second
+#    bar and no second wallpaper (one waybar.sh, one waybar, one
+#    wallpaper.sh in the session). The second tiling waits for the pid file
+#    of the panel of the first, so that the guard is what it meets and not a
+#    race of two starts.
+#
+# Usage: tests/gate-tiling-empty-output.sh [outputs|panes|flag]   (default:
+#   all three, each in a session of its own)   BIN: directory with the binaries
 #   SHOT  a directory that keeps the captures of both parts
 #   COMPANIONS  0 starts no waybar.sh and no wallpaper.sh: the gate then
 #         fails on the black output, which is what a session without the
@@ -21,9 +30,9 @@
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
 case "${1:-}" in
-"") "$0" outputs || exit 1; exec "$0" panes ;;
-outputs | panes) ;;
-*) echo "usage: $0 [outputs|panes]" >&2; exit 2 ;;
+"") "$0" outputs || exit 1; "$0" panes || exit 1; exec "$0" flag ;;
+outputs | panes | flag) ;;
+*) echo "usage: $0 [outputs|panes|flag]" >&2; exit 2 ;;
 esac
 . "$(dirname "$0")/doors/lib.sh"
 need waybar
@@ -64,6 +73,23 @@ unmark
 echo "[{\"pointer_move\": {\"position\": [55, 24], \"output\": \"HEADLESS-2\"}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
 marked '^fuzzel' || fail "a click on Apps of the empty output starts no launcher"
 ok "the empty output of tiling beside xp shows the bar and the wallpaper, and its Apps door starts the launcher"
+exit 0
+fi
+
+if [ "$1" = flag ]; then
+session_start "1280x800,1280x800+1280+0,1280x800+2560+0" -- sh -c "$bin/chora-xp --output HEADLESS-1 --theme $repo/flavors/xp/theme & $bin/chora-tiling --with-companions --output HEADLESS-2 & i=0; while [ \$i -lt 60 ] && [ ! -f \"\$XDG_RUNTIME_DIR/chora-tiling/panel.pid\" ]; do sleep 0.5; i=\$((i + 1)); done; $bin/chora-tiling --with-companions --output HEADLESS-3 & wait"
+grant screen.capture input.inject methods.call
+bare=$fakes/bare.png
+until_ok 'drawn HEADLESS-2 640 "$bare" && ! black "$bare"' 80 ||
+    { keep "$bare" flag-tiling.png; fail "a tiling started with --with-companions is black: pixel at the bar $(pixel "$bare" 640 24), in the body $(pixel "$bare" 100 300)"; }
+keep "$bare" flag-tiling.png
+let_a_second_panel_start() { sleep 5; }
+let_a_second_panel_start
+count() { session_pids "$@" | wc -l; }
+[ "$(count -f waybar.sh)" = 1 ] || fail "two starts with --with-companions left $(count -f waybar.sh) waybar.sh in the session, not one"
+[ "$(count -x waybar)" = 1 ] || fail "two starts with --with-companions left $(count -x waybar) waybars in the session, not one"
+[ "$(count -f wallpaper.sh)" = 1 ] || fail "two starts with --with-companions left $(count -f wallpaper.sh) wallpaper.sh in the session, not one"
+ok "a tiling started with --with-companions shows the bar and the wallpaper with no companion of the gate, and a second one starts no second panel"
 exit 0
 fi
 
