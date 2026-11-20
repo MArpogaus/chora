@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:31 UTC)
+## Now (2026-11-20 00:39 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -25,13 +25,8 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-h-r2.md | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
-| temp-dirs-r2.md | sonnet med | OK 86f42d1f t78 |
-| flake-k-r1.md | sonnet high | MERGE-OK 9dde8523, t78 |
-| f24-rest-r1.md | sonnet med | OK 7231b51a t78 |
-| pw-r2.md | sonnet med | OK 5755b578 t78 |
+| 78b: temp-dirs, flake-k, f24-rest, pw, nits-3, block-v | sonnet | in t79 |
 | xp-majors-r1.md (RC) | sonnet high | session_016iS3kMhTLUxwUHZdCQtBSJ |
-| nits-3-r1.md | sonnet med | OK 0b5f8c34 t78 |
-| block-v-r2.md | sonnet med | OK ce230288 t78 |
 | mc-majors-r1.md (RC) | sonnet high | OK 92ecd30a t79 |
 | mc-answer-r1.md (RC) | sonnet high | session_016iS3kLHGWuV71ERbiX6uxP |
 | flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
@@ -39,10 +34,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
 | co-majors-r1.md (RC) | opus high | db4d703b in review |
 | review-co-majors-r1.md | sonnet hi | session_016iS3kLvHjFkMH5ZrK63ZV6 |
+| kit-sec-r3.md | sonnet med | starting |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): 78b doors red = flake (3/3 green, FLAKE-DOORS backlog); train 79 = 78b + mc-majors 92ecd30a + kit-sec 6de357b9 (conflict fixed: scratch takes TempDir) running 00:33.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, REVIEW CO 0.5 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
+4. Trains (F6): train 79 = 78b + mc-majors 92ecd30a, running 00:38; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors if MERGE-OK, kit-sec r3.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, MC-ANSWER 1 %, FLAKE-H r2 0.5 %, REVIEW CO 0.5 %, KIT-SEC r3 0.8 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
