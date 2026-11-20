@@ -746,18 +746,21 @@ type Grabbed = (u64, String, PressState, bool, bool);
 
 /// The grab that a press of a button with modifiers starts, if a client
 /// grabbed the binding. As for a new toplevel: without an output, the
-/// pointer is in no claim.
+/// pointer is in no claim and over no node.
 fn open_button_grab(state: &mut State, code: u32) -> Option<Grabbed> {
     if state.button_grab.is_some() || state.lock.is_some() {
         return None;
     }
     let keyboard = state.keyboard();
     let mods = keyboard.modifier_state();
-    let pointer =
-        (state.spot(state.pointer_layout)).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
-    let (conn, binding) = state
-        .ipc
-        .button_grab_for(&mods, code, &state.scene, pointer)?;
+    let spot = state.spot(state.pointer_layout);
+    let pointer = (spot.as_ref()).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+    let under = (spot.as_ref()).and_then(|s| render::node_under(state, s));
+    let at = crate::ipc::Pointer {
+        point: pointer,
+        node: under.as_deref(),
+    };
+    let (conn, binding) = (state.ipc).button_grab_for(&mods, code, &state.scene, &at)?;
     let binding = binding.to_string();
     let to_pointer = binding == MOVE;
     let window = window_under_pointer(state);
