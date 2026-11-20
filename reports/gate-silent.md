@@ -58,3 +58,12 @@ merge-gate: refusing to push: xp-fields launcher-click mc-sofa skipped; pass --a
 
 Notes for the PM: a lane container (fuzzel 1.9.2) now gets SKIP instead of red-by-host, and the train needs `--allow-skip` for those cells or
 fuzzel >= 1.11 on PATH (PM host). A full-gate `--push` on the PM host with 1.11.1 is unchanged. Not touched: flakes, matrix cap, lint lists.
+
+## PM review r1 (2026-11-20 15:30 UTC; PM is not the builder)
+Range f5ac3500..baac5dcf (7 files, +218 -7). Verdict: MERGE-OK baac5dcf (0 BLOCK, 0 MAJOR, 2 NIT).
+- Red first: at 546674e6 (tests only) tests/gate-lib-selftest.sh fails all 9 new checks ("need_fuzzel: command not found"); merge-gate-selftest fails its gate-lib step. Green: the gate-lib and merge-gate self-test steps of the train.
+- SKIP rule: a PASS step with a `^SKIP: ` line prints SKIP, listed in the summary; --push refuses unless --allow-skip names it; a skip with exit 1 stays FAIL (selftest). No `^SKIP: ` line in any /tmp/merge-gate.* log of trains 86-89 on the PM host (fuzzel 1.11.1), so trains keep pushing.
+- need_fuzzel / fuzzel_older: one version check (sort -V); unknown version counts as older (skip, not red). xp-fields keeps RUNBOX_INI as the override.
+- mc-sofa launcher-click-row (MC-47-CELL): the fake fuzzel execs the real one only for this cell; run in a subshell, every fail path removes the switch; the cell skips with the reason below 1.11; cells_end gives SKIP when no cell ran.
+- pr1-1 NIT: the Foot row point (540, 256) is pinned to fuzzel's row pitch at 1280x720; a theme or font change moves it. Read the row from the capture later (backlog).
+- pr1-2 NIT: click_end ends with a no-op `: >/dev/null`.

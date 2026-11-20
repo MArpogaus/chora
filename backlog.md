@@ -330,3 +330,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLK-TA1 (flake, F5, flake-series r2): tiling-audit fullscreen paper-2560x1600@2 bar does not hide within 20 s (1 of 15). Into flakes-l r2.
 - H-ID (harness, 11-20): pre-commit identity check on claude/session-log (author must be the owner); lanes.py: Queue % total vs "left - 5 %".
 - MC-ACTS-OUTPUT (NIT, acts harness): tests/acts/invariants.py `shown_look` takes the focus holder per look, not per output; with two outputs the shown look is wrong on one (PM review mc-fix r5 pr5-1).
+- GATE-SILENT-NITS (NIT, harness): gate-mc-sofa.sh launcher-click-row pins the Foot row at (540, 256) (fuzzel row pitch); click_end has a no-op line (PM review gate-silent r1 pr1-1, pr1-2).

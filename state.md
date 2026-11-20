@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 15:07 UTC)
+## Now (2026-11-20 15:17 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 14:48 PM 9.8 %; 6 lanes
-session branch: fee9c695; 47 greens. t88b green 14:49 (--jobs 1; co-r5 in: K5 race, B4, H3). t89 probe-leak f5ac3500 alone from 14:51. t87-t87d, t88 reds were flakes and sh-30.
+session branch: fee9c695; 47 greens. t89 red 15:22 xp-question 1x Yes 32 px (flake: 3/3 green alone; PM selftests shared the host); t89b from 15:27, --jobs 1. t88b green 14:49.
 burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
 ## RC (design/rc.md)
@@ -28,11 +28,10 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 | p2-r4-mc.md (RC 2: mc persona r4 after mc-fix r5) | sonnet medium, claude/p2-r4-mc 9dd23de6 | session_016iS3kQHupvXu88T5mukfKd 14:57 |
 | p2-r2-co.md (RC 2: construct persona r2 after co fixes) | sonnet medium, claude/p2-r2-co 59efbc17 | session_016iS3kLgjQ9oGAwjM4rQrXz 15:08 |
-| gate-silent-r1.md (F5/F6: SKIP not PASS, fuzzel guard, MC-47-CELL) | sonnet high, claude/gate-silent f5ac3500 | session_016iS3kMLbE3cpCF5Y5Ckhsm 14:40 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) Trains: t89 probe-leak f5ac3500 alone (harness) on fee9c695 from 14:51, --jobs 1; next t90 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8 (PM MERGE-OK r5); flakes-n, gate-silent after review.
-5. (F5, F4, shared bar) PROBE-LEAK, LINT-DOWN r3 MERGE-OK; FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, FLAKES-N r1 0.5 %, MC-FIX r5 MERGE-OK bb7cbeb8 (PM review), P2-R4-MC 1 %, P2-R2-CO 1 %; AUDIT-F r4: F5 open 12 rows; GATE-SILENT r1 0.5 %; later FLAKE-SERIES r3 haiku 1 %.
+4. (F6, rc 3) Trains: t89b probe-leak f5ac3500 alone from 15:27; t90 gate-silent baac5dcf alone (harness, PM MERGE-OK r1); t91 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8; flakes-n after review. No PM selftests during a train.
+5. (F5, F4, shared bar) PROBE-LEAK, LINT-DOWN r3 MERGE-OK; FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, FLAKES-N r1 0.5 %, MC-FIX r5 MERGE-OK bb7cbeb8 (PM review), P2-R4-MC 1 %, P2-R2-CO 1 %; AUDIT-F r4: F5 open 12 rows; GATE-SILENT r1 MERGE-OK; later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
