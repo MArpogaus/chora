@@ -63,6 +63,7 @@ keys_close() {
 }
 chat_open() { shows "Esc  Close"; }
 chat_close() {
+    wait_for_field || return 1
     key Escape
     until_ok '! chat_open' 20
 }
