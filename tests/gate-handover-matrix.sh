@@ -35,7 +35,7 @@
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
 # is lost or the whole run, startup and last cell included, takes more
-# than the cap. The cap is a guard against a hang, not a speed test: 293 s
+# than the cap. The cap is a guard against a hang, not a speed test: 387 s
 # is the slowest of five runs in real trains of `tests/merge-gate.sh --jobs 2`
 # on the PM host, 86 logs (283, 290, 300, 301 and 309 s) plus 25 %,
 # rounded up (tests/matrix-cap-selftest.sh holds the three places that name
@@ -59,7 +59,7 @@
 #   CHORA_TEST_ACCEPT_INJECTED_KEYS: 1 (default) lets the window managers
 #   take the keys of `input.inject`; 0 is production: the key cells of
 #   tiling, xp and mc expect gap, and no manager may serve a key
-#   CAP: the most seconds of the run (default 293)
+#   CAP: the most seconds of the run (default 387)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
 # shellcheck disable=SC2016
@@ -166,7 +166,7 @@ mkdir -p "$shots" "$work/chora"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-time_cap=${CAP:-293}
+time_cap=${CAP:-387}
 log=$shots/matrix.log
 : >"$log"
 
