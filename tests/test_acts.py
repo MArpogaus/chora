@@ -1034,6 +1034,20 @@ class PersonaContracts(unittest.TestCase):
         after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
         self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"]), before, after), [])
 
+    def test_t1_a_key_list_that_opened_unasked_stays_red(self):
+        before = snap()
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
+        after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
+        unasked = ctx(left=["xp-dlg-help"], hist=[seen(["xp-dlg-help"])])
+        self.assertIn("expected open []", verdict("T1", unasked, before, after)[0])
+
+    def test_t4_a_key_list_that_opened_unasked_stays_red(self):
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
+        call = ctx(calls=calls, left=["xp-dlg-help"], hist=[seen(["xp-dlg-help"])])
+        self.assertIn("expected open", verdict("T4:volume", call, snap(), snap(states=states))[0])
+
     def test_t4_the_key_list_of_the_persona_may_stay_open(self):
         states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
         calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
