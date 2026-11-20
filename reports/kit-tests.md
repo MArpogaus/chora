@@ -26,7 +26,7 @@ Step 0: `git fetch --unshallow` and `cargo check --workspace` pass. The branch c
 
 Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,gate-lib` on claude/kit-tests at 40b61f28 (run dir /tmp/merge-gate.XJu7SA): pre-commit PASS, gate-lib PASS, build PASS, test PASS, clippy PASS (`-D warnings` also clean on all targets), ci-check PASS. No red cell.
 
-## PM review r1 (2026-11-20 03:30 UTC)
+## PM review r1 (2026-11-20 03:21 UTC)
 Range 40b61f28 on claude/kit-tests (tests plus the Cargo.toml `required-features = ["testing"]` fix a09fa5a3 for `perform`); +467 lines, no production code. PM is not the builder.
 - Harness: a09fa5a3 lets `cargo test -p chora-kit` build `perform` without `--features testing`; the lane gate cells (pre-commit, ci-check, build, test, clippy, gate-lib) PASS; 387 tests pass 3 runs in a row.
 - Tests: wm/give, kept, conn, state edges; kit coverage 92.02 % to 92.13 % (llvm-cov). Small gain: give and kept were already covered; noted, not a finding.
