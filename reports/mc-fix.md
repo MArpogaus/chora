@@ -184,3 +184,19 @@ Findings:
 - rv-r4-3, NIT, plugins/chora-mc/src/main.rs:660, a failed focus query logs on every `state.get` (the persona checker calls it after every act), not once; fix: log when the failure state changes (a bool on Mc), or keep and say so in the comment.
 
 Known, not findings: launcher click red in lane containers (fuzzel 1.9.2), mc-50 yellow square, T1 end-time gap.
+
+## r5 (RC 2 persona round 4, review r4 rv-r4-1 to rv-r4-3)
+Lane: cloud, branch claude/mc-fix from a8cd0de0. The session head is still d81c8293 (it did not move), so nothing was merged. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. Head pushed: bb7cbeb8.
+
+| item | red | fix | test / cell |
+|---|---|---|---|
+| rv-r4-1 MAJOR | 609395bf | c2a9f9a3 | tests/test_acts.py I5 `test_mc_drawn_over_xp_while_xp_has_the_focus_is_no_cover`; cell acts |
+| rv-r4-2 NIT | none (comment, no behaviour) | bb7cbeb8 | none; cell test, mc-paths |
+| rv-r4-3 NIT | none (log line) | bb7cbeb8 | none; cell test, mc-paths |
+
+- rv-r4-1: `hides` takes the look shown and counts a whole-output picture as a cover only when its owner is that look. The look shown (`shown_look`) is the single look that says it holds the focus, else the owner of the topmost whole-output picture of the output. The probe (xp text, mc-bg whole output owner mc, mc text, xp holds the focus) breaches I5; it fails at 609395bf (`[] is not true`) and passes at c2a9f9a3. The r3/r4 cases stay green (154 passed in test_acts.py). Only `hides`, its callers in `invariants.py` and the tests are touched; the I5 timing rows are not. Limit: with no look holding the focus or two claiming it, the topmost whole-output picture decides, which would let the probe pass again.
+- rv-r4-2: kept the name match and said why in the doc comment (windows.rs): `show` of another scene clears `plain_start`, so the match is a second guard. A bool instead of the name would make `Mc` have four bools, which clippy refuses (`struct_excessive_bools`; first attempt failed the commit hook). The old comment "a window of another scene in between leaves it" was wrong and is gone.
+- rv-r4-3: new field `focus_query_error: Option<String>` on `Mc`; `refresh` logs a failed focus query when the error text differs from the last one and clears it on success. No test: the FakeCore has no failing `scene.query`.
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,mc-paths,acts` (run dir /tmp/merge-gate.hABOAX, at bb7cbeb8): all 8 PASS (pre-commit 5 s, gate-lib 70 s, ci-check 119 s, build 156 s, test 238 s, clippy 21 s, mc-paths 112 s, acts 269 s). A red cell I did not cause: none. Partial run, nothing pushed by it.
