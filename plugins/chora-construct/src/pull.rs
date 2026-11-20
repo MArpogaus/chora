@@ -117,7 +117,52 @@ fn pull_depth(face: Option<f64>, focal: f64) -> f64 {
     }
 }
 
+/// The ids of the title bars of the windows of xp start with this.
+const TITLE: &str = "xp-title-";
+
 impl Construct {
+    /// The hint of a title drag that cannot leave its face: in use mode
+    /// on a single screen the press on a title bar shows the path that
+    /// works today, the helper, until the button goes up. With a second
+    /// output the designed drag works, and stood back a drag turns the
+    /// cube, so no hint shows there.
+    pub(crate) fn title_hint(&mut self, event: &Event) -> Result<(), ClientError> {
+        let held = match event {
+            Event::PointerPressed { node, button, .. } // injected: a hint draws, nothing acts
+                if *button == BTN_LEFT && node.starts_with(TITLE) =>
+            {
+                true
+            }
+            Event::PointerReleased { node, button, .. } // injected: a hint goes, nothing acts
+                if *button == BTN_LEFT && node.starts_with(TITLE) =>
+            {
+                false
+            }
+            _ => return Ok(()),
+        };
+        let in_use = self
+            .cube
+            .as_ref()
+            .is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use);
+        let show = held && in_use && self.on_one_screen()?;
+        if show == self.pull_hint {
+            return Ok(());
+        }
+        self.pull_hint = show;
+        self.draw_hints()
+    }
+
+    /// Whether the session has one real output, so that no drag can
+    /// leave a face over a screen edge onto another.
+    fn on_one_screen(&mut self) -> Result<bool, ClientError> {
+        let outputs = self.rt.all_outputs()?;
+        Ok(outputs
+            .iter()
+            .filter(|o| o.is_virtual != Some(true))
+            .count()
+            == 1)
+    }
+
     /// Takes the press of `move` that comes with a window and its drag,
     /// and the release of a moved pane that the space would not take: a
     /// drop over a face of the cube, and a release while the camera is in

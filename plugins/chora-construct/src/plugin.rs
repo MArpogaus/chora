@@ -214,6 +214,7 @@ impl Construct {
         let Some(event) = self.pulled(event)? else {
             return Ok(());
         };
+        self.title_hint(&event)?;
         if let Some(created) = chora_kit::wm::Created::of(&event) {
             return self.window_created(&created);
         }

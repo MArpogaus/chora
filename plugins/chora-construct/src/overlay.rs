@@ -467,6 +467,9 @@ impl Construct {
         if stood_back {
             return Some(Set::Cube);
         }
+        if self.pull_hint && in_face {
+            return Some(Set::Pull);
+        }
         crate::hints::resting_set(crate::hints::Resting {
             engaged,
             has_cube: self.cube.is_some(),
@@ -531,6 +534,7 @@ impl Construct {
                 "step-back",
             )],
             Set::Cube => self.cube_hints(language),
+            Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
     }
 
@@ -626,7 +630,7 @@ impl Construct {
         items: &[crate::hints::Item],
         hover: Option<&str>,
     ) -> Result<Vec<Command>, ClientError> {
-        let over = set == crate::hints::Set::Flown;
+        let over = matches!(set, crate::hints::Set::Flown | crate::hints::Set::Pull);
         let out = [
             self.lens.w,
             self.lens.h - if over { crate::hints::LIFT } else { 0.0 },

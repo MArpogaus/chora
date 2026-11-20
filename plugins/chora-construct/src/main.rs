@@ -563,6 +563,9 @@ struct Construct {
     asked: bool,
     /// The hint under the pointer.
     hint_hover: Option<String>,
+    /// A title bar of a face is held on a single screen: the drag cannot
+    /// leave the face, so the hint names the path that works.
+    pull_hint: bool,
     /// The capsule of the pane label exists.
     label_drawn: bool,
     /// The text of the label that is drawn.
@@ -685,6 +688,7 @@ impl Construct {
             help: false,
             help_query: String::new(),
             help_sel: 0,
+            pull_hint: false,
             hints: hints::State::default(),
             doors: doors::State::new(),
             mixer: chora_kit::volume::Mixer::new(NAME),

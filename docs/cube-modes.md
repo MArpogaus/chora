@@ -198,7 +198,10 @@ cube stands back, the windows of the panes take no pointer input.
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never
 covers it; a pane behind the resting front face in use mode is in the
-window list as `covered`. A pane that was pulled out or moved stays in
+window list as `covered`. On a single screen the drag cannot leave the
+face, so a press on a title bar shows the hint "Ask the helper to pull
+this window out" until the button goes up (`cube.pull` does it). A pane
+that was pulled out or moved stays in
 view when the cube stands back, and a drag drops it on a face again; if
 it stood in front of the cube, it moves beside the cube while the cube
 stands back, so that the cube shows whole, and goes home when the cube
