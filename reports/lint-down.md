@@ -66,3 +66,8 @@ Branch claude/lint-down, d158b05e..78ec62e1 (merge cf735672 of the session head 
 - Item 3 (rv-5) deviates from the brief: the tool does not count a comment beside an attribute as a reason. It reads only the text between the parentheses of an outer `#[allow(`/`#[expect(`. The six PM sites are inner `#![allow(` (wobbly.rs:22, gl.rs:8, and others) or outside crates/plugins/services (tests/probe); they are not counted at all, which is why no-reason is 0. The help now says exactly that (red 38f4e106, fixed in 78ec62e1). Decision for the PM: if comment reasons should count, that is a tool change, not a help line.
 - Selftest red (7 FAIL lines) then green. Gate: pre-commit, ci-check, build, test, clippy all PASS (run dir /tmp/merge-gate.mGIY0r), valid tree passes `tools/lint-ratchet` (ok: allow 359, no-reason 0, eprintln 131).
 - Note: the in-commit hooks rejected an inline comment in the tool once; removed.
+
+## PM review r3 (13:52 UTC)
+Diff vs session head: tools/lint-ratchet (+130), list (allow 359, no-reason 0, eprintln 131 = head and scratch merge of c2b0310f, e0c3a266, b0997b71), selftest (+119), ci-check and ci.yaml hook it in, testing.rs drops one now-unneeded allow (clippy green in the lane).
+Checks: red commits 04afda6f, 41689b73, 38f4e106, fdec5202 before 78ec62e1; breach names counter, list, tree, top 5; help says a comment is not a reason (rv-5 deviation accepted: `reason =` inside the attribute is the Rust form; comment reasons would loosen the count, no tool change, KISS).
+0 BLOCK, 0 MAJOR. Verdict: MERGE-OK 78ec62e1 (next train).
