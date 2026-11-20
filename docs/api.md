@@ -421,7 +421,10 @@ a toplevel, the core reserves it for one window manager:
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
-window manager gets the next new windows there. A key of the user that
+window manager gets the next new windows there. That press also takes
+the keyboard from the window or node that had it, so that no key typed
+next strays into the look the person left; the keys go to the manager
+chosen until it focuses a window (sh-23). A key of the user that
 a window manager grabbed chooses that one in the same way when its
 claim holds the pointer or the keyboard focus, unless it has the
 keyboard focus anyway: the window that its key starts, such as the
@@ -1012,7 +1015,9 @@ manager that a click on its empty claim chose, else the owner of the
 keyboard focus (of a node or a window), else the owner of the smallest
 claim under the pointer. Elsewhere the key goes to nobody, not to the
 focused window. The keyboard goes before the pointer, which may rest
-on another pane while the person types. A pointer button binding has one
+on another pane while the person types. An injected key follows the
+same rule without the pointer, which an injection moves too: with no
+click choice and no keyboard focus of a manager it goes to the grab. A pointer button binding has one
 owner too, unless each client that grabs it holds a claim and is on the
 main socket (D55): then a
 press goes to the client of the smallest claim that contains the pointer,
