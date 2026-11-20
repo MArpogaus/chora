@@ -32,6 +32,8 @@
 #    the faces that show meet at a shared edge within 1 px, the edge is as
 #    long on both faces within 2 %, the mirror image of each face lies
 #    under it, and no pane lies over a face.
+#    Stepped in again, the pane is home at the rect it had before the step
+#    back, and beside the cube at the same rect when it stands back again.
 # 2b. Stood back (K12): a drag on the floating plane of a window turns
 #    the cube and pulls nothing out; an injected drag on a plane pulls nothing where the construct takes
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
@@ -88,6 +90,13 @@ import json, sys
 print(next((w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]), ""))' "$1"
 }
 pane_name_of() { call window.list '{}' | python3 -I -c 'import json, sys; print(next((w["name"] for w in json.load(sys.stdin)["windows"] if w["name"] == sys.argv[1] and w["pane"] != "none"), ""))' "$1"; }
+pane_rect() {
+    ctl query "id:construct-pane-$surface" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
+print(" ".join("%.1f" % v for v in r) if r else "")'
+}
 pane_middle() {
     ctl query "id:construct-pane-$surface" | python3 -I -c '
 import json, sys
@@ -298,6 +307,7 @@ for how in super plain; do
     name=$(pane_name "$surface")
     call pane.move "{\"name\": \"$name\", \"right\": -700}" >/dev/null || fail "pane.move $name"
     call pane.resize "{\"name\": \"$name\", \"scale\": 3}" >/dev/null || fail "pane.resize $name"
+    home_rect=$(pane_rect)
     inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
     until_ok "$stood_back" 40 || fail "Alt+Escape did not step back after the pull-out: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
     sleep 1
@@ -316,6 +326,16 @@ print(bool(nodes and nodes[0].get("visible") and nodes[0]["rects"].get("HEADLESS
     [ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the step back: $windows_before, then $(window_count)"
     [ "$(owner)" = construct ] || fail "the window is not the construct's after the step back: $(probe)"
     ok "stepped back after the pull-out the pane of the window exists and is drawn, and no window is lost"
+    aside_rect=$(pane_rect)
+    call view.step_in '{}' >/dev/null || fail "view.step_in"
+    until_ok 'test "$(prop construct-cube-face-0 forward)" = True' 40 || fail "view.step_in did not step in: $(prop construct-cube-face-0 forward)"
+    sleep 1
+    [ "$(pane_rect)" = "$home_rect" ] || fail "the pane is not home after the step in: $(pane_rect), before the step back $home_rect"
+    call view.step_back '{}' >/dev/null || fail "view.step_back"
+    until_ok "$stood_back" 40 || fail "the second step back did not stand back"
+    sleep 1
+    [ "$(pane_rect)" = "$aside_rect" ] || fail "the pane is not beside the cube again: $(pane_rect), the first time $aside_rect"
+    ok "stepped in again the pane is home at $home_rect, and beside the cube again when stood back"
     read -r px py <<<"$(pane_middle)"
     face=$(ctl query id:construct-cube-face-0 | python3 -I -c '
 import json, sys
