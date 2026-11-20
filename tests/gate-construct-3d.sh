@@ -19,7 +19,12 @@
 #    keyboard.
 # 6. With `effects: [wobbly]`, a pane dragged with the modifier wobbles
 #    with a depth, its mirror image bends with it, and it settles
-#    after the release.
+#    after the release. The wobble shows with a frame and the springs rest
+#    when the pane stops, so each poll of the wait moves the held pane a
+#    little and the wait is on both meshes, not on time (K5 race, F5).
+#    A call to the plugin (pane_at) comes after the input events before it
+#    on the same connection, so it stands between a drag and the wait on
+#    its result.
 # 7. `choractl record` writes one picture per frame, and the walk of the
 #    camera moves with the steps of its clock, not with the time: from
 #    the start point, a tap of w (one pane step of 800 in 320 ms, D8)
@@ -157,9 +162,9 @@ until_ok 'test "$(pane_count)" = 5' 80 || fail "the five probe panes do not come
 for name in a b c d e; do
     until_ok "test -e $work/$name.log" || fail "no log of pane $name"
 done
-sleep 2
-[ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 view() { ctl query owner:construct | python3 -I -c 'import json, sys; print(sorted(str(n.get("rects")) for n in json.load(sys.stdin) if n["id"].startswith("construct-pane-") and not n["id"].endswith("-mirror")))'; }
+until_ok 'test "$(view)" = "$(sleep 0.5; view)"' 40 || fail "the view of the panes does not rest"
+[ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 view=$(view)
 
 click_at "$(screen a 100 80)"
@@ -211,7 +216,7 @@ inject "[{\"pointer_move\": {\"position\": [$from]}},
   {\"pointer_move\": {\"position\": [${from%%,*}, 250]}},
   {\"button\": {\"state\": \"released\"}},
   {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
-sleep 1
+until_ok 'test "$(pane_at "$a_name")" != "$before"' 20
 check "a drag with the modifier over pane a reaches no window" 'test "$(presses a)" = "$a_presses"'
 check "the drag with the modifier moves pane a" 'test "$(pane_at "$a_name")" != "$before"'
 a_box=$(box "construct-pane-$(surface_of "$(pane_at "$a_name" | tr -d '[]')")")
@@ -223,16 +228,16 @@ inject "[{\"pointer_move\": {\"position\": [$from]}},
   {\"pointer_move\": {\"position\": [300, 240], \"output\": \"$second\"}},
   {\"button\": {\"state\": \"released\"}},
   {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
-sleep 1
-check "a pane dropped off the output shows where it was again" \
-    'test "$(box "construct-pane-$(surface_of "$(pane_at "$a_name" | tr -d "[]")")")" = "$a_box"'
+pane_at "$a_name" >/dev/null
+a_home() { test "$(box "construct-pane-$(surface_of "$(pane_at "$a_name" | tr -d '[]')")")" = "$a_box"; }
+check "a pane dropped off the output shows where it was again" 'until_ok a_home 20'
 click_at "640, 60"
 sleep 0.5
 view=$(camera)
 all_keys=$(cat "$work"/?.log | grep -c '^key')
 inject '[{"shortcut": {"keys": "w"}}]'
-sleep 1
-check "after a click on the empty space, w walks" 'test "$(camera)" != "$view"'
+walked() { test "$(camera)" != "$view"; }
+check "after a click on the empty space, w walks" 'until_ok walked 20'
 check "the walk key reaches no window" 'test "$(cat "$work"/?.log | grep -c "^key")" = "$all_keys"'
 
 mesh_of() { ctl query "id:$1" | python3 -I -c 'import json, sys; m = json.load(sys.stdin)[0].get("mesh") or {}; print(len(m.get("depth") or []), any(abs(d) > 0.5 for d in m.get("depth") or []))'; }
@@ -244,9 +249,15 @@ if call settings.set '{"effects": ["wobbly"]}' >/dev/null; then
   {\"button\": {\"state\": \"pressed\", \"hold\": true}},
   {\"pointer_move\": {\"position\": [$((${from%%,*} + 60)), 380]}},
   {\"pointer_move\": {\"position\": [$((${from%%,*} + 120)), 330]}}]"
-    sleep 0
-    bent=$(mesh_of "$b_node")
-    mirror_bent=$(mesh_of "$b_node-mirror")
+    wiggle=0
+    wobbles() {
+        wiggle=$((wiggle + 1))
+        inject "[{\"pointer_move\": {\"position\": [$((${from%%,*} + 120 - 30 * (wiggle % 2))), 330]}}]"
+        bent=$(mesh_of "$b_node")
+        mirror_bent=$(mesh_of "$b_node-mirror")
+        test "${bent#* }" = True && test "${mirror_bent#* }" = True
+    }
+    until_ok wobbles 20
     [ -n "${SHOT_WOBBLE:-}" ] && ctl capture "$SHOT_WOBBLE" >/dev/null
     inject '[{"button": {"state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]'
 else
