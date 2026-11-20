@@ -192,3 +192,6 @@ Seeded review of claude/co-pane 18417f06 against 628bb930 (9 files, +181 -38), c
 - Fix: in plugins/chora-construct/src/camera.rs the two drag grab failures (the drag, the drag of a given window) are collected and print as one eprintln line; both messages stay visible. The tap of the modifier message is unchanged. Lint-ratchet: eprintln 131.
 - rx-2 NIT: tests/gate-construct-pull.sh bare sleep 1 became a new helper holds in tests/gate-lib.sh (the condition holds at four polls over 1 s).
 - Gate (--jobs 1): pre-commit, gate-lib, ci-check, build, test, clippy, xp, cube, pull, placed, construct-hud, construct-extra, wm-pane, pane-keys, walk, keys: all PASS.
+
+## PM check r4 (2026-11-20 20:41 UTC)
+Diff 736902cd..79787d9f: camera.rs joins the two drag grab errors into one eprintln (both texts kept); rx-2: `holds` helper in gate-lib.sh (checks the condition 5 times over the window) replaces the bare sleep. Behaviour unchanged. Verdict: MERGE-OK (r3 review stands). Train 93 with xp-tidy efe85512.
