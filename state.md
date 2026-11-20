@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 20:20 UTC)
+## Now (2026-11-20 20:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 19:48 PM 0.9 % since compaction, 11.4 % before; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: b0aa1c75; 50 greens; t92b red 20:10 build: mc-minor vs handover-ti Focus::holder; PM fix dcb77733 (2 lines); t92c running.
@@ -25,7 +25,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 |---|---|---|
 | xp-tidy-r3.md (RC 2: t92 lint-ratchet red) | sonnet medium, claude/xp-tidy 74b423bb | session_016iS3kNmZg2LB7Zqvgg2tnP 20:04 |
 | co-pane-r4.md (RC 2: r3 MERGE-OK 20:12; lint-ratchet +1 eprintln) | sonnet medium, claude/co-pane 18417f06 | session_016iS3kLjHwnKt7Kg8aGj8MC 20:15 |
-| review-tour-one-r1.md (F7, RC 11: tour-one r1 done 8b996cee, one set, 0 copies) | sonnet high, claude/tour-one 8b996cee | session_016iS3kLr7ww1z9iavGDE8qJ 19:48 |
+| tour-one-r2.md (F7, RC 11: review r1 FIX, rt-1, rt-2 MAJOR) | sonnet high, claude/tour-one 8b996cee | starting |
 | tour-diff-r2.md (F7: review r1 FIX, rd-1, rd-2 MAJOR) | sonnet medium, claude/tour-diff fa796bb9 | session_016iS3kQGuYt9aMQradWwz9N 20:20 |
 | guide-checks-r1.md (F7: tour-v9 lane 3) | sonnet medium, claude/guide-checks 8b996cee | session_016iS3kPbqYusAxcH6mxYMgD 19:49 |
 
