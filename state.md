@@ -23,7 +23,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-guide-checks-r2.md (F7: r2 fixes rg-1..rg-7, 260 known-red rows) | sonnet high, claude/guide-checks 4efbf430 | starting |
+| review-guide-checks-r2.md (F7: r2 fixes rg-1..rg-7, 260 known-red rows) | sonnet high, claude/guide-checks 4efbf430 | session_016iS3kMFTQYTy8RJjKKGVdM 23:35 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
 | co-hud-load-r1.md (F5, co-35: Tab after pane.move, red t93b and t94) | sonnet medium, claude/co-hud-load 618ae513 | session_016iS3kL7FGQKkxiN4MJm5Z9 23:17 |
 | persona-begin-r1.md (RC 2: harness begin per goal, L1-L3, T7) | sonnet medium, claude/persona-begin dcb77733 | session_016iS3kNQRgYF3gjvF8SAzob 23:18 |
