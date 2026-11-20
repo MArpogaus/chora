@@ -122,6 +122,22 @@ rename_case() {
   verdict "no-inline-comments: $label" "$want" $?
 }
 
+move_case() {
+  local label=$1 want=$2 path=$3 base=$4 changed=$5
+  new_repo
+  cd "$work/repo" || exit 1
+  printf '%b' "$base" >"$path"
+  git add "$path"
+  git commit -q -m base
+  printf '%b' "$changed" >"$path"
+  git add "$path"
+  python3 -I "$tests_dir/no-inline-comments.py" "$path" >/dev/null
+  verdict "no-inline-comments: $label" "$want" $?
+}
+
+move_case "a new comment in a changed file" fail a.rs 'fn a() {}\n' 'fn a() {}\n// explain\n'
+move_case "a comment edited in place" fail a.rs 'fn a() {\n    // old\n}\n' 'fn a() {\n    // new\n}\n'
+
 rename_case "rust rename keeps old comments" pass a.rs b.rs '// old\nfn a() {}\n' 'fn b() {}\n'
 rename_case "rust rename checks new comments" fail a.rs b.rs '// old\nfn a() {}\n' '// new\n'
 rename_case "shell rename keeps old comments" pass a.sh b.sh '#!/bin/sh\nls\n# old\nls\n' 'ls\n'
