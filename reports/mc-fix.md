@@ -83,3 +83,11 @@ One change outside the hunks: two mc-fix tests (`test_t1_the_key_list_of_the_per
 `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,mc-paths,mc-sofa,mc-handover` (run dir /tmp/merge-gate.8hyEBj): all 8 PASS (pre-commit 4 s, ci-check 126 s, build 40 s, test 308 s, clippy 26 s, mc-sofa 46 s, mc-handover 13 s, mc-paths 81 s). Partial run, nothing pushed by it.
 
 Not touched: rv-1..rv-5 (backlog MC-FIX-RV), mc-50.
+
+## PM review r2 (merge cb2b80f1, 2026-11-20 09:15 UTC)
+Checked `git show --cc cb2b80f1` for tests/persona/check.py and session.sh against the brief:
+- row keeps `page` (mc-fix) and `toplevels` (head): ok.
+- T1, T4: open=ctx.left plus verify_only_keys_open; T2, M2 open=ctx.left (head intent); M1 verify_page_changed; C2 verify_no_window_lost: ok.
+- wpctl: head's state file (volume, mute) logs to @MARKS@ = $fakes/calls.log, the same file mc-fix's fuzzel stand-in writes ($here/calls.log): no lost log.
+- merge-tree vs t87 shas: clean except the known merge-gate.sh comment conflict with co-r4 42c9304b.
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR); cb2b80f1 joins train 87. Persona-selftest one red rerun green ("no click on Notepad"): watched by flake series.
