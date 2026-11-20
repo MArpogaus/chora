@@ -29,6 +29,19 @@ at_its_place() {
     [ "$(ctl query id:hud-figure | jq '.[0].visible')" = true ] || fail "$1: the paperclip node is hidden"
     ok "$1: the paperclip shows at its place: $x,$y ${w}x$h"
 }
+drawn() {
+    local art
+    art=$(ctl query id:hud-figure | jq -r '.[0].image')
+    python3 -I - "$art" "$1" "$2" "$3" <<'PY' || fail "$4: the paperclip art is not on screen"
+import sys
+from PIL import Image
+art, shot, x, y = Image.open(sys.argv[1]).convert("RGBA"), Image.open(sys.argv[2]).convert("RGB"), int(sys.argv[3]), int(sys.argv[4])
+opaque = [(i, j) for j in range(art.height) for i in range(art.width) if art.getpixel((i, j))[3] == 255]
+assert len(opaque) > art.width * art.height // 10, f"the art is blank: {len(opaque)} opaque pixels"
+same = sum(1 for i, j in opaque if sum(abs(a - b) for a, b in zip(art.getpixel((i, j))[:3], shot.getpixel((x + i, y + j)))) <= 12)
+assert same * 2 >= len(opaque), f"only {same} of {len(opaque)} art pixels show at {x},{y}"
+PY
+}
 wait_figure() {
     for _ in $(seq 50); do
         has_figure && return 0
@@ -40,6 +53,9 @@ wait_figure || fail "no helper: a fresh xp session shows no paperclip: $(tail -n
 at_its_place "no helper"
 sleep 1
 ctl capture "$shots/xp-paperclip-no-helper.png" >/dev/null || fail "no helper: the capture failed"
+read -r x y _ <<<"$(rect)"
+drawn "$shots/xp-paperclip-no-helper.png" "$x" "$y" "no helper"
+ok "no helper: the paperclip art is drawn"
 mkfifo "$shots/voice.in"
 python3 -I "$repo/tests/fake-voice.py" "$shots/claims" <"$shots/voice.in" >"$shots/voice.log" 2>&1 &
 pids+=($!)
@@ -48,3 +64,8 @@ echo 'voice.state {"state": "listening"}' >&5
 sleep 1.5
 wait_figure || fail "a helper: a fresh xp session shows no paperclip"
 at_its_place "a voice agent"
+sleep 1
+ctl capture "$shots/xp-paperclip-voice.png" >/dev/null || fail "a voice agent: the capture failed"
+read -r x y _ <<<"$(rect)"
+drawn "$shots/xp-paperclip-voice.png" "$x" "$y" "a voice agent"
+ok "a voice agent: the paperclip art is drawn"
