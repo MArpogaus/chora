@@ -556,6 +556,8 @@ check "gate-lib: the step runs merge-gate-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
 check "gate-lib: the step runs cells-for-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
+check "gate-lib: the step runs matrix-cap-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/matrix-cap-selftest.sh')" 1
 
 printf 'one|true\nlauncher|echo "SKIP: fuzzel 1.9.2 < 1.11"\nthree|echo "ok: three"\n' >"$work/steps"
 run_gate

@@ -35,10 +35,12 @@
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
 # is lost or the whole run, startup and last cell included, takes more
-# than the cap. The cap is a guard against a hang, not a speed test: 315 s
-# is the slowest of five runs under `tests/merge-gate.sh --only
-# matrix,layout,doors --jobs 3` on 4 CPUs (226, 228, 234, 243 and 249 s)
-# plus 25 %. The run time is the script's own: from the moment it holds the
+# than the cap. The cap is a guard against a hang, not a speed test: 387 s
+# is the slowest of five runs in real trains of `tests/merge-gate.sh --jobs 2`
+# on the PM host, 86 logs (283, 290, 300, 301 and 309 s) plus 25 %,
+# rounded up (tests/matrix-cap-selftest.sh holds the three places that name
+# the cap to that rule: move all of them when a new measurement moves it).
+# The run time is the script's own: from the moment it holds the
 # gate lock (gate_elapsed of tests/gate-lib.sh) to its end, so a wait in
 # the queue of the gate or for a lock is not in it, and the PASS line prints
 # that time and the cap. A breach prints the five slowest cells with their
@@ -57,7 +59,7 @@
 #   CHORA_TEST_ACCEPT_INJECTED_KEYS: 1 (default) lets the window managers
 #   take the keys of `input.inject`; 0 is production: the key cells of
 #   tiling, xp and mc expect gap, and no manager may serve a key
-#   CAP: the most seconds of the run (default 315)
+#   CAP: the most seconds of the run (default 387)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
 # shellcheck disable=SC2016
@@ -164,7 +166,7 @@ mkdir -p "$shots" "$work/chora"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-time_cap=${CAP:-315}
+time_cap=${CAP:-387}
 log=$shots/matrix.log
 : >"$log"
 
