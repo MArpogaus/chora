@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 02:08 UTC)
+## Now (2026-11-20 02:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -24,7 +24,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| stray-grab-r1.md (RC sh-24, Queue 5) | opus high | session_016iS3kQiKWvRdXmmZ12b8Tw |
+| review-stray-grab-r1.md (RC sh-24, Queue 5; stray-grab r1 done 9859071b) | opus high | starting |
 | black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
 | t81 (Queue 4, F6): kit-sec-r3.md, xp-majors-r1.md, mc-answer-r2.md, co-majors-r2 | sonnet | MERGE-OK 1c25af7e 81a29fe8 92f2e52f 8e24dcb6; gate 01:54 |
 | launcher-click-r1.md (RC shared bar, Queue 5; tiling r1 done 1ca97496) | sonnet high | session_016iS3kMprawWbAXMgpN35Bw |
@@ -33,7 +33,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t80 green 01:52 (persona-env, flake-h; b97369d1). t81 gate 01:54: kit-sec 1c25af7e, xp-majors 81a29fe8, mc-answer 92f2e52f, co-majors 8e24dcb6.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: STRAY-GRAB 1.5 %, BLACK-PANE r2 1 %, P2 r1 mc 1.1 %, LAUNCHER-CLICK 1 %, P2-HARNESS (construct r1b) 1 %; T1 triage 1.2 % after R1 tiling, mc; P2 r2 xp after t81; AUDIT-F r3 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: REVIEW STRAY-GRAB 0.5 %, BLACK-PANE r2 1 %, P2 r1 mc 1.1 %, LAUNCHER-CLICK 1 %, P2-HARNESS (construct r1b) 1 %; T1 triage 1.2 % after R1 tiling, mc; P2 r2 xp after t81; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
