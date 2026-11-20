@@ -4,7 +4,7 @@
 # bottom edges are those of the Send button beside it, at scale 1 and 2.
 # The Run box is fuzzel: its settings stay on the grid of 4 px, and the
 # label is in the text colour.
-# The Run box, rendered: a row of 28 px and its text on the grid of 4 px, at 1x and 2x; fuzzel before 1.11 does not read the file of xp, and the cell skips there.
+# The Run box, rendered: a row of 28 px and its label 5 px right of the rows (what a pad of 12 makes; the glyph bearing of the font, which differs by 1 px between 1x and 2x, cancels), at 1x and 2x; a pad of 6 fails; fuzzel before 1.11 does not read the file of xp, and the cell skips there.
 # BIN: directory with the binaries, SHOTS: directory for the captures.
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -20,6 +20,7 @@ for key in horizontal-pad vertical-pad inner-pad; do
     value=$(setting "$key")
     [ $((value % 4)) = 0 ] || fail "the Run box: $key=$value is off the grid of 4 px"
 done
+[ "$(setting horizontal-pad)" = 12 ] || fail "the Run box: horizontal-pad is not 12"
 grep -qx "prompt=000000ff" "$fuzzel_ini" || fail "the Run box: the label is not in the text colour"
 ok "the Run box stands on the grid of 4 px with a label in the text colour"
 
@@ -61,8 +62,10 @@ field_cell() {
     gate_cleanup 0
     pids=()
 }
-field_cell 1
-field_cell 2
+if [ -z "${RUNBOX_ONLY:-}" ]; then
+    field_cell 1
+    field_cell 2
+fi
 
 runbox_cell() {
     local scale=$1 apps out
@@ -88,9 +91,9 @@ runbox_cell() {
     local height text list
     read -r height text list <<<"$out"
     [ "$height" = "${RUNBOX_ROW:-28}.0" ] || fail "${scale}x: the row of the Run box is $height px high, not ${RUNBOX_ROW:-28}"
-    [ "$(python3 -I -c "print(int(float('$text')) % 4 == 0 and float('$text') == int(float('$text')))")" = True ] ||
-        fail "${scale}x: the text of the Run box stands $text px from the border, off the grid of 4 px (rows: $list px)"
-    ok "${scale}x: the Run box has a row of $height px and its text $text px from the border"
+    [ "$(python3 -I -c "print(float('$text') - float('$list') == ${RUNBOX_GAP:-5.0})")" = True ] ||
+        fail "${scale}x: the text of the Run box stands $(python3 -I -c "print(float('$text') - float('$list'))") px right of its rows, not ${RUNBOX_GAP:-5.0} (pad 12)"
+    ok "${scale}x: the Run box has a row of $height px and its label ${RUNBOX_GAP:-5.0} px right of the rows"
     gate_cleanup 0
     pids=()
 }
@@ -98,3 +101,12 @@ fuzzel_minor=$(fuzzel --version | sed -n 's/^fuzzel version: 1\.\([0-9]*\).*/\1/
 [ "${fuzzel_minor:-0}" -ge 11 ] || [ -n "${RUNBOX_INI:-}" ] || skip "fuzzel $(fuzzel --version | cut -d' ' -f3) does not read the Run box file of xp (1.11 and later do)"
 runbox_cell 1
 runbox_cell 2
+if [ -z "${RUNBOX_ONLY:-}" ]; then
+    wrong=$(mktemp /tmp/gate-xp-pad6.XXXXXX)
+    sed 's/^horizontal-pad=.*/horizontal-pad=6/' "$fuzzel_ini" >"$wrong"
+    if RUNBOX_ONLY=1 RUNBOX_INI=$wrong SHOTS=$shots/pad6 "$0" >"$shots/pad6.log" 2>&1; then
+        fail "the Run box with pad 6 passes the label check"
+    fi
+    rm -f "$wrong"
+    ok "a wrong pad (6) fails the label check"
+fi
