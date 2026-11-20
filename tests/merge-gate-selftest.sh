@@ -556,6 +556,8 @@ check "gate-lib: the step runs merge-gate-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
 check "gate-lib: the step runs cells-for-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
+check "gate-lib: the step runs matrix-cap-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/matrix-cap-selftest.sh')" 1
 
 check "ci-check: the step runs before build in the step list" \
     "$("$gate" --list | grep -nx -e ci-check -e build | head -1 | cut -d: -f2)" ci-check
