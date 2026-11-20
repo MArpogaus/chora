@@ -95,7 +95,8 @@ marked() {
 }
 unmark() { : >"$marks"; }
 until_ok() {
-    local end=$((SECONDS + ${2:-40} / 2))
+    local rounds=${2:-40}
+    local end=$((SECONDS + rounds / 2))
     while :; do
         eval "$1" && return 0
         [ "$SECONDS" -lt "$end" ] || return 1

@@ -81,7 +81,8 @@ rect_of() { ctl query "id:$1" | jq -r '.[0].rects | to_entries[0].value | @tsv' 
 card_shows() { ctl query id:construct-start | jq -e 'length > 0 and (.[0].visible != false) and (.[0].opacity // 1) > 0.9' >/dev/null 2>&1; }
 card_gone() { ! ctl query id:construct-start | jq -e '.[0] | (.visible != false) and (.opacity // 1) > 0.05' >/dev/null 2>&1; }
 until_ok() {
-    local end=$((SECONDS + ${2:-40} / 2))
+    local rounds=${2:-40}
+    local end=$((SECONDS + rounds / 2))
     while :; do
         eval "$1" && return 0
         [ "$SECONDS" -lt "$end" ] || return 1
