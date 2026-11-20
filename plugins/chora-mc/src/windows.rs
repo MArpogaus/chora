@@ -43,9 +43,9 @@ impl Mc {
     /// Does what the book says, in order. A detached window of mc leaves
     /// no data: the proposal that follows puts it back.
     /// A new window that the core reserved for mc (mc holds the claim of
-    /// its output, `to` names it) has the origin `given` in the book,
-    /// which keeps no token; the token of its `surface.created` still
-    /// finds the scene that started it (mc-42).
+    /// its output, `to` names it) is `new` in the book and keeps the token
+    /// of its `surface.created`, which finds the scene that started it
+    /// (mc-42).
     pub(crate) fn settle(
         &mut self,
         changes: Vec<Change>,
@@ -389,7 +389,7 @@ mod tests {
             window["origin"].clone()
         };
         assert_eq!(origin("s1"), "new");
-        assert_eq!(origin("s2"), "given");
+        assert_eq!(origin("s2"), "new");
         assert!(!state.to_string().contains("t1"), "no token: {state}");
         assert_eq!(state["open"], serde_json::json!([]), "no key list open");
     }

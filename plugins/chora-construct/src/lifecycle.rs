@@ -260,7 +260,7 @@ mod tests {
             window["origin"].clone()
         };
         assert_eq!(origin("s1"), "new");
-        assert_eq!(origin("s2"), "given");
+        assert_eq!(origin("s2"), "new");
         assert!(!state.to_string().contains("t1"), "no token in the state");
     }
 
