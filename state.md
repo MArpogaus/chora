@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 04:15 UTC)
+## Now (2026-11-20 04:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 03:13 PM 5.4 %; 25 h left: 60 %, 2.4 %/h; 6 lanes full
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -29,11 +29,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | (free; Queue 5 LINT-DOWN r3 after t85) | - | - |
 | debt-f4-r1.md (F4 workarounds, hygiene; Queue 5) | sonnet high | session_016iS3kNYwtxZaiim9JXJjzh |
-| co-p2-fix-r2.md (RC bar, Queue 5; r1 FIX: rv-1 MAJOR swallow timer) | sonnet high | session_016iS3kNfmuVEezbtEfBfuqz |
+| review-co-p2-fix-r2.md (RC bar, Queue 5; r2 ab4cbb4f) | sonnet high | starting |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t82c (launcher-click 741d6bca) running 03:46. t83: p2-harness 5dbd0ccf. t83b: voice-v12 ed4c7bf9 (harness). t84: xp-fix a767790d (harness). t85: stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f.
-5. F work: running: VERIFY-MAJ 0.3 % (rule 6), DEBT-F4 1 % (F4), FLAKES-J 1 %, CO-P2-FIX r2 0.8 % (rv-1 MAJOR), LINT-DOWN r3 0.1 % after t85 (rv-4 list); then P2 r3 xp after t84; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
+5. F work: running: VERIFY-MAJ 0.3 % (rule 6), DEBT-F4 1 % (F4), FLAKES-J 1 %, REVIEW CO-P2-FIX r2 0.4 % (RC bar), LINT-DOWN r3 0.1 % after t85 (rv-4 list); then P2 r3 xp after t84; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
