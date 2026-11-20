@@ -118,6 +118,9 @@ impl Wm {
         };
         let w = &self.windows[i];
         let (maximized, minimized) = (w.maximized(), w.minimized);
+        if self.looks.is_empty() {
+            self.refresh_looks();
+        }
         let entries = context::system(maximized, minimized, &self.looks);
         let Some(bar) = self
             .bars
@@ -136,9 +139,10 @@ impl Wm {
     }
 
     /// Asks the core for the client names of the other looks that can take
-    /// a window, and keeps them for the system menu. Called at a start and
-    /// at a client event, never at a press. A failure leaves one line in
-    /// the log and the rows gray (no look is known to run).
+    /// a window, and keeps them for the system menu. Called at a start,
+    /// at a client event and at a menu open with no look known (once per
+    /// open), never at a press while the cache is filled. A failure leaves one line per
+    /// streak in the log and the rows gray (no look is known to run).
     pub(super) fn refresh_looks(&mut self) {
         #[derive(serde::Deserialize)]
         struct Client {
@@ -148,12 +152,18 @@ impl Wm {
         let list: Result<Vec<Client>, _> =
             self.rt.conn.call("clients.list", serde_json::Value::Null);
         self.looks = match list {
-            Ok(list) => (list.into_iter())
-                .filter(|c| c.methods.iter().any(|m| m == chora_kit::give::METHOD))
-                .map(|c| c.name)
-                .collect(),
+            Ok(list) => {
+                self.looks_failed = false;
+                (list.into_iter())
+                    .filter(|c| c.methods.iter().any(|m| m == chora_kit::give::METHOD))
+                    .map(|c| c.name)
+                    .collect()
+            }
             Err(err) => {
-                eprintln!("chora-xp: clients.list: {err}");
+                if !self.looks_failed {
+                    eprintln!("chora-xp: clients.list: {err}");
+                }
+                self.looks_failed = true;
                 Vec::new()
             }
         };

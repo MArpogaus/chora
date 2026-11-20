@@ -80,6 +80,7 @@ impl Wm {
             context: None,
             sys_window: None,
             looks: Vec::new(),
+            looks_failed: false,
             last_icon: None,
             panels: Vec::new(),
             hide_at: None,

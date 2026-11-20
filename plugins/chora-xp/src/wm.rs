@@ -316,6 +316,8 @@ pub struct Wm {
     /// The client names of the looks that take a window, as of the last
     /// client event: the Send To rows read it, the press asks no one.
     looks: Vec<String>,
+    /// The last `clients.list` failed (one warn line per streak).
+    looks_failed: bool,
     /// The last press on the icon of a title bar, for the double click.
     last_icon: Option<(String, Instant)>,
     /// The settings of Taskbar and Start Menu Properties.
