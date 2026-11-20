@@ -54,6 +54,7 @@ from harness import Act, Expect, Session, Snapshot, wait_quiet  # noqa: E402
 
 SKIPPED = {"I4"}
 QUIET = 10
+LIST_CHORDS = {"xp": (35, 59), "tiling": (53,), "mc": (53,), "construct": (53, 59)}
 SHEETS = {
     "xp": "xp-dlg-help",
     "tiling": "tiling-keys",
@@ -226,6 +227,16 @@ class Ctx:
     def opened(self, sheet):
         """Whether `sheet` was open in some observation."""
         return any(sheet in h["open"] for h in self.hist)
+
+    def asked_for_list(self):
+        """Whether the persona pressed the chord that opens the key list."""
+        return any(code in LIST_CHORDS[self.look] for code in self.keys)
+
+    def own_left(self):
+        """What the persona left open: the key list only when it asked for
+        it, a list that opened unasked is a red."""
+        sheet = SHEETS[self.look]
+        return [i for i in self.left if i != sheet or self.asked_for_list()]
 
     def called(self, pattern):
         """Whether a stand-in call line matches `pattern`; the polls of the
@@ -405,8 +416,8 @@ def verify_page_changed(ctx, before):
 
 def verify_only_keys_open(ctx):
     """Nothing is open but the key list, which the persona may have opened
-    and left open."""
-    sheet = SHEETS[ctx.look]
+    and left open: it asked for it with its chord."""
+    sheet = SHEETS[ctx.look] if ctx.asked_for_list() else None
 
     def verify(after_):
         extra = [i for i in invariants.open_ids(after_) if i != sheet]
@@ -453,13 +464,13 @@ def contracts(task, ctx, before):
     same = verify_same_windows(before)
     table = {
         "T1": Expect(
-            open=ctx.left,
+            open=ctx.own_left(),
             verify=verify_all(verify_only_keys_open(ctx), verify_new_window(ctx, before)),
         ),
         "T2": Expect(open=ctx.left, verify=verify_sheet(ctx)),
         "T3": Expect(verify=verify_helper(ctx)),
         "T4": Expect(
-            open=ctx.left,
+            open=ctx.own_left(),
             verify=verify_all(verify_only_keys_open(ctx), verify_system(ctx, part)),
         ),
         "T5": Expect(verify=verify_probe(ctx)),

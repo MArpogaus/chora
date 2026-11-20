@@ -1032,7 +1032,7 @@ class PersonaContracts(unittest.TestCase):
         states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
         two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
         after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
-        self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"]), before, after), [])
+        self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"], keys=[59]), before, after), [])
 
     def test_t1_a_key_list_that_opened_unasked_stays_red(self):
         before = snap()
@@ -1051,7 +1051,7 @@ class PersonaContracts(unittest.TestCase):
     def test_t4_the_key_list_of_the_persona_may_stay_open(self):
         states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
         calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
-        call = ctx(calls=calls, left=["xp-dlg-help"])
+        call = ctx(calls=calls, left=["xp-dlg-help"], keys=[59])
         self.assertEqual(verdict("T4:volume", call, snap(), snap(states=states)), [])
         call = ctx(calls=calls)
         menu = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-menu"}], "busy": []}}
@@ -1326,10 +1326,12 @@ class PersonaContracts(unittest.TestCase):
         left = ["xp-dlg-help"]
         lock = ["swaylock -f"]
         self.assertIn("expected open", verdict("T4:lock", ctx(calls=lock), snap(), help_open)[0])
-        self.assertEqual(verdict("T4:lock", ctx(calls=lock, left=left), snap(), help_open), [])
+        self.assertEqual(
+            verdict("T4:lock", ctx(calls=lock, left=left, keys=[59]), snap(), help_open), []
+        )
         self.assertIn(
             "expected open",
-            verdict("T4:lock", ctx(calls=lock, left=left), snap(), menu_open)[0],
+            verdict("T4:lock", ctx(calls=lock, left=left, keys=[59]), snap(), menu_open)[0],
         )
         hist = [seen(["xp-dlg-help"], keysheet=[])]
         self.assertEqual(verdict("T2", ctx(hist=hist, left=left), snap(), help_open), [])
