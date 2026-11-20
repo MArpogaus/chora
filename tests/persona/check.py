@@ -53,6 +53,7 @@ import invariants  # noqa: E402
 from harness import Act, Expect, Session, Snapshot, wait_quiet  # noqa: E402
 
 SKIPPED = {"I4"}
+CHILDREN = ("xp", "tiling", "mc")
 QUIET = 10
 SHEETS = {
     "xp": "xp-dlg-help",
@@ -85,6 +86,21 @@ def dump(snap):
     return json.dumps(dataclasses.asdict(snap), default=sorted)
 
 
+def with_children(session, snap):
+    """The snapshot with the states of the looks that a flavor runs as its
+    children, a cube's window manager on its faces: a window that such a
+    child owns is a window of a look, shown or not as the child says, and
+    the child holds the focus of it."""
+    if session.label != "construct":
+        return snap
+    for child in CHILDREN:
+        if child in snap.clients and child not in snap.states:
+            state = session.state(child)
+            if state is not None:
+                snap.states[child] = state
+    return snap
+
+
 class Run:
     """The files of the run in $PERSONA_DIR and the connection to the session."""
 
@@ -98,7 +114,8 @@ class Run:
     def snapshot(self, marks=None):
         """A snapshot once quiet; the logs since `marks` (path: size)."""
         self.s.log_marks = {pathlib.Path(k): v for k, v in (marks or {}).items()}
-        return self.s.snapshot(wait_quiet(self.s.states, QUIET), self.s.watch.drain())
+        snap = self.s.snapshot(wait_quiet(self.s.states, QUIET), self.s.watch.drain())
+        return with_children(self.s, snap)
 
     def marks(self):
         """The end of every log now."""
