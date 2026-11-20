@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:52 UTC)
+## Now (2026-11-20 00:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -26,7 +26,8 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 |---|---|---|
 | flake-h-r2.md | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
 | 78b: temp-dirs, flake-k, f24-rest, pw, nits-3, block-v | sonnet | in t79 |
-| xp-majors-r1.md (RC) | sonnet high | session_016iS3kMhTLUxwUHZdCQtBSJ |
+| xp-majors-r1.md (RC) | sonnet high | 81a29fe8 in review |
+| review-xp-majors-r1.md | sonnet hi | starting |
 | mc-majors-r1.md (RC) | sonnet high | OK 92ecd30a t79 |
 | mc-answer-r1.md (RC) | sonnet high | a271df2b in review |
 | review-mc-answer-r1.md | sonnet hi | session_016iS3kMDR7M1khmKyPxucfW |
@@ -38,7 +39,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): train 79 = 78b + mc-majors + ti-majors + flake-l f52ee86d (xp 17b race fix; 3x rerun green): gate 00:53; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors r2, kit-sec r3.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: XP-MAJORS 1.5 %, REVIEW MC 0.5 %, FLAKE-H r2 0.5 %, CO r2 0.8 %, KIT-SEC r3 0.8 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: REVIEW MC 0.5 %, REVIEW XP 0.5 %, FLAKE-H r2 0.5 %, CO r2 0.8 %, KIT-SEC r3 0.8 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
