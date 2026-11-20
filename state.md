@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 15:57 UTC)
+## Now (2026-11-20 15:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 15:46 PM 10.3 %; 6 lanes
 session branch: fee9c695; 47 greens. t89 red xp-question 1x Yes 32 px; t89b running.
@@ -27,7 +27,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 | mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
 | gate-orphan-r1.md (F6: red step leaves no orphan) | sonnet medium, claude/gate-orphan fee9c695 | session_016iS3kNWpf3LijcZ7WSxG1g 15:54 |
-| xp-minor-r1.md (RC 2 known issues: 5 xp MINOR) | sonnet medium, claude/xp-minor fee9c695 | starting |
+| xp-minor-r1.md (RC 2 known issues: 5 xp MINOR) | sonnet medium, claude/xp-minor fee9c695 | session_016iS3kLKnKNMM5NJqp8UV7Y 15:58 |
 | co-fix-r1.md (RC 2: co-25 persona path, C2 pull, C1 cube row) | opus high, claude/co-fix 59efbc17 | session_016iS3kQV9F7BQukecZNFTL1 15:35 |
 
 ## Queue (% week; 5 % reserve)
