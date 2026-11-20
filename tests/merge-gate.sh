@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, identity, pre-commit, gate-lib, build, test, clippy, ci-check, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, e2e. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
@@ -21,7 +21,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
 # a committer other than the identity in `expected_identity` below (a lane hook has
@@ -247,6 +247,7 @@ mc-paths|BIN=$repo/target/debug tests/gate-mc-paths.sh
 mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh
 mc-column|BIN=$repo/target/debug tests/gate-mc-column.sh
 mc-handover|BIN=$repo/target/debug tests/gate-mc-handover.sh
+launcher-click|BIN=$repo/target/debug tests/gate-launcher-click.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }
