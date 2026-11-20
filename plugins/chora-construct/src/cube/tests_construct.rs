@@ -857,3 +857,28 @@ fn a_press_on_the_close_of_the_key_sheet_closes_it() {
     chora_kit::runtime::Plugin::event(&mut construct, press).unwrap();
     assert!(!construct.help, "the Close button closes the sheet");
 }
+
+/// co-pane r1: a window of a pane that the cube hides does not get the
+/// keyboard back when the key sheet closes: the focus stays a shown window.
+#[test]
+fn the_key_sheet_does_not_focus_a_pane_that_is_out_of_sight_on_close() {
+    let (mut construct, core, _lines) = on_core("help-hidden", cube_core(json!([])));
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, -1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    construct.help = true;
+    construct.help_back = Some("s1".into());
+    let before = core.model().lock().unwrap().focuses.len();
+    construct.toggle_help().unwrap();
+    assert!(!construct.help);
+    let focuses = core.model().lock().unwrap().focuses.clone();
+    assert_eq!(focuses.len(), before, "{focuses:?}");
+}

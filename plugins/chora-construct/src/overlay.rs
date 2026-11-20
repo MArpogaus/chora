@@ -326,6 +326,12 @@ impl Construct {
             return Ok(());
         };
         if self.own_window(&surface) {
+            let flown = self.flown.as_ref().is_some_and(|f| f.surface == surface);
+            let shown =
+                (self.panes.iter()).any(|p| p.window() == Some(&surface) && self.in_sight(p));
+            if !(flown || shown) {
+                return Ok(());
+            }
             self.walk_keys = false;
             return self
                 .rt
