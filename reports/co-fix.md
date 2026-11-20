@@ -33,7 +33,7 @@ Verdict: MERGE-OK (no open MAJOR on the branch); joins t91. co-33 stays open for
 
 ## r2
 Lane: cloud, branch claude/co-fix from e97b55f0 (the local branch was stale at 59efbc17; moved to e97b55f0 before any work). Step 0: unshallow, `cargo check --workspace` green.
-Head: $head on claude/co-fix (pushed), base merged (ce2c436b; one conflict in tests/merge-gate.sh, the keys cell keeps persona and probe-hangup). Gate `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,keys,construct-hud,construct-extra,cube,pull,doors`: all 12 cells PASS (run dir /tmp/merge-gate.JDHz8o). No red cell.
+Head: bbaad12b on claude/co-fix (pushed), base merged (ce2c436b; one conflict in tests/merge-gate.sh, the keys cell keeps persona and probe-hangup). Gate `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,keys,construct-hud,construct-extra,cube,pull,doors`: all 12 cells PASS (run dir /tmp/merge-gate.JDHz8o). No red cell.
 
 ### co-33 (C2): fixed
 - Red 7fa79f58, cell pull (gate-construct-pull section 5, plus two negative checks): one output, use mode, a title drag to the screen edge and back: the hint text "pull this window out" shows at the drag, no window leaves xp, no pane; gone after the release. Stood back (K12) a plain plane drag shows no hint; with a second output the designed drag shows none. Red: `FAIL: one output: a title drag to the screen edge shows no pull hint: ''`.
