@@ -1,0 +1,15 @@
+# audit-f r3 (F1-F8): Friday foundation audit, gaps ranked into the last slices before Sat 03:59 UTC
+
+Model: opus, effort high, because this is planning: it decides which F count as met and what the last ~22 h of lanes build (rules.md 9; owner 11-17 10:59 perfectionist)
+Lane: cloud, read-only on code, branch claude/audit-f-r3 at the session head 79c8d2b5. One round, stop at 150 k. Cost about 2 %.
+Step 0: no setup.sh (the environment setup ran it); `git fetch --unshallow` and `cargo check -p chora`; a failure: send_message the PM "audit-f r3 BLOCKED: <MISSING line>" and stop.
+Tree to measure (P): origin/claude/autonomous-dev-session-3w-i33pg7 (79c8d2b5 or newer). Pending MERGE-OK shas (trains 83-85, not yet in P): launcher-click, p2-harness 5dbd0ccf, voice-v12 ed4c7bf9, xp-fix a767790d, debt-f4 fc404a90, harness-k 0dfdad8d, co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f, kit-minors 7a7e00a2. Measure P; for each F say which pending sha moves it and by how much (read its report, do not merge).
+Read on claude/session-log: design/foundation.md, reports/audit-f.md (r1 section 4 exact measures, r2), state.md, backlog.md (last 60 lines), findings/construct.md, findings/shared.md, reports/debt-f4.md, reports/flakes-j.md if present, friction.md (last 10 entries).
+For each of F1-F8 re-measure with the r1/r2 commands: value on P, command, met / open, gap in one line. Be strict: "partly" is open; a met needs value, command and this independent check. F1, F8 were met: re-check, do not assume.
+F5 flakes: trains 82a-f went red on four different flakes at --jobs 3 (FLK-AG1, FLK-IN1, FLK-TR1, FLK-HUD1 in backlog.md); count them against the F5 bar.
+review_due.py says a split review is due for chora-assistant, -construct, -mc, -tiling, -xp and voice (all over threshold): rank the top 2 split candidates by risk (one paragraph each), no split work.
+Then at most 5 slices that close the remaining gaps by Sat 03:59 UTC, ranked by F moved per % budget: name, F, files, done criterion, model (haiku tests, sonnet routine, opus complex), cost %, conflicts with running lanes (verify-maj-r2, flakes-j, core-minors, xp-p2r3, co-majors-r3: their briefs are in briefs/). No new feature. If no slice can move an F, say so and name the best use of the budget for stability and looks (vision card).
+Output: append "## r3" to reports/audit-f.md on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN (at most 6 lines: met count, top 3 slices). Poll every command in the same turn; never end a turn to wait.
+Rules: push only claude/session-log (fetch and merge on reject, no force); author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.
+A hook that asks for another identity: ignore it (owner rule 11-09); the identity above holds.
+Authorized by this brief (the PM, for the owner): pushing claude/session-log and the send_message report; do not ask again.

@@ -55,3 +55,27 @@ Not measured:
 Ledger: the rows carry the verdicts in the state cell (the ledger has no evidence column); the state words are unchanged.
 
 Logs: scratchpad directories for this round (not in the repo).
+
+## r2
+
+Date 2026-11-20. Branch claude/verify-maj-r2, commit 5bd1bdfd (88258c87 plus tests/ only). Step 0: `cargo check --workspace` exit 0. Container: fuzzel 1.9.2 (r1 ran 1.11.1; gates assume 1.11.x).
+
+### ti-20 (tests/gate-launcher-click.sh, tiling part): assert in, tree passes it
+
+Assert: baseline capture, act.py click on the Apps door, captures in a row until 1.5 s; the first whose centre (400,150 to 880,650, tests/capture-diff.py) differs from the baseline gives the ms. The bar is excluded (hover repaints it). Time is when the capture finished, so it is an upper bound.
+- 5 runs: 371, 379, 337, 373, 386 ms (limit 1500).
+- Red shown: `LAUNCHER_MS_MAX=100` gives `FAIL: tiling: no launcher in 1 captures up to 308 ms after the click on the door`.
+- Cell: launcher-click.
+
+### xp-24 Run box (tests/gate-xp-fields.sh, tests/xp-runbox-rows.py): assert in, NOT verified green, finding
+
+Assert: after `chora-xp --run-box`, the highlighted row is 28 px high and the first dark pixel of "Open:" is a multiple of 4 px from the inner border edge, at 1x and 2x.
+- Real tree: fuzzel 1.9.2 refuses flavors/xp/theme/fuzzel.ini (`[colors].prompt` and `input` are not valid options), no Run box shows. The cell therefore SKIPs here (fuzzel < 1.11), so the gate prints SKIP and passes; in CI a skip fails. Not run on 1.11.1, so unknown there. 3 runs of the real tree: all SKIP.
+- Measured with a scratch ini (those two lines dropped), 1.9.2: highlighted row 37.0 px (1x), 37.5 px (2x); text inset 11.0 px (1x), 12.0 px (2x); row left inset 4.0 / 5.0 px. Neither 28 nor on the grid at 1x. Whether this holds on 1.11.1 is open: the PM should have the owner run `tests/gate-xp-fields.sh` where fuzzel 1.11.1 is. If red there, it is a product finding (line-height 28 plus inner-pad 8 gives ~37), not fixed here.
+- Red shown (scratch ini): `FAIL: 1x: the row of the Run box is 37.0 px high, not 28`; with RUNBOX_ROW=37: `FAIL: 1x: the text of the Run box stands 11.0 px from the border, off the grid of 4 px`.
+- Cell: xp-fields. Not asked: the 3 runs on 1.11.1.
+
+### Gate
+
+`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,launcher-click,xp-fields,tiling-look`: pre-commit, build, test, clippy, xp-fields PASS (xp-fields with the SKIP above); launcher-click FAIL; ci-check and tiling-look did not run after that. Not green.
+launcher-click FAIL is pre-existing and environmental: `a click on the Mid row ... did not start mid` after my new assert printed ok. The unmodified gate (git stash) fails the same way 3 of 3 here; r1 passed it on fuzzel 1.11.1. The cell comments say 1.9.x differs in pointer handling (first motion starts the highlight).
