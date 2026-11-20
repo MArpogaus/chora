@@ -454,6 +454,38 @@ mod tests {
         );
     }
 
+    /// co-hud-load r1: under load the scene animation lags the wall time.
+    /// A redraw after the 160 ms of the fade asks for no fade, and the
+    /// update of the redraw stops the one that runs, short of 1; the list
+    /// stays at 0.97 for good (gate-construct-hud, Tab after a pane.move).
+    #[test]
+    fn a_row_hovered_after_the_fade_time_leaves_the_list_fully_opaque() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "list-hover-late");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct.open_list().unwrap();
+        let back = std::time::Duration::from_millis(200);
+        let list = construct.list.as_mut().unwrap();
+        list.opened = list.opened.checked_sub(back).unwrap();
+        core.model().lock().unwrap().scene.advance(150.0);
+        construct
+            .event(Event::PointerEntered {
+                node: format!("{}0", crate::command::LIST_ROW),
+                moved: false,
+                injected: false,
+            })
+            .unwrap();
+        let model = core.model();
+        let mut model = model.lock().unwrap();
+        model.scene.advance(1000.0);
+        let opacity = model.scene.node(crate::hud::LIST).unwrap().props.opacity;
+        assert!(
+            (opacity - 1.0).abs() < f64::EPSILON,
+            "the list is opaque after its fade time: {opacity}"
+        );
+    }
+
     /// kit7-a2 (D116): a press on the window of a pane gives it the
     /// keyboard; a new window that comes as a pane without a flight takes
     /// the keyboard back to the walk, as a new window takes it in the
