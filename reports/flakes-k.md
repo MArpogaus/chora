@@ -86,3 +86,51 @@ run.
 - FLK-HUD1 stays open with the evidence line (item 4).
 - construct doors: the Escape pattern is unchanged; not shown.
 - The red of `9967f062` depends on test order in a full run; it is red run alone.
+
+## Review r1
+
+Reviewer lane (cloud, read-only on code), `claude/flakes-k` at `e2508ec1`, base `79c8d2b5`. Written 11-20.
+Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 2 MINOR, 2 NIT).
+
+Checks.
+1. Red first. Reproduced here, red then green: `d13da066`/`eef3b496` (churn test panics at the status
+   unwrap), `fd0818fc`/`fa53ad43` (slow roundtrip), `9967f062`/`1bbfdd4a` (run alone), and
+   `e2508ec1` with the old scan put back: red 3 of 3 in 0.3 s; as it is green 3 of 3 in 1.0 s. Read only
+   (they need a session): `7641a6f3`/`6192f696`, `b7eddbf9`/`92185802`, `90e9e743`/`2f069c98`.
+2. Product or test: every fix is test code (`cfg(test)` modules, tests/, the probe's `--report` lines).
+   IN1 accepts `[false]` or `[false, true]`: matches docs/api.md:897 (injected input is no activity) and
+   ext-idle-notify (the person's activity restarts the timer, which fires again); `[false, false]`, a
+   `true` first or an empty list still fail, and the injected key is still checked to bring nothing.
+3. TR1: `logged` moved to testing.rs with the same output (all levels, per-thread sink); the only change
+   is the filter that disables spans and events in a thread with no sink, so the 0xDEAD span cannot
+   arise (tracing-core 0.1.36 reads the global per call, no per-thread cache). No ipc.rs behaviour is
+   removed. testing.rs is `#[cfg(test)]` and no Cargo file changed: release build unchanged.
+4. AG1: product unchanged (the core still sends `pointer.pressed` before the inject answer and refuses a
+   second program under a live name, ipc/hello.rs:61); the injector is now `clicker`, the MCP client
+   stays the free client `user`, and `injector_exits_slowly 3` stays in as the stress. `user` needs no
+   inject grant later in agent.sh.
+5. FLAKE-SIG: a worker gone between list and read gives an empty comm or a failed status read, both
+   `false`; the churn and scan threads are joined, no leak; red on the old scan (see 1).
+6. Doors: `wait_for_field` is bounded (`until_ok`, 20 s) with a note line and the cell's FAIL; no
+   sleep-only fix (`late_field 2` is the stress, kept in the cells). construct: see rv-2.
+7. HUD1: `f27eb2e3` logs "after more than 5s" or "never" and returns 1 either way; no assert loosened.
+8. `cargo test -p chora --lib` 626 passed; `cargo clippy --workspace --all-targets -- -D warnings`
+   clean. No touched file grows past 1,500 lines (ipc.rs is 4,629, was 4,676 at the base). One red of
+   the churn test in my first lib run was a stale binary of my own worktree in the shared target dir;
+   after a touch it is green (whole lib and 3 runs alone).
+
+Findings.
+- rv-1 MINOR tests/doors/lib.sh:187 `field_has_keyboard` only checks that the window's last keyboard
+  line is `leave`, not that the chat field took the keyboard; a leave to another surface (or one left
+  from an earlier chat) lets the Escape go early again. Fix: also check that the keyboard is at the chat
+  (a focus query of the core), or count the leaves since the chat opened.
+- rv-2 MINOR tests/doors/construct.sh:51 `chat_close` keeps the bare Escape; right per the brief (not
+  shown red at 2 s), but the race is there by construction. Fix: keep FJ-R2 construct open in the
+  backlog and give it the same `wait_for_field` when it shows.
+- rv-3 NIT crates/chora/src/testing.rs:390 `a_core_makes_its_spans_under_a_subscriber` checks the proxy
+  (a default dispatcher exists), and in a full run it is red only when it builds the first core. Fix:
+  none needed now; a subprocess run of the test would make its red order-free.
+- rv-4 NIT crates/chora/src/inject.rs:703 the slow variant (50 ms vs a 10 ms timer) always gets
+  `[false, true]`, so it could assert exactly that and pin the cause. Fix: assert `[false, true]` there.
+
+Known, not findings: e2e `gate-tiling-apps-click` "Zebra row did not start zebra" (ti-1).
