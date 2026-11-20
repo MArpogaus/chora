@@ -29,7 +29,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | session_016iS3kM43ZCTqr1jMu5yYFh |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
-| co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | starting |
+| co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:42 (launcher-click alone, harness: 741d6bca). t83 next: p2-harness 5dbd0ccf (harness, PM review MERGE-OK). Then stray-grab r2, black-pane r2.
