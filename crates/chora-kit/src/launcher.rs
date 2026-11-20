@@ -413,11 +413,25 @@ mod tests {
     fn a_launcher_that_fails_says_why_once() {
         let (_dir, fuzzel) = stand_in(
             "chora-launcher-fail",
-            "echo 'bad key' >&2; echo 'second line' >&2; exit 2",
+            "echo ' err: config.c:17: [colors].prompt: invalid key' >&2; echo ' err: second' >&2; exit 1",
         );
         let (got, said) = reports(&fuzzel);
         assert_eq!(got, None);
-        assert_eq!(said, ["Run could not start: bad key"]);
+        assert_eq!(
+            said,
+            ["Run could not start: config.c:17: [colors].prompt: invalid key"]
+        );
+    }
+
+    #[test]
+    fn an_err_line_after_a_warning_is_the_reason() {
+        let (_dir, fuzzel) = stand_in(
+            "chora-launcher-warn-err",
+            "echo 'warn: something' >&2; echo ' err: bad ini' >&2; exit 1",
+        );
+        let (got, said) = reports(&fuzzel);
+        assert_eq!(got, None);
+        assert_eq!(said, ["Run could not start: bad ini"]);
     }
 
     #[test]
