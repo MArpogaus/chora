@@ -224,5 +224,59 @@ class BeginPerTask(unittest.TestCase):
             self.assertEqual(status, 0, out)
 
 
+def pane_node(visible=True):
+    return {"id": "construct-pane-s1", "kind": "group", "owner": "construct", "visible": visible}
+
+
+def cube_snap(mode="navigate", front=2, faces=4, nodes=(), busy=()):
+    cube = {"faces": [{"output": f"V-{i}"} for i in range(faces)], "front": front, "mode": mode}
+    state = construct_state() | {"busy": list(busy)}
+    return snap(states={"construct": state}, nodes=list(nodes), cube=cube, clients=("construct",))
+
+
+class SceneState(unittest.TestCase):
+    """Each contract line says the look state that the scene shows, so a
+    report does not infer it from the steps of the persona (r2: "cube open"
+    where the shot shows the pane room)."""
+
+    def test_the_cube_stood_back_on_a_face(self):
+        got = check.scene_state(cube_snap("navigate", front=2), "construct")
+        self.assertEqual(got["cube"], "stood back")
+        self.assertEqual(got["face"], 2)
+        self.assertEqual(got["pane room"], "no")
+        self.assertEqual(got["walk"], "no")
+
+    def test_the_cube_in_a_face(self):
+        got = check.scene_state(cube_snap("use", front=1), "construct")
+        self.assertEqual((got["cube"], got["face"]), ("in a face", 1))
+
+    def test_no_cube_open_names_no_face(self):
+        got = check.scene_state(cube_snap("use", faces=0, front=0), "construct")
+        self.assertEqual(got["cube"], "closed")
+        self.assertNotIn("face", got)
+
+    def test_the_pane_room_is_read_from_the_pane_nodes(self):
+        room = check.scene_state(cube_snap("use", faces=0, nodes=[pane_node()]), "construct")
+        self.assertEqual(room["pane room"], "yes")
+        hidden = check.scene_state(cube_snap("use", faces=0, nodes=[pane_node(False)]), "construct")
+        self.assertEqual(hidden["pane room"], "no")
+
+    def test_the_walk_is_read_from_the_busy_word(self):
+        got = check.scene_state(cube_snap("use", faces=0, busy=["walk"]), "construct")
+        self.assertEqual(got["walk"], "yes")
+
+    def test_a_look_without_a_cube_says_only_what_it_has(self):
+        self.assertEqual(check.scene_state(snap(), "xp"), {})
+
+    def test_the_line_of_a_task_carries_the_scene(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, cube_snap("navigate", front=3))
+            run.s.label = "construct"
+            run.save("start", cube_snap("navigate", front=3), {})
+            _, out = run_end(run, "T7")
+            line = next(x for x in out.splitlines() if x.startswith("task T7"))
+            self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)
+
+
 if __name__ == "__main__":
     unittest.main()
