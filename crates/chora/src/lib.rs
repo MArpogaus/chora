@@ -111,12 +111,15 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     log::init();
     let runtime = chora_scene::paths::runtime_home()
         .ok_or_else(|| std::io::Error::other("no absolute runtime directory in the environment"))?;
+    let runtime = std::fs::canonicalize(&runtime).map_err(|error| {
+        std::io::Error::new(error.kind(), format!("{}: {error}", runtime.display()))
+    })?;
     chora_scene::paths::check_runtime_home(&runtime)?;
 
     let mut event_loop: EventLoop<State> = EventLoop::try_new()?;
     let display: Display<State> = Display::new()?;
     let mut state = State::new(display, event_loop.handle(), event_loop.get_signal());
-    state.listen()?;
+    state.listen_in(&runtime)?;
     let socket = ipc::listen(&mut state)?;
     // The order matters. Only the images worker exists, and it blocks
     // SIGUSR1 itself, so the startup command gets an empty signal mask;
