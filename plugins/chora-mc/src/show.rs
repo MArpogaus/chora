@@ -160,9 +160,14 @@ impl Mc {
             return Vec::new();
         }
         let plain = self.page_keys == keys::PageKeys::Plain;
-        let page = plain && window.is_none();
-        let focus = self.focus.to(window);
-        let page = page.then(|| self.focus.to_node(Some(page_id(name))));
+        let kept = self.plain_turn && window.is_some();
+        let page = plain && (window.is_none() || kept);
+        let focus = self.focus.to(if kept { None } else { window });
+        let node = match self.scenes.get(name) {
+            Some(scene) if !Self::has_chapter(scene) => scene_id(name),
+            _ => page_id(name),
+        };
+        let page = page.then(|| self.focus.to_node(Some(node)));
         std::iter::once(focus).chain(page).collect()
     }
 

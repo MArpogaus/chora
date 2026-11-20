@@ -29,6 +29,15 @@
 #   chat-click-close  (a second output with chora-tiling) with the chat
 #                  open a click on a window of tiling, that window closes,
 #                  the chat closes: the page of mc gets the keyboard
+#   terminal-back  a program that mc adopted has a page with the column
+#                  beside it; the page is reached by Right, then Left and
+#                  Escape of the remote go back to the page before and
+#                  the doors of the column are on the screen; Return
+#                  gives the keyboard to the window, and the key list
+#                  shows on the page of a window (mc-42, mc-43)
+#   chat-focus     after a request to the helper and Escape in the chat
+#                  the page holds the keyboard again, state.get says mc
+#                  (mc-45)
 #   all-keys       the full key list stays in the column and on the
 #                  screen, and its rule crosses no text
 #
@@ -184,6 +193,64 @@ cell_terminal_keys() {
     until_ok '[ "$(current)" = mission ]' 20 || fail "Super+Left does not turn the page from the terminal: $(current)"
     key Left
     until_ok '[ "$(current)" = agents ]' 20 || fail "Left does not turn the page after the terminal: $(current)"
+}
+
+focus_holder() { ctl call mc state.get '{}' | jq -r '.focus.holder'; }
+cell_chat_focus() {
+    key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat"
+    sleep 1
+    type_line "tidy"
+    until_ok 'chat_has_sent tidy' 20 || fail "the request does not reach the chat"
+    key Escape
+    until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat"
+    sleep 1
+    until_ok '[ "$(focus_holder)" = mc ]' 20 || fail "after the chat closed the focus is with $(focus_holder), not mc: $(ctl call mc state.get '{}' | jq -c .focus)"
+    key Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "after the chat closed Right does not turn the page: $(current)"
+}
+
+back_alive() { session_pids -f -- "--app-id=mcback" >/dev/null; }
+back_end() {
+    local pid
+    for pid in $(session_pids -f -- "--app-id=mcback"); do kill "$pid"; done
+    until_ok '! back_alive' 20
+}
+cell_terminal_back() {
+    local mark=mcbackkey i
+    rmdir $mark 2>/dev/null
+    foot --app-id=mcback &
+    until_ok 'back_alive && [ "$(current)" = mcback ]' 40 || { back_end; fail "the window of a program has no page: $(current)"; }
+    sleep 2
+    has_text "Chat with a helper ..." || { back_end; fail "the page of the window has no column: $(texts | tr '\n' '|')"; }
+    has_text "Programs" || { back_end; fail "the page of the window has no door Programs"; }
+    shot terminal-back
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || { back_end; fail "no agenda: $(current)"; }
+    for i in 1 2 3 4 5 6; do key Right; sleep 0.4; done
+    until_ok '[ "$(current)" = mcback ]' 20 || { back_end; fail "Right does not reach the page of the window: $(current)"; }
+    key Left
+    until_ok '[ "$(current)" = overview ]' 20 || { back_end; fail "Left on the page of a window does not go to the page before: $(current)"; }
+    key Right
+    until_ok '[ "$(current)" = mcback ]' 20 || { back_end; fail "Right does not come back to the page of the window: $(current)"; }
+    key Escape
+    until_ok '[ "$(current)" = overview ]' 20 || { back_end; fail "Escape on the page of a window does not go back: $(current)"; }
+    key Right
+    until_ok '[ "$(current)" = mcback ]' 20 || { back_end; fail "no page of the window again: $(current)"; }
+    sleep 1
+    has_text "Chat with a helper ..." || { back_end; fail "after the turns the page of the window has no column"; }
+    key Super+F1
+    until_ok 'has_text "Show overview"' 20 || { back_end; fail "Super+F1 on the page of a window draws no key list: $(texts | tr '\n' '|')"; }
+    shot terminal-back-keys
+    key Super+F1
+    until_ok '! has_text "Show overview"' 20 || { back_end; fail "Super+F1 does not close the key list on the page of a window"; }
+    key Return
+    sleep 1
+    type_line "mkdir $mark"
+    until_ok "[ -e $mark ]" 20 || { back_end; fail "after Return typed text does not reach the window"; }
+    rmdir $mark 2>/dev/null
+    back_end
+    return 0
 }
 
 cell_mouse_back() {
@@ -396,7 +463,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page arrows terminal-keys mouse-back mute terminal-chat chat-click-turn all-keys; do
+for name in first-page arrows terminal-keys terminal-back mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

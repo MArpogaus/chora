@@ -288,6 +288,10 @@ struct Mc {
     manage_windows: bool,
     /// Whether a page takes the keyboard for its plain keys.
     page_keys: keys::PageKeys,
+    /// A turn of a plain key is going on: the page that it shows keeps the
+    /// keyboard also when a window stands in it, so that the next plain key
+    /// still turns the page (mc-42).
+    plain_turn: bool,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -405,12 +409,30 @@ struct Mc {
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.first().is_some_and(|a| a == "--launch") {
+        return launch(&words[1..]);
+    }
     let args = Args::parse();
     if args.print_config {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
     runtime::run(NAME, || play(&args))
+}
+
+/// `--launch fuzzel`: the Apps list, the installed programs and those of
+/// the shared entries, as [`chora_kit::launcher`] shows them, so that text
+/// that finds nothing shows the list again under the row "Nothing found"
+/// and the launcher never closes without a word (mc-44). Another program
+/// is no launch of mc.
+fn launch(argv: &[String]) -> ExitCode {
+    if argv != ["fuzzel"] {
+        eprintln!("usage: chora-mc --launch fuzzel");
+        return ExitCode::from(2);
+    }
+    chora_kit::launcher::run(&["fuzzel".to_owned()], "foot", None);
+    ExitCode::SUCCESS
 }
 
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -483,6 +505,7 @@ impl Mc {
             rt,
             manage_windows: false,
             page_keys: keys::PageKeys::Plain,
+            plain_turn: false,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -994,10 +1017,37 @@ impl Mc {
             "Home" | "XF86HomePage" => Look::Scene(self.settings.value.default_scene.clone()),
             "Right" => Look::NextScene,
             "Left" => Look::PreviousScene,
-            "Escape" => return self.back(),
+            "Escape" => {
+                self.plain_turn = true;
+                self.back();
+                self.plain_turn = false;
+                return;
+            }
+            "Return" => return self.enter_window(),
             _ => return,
         };
+        self.plain_turn = true;
         self.turn(look);
+        self.plain_turn = false;
+    }
+
+    /// Return on a page that stands over a window gives the window the
+    /// keyboard: the keys of the person then belong to the program, and
+    /// only the bindings with Super turn the page (mc-42).
+    fn enter_window(&mut self) {
+        let window = self
+            .current
+            .as_ref()
+            .and_then(|c| self.windows.get(c))
+            .cloned();
+        if let Some(window) = window
+            && self.chat == Chat::Closed
+        {
+            let focus = self.focus.to(Some(window));
+            if let Err(err) = self.apply(vec![focus]) {
+                eprintln!("chora-mc: enter window: {err}");
+            }
+        }
     }
 
     /// One step back: the full key list closes; else the page that showed

@@ -38,6 +38,11 @@
 #               KEYS, and the alarm is a card in full that stands over
 #               the page, not in the footer line (mc-35)
 #
+#   launcher-none  Super+Space and a program name that does not exist, then
+#               Return: the list shows again under the row "Nothing found
+#               for ..." and does not close without a word, as in xp and
+#               tiling (mc-44)
+#
 #   card-size   the text of the card of chora-notify is at least as high
 #               as the body of the page, and its ink is no grey: 7 to 1
 #               (mc-40)
@@ -86,6 +91,16 @@ cat >"$work/entries.json" <<'JSON'
 [{"seq": 1, "role": "user", "text": "Please tidy the notes for Friday."},
  {"seq": 2, "role": "agent", "text": "I will go through your notes and group them by day."}]
 JSON
+mkdir -p "$work/fake"
+cat >"$work/fake/fuzzel" <<FAKE
+#!/bin/sh
+n=\$((\$(cat "$work/fake/calls" 2>/dev/null || echo 0) + 1))
+echo "\$n" >"$work/fake/calls"
+case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
+case " \$* " in *" --dmenu "*) [ "\$n" != 1 ] || echo nosuchprogram ;; esac
+FAKE
+chmod +x "$work/fake/fuzzel"
+export PATH=$work/fake:$PATH
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x720 -- "$bin/chora-mc" --manage-windows
 grant screen.capture input.inject methods.call
 mkfifo "$work/voice.in"
@@ -322,6 +337,16 @@ cell_card_size() {
     ctl call mc notify.clear '{}' >/dev/null
 }
 
+cell_launcher_none() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    rm -f "$work/fake/calls" "$work"/fake/rows.*
+    key Super+space
+    until_ok '[ -s "$work/fake/rows.2" ]' 40 || fail "a program that does not exist closes the launcher without a word: calls $(cat "$work/fake/calls" 2>/dev/null), rows: $(echo "$work"/fake/rows.*)"
+    [ "$(head -n 1 "$work/fake/rows.2")" = 'Nothing found for "nosuchprogram"' ] ||
+        fail "the list after the unknown name does not say so: $(head -n 1 "$work/fake/rows.2")"
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -332,7 +357,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
