@@ -25,8 +25,8 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 |---|---|---|
 | tour-one-r2.md (F7, RC 11: review r1 FIX, rt-1, rt-2 MAJOR) | sonnet high, claude/tour-one 8b996cee | session_016iS3kPbRFQwqjuqPmgyAsh 20:22 |
 | guide-checks-r2.md (F7: review r1 FIX, rg-1..rg-3 MAJOR) | sonnet medium, claude/guide-checks a78b1a07 | session_016iS3kNHeeU1tRAuu1PvRx4 21:07 |
-| flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | starting |
-| p2-r3-tiling.md (RC 2: tiling round 3 after handover-ti) | sonnet medium, claude/p2-r3-tiling dcb77733 | starting |
+| flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
+| p2-r3-tiling.md (RC 2: tiling round 3 after handover-ti) | sonnet medium, claude/p2-r3-tiling dcb77733 | session_016iS3kLkKwwSV6HmeApSXPK 21:29 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) t93 running at --jobs 2: xp-tidy efe85512, co-pane 79787d9f with co-fix, tour-diff 4f4f1897; PM fixes dcb77733 and t93 check.py merge to the next seeded review.
