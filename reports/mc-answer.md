@@ -84,3 +84,12 @@ rv-1 (card.size unbounded): fixed.
 - cell: `cargo test -p chora-notify` 27 passed.
 - gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,mc-sofa,mc-column` on 92f2e52f (merge of origin/claude/autonomous-dev-session-3w-i33pg7: already up to date): all 7 PASS.
 - head: 92f2e52f
+
+## PM review r2 (2026-11-20 01:31 UTC)
+Range a271df2b..92f2e52f (3 files, +59 -8). PM is not the builder.
+- Red first: d3b2a9cc adds `bounded` as a stub that keeps the value and two tests (0, 13, 49, 100000, u32::MAX; Metrics of any size); it compiles and fails. 92f2e52f makes them pass. OK.
+- rv-1: `size.clamp(14, 48)` with one message that names the value and the range; `saturating_mul` in `Metrics::of`; `rows` is at least 1. Overflow at card.rs:95 and :377 closed. OK.
+- Docs: docs/configuration.md and assets/README.md name 14 to 48 and the log line. OK.
+- Gate cells (lane): pre-commit, ci-check, build, test, clippy, mc-sofa, mc-column PASS; the full gate runs in t81.
+- MINOR-1: the message is printed in `Card::new`, so once per notification, not once per load of values.yaml; a bad value repeats in the log. Backlog.
+Verdict (computed): no open MAJOR -> MERGE-OK 92f2e52f, train 81.
