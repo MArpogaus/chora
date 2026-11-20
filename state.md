@@ -24,19 +24,19 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-h-r2.md (F5) | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
-| temp-rest-r1.md (F5) | sonnet med | MERGE-OK 2e8e67f3, t78 |
-| temp-dirs-r2.md (F5) | sonnet med | MERGE-OK 86f42d1f, t78 |
-| flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, t78 |
-| f24-rest-r1.md (F5) | sonnet med | MERGE-OK 7231b51a, t78 |
+| flake-h-r2.md | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
+| temp-rest-r1.md | sonnet med | MERGE-OK 2e8e67f3, t78 |
+| temp-dirs-r2.md | sonnet med | MERGE-OK 86f42d1f, t78 |
+| flake-k-r1.md | sonnet high | MERGE-OK 9dde8523, t78 |
+| f24-rest-r1.md | sonnet med | MERGE-OK 7231b51a, t78 |
 | pw-r2.md (P2) | sonnet med | MERGE-OK 5755b578, t78 |
-| xp-majors-r1.md (RC) | sonnet high | starting |
-| nits-3-r1.md (F5) | sonnet med | MERGE-OK 0b5f8c34, t78 |
+| xp-majors-r1.md (RC) | sonnet high | session_016iS3kMhTLUxwUHZdCQtBSJ |
+| nits-3-r1.md | sonnet med | MERGE-OK 0b5f8c34, t78 |
 | block-v-r2.md (mc-38) | sonnet med | MERGE-OK ce230288, t78 |
 | mc-majors-r1.md (RC) | sonnet high | MERGE-OK 92ecd30a, t79 |
 | mc-answer-r1.md (RC) | sonnet high | session_016iS3kLHGWuV71ERbiX6uxP |
-| flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
-| kit-sec-r2.md (F5) | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
+| flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
+| kit-sec-r2.md | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t78b |
 | co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
 
