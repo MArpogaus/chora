@@ -244,7 +244,7 @@ if call settings.set '{"effects": ["wobbly"]}' >/dev/null; then
   {\"button\": {\"state\": \"pressed\", \"hold\": true}},
   {\"pointer_move\": {\"position\": [$((${from%%,*} + 60)), 380]}},
   {\"pointer_move\": {\"position\": [$((${from%%,*} + 120)), 330]}}]"
-    sleep 0.1
+    sleep 0
     bent=$(mesh_of "$b_node")
     mirror_bent=$(mesh_of "$b_node-mirror")
     [ -n "${SHOT_WOBBLE:-}" ] && ctl capture "$SHOT_WOBBLE" >/dev/null
