@@ -88,6 +88,7 @@ fn sheet(config: &Config) -> Vec<keysheet::Row<Look>> {
         Some(match own {
             Look::NextScene => "Next page".to_owned(),
             Look::PreviousScene => "Previous page".to_owned(),
+            Look::Back => "Back one step".to_owned(),
             Look::Scene(name) => format!("Show {}", crate::title_of(name).to_lowercase()),
             Look::Toggle(crate::region::Region::Right) => "Hide this column".to_owned(),
             Look::Toggle(region) => format!("Show or hide the {}", region.name()),
@@ -157,7 +158,7 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             Action::System(System::Power) => (9, 1),
             Action::System(System::Screenshot) => (9, 2),
             Action::System(System::Volume(_)) => (9, 3 + place),
-            Action::Look(Look::PreviousScene)
+            Action::Look(Look::PreviousScene | Look::Back)
             | Action::System(
                 System::Drag
                 | System::Terminal
@@ -227,11 +228,11 @@ mod tests {
     }
 
     #[test]
-    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_alias_and_one_for_the_page_and_the_give_keys()
+    fn the_full_list_has_a_row_for_each_task_but_the_drag_the_aliases_and_one_for_the_page_and_the_give_keys()
      {
         let config = config();
         let rows = all(&config, false);
-        assert_eq!(rows.len(), config.common.bindings.len() - 1, "{rows:?}");
+        assert_eq!(rows.len(), config.common.bindings.len() - 3, "{rows:?}");
     }
 
     #[test]

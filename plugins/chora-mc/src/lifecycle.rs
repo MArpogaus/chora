@@ -172,7 +172,7 @@ impl Mc {
     /// Grabs the bindings of the settings; one that another client holds
     /// only logs.
     pub(crate) fn grab_all(&mut self) -> Result<(), ClientError> {
-        self.grab_some(|action| !needs_claim(action))?;
+        self.grab_some(|key, action| !needs_claim(key, action))?;
         if self.built {
             self.grab_claimed()?;
         }
@@ -188,10 +188,10 @@ impl Mc {
     #[allow(clippy::expect_used, reason = "the settings check their bindings")]
     pub(crate) fn grab_some(
         &mut self,
-        wanted: impl Fn(&Action) -> bool,
+        wanted: impl Fn(&str, &Action) -> bool,
     ) -> Result<(), ClientError> {
         let bindings = self.settings.value.common.bindings.clone();
-        for (text, action) in bindings.into_iter().filter(|(_, a)| wanted(a)) {
+        for (text, action) in bindings.into_iter().filter(|(k, a)| wanted(k, a)) {
             let binding = text.parse().expect("the settings check their bindings");
             self.rt.grab(binding, action)?;
         }

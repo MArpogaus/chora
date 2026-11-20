@@ -156,8 +156,9 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
 }
 
 /// The media keys that a window manager grabs without a modifier: they
-/// type no text, and a person expects the session to answer them.
-const MEDIA_KEYS: [Keysym; 9] = [
+/// type no text, and a person expects the session to answer them. The
+/// Back and Home keys of a remote are among them: a remote has no Super.
+const MEDIA_KEYS: [Keysym; 11] = [
     Keysym::XF86_AudioRaiseVolume,
     Keysym::XF86_AudioLowerVolume,
     Keysym::XF86_AudioMute,
@@ -167,6 +168,8 @@ const MEDIA_KEYS: [Keysym; 9] = [
     Keysym::XF86_AudioPrev,
     Keysym::XF86_MonBrightnessUp,
     Keysym::XF86_MonBrightnessDown,
+    Keysym::XF86_Back,
+    Keysym::XF86_HomePage,
 ];
 
 /// Whether a key is one of [`MEDIA_KEYS`].
@@ -3988,6 +3991,8 @@ mod tests {
             "XF86AudioPrev",
             "XF86MonBrightnessUp",
             "XF86MonBrightnessDown",
+            "XF86Back",
+            "XF86HomePage",
         ] {
             let grabbed = wm.ok(&mut core, "input.grab", json!({"binding": key}));
             assert_eq!(grabbed, key);

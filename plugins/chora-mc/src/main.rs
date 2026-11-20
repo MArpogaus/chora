@@ -42,7 +42,7 @@ use chora_kit::{
     launch,
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
-    wm::focus::Focus,
+    wm::focus::{Focus, Holder},
 };
 use chora_scene::{
     Command, Easing, Event, MAX_DURATION, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -1050,6 +1050,28 @@ impl Mc {
         }
     }
 
+    /// The binding `back`, `XF86Back` of a remote: a window that holds the
+    /// keyboard leaves it to its page, which keeps it as after a plain turn;
+    /// on a page it is one step back as Escape (mc-46).
+    pub(crate) fn step_back(&mut self) {
+        let current = self.current.clone();
+        let window = current.as_ref().and_then(|c| self.windows.get(c)).cloned();
+        let holds = window.as_ref().is_some_and(|w| {
+            matches!(self.focus.holder(|s| s == w), Holder::Window(_)) && self.chat == Chat::Closed
+        });
+        self.plain_turn = true;
+        match current {
+            Some(name) if holds => {
+                let commands = self.keyboard_to(&name, window);
+                if let Err(err) = self.apply(commands) {
+                    eprintln!("chora-mc: leave window: {err}");
+                }
+            }
+            _ => self.back(),
+        }
+        self.plain_turn = false;
+    }
+
     /// One step back: the full key list closes; else the page that showed
     /// before shows again, and at the end of that trail the first page.
     fn back(&mut self) {
@@ -1293,12 +1315,16 @@ impl Mc {
     }
 }
 
-/// Whether an action is grabbed only with the claim of a window manager.
-fn needs_claim(action: &Action) -> bool {
+/// The keys of a remote without Super: the core lets a window manager with
+/// a claim grab them without a modifier (mc-46).
+const REMOTE_KEYS: [&str; 2] = ["XF86Back", "XF86HomePage"];
+
+/// Whether a binding is grabbed only with the claim of a window manager.
+fn needs_claim(key: &str, action: &Action) -> bool {
     matches!(
         action,
         Action::System(chora_kit::actions::System::Drag | chora_kit::actions::System::Volume(_))
-    )
+    ) || REMOTE_KEYS.iter().any(|k| k.eq_ignore_ascii_case(key))
 }
 
 /// Keeps the regions over a scene group that was just created.
@@ -1332,6 +1358,7 @@ fn wait() -> Command {
 
 #[cfg(test)]
 mod tests {
+    use crate::{Action, Look};
     use chora_scene::{Command, NodeKind, PropsUpdate};
 
     /// The line that a page that cannot be shown leaves in the log (a
@@ -1534,6 +1561,51 @@ mod tests {
         press_key(&mut mc, "Right", &[]);
         press_key(&mut mc, "XF86HomePage", &[]);
         assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// A remote without Super: `back` (`XF86Back`) takes the keyboard from a
+    /// window to its page, which keeps the page; on a page it goes one step
+    /// back; `XF86HomePage` goes to the first page. A plain key that the
+    /// window got stays the window's (mc-46).
+    #[test]
+    fn back_leaves_a_window_for_its_page_and_home_goes_first() {
+        let (mut mc, _model) = crate::testing::mc("remote-back", [1280, 800]);
+        mc.windows.insert("terminal".into(), "s1".into());
+        mc.show("agenda", true).unwrap();
+        press_key(&mut mc, "Right", &[]);
+        mc.show("terminal", true).unwrap();
+        press_key(&mut mc, "Return", &[]);
+        let window =
+            |mc: &super::Mc| matches!(mc.focus.holder(|s| s == "s1"), super::Holder::Window(_));
+        assert!(window(&mc), "Return gave the window the keyboard");
+        mc.turn(Look::Back);
+        assert!(!window(&mc), "XF86Back took the keyboard from the window");
+        assert_eq!(mc.current.as_deref(), Some("terminal"), "the page stays");
+        mc.turn(Look::Back);
+        assert_ne!(mc.current.as_deref(), Some("terminal"), "a page goes back");
+        mc.show("terminal", true).unwrap();
+        press_key(&mut mc, "Return", &[]);
+        mc.turn(Look::Scene("agenda".into()));
+        assert_eq!(mc.current.as_deref(), Some("agenda"));
+        assert!(!window(&mc), "the first page holds the keyboard");
+    }
+
+    /// The default file binds the keys of a remote, and mc grabs them
+    /// only with a claim, as the media keys.
+    #[test]
+    fn the_keys_of_a_remote_are_bound_and_need_a_claim() {
+        let config =
+            chora_kit::settings::parse::<crate::config::Config>(crate::config::DEFAULT).unwrap();
+        let keys = &config.common.bindings;
+        assert_eq!(keys["XF86Back"], Action::Look(Look::Back));
+        assert_eq!(
+            keys["XF86HomePage"],
+            Action::Look(Look::Scene("agenda".into()))
+        );
+        for key in ["XF86Back", "XF86HomePage"] {
+            assert!(super::needs_claim(key, &keys[key]), "{key}");
+        }
+        assert!(!super::needs_claim("Super+Home", &keys["Super+Home"]));
     }
 
     /// On a page the arrows alone turn it, Escape goes back along the

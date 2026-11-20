@@ -1008,7 +1008,8 @@ unconfined client that holds a claim, grabs these media keys without a
 modifier, as they type nothing: `XF86AudioRaiseVolume`,
 `XF86AudioLowerVolume`, `XF86AudioMute`, `XF86AudioMicMute`,
 `XF86AudioPlay`, `XF86AudioNext`, `XF86AudioPrev`,
-`XF86MonBrightnessUp` and `XF86MonBrightnessDown`. The
+`XF86MonBrightnessUp`, `XF86MonBrightnessDown` and the keys of a
+remote without Super, `XF86Back` and `XF86HomePage`. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
 F12, belong to no client. A key binding has one owner at a time. A
 window manager whose claims all lie on virtual outputs, as one in a pane
