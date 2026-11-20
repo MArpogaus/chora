@@ -307,13 +307,13 @@ impl Construct {
     }
 
     /// The help takes the keyboard from a window that has it in a face of
-    /// the cube or in a pane, so that Escape and the typed search reach the
+    /// the cube or in a pane (flown into, or pressed in the walk), so that Escape and the typed search reach the
     /// help and not the program (an XP Start menu took Escape); the window
     /// is noted for the close.
     fn help_takes_keyboard(&mut self) -> Result<(), ClientError> {
         let in_face =
             (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use);
-        if !(in_face || self.in_pane()) {
+        if !(in_face || self.keys_with_pane()) {
             return Ok(());
         }
         self.help_back = self.focused_surface()?;
