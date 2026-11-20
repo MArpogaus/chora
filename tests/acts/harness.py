@@ -74,6 +74,7 @@ class Snapshot:
     cube: dict | None = None
     boxes: dict | None = None
     blocks: dict = dataclasses.field(default_factory=dict)
+    shots: dict = dataclasses.field(default_factory=dict)
 
     def by_id(self):
         """The nodes by id."""
@@ -624,6 +625,16 @@ class Session:
         shot = self.core.call("screen.capture", {"output": output, "max_side": side})
         return shot, base64.b64decode(shot["png"])
 
+    def shots(self, outputs):
+        """{output: (scale, rows)}: a capture of each output, for the
+        contrast of the text boxes (I6); an output that does not answer is left out."""
+        out = {}
+        for o in outputs:
+            with contextlib.suppress(RuntimeError, OSError, KeyError):
+                shot, png = self.capture(o["name"], 1280)
+                out[o["name"]] = (shot["width"] / o["size"][0], list(load_png_rows()(png)))
+        return out
+
     def colours(self, output):
         """The number of colours in the work area of an output."""
         shot, png = self.capture(output["name"])
@@ -676,6 +687,7 @@ class Session:
             cube=self.cube(),
             boxes=self.core.call("scene.boxes"),
             blocks=self.blocks(clients),
+            shots=self.shots(outputs),
         )
 
     def act(

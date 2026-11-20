@@ -21,15 +21,20 @@ The box invariants read `scene.boxes` (Snapshot.boxes) and the `texts`
 that looks and chora-notify report in `state.get`:
 
 I2   a shown window has a size and lies at least 32 px inside its
-     output, except declared floats
+     output, except declared floats; the gaps of helper surfaces (hud-audit.py)
+     and of tiles (tiling-audit.py) are whole units; in a held act a helper
+     surface stays on its pixel
 I5   no two text boxes of visible nodes or reported runs overlap on one
      output without an opaque node between
-I6   a text box lies inside its panel
+I6   a text box lies inside its panel; its text reads at least 14 px
+     (a state word may be smaller) and has the contrast of the guide on the
+     capture: 4.5:1, 7:1 for a key line or a button (png-contrast.py)
 I9   a notice chora-notify accepted during the act is in its `shown`,
      `waiting` or `closed`; one that shows has a box inside the output,
      not under the chat
 I10  no visible text matches a raw entry (`.desktop`, `%U`, a reverse-DNS
-     id, a path of a binary)
+     id, a path of a binary), says "agent" or "HUD", or spells a key as a
+     long name that tests/keysheet/words.table gives a cap (Escape, not Esc)
 I12  no bar or panel box over a fullscreen window; the held window on
      top; a modal above its parent
 I13  the projected corners of neighbouring cube faces meet within 1 px;
@@ -44,8 +49,11 @@ in its `windows`, which acts snapshot once quiet. I13 reads the faces
 as the acts hold them, at rest and halfway through a turn.
 """
 
+import importlib.util
+import pathlib
 import re
 
+TESTS = pathlib.Path(__file__).resolve().parent.parent
 PANIC = re.compile(r"panicked at|^thread '.*' panicked|RUST_BACKTRACE=")
 HELPER_IDS = {"hud-chat"}
 HELPER_APP_IDS = {"chora-chat"}
@@ -226,6 +234,12 @@ def i14(before, after, act):
 
 MARGIN = 32
 SEAM = 1.0
+HELD_SLACK = 0.5
+LEAST_PX = 14
+STATE_WORD = re.compile(r"state")
+KEY_LINE = re.compile(r"(?:^|[-_])(?:key|keys|keycap|button|btn)(?:[-_]|$)")
+READ = 4.5
+READ_KEY = 7.0
 LEADING = 0.25
 RAW = [
     (re.compile(r"\.desktop\b"), "a .desktop file"),
@@ -236,6 +250,7 @@ RAW = [
     ),
     (re.compile(r"(?:^|\s)/(?:usr/)?(?:local/)?s?bin/\S+"), "the path of a binary"),
 ]
+WORDS = re.compile(r"\b(?:agents?|HUD)\b", re.I)
 FACE = re.compile(r"-cube-face-(\d+)$")
 
 
@@ -362,9 +377,60 @@ def screen_texts(snap):
     return out
 
 
-def i2(_before, after, _act):
-    """A shown window has a size and lies 32 px inside its output."""
+def tool(name):
+    """A script of tests/ by file name (its name has a dash)."""
+    spec = importlib.util.spec_from_file_location(name.replace("-", "_"), TESTS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def fixed_surfaces(snap):
+    """{output: {node: rect}}: the helper surfaces (meta `surface`, no
+    scrim) that sit on the screen; the faces of a cube turn and are no
+    part of it."""
+    nodes = snap.by_id()
+    out = {}
+    for output, boxes in boxes_on(snap).items():
+        for b in boxes:
+            meta = (nodes.get(b.get("node")) or {}).get("meta") or {}
+            if meta.get("surface") not in (None, "backdrop") and not FACE.search(b["node"]):
+                out.setdefault(output, {})[b["node"]] = b["rect"]
+    return out
+
+
+def gap_breaches(after):
+    """The gaps of helper surfaces and of tiles that are no whole unit."""
     out = []
+    hud, tiling = tool("hud-audit"), tool("tiling-audit")
+    for output, rects in sorted(fixed_surfaces(after).items()):
+        out += hud.gap_findings(output, rects, hud.GAP_UNIT)
+    for output, boxes in sorted(boxes_on(after).items()):
+        tiles = [{"id": b["node"], "rects": {output: b["rect"]}} for b in boxes if b.get("node")]
+        out += tiling.gap_findings(tiles, output)
+    return out
+
+
+def held_breaches(before, after):
+    """A helper surface that moved in a held act: screen-fixed nodes stay
+    on their pixel while the camera moves."""
+    was = fixed_surfaces(before)
+    return [
+        f"on {output} the screen-fixed {node} moved from {was[output][node]} to {rect} "
+        "in a held act"
+        for output, rects in sorted(fixed_surfaces(after).items())
+        for node, rect in sorted(rects.items())
+        if node in was.get(output, {})
+        and any(abs(a - b) > HELD_SLACK for a, b in zip(was[output][node], rect))
+    ]
+
+
+def i2(before, after, act):
+    """A shown window has a size and lies 32 px inside its output; the
+    gaps of surfaces and tiles are whole units; held, surfaces stay put."""
+    out = gap_breaches(after)
+    if act.held:
+        out += held_breaches(before, after)
     placed = node_boxes(after)
     for look, state in sorted(looks_with_state(after).items()):
         for w in state.get("windows") or []:
@@ -406,10 +472,53 @@ def i5(_before, after, _act):
     return out
 
 
+def text_sizes(snap):
+    """{(label, text): px}: the font size of each text box and reported run."""
+    sizes = {
+        (b["node"], b["text"]): b["font_size"]
+        for boxes in boxes_on(snap).values()
+        for b in boxes
+        if b.get("kind") == "text" and b.get("text") and b.get("font_size")
+    }
+    for _name, run in reported_texts(snap):
+        if run.get("px"):
+            sizes[(run.get("node"), run.get("text", ""))] = run["px"]
+    return sizes
+
+
+def guide_breaches(snap):
+    """Text that is too small, and text of too little contrast on the capture."""
+    out = []
+    sizes = text_sizes(snap)
+    contrast = tool("png-contrast")
+    for output, items in sorted(screen_texts(snap).items()):
+        scale, rows = snap.shots.get(output) or (None, None)
+        for _i, label, words, rect in items:
+            px = sizes.get((label, words))
+            if px is not None and px < LEAST_PX and not STATE_WORD.search(label):
+                out.append(f"on {output} {words!r} ({label}) is {px:g} px, the guide wants {LEAST_PX} px")
+            if rows is None or rect[2] < 1 or rect[3] < 1:
+                continue
+            x, y = max(int(rect[0] * scale), 0), max(int(rect[1] * scale), 0)
+            w = min(int((rect[0] + rect[2]) * scale), len(rows[0]) // 4) - x
+            h = min(int((rect[1] + rect[3]) * scale), len(rows)) - y
+            if w < 2 or h < 2:
+                continue
+            ratio, back, fore = contrast.contrast_rows(rows, x, y, w, h)
+            want = READ_KEY if KEY_LINE.search(label) else READ
+            if back != fore and ratio < want:
+                out.append(
+                    f"on {output} {words!r} ({label}) has the contrast {ratio:.2f}:1 "
+                    f"({fore} on {back}), the guide wants {want:g}:1"
+                )
+    return out
+
+
 def i6(_before, after, _act):
     """A text box lies inside its panel: a run inside its picture, a text
-    node inside the box of its nearest ancestor that has one."""
-    out = []
+    node inside the box of its nearest ancestor that has one; its size and
+    contrast are the guide's."""
+    out = guide_breaches(after)
     nodes = after.by_id()
     for name, run in reported_texts(after):
         size = (nodes.get(run.get("node")) or {}).get("size")
@@ -475,14 +584,33 @@ def i9(before, after, _act):
     return out
 
 
+def long_key_names():
+    """The keys whose cap in tests/keysheet/words.table is not their name."""
+    caps = {}
+    for line in (TESTS / "keysheet" / "words.table").read_text().splitlines():
+        fields = line.split("\t")
+        if fields[0] == "cap" and len(fields) > 2 and fields[1] != fields[2]:
+            caps[fields[1]] = fields[2]
+    return caps
+
+
 def i10(_before, after, _act):
-    """No visible text is a raw launcher entry."""
+    """No visible text is a raw launcher entry, says "agent" or "HUD", or
+    spells a key otherwise than the word table."""
     out = []
+    caps = long_key_names()
     for output, items in sorted(screen_texts(after).items()):
         for _i, label, text, _rect in items:
             out += [
                 f"on {output} {label} shows {what}: {text!r}" for rx, what in RAW if rx.search(text)
             ]
+            if found := WORDS.search(text):
+                out.append(f"on {output} {label} says {found.group(0)!r}, a word of the builders: {text!r}")
+            if text.strip() in caps:
+                out.append(
+                    f"on {output} {label} spells the key {text!r}, the word table says "
+                    f"{caps[text.strip()]!r}"
+                )
     return out
 
 
