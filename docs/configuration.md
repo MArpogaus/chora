@@ -919,9 +919,13 @@ like `Super+space`, and `A cube of desktops` opens the cube like
 bar stays away while it shows.
 
 A press on the empty space gives the keyboard back to the walk, so its
-keys need no modifier. A drag there looks around, and the wheel there or
-over a pane that shows the window of another client or a plugin walks;
-over a window of the construct, the wheel scrolls the window.
+keys need no modifier. A drag there looks around. The drag grabs the
+world: the scene follows the hand, so a drag to the right turns the view
+to the left and a drag down tilts it up. A press that lands on the window
+of a pane gives that window the keyboard and starts no look. The wheel
+on the empty space or over a pane that shows the window of another
+client or a plugin walks; over a window of the construct, the wheel
+scrolls the window.
 A walk slows down in the outer quarter of the leash radius and stops at
 it. `Return` flies into the pane nearest the middle of the view, and a
 click on a pane that shows the window of another client or a plugin
@@ -990,7 +994,8 @@ after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
 With `modifier: Super`, no `Super` chord that the construct does not bind
-reaches a window while the camera is in a pane, as under `chora-tiling`
+reaches a window while the camera is in a pane, or while a click on a
+pane in the walk gave its window the keyboard, as under `chora-tiling`
 (see its paragraph above): the construct grabs `Super+KEY`,
 `Super+Shift+KEY` and `Super+Ctrl+KEY` for the same keys, the list of
 `chora_kit::swallow`, and swallows the ones that no binding uses, so
@@ -1003,8 +1008,9 @@ construct does in a pane. A chord that nobody grabs but `Super` pressed and
 let go still opens the Start menu of xp. With `modifier: Alt` nothing is
 swallowed, in a pane as under `chora-tiling`: programs keep `Alt+b` of
 readline and `Alt+Left` of a browser.
-`tests/gate-construct-keys.sh` (pane) and `tests/gate-construct-cube.sh`
-(face) check it.
+`tests/gate-construct-keys.sh` (pane), `tests/gate-construct-keys-persona.sh`
+(a pane clicked in the walk) and `tests/gate-construct-cube.sh` (face)
+check it.
 
 The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes

@@ -263,7 +263,7 @@ winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
 pane-keys|BIN=$repo/target/debug tests/gate-construct-pane-keys.sh
 walk|BIN=$repo/target/debug tests/gate-construct-walk.sh
-keys|BIN=$repo/target/debug tests/gate-construct-keys.sh && BIN=$repo/target/debug tests/gate-probe-hangup.sh
+keys|BIN=$repo/target/debug tests/gate-construct-keys.sh && BIN=$repo/target/debug tests/gate-construct-keys-persona.sh && BIN=$repo/target/debug tests/gate-probe-hangup.sh
 pixels|tests/gate-construct-pixels.sh
 mc-paths|BIN=$repo/target/debug tests/gate-mc-paths.sh
 mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh

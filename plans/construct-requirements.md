@@ -103,7 +103,13 @@ The host keymap (#12) stays a limit of v1.
 - **F4** Keys: walk forward, back and sideways, turn, and look up and
   down. The bindings are in the settings. Defaults avoid Super, which
   GNOME takes on the host.
-- **F5** Mouse: drag to look around; wheel to walk forward and back.
+- **F5** Mouse: drag to look around; wheel to walk forward and back. The
+  drag grabs the world: the scene follows the hand, so a drag to the right
+  turns the view to the left and a drag down tilts it up, as the cube
+  follows the hand (`docs/cube-modes.md`). A press that lands on the
+  window of a pane gives that window the keyboard and starts no look, so a
+  drag that begins on a shown window does not look; it looks from the
+  empty space.
 - **F6** A "home" key flies back to the origin, facing the first pane.
 - **F7** All camera moves are animated with eased motion, at most
   about 400 ms for a fly-in.

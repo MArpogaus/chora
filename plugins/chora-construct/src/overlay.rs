@@ -292,15 +292,62 @@ impl Construct {
         self.help_query.clear();
         self.help_sel = 0;
         if self.help {
+            self.help_takes_keyboard()?;
             self.draw_help(true)?;
         } else {
+            self.help_gives_keyboard()?;
             self.rt
                 .conn
                 .try_apply(vec![hud::fade(hud::HELP, 0.0, hud::FADE_OUT)])?;
         }
+        self.regrab()?;
         let label = self.label_commands();
         self.rt.conn.apply(label)?;
         self.draw_modes()
+    }
+
+    /// The help takes the keyboard from a window that has it in a face of
+    /// the cube or in a pane (flown into, or pressed in the walk), so that
+    /// Escape and the typed search reach the help and not the program (an
+    /// XP Start menu took Escape); the window is noted for the close.
+    fn help_takes_keyboard(&mut self) -> Result<(), ClientError> {
+        let in_face =
+            (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use);
+        if !(in_face || self.keys_with_pane()) {
+            return Ok(());
+        }
+        let window = self.focused_surface()?;
+        match window.as_deref() {
+            Some(surface) if !self.own_window(surface) => {
+                if let Some(host) = &mut self.cube {
+                    host.note_focus(window);
+                }
+            }
+            _ => self.help_back = window,
+        }
+        self.walk_keys = true;
+        self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
+    }
+
+    /// The help closed: the window that had the keyboard gets it back.
+    fn help_gives_keyboard(&mut self) -> Result<(), ClientError> {
+        let Some(surface) = self.help_back.take() else {
+            let in_face = (self.cube.as_ref())
+                .is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use);
+            if in_face {
+                self.give_the_keyboard_back();
+            }
+            return Ok(());
+        };
+        let flown = self.flown.as_ref().is_some_and(|f| f.surface == surface);
+        let shown = (self.panes.iter()).any(|p| p.window() == Some(&surface) && self.in_sight(p));
+        if !(flown || shown) {
+            return Ok(());
+        }
+        self.walk_keys = false;
+        self.rt
+            .conn
+            .apply(vec![chora_kit::wm::focus::give(surface)])
     }
 
     /// The help anew, with the keys that work now, while it shows.
@@ -467,6 +514,9 @@ impl Construct {
         if stood_back {
             return Some(Set::Cube);
         }
+        if self.pull_hint && in_face {
+            return Some(Set::Pull);
+        }
         crate::hints::resting_set(crate::hints::Resting {
             engaged,
             has_cube: self.cube.is_some(),
@@ -531,6 +581,7 @@ impl Construct {
                 "step-back",
             )],
             Set::Cube => self.cube_hints(language),
+            Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
     }
 
@@ -626,7 +677,7 @@ impl Construct {
         items: &[crate::hints::Item],
         hover: Option<&str>,
     ) -> Result<Vec<Command>, ClientError> {
-        let over = set == crate::hints::Set::Flown;
+        let over = matches!(set, crate::hints::Set::Flown | crate::hints::Set::Pull);
         let out = [
             self.lens.w,
             self.lens.h - if over { crate::hints::LIFT } else { 0.0 },

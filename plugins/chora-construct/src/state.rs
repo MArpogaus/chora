@@ -10,23 +10,17 @@
 use chora_kit::wm::open::{Kind, Open, Surface};
 use serde_json::{Value, json};
 
-use super::{Construct, Content, NAME, hud, space};
+use super::{Construct, Content, NAME, hud};
 
 impl Construct {
     /// The windows that the construct owns, the views of the others, the
     /// focus, what is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
         let output = self.output.as_ref().map(|o| o.name.as_str());
-        let far = self.radius();
         let inside = self.flown.as_ref().map(|f| f.surface.as_str());
-        let in_sight = |p: &super::Pane| {
-            if let Some(surface) = inside {
-                return p.source == surface;
-            }
-            let covered = (self.cube.as_ref()).is_some_and(|c| c.covers(&self.pose, p.at));
-            !covered
-                && !self.backs.contains(&p.name)
-                && space::sight(&self.lens, &self.pose, p.spot(), far) == "shown"
+        let in_sight = |p: &super::Pane| match inside {
+            Some(surface) => p.source == surface,
+            None => self.in_sight(p),
         };
         let origin = |surface: &str| self.book.origin(surface).map(chora_kit::wm::Origin::word);
         let mut windows = Vec::new();
@@ -221,6 +215,85 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["focus"], held);
         c.core_focus = Some("s2".into());
         assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// A look that takes the focused pane out of sight gives the keyboard
+    /// back to the walk: the focus is never a window that is no shown
+    /// window (co-pane r1, I3 of the persona round 3).
+    #[test]
+    fn a_look_away_from_the_focused_pane_takes_the_focus_off_it() {
+        let (mut c, _core) = construct("state-look-away", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.core_focus = Some("s1".into());
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        c.drag = Some(crate::Drag {
+            press: [640.0, 400.0],
+            last: [640.0, 400.0],
+            moved: false,
+        });
+        c.look([640.0, 800.0]).unwrap();
+        let state = c.state().unwrap();
+        assert_eq!(state["windows"][0]["shown"], json!(false), "looked away");
+        assert_eq!(state["focus"], json!({"holder": "construct"}));
+    }
+
+    /// A look that keeps the pane in sight leaves the focus where it is.
+    #[test]
+    fn a_small_look_keeps_the_focus_on_the_pane_in_sight() {
+        let (mut c, _core) = construct("state-look-near", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.core_focus = Some("s1".into());
+        c.drag = Some(crate::Drag {
+            press: [640.0, 400.0],
+            last: [640.0, 400.0],
+            moved: false,
+        });
+        c.look([640.0, 410.0]).unwrap();
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        assert_eq!(c.state().unwrap()["windows"][0]["shown"], json!(true));
+    }
+
+    /// A glide that ends with the pane of the focused window out of sight
+    /// gives the keyboard back to the walk and lets go of the chords that
+    /// the construct held for that window (co-pane r2, rv-5): no look or
+    /// event wraps `animation_frame`, so the glide regrabs itself.
+    #[test]
+    fn a_step_that_takes_the_pane_out_of_sight_lets_go_of_the_chords() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut c, _core) = construct("state-step-away", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.event(chora_kit::testing::focus_changed(Some("s1")))
+            .unwrap();
+        assert!(c.keys_with_pane(), "the pressed window has the keys");
+        assert!(c.rt.action("Super+q").is_some(), "its chords are held");
+        let away = crate::Pose {
+            pitch: -1.2,
+            ..c.pose
+        };
+        c.glide = Some(crate::Glide {
+            from: c.pose,
+            to: away,
+            start: chora_kit::clock::now(),
+            ms: 1.0,
+            into: None,
+            smooth: false,
+        });
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        c.step_glide().unwrap();
+        assert_eq!(c.state().unwrap()["windows"][0]["shown"], json!(false));
+        assert!(!c.keys_with_pane(), "the walk has the keyboard");
+        assert!(
+            c.rt.action("Super+q").is_none(),
+            "the glide let go of the chords of the window"
+        );
     }
 
     /// The help is open while it shows.

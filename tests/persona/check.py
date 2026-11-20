@@ -57,6 +57,7 @@ import invariants  # noqa: E402
 from harness import Act, Expect, Session, Snapshot, wait_quiet  # noqa: E402
 
 SKIPPED = {"I4"}
+CHILDREN = ("xp", "tiling", "mc")
 QUIET = 10
 LIST_CHORDS = {"xp": (35, 59), "tiling": (53,), "mc": (53,), "construct": (53, 59)}
 SHEETS = {
@@ -115,6 +116,32 @@ def read_states(s):
     return states
 
 
+def with_children(session, snap):
+    """The snapshot with the states of the looks that a flavor runs as its
+    children, a cube's window manager on its faces: a window that such a
+    child owns is a window of a look, shown or not as the child says, and
+    the child holds the focus of it. A client counts as such a child only
+    when `cube.list` names it as the manager of a face, and a window of it
+    shows only while its face is at the front."""
+    if session.label != "construct":
+        return snap
+    listing = snap.cube or {}
+    faces = listing.get("faces") or []
+    managers = {f.get("manager") for f in faces}
+    front = (
+        faces[listing["front"]].get("output") if listing.get("front") in range(len(faces)) else None
+    )
+    for child in CHILDREN:
+        if child in managers and child in snap.clients:
+            state = snap.states.get(child) or session.state(child)
+            if state is None:
+                continue
+            for w in state.get("windows") or []:
+                w["shown"] = bool(w.get("shown")) and w.get("output") == front
+            snap.states[child] = state
+    return snap
+
+
 class Run:
     """The files of the run in $PERSONA_DIR and the connection to the session."""
 
@@ -128,7 +155,8 @@ class Run:
     def snapshot(self, marks=None):
         """A snapshot once quiet; the logs since `marks` (path: size)."""
         self.s.log_marks = {pathlib.Path(k): v for k, v in (marks or {}).items()}
-        return self.s.snapshot(wait_quiet(lambda: read_states(self.s), QUIET), self.s.watch.drain())
+        snap = self.s.snapshot(wait_quiet(lambda: read_states(self.s), QUIET), self.s.watch.drain())
+        return with_children(self.s, snap)
 
     def marks(self):
         """The end of every log now."""

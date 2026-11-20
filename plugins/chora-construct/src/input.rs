@@ -6,7 +6,7 @@ use chora_kit::actions::{System, perform::perform};
 use chora_kit::words::{Language, Word, say};
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
+    Action, BTN_LEFT, ClientError, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
     KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Own, Pane, PressState, VOICE, WHEEL, cube,
     give, space, window_flown_into,
 };
@@ -217,9 +217,8 @@ impl Construct {
         if !self.active || self.in_pane() || self.cube.is_some() {
             return Ok(());
         }
-        self.rt.conn.apply(vec![Command::FocusNode {
-            node: Some(LOOK.into()),
-        }])
+        let walk = self.keys_to_the_walk();
+        self.rt.conn.apply(vec![walk])
     }
 
     /// The keys and the pointer of the walk, and the fly-out binding.
@@ -304,6 +303,7 @@ impl Construct {
                 if injected && !self.rt.accepts_injected() {
                     return Ok(());
                 }
+                self.walk_keys = false;
                 return self.rt.conn.apply(vec![focus::give(node)]);
             }
             Event::PointerPressed {
@@ -365,9 +365,8 @@ impl Construct {
             return Ok(());
         }
         if self.flown.is_none() {
-            self.rt.conn.apply(vec![Command::FocusNode {
-                node: Some(LOOK.into()),
-            }])?;
+            let walk = self.keys_to_the_walk();
+            self.rt.conn.apply(vec![walk])?;
         }
         if let Some(i) = self.pane_at(at).filter(|_| held) {
             let pane = &self.panes[i];
@@ -425,9 +424,8 @@ impl Construct {
         }
         if let Some(into) = take_flight(&mut self.glide) {
             self.glide_to(into.back, FLY_MS, None);
-            self.rt.conn.apply(vec![Command::FocusNode {
-                node: Some(LOOK.into()),
-            }])?;
+            let walk = self.keys_to_the_walk();
+            self.rt.conn.apply(vec![walk])?;
             return self.regrab();
         }
         Ok(())
@@ -686,16 +684,24 @@ impl Construct {
         if !self.help {
             return Ok(false);
         }
+        if let Event::PointerPressed {
+            node,
+            button: BTN_LEFT,
+            injected,
+            ..
+        } = event
+            && node.starts_with(crate::hud::HELP)
+            && node.ends_with("-hit")
+            && (!injected || self.rt.accepts_injected())
+        {
+            return self.toggle_help().map(|()| true);
+        }
         let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected()) else {
             return Ok(false);
         };
         let own = self.settings.value.action(key, modifiers) == Some(&Action::System(System::Keys));
         match key {
-            "Escape" if !self.help_query.is_empty() => {
-                self.help_query.clear();
-                self.help_sel = 0;
-            }
-            "Escape" => return self.toggle_help().map(|()| true),
+            "Escape" => return self.close_help_by_escape().map(|()| true),
             _ if own => return self.toggle_help().map(|()| true),
             "Up" => self.help_sel = self.help_sel.saturating_sub(1),
             "Down" => self.help_sel += 1,
@@ -713,6 +719,20 @@ impl Construct {
         }
         self.draw_help(false)?;
         Ok(true)
+    }
+
+    /// Escape in the open help clears the search, and closes the help when
+    /// there is none.
+    pub(crate) fn close_help_by_escape(&mut self) -> Result<(), ClientError> {
+        if !self.help {
+            return Ok(());
+        }
+        if self.help_query.is_empty() {
+            return self.toggle_help();
+        }
+        self.help_query.clear();
+        self.help_sel = 0;
+        self.draw_help(false)
     }
 
     /// A drag with the modifier moves a pane: sideways along its face,

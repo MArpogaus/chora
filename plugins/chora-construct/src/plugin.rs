@@ -16,63 +16,16 @@ impl Plugin for Construct {
         &mut self.rt
     }
 
+    /// An event, and a regrab when it changed whether the window of a
+    /// pane has the keyboard (`keys_with_pane`): a press on a pane in the
+    /// walk, a `focus.changed`, or the walk that takes the keyboard back.
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
-        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
-            return Ok(());
+        let held = self.keys_with_pane();
+        self.on_event(event)?;
+        if held != self.keys_with_pane() {
+            self.regrab()?;
         }
-        self.voiced.hear_asking(&event, &mut self.rt.conn);
-        let Some(event) = self.pulled(event)? else {
-            return Ok(());
-        };
-        if let Some(created) = chora_kit::wm::Created::of(&event) {
-            return self.window_created(&created);
-        }
-        if let Some(surface) = chora_kit::wm::focus::changed(&event) {
-            self.core_focus = surface.map(String::from);
-            return Ok(());
-        }
-        if matches!(
-            event,
-            Event::OutputChanged { .. } | Event::OutputRemoved { .. }
-        ) {
-            self.book.apply(&event);
-        }
-        match event {
-            Event::SurfaceDetached { surface } => self.window_detached(&surface),
-            Event::SurfaceDestroyed { ref surface } => {
-                let surface = surface.clone();
-                self.window_destroyed(&event, &surface)
-            }
-            Event::SurfaceChanged {
-                surface,
-                size: Some([w, h]),
-                ..
-            } => self.resize(&surface, [f64::from(w), f64::from(h)]),
-            Event::OutputChanged { output }
-                if output.is_virtual != Some(true)
-                    && self.output.as_ref().is_none_or(|o| o.name == output.name) =>
-            {
-                let same = self
-                    .output
-                    .as_ref()
-                    .is_some_and(|o| o.size == output.size && o.position == output.position);
-                self.output = Some(output);
-                if same { Ok(()) } else { self.build() }
-            }
-            Event::OutputRemoved { name }
-                if self.output.as_ref().is_some_and(|o| o.name == name) =>
-            {
-                self.output = (self.rt.outputs()?.into_iter())
-                    .find(|o| o.name != name && o.is_virtual != Some(true));
-                if self.output.is_some() {
-                    self.build()?;
-                }
-                Ok(())
-            }
-            event if host_ready(&event) => self.name_theme(),
-            event if chat_closed(&event) => self.keyboard_back(),
-            event => self.other(event),
-        }
+        Ok(())
     }
 
     fn state(&self) -> Option<Value> {
@@ -249,4 +202,70 @@ fn host_ready(event: &Event) -> bool {
 fn chat_closed(event: &Event) -> bool {
     matches!(event, Event::Emitted { event, client, data }
         if client == "assistant" && event == "assistant.chat" && data["open"] == false)
+}
+
+impl Construct {
+    /// The events of the core and of the other clients.
+    fn on_event(&mut self, event: Event) -> Result<(), ClientError> {
+        if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
+            return Ok(());
+        }
+        self.voiced.hear_asking(&event, &mut self.rt.conn);
+        let Some(event) = self.pulled(event)? else {
+            return Ok(());
+        };
+        self.title_hint(&event)?;
+        if let Some(created) = chora_kit::wm::Created::of(&event) {
+            return self.window_created(&created);
+        }
+        if let Some(surface) = chora_kit::wm::focus::changed(&event) {
+            self.core_focus = surface.map(String::from);
+            if surface.is_some_and(|s| self.own_window(s)) {
+                self.walk_keys = false;
+            }
+            return Ok(());
+        }
+        if matches!(
+            event,
+            Event::OutputChanged { .. } | Event::OutputRemoved { .. }
+        ) {
+            self.book.apply(&event);
+        }
+        match event {
+            Event::SurfaceDetached { surface } => self.window_detached(&surface),
+            Event::SurfaceDestroyed { ref surface } => {
+                let surface = surface.clone();
+                self.window_destroyed(&event, &surface)
+            }
+            Event::SurfaceChanged {
+                surface,
+                size: Some([w, h]),
+                ..
+            } => self.resize(&surface, [f64::from(w), f64::from(h)]),
+            Event::OutputChanged { output }
+                if output.is_virtual != Some(true)
+                    && self.output.as_ref().is_none_or(|o| o.name == output.name) =>
+            {
+                let same = self
+                    .output
+                    .as_ref()
+                    .is_some_and(|o| o.size == output.size && o.position == output.position);
+                self.output = Some(output);
+                if same { Ok(()) } else { self.build() }
+            }
+            Event::OutputRemoved { name }
+                if self.output.as_ref().is_some_and(|o| o.name == name) =>
+            {
+                self.output = (self.rt.outputs()?.into_iter())
+                    .find(|o| o.name != name && o.is_virtual != Some(true));
+                if self.output.is_some() {
+                    self.build()?;
+                }
+                Ok(())
+            }
+            event if host_ready(&event) => self.name_theme(),
+            event if chat_closed(&event) => self.keyboard_back(),
+            event => self.other(event),
+        }
+    }
 }

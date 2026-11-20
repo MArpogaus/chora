@@ -25,11 +25,12 @@ pub(crate) fn takes_the_camera(inside: Option<&str>) -> bool {
 
 /// Turns the pose by a drag of `dx`, `dy`, and a running glide with it,
 /// so that a walk during the drag goes on. Only the yaw and the pitch
-/// change.
+/// change. The drag grabs the world: the scene follows the hand, as the
+/// cube does.
 pub(crate) fn turn(pose: &mut Pose, glide: Option<&mut Glide>, dx: f64, dy: f64) {
     let by = |p: &mut Pose| {
-        p.yaw += dx * LOOK_RATE;
-        p.pitch = (p.pitch - dy * LOOK_RATE).clamp(-1.2, 1.2);
+        p.yaw -= dx * LOOK_RATE;
+        p.pitch = (p.pitch + dy * LOOK_RATE).clamp(-1.2, 1.2);
     };
     by(pose);
     if let Some(glide) = glide {
@@ -56,6 +57,17 @@ pub(crate) fn ease(k: f64) -> f64 {
 /// both ends.
 pub(crate) fn ease_in_out(k: f64) -> f64 {
     k * k * k * (k * (k * 6.0 - 15.0) + 10.0)
+}
+
+/// The taps of the modifier `Super` alone, which a window in a pane does
+/// not get either: without them the press of Super reaches the window
+/// before each swallowed chord. Another modifier swallows nothing, as in
+/// `chora_kit::swallow`.
+pub(crate) fn lone_taps(modifier: &str) -> Vec<String> {
+    if modifier != "Super" {
+        return Vec::new();
+    }
+    vec!["Super+Super_L".into(), "Super+Super_R".into()]
 }
 
 /// The pane nearest the middle of the view, in front of the camera and
@@ -89,6 +101,24 @@ impl Construct {
     /// Whether the camera is in a pane or on its way into one.
     pub(crate) fn in_pane(&self) -> bool {
         self.flown.is_some() || self.flying_into()
+    }
+
+    /// Whether the keyboard is with the window of a pane: the camera is
+    /// in the pane or on its way into one, or a press on the pane in the
+    /// walk gave its window the keyboard where the pane stands. Either way
+    /// the construct holds its chords for that window (`regrab`).
+    pub(crate) fn keys_with_pane(&self) -> bool {
+        let pressed = (self.core_focus.as_deref()).is_some_and(|f| self.own_window(f));
+        self.in_pane() || (pressed && !self.walk_keys)
+    }
+
+    /// The command that gives the keyboard to the look node of the walk,
+    /// which notes that no window of a pane has it any more.
+    pub(crate) fn keys_to_the_walk(&mut self) -> Command {
+        self.walk_keys = true;
+        Command::FocusNode {
+            node: Some(LOOK.into()),
+        }
     }
 
     /// Whether the camera glides into a pane.
@@ -289,7 +319,39 @@ impl Construct {
         drag.last = p;
         self.glide.take_if(|g| g.into.is_some());
         turn(&mut self.pose, self.glide.as_mut(), dx, dy);
+        self.unseen_focus_to_walk()?;
         self.frame()
+    }
+
+    /// The keyboard goes back to the walk when a look or a step has taken
+    /// the pane of the focused window out of sight: the focus is a window
+    /// that shows, never one that no one sees, and a key then stays out of
+    /// it. A press on the pane gives it the keyboard again. The chords held
+    /// for that window go with it (`regrab`), also at the end of a glide.
+    pub(crate) fn unseen_focus_to_walk(&mut self) -> Result<(), ClientError> {
+        if self.in_pane() || self.cube.is_some() || !self.active || self.overlay {
+            return Ok(());
+        }
+        let Some(focus) = (self.core_focus.clone()).filter(|f| self.own_window(f)) else {
+            return Ok(());
+        };
+        let seen = (self.panes.iter()).any(|p| p.window() == Some(&focus) && self.in_sight(p));
+        if seen {
+            return Ok(());
+        }
+        self.core_focus = None;
+        let walk = self.keys_to_the_walk();
+        self.rt.conn.apply(vec![walk])?;
+        self.regrab()
+    }
+
+    /// Whether the pane is on the output for the camera now: in front of
+    /// the eye, inside the depth of the view and not behind a cube.
+    pub(crate) fn in_sight(&self, p: &Pane) -> bool {
+        let covered = (self.cube.as_ref()).is_some_and(|c| c.covers(&self.pose, p.at));
+        !covered
+            && !self.backs.contains(&p.name)
+            && space::sight(&self.lens, &self.pose, p.spot(), self.radius()) == "shown"
     }
 
     /// The pane under a point of the output, the nearest one, for the
@@ -365,6 +427,9 @@ impl Construct {
         }
         self.pose = glide.to;
         let into = self.glide.take().and_then(|g| g.into);
+        if into.is_none() {
+            self.unseen_focus_to_walk()?;
+        }
         self.frame()?;
         if let Some(flown) = into {
             self.snap(flown)?;
@@ -437,8 +502,13 @@ impl Construct {
     /// drag, which another client may hold or the core refuses for Shift
     /// (D45), a press with the modifier on the empty space or on a pane
     /// that shows a node texture still moves a pane, and one on a window
-    /// of the construct reaches the window. A binding that stays is not
-    /// let go in between, so its key never reaches a window.
+    /// of the construct reaches the window. While the window of a pane
+    /// has the keyboard (`keys_with_pane`), the bindings with a modifier
+    /// are grabbed and, without a cube, the chords that no binding uses
+    /// are swallowed. A cube in use mode leaves the tap of the modifier to
+    /// the program of the face: the core ends that tap without its release
+    /// when a chord of the construct comes between. A binding that stays
+    /// is not let go in between, so its key never reaches a window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {
@@ -450,34 +520,62 @@ impl Construct {
             .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.start_grabs();
+        let mut drag_errors = Vec::new();
         if self.active && !self.overlay {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
-                eprintln!("chora-construct: the drag: {err}");
+                drag_errors.push(format!("the drag: {err}"));
             }
         }
         if self.active && !self.overlay && self.flown.is_none() {
             let moves = parse(chora_kit::give::MOVE.into())?;
             if let Err(err) = self.rt.grab(moves, Grab::Drag) {
-                eprintln!("chora-construct: the drag of a given window: {err}");
+                drag_errors.push(format!("the drag of a given window: {err}"));
             }
+        }
+        if !drag_errors.is_empty() {
+            eprintln!("chora-construct: {}", drag_errors.join("; "));
         }
         self.rt.grab_give_keys()?;
         if self.in_pane() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
         }
-        if self.in_pane() || self.cube.is_some() {
+        if self.keys_with_pane() || self.cube.is_some() {
             for (key, grab) in self.grab_keys() {
                 self.rt.grab(parse(key)?, grab)?;
             }
         }
         self.grab_cube_keys();
-        if self.in_pane() && self.cube.is_none() {
-            self.rt
-                .grab_swallowed(&self.settings.value.modifier, &Grab::Swallow)?;
+        if self.keys_with_pane() && self.cube.is_none() {
+            self.swallow_for_window()?;
         }
         self.rt.end_grabs()
+    }
+
+    /// Swallows the chords of the modifier that no binding uses, and the
+    /// tap of the modifier alone, for the window of a pane that has the
+    /// keyboard; a tap that another client holds stays with it.
+    fn swallow_for_window(&mut self) -> Result<(), ClientError> {
+        let modifier = self.settings.value.modifier.clone();
+        self.rt.grab_swallowed(&modifier, &Grab::Swallow)?;
+        self.swallow_taps()
+    }
+
+    /// Swallows the tap of the modifier alone.
+    fn swallow_taps(&mut self) -> Result<(), ClientError> {
+        for tap in lone_taps(&self.settings.value.modifier) {
+            let binding = tap.parse().map_err(|e| {
+                ClientError::Rpc(RpcError::new(
+                    RpcError::INVALID_PARAMS,
+                    format!("{tap}: {e}"),
+                ))
+            })?;
+            if let Err(err) = self.rt.grab(binding, Grab::Swallow) {
+                eprintln!("chora-construct: the tap of the modifier: {err}");
+            }
+        }
+        Ok(())
     }
 
     /// Puts the window back into its pane and gives the keys back to the
@@ -491,9 +589,7 @@ impl Construct {
             },
         )];
         if walk {
-            commands.push(Command::FocusNode {
-                node: Some(LOOK.into()),
-            });
+            commands.push(self.keys_to_the_walk());
         }
         let pane = surface.and_then(|s| self.panes.iter().find(|p| p.window() == Some(s)));
         if let (Some(surface), Some(pane)) = (surface, pane) {

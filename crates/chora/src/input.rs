@@ -174,6 +174,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             if !injected && key_state == KeyState::Pressed {
                 state.choose_manager_of(conn);
             }
+            end_lone_taps_of_others(state, conn);
             hold_grab(state, conn, binding, code, injected);
         }
         Some(KeyAction::Node(owner, event)) => {
@@ -300,6 +301,14 @@ fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState, i
         injected,
     };
     state.ipc.send_to(conn, &event);
+}
+
+/// Ends the held taps of a lone modifier of the clients other than `conn`
+/// without their release, at a press that a grab of `conn` takes: Super
+/// with a chord or a drag of another client is no tap of Super, so a
+/// Start menu of the program of a face does not open unasked (rw-1).
+fn end_lone_taps_of_others(state: &mut State, conn: u64) {
+    (state.held.grabs).retain(|h| h.conn == conn || !lone_modifier(&h.binding));
 }
 
 /// True for a binding whose key is a modifier itself, as `Super+Super_L`:
@@ -900,8 +909,8 @@ pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial
 /// an output under the pointer the event has the pointer in the layout
 /// and no output name, so that a release always arrives. `injected` is
 /// set when the press of the grab did not come from the person. A press
-/// ends the held taps of a lone modifier of other clients without their
-/// release: a drag with Super is no tap of Super.
+/// ends the held taps of a lone modifier of other clients
+/// ([`end_lone_taps_of_others`]).
 fn send_button(
     state: &mut State,
     (conn, binding): (u64, String),
@@ -910,7 +919,7 @@ fn send_button(
     injected: bool,
 ) {
     if press == PressState::Pressed {
-        (state.held.grabs).retain(|h| h.conn == conn || !lone_modifier(&h.binding));
+        end_lone_taps_of_others(state, conn);
     }
     let (surface, grab) = window.unzip();
     let layout = [state.pointer_layout.x, state.pointer_layout.y];
@@ -1622,6 +1631,84 @@ mod tests {
             key_states(&mut xp, &mut core, "Super+Super_L"),
             ["pressed", "released"],
             "a tap without a button ends with its release"
+        );
+    }
+
+    const E: u32 = 18;
+    const F1: u32 = 59;
+
+    /// The `input.key` events of a client, as `BINDING STATE`.
+    fn key_stream(client: &mut Client, core: &mut Core) -> Vec<String> {
+        events(client, core)
+            .into_iter()
+            .filter(|e| e["event"] == "input.key")
+            .map(|e| {
+                format!(
+                    "{} {}",
+                    e["binding"].as_str().unwrap_or_default(),
+                    e["state"].as_str().unwrap_or_default()
+                )
+            })
+            .collect()
+    }
+
+    /// The program of a face, xp, holds the tap of Super and its own
+    /// Super chords; the construct holds its own chords. Super, `e` and
+    /// the release reach xp as its tap and its `Super+e` (rw-1): the
+    /// Super press goes to the program, and no other client takes it.
+    #[test]
+    fn a_super_chord_of_the_program_reaches_it_while_another_client_holds_chords() {
+        let (mut core, _wayland, _window, mut construct, mut xp) = window_and_menu();
+        construct.ok(&mut core, "events.subscribe", json!({"events": []}));
+        construct.ok(&mut core, "input.grab", json!({"binding": "Super+F1"}));
+        for binding in ["Super+Super_L", "Super+e"] {
+            xp.ok(&mut core, "input.grab", json!({"binding": binding}));
+        }
+        press(&mut core, SUPER, true);
+        tap(&mut core, E);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_stream(&mut xp, &mut core),
+            [
+                "Super+Super_L pressed",
+                "Super+e pressed",
+                "Super+Super_L released",
+                "Super+e released"
+            ],
+            "xp gets Super down and its chord"
+        );
+        assert_eq!(key_stream(&mut construct, &mut core), Vec::<String>::new());
+    }
+
+    /// A key grab of one client during the tap of a lone modifier that
+    /// another client holds ends the tap without its release, as a
+    /// grabbed button does: Super with a chord of the construct is no tap
+    /// of Super for the program of a face, which would open its Start
+    /// menu unasked (rw-1). A tap alone still ends with its release.
+    #[test]
+    fn a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client() {
+        let (mut core, _wayland, _window, mut construct, mut xp) = window_and_menu();
+        construct.ok(&mut core, "events.subscribe", json!({"events": []}));
+        construct.ok(&mut core, "input.grab", json!({"binding": "Super+F1"}));
+        xp.ok(&mut core, "input.grab", json!({"binding": "Super+Super_L"}));
+        press(&mut core, SUPER, true);
+        tap(&mut core, F1);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_stream(&mut xp, &mut core),
+            ["Super+Super_L pressed"],
+            "no lone tap after the chord of the construct"
+        );
+        assert_eq!(
+            key_stream(&mut construct, &mut core),
+            ["Super+F1 pressed", "Super+F1 released"]
+        );
+        press(&mut core, SUPER, true);
+        press(&mut core, SUPER, false);
+        assert_eq!(
+            key_stream(&mut xp, &mut core),
+            ["Super+Super_L pressed", "Super+Super_L released"],
+            "a tap alone ends with its release"
         );
     }
 

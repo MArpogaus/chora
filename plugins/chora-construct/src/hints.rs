@@ -44,6 +44,7 @@ pub enum Set {
     Walk,
     Flown,
     Cube,
+    Pull,
 }
 
 /// What the hints show and until when.
