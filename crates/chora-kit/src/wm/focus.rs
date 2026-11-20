@@ -122,15 +122,17 @@ impl Focus {
         if self.surface.as_deref() == Some(surface) {
             self.lose();
             self.surface = None;
+            self.core = None;
         }
     }
 
     /// Another client took the keyboard without a window, as a chat that
-    /// opens over the look.
+    /// opens over the look. Its field is a layer surface: the node of the
+    /// look loses the keyboard, but the core still focuses the window
+    /// under the field, which stays the holder (I3).
     pub fn lose(&mut self) {
         self.lost = true;
         self.node = None;
-        self.core = None;
     }
 
     /// A window of the look takes the focus back: the next transaction
