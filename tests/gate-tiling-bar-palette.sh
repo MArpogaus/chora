@@ -76,6 +76,7 @@ round() {
 }
 
 temp_config
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 mkdir -p "$XDG_CONFIG_HOME/chora"
 for theme in ink paper; do
     for size in 1280x800 2560x1600@2; do
