@@ -238,6 +238,7 @@ surfaces_clean='all(.[] | select(.id == $w); .owner != null and .parent != null 
 
 on_top() {
     local groups root
+    case "$2" in xp | tiling) ;; *) return 0 ;; esac
     groups=$(ctl query kind:group) || return 1
     root=$(ctl query id:root) || return 1
     jq -n -e --arg w "$w" --argjson groups "$groups" --argjson surfaces "$1" --argjson root "$root" '
@@ -264,7 +265,7 @@ arrived() {
         last_all=$all
         echo "$all" | jq -e --arg w "$w" --arg o "$1" "
             $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused == true)" >/dev/null &&
-            on_top "$all" && return 0
+            on_top "$all" "$1" && return 0
         sleep 0.2
     done
     return 1
