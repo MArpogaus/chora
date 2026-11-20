@@ -25,7 +25,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 |---|---|---|
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
-| p2-r5-mc.md (RC 2: persona r5 on mc) | sonnet medium, claude/p2-r5-mc e7f2410a | starting |
+| p2-r5-mc.md (RC 2: persona r5 on mc) | sonnet medium, claude/p2-r5-mc e7f2410a | session_016iS3kL9UhqGgnY5tMwXExp 16:20 |
 | xp-minor-r1.md (RC 2 known issues: 5 xp MINOR) | sonnet medium, claude/xp-minor fee9c695 | session_016iS3kLKnKNMM5NJqp8UV7Y 15:58 |
 | co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
 | ti-minor-r1.md (RC 2 known issues: ti-5, ti-6/19, ti-7) | sonnet medium, claude/ti-minor fee9c695 | session_016iS3kMtfHHYuxz7yDwxtzX 16:18 |
