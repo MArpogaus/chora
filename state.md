@@ -25,7 +25,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | Lane | Model, branch | State |
 |---|---|---|
 | stray-grab-r1.md (RC sh-24, Queue 5) | opus high | session_016iS3kQiKWvRdXmmZ12b8Tw |
-| black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | starting (r1: no repro without companions; PM: option 1) |
+| black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
 | t81 (Queue 4, F6): kit-sec-r3.md, xp-majors-r1.md, mc-answer-r2.md, co-majors-r2 | sonnet | MERGE-OK 1c25af7e 81a29fe8 92f2e52f 8e24dcb6; gate 01:54 |
 | p2-r1-tiling.md (RC 2, Queue 5) | sonnet med | session_016iS3kQJpeA8rRTKmK6JD4M |
 | p2-r1-mc.md (RC 2, Queue 5) | sonnet med | session_016iS3kPdQowtx92y35qnBx4 |
