@@ -35,3 +35,20 @@ Findings:
 - rv-4 | NIT | crates/chora/src/input.rs:2639 | No test pins the guard that a click on the empty claim of the look that has the focus keeps the keyboard. | Fix: add a unit test next to `a_click_into_the_empty_claim_of_another_look_takes_the_keyboard`.
 
 Verdict: FIX (1 MAJOR open: rv-1). Counts: BLOCK 0, MAJOR 1, MINOR 1, NIT 2.
+
+## r2
+
+Lane build stray-grab-r2 on claude/stray-grab, head 591e98f8 (r1 head 9859071b, merged origin/claude/autonomous-dev-session-3w-i33pg7 at 79c8d2b5). `cargo check --workspace` ok at the start.
+
+| item | red sha | fix sha | test | gate cell |
+|---|---|---|---|---|
+| rv-1 MAJOR: press on an input node keeps the keyboard | 1f9479ce | 4cf1925f | `input::tests::a_click_on_an_input_node_over_another_claim_keeps_the_keyboard` (red: "a press on an input node takes no keyboard from the window") | construct-hud, doors, keys, pane-keys, wm-pane, chat-keys PASS |
+| rv-2 MINOR: no choice while locked | 1f9479ce | 4cf1925f | `input::tests::a_press_while_locked_does_not_end_the_focus_after_the_unlock` (red: "the window has the keyboard again after the unlock"; unlock via the handler, since the lock client cannot unlock before the confirmation) | test PASS |
+| rv-4 NIT: click on the empty claim of the focused look | no red (guards a rule that holds) | 1f9479ce (test only) | `input::tests::a_click_into_the_empty_claim_of_the_focused_look_keeps_the_keyboard` | test PASS |
+| rv-3 NIT: docs wording | n/a | 8312fccb | docs/decisions.md, docs/api.md: "from whatever had it"; only the grabs of managers of virtual outputs wait; input node and lock named | pre-commit PASS |
+
+Fix: `State::choose_manager` returns early (choice cleared) while `self.lock.is_some()`, and clears the focus only when `render::node_under` finds no input node under the press; the choice itself is unchanged.
+
+Gate (`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,pane-keys,wm-pane,chat-keys,doors,construct-hud,matrix`, run dir /tmp/merge-gate.v5uxgi): all 12 cells PASS, no red cell, no rerun. Partial run, so the script pushed nothing; the branch was pushed by hand.
+
+Note: the commit hooks reject inline comments and subjects over 68 characters; two commit attempts failed on them and were redone before any commit landed.
