@@ -85,3 +85,29 @@ fn the_refusal_is_printed_as_text_with_its_remedy() {
     fs::remove_dir_all(&dir).unwrap();
     let _ = fs::remove_dir_all(state(&dir));
 }
+
+#[test]
+#[allow(clippy::print_stderr, reason = "the message of a skipped test")]
+fn a_runtime_dir_of_another_user_is_refused_with_no_socket() {
+    if !Command::new("id")
+        .arg("-u")
+        .output()
+        .is_ok_and(|o| o.stdout == b"0\n")
+    {
+        eprintln!("skipped: not root, so no dir of another user can be made");
+        return;
+    }
+    let dir = runtime("foreign", 0o700);
+    std::os::unix::fs::chown(&dir, Some(65534), Some(65534)).unwrap();
+    let output = run(&dir);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "chora must refuse to start: {stderr}"
+    );
+    assert!(stderr.contains("its owner is user 65534"), "{stderr}");
+    assert_eq!(entries(&dir), Vec::<String>::new(), "nothing is made");
+    assert!(!stderr.contains("Created new socket"), "{stderr}");
+    fs::remove_dir_all(&dir).unwrap();
+    let _ = fs::remove_dir_all(state(&dir));
+}
