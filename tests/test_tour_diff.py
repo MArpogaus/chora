@@ -342,12 +342,12 @@ class GateHook(unittest.TestCase):
     def test_the_acts_hook_fails_when_ffmpeg_is_absent(self):
         """rd-2: a runner with no ffmpeg must not pass the gate with the video tests skipped."""
         with tempfile.TemporaryDirectory() as tmp:
-            for tool in ("bash", "dirname", "python3", "env"):
+            for tool in ("bash", "dirname", "basename", "python3", "env", "mktemp", "flock", "cat", "rm", "mkdir", "sleep", "date", "sed", "tr", "true"):
                 found = shutil.which(tool)
                 if found:
                     os.symlink(found, f"{tmp}/{tool}")
             self.assertFalse(shutil.which("ffmpeg", path=tmp))
-            done = subprocess.run([f"{tmp}/bash", str(HERE / "gate-acts.sh")], capture_output=True, text=True, env={"PATH": tmp, "HOME": tmp})
+            done = subprocess.run([f"{tmp}/bash", str(HERE / "gate-acts.sh")], capture_output=True, text=True, env={"PATH": tmp, "HOME": tmp, "CHORA_GATE_LOCK_HELD": "1"})
             self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
             self.assertIn("FAIL", done.stderr)
             self.assertIn("ffmpeg", done.stderr)

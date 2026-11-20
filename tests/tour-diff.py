@@ -6,7 +6,9 @@ Usage: tests/tour-diff.py BASE CAND [--intended demo/tour/intended.toml] [--json
 BASE and CAND are folders (the replay on 733967aa and the v9 take) with, per act and capture,
 `<act>.<capture>.png` (a still, 8-bit RGB or RGBA, no pointer) and `<act>.<capture>.json`:
 `{"nodes": [scene.query nodes], "masks": [[x, y, w, h], ...]}`; `checks` optionally maps a check
-name to "green" or "red". A capture with no file in BASE has `baseline: none`.
+name to "green" or "red". A capture with no file in BASE has `baseline: none` only when
+intended.toml lists it in `baseline_none = ["<act>.<capture>"]`; any other absence is a regression, and
+so is a capture in BASE that CAND lacks. No capture at all (an empty or missing folder) exits 1.
 
 Two diffs per capture:
 - scene diff (every capture, also H50): nodes matched by id, windows by app_id and title; visible,
@@ -16,7 +18,9 @@ Two diffs per capture:
   8-connected blob of them has a box over 12x12.
 
 Verdict: same, change (every diff is named in intended.toml: act, kind, cause), regression (an
-unnamed diff, or a check green on BASE and red on CAND), none (no baseline). Exit 1 on a regression.
+unnamed diff, a check green on BASE that is not green on CAND, a check red on CAND that is not red on
+BASE, a capture missing in either folder), none (a declared `baseline: none`, with no red check).
+A red check that is meant has a row of kind "check". Exit 1 on a regression or on no capture.
 """
 
 import collections
@@ -151,7 +155,12 @@ def verdict(act, scene, pixel_same, intended, checks=None):
         else:
             unnamed.append(kind)
     base, cand = checks or ({}, {})
-    flipped = sorted(n for n, colour in base.items() if colour == "green" and cand.get(n) == "red")
+    flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"})
+    if flipped:
+        row = next((r for r in rows if r["kind"] in ("check", "*")), None)
+        if row:
+            causes.append(row["cause"])
+            flipped = []
     if unnamed or flipped:
         return {"verdict": "regression", "unnamed": unnamed, "flipped": flipped}
     if causes:
@@ -171,25 +180,34 @@ def masks_of(*sides):
     return out
 
 
-def compare(base, cand, intended):
-    """The rows for every capture of CAND: act, capture, verdict and what differs."""
+def compare(base, cand, intended, none=()):
+    """The rows for every capture in BASE or CAND: act, capture, verdict and what differs; `none`
+    lists the captures (`act.capture`) that have no baseline by design."""
     base, cand, rows = pathlib.Path(base), pathlib.Path(cand), []
-    for still in sorted(cand.glob("*.png")):
-        act, _, capture = still.stem.rpartition(".")
+    names = sorted({p.name for p in base.glob("*.png")} | {p.name for p in cand.glob("*.png")})
+    for name in names:
+        stem = name[: -len(".png")]
+        act, _, capture = stem.rpartition(".")
         row = {"act": act, "capture": capture}
-        other = base / still.name
-        if not other.exists():
-            rows.append({**row, "verdict": "none", "detail": "baseline: none"})
+        if not (cand / name).exists():
+            rows.append({**row, "verdict": "regression", "unnamed": ["missing capture"], "flipped": [], "detail": "in the baseline only"})
             continue
         side = {}
-        for name, folder in (("base", base), ("cand", cand)):
-            path = folder / still.with_suffix(".json").name
-            side[name] = json.loads(path.read_text()) if path.exists() else {}
+        for key, folder in (("base", base), ("cand", cand)):
+            path = folder / f"{stem}.json"
+            side[key] = json.loads(path.read_text()) if path.exists() else {}
+        if not (base / name).exists():
+            if stem in none:
+                result = verdict(act, [], True, intended, ({}, side["cand"].get("checks", {})))
+                rows.append({**row, **(result if result["verdict"] == "regression" else {"verdict": "none", "detail": "baseline: none"})})
+            else:
+                rows.append({**row, "verdict": "regression", "unnamed": ["baseline missing"], "flipped": [], "detail": "no baseline and not listed in baseline_none"})
+            continue
         scene = scene_diff(side["base"].get("nodes", []), side["cand"].get("nodes", []))
         if capture == "H50":
             pixel = {"same": True, "blobs": [], "fraction": 0.0}
         else:
-            pixel = pixel_diff(other.read_bytes(), still.read_bytes(), masks_of(side["base"], side["cand"]))
+            pixel = pixel_diff((base / name).read_bytes(), (cand / name).read_bytes(), masks_of(side["base"], side["cand"]))
         checks = (side["base"].get("checks", {}), side["cand"].get("checks", {}))
         rows.append({**row, **verdict(act, scene, pixel["same"], intended, checks), "scene": scene, "blobs": pixel["blobs"], "fraction": pixel["fraction"]})
     return rows
@@ -207,8 +225,8 @@ def main():
         del args[i : i + 2]
     if len(args) != 2:
         sys.exit(__doc__)
-    intended = tomllib.loads(pathlib.Path(intended_path).read_text()).get("change", []) if intended_path else []
-    rows = compare(args[0], args[1], intended)
+    table = tomllib.loads(pathlib.Path(intended_path).read_text()) if intended_path else {}
+    rows = compare(args[0], args[1], table.get("change", []), table.get("baseline_none", []))
     if as_json:
         print(json.dumps(rows, indent=1))
     else:
@@ -217,6 +235,9 @@ def main():
             print(f"{r['act']:<8} {r['capture']:<5} {r['verdict']:<11} {extra}")
         count = collections.Counter(r["verdict"] for r in rows)
         print("tour-diff:", ", ".join(f"{count[v]} {v}" for v in ("same", "change", "regression", "none")))
+    if not rows:
+        print("tour-diff: no capture in BASE or CAND", file=sys.stderr)
+        return 1
     return 1 if any(r["verdict"] == "regression" for r in rows) else 0
 
 

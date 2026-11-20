@@ -10,17 +10,40 @@ Flags, as timestamps in seconds (exit 1 when there is one):
 - fixed-moved: with --samples (a list of {t, camera, nodes: {id: {fixed, rect}}} read from the
   session while the video ran), a screen-fixed node whose rect moved while the camera moved.
 A cut is a stretch where the film is meant to stand still (a slide, a title).
+Exit 2 with "ffmpeg missing: cannot check" when ffmpeg or ffprobe is not on PATH.
+
+The thresholds, from the six v8 chapter videos (media/2026-11-17/tour-v8, 30 fps, 1280x720):
+- FLICKER_STEP 8.0: the mean grey step between two frames at 32x18 is 0.00 at the median (the
+  chapters hold stills), 0.85 to 1.6 at p99 in 03-mc-light and 03b-mc-dark, 4.8 to 11 at p99 in
+  01-xp, 02-tiling and 04-construct (windows and the cube moving), 22.9 at p99 in 05-handover; a
+  whole-frame flash steps 80 to 210 (03-mc-light max 211, 01-xp max 140). 8 sits above the p99 of
+  the calm chapters and far below a flash; the second condition (the frames around the flash are
+  alike, FLICKER_RATIO) keeps real motion, which does not come back, from being flagged.
+- FLICKER_RATIO 2: the step from the frame before the flash to the frame after it must be under
+  half of the smaller step into and out of the flash. testsrc2 moves 5 to 7 per frame and 14 over
+  three frames, a flash on it steps 54 to 55, so it is found; a step that stays or a move gives a
+  back step as large as the steps in.
+- FLICKER_RUN 2: a flash of one or two frames (a longer one reads as a cut or a slide).
+- SIZE 32x18: 16:9 at 1/40; 576 pixels average a window opening (a 200x150 window is 3 % of the
+  frame, 4 grey levels of the mean step) and drop noise of the encoder (the median step is 0).
+- BLACK_PIX 0.1: blackdetect counts a pixel black at luma 25 or below; v8 frames of the dark theme
+  have a darkest pixel of 10 to 28 (03b-mc-dark) but never 98 % of the frame under 25, so the six
+  videos give 0 black stretches, and a planted black stretch is found.
 """
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 
 FREEZE_SECONDS = 1.5
 FLICKER_STEP = 8.0
+FLICKER_RATIO = 2
+FLICKER_RUN = 2
 RECT_SLACK = 2
 SIZE = (32, 18)
+BLACK_PIX = 0.1
 
 
 def ffmpeg(path, vf, *extra):
@@ -35,7 +58,7 @@ def fps_of(path):
 
 
 def black(path, fps):
-    log = ffmpeg(path, ["-vf", f"blackdetect=d={1.9 / fps:.4f}:pix_th=0.1"])
+    log = ffmpeg(path, ["-vf", f"blackdetect=d={1.9 / fps:.4f}:pix_th={BLACK_PIX}"])
     return [
         {"kind": "black", "start": float(s), "end": float(e)}
         for s, e in re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", log)
@@ -67,10 +90,15 @@ def step(a, b):
 
 
 def flicker(path, fps):
+    """A run of 1 to FLICKER_RUN frames that differs from the frame before and the frame after, which are alike."""
     grey, out = frames(path), []
-    for i in range(1, len(grey) - 1):
-        if step(grey[i - 1], grey[i]) > FLICKER_STEP and step(grey[i], grey[i + 1]) > FLICKER_STEP and step(grey[i - 1], grey[i + 1]) < FLICKER_STEP / 4:
-            out.append({"kind": "flicker", "start": i / fps, "end": (i + 1) / fps})
+    for run in range(1, FLICKER_RUN + 1):
+        for i in range(1, len(grey) - run):
+            before, after = grey[i - 1], grey[i + run]
+            into, out_of = step(before, grey[i]), step(grey[i + run - 1], after)
+            if min(into, out_of) > FLICKER_STEP and step(before, after) < min(into, out_of) / FLICKER_RATIO:
+                if not any(f["start"] <= i / fps < f["end"] for f in out):
+                    out.append({"kind": "flicker", "start": i / fps, "end": (i + run) / fps})
     return out
 
 
@@ -106,6 +134,9 @@ def main():
         del args[i : i + 2]
     if len(args) != 1:
         sys.exit(__doc__)
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        print("tour-video-check: ffmpeg missing: cannot check", file=sys.stderr)
+        return 2
     found = check(args[0], cuts) + (fixed_in_move(samples) if samples else [])
     for f in found:
         print(f"{f['kind']:<12} {f['start']:7.2f} {f['end']:7.2f} {f.get('detail', f.get('id', ''))}")

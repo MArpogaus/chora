@@ -16,6 +16,7 @@
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need python3
+command -v ffmpeg >/dev/null 2>&1 || fail "ffmpeg is missing: the video checker tests would skip (tests/tour-video-check.py)"
 need_bins chora choractl chora-xp chora-mc chora-tiling chora-construct chora-probe
 python3 -I "$repo/tests/test_acts.py" || fail "the selftest of the harness"
 python3 -I "$repo/tests/test_tour.py" || fail "the selftest of the tour rows (demo/tour)"
