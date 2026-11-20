@@ -36,3 +36,13 @@ Nurse shot 011 (after Escape) shows the chat closed and the page with its column
 - The page of a window does not say how to type into it after a plain-key turn (Return). The short key list names Super with the arrows on a window page. A row `Return  Type in the window` on such a page would say it; not built (PM to rule).
 - Before captures of mc-43 and mc-42 are the persona captures of the round (cook 011, sofa 014), not a rebuilt old tree; the red cells are the proof of the old behaviour.
 - check.py contracts T2, T4:volume (sofa), T6 (nurse) were not rerun with a persona; the cells above are the proof.
+
+## Review r1 (PM, 03:05; builder: lane session_016iS3kLYw6qEfkL1bdD8ub7)
+Base 79c8d2b5..17d9a798, 8 files, +191 -17. Red commits first: e772e0ca, 916e6294 (mc-42, 43), 4a268cc4 (mc-44); gate 13 cells pass per lane.
+- mc-42: show.rs keeps the page focus during a plain-key turn (plain_turn), Return gives the window the keys (enter_window, only with the chat closed); items.rs shows the sides for every page with a scene. Matches the brief and POLS (no plain key taken from a client). OK.
+- mc-43: column and key list beside a window; doors/mc.sh no longer needs Super+n to show the column (the red test 916e6294 asserts it). OK.
+- mc-44: run("fuzzel") goes to `chora-mc --launch fuzzel` (kit launcher, "Nothing found" row); doors launcher-chat cell now checks the row, not the desktop file: equal strength (the row comes from that file). OK.
+- mc-45: not a bug, guard cell; OK.
+- rv-1 MAJOR, pre-existing, new finding mc-46 (not this branch's fault): a remote without Super has no key out of a window after Return; the core grabs no XF86Back/XF86HomePage. Next mc round.
+- nit mc-n1: --launch is parsed by hand before clap (not in --help); nit mc-n2: launch() hardcodes the terminal "foot".
+Verdict: MERGE-OK (no open MAJOR in the diff). Joins train 84.
