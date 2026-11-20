@@ -216,3 +216,23 @@ Checks:
 
 Findings:
 - rv-5 | MINOR | tests/gate-construct-3d.sh:280 | `view_of` hashes every row below 100 at full width, so frames 1, 2 and end differ on any change of the HUD (focus or neighbour pills, a fade after the `w`), even with a camera that never moved; the check no longer proves that the walk follows the steps of the clock, and the lane showed it red against no mutant of the walk. | Assert the camera itself per frame: read the pose (or the rect of pane c via `box`) from frames 1, 2 and end, or hash a strip that holds no HUD node, and show it red with the walk frozen.
+
+## r5
+
+Lane: cloud, branch claude/co-r5 from 42c9304b (co-r4). Step 0 green (`cargo check --workspace`, `cargo build --workspace`).
+
+| item | red | fix | cell | state |
+|------|-----|-----|------|-------|
+| 1 K5 wobble race (FLK in train 87c) | 39a709b5 (scratch mutant: the sleep before the read at 0; red 2 of 5 under 8 busy loops at load 12-19, once with the message of 87c, `441 False`; 8 busy loops with the sleep at 0.1 and 24 loops: green 5 of 5 each, the race does not show here without the mutant) | 1454c349 | construct-extra (3d); 5 of 5 green under the 8 loops of the red | fixed |
+| 2 rv-5 MINOR | mutant, scratch, reverted: the stride of the walk key not started (`camera.rs`, `self.stride = Some(...)` dropped): the new check gives 0, 0, 0, 0 and fails | 6bd3b6f7 | construct-extra (3d); 5 of 5 green under 8 loops; poses 0, 225, 403, 800 | fixed |
+
+### Item 1
+`mesh_of` was read once after `sleep 0.1`. The wait now polls both meshes (pane and mirror) while the button is held, until both show a depth, 20 polls of 0.25 s at most; each poll first moves the held pane by 30 px so that the springs do not rest while the poll waits (wobble.rs ticks a frame and settles when the target stops). Other fixed sleeps followed by one read, now polled: the baseline `view` (two reads 0.5 s apart agree, instead of `sleep 2`), "the drag moves pane a" (until_ok), "a pane dropped off the output shows where it was again" (a `pane_at` call in front as barrier, then until_ok on the box), "after a click on the empty space, w walks" (until_ok). Left as they are, on purpose: `sleep 0.6` before "the click does not move the view" and the `sleep 1` before the check that an injected click gives no keyboard (both prove an absence, which needs a time), `sleep 0.5` after a click before a read of a camera that no click moves, and the `sleep 0.5` before `s`.
+
+### Item 2
+The script of `choractl record` now has two `methods.call` cues, `construct.save` at frames 2 and 3 (sent before the step of their frame, so they hold the state of the pictures 1 and 2). The check reads the pose z of the camera from those saves, from the camera at the start and from the camera at rest after the recording, and wants start < frame 1 < frame 2 < end. The picture hash (`view_of`, `end.png`) is gone. Mutants: with the stride not started the old check was red too in this run (no HUD node changed), so the blindness of rv-5 is not reproduced here; the new check names the poses in its message and proves the walk by the camera, not by pixels.
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,construct-hud,construct-extra,cube,layout` on c2b0310f (origin/claude/autonomous-dev-session-3w-i33pg7 merged; the one conflict, the comment of `construct-extra` in merge-gate.sh, keeps both texts: launcher-click from the integration branch, k2a, windows and 3d from co-r4): all PASS (run /tmp/merge-gate.zEUbYE): pre-commit 4 s, gate-lib 69, ci-check 66, build 19, test 161, clippy 12, cube 119, layout 173, construct-hud 106, construct-extra 155. construct-extra alone 2 more times: PASS 155 s, PASS 153 s. No red cell, no FLK.
+
+Head c2b0310f.
