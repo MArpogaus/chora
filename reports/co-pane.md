@@ -184,3 +184,11 @@ Seeded review of claude/co-pane 18417f06 against 628bb930 (9 files, +181 -38), c
 4) rw-3 closed: overlay.rs:310 is a pure rewrap of the doc comment; the code is unchanged.
 5) Gate step (04a05d31): read, not run (no merge gate in this review). On r2 code the construct grab takes the injected Super press, so xp never sees the tap and `until_ok start_menu_open 20` fails with "rw-1: in use mode a tap of Super does not reach the xp of the face: no Start menu" (also the lane's red). At 18417f06 the lane's pull cell is PASS. Waits are `until_ok` with bounds, except the one bare sleep in rx-2, which cannot cause a flaky red.
 6) Red first, in order: cf1d028a, 04a05d31 < 68a97ef0, and 876f028b < c7679e69. I ran them on the red commits. cf1d028a: `a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client` fails at input.rs:1688 "no lone tap after the chord of the construct" (left adds `Super+Super_L released`), and `a_cube_in_use_mode_leaves_the_super_tap_to_the_program` fails at tests_moved.rs:165 "Super+Super_L stays with the program of the face in use mode". `a_super_chord_of_the_program_reaches_it...` is green there, as the lane says. 876f028b: `the_docs_say_the_direction_of_the_look_as_f5_does` fails at tests.rs:238 on docs/cube-modes.md. All fail for the named reason. 628bb930 (parent of cf1d028a) builds (`cargo build -p chora`). Authors are all Marcel Arpogaus, with no attribution lines.
+
+## r4
+
+- Head: 79787d9f on claude/co-pane (merge 736902cd of claude/lint-down 78ec62e1, fix 79787d9f); base 18417f06.
+- Red: tools/lint-ratchet said eprintln 132, list 131.
+- Fix: in plugins/chora-construct/src/camera.rs the two drag grab failures (the drag, the drag of a given window) are collected and print as one eprintln line; both messages stay visible. The tap of the modifier message is unchanged. Lint-ratchet: eprintln 131.
+- rx-2 NIT: tests/gate-construct-pull.sh bare sleep 1 became a new helper holds in tests/gate-lib.sh (the condition holds at four polls over 1 s).
+- Gate (--jobs 1): pre-commit, gate-lib, ci-check, build, test, clippy, xp, cube, pull, placed, construct-hud, construct-extra, wm-pane, pane-keys, walk, keys: all PASS.
