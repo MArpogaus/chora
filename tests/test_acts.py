@@ -927,13 +927,25 @@ def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=(), left=()):
     return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries), **more)
 
 
-def seen(open_ids=(), helper="idle", keysheet=None, look="xp"):
+def seen(open_ids=(), helper="idle", keysheet=None, look="xp", page=None):
     return {
         "t": 1.0,
         "action": "a",
         "open": list(open_ids),
         "helper": {look: helper},
+        "page": page,
         "keysheet": keysheet,
+    }
+
+
+def page_node(name, visible=True, opacity=1.0):
+    return {
+        "id": f"mc-s-{name}",
+        "kind": "group",
+        "owner": "mc",
+        "parent": "mc",
+        "visible": visible,
+        "opacity": opacity,
     }
 
 
@@ -963,6 +975,22 @@ class PersonaContracts(unittest.TestCase):
         two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
         after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
         self.assertIn("expected open []", verdict("T1", ctx(), before, after)[0])
+
+    def test_t1_the_key_list_of_the_persona_may_stay_open(self):
+        before = snap()
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
+        after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
+        self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"]), before, after), [])
+
+    def test_t4_the_key_list_of_the_persona_may_stay_open(self):
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
+        call = ctx(calls=calls, left=["xp-dlg-help"])
+        self.assertEqual(verdict("T4:volume", call, snap(), snap(states=states)), [])
+        call = ctx(calls=calls)
+        menu = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-menu"}], "busy": []}}
+        self.assertIn("expected open", verdict("T4:volume", call, snap(), snap(states=menu))[0])
 
     def test_t2_key_list_opened_spoke_and_shut(self):
         hist = [seen(["xp-dlg-help"], keysheet=[]), seen()]
@@ -1041,6 +1069,12 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("T6", ctx(), snap(), say), [])
         self.assertIn("neither", verdict("T6", ctx(), snap(), snap())[0])
 
+    def test_t6_the_launcher_row_nothing_found_counts(self):
+        row = ctx(calls=['fuzzel-first-row Nothing found for "nosuchprogram"'])
+        self.assertEqual(verdict("T6", row, snap(), snap()), [])
+        other = ctx(calls=["fuzzel-first-row Foot"])
+        self.assertIn("neither", verdict("T6", other, snap(), snap())[0])
+
     def test_t6_an_old_notice_alone_is_red(self):
         old = snap(blocks=notify(1))
         self.assertIn("neither", verdict("T6", ctx(), old, old)[0])
@@ -1083,6 +1117,23 @@ class PersonaContracts(unittest.TestCase):
         before = snap(states=page("agenda"))
         self.assertEqual(verdict("M1", ctx("mc"), before, snap(states=page("photos"))), [])
         self.assertIn("nothing changed", verdict("M1", ctx("mc"), before, before)[0])
+
+    def test_m1_a_page_that_turned_and_came_back_counts(self):
+        agenda = snap(nodes=[page_node("agenda"), page_node("morning", False, 0.0)])
+        hist = [
+            seen(page=["mc-s-agenda"]),
+            seen(page=["mc-s-morning"]),
+            seen(page=["mc-s-agenda"]),
+        ]
+        self.assertEqual(verdict("M1", ctx("mc", hist=hist), agenda, agenda), [])
+        still = [seen(page=["mc-s-agenda"]), seen(page=["mc-s-agenda"])]
+        self.assertIn("nothing changed", verdict("M1", ctx("mc", hist=still), agenda, agenda)[0])
+
+    def test_m1_a_page_that_fades_is_not_on(self):
+        agenda = snap(nodes=[page_node("agenda"), page_node("morning", True, 0.2)])
+        self.assertEqual(check.page_of(agenda, "mc"), ["mc-s-agenda"])
+        turned = snap(nodes=[page_node("agenda", True, 0.1), page_node("morning")])
+        self.assertEqual(verdict("M1", ctx("mc"), agenda, turned), [])
 
     def test_c1_the_cube_answers(self):
         self.assertEqual(verdict("C1", ctx("construct"), snap(), snap(cube={"faces": []})), [])
