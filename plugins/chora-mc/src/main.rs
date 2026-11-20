@@ -1719,16 +1719,11 @@ mod tests {
             .unwrap()
             .scene
             .add_surface("s1", chora_scene::SurfaceInfo::default());
-        let created = chora_scene::Event::SurfaceCreated {
-            surface: "s1".into(),
-            app_id: Some("foot".into()),
-            title: Some("foot".into()),
-            decoration: None,
-            to: Some(super::NAME.into()),
-            pid: None,
-            token: Some("t1".into()),
-            parent: None,
-        };
+        let created: chora_scene::Event = serde_json::from_value(serde_json::json!({
+            "event": "surface.created", "surface": "s1", "app_id": "foot", "title": "foot",
+            "to": super::NAME, "token": "t1",
+        }))
+        .unwrap();
         mc.lifecycle(&created).unwrap();
         assert_eq!(mc.current.as_deref(), Some("terminal"));
         assert_eq!(mc.windows.get("terminal").map(String::as_str), Some("s1"));

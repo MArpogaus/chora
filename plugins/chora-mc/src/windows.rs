@@ -1,4 +1,4 @@
-use chora_kit::wm::{Book, Change, Origin, Phase, Why, focus::Policy};
+use chora_kit::wm::{Book, Change, Created, Origin, Phase, Why, focus::Policy};
 use chora_scene::Event;
 
 use super::{
@@ -31,10 +31,7 @@ impl Mc {
     /// An event of the life of a window: the book decides which windows
     /// are mc's, and mc settles what it proposes.
     pub(crate) fn lifecycle(&mut self, event: &Event) -> Result<(), ClientError> {
-        let token = match event {
-            Event::SurfaceCreated { token, .. } => token.clone(),
-            _ => None,
-        };
+        let token = Created::of(event).and_then(|created| created.token);
         let named = Book::announced_app(event).map_or(Named::Ask, |app_id| Named::Is {
             app_id: app_id.map(str::to_owned),
             token,
