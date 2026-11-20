@@ -2,7 +2,7 @@
 
 Model: sonnet, effort high (triage of three test scripts and their causes; the PM reviews)
 Lane: cloud, branch claude/voice-v12 from 79c8d2b5 (session branch, train 81). One round, stop at 250 k. Cost about 1 %.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow` and `cargo build --workspace`; a failure: send_message the PM "voice-v12 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace` and `cargo build --workspace`; a failure: send_message the PM "voice-v12 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read on claude/session-log: backlog.md line V12, reports/debt-rc.md (V12 line), reports/harness-r2.md (step 2 note). On the branch: tests/voice-acp.sh, tests/voice-events.sh, tests/agent.sh, tests/fake-voice.py, tests/merge-gate.sh (how a cell is added).
 Known faults (V12): voice-acp.sh: a yes without the key counts as nothing; voice-events.sh: after voice sleep mc shows none; agent.sh step 2: xs_are 0 640.
 Scope: services/voice, tests/voice-*.sh, tests/agent.sh, tests/fake-voice.py, tests/merge-gate.sh (new cells only). Do not touch plugins/chora-mc (lane mc-remote owns it) or crates/chora; lane lint-down edits eprintln and allow lines in services/voice, so keep your services/voice changes small and merge origin/claude/autonomous-dev-session-3w-i33pg7 before the gate. A cause in mc or core: no fix, a finding in the report with the exact line, the script marks that step `known: <cause> (mc lane)` in the way tests/acts/known-red.toml does it.
