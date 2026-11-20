@@ -406,6 +406,9 @@ struct Mc {
     solo: Option<Solo>,
     /// How much of the key list shows.
     keys: keys::List,
+    /// Whether the key list drew the plain keys of a page the last time:
+    /// it follows who holds the keyboard on the page of a window.
+    keys_plain: std::cell::Cell<bool>,
     /// Whether the HUD host shows the chat in the margin column.
     chat: Chat,
     /// Where the box of the chat of the last layout is.
@@ -569,6 +572,7 @@ impl Mc {
             agent_focus: None,
             solo: None,
             keys: keys::List::default(),
+            keys_plain: std::cell::Cell::new(false),
             chat: Chat::Closed,
             slot: None,
             slot_sent: None,
@@ -653,7 +657,7 @@ impl Plugin for Mc {
         }
         if let Some(surface) = self.focus.hear(&event) {
             self.core_focus = surface.map(String::from);
-            return Ok(());
+            return self.sync_keys();
         }
         match event {
             Event::SurfaceChanged {
@@ -1042,6 +1046,25 @@ impl Mc {
         self.plain_turn = false;
     }
 
+    /// Draws the key list anew when the plain keys of the page began or
+    /// ended to work, as when the keyboard moves between a window and its
+    /// page.
+    fn sync_keys(&mut self) -> Result<(), ClientError> {
+        let named = self.chat == Chat::Closed && self.built && self.current.is_some();
+        if named && self.page_keys_work() != self.keys_plain.get() {
+            self.render()?;
+        }
+        Ok(())
+    }
+
+    /// Whether the plain keys of the page turn it now: the page of a window
+    /// holds them only while the page has the keyboard.
+    pub(crate) fn page_keys_work(&self) -> bool {
+        let page = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
+        let holds_page = matches!(self.focus.holder(|_| false), Holder::Node(_));
+        self.page_keys == keys::PageKeys::Plain && (page || holds_page)
+    }
+
     /// Return on a page that stands over a window gives the window the
     /// keyboard: the keys of the person then belong to the program, and
     /// only the bindings with Super turn the page (mc-42).
@@ -1055,7 +1078,7 @@ impl Mc {
             && self.chat == Chat::Closed
         {
             let focus = self.focus.to(Some(window));
-            if let Err(err) = self.apply(vec![focus]) {
+            if let Err(err) = self.apply(vec![focus]).and_then(|()| self.sync_keys()) {
                 eprintln!("chora-mc: enter window: {err}");
             }
         }
@@ -1074,7 +1097,7 @@ impl Mc {
         match current {
             Some(name) if holds => {
                 let commands = self.keyboard_to(&name, window);
-                if let Err(err) = self.apply(commands) {
+                if let Err(err) = self.apply(commands).and_then(|()| self.sync_keys()) {
                     eprintln!("chora-mc: leave window: {err}");
                 }
             }

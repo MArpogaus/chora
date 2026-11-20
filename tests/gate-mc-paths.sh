@@ -274,6 +274,7 @@ cell_terminal_turn() {
     local k want
     for k in Left:mission Right:overview Escape:mission XF86Back:terminal; do
         turn_arrive || { foot_end; fail "no terminal page by Right x4 before $k: $(current)"; }
+        texts | grep -qE '^←.*→$' || { foot_end; fail "the page that Right started names no plain arrows: $(texts | grep -F '←' | tr '\n' '|')"; }
         key "${k%%:*}"
         want=${k##*:}
         sleep 1
