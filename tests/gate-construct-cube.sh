@@ -151,12 +151,40 @@ ok "a click near the corner of the xp window on the front face came at (3, 2): 1
 width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
 edge() { ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); print(round(n[0]['rects']['HEADLESS-1'][$2]) if n and n[0]['rects'] else -1)"; }
 drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items()))'; }
+scene_dump() { ctl query '*' >"$1" 2>/dev/null || echo '[]' >"$1"; }
+drew_what() {
+    python3 -I - "$work/still-before.json" "$work/still-after.json" <<'PY'
+import json, sys
+def load(path):
+    try:
+        return {n["id"]: n for n in json.load(open(path))}
+    except (OSError, ValueError):
+        return {}
+before, after = load(sys.argv[1]), load(sys.argv[2])
+lines = []
+for id_ in sorted(set(before) | set(after)):
+    a, b = before.get(id_), after.get(id_)
+    if a is None or b is None:
+        lines.append(f"{id_}: {'new' if a is None else 'gone'}")
+        continue
+    keys = [k for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)]
+    for k in keys:
+        lines.append(f"{id_}.{k}: {json.dumps(a.get(k))[:60]} -> {json.dumps(b.get(k))[:60]}")
+print("; ".join(lines[:12]) if lines else f"no node changed in {len(after)} nodes")
+PY
+}
 still() {
-    local before
+    local before after at
+    STILL_WHY=""
     for _ in 1 2; do
         before=$(drawn)
+        at=$(date +%T)
+        scene_dump "$work/still-before.json"
         sleep 2
-        [ "$before" != "$(drawn)" ] || return 0
+        scene_dump "$work/still-after.json"
+        after=$(drawn)
+        [ "$before" != "$after" ] || return 0
+        STILL_WHY="$STILL_WHY [window $at: $before -> $after; drew: $(drew_what)]"
     done
     return 1
 }
@@ -268,7 +296,7 @@ ok "the face label capsule takes the short shadow, 0 1 2 at 0.06 and 0 4 12 at 0
 [ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le $((800 - 32)) ] || fail "the chips leave the margin of 32 at the bottom"
 ok "the chips are the hints of the cube at the bottom centre, at least 24 px high"
 sleep 2
-still || fail "a still cube draws: $(drawn)"
+still || fail "a still cube draws: $STILL_WHY"
 ok "a still cube renders 0 passes and has no damage, by render.stats"
 call view.step_in >/dev/null || fail "view.step_in"
 until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
@@ -568,7 +596,7 @@ floats() {
     [ "$lower_lift" -gt 800 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
     [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
     [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
-    still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }
+    still || { echo "a still cube with floating windows draws: $STILL_WHY"; return 1; }
     call view.step_in >/dev/null || return 1
     until_ok "$stepped_in" 20 || return 1
     until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||
