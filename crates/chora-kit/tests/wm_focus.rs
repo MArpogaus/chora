@@ -172,3 +172,42 @@ fn the_holder_is_a_window_of_the_book() {
     assert!(matches!(command, Command::Focus { .. }));
     assert!(look.focus.sent && !look.focus.sends(Some("t1")));
 }
+
+/// The `focus.node` of the core, read from its JSON as a client gets it.
+fn node_event(node: Option<&str>, owner: Option<&str>) -> Event {
+    serde_json::from_value(serde_json::json!({"event": "focus.node", "node": node, "owner": owner}))
+        .unwrap()
+}
+
+/// I3, p2r2 ricer: tiling and xp on one output. Tiling focused its window
+/// t1, then the Start menu of xp took the keyboard with a node, which
+/// leaves the focused surface as it is: tiling holds no focus while the
+/// node of xp has the keyboard, and holds it again when the node lets go.
+#[test]
+fn a_node_of_another_look_takes_the_focus_from_the_window() {
+    let mut tiling = Look::new("tiling", &["t1"]);
+    tiling.focus.sent(Some("t1".into()));
+    tiling.focus.hear(&changed(Some("t1")));
+    assert_eq!(tiling.state(), holds("tiling", Some("t1")));
+    tiling.focus.hear(&node_event(Some("xp-menu"), Some("xp")));
+    assert_eq!(
+        tiling.state(),
+        state::Focus::default(),
+        "the menu of xp has the keyboard"
+    );
+    assert_eq!(tiling.focus.holder(|s| tiling.book.has(s)), Holder::Foreign);
+    tiling.focus.hear(&node_event(None, None));
+    assert_eq!(
+        tiling.state(),
+        holds("tiling", Some("t1")),
+        "the keyboard is back on t1"
+    );
+    tiling
+        .focus
+        .hear(&node_event(Some("tiling-keys"), Some("tiling")));
+    assert_eq!(
+        tiling.state(),
+        holds("tiling", Some("t1")),
+        "an own node is no loss"
+    );
+}
