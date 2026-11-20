@@ -496,6 +496,8 @@ def guide_breaches(snap):
         if rows is None and items:
             out.append(f"no capture of {output}: the contrast of its text cannot be measured")
         for _i, label, words, rect in items:
+            if not words.strip():
+                continue
             px = sizes.get((label, words))
             if px is None:
                 out.append(f"on {output} {words!r} ({label}) has no font size, the guide wants {LEAST_PX} px")

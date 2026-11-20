@@ -30,6 +30,7 @@ import json
 import os
 import pathlib
 import queue
+import re
 import shutil
 import signal
 import socket
@@ -253,12 +254,18 @@ def known_red(path=KNOWN_RED):
         return tomllib.load(f).get("red", [])
 
 
+def fault(breach):
+    """A breach without its quoted texts and evidence: the clock and the
+    counts of a label change from act to act, the fault does not."""
+    return re.sub(r"'[^']*'", "''", breach.rsplit(" (evidence", 1)[0])
+
+
 def row_covers(row, breach):
     """Whether a row names the breach: its `act` and `capture` (the label
     of a node, in brackets) and `match` all occur in the breach text."""
     return (
         (not row.get("act") or breach.startswith(f"in act {row['act']!r}: "))
-        and (not row.get("capture") or f"({row['capture']})" in breach)
+        and (not row.get("capture") or re.search(rf"[( ]{re.escape(row['capture'])}[) ]", breach))
         and row.get("match", "") in breach
     )
 
@@ -751,10 +758,9 @@ class Session:
             if fresh:
                 _, png = self.capture(self.outputs()[0]["name"], 1280)
                 (evidence / "still.png").write_bytes(png)
-        seen = {c.split(": ", 1)[1].rsplit(" (evidence", 1)[0] for c in cell}
-        cell += [
-            f"in act {act!r}: {b} (evidence {evidence})" for b in dict.fromkeys(breaches) if b not in seen
-        ]
+        seen = {fault(c.split(": ", 1)[1]) for c in cell}
+        new = {fault(b): b for b in reversed(breaches) if fault(b) not in seen}
+        cell += [f"in act {act!r}: {b} (evidence {evidence})" for b in reversed(new.values())]
 
 
 def key(keys):
