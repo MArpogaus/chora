@@ -95,3 +95,24 @@ Commits on 8b996cee: red `0af4658a` (tests only; 8 failures and 2 errors on 8b99
 `green` is 4 acts of 90 (xp 2, construct 1, handover 1): the rest are `inv`. Giving the 86 `inv` acts an `expect` is the next slice; this round only makes the number honest.
 
 **Gate** `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,gate-lib,build,test,acts` on c7bac047: all six PASS (acts includes `tests/test_tour.py`, 20 tests ok). No other cell imports demo/tour. Pushed: claude/tour-one only.
+
+## Review r2 (review-tour-one r2, claude/tour-one c7bac047 vs base 8b996cee, 2026-11-20)
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR open; 2 MINOR, 3 nit). One round, read-only on code, no fix made, no merge gate run.
+Step 0: `git fetch --unshallow`, `cargo check --workspace` ok (and `cargo build --workspace` for the runs).
+
+**Per check**
+1. Red first: `python3 -I tests/test_tour.py` at 0af4658a runs (18 tests, no import failure) and fails 8 + 2 errors, each for its named reason: rt-1 `row_without_expect_is_inv_not_green` ('green' != 'inv'); rt-2 `notify_config_is_one_helper` (no `launch.notify_config`); rt-3 `read_waits_for_busy_empty` (RED != green, read taken while busy); rt-4 four `known_*` tests (known hides any red, no `drop known`, no ValueError, row text) ; rt-5 `missing_pane_raises` (no `pane_and_face`); rt-6 `timeline_shows_contract_cells_capture` ('contract' not in `assemble.HEAD`). rt-7 has no test (a file move). 64672014: 18 ok. c7bac047: 20 ok.
+2. rt-1 to rt-7 each fixed as asked: rt-1 `inv` in tour.py `check_armed` and `run.py tally`; rt-2 `launch.notify_config` is the default of every `Launcher.start`, xp's copy removed; rt-3 `Tour.quiet_snapshot`; rt-4 `known_keys`/`red_key`: a `known` hides only its invariant, another red stays RED, a green known act prints `known act N is green: drop known`, a `known` naming no invariant raises (all five by test; the print is not seen in the runs because no known act went green); rt-5 `pane_and_face` raises, C2 has `Expect(verify=window_back_on_face)` and always runs (construct's 1 green is this act); rt-6 three columns in `assemble.HEAD`; rt-7 `ip.py` gone, `probe.py` is `tools/tour-probe.py` with `main()`, row files named for the chapter, `git grep` finds no `rows-ch*` left.
+3. 354cabf0: `dismiss_notices()` runs after the xp "no editor" notice act (after its `expect` read) and after the mc "answer" act (after the three `known` I5 acts that keep the card on screen); no product file is in the diff (the 10 s default of chora-notify is unchanged), and the 600 s card is the tour's own config. It hides no fault: the I5 overprint stays `known` in m3 to m5. The `choractl` drop in `Checker.judge` has a test, but matches by client name only (rt-8).
+4. `demo/tour/run.py --check mc` twice: both `0 green, 15 inv, 3 known, 0 red`, no `drop known`, no `still busy` line; the mc dark "Escape closes the chat" act is green without `known`.
+5. `demo/tour/run.py --check` once, all five: xp 2/18 inv/1 known, tiling 0/21, mc 0/15/3 known, construct 1/17, handover 1/8/2 known/1 todo; `tour: check: 0 red, 0 broken`. Same as the r2 table.
+
+**Findings**
+- rt-8, MINOR, demo/tour/tour.py:42 and :159: `SCRIPT_CLIENTS = {"choractl"}` drops by name, and `choractl`'s default client name is `choractl` (crates/choractl/src/main.rs:445), so any client with that name, a long-lived `choractl` of the product's own flows included, is hidden from I14, not only the script's one-shot calls. Fix: run `Session.ctl` with `--name tour` (the flag exists) and drop `{"tour"}`.
+- rt-9, MINOR, demo/tour/tour.py:97 (`dismiss_notices`): it closes only `shown`, and chora-notify shows one card and queues the rest (plugins/chora-notify/src/card.rs:157-163, `state_value`); a queued card is promoted after the close and then stays 600 s over the next acts. No effect today (one notice at a time in xp and mc), latent for the Screenshot notices to come. Fix: repeat `state.get` and close until `shown` and `waiting` are empty.
+- rt-10, nit, demo/tour/tour.py:`quiet_snapshot`: after 20 s of `busy` it prints `still busy` and judges the busy frame; the row stays `inv`, so a look that is never quiet passes. Fix: add a red line `not quiet after 20 s: <looks>` for that row.
+- rt-11, nit, tools/tour-probe.py:38: the capture goes to the fixed `/tmp/claude-0/probe-N.png`. Fix: write into `L.dir` (or `TOUR_OUT`).
+- rt-12, nit, demo/tour/tour.py:`check_armed`: `known="I4,I5"` where only I4 is red prints no `drop known` for I5. Fix: print `drop known: I5` for each named key that hid nothing.
+
+Counts: BLOCK 0, MAJOR 0, MINOR 2, nit 3 (5 findings).
