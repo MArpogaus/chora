@@ -71,3 +71,11 @@ H12.
 Voice scripts (H4) and the other findings belong to other lanes. Refactor proposals: gate helpers (`foot_pane`, `until_ok` loops that wait
 for a pose) into gate-lib.sh (S, tests/gate-construct-*.sh); the construct gates K1 and k2a poll for fixed hints and animation times: a
 `wait_pose` helper would remove 4 sleeps (S).
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 79c8d2b5..fc404a90, 9 files +121 -17, tests only (merge-gate.sh, selftest, construct and mc gates).
+Checks: free-space (6 GB, D90), shallow (R18) and drift (warn only) checks run before the lock, with selftest cases; construct-extra chains K1, mcpane, nested (3/3 per report); k2a, 3d, windows stay out with header lines naming co-27, co-28; the K1 fixes replace stale opacity checks by the focus check; pull asserts the stand-back before reading the plane; mc-handover keeps 820 ms with the measure in the header.
+- rv-1 NIT: warn_on_drift fetches origin of the session branch inside a train; harmless (it only moves a remote ref), but the gate now needs the network for that line; it times out at 30 s and goes on.
+- rv-2 NOTE: construct-extra adds three gates to every train; its run time goes into the next train's log for the --jobs 2 budget.
+New findings: co-27 MAJOR, co-29 MAJOR (construct): rule 6 blocks construct MINOR work until they close; lane co-majors r1.
+Verdict (computed): no open MAJOR in the diff: MERGE-OK fc404a90. Harness branch: own train (t84) after t83.
