@@ -343,3 +343,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - xp-minor pr2-1 NIT: the Run notice keeps fuzzel's "config.c:17: " source position; strip "<file>.c:<n>: " before the text (crates/chora-kit/src/launcher.rs ask).
 - co-fix pr2-1 MINOR: construct pull hint flashes on each title click (use mode, one screen); show it past a drag threshold. pr2-2 NIT: hint names the helper with no helper configured.
 - flakes-l r2 pr2-2 NIT: gate-hud context-picks-folder does not check the look returns to the one before the question. Residual persona sound 1/100 (render between quiet read and node read, harness).
+- Harness (rv-1 co-pane, 11-20): tests/persona/act.py sends a chord as one batch, so a stray modifier tap reaches no gate; add split press/release events.
