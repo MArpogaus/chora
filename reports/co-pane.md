@@ -129,3 +129,58 @@ Seeded review of claude/co-pane 628bb930 against f10842d8 (13 files, +434 -38), 
 4) rv-6: `turn` inverts dx and dy, the projection test checks the four directions on the screen; the "first drag does not look" is pinned by design (`a_press_on_a_pane_window_starts_no_look`, d762d10f) and written in F5. The persona and gates read no drag direction (grep). Docs: rw-2. POLS against the look of the cube: the same hand-follows direction, consistent.
 5) rv-7: `with_children` takes a child only when `cube.list` names it as a face manager and counts `shown` only for the output of the front face; the three `WithChildren` cases are the negative cases (no manager: I1; face behind the front: I3), and the live positive case of the selftest is still green.
 6) Red first, run by me on the red commit: fabe366e (rv-1) fails `a_cube_in_use_mode_swallows_the_lone_super_tap` at tests_moved.rs:163 (no tap grabbed); 0207d17b (rv-3) fails `the_key_sheet_gives_the_keyboard_back_only_to_the_front_face` at tests_construct.rs:910 (left 1, right 0: a window of a face that is not at the front got the keyboard); b22397b9 (rv-6) fails `a_drag_takes_the_scene_along_with_the_hand` at tests.rs:203 ("right with the hand"). All three are the named reasons; each fix commit follows its red commit. rv-8: the regrab stays with a test that is red without it (reading of the test; not run without the line).
+
+## r3
+Lane: cloud, branch claude/co-pane from 628bb930, head 18417f06 (pushed). Step 0: unshallow, `cargo check --workspace` green. No attribution lines, identity Marcel Arpogaus on every commit. Each item: red test commit first, then the fix.
+
+| Item | Red | Fix | Test | Cell |
+|---|---|---|---|---|
+| rw-1 MAJOR Super of the program | cf1d028a (unit), 04a05d31 (gate step) | 68a97ef0 | core `input::tests::a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client` (b: Super, construct's Super+F1, release: xp gets `Super+Super_L pressed` and no release; a tap alone still ends with its release), `input::tests::a_super_chord_of_the_program_reaches_it_while_another_client_holds_chords` (a: Super, e, release reaches xp as its tap and `Super+e`), construct `cube::tests_moved::a_cube_in_use_mode_leaves_the_super_tap_to_the_program` (replaces the r2 swallow test) | unit + pull gate step (`rw-1: in use mode a tap of Super opens the Start menu of the xp of the face, and Super with F1 of the construct opens none`, separate press and release events via `input.inject`) |
+| rw-2 MINOR F5 sentence | 876f028b | c7679e69 | `tests::the_docs_say_the_direction_of_the_look_as_f5_does` (the two F5 sentences word for word in plans/construct-requirements.md, docs/cube-modes.md, docs/configuration.md) | unit |
+| rw-3 NIT | - | 18417f06 | none (a doc comment rewrap) | - |
+
+rw-1, what happens: core key grabs are exclusive, so construct's grab of `Super+Super_L` took the Super press from xp. A press of the person also makes core choose construct as manager (`choose_manager_of`: construct's claim holds the pointer). After that, xp's own `Super+e`/`Super+d` were held back and swallowed (lost, not typed as a bare `e`). Fix, in core (the plugin alone cannot keep xp from getting its tap release): a press that a key grab takes ends the held lone-modifier taps of the other clients without their release. This is the existing button rule (`send_button`), now one helper `end_lone_taps_of_others` for both. Construct no longer grabs the tap in use mode (the pane-window swallow stays). The escape hatch (safety layer, `press_action`) is untouched. docs/cube-modes.md now says that the program keeps Super, its chords (`Super+E`, `Super+D` of xp) and its Start tap; docs/api.md `input.key` names key grabs next to buttons.
+
+Red checks: the gate step fails at the r2 code ("in use mode a tap of Super does not reach the xp of the face: no Start menu"). The core stream test (a) is green before the fix as well: it pins the stream, and the red of (a) is the construct grab test.
+
+### Not done
+- Not covered by a gate: the swallowed `Super+e` after a manager choice. `choose_manager_of` runs only for non-injected keys, even with `--test-injected-press-is-real`, so no gate can show it; the unit tests cover it by reading the code path.
+
+### Gate
+`tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,cube,pull,placed,construct-hud,construct-extra,wm-pane,pane-keys,walk,keys,xp` at 18417f06:
+```
+pre-commit PASS     6s
+gate-lib   PASS    75s
+ci-check   PASS    42s
+build      PASS    28s
+test       PASS   230s
+clippy     PASS    19s
+xp         PASS    86s
+cube       PASS   120s
+pull       PASS    85s
+placed     PASS    15s
+construct-hud PASS   114s
+construct-extra PASS   165s
+wm-pane    PASS    22s
+pane-keys  PASS     9s
+walk       PASS     4s
+keys       PASS    39s
+```
+`bash tests/persona-selftest.sh`: all `ok`, ending `ok: persona session`.
+
+## Review r3
+Seeded review of claude/co-pane 18417f06 against 628bb930 (9 files, +181 -38), cloud lane, read-only on code. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. `cargo test -p chora`: 639 + 2 + 3 passed, 0 failed. `cargo test -p chora-construct`: 260 passed, 0 failed. `bash tests/persona-selftest.sh` (after `cargo build --workspace`): all `ok`, ending `ok: persona session`. No merge gate run, no live run.
+
+**Verdict: MERGE-OK** (no open BLOCK or MAJOR). Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 1. rw-1, rw-2 and rw-3 are closed. rx-1 is older than co-pane (6673119f, before f10842d8): r3 brings back the behaviour from before r2, as its brief asks. It is a follow-up candidate.
+
+### Findings
+- rx-1 MINOR (pre-existing) crates/chora/src/input.rs:174-175, crates/chora/src/state.rs:982: a person's press of a construct chord in use mode (e.g. `Super+F1`) runs `choose_manager_of(construct)`. The construct's claim covers the screen under the pointer, and the focused window belongs to xp, so the construct becomes the chosen manager. From then on `grab_action` holds back every xp grab (xp's claims are all on virtual outputs) and swallows it: the next Super tap, `Super+e`, `Super+d`. This lasts until a click or a focus change, and `chosen_manager` comes back with the same focus after the key list closes. A throwaway core test on the `manager_of_a_face_and_one_under_the_pointer` fixture confirmed it (Super, e: xp gets its tap and `Super+e`; Super, F1 of the space: xp gets `Super+Super_L pressed` only; then Super, e: xp gets nothing). So docs/cube-modes.md:71 ("keeps `Super` ... its own `Super` chords") holds only until the first construct chord. The r3 "Not done" note is wrong to say the unit tests cover this path: `window_and_menu` has no claim under the pointer, so `choose_manager_of` chooses nothing there. A gate step could reach it: the key path checks `!injected` at line 174, while buttons use `!injected || state.injected_press_is_real` (line 713), so only the key path stays out of the test mode. Fix: have a key grab choose its manager only when that manager holds no claim around a window that another manager focuses (or end the choice at the release of the chord's modifier); test it with Super+F1 then Super+e on that fixture, and use the button's `real` rule at line 174 so a pull gate step can show it.
+- rx-2 NIT tests/gate-construct-pull.sh:557: the absence check "no Start menu after Super+F1" waits a bare `sleep 1` for xp to handle the release. It can never be a flaky red, only a false green if xp takes more than 1 s (the file has 13 such sleeps). Fix: sync on xp before the check, e.g. inject a lone Super tap and wait until exactly that tap opens the menu.
+
+### Checks
+1) rw-1 closed. `regrab` no longer calls `swallow_taps` in use mode (camera.rs:546), so the Super press reaches xp's own grab, and Super+e/r/d reach it as chords (xp `key()` marks its tap as used, so its own chord opens no Start menu). After a construct chord, xp gets `Super+Super_L pressed` and no release, so no Start menu opens. A lone tap still opens it. What each test pins: the two core tests pin the `input.key` stream that the client gets over IPC; the construct test (`a_cube_in_use_mode_leaves_the_super_tap_to_the_program`) pins only construct's grab map; the gate step pins the visible Start menu with separate injected press and release events. The manager-choice swallow is real and open after a construct chord, and a gate can reach it after a one-line alignment (rx-1).
+2) Core change. `end_lone_taps_of_others` runs only in the `KeyAction::Grab` branch, which only a press produces (`released_key` yields only `Node`/`Swallow`). It removes the other client's held tap from `held.grabs`; it sends no stray release. The client tracks the tap itself (xp `tap: Option<bool>`, reset at each Super press), so nothing stays stuck, and the surface never got Super through the grab. Escape hatch: `press_action` (VT switch, Quit, Reset, RevokeAll) runs before `grab_action` and returns its own `KeyAction`, so the new call never reaches it. No plugin can take those keys, and this branch changes nothing there. Buttons: `send_button` (input.rs:922) calls the same helper under the same `Pressed` gate as before, the identical `retain`, so buttons behave the same. Tests: grab (b), no grab (tap alone in b), two clients (a and b), and the same client's own chord (a). Not covered: a press that a held-back grab swallows (`KeyAction::Swallow`) or that no grab takes still lets the tap release through. That is unchanged and rare, so it is not a finding.
+3) rw-2 closed: both F5 sentences appear word for word in plans/construct-requirements.md, docs/cube-modes.md:51-56 and docs/configuration.md:920-925, and `the_docs_say_the_direction_of_the_look_as_f5_does` pins them (whitespace normalised). api.md `input.key`: "the press of a button or key binding of another client ends a binding of a lone modifier ... without a `released`" matches the code (key and button, press only, other clients only).
+4) rw-3 closed: overlay.rs:310 is a pure rewrap of the doc comment; the code is unchanged.
+5) Gate step (04a05d31): read, not run (no merge gate in this review). On r2 code the construct grab takes the injected Super press, so xp never sees the tap and `until_ok start_menu_open 20` fails with "rw-1: in use mode a tap of Super does not reach the xp of the face: no Start menu" (also the lane's red). At 18417f06 the lane's pull cell is PASS. Waits are `until_ok` with bounds, except the one bare sleep in rx-2, which cannot cause a flaky red.
+6) Red first, in order: cf1d028a, 04a05d31 < 68a97ef0, and 876f028b < c7679e69. I ran them on the red commits. cf1d028a: `a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client` fails at input.rs:1688 "no lone tap after the chord of the construct" (left adds `Super+Super_L released`), and `a_cube_in_use_mode_leaves_the_super_tap_to_the_program` fails at tests_moved.rs:165 "Super+Super_L stays with the program of the face in use mode". `a_super_chord_of_the_program_reaches_it...` is green there, as the lane says. 876f028b: `the_docs_say_the_direction_of_the_look_as_f5_does` fails at tests.rs:238 on docs/cube-modes.md. All fail for the named reason. 628bb930 (parent of cf1d028a) builds (`cargo build -p chora`). Authors are all Marcel Arpogaus, with no attribution lines.
