@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-20 09:13 UTC)
+## Now (2026-11-20 09:14 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 07:58 PM 7.6 %; 20 h left; 5-h limit hit 06:39-06:50, lanes idle to 07:57 (resumed); the 5-h window, not the week, binds
+budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent, session ~30 %) at 59 % time: on pace; 39 % left, 2.1 %/h shared; tokens.py 07:58 PM 7.6 %; 5-h window resets 12:00, binds; 2-4 lanes
 session branch: 9973d0eb (train 85c green 08:38, e2e incl. tiling-apps-click PASS with fuzzel 1.11.1: lane reds = lane fuzzel or flake); 44 greens. Train 86 (harness-l) running 08:40.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
