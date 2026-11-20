@@ -1138,3 +1138,33 @@ fn a_failed_clients_list_warns_once() {
     assert_eq!(lines.len(), 1, "one warn line: {log:?}");
     assert!(lines[0].starts_with("chora-xp: clients.list"), "{lines:?}");
 }
+
+/// xp-tidy pr3-1: a look that exports `window.give` after its connected
+/// event is listed when the system menu opens.
+#[test]
+fn a_look_that_exports_give_late_is_listed_at_menu_open() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let ready = std::sync::Arc::new(AtomicBool::new(false));
+    let core = chora_kit::testing::FakeCore::start();
+    core.outputs(json!([fake_output()]));
+    let flag = ready.clone();
+    core.respond(move |method, _| match method {
+        "scene.apply" => Some(Value::Null),
+        "clients.list" => {
+            let methods: &[&str] = if flag.load(Ordering::SeqCst) {
+                &["window.give"]
+            } else {
+                &[]
+            };
+            Some(json!([{"name": "mc", "methods": methods}]))
+        }
+        _ => None,
+    });
+    let mut wm = wm_on_kit_core(&core, "late-give");
+    own_window(&mut wm, "s1");
+    let connected = chora_scene::Event::ClientConnected { name: "mc".into() };
+    wm.event(connected).unwrap();
+    ready.store(true, Ordering::SeqCst);
+    wm.open_system("s1", [150, 110]);
+    assert_eq!(wm.looks, ["mc"], "the look is listed at the open");
+}
