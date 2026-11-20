@@ -1,0 +1,23 @@
+{"time": 1795140064.739, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.032, "result": {"path": "/tmp/persona.vjwkft/shots/001.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140069.257, "action": "click", "args": {"x": 35.0, "y": 15.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1795140069.646, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.033, "result": {"path": "/tmp/persona.vjwkft/shots/002.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140073.108, "action": "click", "args": {"x": 276.0, "y": 230.0, "button": "left", "double": false}, "ok": true, "seconds": 0.015, "result": "ok"}
+{"time": 1795140074.637, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.033, "result": {"path": "/tmp/persona.vjwkft/shots/003.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140078.808, "action": "click", "args": {"x": 35.0, "y": 15.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1795140080.281, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.033, "result": {"path": "/tmp/persona.vjwkft/shots/004.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140083.385, "action": "click", "args": {"x": 262.0, "y": 230.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1795140084.934, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.034, "result": {"path": "/tmp/persona.vjwkft/shots/005.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140089.079, "action": "click", "args": {"x": 35.0, "y": 15.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1795140091.747, "action": "click", "args": {"x": 300.0, "y": 230.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1795140093.258, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.035, "result": {"path": "/tmp/persona.vjwkft/shots/006.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140096.535, "action": "click", "args": {"x": 750.0, "y": 15.0, "button": "left", "double": false}, "ok": true, "seconds": 0.014, "result": "ok"}
+{"time": 1795140098.614, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.24, "result": {"path": "/tmp/persona.vjwkft/shots/007.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140103.502, "action": "click", "args": {"x": 779.0, "y": 15.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1795140105.271, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.101, "result": {"path": "/tmp/persona.vjwkft/shots/008.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140109.123, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140111.003, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.096, "result": {"path": "/tmp/persona.vjwkft/shots/009.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140115.126, "action": "click", "args": {"x": 35.0, "y": 15.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1795140117.107, "action": "type", "args": {"text": "nosuchprogram"}, "ok": true, "seconds": 0.013, "result": "ok"}
+{"time": 1795140118.871, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.095, "result": {"path": "/tmp/persona.vjwkft/shots/010.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140122.502, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140124.562, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.11, "result": {"path": "/tmp/persona.vjwkft/shots/011.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
