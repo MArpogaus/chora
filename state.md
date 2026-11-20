@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-20 13:45 UTC)
+## Now (2026-11-20 13:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent) at 59 % time; 39 % left in 15 h = 2.6 %/h shared: under-spending (critic 13:05); tokens.py 12:51 PM 9.1 %; fill to 4-5 lanes
+budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent) at 59 % time; 39 % left in 15 h = 2.6 %/h shared: under-spending (critic 13:05); tokens.py 13:47 PM 9.5 %; 6 lanes; fill to 4-5 lanes
 session branch: d81c8293; 46 greens. t87e green 12:50 (--jobs 1; mc-fix, xp-24, core-l, flakes-k, xp-36 in). t87-t87d reds: flakes FLK-LAY1, FLK-HUD2, ink@2 under load (flakes-l r2); K5 race fixed by co-r5.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 0.6 d. F4/F6 recheck: audit-f r4 after t88.
 
@@ -23,15 +23,14 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-mc-fix-r3.md (RC 2: seeded review of mc-fix b0997b71) | opus high, claude/mc-fix b0997b71 | session_016iS3kLLmrd2xP52Xgy7QsZ 13:22 |
+| mc-fix-r4.md (RC 2: review r3 FIX, rv-1 MAJOR mc-42 page-turn while waiting) | sonnet high, claude/mc-fix b0997b71 | session_016iS3kLm1d3KXjj1Bc1swyL 13:47 |
 | flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
-| lint-down-r3.md (F4: ratchet list matches the head) | sonnet medium, claude/lint-down 2254d32a | session_016iS3kPQ1tpf2D2bGkqyu3d 13:31 |
 | probe-leak-r1.md (F5: sh-30 leaked probes busy-loop) | sonnet high, claude/probe-leak d81c8293 | session_016iS3kNkPE2WXndZ8B8QNVB 13:45 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) Trains: t88 co-r5 c2b0310f on d81c8293 (head fee9c695, --jobs 1) red 13:44 matrix cap (4 leaked probes at 90 % CPU, sh-30; killed), rerun t88b from 13:45; next: co-majors-r4 e0c3a266 (PM MERGE-OK, test pin), mc-fix b0997b71 after review r3 (opus 0.6 %); fuzzel 1.11.1 PATH.
-5. (F5, F4, shared bar) running: PROBE-LEAK r1 0.6 %, FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, REVIEW MC-FIX r3 0.6 % then mc r4 1 %; next: AUDIT-F r4 opus 0.6 % after t88 (F4, F6 recheck); running LINT-DOWN r3 (F4) 0.3 %. Greens at --jobs 1 do not count for F5.
+4. (F6, rc 3) Trains: t88 co-r5 c2b0310f on d81c8293 (head fee9c695, --jobs 1) red 13:44 matrix cap (leaked probes, sh-30), rerun t88b from 13:45; next: co-majors-r4 e0c3a266, lint-down 78ec62e1 (both PM MERGE-OK), mc-fix after r4 (review r3 FIX: rv-1 MAJOR) and its review; fuzzel 1.11.1 PATH.
+5. (F5, F4, shared bar) running: PROBE-LEAK r1 0.6 %, FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, MC-FIX r4 1 %, review r4 0.5 %, then mc persona r4 1 %; next: AUDIT-F r4 opus 0.6 % after t88 (F4, F6 recheck); LINT-DOWN r3 MERGE-OK (F4 lint counts gated). Greens at --jobs 1 do not count for F5.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
