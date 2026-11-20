@@ -52,3 +52,11 @@ Fix: `State::choose_manager` returns early (choice cleared) while `self.lock.is_
 Gate (`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,pane-keys,wm-pane,chat-keys,doors,construct-hud,matrix`, run dir /tmp/merge-gate.v5uxgi): all 12 cells PASS, no red cell, no rerun. Partial run, so the script pushed nothing; the branch was pushed by hand.
 
 Note: the commit hooks reject inline comments and subjects over 68 characters; two commit attempts failed on them and were redone before any commit landed.
+
+## Review r2 (PM, 02:56; PM not the builder)
+Base 79c8d2b5..591e98f8: 1f9479ce red, 4cf1925f fix, 8312fccb docs (6 files, +222 -20).
+- rv-1 MAJOR: closed. `choose_manager` (state.rs) skips the unfocus when `render::node_under` hits; node_under returns only `InputMode::Accept` nodes (picking.rs:77-95), so a chip, door or hint keeps the press and no plain rect counts. Test `a_click_on_an_input_node_over_another_claim_keeps_the_keyboard`, cell construct-hud, doors PASS.
+- rv-2 MINOR: closed. A locked session clears the choice and returns before any focus change.
+- rv-3 NIT: closed (docs 8312fccb). rv-4 NIT: test added, passes.
+- Nit sg-1: on an input node the claimant is still chosen as manager for the next window (keyboard kept); consistent with D55, no change.
+Verdict: MERGE-OK (no open BLOCK or MAJOR). Train: after t83 (p2-harness alone, harness rule), t84 with black-pane r2 if ready.
