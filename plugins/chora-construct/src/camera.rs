@@ -325,7 +325,8 @@ impl Construct {
     /// The keyboard goes back to the walk when a look or a step has taken
     /// the pane of the focused window out of sight: the focus is a window
     /// that shows, never one that no one sees, and a key then stays out of
-    /// it. A press on the pane gives it the keyboard again.
+    /// it. A press on the pane gives it the keyboard again. The chords held
+    /// for that window go with it (`regrab`), also at the end of a glide.
     pub(crate) fn unseen_focus_to_walk(&mut self) -> Result<(), ClientError> {
         if self.in_pane() || self.cube.is_some() || !self.active || self.overlay {
             return Ok(());
@@ -339,7 +340,8 @@ impl Construct {
         }
         self.core_focus = None;
         let walk = self.keys_to_the_walk();
-        self.rt.conn.apply(vec![walk])
+        self.rt.conn.apply(vec![walk])?;
+        self.regrab()
     }
 
     /// Whether the pane is on the output for the camera now: in front of
