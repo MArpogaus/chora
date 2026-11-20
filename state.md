@@ -23,7 +23,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | starting 12:00 |
+| flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
 4. Trains: t87e (--jobs 1, flakes) in the gate from 11:34 (d81c8293 = adf71956 + mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4); next: t88 co-r5 c2b0310f (MERGE-OK 11:58, carries co-r4; 12 h ~20:38); fuzzel 1.11.1 PATH.
