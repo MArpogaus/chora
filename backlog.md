@@ -346,3 +346,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - Harness (rv-1 co-pane, 11-20): tests/persona/act.py sends a chord as one batch, so a stray modifier tap reaches no gate; add split press/release events.
 - xp pr4-1 MINOR (11-20): Send To refreshes the looks at menu open only when none is cached; refresh at every open (cheap) or on a give-export event.
 - FLK-LAUNCHER (11-20 xp-tidy r2 gate): launcher-click 'tiling: no launcher in 26 captures' once, green alone; for FLAKE-SERIES r3.
+- FLK-HUD-TAB (11-20 t91 full gate at --jobs 1): construct-hud "light-1280x720@1.5: Tab opened no list" once after placed; the cell alone 3 of 3 green on b0aa1c75; family of co-29, kit7-a2; for FLAKE-SERIES r3.
