@@ -35,3 +35,28 @@ Findings:
 - rv-4 | NIT | crates/chora/src/input.rs:2639 | No test pins the guard that a click on the empty claim of the look that has the focus keeps the keyboard. | Fix: add a unit test next to `a_click_into_the_empty_claim_of_another_look_takes_the_keyboard`.
 
 Verdict: FIX (1 MAJOR open: rv-1). Counts: BLOCK 0, MAJOR 1, MINOR 1, NIT 2.
+
+## r2
+
+Lane build stray-grab-r2 on claude/stray-grab, head 591e98f8 (r1 head 9859071b, merged origin/claude/autonomous-dev-session-3w-i33pg7 at 79c8d2b5). `cargo check --workspace` ok at the start.
+
+| item | red sha | fix sha | test | gate cell |
+|---|---|---|---|---|
+| rv-1 MAJOR: press on an input node keeps the keyboard | 1f9479ce | 4cf1925f | `input::tests::a_click_on_an_input_node_over_another_claim_keeps_the_keyboard` (red: "a press on an input node takes no keyboard from the window") | construct-hud, doors, keys, pane-keys, wm-pane, chat-keys PASS |
+| rv-2 MINOR: no choice while locked | 1f9479ce | 4cf1925f | `input::tests::a_press_while_locked_does_not_end_the_focus_after_the_unlock` (red: "the window has the keyboard again after the unlock"; unlock via the handler, since the lock client cannot unlock before the confirmation) | test PASS |
+| rv-4 NIT: click on the empty claim of the focused look | no red (guards a rule that holds) | 1f9479ce (test only) | `input::tests::a_click_into_the_empty_claim_of_the_focused_look_keeps_the_keyboard` | test PASS |
+| rv-3 NIT: docs wording | n/a | 8312fccb | docs/decisions.md, docs/api.md: "from whatever had it"; only the grabs of managers of virtual outputs wait; input node and lock named | pre-commit PASS |
+
+Fix: `State::choose_manager` returns early (choice cleared) while `self.lock.is_some()`, and clears the focus only when `render::node_under` finds no input node under the press; the choice itself is unchanged.
+
+Gate (`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,pane-keys,wm-pane,chat-keys,doors,construct-hud,matrix`, run dir /tmp/merge-gate.v5uxgi): all 12 cells PASS, no red cell, no rerun. Partial run, so the script pushed nothing; the branch was pushed by hand.
+
+Note: the commit hooks reject inline comments and subjects over 68 characters; two commit attempts failed on them and were redone before any commit landed.
+
+## Review r2 (PM, 02:53; PM not the builder)
+Base 79c8d2b5..591e98f8: 1f9479ce red, 4cf1925f fix, 8312fccb docs (6 files, +222 -20).
+- rv-1 MAJOR: closed. `choose_manager` (state.rs) skips the unfocus when `render::node_under` hits; node_under returns only `InputMode::Accept` nodes (picking.rs:77-95), so a chip, door or hint keeps the press and no plain rect counts. Test `a_click_on_an_input_node_over_another_claim_keeps_the_keyboard`, cell construct-hud, doors PASS.
+- rv-2 MINOR: closed. A locked session clears the choice and returns before any focus change.
+- rv-3 NIT: closed (docs 8312fccb). rv-4 NIT: test added, passes.
+- Nit sg-1: on an input node the claimant is still chosen as manager for the next window (keyboard kept); consistent with D55, no change.
+Verdict: MERGE-OK (no open BLOCK or MAJOR). Train: after t83 (p2-harness alone, harness rule), t84 with black-pane r2 if ready.

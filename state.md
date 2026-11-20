@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 02:33 UTC)
+## Now (2026-11-20 03:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -11,7 +11,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r1 red |
+| 2 | Persona round 4 | xp r2 red (xp-35 I5) |
 | 3 | Three greens in a row | 30b, 33-40 green (9); F26 held, F28 holds; F17 open |
 | 4 | CI green | green on 29e2cd77 13:13 (train 41, PR #106, all 10 checks) |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -24,16 +24,16 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| stray-grab-r2.md (RC sh-24, Queue 5; review r1 FIX: rv-1 MAJOR, ae09758d) | sonnet high | session_016iS3kLCUHNpWn4svX2uoxz |
-| black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
-| p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | session_016iS3kM43ZCTqr1jMu5yYFh |
-| launcher-click-r1.md (RC shared bar, Queue 5; tiling r1 done 1ca97496) | sonnet high | session_016iS3kMprawWbAXMgpN35Bw |
+| tiling-bar-r1.md (RC look, ti-21 MAJOR, Queue 5) | sonnet high | session_016iS3kM8MGNJCBw8qRRcTmr |
+| xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | session_016iS3kQYqG4zQU8iHR299YZ |
+| flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
-| p2-harness-r1.md (RC 2, Queue 5; construct r1 done 123a4c71, harness slips) | sonnet high | session_016iS3kLa1LBGqhGyJjewzBc |
+| kit-tests-r1.md (F5, Queue 5; perform harness + wm/give, kept, conn tests) | haiku high | session_016iS3kMSdbqA2ZbhRinpqcB |
+| co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t81 green 02:29 (kit-sec, xp-majors, mc-answer, co-majors; 79c8d2b5). Next train: stray-grab r2, black-pane r2, launcher-click, p2-harness as they turn MERGE-OK.
-5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); STRAY-GRAB r2 0.8 % (r1 review FIX), BLACK-PANE r2 1 %, LAUNCHER-CLICK 1 %, P2-HARNESS (construct r1b) 1 %; P2 R2 XP 1 %; then xp-11 MAJOR with the xp r2 findings; T1: tiling stop, construct after r1b; AUDIT-F r3 1 % Fri late.
+4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:42 (launcher-click alone, harness: 741d6bca). t83 next: p2-harness 5dbd0ccf (harness, PM review MERGE-OK). t84: stray-grab 591e98f8 (PM review r2 MERGE-OK 02:53), black-pane 91e6a114 (PM review r2 MERGE-OK 02:55).
+5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); TILING-BAR 1 % (ti-21 MAJOR), FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR), KIT-TESTS 0.6 % (F5), XP-FIX 1.5 % (xp-11, xp-35 MAJOR; xp r2 red, 2 of 3); then P2 r3 xp; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
