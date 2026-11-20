@@ -26,7 +26,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 | co-pane-r1.md (RC 2: co r3 pane drag I3, key sheet, checker) | sonnet high, claude/co-pane bbaad12b | session_016iS3kNKpN5aPruPuWBdAXM 17:12 |
 | xp-tidy-r1.md (shared bar: open xp MINORs) | sonnet medium, claude/xp-tidy 22fead94 | session_016iS3kLbXcJARDTBAnvHK6j 17:23 |
 | review-handover-ti-r1.md (RC 2: seeded review of 371f0fa1) | opus high, claude/handover-ti 371f0fa1 | session_016iS3kNi8Hg7DJ6BW4qVg5T 17:52 |
-| tour-plan-r1.md (F7, RC 11: tour v9 plan with checks) | opus high, read-only 9dc384b3 | starting |
+| tour-plan-r1.md (F7, RC 11: tour v9 plan with checks) | opus high, read-only 9dc384b3 | session_016iS3kLiFgdDgZF2q6KQxay 17:56 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) t91 gate-orphan 437173e1 alone (running); t92 lint-down 78ec62e1, mc-minor f7735e43, flakes-o 16da7bc7, flakes-n d7c69aac, persona-check e3763f69, co-fix bbaad12b, xp-minor fca4f8b5, flakes-l cc1282db, kit-minor 939acf6a, xp-give 22fead94; then --jobs 2.
