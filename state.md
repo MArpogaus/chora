@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 20:59 UTC)
+## Now (2026-11-20 21:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 19:48 PM 0.9 % since compaction, 11.4 % before; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: b0aa1c75; 50 greens; t92b red 20:10 build: mc-minor vs handover-ti Focus::holder; PM fix dcb77733 (2 lines); t92c running.
@@ -24,7 +24,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 | Lane | Model, branch | State |
 |---|---|---|
 | tour-one-r2.md (F7, RC 11: review r1 FIX, rt-1, rt-2 MAJOR) | sonnet high, claude/tour-one 8b996cee | session_016iS3kPbRFQwqjuqPmgyAsh 20:22 |
-| review-guide-checks-r1.md (F7: guide-checks a78b1a07 seeded review; g1-g6 look faults to known issues) | sonnet high, claude/session-log | starting |
+| review-guide-checks-r1.md (F7: guide-checks a78b1a07 seeded review; g1-g6 look faults to known issues) | sonnet high, claude/guide-checks a78b1a07 | session_016iS3kLJ9MEiycnngNjBriR 21:00 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) t92c running: lint-down, mc-minor, flakes-o, flakes-n, persona-check, flakes-l, kit-minor, handover-ti; then --jobs 2; t93: xp-tidy efe85512 (r3 PM check MERGE-OK); co-pane 79787d9f with co-fix (r4 PM check; rx-1 MINOR: backlog); tour-diff 4f4f1897 (r2 PM check; rd-9 MINOR: backlog).
