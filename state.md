@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:48 UTC)
+## Now (2026-11-20 00:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -33,8 +33,8 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
-| co-majors-r2.md (RC) | sonnet high | restart: setup.sh refused |
-| kit-sec-r3.md | sonnet med | restart: setup.sh refused |
+| co-majors-r2.md (RC) | sonnet high | session_016iS3kMuqEBEFQcYi1oqqVo |
+| kit-sec-r3.md | sonnet med | session_016iS3kNR1eMLFo3QLJq3f7X |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): train 79 = 78b + mc-majors 92ecd30a: xp red 00:46 (17b slow-manager timeout; mc-majors touched only gate-mc-sofa), xp 3x rerun; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors r2, kit-sec r3.
