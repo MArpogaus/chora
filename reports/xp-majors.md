@@ -23,3 +23,24 @@ The persona round could not see xp-26, xp-31 and xp-33 for harness reasons: its 
 Harness change (tests/acts): a look's module may name `STAND_INS` (programs of the system, here a wpctl that keeps its volume and mute); the session puts them first on PATH. Fallback art only; no Microsoft files.
 
 Commits: 5ac45053 (guards), 24640558 (red), 81a29fe8 (fix).
+
+## Review r1
+Reviewer lane (cloud, read-only on code): claude/xp-majors head 81a29fe8 against base 30727c82. Step 0: unshallow, cargo check and build green.
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 4 MINOR).
+
+Checks:
+1. Red first: acts xp with the same binaries (full workspace build per sha): 24640558 fails the speaker acts (a click on the speaker opens the volume popup, 75 percent, Mute twice, the tooltip after the popup, Escape; I4 xp-ctx declared open and is not); 81a29fe8 passes 56 of 56. The red act file against head binaries passes 56 of 56, so the red comes from the product, not the act.
+2. Gone before, by one-line revert in a scratch worktree: xp-31 (`self.hidden.clear()` at the head of toggle_desktop) fails act "a second Super+d brings them back"; xp-33 (line `Super+F1: keys` out of xp.yaml) fails act "the keys key opens the key list"; the menu tick of xp-26 (`.checked(false && ..)`) fails unit test the_volume_popup_checks_the_level_or_mute (not an act; the acts do not read the tick). The tooltip act compares the text with the level the stand-in holds (55, then 75), so a stale or missing read fails it; no revert run. xp-23 and xp-27 cells (gate-xp-paperclip, gate-xp-question) pass on the head; the capture of the question card shows it in the balloon under the transcript, in the chat font and frame, Yes and No, the hint once. Their asserts are weaker than the claim: rv-2, rv-3.
+3. Stand-in: wpctl of STAND_INS keeps volume and mute in a file, answers get-volume in the real format (`Volume: 0.55 [MUTED]`), takes set-mute 1|0|toggle and set-volume N%, N%+ and N%-; it hides no product fault (the tooltip and the popup read it back after each change).
+4. xp-32 live (scratch probe on the harness, chora-assistant running): popup union 1103,641 to 1190,770 at 1280x800 (paperclip at 1192) and 847,609 to 934,738 at 1024x768 (paperclip at 936): on screen, left of the helper, rows 100, 75, 50, 25, separator, Mute; a click at 400,300 closes it; text "qz" and Up while it is open reach no client (the probe log stays empty; no control run with the popup closed). Stepped list instead of a slider: the popup is plain, in the context-menu look, every level and Mute one click away, reachable by the mouse and found by the tooltip and Help words: MINOR (rv-1), not MAJOR for Erika or Murat.
+5. tests/doors/xp.sh volume-door passes (clicks the speaker, then Mute in the popup, then wpctl set-mute is marked), log-off check passes.
+6. Unit test for the popup in tests_moved.rs plus context.rs; tools/size-ratchet: 0 files over 1500.
+7. cargo test -p chora-xp: 306 passed; cargo clippy --workspace --all-targets -D warnings: clean; acts xp: 56 pass, 0 blocking.
+8. No binary in the diff (8 files, all text).
+
+Findings:
+- rv-1 | MINOR | plugins/chora-xp/src/context.rs:284 | the speaker popup is a stepped list of four levels with Mute, not the XP slider; the 55% a key sets has no row and no tick | known issue for the polish round: a vertical slider with Mute below, or a fifth row for the current level.
+- rv-2 | MINOR | tests/gate-xp-question.sh:64 | the cell says the card stands under the transcript, but only asserts the card inside the balloon, never that its top is below the transcript's last line, nor the font; moving the card over the transcript would pass | add the transcript rect (or the node above the card) and assert card.y >= its bottom.
+- rv-3 | MINOR | tests/gate-xp-paperclip.sh:29 | the header says "its art drawn", the cell asserts position and visible only | assert the figure's picture size or a pixel of the capture, or drop the words.
+- rv-4 | MINOR | tests/acts/looks/xp.py:216 | the popup is guarded at 1280x800 only, with no act for a click outside or for keys not leaking (Escape only), and the unit test a_click_on_the_speaker_opens_the_volume_popup (tests_moved.rs:420) says "does not mute" but asserts only that the popup opens | add a Session size 1024x768 act with the popup inside the screen and left of hud-figure, a click outside that closes it, and an assert that the mixer is unchanged after the first click.
