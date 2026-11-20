@@ -1128,9 +1128,11 @@ fn a_failed_clients_list_warns_once() {
             _ => None,
         });
         let mut wm = wm_on_kit_core(&core, "list-failed");
-        core.refuse_next("clients.list");
-        let connected = chora_scene::Event::ClientConnected { name: "mc".into() };
-        wm.event(connected).unwrap();
+        for _ in 0..2 {
+            core.refuse_next("clients.list");
+            let connected = chora_scene::Event::ClientConnected { name: "mc".into() };
+            wm.event(connected).unwrap();
+        }
         return;
     }
     let log = chora_kit::testing::stderr_of("wm::tests_moved::a_failed_clients_list_warns_once");
