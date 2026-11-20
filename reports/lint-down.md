@@ -57,3 +57,12 @@ Range: 0d1394f1..2254d32a (41c18c02 red selftest, aaecfccd fix and help, 2254d32
 - rv-4 MAJOR (new): mc-remote dac835dd (MERGE-OK 03:50, after the brief) adds one eprintln (plugins/chora-mc/src/main.rs step_back), so after train 85 the tree has 131 > list 130 and the lint-down train goes red. Fix in r3: recount the list on the session head after train 85 (one tool run, no other change).
 - rv-5 NIT: the help should say that a comment next to the attribute counts as a reason (it does, and the RC row counted the same way).
 Verdict (computed): open MAJOR rv-4: FIX; r3 starts when train 85 is green.
+
+## r3 (builder)
+Branch claude/lint-down, d158b05e..78ec62e1 (merge cf735672 of the session head first).
+- Item 1 (rv-4): merged origin/claude/autonomous-dev-session-3w-i33pg7 (d81c8293); one conflict in tests/merge-gate.sh, resolved per the PM (session ci-check line plus ` && tools/lint-ratchet && tests/lint-ratchet-selftest.sh`). fee9c695 is not on origin; the PM named c2b0310f6b3c (co-r5) instead. Order c2b0310f e0c3a266 b0997b71, all merged without conflict.
+  Counts (allow / no-reason / eprintln): session head alone 359/0/131; scratch merge 359/0/131; delta per sha 0/0/0 each. List committed d158b05e: allow 359, eprintln 131.
+- Item 2: 04afda6f red selftest (cause line with counter, list, tree, top 5 files), fix 78ec62e1. A breach prints `  NAME: list L, tree T; most in: file (n), ...` below the FAIL line.
+- Item 3 (rv-5) deviates from the brief: the tool does not count a comment beside an attribute as a reason. It reads only the text between the parentheses of an outer `#[allow(`/`#[expect(`. The six PM sites are inner `#![allow(` (wobbly.rs:22, gl.rs:8, and others) or outside crates/plugins/services (tests/probe); they are not counted at all, which is why no-reason is 0. The help now says exactly that (red 38f4e106, fixed in 78ec62e1). Decision for the PM: if comment reasons should count, that is a tool change, not a help line.
+- Selftest red (7 FAIL lines) then green. Gate: pre-commit, ci-check, build, test, clippy all PASS (run dir /tmp/merge-gate.mGIY0r), valid tree passes `tools/lint-ratchet` (ok: allow 359, no-reason 0, eprintln 131).
+- Note: the in-commit hooks rejected an inline comment in the tool once; removed.
