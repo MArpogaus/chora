@@ -879,6 +879,37 @@ fn the_key_sheet_takes_the_keyboard_from_a_pressed_pane_window() {
     assert!(construct.walk_keys, "the look holds the keys");
 }
 
+/// co-pane r2 (rv-3): the key sheet gives the keyboard back to the window of
+/// a face only while that face is at the front, as a step in does; after a
+/// turn it stays with the walk, so no window that no one sees gets it.
+#[test]
+fn the_key_sheet_gives_the_keyboard_back_only_to_the_front_face() {
+    let activated = |lines: &Log| {
+        (lines.lock().unwrap().iter())
+            .filter(|line| line.starts_with("methods.call ") && line.contains("\"w1\""))
+            .count()
+    };
+    let answer = |method: &str, params: &Value| {
+        let focused = params["filter"]["focused"].as_bool() == Some(true);
+        match method {
+            "scene.query" if focused => Some(json!([{"id": "w1"}])),
+            _ => cube_core(json!([]))(method, params),
+        }
+    };
+    let (mut still, _core, lines) = on_core("help-front", answer);
+    still.cube = Some(host_of(2));
+    still.toggle_help().unwrap();
+    still.toggle_help().unwrap();
+    assert_eq!(activated(&lines), 1, "the front face gets its window back");
+    let (mut turned, _core, lines) = on_core("help-turned", answer);
+    turned.cube = Some(host_of(2));
+    turned.toggle_help().unwrap();
+    turned.cube.as_mut().expect("the cube").front = 1;
+    turned.toggle_help().unwrap();
+    assert!(!turned.help, "the sheet is closed");
+    assert_eq!(activated(&lines), 0, "another face is at the front now");
+}
+
 /// co-pane r1: the Close of the key sheet is a button.
 #[test]
 fn a_press_on_the_close_of_the_key_sheet_closes_it() {
