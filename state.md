@@ -25,7 +25,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | harness-l-r1.md (F6 gates: R15, R12, R14, H-move; Queue 5) | sonnet medium | session_016iS3kND6YHtNvLZZ3zyyMN |
-| mc-fix-r1.md (RC 2: mc-47, 48, 49 MAJOR cand., P2-CHECK; Queue 5) | sonnet high | starting |
+| mc-fix-r1.md (RC 2: mc-47, 48, 49 MAJOR cand., P2-CHECK; Queue 5) | sonnet high | session_016iS3kPRxyZyGMAUJ4zQHkq |
 | core-l-r1.md (F5 F22, stability: WD2, L16; Queue 5) | sonnet high | session_016iS3kPcj8fM8xQmvDtJAek |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
 | review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | session_016iS3kQLLfhEJgLJAbKpZ1t |
