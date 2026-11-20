@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 20:43 UTC)
+## Now (2026-11-20 20:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 19:48 PM 0.9 % since compaction, 11.4 % before; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: b0aa1c75; 50 greens; t92b red 20:10 build: mc-minor vs handover-ti Focus::holder; PM fix dcb77733 (2 lines); t92c running.
