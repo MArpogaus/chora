@@ -208,6 +208,11 @@ pub struct Line {
     /// The size of the text in pixels, in the font of the chat; the small
     /// text of the host if the folder names none.
     pub size: Option<u32>,
+    /// The widest line in pixels, if the folder sets it.
+    pub width: Option<u32>,
+    /// The anchor and the margin of a sentence without a box that has a
+    /// place of its own; beside the figure if the folder gives none.
+    pub place: Option<(Anchor, [i32; 2])>,
     /// The tail of the bubble is near its left end, and the bubble grows
     /// to the right.
     pub tail_left: bool,
@@ -220,6 +225,8 @@ impl Default for Line {
             max_chars: None,
             plain: false,
             size: None,
+            width: None,
+            place: None,
             tail_left: false,
         }
     }
@@ -270,6 +277,10 @@ fn line_of(panel: &chora_kit::hud::Panel) -> Line {
         max_chars: panel.max_chars.map(|n| n as usize),
         plain: panel.style == Some(chora_kit::hud::Style::Plain),
         size: panel.size,
+        width: panel.width,
+        place: panel
+            .anchor
+            .map(|anchor| (anchor, panel.margin.unwrap_or(NEUTRAL_MARGIN))),
         tail_left: panel.tail == Some(chora_kit::hud::Tail::Left),
     }
 }

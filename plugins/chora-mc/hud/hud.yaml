@@ -27,7 +27,9 @@ panels:
     accent: [216, 152, 138]
 - id: line
   source: say
-  near: state
+  anchor: bottom_left
+  margin: [91, 84]
+  width: 736
   style: plain
   text: '{text}'
   max_chars: 160

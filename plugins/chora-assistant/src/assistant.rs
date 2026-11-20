@@ -1027,6 +1027,7 @@ impl Assistant {
         let (most, row) = face
             .as_ref()
             .map_or((MAX_PLAIN, LINE), |face| (MAX_PLAIN_SIZED, face.line()));
+        let most = self.values.line.width.map_or(most, f64::from);
         let lines = wrap(text, most, width);
         let widest = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
         #[expect(clippy::cast_possible_truncation, reason = "a text width in pixels")]
@@ -1048,7 +1049,10 @@ impl Assistant {
                 picture.text(Text::new(line, Font::Ui, colour, place))
             };
         }
-        let [bx, by] = beside([w, h], self.with_word(), self.area);
+        let [bx, by] = match self.values.line.place {
+            Some((anchor, margin)) => origin(anchor, self.area, [w, h], margin),
+            None => beside([w, h], self.with_word(), self.area),
+        };
         self.speech_node(theme, &picture, [bx - self.origin[0], by - self.origin[1]])
     }
 
