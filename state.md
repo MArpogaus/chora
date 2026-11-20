@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 11:05 UTC)
+## Now (2026-11-20 11:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent, session ~30 %) at 59 % time: on pace; 39 % left, 2.1 %/h shared; tokens.py 11:05 PM 8.8 %; 5-h window resets 12:00, binds; 2-4 lanes
-session branch: adf71956; 45 greens. t87 layout red = flake FLK-LAY1; t87b hud red = flake FLK-HUD2 (voice-state-rate timeout, load 5); t87c construct-extra red: K5 3D wobble read after sleep 0.1 (real test race, co-r4 out, co-r5); t87d from 11:03.
+session branch: adf71956; 45 greens. t87 layout red = flake FLK-LAY1; t87b hud red = flake FLK-HUD2 (voice-state-rate timeout, load 5); t87c K5 wobble race (co-r4 out, co-r5); t87d tiling-look ink@2 red = known flake (4th, load 5-6); t87e same head d81c8293 --jobs 1 from 11:34.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
 ## RC (design/rc.md)
@@ -27,7 +27,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ; idle 09:30-10:17 w/o report, nudged 10:17 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains: t87d in the gate from 11:03 (d81c8293 = adf71956 + mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4); co-r4 held out: K5 wobble race (t87c), fix lane co-r5; fuzzel 1.11.1 PATH.
+4. Trains: t87e (--jobs 1, flakes) in the gate from 11:34 (d81c8293 = adf71956 + mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4); co-r4 held out: K5 wobble race (t87c), fix lane co-r5; fuzzel 1.11.1 PATH.
 5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5); running: CO-R5 sonnet 0.7 % (F5, 12 h co-r4 ~20:38); next: MC persona r3 1 % (after t87, branch claude/p2-r3-mc), LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner
