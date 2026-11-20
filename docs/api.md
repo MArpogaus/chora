@@ -990,6 +990,8 @@ node end as at any disconnect, and `client.disconnected` follows at once.
   for surfaces without an owner.
 - The emergency reset and a disconnect of the watchdog end the grace time
   at once.
+- The kept nodes stay shown during the grace time: the core does not hide
+  them, so a quick restart causes no flicker.
 
 A reserve of `output.reserve` belongs to a connection and ends with it,
 also when its client crashes. The reserves of all connections on an
