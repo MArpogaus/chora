@@ -73,3 +73,8 @@ rw-2: the repo hook `no-inline-comments` rejects an added comment, and `--no-ver
 rw-3: no change.
 
 Commits: 9e1aa126 (rw-2), b0564df2 (helper-door). Head: b0564df2.
+
+## PM review r2 (2026-11-20 01:10 UTC)
+Diff bc3f1662..b0564df2 on top of the session branch: tests only (doors/lib.sh, doors/xp.sh, gate-construct-layout.sh, gate-construct-pull.sh); no product code. Done criterion holds: set C 5 of 5 under `--cpus 2` on b0564df2.
+- MINOR-1: the helper-door retry (up to 3 clicks) rests on an unproven cause ("a click injected under load can be lost"). If the first click opens the chat after 10 s, the second click may toggle it shut. Not a MAJOR: the cell still fails when no click opens the chat. Backlog: print the click count in the cell, and a product check if a count above 1 shows up.
+- No BLOCK or MAJOR. Verdict (computed): MERGE-OK b0564df2, train 80.
