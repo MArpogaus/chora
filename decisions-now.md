@@ -1,8 +1,8 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-20T01:45:00Z
+screened-through: 2026-11-20T08:00:00Z
+- 11-20 08:00Z "What's again at ng with env?" -> question (env): lanes have fuzzel 1.11.1; nothing open for the owner
 - 11-20 01:45Z "40% how are things going?" -> reading: 40 %; question; 2.3 %/h needed, fill 6 lanes
-- 11-19 13:55Z "I've resaved env already twice" -> reading: saved; the misses are runtime (apt mirror); every brief's step 0 runs setup.sh
-- 11-19 13:50Z "25 % any trouble?" -> reading: 25 % week; question
+- 11-19 13:55Z "I've resaved env already twice" -> saved; misses were runtime (apt mirror)
 - 11-19 10:55Z "...at a glance... on plan or where we are behind..." -> order: status page at a glance, plan vs actual
 - 11-19 10:49Z "Cube question?", 10:50Z "?"; 10:52Z "Hosted (Recommended)" -> decision: WM7b hosted (construct holds the face turn; flat fallback)
 - 11-19 07:01Z "OK, go ahead. Note new strategy in mgn notes. Let opus reviewers mgnt CTX so nothing is lost on compactation" -> order: batched trains, --jobs 3 after flakes-f (routines.md); an opus critic checks the PM notes against the PM context for losses
