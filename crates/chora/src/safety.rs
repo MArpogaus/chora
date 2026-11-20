@@ -86,12 +86,20 @@ const TASKS: &str = if cfg!(test) {
 /// it. A thread that cannot be read is left out, which only makes the
 /// watchdog stricter.
 fn waits_in(tasks: &Path) -> Option<HashMap<std::ffi::OsString, Duration>> {
+    #[cfg(test)]
+    READS.with(|reads| reads.set(reads.get() + 1));
     let threads = std::fs::read_dir(tasks).ok()?.filter_map(|task| {
         let path = task.ok()?.path();
         let schedstat = std::fs::read_to_string(path.join("schedstat")).ok()?;
         Some((path.file_name()?.to_owned(), wait_of(&schedstat)?))
     });
     Some(threads.collect())
+}
+
+#[cfg(test)]
+thread_local! {
+    /// How often this thread read the folder of the threads.
+    static READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 /// The run queue wait of a `schedstat` line: run time, wait, time slices.
@@ -112,11 +120,6 @@ pub struct FrameClock {
 }
 
 impl FrameClock {
-    /// Starts the clock of a frame.
-    pub fn start() -> Self {
-        Self::start_in(Path::new(TASKS))
-    }
-
     fn start_in(tasks: &Path) -> Self {
         Self {
             start: Instant::now(),
@@ -201,6 +204,18 @@ impl Watchdog {
             owner_budget,
             ..Self::default()
         }
+    }
+
+    /// The clock for the next frame of an output.
+    pub fn clock(&self, output: &str) -> FrameClock {
+        self.clock_in(output, Path::new(TASKS))
+    }
+
+    /// The clock for the next frame of an output, reading the threads in
+    /// `tasks`.
+    fn clock_in(&self, output: &str, tasks: &Path) -> FrameClock {
+        let _ = (self, output);
+        FrameClock::start_in(tasks)
     }
 
     /// Counts a frame of an output that took a time, against a budget.
@@ -781,9 +796,51 @@ mod tests {
         assert_eq!(actions, [Action::Blame], "{times:?}");
     }
 
+    fn reads() -> usize {
+        READS.with(std::cell::Cell::get)
+    }
+
+    #[test]
+    fn calm_frames_read_no_threads() {
+        let tasks = Tasks::new("calm");
+        tasks.wait(0, 0);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        let before = reads();
+        for i in 0..100 {
+            let clock = watchdog.clock_in("out", &tasks.0);
+            let times = clock.stop_in(&tasks.0);
+            assert_eq!(
+                watchdog.note("out", REFRESH, times, start + REFRESH * i),
+                None
+            );
+        }
+        assert_eq!(
+            reads() - before,
+            0,
+            "reads of /proc/self/task in 100 calm frames"
+        );
+    }
+
+    #[test]
+    fn slow_frames_read_the_threads_twice_each() {
+        let tasks = Tasks::new("slow-reads");
+        tasks.wait(0, 0);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        watchdog.note("out", REFRESH, (SLOW, Duration::ZERO), start);
+        let before = reads();
+        for i in 1..=10 {
+            let clock = watchdog.clock_in("out", &tasks.0);
+            let times = (SLOW, clock.stop_in(&tasks.0).1);
+            watchdog.note("out", REFRESH, times, start + REFRESH * i);
+        }
+        assert_eq!(reads() - before, 20, "start and stop of 10 slow frames");
+    }
+
     #[test]
     fn a_frame_clock_never_waits_longer_than_it_took() {
-        let (took, waited) = FrameClock::start().stop();
+        let (took, waited) = Watchdog::default().clock("out").stop();
         assert!(waited <= took);
     }
 

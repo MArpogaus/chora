@@ -639,7 +639,7 @@ pub fn render_and_present(
     output: &Output,
     render: impl FnOnce(&mut State) -> Result<bool, String>,
 ) {
-    let frame = crate::safety::FrameClock::start();
+    let frame = state.watchdog.clock(&output.name());
     match render(state) {
         Ok(damaged) => {
             if damaged {
