@@ -50,6 +50,7 @@ keys_close() {
 }
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 chat_close() {
+    wait_for_field || return 1
     key Escape
     until_ok '! chat_open' 20
 }

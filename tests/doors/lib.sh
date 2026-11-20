@@ -67,8 +67,11 @@
 #   helper_start    starts the helper `coder` for the project demo
 #   doors_window    shows a window that writes `key CODE` for each key it
 #                   gets to $work/window; got_key CODE reads it;
-#                   wait_for_field waits until the window has lost the
-#                   keyboard to the chat field, which an Escape needs
+#                   wait_for_field waits until the chat is open and the
+#                   keyboard is neither in the window nor on a node of the
+#                   scene (a surface keeps its mark under the field), so
+#                   the chat field holds it,
+#                   which an Escape needs
 #   fuzzel_stand_in a fuzzel in $fakes that writes `fuzzel ARGS`, a line
 #                   `data XDG_DATA_DIRS` and its rows as `row TEXT` to
 #                   $marks, and answers the content of $fakes/choice
@@ -184,8 +187,13 @@ doors_window() {
     sleep 2
 }
 got_key() { until_ok "grep -qx 'key $1' \"$work/window\"" 12; }
-field_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = leave ]; }
-wait_for_field() { until_ok field_has_keyboard || { echo "note: the chat field never took the keyboard from the window" >&2; return 1; }; }
+window_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = enter ]; }
+focus_held() { ctl query '*' 2>/dev/null | jq -e 'any(.[]; .focused == true and .kind != "surface")' >/dev/null; }
+field_has_keyboard() { chat_open && ! window_has_keyboard && ! focus_held; }
+field_state() {
+    echo "chat open $(chat_open && echo yes || echo no), window $(grep -E '^(enter|leave)$' "$work/window" | tail -n 1), focused $(ctl query '*' 2>/dev/null | jq -c '[.[] | select(.focused == true) | .id]')"
+}
+wait_for_field() { until_ok field_has_keyboard || { echo "note: the chat field never held the keyboard: $(field_state)" >&2; return 1; }; }
 fuzzel_stand_in() {
     cat >"$fakes/fuzzel" <<SH
 #!/bin/sh
