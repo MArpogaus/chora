@@ -23,7 +23,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-co-pane-r3.md (RC 2: co-pane r3 done 18417f06, rw-1 core input fix) | opus high, claude/co-pane 18417f06 | starting |
+| review-co-pane-r3.md (RC 2: co-pane r3 done 18417f06, rw-1 core input fix) | opus high, claude/co-pane 18417f06 | session_016iS3kQqZ5jjuzqGjnDWbbW 19:59 |
 | review-tour-one-r1.md (F7, RC 11: tour-one r1 done 8b996cee, one set, 0 copies) | sonnet high, claude/tour-one 8b996cee | session_016iS3kLr7ww1z9iavGDE8qJ 19:48 |
 | tour-diff-r1.md (F7: tour-v9 lane 2, v8 diff and video check) | sonnet medium, claude/tour-diff 8b996cee | session_016iS3kPo9C5pNQkcuQwr9iS 19:49 |
 | guide-checks-r1.md (F7: tour-v9 lane 3, section 7 extends rows) | sonnet medium, claude/guide-checks 8b996cee | session_016iS3kPbqYusAxcH6mxYMgD 19:49 |
