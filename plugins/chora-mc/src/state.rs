@@ -40,6 +40,13 @@ impl Mc {
         let mut busy: Vec<&str> = self.writing.keys().map(String::as_str).collect();
         busy.sort_unstable();
         let mut busy: Vec<String> = busy.into_iter().map(|p| format!("write:{p}")).collect();
+        let now = std::time::Instant::now();
+        let mut fading: Vec<&str> = (self.fading.iter())
+            .filter(|(_, over)| **over > now)
+            .map(|(node, _)| node.as_str())
+            .collect();
+        fading.sort_unstable();
+        busy.extend(fading.into_iter().map(|node| format!("fade:{node}")));
         if self.typing.is_some() {
             busy.push("typing".to_owned());
         }

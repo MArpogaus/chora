@@ -17,13 +17,18 @@ impl Construct {
     )]
     pub(crate) fn draw_list(&mut self, open: bool) -> Result<(), ClientError> {
         use chora_kit::words::{Language, Word};
-        let Some((sel, query, hovered, giving)) = self
-            .list
-            .as_ref()
-            .map(|l| (l.sel, l.query.clone(), l.hovered, l.give.is_some()))
-        else {
+        let Some((sel, query, hovered, giving, opened)) = self.list.as_ref().map(|l| {
+            (
+                l.sel,
+                l.query.clone(),
+                l.hovered,
+                l.give.is_some(),
+                l.opened,
+            )
+        }) else {
             return Ok(());
         };
+        let left = hud::FADE_IN - opened.elapsed().as_secs_f64() * 1000.0;
         let rows = self.window_rows()?;
         let sel = sel.min(rows.len().saturating_sub(1));
         if let Some(list) = self.list.as_mut() {
@@ -88,6 +93,8 @@ impl Construct {
         })?);
         if open {
             commands.push(hud::fade(LIST, 1.0, hud::FADE_IN));
+        } else if left > 0.0 {
+            commands.push(hud::fade(LIST, 1.0, left));
         }
         commands.extend(self.label_commands());
         self.rt.conn.apply(commands)?;

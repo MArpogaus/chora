@@ -67,6 +67,13 @@ volume=$(PATH=$session_path wpctl get-volume @DEFAULT_AUDIO_SINK@)
 [ "$volume" = "Volume: 0.50" ] || fail "wpctl get-volume answered '$volume'"
 PATH=$session_path wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
 grep -qx 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+' "$calls" || fail "wpctl did not reach PERSONA_CALLS: $(cat "$calls")"
+volume=$(PATH=$session_path wpctl get-volume @DEFAULT_AUDIO_SINK@)
+[ "$volume" = "Volume: 0.55" ] || fail "wpctl get-volume after 5%+ answered '$volume', the set value is lost"
+PATH=$session_path wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 10%-
+volume=$(PATH=$session_path wpctl get-volume @DEFAULT_AUDIO_SINK@)
+[ "$volume" = "Volume: 0.45" ] || fail "wpctl get-volume after 10%- answered '$volume'"
+printf 'alpha\nbeta\n' | PATH=$session_path timeout 2 fuzzel --dmenu >/dev/null 2>&1
+grep -qx 'fuzzel-first-row alpha' "$calls" || fail "the stand-in of fuzzel did not log the first row: $(cat "$calls")"
 PATH=$session_path grim "$dir/shot.png"
 [ -e "$dir/shot.png" ] || fail "grim wrote no file"
 grep -qx "grim $dir/shot.png" "$calls" || fail "grim did not reach PERSONA_CALLS: $(cat "$calls")"

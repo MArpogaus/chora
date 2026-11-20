@@ -66,7 +66,9 @@
 #   doors_assistant starts the HUD host chora-assistant
 #   helper_start    starts the helper `coder` for the project demo
 #   doors_window    shows a window that writes `key CODE` for each key it
-#                   gets to $work/window; got_key CODE reads it
+#                   gets to $work/window; got_key CODE reads it;
+#                   wait_for_field waits until the window has lost the
+#                   keyboard to the chat field, which an Escape needs
 #   fuzzel_stand_in a fuzzel in $fakes that writes `fuzzel ARGS`, a line
 #                   `data XDG_DATA_DIRS` and its rows as `row TEXT` to
 #                   $marks, and answers the content of $fakes/choice
@@ -182,6 +184,8 @@ doors_window() {
     sleep 2
 }
 got_key() { until_ok "grep -qx 'key $1' \"$work/window\"" 12; }
+field_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = leave ]; }
+wait_for_field() { until_ok field_has_keyboard || { echo "note: the chat field never took the keyboard from the window" >&2; return 1; }; }
 fuzzel_stand_in() {
     cat >"$fakes/fuzzel" <<SH
 #!/bin/sh

@@ -331,6 +331,129 @@ mod tests {
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
+    /// co-27 (D66): the window of a program that an overlay construct
+    /// started is a pane of it even when the core reserved the surface for
+    /// the window manager below (tiling), as the overlay only shows it: the
+    /// book does not claim it, the construct owns it not, and no phase opens.
+    #[test]
+    fn an_overlay_shows_the_window_of_its_own_program_reserved_for_the_manager_below() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "overlay-own");
+        construct.overlay = true;
+        let pane = crate::PaneFile {
+            kind: crate::Kind::Program,
+            command: Some("foot".into()),
+            plugin: None,
+            scene: None,
+            manager: None,
+            at: None,
+            yaw: None,
+            size: None,
+            placed: false,
+        };
+        construct
+            .waiting
+            .push(crate::Waiting::new(Some("t1".into()), pane));
+        surface(&core.model(), "s1");
+        core.model()
+            .lock()
+            .unwrap()
+            .scene
+            .reserve("s1", Some("tiling"));
+        construct.event(created("s1", Some("tiling"))).unwrap();
+        let shown = construct.panes.iter().any(|p| p.window() == Some("s1"));
+        assert!(shown, "the own program of the overlay is a pane");
+        assert!(
+            !Driven(&mut construct).has("s1"),
+            "the book claims no window of tiling"
+        );
+        assert_eq!(owner(&core.model(), "s1"), None);
+        assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
+    }
+
+    /// The guard of co-27 (rv-2): an overlay shows a window that the core
+    /// reserved for the manager below only when the window carries the
+    /// token of a program it waits for. A stranger without a token, one
+    /// with another token, and one right after a launch are no pane, even
+    /// beside a waiting pane without a token (a plugin or a manager), and
+    /// the waited program keeps waiting.
+    #[test]
+    fn an_overlay_shows_no_reserved_window_without_a_waited_token() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "overlay-stranger");
+        construct.overlay = true;
+        construct.launched = Some(std::time::Instant::now());
+        let pane = |kind| crate::PaneFile {
+            kind,
+            command: Some("foot".into()),
+            plugin: None,
+            scene: None,
+            manager: None,
+            at: None,
+            yaw: None,
+            size: None,
+            placed: false,
+        };
+        let waiting = [
+            crate::Waiting::new(Some("t1".into()), pane(crate::Kind::Program)),
+            crate::Waiting::new(None, pane(crate::Kind::Manager)),
+        ];
+        construct.waiting.extend(waiting);
+        for (surface, token) in [("s1", None), ("s2", Some("t2"))] {
+            surface_of(&core, surface);
+            let event = chora_kit::testing::created_by(surface, "probe", Some("tiling"), token);
+            construct.event(event).unwrap();
+            let shown = construct.panes.iter().any(|p| p.window() == Some(surface));
+            assert!(!shown, "{surface} with the token {token:?} is no pane");
+            assert_eq!(owner(&core.model(), surface), None);
+        }
+        assert_eq!(construct.waiting.len(), 2, "the waited program still waits");
+        assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
+    }
+
+    /// A surface `id` that the core reserved for tiling.
+    fn surface_of(core: &FakeCore, id: &str) {
+        surface(&core.model(), id);
+        core.model()
+            .lock()
+            .unwrap()
+            .scene
+            .reserve(id, Some("tiling"));
+    }
+
+    /// co-29: the window list opens under a pointer that stood still, so a
+    /// row is hovered at once and the list is drawn again within its fade;
+    /// the redraw carries on the fade for the time left. The list opened
+    /// 60 ms ago, so the carried fade ends within 110 ms, where neither the
+    /// stopped fade nor a fresh `FADE_IN` of 160 ms has reached 1 (rv-1).
+    #[test]
+    fn a_row_hovered_while_the_list_fades_in_leaves_it_fully_opaque() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "list-hover");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct.open_list().unwrap();
+        let back = std::time::Duration::from_millis(60);
+        let list = construct.list.as_mut().unwrap();
+        list.opened = list.opened.checked_sub(back).unwrap();
+        core.model().lock().unwrap().scene.advance(60.0);
+        construct
+            .event(Event::PointerEntered {
+                node: format!("{}0", crate::command::LIST_ROW),
+                moved: false,
+                injected: false,
+            })
+            .unwrap();
+        let model = core.model();
+        let mut model = model.lock().unwrap();
+        model.scene.advance(110.0);
+        let opacity = model.scene.node(crate::hud::LIST).unwrap().props.opacity;
+        assert!(
+            (opacity - 1.0).abs() < f64::EPSILON,
+            "the list fades in for the time left, not anew: {opacity}"
+        );
+    }
+
     /// kit7-a2 (D116): a press on the window of a pane gives it the
     /// keyboard; a new window that comes as a pane without a flight takes
     /// the keyboard back to the walk, as a new window takes it in the

@@ -171,6 +171,23 @@ EOF
 sed -i -e "s|@MARKS@|$marks|g" -e "s|@BIN@|$bin|g" -e "s|@NOTEPAD@|$dir/notepad.txt|g" \
     -e "s|@PROBE@|$dir/probe.report|g" -e "s|@STATE@|$fakes/wpctl.state|g" \
     "$fakes/swaylock" "$fakes/mousepad" "$fakes/persona-probe" "$fakes/wpctl"
+real_fuzzel=$(command -v fuzzel || true)
+if [[ -n $real_fuzzel ]]; then
+    cat >"$fakes/fuzzel" <<EOF
+#!/bin/sh
+here=\$(dirname "\$0")
+echo fuzzel "\$@" >>"\$here/calls.log"
+case " \$* " in
+*" --dmenu "*)
+    IFS= read -r first
+    printf 'fuzzel-first-row %s\\n' "\$first" >>"\$here/calls.log"
+    { printf '%s\\n' "\$first"; cat; } | "$real_fuzzel" "\$@"
+    ;;
+*) exec "$real_fuzzel" "\$@" ;;
+esac
+EOF
+    chmod +x "$fakes/fuzzel"
+fi
 # shellcheck disable=SC2016 # the stand-in expands its own arguments
 printf '#!/bin/sh\necho grim "$@" >>"%s"\nfor last; do :; done\n: >"$last"\n' "$marks" >"$fakes/grim"
 mkdir -p "$dir/pictures"

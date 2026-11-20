@@ -191,7 +191,10 @@ impl Construct {
     /// `free` is the claim of the book: no other window manager has the
     /// surface reserved and the construct has not claimed it yet; the
     /// construct adopts no window without it, so that every pane is a
-    /// window of the book.
+    /// window of the book; the one exception is the window of an own
+    /// program of an overlay (a token waited for), which the overlay only
+    /// shows, so that the reservation of the manager below keeps no pane
+    /// from it (D66).
     pub(crate) fn created(
         &mut self,
         window: &chora_kit::wm::Created,
@@ -224,7 +227,8 @@ impl Construct {
         let launched =
             pane.is_none() && (self.launched.take()).is_some_and(|t| t.elapsed() < LAUNCHED);
         let force = pane.is_some() || launched;
-        if free && (pane.is_some() || launched || !self.overlay) {
+        let shown_not_owned = self.overlay && pane.is_some();
+        if shown_not_owned || free && (pane.is_some() || launched || !self.overlay) {
             self.adopt(surface, label, pane.as_ref(), self.started(), force)?;
             if by_key || launched {
                 return self.fly_into_window(surface);

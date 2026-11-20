@@ -787,7 +787,8 @@ refused `say` is gone. Another refused event logs at debug level.
 `tracing` with timestamps to stderr (journald), without colors when
 stderr is no terminal, and to `$XDG_STATE_HOME/chora/logs/voice.log`
 (see [Logs and problem reports](logs.md)). `RUST_LOG` filters; the default is
-`info,tract_linalg=warn,rmcp=warn`. Below info only the targets of the
+`info,tract_linalg=warn`, and rmcp logs warnings and errors only,
+whatever `RUST_LOG` says. Below info only the targets of the
 service log: a dependency such as rmcp writes the arguments of a tool
 call at debug. The lines are plain text in the form
 `key=value`: one call site per level in `log.rs` keeps the `tracing`

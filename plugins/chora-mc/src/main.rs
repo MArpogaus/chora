@@ -36,6 +36,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
     process::ExitCode,
+    time::Instant,
 };
 
 use chora_kit::{
@@ -338,6 +339,10 @@ struct Mc {
     /// the transaction that started it: those of one transaction end in
     /// the same frame.
     writing: HashMap<String, u64>,
+    /// The nodes whose fade runs, each with the time that it is over at
+    /// the latest: a fade whose end the core never tells does not keep mc
+    /// busy for ever.
+    fading: HashMap<String, Instant>,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -537,6 +542,7 @@ impl Mc {
             blur,
             shaders: Shaders::On,
             writing: HashMap::new(),
+            fading: HashMap::new(),
             put: Vec::new(),
             toggled: BTreeMap::new(),
             docks: HashMap::new(),
@@ -2375,6 +2381,75 @@ mod tests {
         .unwrap();
         assert_eq!(ids.iter().map(effects).sum::<usize>(), 0);
         assert!(mc.writing.is_empty());
+    }
+
+    /// A build removes the nodes whose write animation runs and makes new
+    /// ones without it, so no end of it comes: mc is quiet at once, not
+    /// busy with a write that nobody finishes (mc-49).
+    #[test]
+    fn a_build_in_the_midst_of_a_write_leaves_mc_quiet() {
+        let (mut mc, model) = crate::testing::mc("write-build", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it writes");
+        assert!(!mc.writing.is_empty());
+        mc.build().unwrap();
+        assert_eq!(
+            panel_effects(&mc, &model, "agenda"),
+            0,
+            "the new node rests"
+        );
+        assert_eq!(
+            busy_words(&mc, "write:"),
+            Vec::<String>::new(),
+            "mc waits for the end of a write that was removed"
+        );
+    }
+
+    /// The words of `busy` that start with a prefix.
+    fn busy_words(mc: &super::Mc, prefix: &str) -> Vec<String> {
+        use chora_kit::runtime::Plugin as _;
+        let state = mc.state().unwrap();
+        let busy = state["busy"].as_array().unwrap();
+        (busy.iter().filter_map(|b| b.as_str()))
+            .filter(|b| b.starts_with(prefix))
+            .map(str::to_owned)
+            .collect()
+    }
+
+    /// Tells mc that every fade that it waits for ended.
+    fn end_fades(mc: &mut super::Mc) {
+        use chora_kit::runtime::Plugin as _;
+        for word in busy_words(mc, "fade:") {
+            mc.event(chora_scene::Event::AnimationDone {
+                node: Some(word.trim_start_matches("fade:").to_owned()),
+                output: None,
+            })
+            .unwrap();
+        }
+    }
+
+    /// A page turn cross-fades its regions for a moment: both sets are
+    /// shown then, so mc is busy until the end of each fade, and a check
+    /// that waits for quiet never reads two sets one over the other
+    /// (mc-48).
+    #[test]
+    fn a_cross_fade_keeps_mc_busy_until_its_end() {
+        let (mut mc, _model) = crate::testing::mc("fade-busy", [1920, 1080]);
+        mc.show("agenda", true).unwrap();
+        end_fades(&mut mc);
+        assert_eq!(busy_words(&mc, "fade:"), Vec::<String>::new());
+        mc.show("morning", true).unwrap();
+        assert!(
+            !busy_words(&mc, "fade:").is_empty(),
+            "the cross-fade of the page is not busy"
+        );
+        end_fades(&mut mc);
+        assert_eq!(
+            busy_words(&mc, "fade:"),
+            Vec::<String>::new(),
+            "the fades ended"
+        );
     }
 
     /// After the watchdog of the core dropped the effects of mc, a scene
