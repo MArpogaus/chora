@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 14:40 UTC)
+## Now (2026-11-20 14:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 13:47 PM 9.5 %; 6 lanes
-session branch: d81c8293; 46 greens. t87e green 12:50 (--jobs 1; mc-fix, xp-24, core-l, flakes-k, xp-36 in). t87-t87d reds: flakes FLK-LAY1, FLK-HUD2, ink@2 under load (flakes-l r2); K5 race fixed by co-r5.
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 14:48 PM 9.8 %; 6 lanes
+session branch: fee9c695; 47 greens. t88b green 14:49 (--jobs 1; co-r5 in: K5 race, B4, H3). t89 probe-leak f5ac3500 alone from 14:51. t87-t87d, t88 reds were flakes and sh-30.
 burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
 ## RC (design/rc.md)
@@ -30,7 +30,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | gate-silent-r1.md (F5/F6: SKIP not PASS, fuzzel guard, MC-47-CELL) | sonnet high, claude/gate-silent f5ac3500 | session_016iS3kMLbE3cpCF5Y5Ckhsm 14:40 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) Trains: t88b co-r5 c2b0310f (head fee9c695, --jobs 1) from 13:45 (t88 red: leaked probes, sh-30); next t89 probe-leak f5ac3500 alone (harness), t90 co-majors-r4 e0c3a266 + lint-down 78ec62e1 (PM MERGE-OK), mc-fix after r4 and its review.
+4. (F6, rc 3) Trains: t89 probe-leak f5ac3500 alone (harness) on fee9c695 from 14:51, --jobs 1; next t90 co-majors-r4 e0c3a266 + lint-down 78ec62e1 (PM MERGE-OK); mc-fix after r5 and a PM review; flakes-n, gate-silent after review.
 5. (F5, F4, shared bar) PROBE-LEAK, LINT-DOWN r3 MERGE-OK; running FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, FLAKES-N r1 0.5 %, MC-FIX r5 0.5 % (review r4 FIX: rv-r4-1 MAJOR), then a PM review, then mc persona r4 1 %; AUDIT-F r4: F5 open 12 rows; GATE-SILENT r1 0.5 %; later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
