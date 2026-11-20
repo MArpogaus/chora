@@ -1,0 +1,95 @@
+From ddd43ea308f42f1c99ff403b7796e07ca0d4c59a Mon Sep 17 00:00:00 2001
+From: Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 06:17:47 +0000
+Subject: [PATCH] test(mc): a click on a launcher row starts that program
+ (mc-47)
+
+The sofa gate cell launcher-click-row runs the real fuzzel on mc and
+clicks the row Foot; red until the click reaches the list.
+---
+ tests/gate-mc-sofa.sh | 40 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/tests/gate-mc-sofa.sh b/tests/gate-mc-sofa.sh
+index d58f303d..f2503755 100755
+--- a/tests/gate-mc-sofa.sh
++++ b/tests/gate-mc-sofa.sh
+@@ -43,6 +43,11 @@
+ #               for ..." and does not close without a word, as in xp and
+ #               tiling (mc-44)
+ #
++#   launcher-click-row  the real fuzzel lists Chat with a helper, Foot and
++#               Screenshot, 19 px apart from y 237 on 1280x720; a click on the
++#               row Foot starts that program as Return does, and its window
++#               has a page (mc-47)
++#
+ #   card-size   the text of the card of chora-notify is at least as high
+ #               as the body of the page, and its ink is no grey: 7 to 1
+ #               (mc-40)
+@@ -98,8 +103,10 @@ cat >"$work/entries.json" <<'JSON'
+  {"seq": 2, "role": "agent", "text": "I will go through your notes and group them by day."}]
+ JSON
+ mkdir -p "$work/fake"
++real_fuzzel=$(command -v fuzzel)
+ cat >"$work/fake/fuzzel" <<FAKE
+ #!/bin/sh
++[ ! -e "$work/fake/real" ] || exec "$real_fuzzel" "\$@"
+ n=\$((\$(cat "$work/fake/calls" 2>/dev/null || echo 0) + 1))
+ echo "\$n" >"$work/fake/calls"
+ case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
+@@ -107,6 +114,9 @@ case " \$* " in *" --dmenu "*) [ "\$n" != 1 ] || echo nosuchprogram ;; esac
+ FAKE
+ chmod +x "$work/fake/fuzzel"
+ export PATH=$work/fake:$PATH
++mkdir -p "$work/data/applications"
++printf '[Desktop Entry]\nType=Application\nName=Foot\nExec=foot --app-id=mcclick\n' >"$work/data/applications/mcclick.desktop"
++export XDG_DATA_HOME=$work/data XDG_DATA_DIRS=$work/data
+ CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x720 -- "$bin/chora-mc" --manage-windows
+ grant screen.capture input.inject methods.call
+ mkfifo "$work/voice.in"
+@@ -382,6 +392,34 @@ cell_remote_back() {
+     remote_end
+ }
+
++click_at() {
++    move_to "$1" "$2"
++    sleep 0.4
++    echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
++        ctl inject >/dev/null || fail "inject click"
++}
++click_alive() { session_pids -f -- "--app-id=mcclick" >/dev/null; }
++click_end() {
++    local pid
++    for pid in $(session_pids -f -- "--app-id=mcclick"); do kill "$pid"; done
++    : >/dev/null
++}
++foot_row_x=540
++foot_row_y=256
++cell_launcher_click_row() {
++    key Super+Home
++    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
++    : >"$work/fake/real"
++    key Super+space
++    sleep 3
++    shot launcher-click-row
++    click_at "$foot_row_x" "$foot_row_y"
++    until_ok 'click_alive' 40 || { rm -f "$work/fake/real"; key Escape; fail "a click on the row Foot starts no program (Return does)"; }
++    until_ok '[ "$(current)" = mcclick ]' 40 || { click_end; rm -f "$work/fake/real"; fail "the window of the program has no page: $(current)"; }
++    click_end
++    rm -f "$work/fake/real"
++}
++
+ failed=()
+ run_cell() {
+     local name=$1
+@@ -392,7 +430,7 @@ run_cell() {
+         failed+=("$name")
+     fi
+ }
+-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back)
++cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back launcher-click-row)
+ for name in "${cells[@]}"; do
+     run_cell "$name"
+ done
+--
+2.43.0
