@@ -445,3 +445,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-20 01:45Z "40% how are things going?" -> reading: 40 % week (was 25 % 11-19 13:50: 1.25 %/h); question: 3 trains green since 23:00, 41 greens, t80 near green; 2.3 %/h needed: 3 persona lanes after t80, xp after t81, more lanes from the backlog. cost: none; effect on tag: none.
 
 - 2026-11-20 08:00 UTC owner: "What's again at ng with env?" -> question. PM: lanes report fuzzel 1.11.1 now (xp-24 r2), so the fuzzel item is closed; setup.sh is refused by auto mode in lanes and skipped (env setup carries the tools); the trains skip fuzzel cells because the PM gate PATH lacks ~/.local/bin (PM fix, GATE-SILENT). Nothing open for the owner on env.
+- 2026-11-20 08:30 UTC owner: "Update status page" -> order. PM: status page refreshed (goals F4-F6, trains 85c-87, lanes, new "Running now" box), published 08:32 (v145).
