@@ -379,10 +379,10 @@ class Covered(unittest.TestCase):
         return snap(nodes=nodes, toplevels={"s1", "s2"})
 
     def after(self, order, shown=True):
-        nodes = {"s1": surface("s1", "xp", True), "s2": surface("s2", "tiling")}
+        nodes = {"s1": surface("s1", "tiling", True), "s2": surface("s2", "xp")}
         states = {
-            "xp": look_state("s1", [win("s1", "xp")], holder="xp"),
-            "tiling": look_state("s2", [win("s2", "tiling", shown=shown)], holder=None),
+            "tiling": look_state("s1", [win("s1", "tiling")], holder="tiling"),
+            "xp": look_state("s2", [win("s2", "xp", shown=shown)], holder=None),
         }
         return snap(states=states, nodes=[nodes[i] for i in order], toplevels={"s1", "s2"})
 

@@ -132,6 +132,12 @@ $ tests/persona/round.sh stop erika
   per persona), and `end` holds the goal to that `begin` and uses it up: a
   goal without its own `begin` gets no verdict (never the `start`, the begin or
   the end of the goal before), so every goal is compared with its own begin.
+  L1 holds the goal to its own begin and wants exactly one window closed (open
+  at the begin or opened during the goal); L2 prints `not measured (no config)`
+  when the session has no non-empty config, neither red nor green; L3 does not
+  count a holder of a window that a later goal gave to another look; T7 passes
+  a given window that is shown but drawn under another one and prints a
+  separate `minor T7 covered: SID under SID` line (root order, known MINOR).
   C2 fails only for a window that was open at the begin, or came while the
   task ran, and is gone at the end. A key list left open by the persona is no
   red of a contract. Exit status 1 when a contract is red or a breach is outside

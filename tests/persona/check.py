@@ -251,6 +251,7 @@ class Ctx:
     keys: list
     entries: list
     left: list = dataclasses.field(default_factory=list)
+    notes: list = dataclasses.field(default_factory=list)
 
     def opened(self, sheet):
         """Whether `sheet` was open in some observation."""
@@ -386,13 +387,96 @@ def verify_no_window_lost(ctx, before):
     return verify
 
 
-def verify_same_windows(before):
-    """No window lost: the same toplevels, each owned and shown."""
+def verify_closed(ctx, before):
+    """L1: exactly one window is closed: one that was open at the begin or
+    that came while the goal ran, and is not there at the end."""
+    seen = set(before.toplevels)
+    for h in ctx.hist:
+        seen |= set(h.get("toplevels") or [])
+
+    def verify(after_):
+        closed = sorted(seen - after_.toplevels)
+        return [] if len(closed) == 1 else [f"expected 1 window closed, got {closed}"]
+
+    return verify
+
+
+def rect_of(snap, sid):
+    """The rect [x, y, w, h] that a look's state gives the window, or None."""
+    for state in snap.states.values():
+        for w in (state or {}).get("windows") or []:
+            if w.get("surface") == sid and w.get("shown") and w.get("rect"):
+                return w["rect"]
+    return None
+
+
+def covers(top, under):
+    """Whether the rect `top` holds the whole rect `under`."""
+    return (
+        top[0] <= under[0]
+        and top[1] <= under[1]
+        and top[0] + top[2] >= under[0] + under[2]
+        and top[1] + top[3] >= under[1] + under[3]
+    )
+
+
+def covered_by(snap, sid):
+    """The window that is drawn above `sid` and covers it: later in the
+    root order is above (the known MINOR is that a given window lands below)."""
+    order = [n["id"] for n in snap.nodes if n["id"] in snap.toplevels]
+    under = rect_of(snap, sid)
+    if sid not in order or under is None:
+        return None
+    for other in order[order.index(sid) + 1 :]:
+        top = rect_of(snap, other)
+        if top and covers(top, under):
+            return other
+    return None
+
+
+def verify_same_windows(ctx, before):
+    """T7: no window lost, none stray. A given window that is shown but
+    drawn under another one is not lost: it is a separate MINOR line."""
 
     def verify(after_):
         lost = sorted(before.toplevels - after_.toplevels)
         stray = sorted(after_.toplevels - before.toplevels)
+        for sid in sorted(given_away(before, after_) & after_.toplevels):
+            if (over := covered_by(after_, sid)) is not None:
+                ctx.notes.append(f"minor T7 covered: {sid} under {over}")
         return [f"windows lost {lost}, new {stray}"] if lost or stray else []
+
+    return verify
+
+
+def given_away(before, after_):
+    """The windows that another look owns at the end and the look that owned
+    them at the begin did not: what a later goal gave away."""
+    owner = {n["id"]: n.get("owner") for n in before.nodes}
+    return {n["id"] for n in after_.nodes if n["id"] in owner and owner[n["id"]] != n.get("owner")}
+
+
+def holders_of(after_):
+    """The looks that hold the focus, with the surface each holds."""
+    return {
+        look: (s.get("focus") or {}).get("surface")
+        for look, s in after_.states.items()
+        if s and (s.get("focus") or {}).get("holder") == look
+    }
+
+
+def verify_focus_kept(ctx, before):
+    """L3: the look holds the focus and its windows are shown. A holder that
+    holds a window given away by a later goal is not counted; when only such
+    holders are left there is nothing to hold against the look."""
+
+    def verify(after_):
+        given = given_away(before, after_)
+        held = holders_of(after_)
+        counted = [h for h, sid in held.items() if h == ctx.look or sid not in given]
+        if counted == [ctx.look] or (not counted and held):
+            return verify_shown_focused(ctx)(after_) if counted else []
+        return [f"expected the focus with {ctx.look}, holders {sorted(held)}"]
 
     return verify
 
@@ -501,7 +585,7 @@ def verify_notice(ctx, before):
 def contracts(task, ctx, before):
     """The Expect object of a task; None for a task that does not exist."""
     name, _, part = task.partition(":")
-    same = verify_same_windows(before)
+    same = verify_same_windows(ctx, before)
     table = {
         "T1": Expect(
             open=ctx.own_left(),
@@ -524,9 +608,9 @@ def contracts(task, ctx, before):
                 lambda a: [w.get("rect") for w in a.states.get(ctx.look, {}).get("windows", [])],
             ),
         ),
-        "L1": Expect(gone=1, focus=ctx.look),
+        "L1": Expect(focus=ctx.look, verify=verify_closed(ctx, before)),
         "L2": Expect(focus=ctx.look),
-        "L3": Expect(focus=ctx.look, verify=verify_shown_focused(ctx)),
+        "L3": Expect(verify=verify_focus_kept(ctx, before)),
         "M1": Expect(verify=verify_page_changed(ctx, before)),
         "M2": Expect(open=ctx.left, focus="mc"),
         "C1": Expect(cube={}),
@@ -589,6 +673,14 @@ def scene_line(snap, look):
     return f" [scene: {', '.join(words)}]" if words else ""
 
 
+def has_config(run):
+    """Whether the session has a config that a reload can change: a file that
+    is not empty in the private config home or the xp.yaml of the session."""
+    files = [p for p in (run.dir / "config").rglob("*") if p.is_file()]
+    files.append(run.dir / "xp.yaml")
+    return any(p.is_file() and p.stat().st_size for p in files)
+
+
 def end(run, args):
     """Check the tasks against the snapshot of this goal's `begin`."""
     look, probe, tasks = run.s.label, None, []
@@ -626,10 +718,16 @@ def end(run, args):
         expect = contracts(task, ctx, before)
         if expect is None:
             sys.exit(f"check.py: no contract for {task}")
+        if task == "L2" and not has_config(run):
+            print("task L2 not measured (no config)")
+            continue
         mismatches = expect.check(before, now)
         bad += bool(mismatches)
         verdict = "FAIL: " + "; ".join(mismatches) if mismatches else "pass"
         print(f"task {task} {verdict}{scene_line(now, look)}")
+        for note in ctx.notes:
+            print(note)
+        ctx.notes.clear()
     for b in breaches:
         print(f"breach {b['invariant']} in {b['action']}: {b['breach']}")
     print(f"breaches {len(breaches)}")
