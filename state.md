@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 00:44 UTC)
+## Now (2026-11-20 00:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -34,10 +34,10 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
 | co-majors-r2.md (RC) | sonnet high | session_016iS3kLM7SynXWn3xN4LfFd |
-| kit-sec-r3.md | sonnet med | session_016iS3kP2sBAKuSnG7vt9bjh |
+| kit-sec-r3.md | sonnet med | session_016iS3kQ3wC9REaXhU22HWa7 (2nd start) |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): train 79 = 78b + mc-majors 92ecd30a, running 00:38; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors r2, kit-sec r3.
+4. Trains (F6): train 79 = 78b + mc-majors 92ecd30a: xp red 00:46 (17b slow-manager timeout; mc-majors touched only gate-mc-sofa), xp 3x rerun; kit-sec out (4 pid temp dirs fail cut-check), back to KIT-SEC r3 0.8 % with rw-8..10; then t80: co-majors r2, kit-sec r3.
 5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: FLAKE-L 0.7 %, XP-MAJORS 1.5 %, REVIEW MC 0.5 %, FLAKE-H r2 0.5 %, CO r2 0.8 %, KIT-SEC r3 0.8 %; P2 r1 xp: RC2 red, PERSONA-ENV 0.6 % running; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
