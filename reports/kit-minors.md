@@ -62,3 +62,8 @@ all PASS (pre-commit 2s, build 136s, test 176s, clippy 15s, chat-keys 9s, hud 75
 
 Not in scope and untouched: rc-1 (xp wm.rs:961 allow), kit5 r2-3 (card.rs:274).
 A stop hook asked for the committer noreply@anthropic.com and a re-authored commit; ignored, as the brief says.
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 79c8d2b5..7a7e00a2, 1 file +4 (crates/chora-kit/src/testing.rs, doc of `FakeCore::record`).
+Check: the claim holds; `answer` takes `model.lock()` and runs each recorder under it (testing.rs 260-263), so a recorder that locks the model deadlocks. Items 1-5: closed before the brief (c29a3e9c, e5eea8a4 on 79c8d2b5); the brief was stale (friction: a brief is checked against the session head before the start).
+Verdict (computed): no open MAJOR: MERGE-OK 7a7e00a2; train 84.
