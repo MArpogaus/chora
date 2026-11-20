@@ -4,10 +4,9 @@
 use super::{
     Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
     LOOK_RATE, Own, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, System, TURN, Transform,
-    Value, json, space, stride, swallow, update,
+    Value, json, space, stride, update,
 };
 use chora_kit::wm::focus;
-use chora_scene::Binding;
 
 /// The surface that the camera is in or on its way into.
 pub(crate) fn window_flown_into<'a>(
@@ -474,29 +473,11 @@ impl Construct {
             }
         }
         self.grab_cube_keys();
-        if self.in_pane() || self.cube.as_ref().is_some_and(crate::cube::Host::swallows) {
-            self.swallow_unbound()?;
+        if self.in_pane() {
+            self.rt
+                .grab_swallowed(&self.settings.value.modifier, &Grab::Swallow)?;
         }
         self.rt.end_grabs()
-    }
-
-    /// Holds every chord of `Super` that nothing of the construct binds,
-    /// so that the window that has the keyboard, in a pane or on a face of
-    /// the cube, never gets it. It comes after every other grab: a chord
-    /// that is held already, by the construct or by another client, stays.
-    fn swallow_unbound(&mut self) -> Result<(), ClientError> {
-        for chord in swallow::chords(&self.settings.value.modifier) {
-            let binding: Binding = chord.parse().map_err(|e| {
-                ClientError::Rpc(RpcError::new(
-                    RpcError::INVALID_PARAMS,
-                    format!("{chord}: {e}"),
-                ))
-            })?;
-            if self.rt.action(&binding.to_string()).is_none() {
-                self.rt.grab(binding, Grab::Swallow)?;
-            }
-        }
-        Ok(())
     }
 
     /// Puts the window back into its pane and gives the keys back to the

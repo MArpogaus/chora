@@ -972,18 +972,19 @@ after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
 With `modifier: Super`, no `Super` chord that the construct does not bind
-reaches a window while the camera is in a pane or a cube is open, as under
-`chora-tiling` (see its paragraph above): the construct grabs
-`Super+KEY`, `Super+Shift+KEY` and `Super+Ctrl+KEY` for the same keys and
-swallows the ones that no binding uses, so `Super+q` types no `q` in a
-terminal and `Super+Tab` sends no Tab. The bindings with a modifier keep
-their actions there, `Super+F1` among them, which shows the key list
-also on a face of the cube. Plain keys reach the window. On a cube the
-construct holds the unbound chords one second after the window manager of
-the faces connected, so that the chords that this manager grabs for itself,
-such as `Super+d` of xp, stay with it; a chord that nobody grabs but
-`Super` pressed and let go still opens the Start menu of xp. With
-`modifier: Alt` nothing is swallowed.
+reaches a window while the camera is in a pane, as under `chora-tiling`
+(see its paragraph above): the construct grabs `Super+KEY`,
+`Super+Shift+KEY` and `Super+Ctrl+KEY` for the same keys, the list of
+`chora_kit::swallow`, and swallows the ones that no binding uses, so
+`Super+q` types no `q` in a terminal and `Super+Tab` sends no Tab. The
+bindings with a modifier keep their actions there, `Super+F1` among them,
+which shows the key list also on a face of the cube. Plain keys reach the
+window. On a face of a cube the construct swallows nothing: the window
+manager of the faces owns its windows and the chords for them, as the
+construct does in a pane. A chord that nobody grabs but `Super` pressed and
+let go still opens the Start menu of xp. With `modifier: Alt` nothing is
+swallowed, in a pane as under `chora-tiling`: programs keep `Alt+b` of
+readline and `Alt+Left` of a browser.
 `tests/gate-construct-keys.sh` (pane) and `tests/gate-construct-cube.sh`
 (face) check it.
 

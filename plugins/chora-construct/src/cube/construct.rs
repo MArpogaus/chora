@@ -129,8 +129,6 @@ impl Construct {
             live: None,
             step_back_key: None,
             owing: BTreeSet::new(),
-            swallow_at: Instant::now() + super::SWALLOW_AFTER,
-            swallowing: false,
             again: None,
             denied: BTreeSet::new(),
             told: None,
@@ -158,17 +156,13 @@ impl Construct {
             .as_ref()
             .and_then(|c| c.start_deadline(Instant::now()));
         let panes = self.manager_deadline();
-        let swallow = self.cube.as_ref().and_then(super::Host::swallow_deadline);
-        cube.into_iter().chain(panes).chain(swallow).min()
+        cube.into_iter().chain(panes).min()
     }
 
     /// The faces fail when their window manager exited or did not connect
     /// in time; the cube stays, and the card says why.
     pub(crate) fn check_cube(&mut self) -> Result<(), ClientError> {
         self.check_managers()?;
-        if (self.cube.as_mut()).is_some_and(|c| c.swallow_due(Instant::now())) {
-            self.regrab()?;
-        }
         let language = Language::of_session();
         let failed = (self.cube.as_mut()).and_then(|c| c.check_start(language, Instant::now()));
         if let Some(reason) = failed {

@@ -349,25 +349,9 @@ fn a_connected_manager_brings_the_faces_up() {
         "nothing starts now"
     );
     assert!(
-        construct.cube_deadline().is_some(),
-        "the unbound chords of Super are held soon"
+        construct.cube_deadline().is_none(),
+        "the construct waits for nothing once the manager is up"
     );
-    construct.close_cube().unwrap();
-}
-
-/// The unbound chords of `Super` are held one second after the manager of
-/// the faces connected, not before: the manager grabs its own first.
-#[test]
-fn the_unbound_chords_are_held_after_the_manager_connected() {
-    let (mut construct, _core, _lines) = open_two("swallow-late");
-    construct.cube_client(&focus_changed(None)).unwrap();
-    let host = construct.cube.as_mut().expect("the cube is open");
-    assert!(!host.swallows(), "not at once");
-    assert!(!host.swallow_due(Instant::now()), "not before its time");
-    let later = Instant::now() + Duration::from_secs(2);
-    assert!(host.swallow_due(later), "when the time came");
-    assert!(host.swallows());
-    assert!(host.swallow_deadline().is_none(), "and it stays");
     construct.close_cube().unwrap();
 }
 

@@ -65,9 +65,6 @@ pub(crate) const FLICK: f64 = 1.5;
 /// it lies in front of the face.
 const FILL: &str = "construct-cube-fill-";
 const FILL_LIFT: f64 = 0.5;
-/// How long after the window manager of the faces connected the
-/// construct holds the unbound chords of `Super`.
-const SWALLOW_AFTER: Duration = Duration::from_secs(1);
 /// How often the construct looks whether a starting manager exited.
 const POLL: Duration = Duration::from_millis(100);
 /// How far the cube turns off square toward the next face when it
@@ -160,8 +157,6 @@ pub(crate) struct Host {
     /// nothing binds, and whether it does. The window manager of the faces
     /// grabs its own chords as it connects, and a chord that the construct
     /// held first would be lost to it.
-    swallow_at: Instant,
-    swallowing: bool,
     /// The front face and the turning that the event of the cube role
     /// told last.
     told: Option<chora_kit::cube::Turned>,
@@ -740,25 +735,6 @@ impl Host {
     /// The window manager connected: every face works.
     fn connected(&mut self) {
         self.health.fill(Health::Up);
-        self.swallow_at = Instant::now() + SWALLOW_AFTER;
-        self.swallowing = false;
-    }
-
-    /// Whether the construct holds the unbound chords of `Super` now.
-    pub(crate) fn swallows(&self) -> bool {
-        self.swallowing
-    }
-
-    /// When the construct starts to hold them.
-    pub(crate) fn swallow_deadline(&self) -> Option<Instant> {
-        (!self.swallowing).then_some(self.swallow_at)
-    }
-
-    /// Starts to hold them when the time came; true when it did.
-    pub(crate) fn swallow_due(&mut self, now: Instant) -> bool {
-        let due = !self.swallowing && self.swallow_at <= now;
-        self.swallowing |= due;
-        due
     }
 
     /// The face fails, with a reason.
@@ -1300,8 +1276,6 @@ mod tests {
             live: None,
             step_back_key: None,
             owing: BTreeSet::new(),
-            swallow_at: Instant::now() + SWALLOW_AFTER,
-            swallowing: false,
             again: None,
             denied: BTreeSet::new(),
             told: None,

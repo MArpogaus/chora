@@ -62,7 +62,6 @@ mod space;
 mod start;
 mod state;
 mod stride;
-mod swallow;
 mod voice;
 mod wm;
 mod wobble;
