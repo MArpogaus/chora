@@ -41,3 +41,10 @@ Verdict: MERGE-OK 74b423bb (no BLOCK or MAJOR).
 
 ## PM check r3 (2026-11-20 20:34 UTC)
 Diff 9d381736..efe85512: keys.rs joins two eprintln into one (same text, NoScript path unchanged), lint-ratchet.list allow 359 -> 360 (reason in the commit, per brief). Behaviour unchanged. Verdict: MERGE-OK (r2 review stands for the code). launcher-click flake noted for FLAKE-SERIES r3. Train 93.
+
+## r4
+
+- Red on efe85512: `FAIL: Super+Print showed no notice` (tests/gate-tiling-power.sh:99).
+- Fix 32c3e4fb (on efe85512): the gate polls `shown_notices` for "Screenshot saved.*<file>" as gate-tiling-notice.sh does. A second stale check surfaced behind it: the missing-power.sh notice is queued behind the 6 s screenshot notice, and the lost launch had no runtime dir; it now keeps the session's and polls up to 30 s. No product change. The notify-send fallback is left to tests/screenshot-notice.sh. No other gate expected the screenshot notice via a notify-send fake.
+- Gate (--jobs 2): pre-commit, gate-lib, ci-check, build, test, hud, xp, tiling-audit, launcher-click, tiling-look all PASS (partial run, nothing pushed by the gate).
+- Slip: one `commit --amend` rewrote local efe85512 after a hook-rejected commit; restored from origin before pushing, the pushed head is a fresh commit on efe85512.
