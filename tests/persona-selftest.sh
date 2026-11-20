@@ -142,7 +142,16 @@ case $found in
 "$dir"/fake/*) ;;
 *) fail "mousepad in the PATH of the session is '$found', not a stand-in" ;;
 esac
-run_in_session mousepad
+click_node() {
+    local at cx cy
+    at=$(admin query "id:$1" | jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
+    read -r cx cy <<<"$at"
+    PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" click "$cx" "$cy" >/dev/null
+}
+click_node xp-start-HEADLESS-1 || fail "no Start button"
+notepad=$(admin query '*' | jq -r '.[] | select(.meta.text == "Notepad") | .id' | head -n1)
+[ -n "$notepad" ] || fail "the Start menu has no Notepad"
+click_node "$notepad" || fail "no click on Notepad"
 until_ok "state | jq -e 'any(.windows[]; .title == \"Untitled - Notepad\")' >/dev/null" 40 ||
     fail "mousepad shows no window titled Untitled - Notepad: $(state | jq -c '[.windows[].title]')"
 ok "mousepad stand-in starts a window Untitled - Notepad"

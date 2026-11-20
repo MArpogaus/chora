@@ -102,7 +102,6 @@ dir=$(cd "$dir" && pwd)
 env_file=$dir/session.env
 
 real_systemctl=$(command -v systemctl || true)
-real_swaylock=$(command -v swaylock || true)
 fakes=$dir/fake
 mkdir -p "$fakes" "$dir/voice" "$dir/data/chora/huds"
 marks=$fakes/calls.log
@@ -120,19 +119,9 @@ EOF
 cat >"$fakes/loginctl" <<EOF
 #!/bin/sh
 echo "loginctl \$*" >>"$marks"
-if [ "\${1:-}" = lock-session ] && [ -n "$real_swaylock" ]; then
-    setsid "$real_swaylock" --color 000000 >>"$fakes/swaylock.log" 2>&1 </dev/null &
-fi
 exit 0
 EOF
-cat >"$fakes/swaylock" <<EOF
-#!/bin/sh
-echo "swaylock \$*" >>"$marks"
-if [ -n "$real_swaylock" ]; then
-    setsid "$real_swaylock" --color 000000 >>"$fakes/swaylock.log" 2>&1 </dev/null &
-fi
-exit 0
-EOF
+printf '#!/bin/sh\necho swaylock "$@" >>"%s"\n' "$marks" >"$fakes/swaylock"
 printf '#!/bin/sh\nexec "%s/chora-probe" window 240 240 240 --title "Untitled - Notepad" --server-deco "$@"\n' "$bin" >"$fakes/mousepad"
 printf '#!/bin/sh\nexec "%s/chora-probe" window 200 200 200 --title "Probe window" --server-deco "$@"\n' "$bin" >"$fakes/persona-probe"
 shared=$dir/share/chora/flavors/shared
@@ -172,7 +161,7 @@ startup_of() {
     case $1 in
     tiling) startup=("$bin/chora-tiling") ;;
     xp)
-        sed 's/^  sounds: true/  sounds: false/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
+        sed -e 's/^  sounds: true/  sounds: false/' -e 's/^editor:.*/editor: mousepad/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
         startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
         ;;
     mc) startup=("$bin/chora-mc" --manage-windows) ;;
