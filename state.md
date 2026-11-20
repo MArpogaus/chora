@@ -26,7 +26,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-n-r1.md (F5: rw-3 panel test, MX-CAP) | sonnet high, claude/flakes-n f5ac3500 | session_016iS3kQcJMyvpDghzxqqp5X 14:24 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
-| mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | starting |
+| mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
 | p2-r4-xp.md (RC 2: xp persona r4 after xp-36) | sonnet medium, claude/p2-r4-xp fee9c695 | session_016iS3kMyJL9W3hiLkAUZZ12 15:19 |
 | p2-r2-co.md (RC 2: construct persona r2 after co fixes) | sonnet medium, claude/p2-r2-co 59efbc17 | session_016iS3kLgjQ9oGAwjM4rQrXz 15:08 |
 
