@@ -24,6 +24,10 @@
 #               at least 14 px high in its text, not the 11 px of the
 #               host, and its ink is no grey: 7 to 1 on the page (mc-34)
 #
+#   answer-long an answer of 150 characters takes at most two lines and
+#               covers neither the date, the page title row nor the
+#               column (mc-39)
+#
 #   pill        the word of the host beside the state word never says
 #               No helper while the voice agent speaks or a helper works
 #               (mc-36)
@@ -218,6 +222,32 @@ cell_answer() {
     [ "$(jq -n "${contrast%% *} >= 7")" = true ] || fail "the ink of the answer is grey: $contrast"
 }
 
+cell_answer_long() {
+    local text="The water has been boiling for nine minutes, so please take the pot off the stove and drain the spaghetti into the colander. Keep a cup of that water."
+    local rect date title
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    emit voice.say "{\"text\": \"$text\", \"duration_ms\": 60000}"
+    until_ok 'ctl query id:hud-line | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no answer"
+    sleep 1
+    rect=$(node_rect hud-line)
+    shot answer-long
+    date=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select(.visible and (.rects | length) > 0 and (.text | test("^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+$")))][0].rects | to_entries[0].value')
+    title=$(text_rect AGENDA)
+    [ "$date" != null ] || fail "no date in the header: $(texts | tr '\n' '|')"
+    jq -ne --argjson r "$rect" '$r[3] <= 2 * 28 + 2 * 4' >/dev/null ||
+        fail "the answer of 150 characters is $rect, more than two lines"
+    jq -ne --argjson r "$rect" '$r[0] + $r[2] <= 860' >/dev/null ||
+        fail "the answer $rect reaches into the column (x from 860)"
+    jq -ne --argjson r "$rect" --argjson d "$date" \
+        '($r[0] + $r[2] <= $d[0]) or ($d[0] + $d[2] <= $r[0]) or ($r[1] + $r[3] <= $d[1]) or ($d[1] + $d[3] <= $r[1])' >/dev/null ||
+        fail "the answer $rect covers the date $date"
+    jq -ne --argjson r "$rect" --argjson d "$title" \
+        '($r[0] + $r[2] <= $d[0]) or ($d[0] + $d[2] <= $r[0]) or ($r[1] + $r[3] <= $d[1]) or ($d[1] + $d[3] <= $r[1])' >/dev/null ||
+        fail "the answer $rect covers the page title $title"
+}
+
 hud_word() { ctl query id:hud-word | jq -r '.[0] | (.text // .meta.text // "")'; }
 cell_pill() {
     local word
@@ -270,7 +300,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer pill alarm)
+cells=(remote wide door status empty-head answer answer-long pill alarm)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
