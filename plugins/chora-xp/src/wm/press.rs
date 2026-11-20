@@ -293,12 +293,7 @@ impl Wm {
             let home = chora_scene::paths::home().unwrap_or_else(|| "/".into());
             self.start_program(&desktop_icons::open_with(&manager, &home));
         } else {
-            self.notice(
-                None,
-                "No file manager",
-                "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.",
-                10_000,
-            );
+            self.notice(None, "No file manager", &no_file_manager(), 10_000);
         }
         Vec::new()
     }
@@ -376,5 +371,29 @@ impl Wm {
             commands.extend(w.style(&mut self.theme, active));
         }
         commands
+    }
+}
+
+/// The words of the notice that no file manager is installed.
+fn no_file_manager() -> String {
+    "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.".into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The notice says what to do in plain words; the config file comes
+    /// only as a second line.
+    #[test]
+    fn the_notice_without_a_file_manager_says_what_to_do() {
+        let words = no_file_manager();
+        let (first, second) = words.split_once('\n').expect("a second line");
+        assert!(
+            !first.contains("yaml") && !first.contains("setting"),
+            "{first}"
+        );
+        assert!(first.contains("file manager"), "{first}");
+        assert!(second.contains("chora-xp.yaml"), "{second}");
     }
 }
