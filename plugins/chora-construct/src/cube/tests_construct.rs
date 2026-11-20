@@ -840,6 +840,45 @@ fn the_key_sheet_takes_the_keyboard_from_a_face_and_closes_on_escape() {
     assert!(construct.cube.is_some(), "and nothing else");
 }
 
+/// co-pane r2 (rv-2): in the walk, a window of a pane that a press gave the
+/// keyboard keeps it while the key sheet shows, so Escape and the typed
+/// search went to the program; the sheet takes it as it does in a flown pane.
+#[test]
+fn the_key_sheet_takes_the_keyboard_from_a_pressed_pane_window() {
+    let (mut construct, core, _lines) = on_core("help-pressed", |method, params| {
+        let focused = params["filter"]["focused"].as_bool() == Some(true);
+        match method {
+            "scene.query" if focused => Some(json!([{"id": "s1"}])),
+            _ => cube_core(json!([]))(method, params),
+        }
+    });
+    construct.panes.push(crate::Pane {
+        name: "probe".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s1"))).unwrap();
+    assert!(!construct.in_pane(), "the camera is in no pane");
+    assert!(
+        construct.keys_with_pane(),
+        "the pressed window has the keys"
+    );
+    construct.toggle_help().unwrap();
+    assert!(construct.help, "the sheet is open");
+    assert_eq!(
+        core.model().lock().unwrap().focuses.last().cloned(),
+        Some(None),
+        "the sheet holds the keyboard, not the program"
+    );
+    assert!(construct.walk_keys, "the look holds the keys");
+}
+
 /// co-pane r1: the Close of the key sheet is a button.
 #[test]
 fn a_press_on_the_close_of_the_key_sheet_closes_it() {
