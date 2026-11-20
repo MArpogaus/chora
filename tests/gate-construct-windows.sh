@@ -25,8 +25,6 @@
 #    mc. A pane dropped on the tiling output goes to tiling, one dropped
 #    on the pane of an mc scene goes to mc, both visible; a drop on empty
 #    space only moves the pane; a refused give leaves the pane.
-#
-# Known red, not in merge-gate.sh: section 5 (line 511), the Super drag of d1 on the flavor's output reaches mc, not the construct: the claim of mc with --manage-windows is smaller than the claim of the construct, and mc grabs the drag (finding co-30 in findings/construct.md).
 # Usage: tests/gate-construct-windows.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as construct-windows-*.png
 # shellcheck disable=SC2016 # until_ok evaluates its code later
