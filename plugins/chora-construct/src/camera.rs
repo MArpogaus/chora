@@ -58,6 +58,17 @@ pub(crate) fn ease_in_out(k: f64) -> f64 {
     k * k * k * (k * (k * 6.0 - 15.0) + 10.0)
 }
 
+/// The taps of the modifier `Super` alone, which a window in a pane does
+/// not get either: without them the press of Super reaches the window
+/// before each swallowed chord. Another modifier swallows nothing, as in
+/// `chora_kit::swallow`.
+pub(crate) fn lone_taps(modifier: &str) -> Vec<String> {
+    if modifier != "Super" {
+        return Vec::new();
+    }
+    vec!["Super+Super_L".into(), "Super+Super_R".into()]
+}
+
 /// The pane nearest the middle of the view, in front of the camera and
 /// on the output: a pane out of sight is no pane ahead, so a key never
 /// acts on a pane that is not there to see.
@@ -89,6 +100,14 @@ impl Construct {
     /// Whether the camera is in a pane or on its way into one.
     pub(crate) fn in_pane(&self) -> bool {
         self.flown.is_some() || self.flying_into()
+    }
+
+    /// Whether the keyboard is with the window of a pane: the camera is
+    /// in the pane or on its way into one, or a press on the pane in the
+    /// walk gave its window the keyboard where the pane stands. Either way
+    /// the construct holds its chords for that window (`regrab`).
+    pub(crate) fn keys_with_pane(&self) -> bool {
+        self.in_pane() || (self.core_focus.as_deref()).is_some_and(|f| self.own_window(f))
     }
 
     /// Whether the camera glides into a pane.
@@ -437,8 +456,11 @@ impl Construct {
     /// drag, which another client may hold or the core refuses for Shift
     /// (D45), a press with the modifier on the empty space or on a pane
     /// that shows a node texture still moves a pane, and one on a window
-    /// of the construct reaches the window. A binding that stays is not
-    /// let go in between, so its key never reaches a window.
+    /// of the construct reaches the window. While the window of a pane
+    /// has the keyboard (`keys_with_pane`), the bindings with a modifier
+    /// are grabbed and, without a cube, the chords that no binding uses
+    /// are swallowed. A binding that stays is not let go in between, so
+    /// its key never reaches a window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {
@@ -467,17 +489,36 @@ impl Construct {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
         }
-        if self.in_pane() || self.cube.is_some() {
+        if self.keys_with_pane() || self.cube.is_some() {
             for (key, grab) in self.grab_keys() {
                 self.rt.grab(parse(key)?, grab)?;
             }
         }
         self.grab_cube_keys();
-        if self.in_pane() && self.cube.is_none() {
-            self.rt
-                .grab_swallowed(&self.settings.value.modifier, &Grab::Swallow)?;
+        if self.keys_with_pane() && self.cube.is_none() {
+            self.swallow_for_window()?;
         }
         self.rt.end_grabs()
+    }
+
+    /// Swallows the chords of the modifier that no binding uses, and the
+    /// tap of the modifier alone, for the window of a pane that has the
+    /// keyboard; a tap that another client holds stays with it.
+    fn swallow_for_window(&mut self) -> Result<(), ClientError> {
+        let modifier = self.settings.value.modifier.clone();
+        self.rt.grab_swallowed(&modifier, &Grab::Swallow)?;
+        for tap in lone_taps(&modifier) {
+            let binding = tap.parse().map_err(|e| {
+                ClientError::Rpc(RpcError::new(
+                    RpcError::INVALID_PARAMS,
+                    format!("{tap}: {e}"),
+                ))
+            })?;
+            if let Err(err) = self.rt.grab(binding, Grab::Swallow) {
+                eprintln!("chora-construct: the tap of the modifier: {err}");
+            }
+        }
+        Ok(())
     }
 
     /// Puts the window back into its pane and gives the keys back to the

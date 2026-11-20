@@ -28,7 +28,11 @@ impl Plugin for Construct {
             return self.window_created(&created);
         }
         if let Some(surface) = chora_kit::wm::focus::changed(&event) {
+            let held = self.keys_with_pane();
             self.core_focus = surface.map(String::from);
+            if held != self.keys_with_pane() {
+                return self.regrab();
+            }
             return Ok(());
         }
         if matches!(

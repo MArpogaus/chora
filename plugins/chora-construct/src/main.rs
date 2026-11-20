@@ -603,8 +603,8 @@ struct Construct {
     cube: Option<cube::Host>,
     /// The window managers of the panes (`wm.rs`).
     managed: Vec<wm::Managed>,
-    /// The surface with the keyboard as `focus.changed` last told; read
-    /// only by `state.get`.
+    /// The surface with the keyboard as `focus.changed` last told: read by
+    /// `state.get`, and by `regrab` for a pane whose window has it.
     core_focus: Option<String>,
     /// The word of `state.get`; only reads.
     voiced: chora_kit::helper::Helper,
