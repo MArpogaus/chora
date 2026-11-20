@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 01:47 UTC)
+## Now (2026-11-20 01:48 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -28,12 +28,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | xp-majors-r1.md (RC) | sonnet high | MERGE-OK 81a29fe8 (review: 4 MINOR) t81 |
 | mc-answer-r2.md (RC) | sonnet med | MERGE-OK 92f2e52f (PM review: 1 MINOR) t81 |
 | black-pane-r1.md (RC sd-h1) | sonnet high | session_016iS3kPY5q7FRF2zYvKecmv |
-| review-co-majors-r2.md (RC) | sonnet high | session_016iS3kP64QgetFUkoMzZGNA (co-majors r2 8e24dcb6) |
+| co-majors-r2 (RC) | sonnet high | MERGE-OK 8e24dcb6 (review r2: 2 MINOR, 2 NIT) t81 |
 | kit-sec-r3.md | sonnet med | MERGE-OK 1c25af7e (PM review: 1 MINOR) t81 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t79 green 01:19 (78b, mc-majors, ti-majors, flake-l; bb16f2ff). t80 = persona-env 370495ad + flake-h b0564df2: gate 01:20. t81: kit-sec 1c25af7e, xp-majors 81a29fe8, mc-answer 92f2e52f; co-majors 8e24dcb6 if review OK.
-5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: REVIEW CO r2 0.5 %, STRAY-GRAB 1.5 %, BLACK-PANE 1 %; P2 r1 tiling, mc, construct 3.3 % after t80; P2 r1 xp: RC2 red, persona env fixed (t80), P2 r2 xp after t80; AUDIT-F r3 1 % Fri late.
+4. Trains (F6): t79 green 01:19 (78b, mc-majors, ti-majors, flake-l; bb16f2ff). t80 = persona-env 370495ad + flake-h b0564df2: gate 01:20. t81: kit-sec 1c25af7e, xp-majors 81a29fe8, mc-answer 92f2e52f, co-majors 8e24dcb6.
+5. F work: FLAKE-SERIES 5/5, kit 91.06 % (F5); running: STRAY-GRAB 1.5 %, BLACK-PANE 1 %; P2 r1 tiling, mc, construct 3.3 % after t80; P2 r1 xp: RC2 red, persona env fixed (t80), P2 r2 xp after t81; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
