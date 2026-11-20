@@ -26,7 +26,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
 | flakes-n-r1.md (F5: rw-3 panel test, MX-CAP) | sonnet high, claude/flakes-n f5ac3500 | session_016iS3kQcJMyvpDghzxqqp5X 14:24 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
-| p2-r4-mc.md (RC 2: mc persona r4 after mc-fix r5) | sonnet medium, claude/p2-r4-mc 9dd23de6 | starting 14:58 |
+| p2-r4-mc.md (RC 2: mc persona r4 after mc-fix r5) | sonnet medium, claude/p2-r4-mc 9dd23de6 | session_016iS3kQHupvXu88T5mukfKd 14:57 |
 | gate-silent-r1.md (F5/F6: SKIP not PASS, fuzzel guard, MC-47-CELL) | sonnet high, claude/gate-silent f5ac3500 | session_016iS3kMLbE3cpCF5Y5Ckhsm 14:40 |
 
 ## Queue (% week; 5 % reserve)
