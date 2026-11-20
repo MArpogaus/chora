@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 12:55 UTC)
+## Now (2026-11-20 12:56 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent) at 59 % time; 39 % left in 15 h = 2.6 %/h shared: under-spending (critic 13:05); tokens.py 12:51 PM 9.1 %; fill to 4-5 lanes
 session branch: d81c8293; 46 greens. t87e green 12:50 (--jobs 1; mc-fix, xp-24, core-l, flakes-k, xp-36 in). t87-t87d reds: flakes FLK-LAY1, FLK-HUD2, ink@2 under load (flakes-l r2); K5 race fixed by co-r5.
@@ -24,8 +24,8 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | mc-fix-r3.md (RC 2: mc-42 BLOCK reopened, mc-46, I3/I5) | sonnet high, claude/mc-fix cb2b80f1 | session_016iS3kLCjuGKMjoZhWui8U1 12:23 |
-| co-majors-r4.md (shared bar no stray keys: co-25, co-26) | sonnet high, claude/co-majors-r4 d81c8293 | starting |
-| flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | starting |
+| co-majors-r4.md (shared bar no stray keys: co-25, co-26) | sonnet high, claude/co-majors-r4 d81c8293 | session_016iS3kMcC5iEnUXoQQKkZ4G 12:56 |
+| flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
