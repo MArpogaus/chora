@@ -167,6 +167,27 @@ alpha_of() { prop "$1" color | python3 -I -c 'import ast, sys; print(ast.literal
 stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
 stepped_in='test "$(prop construct-cube-face-0 forward)" = True && test "$(width construct-cube-face-0)" = 1280'
 
+help_shown() { ctl query id:construct-help | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0].get("opacity") == 1.0 else 1)'; }
+before=$(keys_got 30)
+plain a
+until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "on the front face a plain a does not reach the probe window"
+for chord in Super+q Super+Tab Super+1 Super+Shift+x Super+Ctrl+z; do
+    key "$chord"
+done
+sleep 1
+for code in 16 15 2 45 44; do
+    [ "$(keys_got "$code")" = 0 ] || fail "on the front face a Super chord that nothing binds reached the probe window (key $code, co-25)"
+done
+ok "co-25: on the front face Super+q, Tab, 1, Shift+x and Ctrl+z reach no window, a plain a does"
+key Super+F1
+until_ok help_shown || fail "Super+F1 on the front face shows no key list of the construct (co-26)"
+key Escape
+until_ok '! help_shown' || fail "Escape after Super+F1 on the front face keeps the key list"
+ok "co-26: Super+F1 on the front face shows the key list of the construct, Escape hides it"
+before=$(keys_got 30)
+plain a
+until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the key list the probe window has no keyboard"
+
 call view.step_back >/dev/null || fail "view.step_back"
 until_ok "$stood_back" 20 || fail "no step back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 for chip in turn-left turn-right step-in; do

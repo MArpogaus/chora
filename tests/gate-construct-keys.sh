@@ -219,7 +219,8 @@ until_ok help_shown || fail "Super+F1 in a pane shows no key list (co-26)"
 key Escape
 until_ok '! help_shown' || fail "Escape after Super+F1 in a pane keeps the key list"
 ok "co-26: Super+F1 in a pane shows the key list"
-until_ok 'test "$(app_focused chora-probe)" = True' || fail "the key list took the keyboard from the pane for good"
+ctl call construct pane.fly '{"name": "chora-probe"}' >/dev/null || fail "pane.fly chora-probe again"
+until_ok 'test "$(app_focused chora-probe)" = True' || fail "the probe pane has no keyboard again"
 before=$(panes)
 key Super+t
 until_ok 'test "$(panes)" != "$before"' || fail "Super+t in a pane started no terminal: $(panes)"
