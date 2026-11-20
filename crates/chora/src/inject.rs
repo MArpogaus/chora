@@ -655,9 +655,9 @@ mod tests {
 
     /// Injected input is no activity for idle-notify: a client with
     /// `input.inject` cannot keep the session from locking. Input of the
-    /// person still ends the idle state.
-    #[test]
-    fn injected_input_keeps_the_session_idle() {
+    /// person still ends the idle state. `slow` is the time that a loaded
+    /// machine takes between the activity and the roundtrip.
+    fn injected_input_keeps_the_session_idle_with(slow: std::time::Duration) {
         let mut core = Core::new();
         core.add_output("DP-1", (800, 600));
         let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
@@ -681,8 +681,22 @@ mod tests {
         assert_eq!(wayland.take_idle_events(), Vec::<bool>::new());
         let seat = core.state.seat.clone();
         core.state.idle_notifier_state.notify_activity(&seat);
+        std::thread::sleep(slow);
         wayland.roundtrip(&mut core);
         assert_eq!(wayland.take_idle_events(), vec![false]);
+    }
+
+    #[test]
+    fn injected_input_keeps_the_session_idle() {
+        injected_input_keeps_the_session_idle_with(std::time::Duration::ZERO);
+    }
+
+    /// The idle timer of 10 ms starts again with the activity of the
+    /// person, so on a loaded machine its `true` can come before the
+    /// roundtrip that brings the `false` (FLK-IN1).
+    #[test]
+    fn injected_input_keeps_the_session_idle_when_the_roundtrip_is_slow() {
+        injected_input_keeps_the_session_idle_with(std::time::Duration::from_millis(50));
     }
 
     /// The safety chords need Ctrl and Alt of the person: an injected
