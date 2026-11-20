@@ -28,8 +28,8 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | p2-r2-mc.md (RC 2 persona round 4, mc; Queue 5) | sonnet medium | session_016iS3kQWQuaukrpP1MwhJDd |
 | docs-f8e-r1.md (F8: kit swallow line, D118, CM-R1; Queue 5) | sonnet medium | session_016iS3kPf7kV5rnZAz313Ehk |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
-| review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | starting |
-| xp-24-r1.md (RC 1 rule 6: xp-24 MAJOR, fields grid; Queue 5) | sonnet high | starting |
+| review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | session_016iS3kQLLfhEJgLJAbKpZ1t |
+| xp-24-r1.md (RC 1 rule 6: xp-24 MAJOR, fields grid; Queue 5) | sonnet high | session_016iS3kPeHe5eFteANmxugvt |
 | co-majors-r3.md (RC 2, rule 6: co-27, co-29 MAJOR, co-28; Queue 5) | sonnet high | session_016iS3kNjVuFx3uAeQzWEbHq |
 
 ## Queue (% week; 5 % reserve)
