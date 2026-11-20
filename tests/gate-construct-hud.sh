@@ -134,7 +134,6 @@ round() {
     long_pane=$(ctl call construct construct.list | python3 -I -c 'import json, sys; print(next(p["name"] for p in json.load(sys.stdin)["panes"] if p["name"].startswith("Donau")))')
     call pane.move "{\"name\": \"$long_pane\", \"ahead\": -4000}"
     sleep 2
-    sleep 0.5
     key Tab
     until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list: $(ctl call construct construct.list | tr -d "\n " | cut -c1-900) $(ctl call construct window.list "{}" | tr -d "\n " | cut -c1-500)"
     for row in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-list-row-") and n["id"].endswith(("-name", "-note"))])'); do
