@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 06:20 UTC)
+## Now (2026-11-20 06:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
 session branch: 79c8d2b5 (train 81); 43 greens. Train 85 red 06:30 on ci-check: my merge of black-pane took its XDG_RUNTIME_DIR:? over the merged mktemp fallback (tiling-scripts-selftest); rebuilt as 85b (head 9973d0eb, only the 2 scripts differ), running 06:35.
@@ -23,7 +23,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | starting |
+| flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ |
 | mc-fix-r1.md (RC 2: mc-47, 48, 49 MAJOR cand., P2-CHECK; Queue 5) | sonnet high | session_016iS3kPRxyZyGMAUJ4zQHkq |
 | core-l-r1.md (F5 F22, stability: WD2, L16; Queue 5) | sonnet high | session_016iS3kPcj8fM8xQmvDtJAek |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |

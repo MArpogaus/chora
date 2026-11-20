@@ -17,4 +17,5 @@ Notes: the R14 change could not have its own red-first commit (the old hook refu
 Checks: red first (ff5ef811 before cead612e; 33a88995 before 75dfa4b9): met. R15 fail closed on any `)]`, case "code after the attribute" red: met. Negated need accepted, `if ! command -v pgrep; then pkill` still red: met. R12 tables incl. quoted names: met. R14 hook accepts only `*_case` additions, 4 cases incl. another file and another line: met. H-move moved passes, copied and edited fail: met. Gate PASS per handback.
 - rv-1 NIT: guards-hook accepts any `*_case` line, including one whose argument runs a command substitution; it is our own test file, so low risk.
 - rv-2 NIT: no-inline-comments collects removed lines from every file in the diff, so a bare `//` removed anywhere lets a new `//` through.
+- rv-3 NIT: R14 test and fix share 520dc775 (the old hook refused a red commit; documented in the handback).
 Verdict: MERGE-OK (no MAJOR). It gets its own train (t86) after t85.
