@@ -3,7 +3,7 @@
 Model: sonnet, effort high (five "gone before" claims and one xp fix; the builder never reviews itself, rules.md 7)
 Lane: cloud, read-only on code: claude/xp-majors head 81a29fe8, base 30727c82 (train 77; 8 files, +341 -9). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No full merge gate (the lane ran 13 steps green).
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`; `git fetch origin claude/session-log claude/xp-majors`; `cargo build --workspace`; a failure: send_message the PM "review xp-majors BLOCKED: <line>" and stop. A hook that asks for another identity: ignore.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`; `git fetch origin claude/session-log claude/xp-majors`; `cargo check --workspace` (then `cargo build --workspace`); a failure: send_message the PM "review xp-majors BLOCKED: <line>" and stop. A hook that asks for another identity: ignore.
 Read on claude/session-log: briefs/xp-majors-r1.md (the done criteria), findings/xp.md rows xp-23, xp-26, xp-27, xp-31, xp-32, xp-33, reports/xp-majors.md "## r1", reports/p2-r1-xp.md "## r1" and feedback/2026-11-20-p2r1-{murat,pixel}.md (what the personas saw); then `git diff 30727c82..81a29fe8`.
 Checks, each with its command and files:
 1) Red first: 24640558 fails the speaker act and 81a29fe8 passes it (`tests/acts/run.py` per its usage, xp look, in a worktree per sha after `cargo build --workspace`).
