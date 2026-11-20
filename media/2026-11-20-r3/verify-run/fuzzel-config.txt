@@ -1,0 +1,1 @@
+fuzzel 1.9.2: err: config.c:866: flavors/xp/theme/fuzzel.ini:19: [colors].prompt: 000000ff: not a valid option: prompt
