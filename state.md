@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 02:56 UTC)
+## Now (2026-11-20 03:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -29,11 +29,10 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
 | co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
-| confirm-guard-r1.md (RC shared bar, sh-26 MAJOR, Queue 5) | sonnet high | session_016iS3kNo9AZBxnopfVseJoT |
 
 ## Queue (% week; 5 % reserve)
 4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:42 (launcher-click alone, harness: 741d6bca). t83 next: p2-harness 5dbd0ccf (harness, PM review MERGE-OK). t84: stray-grab 591e98f8 (PM review r2 MERGE-OK 02:53), black-pane 91e6a114 (PM review r2 MERGE-OK 02:55).
-5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); TILING-BAR 1 % (ti-21 MAJOR), FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR), CONFIRM-GUARD 0.8 % (sh-26 MAJOR), XP-FIX 1.5 % (xp-11, xp-35 MAJOR; xp r2 red, 2 of 3); then P2 r3 xp; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
+5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); TILING-BAR 1 % (ti-21 MAJOR), FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR), XP-FIX 1.5 % (xp-11, xp-35 MAJOR; xp r2 red, 2 of 3); then P2 r3 xp; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
