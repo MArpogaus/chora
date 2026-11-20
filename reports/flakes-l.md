@@ -28,3 +28,11 @@ Notes:
 `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,gate-lib,tiling-look,acts,hud,layout,tiling-audit` on 19862dfb (after the merge): all eleven steps PASS (pre-commit 5 s, gate-lib 72 s, ci-check 92 s, build 29 s, test 217 s, clippy 21 s, hud 78 s, layout 200 s, tiling-audit 288 s, acts 270 s, tiling-look 596 s). The palette gate then changed (cc1282db, test only; pre-commit ran on the commit). The touched cells (`--only tiling-look,acts,hud,layout`) ran twice more under load: run 1 green (hud 89 s, layout 268 s, acts 338 s, tiling-look 804 s), run 2 green (hud 106 s, layout 279 s, acts 343 s, tiling-look 957 s), load average 8 to 11.
 
 Commits on claude/flakes-l (author and committer Marcel Arpogaus): ec4f1a7b, 8d0645cc, 0b10637f, ca5d99ee, c3fd74c5, a549da57, merge 19862dfb, cc1282db. Head: cc1282dbaf58eea7ef938a8ee9176b92fd815eae.
+
+## PM review r2
+
+fee9c695..cc1282db (7 files, +62 -11; the branch lacks t89b ce2c436b, the train merges it). Red first for the product fix: ec4f1a7b (mc_is_busy_while_its_regions_cross_fade) before 8d0645cc. Test-only changes: palette gate frame budget 500 ms (as the other look gates) and border wait (the asserts after the loop still fail if the border never comes); wpctl stand-in atomic write; HUD1 reads the figure image (settled, changes on the question, changes again on its end); construct walk-hints wait.
+- pr2-1 MINOR (mc, KISS): 8d0645cc adds a second fade tracker (`fading_until`, busy "fade") beside lifecycle.rs `fading` (busy "fade:<node>"), because the region cross-fade goes through try_apply, not apply (rv-2 of mc-fix). One tracker: route the region and theme fades through `note_writes` and drop `fading_until`. -> mc-minor r1.
+- pr2-2 NIT: HUD1 does not check the look returns to the one before the question (only that it changes). Backlog.
+- Open, harness: persona sound residual 1/100 (render between the quiet read and the node read); HUD2 not reproduced.
+Verdict (computed): no open MAJOR -> MERGE-OK cc1282db (train 92; after its merge trains may run at --jobs 2). Worker archived.
