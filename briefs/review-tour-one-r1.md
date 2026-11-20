@@ -3,7 +3,7 @@
 Model: sonnet, effort high (Python tour tooling, no core change; seeded review)
 Lane: cloud, read-only on code: claude/tour-one head 8b996cee, base 9dc384b3 (67 files, +1284 -4467). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran pre-commit, ci-check, gate-lib, build, test, acts green); `python3 -I tests/test_tour.py`, `demo/tour/run.py --check` and `tools/cut-check` only.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo build --workspace`; a failure: send_message the PM "review-tour-one r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`; a failure: send_message the PM "review-tour-one r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read briefs/tour-one-r1.md (done criteria), design/tour-v9.md sections 0 and 8 row 1, reports/tour-one.md "## r1" on claude/session-log; `git diff 9dc384b3..8b996cee`.
 Checks, each with its command and files:
 1) One set, no copies: demo/tour holds only {tour,human,launch,slides,assemble,run}.py and chapters/{xp,tiling,mc,construct,handover}.py; no ch*, v4-v8_*, tour4-8, assemble4-8 left and nothing else imports them (grep the tree, tests, docs, gate cells); tools/copies.toml row and `tools/cut-check` red on a planted `v9_` copy (cut-check-selftest).
