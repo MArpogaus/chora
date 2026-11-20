@@ -2632,4 +2632,43 @@ mod tests {
             "an injected key waits for the face too"
         );
     }
+
+    /// sh-23: the window of the manager of a face has the keyboard, and
+    /// the person clicks the empty claim of the manager on the screen.
+    /// The click takes the keyboard from the window of the face: a typed
+    /// key reaches it no more, and a binding of the face waits for it.
+    #[test]
+    fn a_click_into_the_empty_claim_of_another_look_takes_the_keyboard() {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        wayland.roundtrip(&mut core);
+        assert!(surface_has_keyboard(&core), "the window of the face types");
+        let before = wayland.key_serials().len();
+        move_to(&mut core, 50.0, 40.0);
+        click(&mut core, true);
+        click(&mut core, false);
+        tap(&mut core, Y);
+        wayland.roundtrip(&mut core);
+        assert!(
+            !surface_has_keyboard(&core),
+            "the click took the keyboard from the window of the face"
+        );
+        assert_eq!(
+            wayland.key_serials().len(),
+            before,
+            "a key typed after the click does not stray into the face"
+        );
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "the keys of the face wait for the face"
+        );
+    }
 }
