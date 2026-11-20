@@ -293,6 +293,10 @@ struct Mc {
     /// keyboard also when a window stands in it, so that the next plain key
     /// still turns the page (mc-42).
     plain_turn: bool,
+    /// The scene that a plain turn showed and whose program it started:
+    /// the window that comes keeps no keyboard from the page, as when the
+    /// program already ran (mc-42).
+    plain_start: Option<String>,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -511,6 +515,7 @@ impl Mc {
             manage_windows: false,
             page_keys: keys::PageKeys::Plain,
             plain_turn: false,
+            plain_start: None,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,

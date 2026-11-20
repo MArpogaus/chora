@@ -286,7 +286,7 @@ cell_terminal_turn() {
         fi
         foot_end
     done
-    return 0
+    turn_arrive || fail "no terminal page by Right x4 at the end: $(current)"
 }
 
 cell_mouse_back() {

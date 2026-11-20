@@ -171,9 +171,13 @@ impl Mc {
             return Ok(false);
         }
         self.windows.insert(name.clone(), surface.into());
+        let plain = (self.plain_start.take()).is_some_and(|n| n == name)
+            && self.current.as_deref() == Some(name.as_str());
+        self.plain_turn = plain;
         if let Err(err) = self.show(&name, user) {
             chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
+        self.plain_turn = false;
         if new {
             self.renumber()?;
         }
