@@ -88,6 +88,7 @@ fn sheet(config: &Config) -> Vec<keysheet::Row<Look>> {
         Some(match own {
             Look::NextScene => "Next page".to_owned(),
             Look::PreviousScene => "Previous page".to_owned(),
+            Look::Back => "Back one step".to_owned(),
             Look::Scene(name) => format!("Show {}", crate::title_of(name).to_lowercase()),
             Look::Toggle(crate::region::Region::Right) => "Hide this column".to_owned(),
             Look::Toggle(region) => format!("Show or hide the {}", region.name()),
@@ -157,7 +158,7 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             Action::System(System::Power) => (9, 1),
             Action::System(System::Screenshot) => (9, 2),
             Action::System(System::Volume(_)) => (9, 3 + place),
-            Action::Look(Look::PreviousScene)
+            Action::Look(Look::PreviousScene | Look::Back)
             | Action::System(
                 System::Drag
                 | System::Terminal

@@ -637,11 +637,17 @@ with `settings.reload`:
   only the bindings with Super act. A page that you reach with a plain key
   of a remote (Right, Left, Escape, Home) keeps the keyboard, so Right,
   Left and Escape still turn it and go back; Return gives the window the
-  keyboard, and a click on the window does too. The launcher, `run:
+  keyboard, and a click on the window does too. A remote without Super
+  leaves the window by its Back key: `XF86Back` (the binding `back`)
+  takes the keyboard from the window to its page, which then keeps it as
+  after a plain turn, and on a page it goes one step back as Escape;
+  `XF86HomePage` goes to the first page. Both keys are bindings that mc
+  grabs without a modifier like the media keys, as a window manager with a
+  claim (`--manage-windows`); no other plain key is taken from a window. The launcher, `run:
   fuzzel`, is the list of the installed programs, and text that finds
   nothing shows the list again under the row `Nothing found for "TEXT"`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
+  `previous_scene`, `back`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `keys`, `chat`, `lock`, `power`, `screenshot`, `volume: up|down|mute`,
   `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
