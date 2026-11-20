@@ -318,3 +318,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLAKES-K-RV (MINOR, harness): rv-1 doors/lib.sh:187 field_has_keyboard sees any `leave`, not the chat taking the keyboard; rv-3 TR1 red test checks a proxy, order-dependent; rv-4 IN1 slow variant assert exactly [false, true]. FJ-R2 (construct bare Escape) stays open.
 
 - CO-R4-RV (MINOR, construct gate): rv-5 tests/gate-construct-3d.sh:280 view_of hashes HUD rows, so the walk-step check passes on any HUD change; assert the camera itself (reports/co-majors.md Review r4).
+- MC-FIX-RV (MINOR, mc): reports/mc-fix.md Review r1 rv-1 lifecycle.rs:130 prefix match clears sibling ids; rv-2 build.rs:221 theme fades via try_apply not noted; rv-3 check.py:364 T1/T4 accept an unasked key list; rv-4, rv-5 NIT.
