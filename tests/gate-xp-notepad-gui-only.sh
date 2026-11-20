@@ -92,3 +92,9 @@ set_editor chora-no-such-editor
 click_notepad
 ctl wait --timeout 15 'app_id:notepad-gui kind:surface' >/dev/null || fail "with a fake mousepad on PATH no window opened"
 ok "a fake editor with a window on PATH opens its window"
+
+rm "$work/fakes/mousepad"
+set_editor "foot -a notepad-terminal nano"
+click_notepad
+ctl wait --timeout 15 'app_id:notepad-terminal kind:surface' >/dev/null || fail "with a terminal editor in the settings no window opened: $(surfaces)"
+ok "a terminal editor named in the settings opens from the start menu"
