@@ -140,6 +140,14 @@ impl Focus {
         }
     }
 
+    /// A click or a pointer on a window of the look that the look had lost
+    /// to another client or node ([`Focus::lost_to_other`]): the next
+    /// transaction sends the focus, even when it is the one sent before.
+    pub fn reclaim(&mut self) {
+        self.lost = false;
+        self.sent = false;
+    }
+
     /// Whether a transaction sends the focus `focus`.
     #[must_use]
     pub fn sends(&self, focus: Option<&str>) -> bool {
@@ -188,6 +196,16 @@ impl Focus {
     #[must_use]
     pub fn taken_by_other(&self, name: &str) -> bool {
         self.away.as_deref().is_some_and(|owner| owner != name)
+    }
+
+    /// Whether the look `name` has lost the keyboard that it sent: another
+    /// client took it ([`Focus::lost`]), a node of another client has it, or
+    /// the core focuses another surface than the sent one, or none.
+    #[must_use]
+    pub fn lost_to_other(&self, name: &str) -> bool {
+        self.lost
+            || self.taken_by_other(name)
+            || (self.sent && self.surface.is_some() && self.core != self.surface)
     }
 
     /// Who holds the keyboard, without the node of `focus.node`.
