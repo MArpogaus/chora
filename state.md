@@ -23,7 +23,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| xp-super-start-r1.md (RC 2, sh-23 MAJOR: Super+Return in tiling opens xp Start) | sonnet medium, claude/xp-super-start 618ae513 | starting |
+| xp-super-start-r1.md (RC 2, sh-23 MAJOR: Super+Return in tiling opens xp Start) | sonnet medium, claude/xp-super-start 618ae513 | session_016iS3kNrfzbRGzgxdFxe3hK 23:57 |
 | guide-checks-r3.md (F7: review r2 FIX, rg-9 MAJOR flaky rows, rg-10, rg-11) | sonnet medium, claude/guide-checks 4efbf430 | session_016iS3kN5ar7g9J3RE64oRKz 23:42 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
 
