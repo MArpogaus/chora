@@ -24,11 +24,12 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ |
+| p2-r3-xp.md (RC 2: xp persona r3 on c61ad6c8 = 85c + xp-24) | sonnet medium | starting |
 | review-mc-fix-r1.md (RC 2: b4104cae; mc-48, 49 fixed, mc-47 fuzzel, P2-CHECK) | sonnet high | session_016iS3kNGeN79e99qkcgpHnF |
 
 ## Queue (% week; 5 % reserve)
 4. Trains: t86 running: harness-l 75dfa4b9 (own train); t87 next: co-r4 42c9304b (MERGE-OK 08:40, contains co-majors-r3), xp-24 2d1e06c6 (MERGE-OK 08:05), core-l b1d1491d (MERGE-OK 08:02), flakes-k e2508ec1 (MERGE-OK 08:25); PATH with fuzzel 1.11.1 (GATE-SILENT).
-5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5), XP-24 1 %, REVIEW MC-FIX 0.5 %; next: XP persona r3 (RC 2, xp-35 fix in t85b), LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
+5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5), XP-24 1 %, REVIEW MC-FIX 0.5 %; running: XP persona r3 1 % (RC 2); next: LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
