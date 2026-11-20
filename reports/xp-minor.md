@@ -21,3 +21,12 @@ Base fee9c695..22884a79, 5 files +145 -22; each fix has its red first.
 - Items 2 (balloon through chora-notify first, 6 s), 3 (slider row, click sets the level of its place, unlit), 4 (plain words): hold by their cells and captures; no finding.
 - pr1-2 NIT: the slider takes clicks only, no drag; XP drags. Backlog.
 Verdict: FIX (open MAJOR). r2: item 1 only.
+
+## r2
+Branch claude/xp-minor, head fca4f8b5. Item 1 (pr1-1): `ask` in crates/chora-kit/src/launcher.rs decides by the stderr line: Failed with the text after the first trimmed "err:" line, else Closed (warn, info, nothing, a signal), whatever the exit code. Doc comment of `ask` updated.
+
+| red | fix | cells |
+|-----|-----|-------|
+| c8b3952d | fca4f8b5 | a_launcher_that_fails_says_why_once (back at exit 1, " err: config.c:17: [colors].prompt: invalid key" -> notice with that text), an_err_line_after_a_warning_is_the_reason (new), a_warning_then_escape_stays_silent (unchanged, exit 1) |
+
+Gate (--jobs 1): pre-commit, ci-check, build, test, clippy, gate-lib, xp, xp-question, launcher-click, doors: all PASS.
