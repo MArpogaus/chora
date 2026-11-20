@@ -18,7 +18,7 @@
 # three lines filter by /proc/PID/environ (as session_pids does) passes.
 # A name followed by another name (`for t in pgrep pkill`) is no call,
 # nor are plain words after `need` or `command -v` (`need pgrep pkill
-# jq`), in any order. A
+# jq`), in any order, also after `if`, `elif`, `while`, `until` or `!`. A
 # first argument held in a variable (`pgrep $scope -x foot`) cannot be
 # read, so it only warns.
 #
@@ -69,7 +69,7 @@ for file in "$@"; do
         }
         function verdict(command, n,    rest, word, args) {
             if (command !~ /\$\(|`/ && command ~ /^[[:space:]]*(echo|printf|for)([[:space:]]|$)/) return ""
-            if (command ~ /^[[:space:]]*(need|command[[:space:]]+-v)([[:space:]]+[[:alnum:]_.\/>-]+)+[[:space:]]*$/) return ""
+            if (command ~ /^[[:space:]]*((if|elif|while|until)[[:space:]]+)?(![[:space:]]+)?(need|command[[:space:]]+-v)([[:space:]]+[[:alnum:]_.\/>-]+)+[[:space:]]*$/) return ""
             rest = command
             while (match(rest, /(^|[^[:alnum:]_-])(pkill|killall|pidof|pgrep)[[:space:]]+[^[:space:]>)]/)) {
                 rest = substr(rest, RSTART + RLENGTH - 1)

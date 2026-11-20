@@ -18,7 +18,8 @@ Known limits: block comments are not checked, shell quotes do not span
 lines, a here-document starts only when a line equal to its delimiter
 follows, a backslash always escapes inside a Python string (also in raw
 strings), a renamed file is paired only by git's own rename detection,
-and the hook sees the staged diff only, so `--all-files` checks nothing
+a line whose text is removed anywhere in the staged diff counts as moved
+and is not checked (an edit that restores a removed line passes too), and the hook sees the staged diff only, so `--all-files` checks nothing
 that is already committed.
 """
 import re
@@ -187,8 +188,18 @@ def renamed_from(path):
     return None
 
 
+def removed_texts():
+    diff = git("diff", "--cached", "-M", "-U0", "--no-color", "--no-ext-diff")
+    return {
+        line[1:].strip()
+        for line in diff.splitlines()
+        if line.startswith("-") and not line.startswith("---") and line[1:].strip()
+    }
+
+
 def added_numbers(path):
     old = renamed_from(path)
+    removed = removed_texts()
     diff = git(
         "diff", "--cached", "-M", "-U0", "--no-color", "--no-ext-diff",
         "--diff-filter=ACMR", "--", path, *([old] if old else []),
@@ -201,7 +212,8 @@ def added_numbers(path):
             number = int(HUNK.match(line).group(1))
             in_hunk = True
         elif in_hunk and line.startswith("+"):
-            numbers.add(number)
+            if line[1:].strip() not in removed:
+                numbers.add(number)
             number += 1
     return numbers
 

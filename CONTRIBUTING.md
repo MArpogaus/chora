@@ -120,7 +120,9 @@ The hooks run:
   command substitution is, quoted or not; a `pgrep` filtered by
   `/proc/PID/environ` (`session_pids`) passes, and a first argument in a
   variable (`pgrep $scope -x foot`) only warns
-- the guard test: `tests/guards.sh` runs when a guard or its test changes
+- the guard test: `tests/guards.sh` runs when a guard or its test changes;
+  a commit that only adds `*_case` lines to it passes while it is red (the
+  red commit of a test-first change), any other change to a red one does not
 
 Run all hooks on all files before a push:
 
