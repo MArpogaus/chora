@@ -882,3 +882,29 @@ fn the_key_sheet_does_not_focus_a_pane_that_is_out_of_sight_on_close() {
     let focuses = core.model().lock().unwrap().focuses.clone();
     assert_eq!(focuses.len(), before, "{focuses:?}");
 }
+
+/// co-pane r1: while the key sheet shows, Escape is a grab of the plugin,
+/// so that it closes the sheet even when a program of a face has the
+/// keyboard (an XP Start menu opened by Super took it and kept it).
+#[test]
+fn escape_is_grabbed_while_the_key_sheet_shows_and_closes_it() {
+    let (mut construct, _core, _lines) = on_core("help-escape", cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    assert!(construct.rt.action("Escape").is_none(), "no grab before");
+    construct.toggle_help().unwrap();
+    assert!(matches!(
+        construct.rt.action("Escape"),
+        Some(crate::Grab::CloseHelp)
+    ));
+    let pressed = Event::InputKey {
+        binding: "Escape".into(),
+        state: crate::PressState::Pressed,
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, pressed).unwrap();
+    assert!(!construct.help, "the grabbed Escape closes the sheet");
+    assert!(
+        construct.rt.action("Escape").is_none(),
+        "the grab goes with the sheet"
+    );
+}

@@ -538,10 +538,30 @@ impl Construct {
             }
         }
         self.grab_cube_keys();
+        self.grab_help_escape();
         if self.keys_with_pane() && self.cube.is_none() {
             self.swallow_for_window()?;
         }
         self.rt.end_grabs()
+    }
+
+    /// Escape is a grab while the key sheet shows: it closes the sheet
+    /// whoever has the keyboard.
+    fn grab_help_escape(&mut self) {
+        if !self.help {
+            return;
+        }
+        let grabbed = "Escape"
+            .parse()
+            .map_err(|e| format!("{e}"))
+            .and_then(|key| {
+                (self.rt)
+                    .grab(key, Grab::CloseHelp)
+                    .map_err(|e| e.to_string())
+            });
+        if let Err(err) = grabbed {
+            eprintln!("chora-construct: the Escape of the help: {err}");
+        }
     }
 
     /// Swallows the chords of the modifier that no binding uses, and the

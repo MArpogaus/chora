@@ -260,6 +260,7 @@ impl Construct {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
                     Some(Grab::Swallow) => Ok(()),
+                    Some(Grab::CloseHelp) => self.close_help_by_escape(),
                     Some(&Grab::Own(Own::Windows)) => self.open_list(),
                     Some(&Grab::Own(_)) => {
                         self.cube_key();
@@ -701,11 +702,7 @@ impl Construct {
         };
         let own = self.settings.value.action(key, modifiers) == Some(&Action::System(System::Keys));
         match key {
-            "Escape" if !self.help_query.is_empty() => {
-                self.help_query.clear();
-                self.help_sel = 0;
-            }
-            "Escape" => return self.toggle_help().map(|()| true),
+            "Escape" => return self.close_help_by_escape().map(|()| true),
             _ if own => return self.toggle_help().map(|()| true),
             "Up" => self.help_sel = self.help_sel.saturating_sub(1),
             "Down" => self.help_sel += 1,
@@ -723,6 +720,20 @@ impl Construct {
         }
         self.draw_help(false)?;
         Ok(true)
+    }
+
+    /// Escape in the open help clears the search, and closes the help when
+    /// there is none.
+    pub(crate) fn close_help_by_escape(&mut self) -> Result<(), ClientError> {
+        if !self.help {
+            return Ok(());
+        }
+        if self.help_query.is_empty() {
+            return self.toggle_help();
+        }
+        self.help_query.clear();
+        self.help_sel = 0;
+        self.draw_help(false)
     }
 
     /// A drag with the modifier moves a pane: sideways along its face,

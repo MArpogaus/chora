@@ -300,6 +300,7 @@ impl Construct {
                 .conn
                 .try_apply(vec![hud::fade(hud::HELP, 0.0, hud::FADE_OUT)])?;
         }
+        self.regrab()?;
         let label = self.label_commands();
         self.rt.conn.apply(label)?;
         self.draw_modes()
