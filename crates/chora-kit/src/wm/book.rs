@@ -28,8 +28,8 @@ pub enum Origin {
         #[serde(skip_serializing_if = "Option::is_none")]
         token: Option<String>,
     },
-    /// A window that the core reserved for the look: another window
-    /// manager gave it (D55), or the core kept it for the look.
+    /// A window that another window manager gave to the look (D55): it
+    /// arrives as `surface.detached`.
     Given,
     /// A window that the look kept over a restart.
     Kept,
@@ -248,6 +248,10 @@ impl Book {
     /// manager, or that the look has or waits for, stays; without an
     /// output a surface reserved for the look passes on.
     pub fn claim(&mut self, id: &str, to: Option<&str>, token: Option<String>) -> Vec<Change> {
+        self.claim_as(id, to, Origin::New { token })
+    }
+
+    fn claim_as(&mut self, id: &str, to: Option<&str>, origin: Origin) -> Vec<Change> {
         let mine = to == Some(self.name.as_str());
         if to.is_some() && !mine || self.has(id) || self.pending.contains_key(id) {
             return Vec::new();
@@ -259,11 +263,6 @@ impl Book {
                 Vec::new()
             };
         }
-        let origin = if mine {
-            Origin::Given
-        } else {
-            Origin::New { token }
-        };
         self.pending
             .insert(id.into(), Pending::Adopt(origin.clone()));
         vec![Change::Adopt {
@@ -285,7 +284,7 @@ impl Book {
             } => self.claim(surface, to.as_deref(), token.clone()),
             Event::SurfaceDetached { surface } => {
                 let mut changes = self.leave(surface, Why::Detached);
-                changes.extend(self.claim(surface, None, None));
+                changes.extend(self.claim_as(surface, None, Origin::Given));
                 changes
             }
             Event::SurfaceDestroyed { surface } => {

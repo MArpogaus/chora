@@ -147,7 +147,7 @@ mod tests {
         core.model().lock().unwrap().scene.reserve("s2", Some(NAME));
         xp.event(created("s2", Some(NAME))).unwrap();
         assert_eq!(origin(&xp, "s1"), "new");
-        assert_eq!(origin(&xp, "s2"), "given");
+        assert_eq!(origin(&xp, "s2"), "new");
         let state = xp.state().unwrap();
         assert!(!state.to_string().contains("t1"), "no token: {state}");
     }
