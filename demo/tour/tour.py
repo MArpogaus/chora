@@ -10,6 +10,7 @@ on the screen. Frames become an H.264 chunk and are deleted at once.
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,6 +37,26 @@ def slide_size():
 def checking():
     """`run.py --check`: the rows run and are judged, nothing is encoded."""
     return bool(os.environ.get("TOUR_CHECK"))
+
+
+KNOWN = re.compile(r"^((?:I\d+|expect)(?:,(?:I\d+|expect))*)(?::\s*(.*))?$", re.DOTALL)
+
+
+def known_keys(known):
+    """The invariant keys (`I4`, or `expect` for a mismatch of the act's `expect`) that a `known=`
+    names: `known="I4: why"` or `known="I4,I5"`. A word that names none is an error."""
+    m = KNOWN.match(known)
+    if not m:
+        raise ValueError(f"known={known!r}: start with the invariant it hides, `I4: why` (or `expect: why`)")
+    return m.group(1).split(",")
+
+
+def red_key(line):
+    """The key of a red line of `Checker.judge`: `I4` of `I4: ...`, `snapshot` for a failed read, else `expect`."""
+    m = re.match(r"(I\d+):", line)
+    if m:
+        return m.group(1)
+    return "snapshot" if line.startswith("no snapshot") else "expect"
 
 
 def mmss(frame):
@@ -168,6 +189,8 @@ class Tour:
         self.before = None
         self.expects = {}
         self.armed = []
+        self.quiet_gap = 0.3
+        self.quiet_timeout = 20.0
 
     def begin(self, chapter, slug):
         self.chapter = chapter
@@ -308,9 +331,14 @@ class Tour:
         judged with every invariant at the next read of the session after `done`), `contract`
         (a persona contract, T1..M2), `cells` (the gate cells the act repeats on screen),
         `capture` (Q, Q+t, H50), `todo` (a stub for an act that waits for xp-give: no
-        check, a `todo` row) and `known` (why a red act is red today, the way a row of
-        tests/acts/known-red.toml does: shown as `known`, not counted as a failure; a `known`
-        act that turns green says so, so the row can go)."""
+        check, a `todo` row) and `known` (`"I4: why"`: the invariant that is red today and why,
+        the way a row of tests/acts/known-red.toml does; only a red of that invariant is shown
+        as `known` and not counted, any other red of the act stays `RED`; a `known` act that
+        turns green says `drop known`). The verdict of a row: `RED` (a red line that is not
+        known), `known`, `green` (an `expect` was given and held, and every invariant), `inv`
+        (no `expect`: the invariants I1 to I14 hold, nothing more is claimed), `todo`."""
+        if known is not None:
+            known_keys(known)
         lead = LEAD if lead is None else lead
         tail = LEAD if tail is None else tail
         if not todo:
@@ -331,6 +359,7 @@ class Tour:
             "expect": repr(expect) if expect is not None else None,
             "status": "todo" if todo else "checked",
             "red": [],
+            "hidden": [],
             "known": known,
             "opens": list(opens),
             "closes": list(closes),
@@ -358,26 +387,55 @@ class Tour:
             if self.checker:
                 self.flush("act")
 
+    def quiet_snapshot(self):
+        """The state of the session at a quiet frame: read until no look says `busy` (a page turn,
+        a wobble), at most `quiet_timeout` s, so that a read does not fall into an animation (rt-3).
+        A look that has no `busy` key cannot say; its state is taken as read."""
+        import harness
+
+        after = self.checker.snapshot()
+        end = time.monotonic() + self.quiet_timeout
+        while True:
+            try:
+                busy = harness.busy_of(after.states)
+            except harness.NotQuiet:
+                return after
+            if not busy:
+                return after
+            if time.monotonic() >= end:
+                print(f"still busy at the read of act {self.armed[-1]['act']}: {', '.join(busy)}", flush=True)
+                return after
+            time.sleep(self.quiet_gap)
+            after = self.checker.snapshot()
+
     def check_armed(self):
-        """Judge the acts that are done: the state of the session now against the state at the last
-        read. A red act is a red row of the timeline (`row["red"]`, status `RED`)."""
+        """Judge the acts that are done: the state of the session at a quiet frame against the state
+        at the last read. A red line that the row's `known` names is hidden (`row["hidden"]`, status
+        `known`); any other red line is `row["red"]` and the status `RED`; with none the status is
+        `green` when the act has an `expect` and `inv` when it has not."""
         if not self.checker or not self.armed:
             return
         try:
-            after = self.checker.snapshot()
+            after = self.quiet_snapshot()
         except Exception as err:  # noqa: BLE001
             after = None
             note = f"no snapshot: {type(err).__name__}: {err}"
         for row in self.armed:
-            if after is None:
-                row["red"] = [note]
-            else:
-                row["red"] = self.checker.judge(row, self.expects.pop(id(row)), self.before or after, after)
-            row["status"] = ("known" if row.get("known") else "RED") if row["red"] else "green"
-            if row["red"] and row.get("known"):
-                print(f"known act {row['act']} {row['description']}: {row['known']}", flush=True)
-            elif row["red"]:
+            expect = self.expects.pop(id(row))
+            lines = [note] if after is None else self.checker.judge(row, expect, self.before or after, after)
+            keys = known_keys(row["known"]) if row.get("known") else []
+            row["hidden"] = [line for line in lines if red_key(line) in keys]
+            row["red"] = [line for line in lines if red_key(line) not in keys]
+            if row["red"]:
+                row["status"] = "RED"
                 print(f"RED act {row['act']} {row['description']}: {row['red']}", flush=True)
+            elif row["hidden"]:
+                row["status"] = "known"
+                print(f"known act {row['act']} {row['description']}: {row['known']}", flush=True)
+            else:
+                row["status"] = "green" if row["expect"] is not None else "inv"
+                if row.get("known"):
+                    print(f"known act {row['act']} is green: drop known ({row['description']}: {row['known']})", flush=True)
         self.armed = []
         if after is not None:
             self.before = after

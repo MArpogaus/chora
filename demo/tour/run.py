@@ -6,8 +6,8 @@
 Without `--check` each chapter is recorded (MP4, stills, rows) in TOUR_OUT and the timeline table
 is assembled. With `--check` the same rows run without video and pace work: no chunks, no stills,
 nothing encoded; the rows go to a scratch folder. Either way every act with an `expect` is judged
-by the act harness (design/tour-v9.md section 0). Prints one line per chapter and a `RED` line per
-red act; `todo` rows (stubs that wait for xp-give) are counted, not judged. Exit 1 when a row is red.
+by the act harness (design/tour-v9.md section 0): `green` when its `expect` held, `inv` when it has
+none and only the invariants held. Prints one line per chapter and a `RED` line per red act; `todo` rows (stubs that wait for xp-give) are counted, not judged. Exit 1 when a row is red.
 """
 
 import importlib
@@ -21,11 +21,11 @@ import traceback
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 CHAPTERS = {
-    "xp": ["rows-ch1.json"],
-    "tiling": ["rows-ch2.json"],
-    "mc": ["rows-ch3-light.json", "rows-ch3b-dark.json"],
-    "construct": ["rows-ch4.json"],
-    "handover": ["rows-ch5.json"],
+    "xp": ["rows-xp.json"],
+    "tiling": ["rows-tiling.json"],
+    "mc": ["rows-mc-light.json", "rows-mc-dark.json"],
+    "construct": ["rows-construct.json"],
+    "handover": ["rows-handover.json"],
 }
 
 
@@ -36,19 +36,12 @@ class Ctx:
 
 
 def tally(rows):
-    """Counts by status: green, red, todo and unchecked."""
-    count = {"green": 0, "red": 0, "known": 0, "todo": 0, "unchecked": 0}
+    """Counts by status: green (an `expect` held), inv (no `expect`, only the invariants held),
+    known, red, todo and unchecked."""
+    count = {"green": 0, "inv": 0, "known": 0, "red": 0, "todo": 0, "unchecked": 0}
     for r in rows:
-        if r.get("red") and r.get("known"):
-            count["known"] += 1
-        elif r.get("red"):
-            count["red"] += 1
-        elif r.get("status") == "todo":
-            count["todo"] += 1
-        elif r.get("status") == "green":
-            count["green"] += 1
-        else:
-            count["unchecked"] += 1
+        key = {"RED": "red"}.get(r.get("status"), r.get("status"))
+        count[key if key in count else "unchecked"] += 1
     return count
 
 
@@ -88,9 +81,9 @@ def main(argv):
         rows = rows_of(out, CHAPTERS[name])
         c = tally(rows)
         red += c["red"]
-        print(f"chapter {name}: {len(rows)} acts, {c['green']} green, {c['red']} red, {c['known']} known, {c['todo']} todo, {c['unchecked']} unchecked")
+        print(f"chapter {name}: {len(rows)} acts, {c['green']} green, {c['inv']} inv, {c['known']} known, {c['red']} red, {c['todo']} todo, {c['unchecked']} unchecked")
         for r in rows:
-            if r.get("red") and not r.get("known"):
+            if r.get("status") == "RED":
                 print(f"  RED act {r['act']}: {r['description']}: {'; '.join(r['red'])}")
     if check:
         shutil.rmtree(out, ignore_errors=True)

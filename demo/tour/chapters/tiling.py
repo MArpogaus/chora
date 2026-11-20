@@ -84,6 +84,6 @@ def run(ctx):
         t.reach(PX, PY); t.click(); t.wait(1.6); t.done()
         slide(f"{L.dir}/slide.png", 2, "tiling: a project in tiles", ["A hacker opens a shell and three windows,", "re-tiles, uses tags, floats a window and keeps a screenshot."], accent=(158, 206, 106))
         t.finish("02-tiling.mp4", slide=f"{L.dir}/slide.png")
-        json.dump(t.rows, open(f"{OUT}/rows-ch2.json", "w"), indent=1)
+        json.dump(t.rows, open(f"{OUT}/rows-tiling.json", "w"), indent=1)
     finally:
         L.stop()

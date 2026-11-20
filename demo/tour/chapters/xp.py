@@ -9,10 +9,8 @@ from harness import Expect
 from slides import slide
 
 def notice_shown(after):
-    """F-1: chora-notify expires a notice on the wall clock and `choractl record` steps the scene
-    clock (a frame takes seconds of wall time), so the notice was closed before the act was read; the
-    notify config of this chapter keeps it for 600 s. The notice of Notepad is in `shown` of chora-notify when the act is read (a bus-level
-    check; a frame-level one needs the notice to outlive the stepped clock)."""
+    """F-1: the notice of Notepad is in `shown` of chora-notify when the act is read (a bus-level
+    check; the card of the frame is looked at in the RECORD run: launch.notify_config keeps it up)."""
     block = (after.blocks or {}).get("notify") or {}
     return [] if block.get("shown") or block.get("waiting") else [f"no notice in chora-notify: {block}"]
 
@@ -26,7 +24,6 @@ def run(ctx):
     open(f"{L.dir}/xp.yaml", "w").write(yaml)
     open("/home/user/notes/letter.txt", "w").write("")
     env = L.start([f"{BIN}/chora-xp", "--theme", f"{REPO}/flavors/xp/theme", "--config", f"{L.dir}/xp.yaml"], flavor="xp", xp=True,
-                  extra_config={"chora-notify.yaml": "position: bottom_right\nshortest: 600\nlongest: 600\n"},
                   companions=[[f"{BIN}/chora-notify", "--assets", f"{REPO}/flavors/xp/assets/notify"], [f"{BIN}/chora-assistant"]])
     S = Session(env, L.pids, BIN)
     time.sleep(6)
@@ -160,11 +157,11 @@ def run(ctx):
         t.key("Ctrl+Alt+Right"); t.wait(0.5); t.still("01-16-cube-mid"); t.cut(0.5); t.wait(0.7); t.still("01-17-cube-desktop2"); t.done()
         t.act("key", "Ctrl+Alt+Left: back to the first desktop", "The first desktop", still=None, settle=0.1, lead=0.1)
         t.key("Ctrl+Alt+Left"); t.cut(0.6); t.wait(0.7); t.still("01-18-cube-back"); t.done()
-        t.act("pointer", "Super held, drags on the desktop to turn the cube", "The desktop follows the pointer like a cube", still=None, settle=0.1, lead=0.1, known="Super released after the drag opens the Start menu (I4)")
+        t.act("pointer", "Super held, drags on the desktop to turn the cube", "The desktop follows the pointer like a cube", still=None, settle=0.1, lead=0.1, known="I4: Super released after the drag opens the Start menu")
         t.drag(900, 250, 500, 250, seconds=0.9, mods=("Super_L",), hold=0.1, mid_still="01-19-super-drag-mid")
         t.cut(0.4); t.wait(0.7); t.still("01-20-super-drag-end"); t.done()
         slide(f"{L.dir}/slide.png", 1, "xp: a letter for Anna", ["Erika writes a letter, asks the paperclip how to make", "the sound louder, and finds the answer in the Start menu."])
         t.finish("01-xp.mp4", slide=f"{L.dir}/slide.png")
-        json.dump(t.rows, open(f"{OUT}/rows-ch1.json", "w"), indent=1)
+        json.dump(t.rows, open(f"{OUT}/rows-xp.json", "w"), indent=1)
     finally:
         L.stop()

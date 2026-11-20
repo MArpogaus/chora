@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """The timeline table and the joined MP4 from the rows of the chapters.
 
-A row that has an `expect` shows its verdict in the last column: `green`, `RED: ...` (what the
-act harness found: a mismatch of `expect` or a broken invariant), `todo` (a stub that waits for
-xp-give) or `-` (no check). `table(...)` is pure; `main()` reads TOUR_OUT.
+The last column is the verdict of the act harness: `green` (an `expect` was given and held, and
+every invariant), `inv` (no `expect`: only the invariants I1 to I14 were checked), `RED: ...` (a
+mismatch of `expect` or a broken invariant), `known: ...` (a red of the invariant that the row
+names), `todo` (a stub that waits for xp-give) or `-` (never judged). `contract`, `cells` and
+`capture` say what the act stands for. `table(...)` is pure; `main()` reads TOUR_OUT.
 """
 
 import json
@@ -11,14 +13,14 @@ import os
 import subprocess
 
 CHAPTERS = [
-    ("1 xp", "01-xp.mp4", "rows-ch1.json"),
-    ("2 tiling", "02-tiling.mp4", "rows-ch2.json"),
-    ("3 mc (light)", "03-mc-light.mp4", "rows-ch3-light.json"),
-    ("3b mc (dark)", "03b-mc-dark.mp4", "rows-ch3b-dark.json"),
-    ("4 construct", "04-construct.mp4", "rows-ch4.json"),
-    ("5 handover", "05-handover.mp4", "rows-ch5.json"),
+    ("1 xp", "01-xp.mp4", "rows-xp.json"),
+    ("2 tiling", "02-tiling.mp4", "rows-tiling.json"),
+    ("3 mc (light)", "03-mc-light.mp4", "rows-mc-light.json"),
+    ("3b mc (dark)", "03b-mc-dark.mp4", "rows-mc-dark.json"),
+    ("4 construct", "04-construct.mp4", "rows-construct.json"),
+    ("5 handover", "05-handover.mp4", "rows-handover.json"),
 ]
-HEAD = ["chapter", "mm:ss", "joined", "what the person does", "what should be seen", "still", "check"]
+HEAD = ["chapter", "mm:ss", "joined", "what the person does", "what should be seen", "contract", "cells", "capture", "still", "check"]
 
 
 def mmss(seconds):
@@ -28,16 +30,16 @@ def mmss(seconds):
 
 def verdict(row):
     """The check column of a row."""
-    if row.get("red") and row.get("known"):
-        return f"known: {row['known']}"
     if row.get("red"):
         return "RED: " + "; ".join(row["red"])
-    return {"todo": "todo", "green": "green"}.get(row.get("status"), "-")
+    if row.get("status") == "known":
+        return f"known: {row['known'].split(': ', 1)[-1]}"
+    return {"todo": "todo", "green": "green", "inv": "inv"}.get(row.get("status"), "-")
 
 
 def row_line(chapter, row, offset=0.0):
     sec = row.get("abs", row["frame"]) / 30
-    cells = [chapter, mmss(sec), mmss(offset + sec), row["description"], row["expected"], row.get("still") or "", verdict(row)]
+    cells = [chapter, mmss(sec), mmss(offset + sec), row["description"], row["expected"], row.get("contract") or "", "; ".join(row.get("cells") or ()), row.get("capture") or "", row.get("still") or "", verdict(row)]
     return "| " + " | ".join(str(c).replace("|", "/").replace("\n", " ") for c in cells) + " |"
 
 
@@ -46,7 +48,7 @@ def table(chapters, title, build="unknown"):
     lines = [
         f"# Timeline of {title}",
         "",
-        f"One row per act. `mm:ss` is the start of the act in the MP4 of its chapter; `joined` the same moment in `tour-all.mp4`. Build: {build}. `check` is the verdict of the act harness (`expect` and the invariants I1 to I14): a red act is a red row.",
+        f"One row per act. `mm:ss` is the start of the act in the MP4 of its chapter; `joined` the same moment in `tour-all.mp4`. Build: {build}. `check` is the verdict of the act harness (`green`: `expect` held; `inv`: no `expect`, the invariants I1 to I14 held; a red act is a red row).",
         "",
         "| " + " | ".join(HEAD) + " |",
         "|" + "---|" * len(HEAD),
@@ -57,7 +59,7 @@ def table(chapters, title, build="unknown"):
 
 
 def red_rows(chapters):
-    return [(name, r) for name, rows, _ in chapters for r in rows if r.get("red")]
+    return [(name, r) for name, rows, _ in chapters for r in rows if r.get("status") == "RED"]
 
 
 def duration(path):
