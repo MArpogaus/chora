@@ -5,9 +5,11 @@ the persona. It joins the session of tests/persona/session.sh as the client
 persona-check (screen.capture and methods.call, no input).
 
 Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
-  start                  take the snapshot a task is held against; the
-                         driver runs it before each task (the first call
-                         also starts the run)
+  start                  start the run: the first snapshot (round.sh runs it)
+  begin                  take the snapshot a task is held against: the
+                         windows open when the task starts; the driver runs
+                         it before each task. `end` reads the newest begin,
+                         or `start` when there is none
   after ACTION           run the invariants on what ACTION changed since the
                          last snapshot and append the breaches to
                          $PERSONA_DIR/breaches.jsonl; act.py runs it after
@@ -56,7 +58,16 @@ SHEETS = {
     "mc": "mc-keys",
     "construct": "construct-help",
 }
-CODES = {"Space": 57, "Return": 28, "Escape": 1, "F1": 59, "Print": 210, "a": 30, "e": 18, "/": 53}
+LETTERS = dict(
+    zip(
+        "qwertyuiopasdfghjklzxcvbnm",
+        [16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+        + [30, 31, 32, 33, 34, 35, 36, 37, 38]
+        + [44, 45, 46, 47, 48, 49, 50],
+        strict=True,
+    )
+)
+CODES = LETTERS | {"Space": 57, "Return": 28, "Escape": 1, "F1": 59, "Print": 210, "Tab": 15, "/": 53}
 POWER = r"(systemctl .*(suspend|poweroff|reboot|hibernate|halt|kexec)|loginctl terminate)"
 
 
@@ -116,6 +127,7 @@ class Run:
             "action": action,
             "open": open_ids,
             "helper": {k: (v or {}).get("helper") for k, v in snap.states.items()},
+            "toplevels": sorted(snap.toplevels),
             "keysheet": None,
         }
         if SHEETS[look] in open_ids:
@@ -278,9 +290,13 @@ def verify_system(ctx, part):
 def verify_probe(ctx):
     """The probe window got no key of a Super chord the persona pressed."""
 
-    def verify(_after):
+    def verify(after_):
         if not ctx.probe:
             return ["no --probe FILE: the report of chora-probe window --report"]
+        if not pathlib.Path(ctx.probe).exists():
+            return [f"no report {ctx.probe}: round.sh probe NAME starts the probe"]
+        if not any((n.get("surface") or {}).get("app_id") == "chora-probe" for n in after_.nodes):
+            return ["no chora-probe window in the scene: the probe died or never showed"]
         got = {
             line.split()[1]
             for line in pathlib.Path(ctx.probe).read_text(encoding="utf-8").splitlines()
@@ -288,6 +304,21 @@ def verify_probe(ctx):
         }
         stray = [c for c in ctx.keys if str(c) in got]
         return [f"the probe window got the key {c} of a Super chord" for c in stray]
+
+    return verify
+
+
+def verify_no_window_lost(ctx, before):
+    """No window lost: every window that was open at the begin, or that came
+    while the task ran, is still there. A window opened during the task is
+    no breach."""
+    seen = set(before.toplevels)
+    for h in ctx.hist:
+        seen |= set(h.get("toplevels") or [])
+
+    def verify(after_):
+        lost = sorted(seen - after_.toplevels)
+        return [f"windows lost {lost}"] if lost else []
 
     return verify
 
@@ -380,7 +411,7 @@ def contracts(task, ctx, before):
         "M1": Expect(verify=verify_changed(before, shown_scene)),
         "M2": Expect(open=[], focus="mc"),
         "C1": Expect(cube={}),
-        "C2": Expect(verify=same),
+        "C2": Expect(verify=verify_no_window_lost(ctx, before)),
         "C3": Expect(focus=ctx.look),
     }
     return table.get(name)
@@ -398,6 +429,11 @@ def parse_chords(actions):
     return codes
 
 
+def baseline(run):
+    """The snapshot a task is held against: the newest `begin`, else `start`."""
+    return "begin" if run.load("begin") else "start"
+
+
 def end(run, args):
     """Check the tasks against the snapshot of `start`."""
     look, probe, tasks = run.s.label, None, []
@@ -409,11 +445,12 @@ def end(run, args):
             probe = next(it)
         else:
             tasks.append(a)
-    saved = run.load("start")
+    name = baseline(run)
+    saved = run.load(name)
     if saved is None:
         sys.exit("check.py: no `start` yet")
     before, _marks, n_calls = saved
-    since = (run.state_dir / "start.json").stat().st_mtime
+    since = (run.state_dir / f"{name}.json").stat().st_mtime
     now = run.snapshot()
     log = pathlib.Path(run.s.env["PERSONA_LOG"])
     actions = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
@@ -450,10 +487,12 @@ def main():
     command, args = sys.argv[1], sys.argv[2:]
     run = Run(path)
     try:
-        if command == "start":
+        if command in ("start", "begin"):
             now = run.snapshot()
-            run.save("start", now, run.marks())
+            run.save(command, now, run.marks())
             run.save("last", now, run.marks())
+            if command == "start":
+                (run.state_dir / "begin.json").unlink(missing_ok=True)
             return 0
         if command == "after" and args:
             try:

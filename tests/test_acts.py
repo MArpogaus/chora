@@ -41,6 +41,12 @@ def surface(sid, owner, output="HEADLESS-1", focused=False, rect=(10, 10, 300, 2
     return node
 
 
+def probe_surface(sid="p1"):
+    node = surface(sid, "construct")
+    node["surface"] = {"app_id": "chora-probe"}
+    return node
+
+
 def window(sid, shown=True):
     return {"surface": sid, "shown": shown, "output": "HEADLESS-1"}
 
@@ -1009,10 +1015,11 @@ class PersonaContracts(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".report") as report:
             report.write("key 30\nkey 57\n")
             report.flush()
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
             quiet = ctx(probe=report.name, keys=[28])
-            self.assertEqual(verdict("T5", quiet, snap(), snap()), [])
+            self.assertEqual(verdict("T5", quiet, snap(), alive), [])
             stray = ctx(probe=report.name, keys=[57])
-            self.assertIn("key 57", verdict("T5", stray, snap(), snap())[0])
+            self.assertIn("key 57", verdict("T5", stray, snap(), alive)[0])
         self.assertIn("--probe", verdict("T5", ctx(), snap(), snap())[0])
 
     def test_t5_chords_become_codes(self):
@@ -1022,6 +1029,11 @@ class PersonaContracts(unittest.TestCase):
             {"action": "type", "args": {"text": "Super+a"}},
         ]
         self.assertEqual(check.parse_chords(actions), [57])
+
+    def test_t5_the_chords_of_the_persona_briefs_have_codes(self):
+        combos = ["Super+d", "Super+q", "Super+Tab", "Super+Shift+Escape", "Super+t", "Super+c"]
+        actions = [{"action": "key", "args": {"combo": c}} for c in combos]
+        self.assertEqual(check.parse_chords(actions), [32, 16, 15, 1, 20, 46])
 
     def test_t6_a_notice_or_no_helper(self):
         say = snap(nodes=[surface("s1", "xp"), {"id": "t", "kind": "text", "text": "No helper"}])
@@ -1038,6 +1050,25 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("T7", ctx(), snap(), snap()), [])
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost ['s1']", verdict("T7", ctx(), snap(), gone)[0])
+
+    def test_t5_a_dead_probe_is_red(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = pathlib.Path(tmp) / "probe.report"
+            report.write_text("")
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
+            self.assertEqual(verdict("T5", ctx(probe=str(report)), snap(), alive), [])
+            out = verdict("T5", ctx(probe=str(report)), snap(), snap())
+            self.assertIn("no chora-probe window", out[0])
+            missing = verdict("T5", ctx(probe=str(report) + ".none"), snap(), alive)
+            self.assertIn("no report", missing[0])
+
+    def test_t5_a_key_that_reached_the_probe_is_red(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = pathlib.Path(tmp) / "probe.report"
+            report.write_text("key 32\n")
+            alive = snap(nodes=[probe_surface()], toplevels={"p1"})
+            out = verdict("T5", ctx(probe=str(report), keys=[32]), snap(), alive)
+            self.assertIn("got the key 32", out[0])
 
     def test_x1_window_shown_again_with_the_focus(self):
         hidden = {"xp": {"windows": [window("s1", shown=False)], "focus": {"holder": "xp"}}}
@@ -1124,6 +1155,30 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("C2", ctx("construct"), snap(), snap()), [])
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost", verdict("C2", ctx("construct"), snap(), gone)[0])
+
+    def test_c2_a_window_opened_during_the_task_is_no_breach(self):
+        empty = snap(nodes=[], toplevels=set())
+        opened = snap()
+        self.assertEqual(verdict("C2", ctx("construct"), empty, opened), [])
+
+    def test_c2_a_window_seen_during_the_task_and_gone_is_lost(self):
+        empty = snap(nodes=[], toplevels=set())
+        hist = [dict(seen(look="construct"), toplevels=["s1"])]
+        out = verdict("C2", ctx("construct", hist=hist), empty, empty)
+        self.assertIn("windows lost ['s1']", out[0])
+
+    def test_end_reads_the_newest_begin_else_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = object.__new__(check.Run)
+            run.state_dir = pathlib.Path(tmp)
+            run.calls = pathlib.Path(tmp) / "calls.log"
+            run.calls.write_text("")
+            run.save("start", snap(), {})
+            self.assertEqual(check.baseline(run), "start")
+            run.save("begin", snap(), {})
+            self.assertEqual(check.baseline(run), "begin")
+            run.state_dir.joinpath("begin.json").unlink()
+            self.assertEqual(check.baseline(run), "start")
 
     def test_c3_the_look_holds_the_focus(self):
         self.assertEqual(verdict("C3", ctx(), snap(), snap()), [])

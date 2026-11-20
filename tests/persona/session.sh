@@ -27,7 +27,9 @@
 #                when the session ends (default: nothing is kept)
 #   PERSONA_CHECK  1: act.py runs tests/persona/check.py after each action
 #                (written to the env file, so the driver need not export it)
-#   CHORA_BIN    the directory with the binaries (default: target/debug)
+#   CHORA_BIN    the directory with the binaries (default: target/debug); a
+#                snapshot is fine, the session gives chora-xp its theme
+#                (CHORA_XP_THEME) for the xp of a cube too
 #   CHORA_TEST_FLAGS  flags of the core, as tests/headless-session.sh
 #                takes them; --test-injected-press-is-real lets the
 #                injected keys of a persona reach the chat field
@@ -144,6 +146,7 @@ echo '[]' >"$dir/voice/entries.json"
 export PATH="$fakes:$bin:$PATH"
 export XDG_DATA_HOME=$dir/data
 export CHORA_SHARED_DIR=$shared
+export CHORA_XP_THEME=$repo/flavors/xp/theme
 export XDG_PICTURES_DIR=$dir/pictures
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 unset DBUS_SESSION_BUS_ADDRESS

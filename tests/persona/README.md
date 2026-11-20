@@ -90,7 +90,8 @@ of the acts (`tests/acts/invariants.py`) broke on the way.
 ```console
 $ tests/persona/round.sh start erika xp   # a free slot (2 at once), prints PERSONA_ENV=FILE
 $ export PERSONA_ENV=FILE
-$ python3 -I tests/persona/check.py start      # before each task: the snapshot it is held against
+$ tests/persona/round.sh probe erika       # T5 only: a chora-probe window; prints PROBE_REPORT=FILE
+$ python3 -I tests/persona/check.py begin      # before each task: the windows open now, the task is held against them
   ... the persona works with act.py; PERSONA_CHECK=1 is set by round.sh ...
 $ python3 -I tests/persona/check.py end T1 T4:volume   # one line per task, then the breaches
 $ tests/persona/round.sh stop erika
@@ -116,7 +117,13 @@ $ tests/persona/round.sh stop erika
   `scene.boxes`, the stand-in calls and the history of the run, never pixels.
   `--look LOOK` names the look of the task when it is the second one,
   `--probe FILE` the `--report` output of the `chora-probe window` that T5
-  needs. Exit status 1 when a contract is red or a breach is outside
+  needs (`round.sh probe NAME` starts it on the socket name, `WAYLAND_DISPLAY`,
+  not the socket path, and fails when it does not stay up; T5 is red when
+  the report is missing or no `chora-probe` window is in the scene).
+  `start` is the first snapshot of the run (round.sh runs it); `begin`
+  takes the one a task is held against, and `end` reads the newest `begin`.
+  C2 fails only for a window that was open at the begin, or came while the
+  task ran, and is gone at the end. Exit status 1 when a contract is red or a breach is outside
   `tests/acts/known-red.toml`.
 - A task passes when `check.py end` is green and the persona says reached.
   Contracts are selftested in `tests/test_acts.py`, a planted breach in
