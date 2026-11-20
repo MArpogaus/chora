@@ -50,12 +50,6 @@ impl Mc {
         if self.typing.is_some() {
             busy.push("typing".to_owned());
         }
-        if self
-            .fading_until
-            .is_some_and(|until| std::time::Instant::now() < until)
-        {
-            busy.push("fade".to_owned());
-        }
         let own = |s: &str| windows.iter().any(|w| w["surface"] == s);
         let focus = serde_json::to_value(self.focus.state(NAME, own)).unwrap_or_default();
         json!({"windows": windows, "focus": focus, "open": self.open().state(),
@@ -131,9 +125,18 @@ mod tests {
             mc.state().unwrap()["busy"]
                 .as_array()
                 .unwrap()
-                .contains(&json!("fade"))
+                .iter()
+                .any(|w| w.as_str().is_some_and(|w| w.starts_with("fade:")))
         };
         mc.show("agenda", true).unwrap();
+        let first: Vec<String> = mc.fading.keys().cloned().collect();
+        for node in first {
+            mc.event(chora_scene::Event::AnimationDone {
+                node: Some(node),
+                output: None,
+            })
+            .unwrap();
+        }
         assert!(!fades(&mc), "the first render has no set to fade");
         mc.show("morning", true).unwrap();
         assert!(fades(&mc), "a second set fades in over the first");

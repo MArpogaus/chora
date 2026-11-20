@@ -720,9 +720,6 @@ impl Mc {
                 duration: self.fade,
                 easing: Easing::EaseInOut,
             });
-            let ms = (self.fade + crate::FADE_SLACK).max(0.0);
-            self.fading_until =
-                Some(std::time::Instant::now() + std::time::Duration::from_secs_f64(ms / 1000.0));
         }
         self.left = old.is_some().then_some(left);
         self.sigs = sigs;

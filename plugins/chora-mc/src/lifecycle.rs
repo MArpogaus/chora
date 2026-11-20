@@ -122,7 +122,7 @@ impl Mc {
                     props,
                     duration,
                     ..
-                } if props.opacity.is_some() && *duration > 0.0 => {
+                } if (props.opacity.is_some() || props.color.is_some()) && *duration > 0.0 => {
                     let over = Duration::from_secs_f64(duration / 1000.0) + FADE_GRACE;
                     self.fading.insert(id.clone(), Instant::now() + over);
                 }

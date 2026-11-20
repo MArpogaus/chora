@@ -176,7 +176,7 @@ impl Mc {
         };
         let new = !commands.is_empty();
         commands.extend(self.place_window(&name, surface, true));
-        if let Some(err) = self.rt.conn.try_apply(commands)? {
+        if let Some(err) = self.try_apply(&commands)? {
             eprintln!("chora-mc: {surface}: {err}");
             if new {
                 self.scenes.remove(&name);
