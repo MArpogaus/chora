@@ -2370,6 +2370,30 @@ mod tests {
         assert!(mc.writing.is_empty());
     }
 
+    /// A build removes the nodes whose write animation runs and makes new
+    /// ones without it, so no end of it comes: mc is quiet at once, not
+    /// busy with a write that nobody finishes (mc-49).
+    #[test]
+    fn a_build_in_the_midst_of_a_write_leaves_mc_quiet() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-build", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it writes");
+        assert!(!mc.writing.is_empty());
+        mc.build().unwrap();
+        assert_eq!(
+            panel_effects(&mc, &model, "agenda"),
+            0,
+            "the new node rests"
+        );
+        assert_eq!(
+            mc.state().unwrap()["busy"],
+            json!([]),
+            "mc waits for the end of a write that was removed"
+        );
+    }
+
     /// After the watchdog of the core dropped the effects of mc, a scene
     /// shows without the write effect until the settings change.
     #[test]
