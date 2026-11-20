@@ -1,51 +1,100 @@
-import glob, json, os, subprocess, sys
-T = os.environ.get("TOUR_OUT", "/home/user/log/media/2026-11-16/tour-v3")
-BUILD = os.environ.get("TOUR_BUILD", "unknown")
-order = [("1 xp", "01-xp.mp4", "rows-ch1.json", "notes-ch1.json"),
-         ("2 tiling", "02-tiling.mp4", "rows-ch2.json", "notes-ch2.json"),
-         ("3 mc (light)", "03-mc-light.mp4", "rows-ch3-light.json", "notes-ch3.json"),
-         ("3 mc (dark)", "03-mc-dark.mp4", "rows-ch3-dark.json", "notes-ch3.json"),
-         ("4 construct", "04-construct.mp4", "rows-ch4.json", "notes-ch4.json"),
-         ("5 construct with manager panes", "05-manager-panes.mp4", "rows-ch5.json", "notes-ch5.json"),
-         ("6 xp cube", "06-cube.mp4", "rows-ch6.json", "notes-ch6.json"),
-         ("7 window drags", "07-drags.mp4", "rows-ch7.json", "notes-ch7.json")
-         ]
-def dur(p):
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", p], capture_output=True, text=True).stdout
+#!/usr/bin/env python3
+"""The timeline table and the joined MP4 from the rows of the chapters.
+
+A row that has an `expect` shows its verdict in the last column: `green`, `RED: ...` (what the
+act harness found: a mismatch of `expect` or a broken invariant), `todo` (a stub that waits for
+xp-give) or `-` (no check). `table(...)` is pure; `main()` reads TOUR_OUT.
+"""
+
+import json
+import os
+import subprocess
+
+CHAPTERS = [
+    ("1 xp", "01-xp.mp4", "rows-ch1.json"),
+    ("2 tiling", "02-tiling.mp4", "rows-ch2.json"),
+    ("3 mc (light)", "03-mc-light.mp4", "rows-ch3-light.json"),
+    ("3b mc (dark)", "03b-mc-dark.mp4", "rows-ch3b-dark.json"),
+    ("4 construct", "04-construct.mp4", "rows-ch4.json"),
+    ("5 handover", "05-handover.mp4", "rows-ch5.json"),
+]
+HEAD = ["chapter", "mm:ss", "joined", "what the person does", "what should be seen", "still", "check"]
+
+
+def mmss(seconds):
+    seconds = int(seconds)
+    return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+def verdict(row):
+    """The check column of a row."""
+    if row.get("red") and row.get("known"):
+        return f"known: {row['known']}"
+    if row.get("red"):
+        return "RED: " + "; ".join(row["red"])
+    return {"todo": "todo", "green": "green"}.get(row.get("status"), "-")
+
+
+def row_line(chapter, row, offset=0.0):
+    sec = row.get("abs", row["frame"]) / 30
+    cells = [chapter, mmss(sec), mmss(offset + sec), row["description"], row["expected"], row.get("still") or "", verdict(row)]
+    return "| " + " | ".join(str(c).replace("|", "/").replace("\n", " ") for c in cells) + " |"
+
+
+def table(chapters, title, build="unknown"):
+    """Lines of the table; `chapters` is a list of (name, rows, offset seconds)."""
+    lines = [
+        f"# Timeline of {title}",
+        "",
+        f"One row per act. `mm:ss` is the start of the act in the MP4 of its chapter; `joined` the same moment in `tour-all.mp4`. Build: {build}. `check` is the verdict of the act harness (`expect` and the invariants I1 to I14): a red act is a red row.",
+        "",
+        "| " + " | ".join(HEAD) + " |",
+        "|" + "---|" * len(HEAD),
+    ]
+    for name, rows, offset in chapters:
+        lines += [row_line(name, r, offset) for r in rows]
+    return lines
+
+
+def red_rows(chapters):
+    return [(name, r) for name, rows, _ in chapters for r in rows if r.get("red")]
+
+
+def duration(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True).stdout
     return float(out.strip())
-def mmss(s):
-    s = int(s); return f"{s // 60:02d}:{s % 60:02d}"
-def lookup(notes, still):
-    if not still: return ""
-    for k in (still, still.replace("-light", "").replace("-dark", "")):
-        if k in notes: return notes[k]
-    return ""
-lines = ["# Timeline of tour-v3, 2026-11-16", "",
-         f"One row per act. `mm:ss` is the start of the act in the MP4 of its chapter; `joined` is the same moment in `tour-all.mp4`. Stills are in `stills/` (two files `-L` and `-R` for the two-screen chapter 7). Build: {BUILD}, cargo build, debug, software rendering. Each MP4 starts with a 2.5 s chapter slide. The clock is stepped, so the pace is the one the script gives, not that of the renderer. Nothing is cut.", "",
-         "| chapter | mm:ss | joined | what the person does | what should be seen | still |", "|---|---|---|---|---|---|"]
-joined = []
-off = 0.0
-for ch, mp4, rows_f, notes_f in order:
-    p = os.path.join(T, mp4)
-    if not os.path.exists(p): continue
-    d = dur(p)
-    rows = json.load(open(os.path.join(T, rows_f))) if os.path.exists(os.path.join(T, rows_f)) else []
-    observed = {}
-    if isinstance(rows, dict):
-        observed = rows.get("observed", {}); rows = rows["rows"]
-    nf = os.path.join(T, "notes", notes_f)
-    notes = json.load(open(nf)) if os.path.exists(nf) else {}
-    for r in rows:
-        sec = r.get("abs", r["frame"]) / 30
-        what = lookup(notes, r.get("still")) or observed.get(r.get("still") or "", "") or ""
-        if isinstance(what, list): what = str(what)
-        kind = r["kind"]
-        still = (r.get("still") or "")
-        lines.append(f"| {ch} | {mmss(sec)} | {mmss(off + sec)} | {r['description']} | {r['expected']} | {still} |".replace("\n", " "))
-    off += d
-    joined.append(p)
-open(os.path.join(T, "timeline-table.md"), "w").write("\n".join(lines) + "\n")
-lst = os.path.join(T, "joined.list")
-open(lst, "w").write("".join(f"file '{p}'\n" for p in joined))
-subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c:v", "libx264", "-preset", "slow", "-crf", "28", "-pix_fmt", "yuv420p", "-movflags", "+faststart", os.path.join(T, "tour-all.mp4")], check=True)
-print("joined", mmss(off))
+
+
+def load_rows(path):
+    if not os.path.exists(path):
+        return []
+    data = json.load(open(path))
+    return data["rows"] if isinstance(data, dict) else data
+
+
+def main():
+    out = os.environ.get("TOUR_OUT", "/tmp/claude-0/tour-v9")
+    build = os.environ.get("TOUR_BUILD", "unknown")
+    chapters, joined, off = [], [], 0.0
+    for name, mp4, rows_file in CHAPTERS:
+        path = os.path.join(out, mp4)
+        if not os.path.exists(path):
+            continue
+        chapters.append((name, load_rows(os.path.join(out, rows_file)), off))
+        off += duration(path)
+        joined.append(path)
+    lines = table(chapters, os.path.basename(out), build)
+    open(os.path.join(out, "timeline-table.md"), "w").write("\n".join(lines) + "\n")
+    norm = []
+    for p in joined:
+        q = p.replace(".mp4", "-1080.mp4")
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", p, "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:0x20242c,setsar=1", "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", q], check=True)
+        norm.append(q)
+    lst = os.path.join(out, "joined.list")
+    open(lst, "w").write("".join(f"file '{p}'\n" for p in norm))
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c:v", "libx264", "-preset", "slow", "-crf", "28", "-pix_fmt", "yuv420p", "-movflags", "+faststart", os.path.join(out, "tour-all.mp4")], check=True)
+    print("joined", mmss(off), f"red rows: {len(red_rows(chapters))}")
+
+
+if __name__ == "__main__":
+    main()

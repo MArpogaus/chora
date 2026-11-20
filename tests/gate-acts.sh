@@ -18,6 +18,7 @@ set -u
 need python3
 need_bins chora choractl chora-xp chora-mc chora-tiling chora-construct chora-probe
 python3 -I "$repo/tests/test_acts.py" || fail "the selftest of the harness"
+python3 -I "$repo/tests/test_tour.py" || fail "the selftest of the tour rows (demo/tour)"
 "$repo/tests/persona-selftest.sh" || fail "the selftest of the persona session"
 python3 -I "$repo/tests/acts/run.py" "$@" || fail "acts: a cell blocks (see the FAIL lines)"
 ok "every act and invariant passes or is listed as known red"

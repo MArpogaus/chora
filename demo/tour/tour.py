@@ -15,13 +15,27 @@ import subprocess
 import sys
 import time
 
-PAIR_FILTER = os.environ.get("TOUR_PAIR_FILTER", "[0][1]hstack=inputs=2,scale=1280:360,pad=1280:720:0:180:black")
-SLIDE_SIZE = os.environ.get("TOUR_SLIDE_SIZE", "")
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, os.path.join(REPO_ROOT, "tests", "acts"))
 FPS = 30
 MOVE = float(os.environ.get('TOUR_MOVE', '1.0'))
 CPS = float(os.environ.get('TOUR_CPS', '6'))
 LEAD = float(os.environ.get('TOUR_LEAD', '1.0'))
 SMOOTH = lambda k: k * k * (3 - 2 * k)
+
+
+def pair_filter():
+    return os.environ.get("TOUR_PAIR_FILTER", "[0][1]hstack=inputs=2,scale=1280:360,pad=1280:720:0:180:black")
+
+
+def slide_size():
+    return os.environ.get("TOUR_SLIDE_SIZE", "")
+
+
+def checking():
+    """`run.py --check`: the rows run and are judged, nothing is encoded."""
+    return bool(os.environ.get("TOUR_CHECK"))
 
 
 def mmss(frame):
@@ -80,8 +94,55 @@ class Session:
         return None if r is None else (r[0] + r[2] / 2, r[1] + r[3] / 2)
 
 
+class Checker:
+    """Judges an act: `Expect.check` of the act harness on the snapshots before and after, and every
+    invariant of invariants.ALL. `source` answers a `harness.Snapshot`; `Checker.attach` reads the
+    live session of the tour as the persona check does."""
+
+    def __init__(self, source):
+        self.source = source
+
+    @classmethod
+    def attach(cls, env, looks, runs, wallpaper=None):
+        import pathlib
+
+        import harness
+
+        h = harness.Session(*looks, runs=runs, wallpaper=wallpaper)
+        h.attached = True
+        h.work = pathlib.Path(runs)
+        h.env = dict(env)
+        h.runtime = pathlib.Path(env["XDG_RUNTIME_DIR"])
+        h.connect(env["CHORA_SOCKET"], "tour-check")
+        return cls(h.snapshot)
+
+    def snapshot(self):
+        return self.source()
+
+    def judge(self, row, expect, before, after):
+        import harness
+        import invariants
+
+        act = harness.Act(row["description"], list(row.get("opens") or ()), list(row.get("closes") or ()), list(row.get("disconnects") or ()), False)
+        red = expect.check(before, after) if expect else []
+        for key, check in invariants.ALL.items():
+            red += [f"{key}: {b}" for b in check(before, after, act)]
+        return red
+
+
+def checker_for(session, looks, work, wallpaper=None):
+    """The checker of a live session, or None (said once) when the harness cannot attach."""
+    try:
+        for name in ("tour-check", "tour-check-events"):
+            session.ctl("grant", name, "screen.capture", "input.inject", "methods.call", "methods.privileged")
+        return Checker.attach(session.env, looks, os.path.join(work, "evidence"), wallpaper)
+    except Exception as err:  # noqa: BLE001
+        print(f"checker: cannot attach, acts are not judged: {type(err).__name__}: {err}", flush=True)
+        return None
+
+
 class Tour:
-    def __init__(self, session, out_dir, work_dir):
+    def __init__(self, session, out_dir, work_dir, checker=None):
         self.s = session
         self.out = out_dir
         self.work = work_dir
@@ -103,6 +164,10 @@ class Tour:
         self.pair = None
         self.pointer_output = None
         self.cuts = []
+        self.checker = checker
+        self.before = None
+        self.expects = {}
+        self.armed = []
 
     def begin(self, chapter, slug):
         self.chapter = chapter
@@ -236,11 +301,20 @@ class Tour:
         self.stills_wanted.append((max(1, at), name))
         return at
 
-    def act(self, kind, description, expected, still=None, settle=0.8, lead=None, tail=None):
+    def act(self, kind, description, expected, still=None, settle=0.8, lead=None, tail=None, *, expect=None, contract=None, cells=(), capture=None, todo=False, known=None, opens=(), closes=(), disconnects=()):
+        """Open an act: pause, mark its start. Use with a following `done`.
+
+        An act is a row of design/tour-v9.md: `expect` (an `Expect` of tests/acts/harness.py,
+        judged with every invariant at the next read of the session after `done`), `contract`
+        (a persona contract, T1..M2), `cells` (the gate cells the act repeats on screen),
+        `capture` (Q, Q+t, H50), `todo` (a stub for an act that waits for xp-give: no
+        check, a `todo` row) and `known` (why a red act is red today, the way a row of
+        tests/acts/known-red.toml does: shown as `known`, not counted as a failure; a `known`
+        act that turns green says so, so the row can go)."""
         lead = LEAD if lead is None else lead
         tail = LEAD if tail is None else tail
-        """Open an act: pause, mark its start. Use with a following `done`."""
-        self.wait(lead)
+        if not todo:
+            self.wait(lead)
         self.act_no += 1
         row = {
             "chapter": self.chapter,
@@ -251,18 +325,62 @@ class Tour:
             "expected": expected,
             "still": None,
             "happened": "",
+            "contract": contract,
+            "cells": list(cells),
+            "capture": capture,
+            "expect": repr(expect) if expect is not None else None,
+            "status": "todo" if todo else "checked",
+            "red": [],
+            "known": known,
+            "opens": list(opens),
+            "closes": list(closes),
+            "disconnects": list(disconnects),
         }
+        if not todo:
+            import harness
+
+            self.expects[id(row)] = expect or harness.Expect()
         self.rows.append(row)
         self._open = (row, still, settle, tail)
         return row
 
     def done(self):
         row, still, settle, tail = self._open
+        if row["status"] == "todo":
+            return
         self.wait(settle)
         if still:
             self.still(still)
             row["still"] = still
         self.wait(tail)
+        if id(row) in self.expects:
+            self.armed.append(row)
+            if self.checker:
+                self.flush("act")
+
+    def check_armed(self):
+        """Judge the acts that are done: the state of the session now against the state at the last
+        read. A red act is a red row of the timeline (`row["red"]`, status `RED`)."""
+        if not self.checker or not self.armed:
+            return
+        try:
+            after = self.checker.snapshot()
+        except Exception as err:  # noqa: BLE001
+            after = None
+            note = f"no snapshot: {type(err).__name__}: {err}"
+        for row in self.armed:
+            if after is None:
+                row["red"] = [note]
+            else:
+                row["red"] = self.checker.judge(row, self.expects.pop(id(row)), self.before or after, after)
+            row["status"] = ("known" if row.get("known") else "RED") if row["red"] else "green"
+            if row["red"] and row.get("known"):
+                print(f"known act {row['act']} {row['description']}: {row['known']}", flush=True)
+            elif row["red"]:
+                print(f"RED act {row['act']} {row['description']}: {row['red']}", flush=True)
+        self.armed = []
+        if after is not None:
+            self.before = after
 
     def run_segment(self, label=""):
         """Record the pending cues as one chunk, keep the stills."""
@@ -288,6 +406,11 @@ class Tour:
             cue_list = [(max(1, f), m, p) for f, m, p in self.cues]
             dual.record(self.s.env["CHORA_SOCKET"], FPS, count, self.pair, dirs, cue_list)
             took = time.time() - started
+            if checking():
+                for d in dirs:
+                    shutil.rmtree(d, ignore_errors=True)
+                self.stills_wanted, self.cues, self.frame, self.cuts = [], [], 0, []
+                return
             for at, name in self.stills_wanted:
                 for k, tag in enumerate(("L", "R")):
                     src = os.path.join(dirs[k], f"frame-{min(at, count):05d}.png")
@@ -299,7 +422,7 @@ class Tour:
             subprocess.run(
                 ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-framerate", str(FPS), "-i", os.path.join(dirs[0], "frame-%05d.png"),
                  "-framerate", str(FPS), "-i", os.path.join(dirs[1], "frame-%05d.png"),
-                 "-filter_complex", PAIR_FILTER,
+                 "-filter_complex", pair_filter(),
                  "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", chunk],
                 check=True,
             )
@@ -316,6 +439,10 @@ class Tour:
             args += ["--output", self.output]
         self.s.ctl(*args, timeout=3600)
         took = time.time() - started
+        if checking():
+            shutil.rmtree(frames_dir, ignore_errors=True)
+            self.stills_wanted, self.cues, self.frame, self.cuts = [], [], 0, []
+            return
         for at, name in self.stills_wanted:
             src = os.path.join(frames_dir, f"frame-{min(at, count):05d}.png")
             if os.path.exists(src):
@@ -340,19 +467,27 @@ class Tour:
 
     def flush(self, label=""):
         """Record what is pending; rows keep their time in the chapter."""
+        if self.checker and self.before is None:
+            try:
+                self.before = self.checker.snapshot()
+            except Exception:  # noqa: BLE001
+                self.before = None
         offset = self.chapter_frames
         for row in self.rows:
             if "abs" not in row and row["chapter"] == self.chapter:
                 row["abs"] = offset + row["frame"] - self.cut_before(row["frame"])
         self.run_segment(label)
+        self.check_armed()
 
     def finish(self, mp4_name, slide=None):
         self.flush("last")
+        if checking():
+            return None
         if slide:
             seconds = 2.5
             chunk = os.path.join(self.work, f"{self.slug}-slide.mkv")
             subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-framerate", str(FPS), "-t", str(seconds), "-i", slide,
-                            *(["-vf", f"scale={SLIDE_SIZE}"] if SLIDE_SIZE else []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", chunk], check=True)
+                            *(["-vf", f"scale={slide_size()}"] if slide_size() else []), "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", chunk], check=True)
             self.chunks.insert(0, chunk)
             for row in self.rows:
                 if row["chapter"] == self.chapter and "abs" in row:
