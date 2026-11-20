@@ -215,3 +215,53 @@ def volume_acts(s):
         [lambda s: hover(*speaker_middle(s))(s)],
         expect=Expect(verify=tooltip_says("Volume 55%")),
     )
+    s.act(
+        "a click on the speaker opens the volume popup",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "a click on 75 percent sets the level and shuts the popup",
+        [click_node("xp-ctx-0-1")],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, False)),
+    )
+    s.act(
+        "the tooltip of the speaker says the level that the popup set",
+        [lambda s: hover(*speaker_middle(s))(s)],
+        expect=Expect(verify=tooltip_says("Volume 75%")),
+    )
+    s.act(
+        "the speaker opens the volume popup again",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Mute of the popup mutes",
+        [click_node("xp-ctx-0-5")],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, True)),
+    )
+    s.act(
+        "the speaker opens the volume popup for Mute",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Mute of the popup unmutes",
+        [click_node("xp-ctx-0-5")],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, False)),
+    )
+    s.act(
+        "the speaker opens the volume popup to shut it",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Escape shuts the volume popup", [key("Escape")], closes=[CONTEXT], expect=Expect(open=[])
+    )
