@@ -113,6 +113,23 @@ pub fn chords(modifier: &str) -> Vec<String> {
 }
 
 impl<A: Clone> Runtime<A> {
+    /// The chords of [`chords`] that the plugin holds no binding for.
+    fn free_chords(&self, modifier: &str) -> Result<Vec<Binding>, ClientError> {
+        let mut free = Vec::new();
+        for chord in chords(modifier) {
+            let binding: Binding = chord.parse().map_err(|e| {
+                ClientError::Rpc(RpcError::new(
+                    RpcError::INVALID_PARAMS,
+                    format!("{chord}: {e}"),
+                ))
+            })?;
+            if self.action(&binding.to_string()).is_none() {
+                free.push(binding);
+            }
+        }
+        Ok(free)
+    }
+
     /// Grabs the chords of [`chords`] that the plugin holds no binding
     /// for, with `swallow` as their action, which must do nothing. It
     /// comes after the grabs of a set and before [`Self::end_grabs`]: the
@@ -123,16 +140,8 @@ impl<A: Clone> Runtime<A> {
     ///
     /// The socket fails, or the core knows no such key.
     pub fn grab_swallowed(&mut self, modifier: &str, swallow: &A) -> Result<(), ClientError> {
-        for chord in chords(modifier) {
-            let binding: Binding = chord.parse().map_err(|e| {
-                ClientError::Rpc(RpcError::new(
-                    RpcError::INVALID_PARAMS,
-                    format!("{chord}: {e}"),
-                ))
-            })?;
-            if self.action(&binding.to_string()).is_none() {
-                self.grab(binding, swallow.clone())?;
-            }
+        for binding in self.free_chords(modifier)? {
+            self.grab(binding, swallow.clone())?;
         }
         Ok(())
     }
