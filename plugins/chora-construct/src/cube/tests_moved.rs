@@ -149,6 +149,35 @@ fn a_pane_and_a_cube_hold_no_unbound_super_chord() {
     );
 }
 
+/// A grabbed Super chord leaves a bare tap of Super for the client that
+/// has the keyboard: the program of a face (xp) then opens its Start menu
+/// unasked (rv-1). A cube in use mode swallows the lone tap; the cube that
+/// stands back has no program that takes the keys, so it leaves the tap.
+#[test]
+fn a_cube_in_use_mode_swallows_the_lone_super_tap() {
+    use chora_kit::modes::Act;
+    let (mut construct, _) = on_core("swallow-tap", |_, _| None);
+    construct.cube = Some(host_of(FACES));
+    construct.regrab().unwrap();
+    for tap in ["Super+Super_L", "Super+Super_R"] {
+        assert!(
+            construct.rt.action(tap).is_some(),
+            "{tap} is swallowed in a face, so xp sees no bare tap after a chord"
+        );
+    }
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "the other Super chords stay with the face manager"
+    );
+    let host = construct.cube.as_mut().expect("the cube");
+    assert!(host.view.act(Act::StepBack), "the cube stands back");
+    construct.regrab().unwrap();
+    assert!(
+        construct.rt.action("Super+Super_L").is_none(),
+        "standing back, the construct holds no tap"
+    );
+}
+
 /// A press on a pane in the walk gives its window the keyboard where the
 /// pane stands; the camera is in no pane. The construct then swallows the
 /// unbound Super chords and the tap of Super for that window, and keeps
