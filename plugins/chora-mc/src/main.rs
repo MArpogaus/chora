@@ -2692,6 +2692,24 @@ mod tests {
         );
     }
 
+    /// A change of the theme fades the colors and cross-fades the regions
+    /// through one transaction: mc is busy until their end, like for a
+    /// page turn (pr2-1, rv-2).
+    #[test]
+    fn a_theme_change_keeps_mc_busy_until_its_fades_end() {
+        let (mut mc, _model) = crate::testing::mc("theme-busy", [1920, 1080]);
+        mc.show("agenda", true).unwrap();
+        end_fades(&mut mc);
+        assert_eq!(busy_words(&mc, "fade:"), Vec::<String>::new());
+        assert!(mc.recolor().unwrap(), "the core takes the recolor");
+        assert!(
+            !busy_words(&mc, "fade:").is_empty(),
+            "the fades of a theme change are not busy"
+        );
+        end_fades(&mut mc);
+        assert_eq!(busy_words(&mc, "fade:"), Vec::<String>::new());
+    }
+
     /// After the watchdog of the core dropped the effects of mc, a scene
     /// shows without the write effect until the settings change.
     #[test]
