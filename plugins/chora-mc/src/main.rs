@@ -405,12 +405,30 @@ struct Mc {
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.first().is_some_and(|a| a == "--launch") {
+        return launch(&words[1..]);
+    }
     let args = Args::parse();
     if args.print_config {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
     runtime::run(NAME, || play(&args))
+}
+
+/// `--launch fuzzel`: the Apps list, the installed programs and those of
+/// the shared entries, as [`chora_kit::launcher`] shows them, so that text
+/// that finds nothing shows the list again under the row "Nothing found"
+/// and the launcher never closes without a word (mc-44). Another program
+/// is no launch of mc.
+fn launch(argv: &[String]) -> ExitCode {
+    if argv != ["fuzzel"] {
+        eprintln!("usage: chora-mc --launch fuzzel");
+        return ExitCode::from(2);
+    }
+    chora_kit::launcher::run(&["fuzzel".to_owned()], "foot", None);
+    ExitCode::SUCCESS
 }
 
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
