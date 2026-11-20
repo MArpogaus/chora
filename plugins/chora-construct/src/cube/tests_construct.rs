@@ -344,7 +344,14 @@ fn a_connected_manager_brings_the_faces_up() {
     construct.cube_client(&focus_changed(None)).unwrap();
     let host = construct.cube.as_ref().expect("the cube is open");
     assert!(host.health.iter().all(|h| matches!(h, Health::Up)));
-    assert!(construct.cube_deadline().is_none(), "nothing starts now");
+    assert!(
+        host.start_deadline(Instant::now()).is_none(),
+        "nothing starts now"
+    );
+    assert!(
+        construct.cube_deadline().is_none(),
+        "the construct waits for nothing once the manager is up"
+    );
     construct.close_cube().unwrap();
 }
 

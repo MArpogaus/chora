@@ -292,3 +292,10 @@ max = 0
 name = "own test connect (Runtime::with in a plugin)"
 paths = ["plugins"]
 pattern = 'Runtime::with\('
+
+# One list of the swallowed keys: `chora_kit::swallow::KEYS`.
+[[row]]
+allow = ["crates/chora-kit/"]
+max = 0
+name = "own list of swallowed keys (chora_kit::swallow)"
+pattern = '^\s*"bracketleft",\s*$'
