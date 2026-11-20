@@ -1282,5 +1282,54 @@ class PersonaContracts(unittest.TestCase):
         self.assertIsNone(check.contracts("T99", ctx(), snap()))
 
 
+class WithChildren(unittest.TestCase):
+    """check.with_children reads the state of xp, tiling or mc only as the
+    manager of a face of the cube (`cube.list`), and a window of it shows
+    only while its face is at the front (co-pane r2, rv-7)."""
+
+    FACES = [{"output": f"VIRTUAL-{n}", "manager": "xp", "health": "up"} for n in (1, 2)]
+
+    class Session:
+        label = "construct"
+
+        def state(self, look):
+            return {
+                "windows": [
+                    {"surface": "s1", "output": "VIRTUAL-1", "shown": True},
+                    {"surface": "s2", "output": "VIRTUAL-2", "shown": True},
+                ],
+                "focus": {"holder": look, "surface": "s1"},
+                "open": [],
+                "busy": [],
+            }
+
+    def child(self, cube):
+        states = {"construct": {"windows": [], "focus": {"holder": None}, "open": [], "busy": []}}
+        nodes = [surface("s1", "xp", focused=True), surface("s2", "xp")]
+        after = snap(states=states, nodes=nodes, toplevels={"s1", "s2"}, cube=cube)
+        return check.with_children(self.Session(), after)
+
+    def test_the_manager_of_a_face_is_read_and_only_its_front_face_shows(self):
+        after = self.child({"faces": self.FACES, "front": 0, "turning": False, "mode": "use"})
+        shown = {w["surface"]: w["shown"] for w in after.states["xp"]["windows"]}
+        self.assertEqual(shown, {"s1": True, "s2": False})
+        self.assertEqual(invariants.i3(snap(), after, Act("a")), [])
+
+    def test_a_focus_on_a_face_that_is_not_at_the_front_is_a_breach(self):
+        after = self.child({"faces": self.FACES, "front": 1, "turning": False, "mode": "use"})
+        found = invariants.i3(snap(), after, Act("a"))
+        self.assertEqual(found, ["the focused s1 is no shown window of xp"])
+
+    def test_a_client_that_manages_no_face_is_no_look(self):
+        for cube in (
+            {"error": "no client exports cube.list"},
+            {"faces": [{"output": "VIRTUAL-1", "manager": "tiling", "health": "up"}], "front": 0},
+        ):
+            after = self.child(cube)
+            self.assertNotIn("xp", after.states)
+            found = invariants.i1(snap(), after, Act("a"))
+            self.assertIn("the toplevel s1 is owned by xp, which is no look", found)
+
+
 if __name__ == "__main__":
     unittest.main()
