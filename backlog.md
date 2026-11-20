@@ -112,6 +112,11 @@ W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflect
 H5 | 11-11 | later | the construct bindings overlay as a shared plugin that every window manager can use (owner 11-11 19:45).
 H6 | 11-09 | later | users ship their own HUDs easily (owner 11-09 feature request).
 F15 | 11-14 | rc | a lost first key after a keyboard hand-over (mc terminal page; gate-mc-paths types a leading space, reports/review-mc-r3.md F4): a dedicated check types one character after focus, reads it back, logs wl_keyboard enter and key events; cause in core, foot or shell unproven. Next flakes round.
+XPF-R1 | 11-20 | rc-minor | xp-fix review r1 (reports/xp-fix.md): rv-1 kit launch check ends the Starting message of every start on any window, also one with another start's token; end only on a window without a token. rv-2 persona mousepad stand-in names foot or probe in the run log.
+TB-R1 | 11-20 | rc-minor | tiling-bar review r1: #clock min-width 127px instead of Inter tnum; use font-feature-settings "tnum".
+TB-R2 | 11-20 | rc-minor | tiling-bar review r1: gate-tiling-bar.sh (island 436 vs 411) and gate-tiling-spacing.sh (13 vs 12) red, in no cell; after ti-20 verify (rule 6).
+MCR-R1 | 11-20 | known-issue | mc-remote review r1: under mc XF86Back goes to mc, not to a focused browser.
+MCR-R2 | 11-20 | rc-minor | mc-remote review r1: key list does not name XF86Back, XF86HomePage.
 V12 | 11-14 | rc | voice scripts failing on the session branch already (core r2 report): voice-acp.sh (a yes without the key counts as nothing), voice-events.sh (after voice sleep mc shows none), agent.sh step 2 (xs_are 0 640); triage in the voice and mc lanes.
 MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R5-4 (reports/review-mc-r5.md).
 DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500 ms wake, wpctl every 5 s), dr2-9 state word case (reports/review-doors-r2.md).
@@ -284,6 +289,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - H-pane-overlap (co-majors review r1 FIX 00:40): earliest gate gate-construct-pull (no pane-pane check, mirror x only); fixed in co-majors r2 item 1. 0 %.
 - FLAKE-H MINOR-1 (11-20): helper-door click count in the doors cell; a count above 1 means a lost first click, then a product check (input inject under load).
 - FLAKE candidate (11-20 review mc-answer): tiling-look ink-1280x800 failed once at 12 s under --jobs 3 (tag colour 1 1 1 255), PASS alone.
+- FLAKE (t82b 11-20 03:35, --jobs 3): tiling-look ink-2560x1600@2 "the focus border starts in 0 0 0 255, not the accent"; PASS alone 03:46 (633 s). Second tiling-look ink hit this day (with the line above); F23 family (effects dropped under load?). Next flakes round: a wait for the first drawn border, not a retry.
 - XP-MAJORS review r1 MINOR rv-1..4 (11-20): question-card gate asserts no placement or font; paperclip gate asserts no art; popup guarded at 1280x800 only, no outside-click or key-leak act; stepped list for volume. Next xp round.
 - CO-P2-FIX r1 (11-20): xp opens Start on a construct-swallowed Super chord (pre-existing); a face manager (xp) must swallow unbound Super chords for its own windows on a cube face (co-26 face part), kit helper from co-p2-fix r2. Next xp round.
 - MC-ANSWER MINOR-1 (review r2): card.size message printed per notification in Card::new; log it once when values.yaml loads.
