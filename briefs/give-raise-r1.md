@@ -1,0 +1,11 @@
+# give-raise r1 (RC 2 tiling T7, vision "no lost window in any handover"): a given window lands on top of the receiving look
+
+Model: sonnet, effort medium (one stacking rule in the shared give path, with a red test)
+Lane: cloud, claude/give-raise at dcb77733 (session head). Cost at most 0.8 %; stop at 200 k context.
+Why: p2-r3-tiling (reports/p2-r3-tiling.md "## r3", ricer T7, shots media/2026-11-20/persona-tiling-r3-ricer 014-016): window s2 given to tiling is shown and visible (rect 14,54,1252,702) but drawn under the xp window s1 of the same session (root order). The persona read it as lost. Rated MINOR in handover-ti r2; PM raises it to MAJOR (RC bar: no lost window in any handover; POLS: what you just moved is in front and focused).
+Step 0 (no setup script): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`; a failure: send_message the PM "give-raise BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Red first (own commit): a test in crates/chora-kit (tests/ or give.rs, wm/give.rs) and one gate assert in the existing handover cell (tests/gate-handover-matrix.sh or tests/gate-mc-handover.sh, no new checker where one exists): after a give from look A to look B, the given window is the topmost of B's windows on that output and holds the focus. It must fail on dcb77733 for that reason.
+2) Fix in the shared give path (crates/chora-kit/src/give.rs or wm/give.rs, wm/focus.rs), not per look: raise and focus the given window in the receiver. All four looks get it; xp's own stacking API stays the source in xp. No other change.
+3) Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,gate-lib,build,test,clippy,matrix,mc-handover,tiling-audit,xp,doors,e2e`. Poll in the same turn; never end a turn to wait.
+Report: reports/give-raise.md on claude/session-log "## r1" (shas red, green; gate cells; captures if any); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/give-raise and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
