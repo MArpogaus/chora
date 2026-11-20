@@ -230,6 +230,16 @@ who clicks the empty screen of another window manager expects the next
 window there. The choice ends with the next press of the user elsewhere
 and when the keyboard focus changes. An injected press chooses nobody.
 
+Amended on 2026-11-20 (stray-grab r1, sh-23, sh-24): a press that
+chooses a manager this way also takes the keyboard from whatever had it
+(a window, or a node of any plugin), so that no typed key strays into a
+look the person left, unless an input node lies under the press, which
+takes it for itself, or the session is locked; until the chosen manager
+focuses a window, no client gets a key. Only the grabs of managers of
+virtual outputs wait for the place of the person: the manager chosen, else
+the owner of the keyboard focus, else, for a real key only, the claim
+under the pointer; a key held back there reaches no client.
+
 **The drop target.** A drag that ends outside the claim of A goes to the
 owner of the smallest other claim that holds the drop point; without one
 there, the surface stays with A.
