@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 03:00 UTC)
+## Now (2026-11-20 03:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -28,7 +28,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | session_016iS3kQYqG4zQU8iHR299YZ |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
-| kit-tests-r1.md (F5, Queue 5; perform harness + wm/give, kept, conn tests) | haiku high | starting |
+| kit-tests-r1.md (F5, Queue 5; perform harness + wm/give, kept, conn tests) | haiku high | session_016iS3kMSdbqA2ZbhRinpqcB |
 | co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
 
 ## Queue (% week; 5 % reserve)
