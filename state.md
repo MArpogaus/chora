@@ -23,7 +23,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-mc-fix-r4.md (RC 2: seeded review of mc-fix a8cd0de0) | sonnet high, claude/mc-fix a8cd0de0 | starting |
+| review-mc-fix-r4.md (RC 2: seeded review of mc-fix a8cd0de0) | sonnet high, claude/mc-fix a8cd0de0 | session_016iS3kPuqmxv3n5rzT1YmdJ 14:19 |
 | flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
 | audit-f-r4.md (F4, F5, F6 recheck, last slices) | opus high, claude/audit-f-r4 d81c8293 | session_016iS3kQew7v6rwzyo8XyHL7 14:15 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
