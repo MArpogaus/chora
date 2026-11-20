@@ -166,3 +166,46 @@ Lane: cloud, branch claude/mc-fix from b0997b71. The session head was still d81c
 
 ### Gate
 `tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,keys,mc-paths,mc-sofa,mc-handover,acts` (run dir /tmp/merge-gate.ztZoxP, at 6508d95d): all 11 PASS (pre-commit 4 s, gate-lib 71 s, ci-check 119 s, build 157 s, test 228 s, clippy 17 s, keys 23 s, mc-paths 111 s, mc-sofa 45 s, mc-handover 13 s, acts 263 s). The gate ran before a8cd0de0 (cell only); `CELLS=terminal-turn tests/gate-mc-paths.sh` passes on a8cd0de0. A red cell I did not cause: none. Partial run, nothing pushed by it.
+
+## Review r4 (seeded, claude/mc-fix a8cd0de0 against b0997b71)
+Lane: cloud, read only on code, one round. Step 0: `git fetch --unshallow`, `cargo check --workspace` green.
+**Verdict: FIX** (1 MAJOR open). Counts: 0 BLOCK, 1 MAJOR, 0 MINOR, 2 NIT.
+
+Checks:
+1. Red first holds (scratch worktree; test files of the red sha on the parent of the fix): ad1f2ded FAIL (`a_turn_away_and_back_while_the_program_starts_keeps_the_keyboard_on_the_page`), 176 ok at 0b72ff84; ee8b0ada FAIL (`refresh_asks_the_core_for_its_own_node_only`, `state_says_mc_when_its_node_still_has_the_keyboard`), 178 ok at 75272909; 5c422e10 FAIL (2 I5 cases in test_acts.py), 153 passed at 6508d95d. Cell `terminal-turn` (headless, `CELLS=terminal-turn tests/gate-mc-paths.sh`): FAIL at 0b72ff84^ with the script of a8cd0de0 ("Left after Right, Left, Right before the window mapped does not go to mission: mission"), ok at a8cd0de0. As the lane says, the cell is red only from a8cd0de0, after the fix in the history; the unit test is the red-first proof.
+2. rv-1 (show.rs:148, windows.rs:174-191): `plain_start` is set also while waiting, cleared by every `show` (show.rs:103), so leaving the page by any key, Escape, overview or an adopted window of another scene clears it; a program that never maps leaves it set until the next `show`, which is harmless (no window comes). Launcher and Super+Return arrivals have `plain_turn` false and still give the window the keyboard (cells terminal-keys, remote-back green in the lane's gate). A window of another scene cannot "leave" it (rv-r4-2).
+3. rv-2 (main.rs:645-663): `id:<own node>` with the focused filter; keep and drop cases both tested, the selector is asserted. The error is logged but on every failing call (rv-r4-3).
+4. rv-3 (invariants.py:387-403): the r3 guard holds (xp wallpaper over an mc text with an xp text above: no breach; a part picture and a picture below hide nothing; 153 pass), and both new cases fail without the change. But a real breach passes (rv-r4-1).
+5. `cargo test -p chora-kit -p chora-mc` green (chora-mc 178, chora-kit 293, 0 failed), `python3 -m pytest tests/test_acts.py -q` 153 passed, `cargo clippy --workspace --all-targets -- -D warnings` clean, `tools/size-ratchet --base b0997b71` ok (0 files over 1500 production lines). The gate was not rerun (11 steps green in the lane at 6508d95d).
+
+Findings:
+- rv-r4-1, MAJOR, tests/acts/invariants.py:395 (`hides`), the rule "picture of the look above" lets the likeliest real I5 breach through: mc drawn over xp while xp is shown has the order xp text, mc-bg (whole output, owner mc), mc text; the picture belongs to the look of the upper text and not to that of the lower, so it counts as a cover (probe with the helpers of test_acts.py: `text_node(xp-icons-label, owner=xp)`, `panel(mc-bg, whole output, owner=mc)`, `text_node(mc-volume, owner=mc)` gives no breach), and the checker cannot tell it from the legitimate xp wallpaper over an mc text, as both have the same shape. Fix: count a whole-output picture as a cover only when its owner is the look that is shown (the focus holder or the owner of the topmost whole-output image of the output, taken from the snapshot), and add the probe above as a failing case.
+- rv-r4-2, NIT, plugins/chora-mc/src/windows.rs:188 (`take_plain_start`), the name match has no effect that a test shows: adopting a window of another scene calls `show` for that scene, which clears `plain_start` at show.rs:103 anyway (and moves the page), so the doc comment "a window of another scene in between leaves it" is not true; fix: say so in the comment or test it, with one case for an adopt of another scene between.
+- rv-r4-3, NIT, plugins/chora-mc/src/main.rs:660, a failed focus query logs on every `state.get` (the persona checker calls it after every act), not once; fix: log when the failure state changes (a bool on Mc), or keep and say so in the comment.
+
+Known, not findings: launcher click red in lane containers (fuzzel 1.9.2), mc-50 yellow square, T1 end-time gap.
+
+## r5 (RC 2 persona round 4, review r4 rv-r4-1 to rv-r4-3)
+Lane: cloud, branch claude/mc-fix from a8cd0de0. The session head is still d81c8293 (it did not move), so nothing was merged. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. Head pushed: bb7cbeb8.
+
+| item | red | fix | test / cell |
+|---|---|---|---|
+| rv-r4-1 MAJOR | 609395bf | c2a9f9a3 | tests/test_acts.py I5 `test_mc_drawn_over_xp_while_xp_has_the_focus_is_no_cover`; cell acts |
+| rv-r4-2 NIT | none (comment, no behaviour) | bb7cbeb8 | none; cell test, mc-paths |
+| rv-r4-3 NIT | none (log line) | bb7cbeb8 | none; cell test, mc-paths |
+
+- rv-r4-1: `hides` takes the look shown and counts a whole-output picture as a cover only when its owner is that look. The look shown (`shown_look`) is the single look that says it holds the focus, else the owner of the topmost whole-output picture of the output. The probe (xp text, mc-bg whole output owner mc, mc text, xp holds the focus) breaches I5; it fails at 609395bf (`[] is not true`) and passes at c2a9f9a3. The r3/r4 cases stay green (154 passed in test_acts.py). Only `hides`, its callers in `invariants.py` and the tests are touched; the I5 timing rows are not. Limit: with no look holding the focus or two claiming it, the topmost whole-output picture decides, which would let the probe pass again.
+- rv-r4-2: kept the name match and said why in the doc comment (windows.rs): `show` of another scene clears `plain_start`, so the match is a second guard. A bool instead of the name would make `Mc` have four bools, which clippy refuses (`struct_excessive_bools`; first attempt failed the commit hook). The old comment "a window of another scene in between leaves it" was wrong and is gone.
+- rv-r4-3: new field `focus_query_error: Option<String>` on `Mc`; `refresh` logs a failed focus query when the error text differs from the last one and clears it on success. No test: the FakeCore has no failing `scene.query`.
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,gate-lib,ci-check,build,test,clippy,mc-paths,acts` (run dir /tmp/merge-gate.hABOAX, at bb7cbeb8): all 8 PASS (pre-commit 5 s, gate-lib 70 s, ci-check 119 s, build 156 s, test 238 s, clippy 21 s, mc-paths 112 s, acts 269 s). A red cell I did not cause: none. Partial run, nothing pushed by it.
+
+## PM review r5
+
+PM (not the builder), 11-20 14:58 UTC, a8cd0de0..bb7cbeb8 (4 files +66 -21). Verdict computed: **MERGE-OK bb7cbeb8** (0 BLOCK, 0 MAJOR, 1 NIT).
+- rv-r4-1 closed: red 609395bf `python3 -m unittest tests.test_acts.I5` FAILED (failures=1); at bb7cbeb8 `python3 -m unittest tests.test_acts` OK. `hides` now covers only with a whole-output picture of the shown look (focus holder, else topmost whole picture); the r4 cases stay green.
+- rv-r4-2: name match kept with a reason in the doc comment; accepted (KISS, clippy bool limit).
+- rv-r4-3: `focus_query_error` logs each new error text once and clears on success; correct.
+- pr5-1 NIT tests/acts/invariants.py `shown_look`: the focus holder is per look, not per output, so on two outputs with two looks shown the holder's look counts as shown on both. To backlog (multi-output acts); no single-output run is affected.
+Lane gate 8/8 PASS at bb7cbeb8 (lane report r5). Joins train t90.

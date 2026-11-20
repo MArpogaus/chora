@@ -1,10 +1,9 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-20T09:13:00Z
+screened-through: 2026-11-20T14:39:00Z
+- 11-20 14:39Z "65 %" -> reading: 65 % at 71 % time; 4 % in 5.4 h; 35 % left in 13.3 h = 2.6 %/h: under-spending; 6 lanes
 - 11-20 09:13Z "61% half of which comes from other agent" -> reading: 61 % (session ~30 %); spend the rest by Sat (06:04 order)
 - 11-20 08:30Z "Update status page" -> order: status page refreshed
-- 11-20 08:00Z "What's again at ng with env?" -> question (env): fuzzel 1.11.1 in lanes; nothing open
 - 11-20 01:45Z "40% how are things going?" -> reading: 40 %; fill 6 lanes
-- 11-19 13:55Z "I've resaved env already twice" -> saved; misses were runtime
 - 11-19 10:55Z "...at a glance... on plan or where we are behind..." -> order: status page at a glance, plan vs actual
 - 11-19 10:49Z "Cube question?", 10:50Z "?"; 10:52Z "Hosted (Recommended)" -> decision: WM7b hosted (construct holds the face turn; flat fallback)
 - 11-19 07:01Z "OK, go ahead. Note new strategy in mgn notes..." -> order: batched trains (routines.md); opus critic checks PM notes for losses (full: answers.md)
