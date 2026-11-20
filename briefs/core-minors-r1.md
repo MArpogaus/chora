@@ -1,6 +1,6 @@
 # core-minors r1 (F5 tests, F8 docs truth): open core MINORs with a missing red cell
 
-Model: sonnet, effort high (core IPC and state; each fix small, red test first; the review will be opus)
+Model: sonnet, effort high (core IPC and state; each fix small, red test first; a strong reviewer follows)
 Lane: cloud, branch claude/core-minors from 79c8d2b5 (session head).
 Stop at 250 k context; cost at most 1 %. First check each item is still open on the head; a closed one: say so, skip it.
 Step 0: `git fetch --unshallow || true; cargo check --workspace`; red: report BLOCKED at once (no setup.sh, no apt).
