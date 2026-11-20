@@ -210,8 +210,7 @@ mod tests {
 
     #[test]
     fn resolution_order() {
-        let root = std::env::temp_dir().join(format!("chora-draw-assets-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let root = chora_kit::testing::TempDir::unmade("chora-draw-assets");
         let installed = root.join("usr/notify/assets");
         let exe = root.join("tree/target/release/chora-notify");
         let source = root.join("tree/plugins/chora-notify/assets");
@@ -249,7 +248,7 @@ mod tests {
                 }
             }
         }
-        let dir = std::env::temp_dir().join(format!("chora-draw-values-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-draw-values");
         std::fs::create_dir_all(&dir).unwrap();
         let err = values::<Values>(&dir).err().unwrap();
         assert!(err.contains("values.yaml"), "{err}");

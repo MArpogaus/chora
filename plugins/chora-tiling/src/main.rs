@@ -1088,10 +1088,7 @@ mod tests {
     };
     use std::path::Path;
 
-    use chora_kit::{
-        conn::Conn,
-        testing::{FakeCore, Log},
-    };
+    use chora_kit::testing::{FakeCore, Log};
 
     use super::*;
 
@@ -1105,23 +1102,17 @@ mod tests {
     /// `effects`. The windows of these cells are not in the scene: the fake
     /// core takes the commands as they come, and the test reads them.
     fn on_fake_core_with(tag: &str, effects: &[chora_kit::effects::Kind]) -> (Tiling, Log) {
-        let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let core = FakeCore::start();
         core.respond(|method, _| (method == "scene.apply").then_some(Value::Null));
         let methods = core.record(|method, params| Some(format!("{method} {params}")));
-        let conn = core.connect(NAME);
-        (tiling_on(conn, &dir, effects), methods)
+        (tiling_on(core.runtime(NAME), &dir, effects), methods)
     }
 
-    /// A tiling on the connection `conn`, with its settings file in `dir`.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
+    /// A tiling on the runtime `rt`, with its settings file in `dir`.
     pub(crate) fn tiling_on(
-        conn: Conn,
+        rt: Runtime<Action>,
         dir: &Path,
         effects: &[chora_kit::effects::Kind],
     ) -> Tiling {
@@ -1129,7 +1120,7 @@ mod tests {
         let mut settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
         settings.value.effects = effects.to_vec();
         Tiling {
-            rt: Runtime::with(conn, NAME, Vec::new()),
+            rt,
             wm: Wm::new(settings.value.clone()),
             book: crate::lifecycle::book(false),
             settings,
@@ -2094,9 +2085,8 @@ mod panel {
 
     /// A directory with the tools, jq when `jq`, and the stand-ins
     /// `(name, shell code)`.
-    fn bin(name: &str, jq: bool, fakes: &[(&str, &str)]) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-panel-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn bin(name: &str, jq: bool, fakes: &[(&str, &str)]) -> chora_kit::testing::TempDir {
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-panel-{name}"));
         std::fs::create_dir_all(&dir).expect("a directory");
         let tools = TOOLS.iter().copied().chain(jq.then_some("jq"));
         for tool in tools {

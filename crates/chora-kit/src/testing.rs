@@ -19,9 +19,11 @@ use std::{
 use chora_scene::{Command, ipc::RpcError};
 use serde_json::{Value, json};
 
-use crate::conn::Conn;
+use crate::{conn::Conn, runtime::Runtime};
 
 mod script;
+
+pub use chora_scene::testing::TempDir;
 
 pub use script::{
     Script, Subject, created, created_by, created_child, detach, output, owner, phases, surface,
@@ -164,6 +166,11 @@ impl FakeCore {
             .push(Arc::new(responder));
     }
 
+    /// Makes `output.list` answer with `outputs`, a JSON list of outputs.
+    pub fn outputs(&self, outputs: Value) {
+        self.respond(move |method, _| (method == "output.list").then(|| outputs.clone()));
+    }
+
     /// Plants a recorder: `line` gets the method and the parameters of each
     /// request, and a `Some` is appended to the log that this returns.
     #[must_use]
@@ -200,6 +207,19 @@ impl FakeCore {
     )]
     pub fn connect(&self, name: &str) -> Conn {
         Conn::connect_at(name, &self.path).unwrap()
+    }
+
+    /// A runtime of a plugin named `name`, on a connection to this fake
+    /// core, with no outputs of its own: the one place where a test of a
+    /// plugin connects (`plugins/clippy.toml` bans `Runtime::with` outside
+    /// the kit).
+    ///
+    /// # Panics
+    ///
+    /// The connection fails.
+    #[must_use]
+    pub fn runtime<A>(&self, name: &str) -> Runtime<A> {
+        Runtime::with(self.connect(name), name, Vec::new())
     }
 }
 

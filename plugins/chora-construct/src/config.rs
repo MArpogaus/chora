@@ -750,8 +750,7 @@ mod tests {
     #[test]
     fn a_config_with_the_old_names_loads_and_saves_the_new_ones() {
         use chora_kit::settings::{File, Store};
-        let dir =
-            std::env::temp_dir().join(format!("chora-construct-common-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-construct-common");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("construct.yaml");
         let old = DEFAULT

@@ -291,12 +291,11 @@ mod tests {
         bytes
     }
 
-    fn file(name: &str, bytes: &[u8]) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-icons-src-{}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
+    fn file(name: &str, bytes: &[u8]) -> (crate::testing::TempDir, PathBuf) {
+        let dir = crate::testing::TempDir::new("chora-icons-src");
         let path = dir.join(name);
         fs::write(&path, bytes).unwrap();
-        path
+        (dir, path)
     }
 
     fn runtime_with(tag: &str, mode: u32) -> PathBuf {
@@ -342,13 +341,13 @@ mod tests {
 
     #[test]
     fn a_sender_path_to_an_svg_is_refused() {
-        let svg = file("sender.svg", b"<svg xmlns='http://www.w3.org/2000/svg'/>");
+        let (_svg_dir, svg) = file("sender.svg", b"<svg xmlns='http://www.w3.org/2000/svg'/>");
         assert_eq!(Icons::new(["none"]).for_sender(svg.to_str().unwrap()), None);
     }
 
     #[test]
     fn a_sender_path_to_an_svg_named_png_is_refused() {
-        let svg = file(
+        let (_svg_dir, svg) = file(
             "sender-lie.png",
             b"<svg xmlns='http://www.w3.org/2000/svg'/>",
         );
@@ -357,8 +356,8 @@ mod tests {
 
     #[test]
     fn an_oversized_sender_png_is_refused() {
-        let wide = file("wide.png", &png(MAX_SENDER_PIXELS + 1, 8, 0));
-        let heavy = file("heavy.png", &png(8, 8, MAX_SENDER_BYTES));
+        let (_wide_dir, wide) = file("wide.png", &png(MAX_SENDER_PIXELS + 1, 8, 0));
+        let (_heavy_dir, heavy) = file("heavy.png", &png(8, 8, MAX_SENDER_BYTES));
         let mut icons = Icons::new(["none"]);
         assert_eq!(icons.for_sender(wide.to_str().unwrap()), None);
         assert_eq!(icons.for_sender(heavy.to_str().unwrap()), None);
@@ -366,7 +365,7 @@ mod tests {
 
     #[test]
     fn a_small_sender_png_still_shows() {
-        let small = file("small.png", &png(48, 48, 100));
+        let (_small_dir, small) = file("small.png", &png(48, 48, 100));
         let mut icons = Icons::new(["none"]);
         let shown = icons.for_sender(small.to_str().unwrap()).unwrap();
         assert_eq!(fs::read(shown).unwrap(), png(48, 48, 100));
@@ -374,7 +373,7 @@ mod tests {
 
     #[test]
     fn a_fifo_as_a_sender_path_falls_back_at_once() {
-        let dir = std::env::temp_dir().join(format!("chora-icons-fifo-{}", std::process::id()));
+        let dir = crate::testing::TempDir::new("chora-icons-fifo");
         fs::create_dir_all(&dir).unwrap();
         let fifo = dir.join("pipe.png");
         let _ = fs::remove_file(&fifo);
@@ -394,7 +393,7 @@ mod tests {
 
     #[test]
     fn a_sender_file_swapped_after_the_check_is_not_read() {
-        let path = file("swap.png", &png(32, 32, 0));
+        let (_path_dir, path) = file("swap.png", &png(32, 32, 0));
         let mut icons = Icons::new(["none"]);
         let shown = icons.for_sender(path.to_str().unwrap()).unwrap();
         fs::write(&path, b"<svg xmlns='http://www.w3.org/2000/svg'/>").unwrap();
@@ -408,7 +407,7 @@ mod tests {
     fn the_limits_hold_at_their_edges() {
         let mut icons = Icons::new(["none"]);
         let at = |icons: &mut Icons, name: &str, bytes: &[u8]| {
-            let path = file(name, bytes);
+            let (_path_dir, path) = file(name, bytes);
             icons.for_sender(path.to_str().unwrap()).is_some()
         };
         assert!(at(&mut icons, "e512.png", &png(512, 512, 0)));
@@ -439,7 +438,7 @@ mod tests {
 
     #[test]
     fn the_copies_are_removed_with_the_icons() {
-        let path = file("gone.png", &png(8, 8, 0));
+        let (_path_dir, path) = file("gone.png", &png(8, 8, 0));
         let mut icons = Icons::new(["none"]);
         let copy = icons.for_sender(path.to_str().unwrap()).unwrap();
         assert!(copy.is_file());

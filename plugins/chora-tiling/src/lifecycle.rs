@@ -89,10 +89,9 @@ mod tests {
     /// A tiling on the fake core of kit, with its group and the output
     /// `A`, as after its start.
     fn on_kit_core(core: &FakeCore, tag: &str) -> Tiling {
-        let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
-        let mut tiling = tiling_on(core.connect(NAME), &dir, &[]);
+        let mut tiling = tiling_on(core.runtime(NAME), &dir, &[]);
         let group = Command::Create {
             id: NAME.into(),
             kind: NodeKind::Group,

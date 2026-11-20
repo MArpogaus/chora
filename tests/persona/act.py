@@ -17,6 +17,10 @@ action appends one JSON line to its PERSONA_LOG: time, action,
 arguments, ok, result. Exit status 0 on success, 1 on a failed action,
 2 on a bad command.
 
+With PERSONA_CHECK=1 each action is followed by tests/persona/check.py, which
+runs the invariants of the acts and writes $PERSONA_DIR/breaches.jsonl; the
+persona sees nothing of it.
+
 Coordinates of click, move and drag are pixels of the last capture, as the
 persona sees them on the PNG; act.py scales them to the logical pixels of
 the output (the capture size divided by the scale that `look` printed).
@@ -25,6 +29,7 @@ is never scaled.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
@@ -33,6 +38,7 @@ import time
 
 BUTTONS = {"left": 272, "right": 273}
 TIMEOUT = 20
+CHECK_TIMEOUT = 60
 LAST_LOOK = "last_look.json"
 
 
@@ -191,6 +197,22 @@ def run(env, args):
     return ok, text or "ok"
 
 
+def check(env_path, action):
+    """Run tests/persona/check.py on what the action changed. Its answer
+    goes to $PERSONA_DIR/breaches.jsonl and never to the persona; a checker
+    that fails changes nothing for the persona."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+        subprocess.run(
+            [sys.executable, "-I", os.path.join(here, "check.py"), "after", action],
+            env={**os.environ, "PERSONA_ENV": env_path},
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=CHECK_TIMEOUT,
+            check=False,
+        )
+
+
 def main():
     """Parse, run, log, report."""
     args = parser().parse_args(type_takes_the_rest(sys.argv[1:]))
@@ -216,6 +238,8 @@ def main():
     }
     with open(env["PERSONA_LOG"], "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    if (env.get("PERSONA_CHECK") or os.environ.get("PERSONA_CHECK")) == "1":
+        check(path, args.action)
     if not ok:
         print(f"failed: {result}", file=sys.stderr)
         sys.exit(1)

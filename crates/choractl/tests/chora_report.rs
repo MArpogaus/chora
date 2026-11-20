@@ -161,8 +161,7 @@ fn words(text: &str) -> impl Iterator<Item = &str> {
 
 #[test]
 fn the_bundle_keeps_the_lines_and_hides_the_person_and_the_tokens() {
-    let work = std::env::temp_dir().join(format!("chora-report-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&work);
+    let work = chora_scene::testing::TempDir::unmade("chora-report");
     let home = work.join("home/some+one(1)");
     let (user, host) = (output("id", &["-un"]), output("uname", &["-n"]));
     fixture(&home, &user, &host);

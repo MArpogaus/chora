@@ -183,8 +183,7 @@ mod tests {
     #[test]
     fn a_recording_is_private() {
         use std::os::unix::fs::PermissionsExt;
-        let root = std::env::temp_dir().join(format!("chora-voice-mode-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let root = chora_kit::testing::TempDir::unmade("chora-voice-mode");
         let rec = Recorder::start(&root).unwrap();
         let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
         let modes = [
@@ -200,7 +199,7 @@ mod tests {
 
     #[test]
     fn a_recording_keeps_mic_played_and_events() {
-        let root = std::env::temp_dir().join(format!("chora-voice-rec-{}", std::process::id()));
+        let root = chora_kit::testing::TempDir::unmade("chora-voice-rec");
         let mut rec = Recorder::start(&root).unwrap();
         let dir = rec.dir().to_owned();
         rec.mic(&[1; 768]).unwrap();

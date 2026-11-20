@@ -856,7 +856,7 @@ mod tests {
 
     #[test]
     fn a_program_starts_with_the_file_of_the_user_before_the_others() {
-        let temp = std::env::temp_dir().join(format!("tiling-launch-{}", std::process::id()));
+        let temp = chora_kit::testing::TempDir::unmade("tiling-launch");
         let (user, generated, flavor) = (temp.join("u"), temp.join("g"), temp.join("f"));
         for dir in [&user, &generated, &flavor] {
             std::fs::create_dir_all(dir).unwrap();
@@ -923,8 +923,7 @@ mod tests {
     #[test]
     fn the_files_of_the_theme_are_written_only_when_they_change() {
         use std::os::unix::fs::MetadataExt;
-        let dir = std::env::temp_dir().join(format!("tiling-apply-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = chora_kit::testing::TempDir::unmade("tiling-apply");
         let ink = Colors::of(Scheme::Ink);
         apply(&dir, &ink, Scheme::Ink).unwrap();
         let inode = |name: &str| std::fs::metadata(dir.join(name)).unwrap().ino();
@@ -967,7 +966,7 @@ mod tests {
 
     #[test]
     fn the_launcher_lists_the_applications_of_the_flavor() {
-        let temp = std::env::temp_dir().join(format!("tiling-data-{}", std::process::id()));
+        let temp = chora_kit::testing::TempDir::unmade("tiling-data");
         let (bare_dir, flavor) = (temp.join("b"), temp.join("f"));
         std::fs::create_dir_all(flavor.join("applications")).unwrap();
         std::fs::create_dir_all(&bare_dir).unwrap();

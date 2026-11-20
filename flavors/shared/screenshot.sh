@@ -3,7 +3,7 @@
 # part that slurp lets you select. The file goes to Screenshots in the
 # pictures folder (`xdg-user-dir PICTURES` when that is installed, else
 # XDG_PICTURES_DIR, else ~/Pictures), a copy goes to the clipboard when wl-copy is there, and
-# a notice names the file. German with a German locale. grim is needed,
+# a notice names the file, or the reason when grim fails. German with a German locale. grim is needed,
 # and slurp for an area. The notice goes through notify-send to the
 # notification server of the session bus; when that fails, as in a
 # session without a session bus, through `choractl call notify
@@ -40,11 +40,12 @@ mkdir -p "$dir" || exit 1
 file=$dir/$(date +%Y-%m-%d_%H-%M-%S).png
 if [ "${1:-full}" = area ]; then
     geometry=$(slurp) || exit 0
-    grim -g "$geometry" "$file"
+    reason=$(grim -g "$geometry" "$file" 2>&1)
 else
-    grim "$file"
+    reason=$(grim "$file" 2>&1)
 fi || {
-    say "$failed" ""
+    rm -f "$file"
+    say "$failed" "${reason:-grim failed}"
     exit 1
 }
 if command -v wl-copy >/dev/null 2>&1; then

@@ -22,7 +22,17 @@
 #
 #   answer      the answer that the host draws beside the state word is
 #               at least 14 px high in its text, not the 11 px of the
-#               host (mc-34)
+#               host, and its ink is no grey: 7 to 1 on the page (mc-34)
+#
+#   pill        the word of the host beside the state word never says
+#               No helper while the voice agent speaks or a helper works
+#               (mc-36)
+#
+#   alarm       with chora-notify as the server of the notices, two
+#               critical notices leave the column whole: no NOTIFICATIONS
+#               or empty NOTES head, the Chat door stays above the rule of
+#               KEYS, and the alarm is a card in full that stands over
+#               the page, not in the footer line (mc-35)
 #
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
@@ -31,7 +41,7 @@
 #          mc-sofa-CELL-THEME.png
 # shellcheck disable=SC2016 # until_ok evaluates its first argument
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-mc chora-assistant chora-chat
+need_bins chora choractl chora-mc chora-assistant chora-chat chora-notify
 need jq
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
@@ -76,6 +86,9 @@ FAKE_VOICE_KEYS=1 FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/
 pids+=($!)
 exec 3>"$work/voice.in"
 ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
+notify_slot=$repo/plugins/chora-mc/notify
+"$bin/chora-notify" --assets "$notify_slot" --config "$notify_slot/notify.yaml" >"$work/notify.log" 2>&1 &
+pids+=($!)
 "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
 pids+=($!)
 ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant.log")"
@@ -187,7 +200,7 @@ cell_empty_head() {
 }
 
 cell_answer() {
-    local rect
+    local rect contrast
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
     emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
@@ -198,6 +211,53 @@ cell_answer() {
     shot answer
     jq -ne --argjson r "$rect" '$r[3] >= 30' >/dev/null ||
         fail "the answer of the host is $rect, a line of the small 11 px text"
+    ctl capture "$work/answer.png" >/dev/null || fail "capture answer"
+    # shellcheck disable=SC2046 # four words, one for each number of the rect
+    contrast=$(python3 -I "$repo/tests/png-contrast.py" "$work/answer.png" \
+        $(jq -r '"\(.[0] | floor) \(.[1] | floor) \(.[2] | floor) \(.[3] | floor)"' <<<"$rect"))
+    [ "$(jq -n "${contrast%% *} >= 7")" = true ] || fail "the ink of the answer is grey: $contrast"
+}
+
+hud_word() { ctl query id:hud-word | jq -r '.[0] | (.text // .meta.text // "")'; }
+cell_pill() {
+    local word
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "speaking", "task": "", "said": "It is eight.", "muted": {"mic": false, "speaker": false}}'
+    until_ok '[ "$(hud_word)" = Speaking ]' 20 || fail "the voice agent speaks, the word beside the state word is $(hud_word)"
+    shot pill
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Reminder", "step": 1, "steps": 1, "seq": 6}'
+    until_ok 'has_text "HELPERS"' 20 || fail "no helper row: $(texts | tr '\n' '|')"
+    word=$(hud_word)
+    [ "$word" != "No helper" ] || fail "a helper works, the word is $word"
+    emit voice.state '{"name": "Atlas", "state": "idle", "task": "", "seq": 7}'
+}
+
+cell_alarm() {
+    local door rule card foot body="The disk of the notes is almost full, so the copy of last night stopped half way."
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Reminder", "step": 1, "steps": 1, "seq": 8}'
+    until_ok 'has_text "HELPERS"' 20 || fail "no helper row: $(texts | tr '\n' '|')"
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push "{\"title\": \"Backup failed\", \"body\": \"$body\", \"urgency\": \"critical\"}" >/dev/null || fail "notify.push"
+    ctl call mc notify.push '{"title": "Update broke", "body": "The update of the voice agent did not finish and the old one runs again, please look at it.", "urgency": "critical"}' >/dev/null || fail "notify.push"
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "chora-notify shows no alarm"
+    sleep 1.5
+    shot alarm
+    has_text "NOTES" && fail "an empty head NOTES stands in the column: $(texts | tr '\n' '|')"
+    has_text "NOTIFICATIONS" && fail "mc draws a column of notifications: $(texts | tr '\n' '|')"
+    door=$(text_rect "Chat with a helper ...")
+    rule=$(rect_of right-keys-title-rule)
+    jq -ne --argjson d "$door" --argjson r "$rule" '$d[1] + $d[3] <= $r[1]' >/dev/null ||
+        fail "the Chat door $door stands on the rule of KEYS $rule"
+    jq -ne --argjson d "$door" '$d[0] >= 860 and $d[0] + $d[2] <= 1230' >/dev/null || fail "the Chat door $door leaves the column"
+    [ "$(ctl call notify state.get '{}' | jq -r '.shown[0].body')" = "$body" ] || fail "the card of the alarm is cut"
+    card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    foot=$(text_rect "→ 2  The Morning")
+    jq -ne --argjson c "$card" --argjson f "$foot" '$c[0] + $c[2] <= 860 and $c[1] + $c[3] <= $f[1]' >/dev/null ||
+        fail "the card of the alarm $card is not over the page, above the footer $foot"
+    ctl call mc notify.clear '{}' >/dev/null
 }
 
 failed=()
@@ -210,7 +270,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer)
+cells=(remote wide door status empty-head answer pill alarm)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

@@ -217,9 +217,7 @@ mod tests {
     /// A directory with a mode, in a scratch folder of its own.
     fn scratch(tag: &str, mode: u32) -> std::path::PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
-        let dir = std::env::temp_dir().join(format!("chora-kit-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::TempDir::new(&format!("chora-kit-{tag}")).keep();
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(mode)).unwrap();
         dir
     }
@@ -271,7 +269,7 @@ mod tests {
 
     #[test]
     fn fifos_are_refused_and_files_are_capped() {
-        let dir = std::env::temp_dir().join(format!("chora-kit-read-{}", std::process::id()));
+        let dir = crate::testing::TempDir::new("chora-kit-read");
         std::fs::create_dir_all(&dir).unwrap();
         let fifo = dir.join("fifo");
         let made = std::process::Command::new("mkfifo").arg(&fifo).status();

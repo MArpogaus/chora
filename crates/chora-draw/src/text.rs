@@ -743,9 +743,8 @@ mod tests {
         );
     }
 
-    fn font_folder(test: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-fonts-{test}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn font_folder(test: &str) -> chora_kit::testing::TempDir {
+        let dir = chora_kit::testing::TempDir::unmade(&format!("chora-fonts-{test}"));
         std::fs::create_dir_all(dir.join("fonts")).expect("a folder");
         dir
     }

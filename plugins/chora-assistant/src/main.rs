@@ -714,8 +714,8 @@ mod tests {
         assert_eq!(hovered, None);
     }
 
-    fn cache(test: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()))
+    fn cache(test: &str) -> chora_kit::testing::TempDir {
+        chora_kit::testing::TempDir::new(&format!("chora-assistant-{test}"))
     }
 
     fn huds() -> PathBuf {
@@ -723,7 +723,7 @@ mod tests {
     }
 
     /// The theme and the values of the neutral folder, and the cache.
-    pub fn loaded(test: &str) -> (Theme, Values, PathBuf) {
+    pub fn loaded(test: &str) -> (Theme, Values, chora_kit::testing::TempDir) {
         let cache = cache(test);
         let (theme, values) = load_hud(&[huds()], NEUTRAL, &Context::default(), &cache)
             .expect("the neutral folder loads");
@@ -756,10 +756,11 @@ mod tests {
 
     #[test]
     fn a_hud_folder_is_never_loaded_as_a_trusted_asset_folder() {
+        let cache = cache("source");
         let mut source = Source {
             assets: None,
             roots: vec![huds()],
-            cache: cache("source"),
+            cache: cache.to_path_buf(),
             loads: 0,
         };
         let (theme, ..) = source
@@ -796,10 +797,11 @@ mod tests {
     #[test]
     fn the_xp_folder_shows_the_paperclip_of_its_hud_yaml() {
         let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
+        let cache = cache("xp");
         let mut source = Source {
             assets: Some(xp),
             roots: Vec::new(),
-            cache: cache("xp"),
+            cache: cache.to_path_buf(),
             loads: 0,
         };
         let (_, values, _) = source
@@ -815,8 +817,7 @@ mod tests {
 
     #[test]
     fn a_missing_picture_names_its_file() {
-        let dir =
-            std::env::temp_dir().join(format!("chora-assistant-empty-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-assistant-empty");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("values.yaml"), "{}\n").unwrap();
         let err = load_assets(&dir, &cache("empty")).err().expect("an error");
@@ -948,39 +949,28 @@ mod tests {
     }
 
     #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
-    fn on_fake_core(tag: &str, chats: bool) -> Agent {
-        let dir =
-            std::env::temp_dir().join(format!("chora-assistant-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn on_fake_core(tag: &str, chats: bool) -> (Agent, [chora_kit::testing::TempDir; 2]) {
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-assistant-{tag}"));
         std::fs::create_dir_all(&dir).unwrap();
         let core = chora_kit::testing::FakeCore::start();
-        core.respond(|method, _| {
-            (method == "output.list").then(|| {
-                serde_json::json!([{
-                    "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
-                    "scale": 1.0, "camera": chora_scene::Transform::default(),
-                    "work_area": [0, 0, 1920, 1080]
-                }])
-            })
-        });
-        let conn = core.connect(NAME);
+        core.outputs(serde_json::json!([{
+            "name": "DP-1", "position": [0, 0], "size": [1920, 1080],
+            "scale": 1.0, "camera": chora_scene::Transform::default(),
+            "work_area": [0, 0, 1920, 1080]
+        }]));
         let (theme, mut values, cache) = loaded(tag);
         values.chats = chats;
         let settings =
             settings::File::<Config>::load(dir.join("chora-assistant.yaml"), config::DEFAULT)
                 .unwrap();
         let card_theme = card::theme(&cache, HOST_FAMILY).unwrap();
-        Agent {
-            rt: Runtime::with(conn, NAME, Vec::new()),
+        let agent = Agent {
+            rt: core.runtime(NAME),
             settings,
             source: Source {
                 assets: None,
                 roots: vec![huds()],
-                cache: cache.clone(),
+                cache: cache.to_path_buf(),
                 loads: 1,
             },
             theme,
@@ -995,7 +985,7 @@ mod tests {
             machine: chora_kit::helper::Helper::default(),
             slot: None,
             slot_client: None,
-            look_cache: cache,
+            look_cache: cache.to_path_buf(),
             card_theme,
             card_family: HOST_FAMILY.to_owned(),
             language: Language::En,
@@ -1019,7 +1009,8 @@ mod tests {
             hovered: None,
             flash: None,
             keyboard_told: false,
-        }
+        };
+        (agent, [dir, cache])
     }
 
     fn pressed(node: &str, injected: bool) -> Event {
@@ -1043,7 +1034,7 @@ mod tests {
 
     #[test]
     fn a_press_of_a_person_on_the_chat_row_opens_the_chat_and_one_of_a_program_does_not() {
-        let mut agent = on_fake_core("row-press", false);
+        let (mut agent, _dirs) = on_fake_core("row-press", false);
         agent.event(pressed("hud-row-chat", true)).unwrap();
         assert!(!agent.chat.is_open(), "a program pressed the row");
         agent.event(pressed("hud-row-chat", false)).unwrap();
@@ -1052,7 +1043,7 @@ mod tests {
 
     #[test]
     fn a_press_of_a_person_on_the_figure_opens_the_chat_and_one_of_a_program_does_not() {
-        let mut agent = on_fake_core("figure-press", true);
+        let (mut agent, _dirs) = on_fake_core("figure-press", true);
         agent.event(pressed("hud-figure", true)).unwrap();
         assert!(!agent.chat.is_open(), "a program pressed the figure");
         agent.event(pressed("hud-figure", false)).unwrap();
@@ -1061,7 +1052,7 @@ mod tests {
 
     #[test]
     fn a_new_look_keeps_the_files_of_the_figure_on_the_screen_until_it_is_replaced() {
-        let mut agent = on_fake_core("reload", false);
+        let (mut agent, _dirs) = on_fake_core("reload", false);
         agent.folder = "before".into();
         let old = agent.look_cache.clone();
         let ring = agent
@@ -1085,7 +1076,7 @@ mod tests {
 
     #[test]
     fn a_hover_of_a_program_leaves_no_mark_and_one_of_a_person_does() {
-        let mut agent = on_fake_core("hover", false);
+        let (mut agent, _dirs) = on_fake_core("hover", false);
         agent.event(entered("hud-chat-close", true)).unwrap();
         assert_eq!(agent.hovered, None, "a program moved the pointer");
         agent.event(entered("hud-chat-close", false)).unwrap();

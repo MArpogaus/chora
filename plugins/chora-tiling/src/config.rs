@@ -735,8 +735,8 @@ mod tests {
     fn one_binding_gives_the_same_system_action_in_every_look() {
         use std::fmt::Write;
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/configs");
-        let path =
-            std::env::temp_dir().join(format!("chora-tiling-system-{}.yaml", std::process::id()));
+        let temp = chora_kit::testing::TempDir::new("chora-tiling-system");
+        let path = temp.join("system.yaml");
         std::fs::copy(dir.join("system-bindings.yaml"), &path).unwrap();
         let file = chora_kit::settings::File::<Config>::load(path.clone(), DEFAULT).unwrap();
         std::fs::remove_file(path).unwrap();

@@ -1207,7 +1207,6 @@ fn read_checked(path: &Path, checked: &std::fs::Metadata) -> std::io::Result<Vec
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
     use super::*;
 
@@ -1215,24 +1214,15 @@ mod tests {
     const FILE_BYTES: usize = 1 << 20;
     const MINIMAL: &str = "hud: 1\n";
 
-    struct Dir(PathBuf);
+    struct Dir(crate::testing::TempDir);
 
     impl Dir {
         fn new(name: &str) -> Self {
-            let dir = std::env::temp_dir().join(format!("chora-hud-{name}-{}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
-            Self(dir)
+            Self(crate::testing::TempDir::new(&format!("chora-hud-{name}")))
         }
 
         fn put(&self, name: &str, data: &[u8]) {
             std::fs::write(self.0.join(name), data).unwrap();
-        }
-    }
-
-    impl Drop for Dir {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
         }
     }
 

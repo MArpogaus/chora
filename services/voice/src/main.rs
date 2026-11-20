@@ -758,13 +758,13 @@ mod tests {
     /// its name, instead of the defaults.
     #[test]
     fn a_broken_settings_file_fails_closed() {
-        let path = std::env::temp_dir().join(format!("chora-voice-broken-{}", std::process::id()));
+        let path = chora_kit::testing::TempDir::unmade("chora-voice-broken");
         std::fs::write(&path, "confirm: [").unwrap();
-        let settings = settings::File::<Config>::load(path.clone(), "{}").unwrap();
+        let settings = settings::File::<Config>::load(path.to_path_buf(), "{}").unwrap();
         let err = unbroken(settings).err().unwrap();
         assert!(err.contains(&path.display().to_string()), "{err}");
         std::fs::write(&path, "earcons: false").unwrap();
-        let settings = settings::File::<Config>::load(path.clone(), "{}").unwrap();
+        let settings = settings::File::<Config>::load(path.to_path_buf(), "{}").unwrap();
         assert!(!unbroken(settings).unwrap().value.earcons);
         std::fs::remove_file(&path).unwrap();
     }

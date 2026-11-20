@@ -564,9 +564,8 @@ mod tests {
         assert_eq!(step("[1, 2]", String::new()).0, "[1, 2]");
     }
 
-    fn temp(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-voice-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn temp(name: &str) -> chora_kit::testing::TempDir {
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-voice-{name}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -595,7 +594,7 @@ mod tests {
         let data = temp("coder-check");
         std::fs::create_dir_all(data.join("inventory/demo")).unwrap();
         let (tx, _rx) = mpsc::channel();
-        let coder = Coder::new(sh("true"), data.clone(), tx);
+        let coder = Coder::new(sh("true"), data.to_path_buf(), tx);
         assert_eq!(coder.call("list_projects", &json!({})), "demo");
         let answer = |args| coder.call("code_task", &args).as_str().unwrap().to_owned();
         assert!(answer(json!({"task": " -rf"})).contains("must not"));
@@ -612,7 +611,7 @@ mod tests {
         let data = temp("coder-keys");
         let (tx, rx) = mpsc::channel();
         let script = r#"echo "${HOME-unset}" > home.txt"#;
-        let coder = Coder::new(sh(script), data.clone(), tx);
+        let coder = Coder::new(sh(script), data.to_path_buf(), tx);
         coder.set_keys(vec!["HOME".into()]);
         coder.call("code_task", &json!({"task": "warte"}));
         tokio::task::spawn_blocking(move || events(&rx))
@@ -637,7 +636,7 @@ mod tests {
             sh(
                 r#"echo "$1" > task.txt; git remote; echo working; echo '{"type":"result","result":"Alles gut."}'"#,
             ),
-            data.clone(),
+            data.to_path_buf(),
             tx,
         );
         let started = coder.call(
@@ -690,7 +689,7 @@ mod tests {
     async fn a_cancel_stops_the_task_and_its_children() {
         let data = temp("coder-cancel");
         let (tx, rx) = mpsc::channel();
-        let coder = Coder::new(sh("sleep 30 & echo $! > pid; wait"), data.clone(), tx);
+        let coder = Coder::new(sh("sleep 30 & echo $! > pid; wait"), data.to_path_buf(), tx);
         coder.call("code_task", &json!({"task": "warte"}));
         let dir = data.join("worktrees/1");
         let start = Instant::now();

@@ -712,13 +712,11 @@ mod tests {
 
     /// A `/proc/self/task` of the main thread and four renderer threads,
     /// each with a wait in milliseconds.
-    struct Tasks(std::path::PathBuf);
+    struct Tasks(crate::testing::TempDir);
 
     impl Tasks {
         fn new(name: &str) -> Self {
-            let dir = std::env::temp_dir().join(format!("chora-{name}-{}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&dir);
-            Self(dir)
+            Self(crate::testing::TempDir::unmade(&format!("chora-{name}")))
         }
 
         fn wait(&self, main_ms: u64, renderer_ms: u64) {
@@ -741,12 +739,6 @@ mod tests {
             std::thread::sleep(Duration::from_millis(40));
             self.wait(main_ms, renderer_ms);
             clock.stop_in(&self.0)
-        }
-    }
-
-    impl Drop for Tasks {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
         }
     }
 

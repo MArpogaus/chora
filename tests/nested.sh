@@ -19,6 +19,7 @@
 set -euo pipefail
 
 . "$(dirname "$0")/proc-lib.sh"
+. "$(dirname "$0")/nested-diag.sh"
 bin=$(realpath "$1")
 out=$(realpath "${2:-$(mktemp -d)}")
 mkdir -p "$out"
@@ -43,6 +44,7 @@ wait_for() {
         if "$@" >/dev/null 2>&1; then return 0; fi
         sleep 0.2
     done
+    if [ -n "${WAIT_DIAG:-}" ]; then "$WAIT_DIAG" >&2 || true; fi
     fail "timeout: $*"
 }
 
@@ -280,7 +282,7 @@ kill -0 "$chora_pid" || fail "chora died"
 # A new lock client takes over and unlocks; the grid shows again.
 probe take-lock >>"$out/probe.log" 2>&1 || fail "the takeover: $out/probe.log"
 not_black() { test "$(pixel 100 100)" != "0 0 0"; }
-wait_for not_black
+WAIT_DIAG=not_black_diag wait_for not_black
 
 step "15. a fullscreen request reaches plugins after surface.created"
 "$bin/choractl" events surface.created surface.requested >"$out/requests.jsonl" &

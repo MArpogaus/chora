@@ -41,11 +41,9 @@ fn render_frames(core: &mut Core, frames: usize) {
     }
 }
 
-fn png(side: u32) -> String {
-    static FILES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    let number = FILES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path =
-        std::env::temp_dir().join(format!("chora-guard-{}-{number}.png", std::process::id()));
+fn png(side: u32) -> (chora_scene::testing::TempDir, String) {
+    let dir = chora_scene::testing::TempDir::new("chora-guard");
+    let path = dir.join("image.png");
     let file = std::io::BufWriter::new(std::fs::File::create(&path).expect("a file"));
     let mut encoder = png::Encoder::new(file, side, side);
     encoder.set_color(png::ColorType::Grayscale);
@@ -53,7 +51,8 @@ fn png(side: u32) -> String {
     writer
         .write_image_data(&vec![128; (side * side) as usize])
         .expect("pixels");
-    path.to_str().expect("a path").to_owned()
+    let path = path.to_str().expect("a path").to_owned();
+    (dir, path)
 }
 
 fn apply(wm: &mut Client, core: &mut Core, commands: &[Value]) {
@@ -76,7 +75,7 @@ fn flat_scene(core: &mut Core, wm: &mut Client) -> (Wayland, Vec<Variant>) {
     wayland.attach_layer(core, &layer, (100, 30));
     let window = wayland.toplevel(core, "window");
     wayland.attach(core, &window, (40, 30));
-    let path = png(8);
+    let (_dir, path) = png(8);
     let at = |x: u32, y: u32| json!({"translate": [x, y]});
     let mut commands = vec![
         json!({"camera": {"output": OUTPUT, "transform": {"scale": 2}}}),

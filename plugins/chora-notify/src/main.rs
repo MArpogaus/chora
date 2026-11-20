@@ -542,8 +542,8 @@ fn load_assets(dir: &Path, cache: &Path) -> Result<(Theme, Values), String> {
 mod tests {
     use super::*;
 
-    fn cache(test: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("chora-notify-{test}-{}", std::process::id()))
+    fn cache(test: &str) -> chora_kit::testing::TempDir {
+        chora_kit::testing::TempDir::new(&format!("chora-notify-{test}"))
     }
 
     #[test]
@@ -599,10 +599,6 @@ mod tests {
     /// A notify with the outcome of taking the bus name, on a fake core
     /// that answers every request with null and `output.list` with no
     /// outputs.
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     fn on_fake_core(tag: &str, bus: Result<Bus, StartError>, ids: Ids) -> Notify {
         let dir = cache(tag);
         let _ = std::fs::remove_dir_all(&dir);
@@ -612,7 +608,7 @@ mod tests {
         let assets = load_assets(&assets, &dir.join("cache")).expect("the assets load");
         let settings =
             settings::File::<Config>::load(dir.join("chora-notify.yaml"), config::DEFAULT).unwrap();
-        let mut rt = Runtime::with(core.connect(NAME), NAME, Vec::new());
+        let mut rt = core.runtime(NAME);
         rt.pin_accepts_injected(false);
         Notify::on(rt, bus, ids, assets, settings)
     }
@@ -807,7 +803,7 @@ mod tests {
 
     #[test]
     fn a_missing_picture_names_its_file() {
-        let dir = std::env::temp_dir().join(format!("chora-notify-empty-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-notify-empty");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("values.yaml"), "{}\n").unwrap();
         let err = load_assets(&dir, &cache("empty")).err().expect("an error");

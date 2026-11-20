@@ -1720,7 +1720,7 @@ mod tests {
 
     #[test]
     fn art_that_is_a_fragment_is_told_from_art_that_fills_its_square() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-art-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-xp-art");
         std::fs::create_dir_all(&dir).expect("a folder");
         let draw = |name: &str, side: u32, ink: u32| {
             let mut image = resvg::tiny_skia::Pixmap::new(side, side).expect("a pixmap");
@@ -1744,7 +1744,7 @@ mod tests {
 
     #[test]
     fn art_of_a_white_page_with_a_few_marks_is_a_fragment() {
-        let dir = std::env::temp_dir().join(format!("chora-xp-page-{}", std::process::id()));
+        let dir = chora_kit::testing::TempDir::new("chora-xp-page");
         std::fs::create_dir_all(&dir).expect("a folder");
         let draw = |name: &str, every: u32| {
             let mut image = resvg::tiny_skia::Pixmap::new(64, 64).expect("a pixmap");

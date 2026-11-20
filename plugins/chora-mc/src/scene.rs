@@ -333,10 +333,8 @@ pub fn flow(cells: &[[u32; 4]], cols: u32) -> (Vec<[u32; 4]>, u32) {
 mod tests {
     use super::*;
 
-    fn dir(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("chora-mc-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        dir
+    fn dir(name: &str) -> chora_kit::testing::TempDir {
+        chora_kit::testing::TempDir::unmade(&format!("chora-mc-{name}"))
     }
 
     #[test]

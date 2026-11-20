@@ -7,6 +7,10 @@
 # tests/acts/known-red.toml. A listed failure does not block; a listed
 # pass and an unlisted failure print `FAIL:` and fail the gate.
 #
+# tests/persona-selftest.sh follows: the stand-ins and grants of a persona
+# session. The live selftest also plants a breach in a persona session and
+# must see it in breaches.jsonl.
+#
 # Usage: tests/gate-acts.sh [--no-selftest] [LOOK...]   BIN: the binaries
 #   LOOK  xp, tiling, mc, construct (default all)
 set -u
@@ -14,5 +18,6 @@ set -u
 need python3
 need_bins chora choractl chora-xp chora-mc chora-tiling chora-construct chora-probe
 python3 -I "$repo/tests/test_acts.py" || fail "the selftest of the harness"
+"$repo/tests/persona-selftest.sh" || fail "the selftest of the persona session"
 python3 -I "$repo/tests/acts/run.py" "$@" || fail "acts: a cell blocks (see the FAIL lines)"
 ok "every act and invariant passes or is listed as known red"
