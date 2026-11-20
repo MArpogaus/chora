@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 16:44 UTC)
+## Now (2026-11-20 16:48 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 16:44 PM 10.9 %; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: ce2c436b; 48 greens (t89b green 16:25); t90 gate-silent running.
@@ -26,13 +26,13 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 | kit-minor-r1.md (kit MINOR: Book origin, kit7 r2 helper) | sonnet medium, claude/kit-minor e7f2410a | session_016iS3kN7xygsb7sS4PkKmav 16:34 |
-| xp-minor-r2.md (RC 2 bar: Run... err vs Escape, pr1-1) | sonnet medium, claude/xp-minor 22884a79 | session_016iS3kQfMuef1xFRc5ak7to 16:27 |
+| xp-give-r1.md (RC 2: xp-T7 Send To a look by mouse) | sonnet medium, claude/xp-give ce2c436b | starting |
 | co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
 | p2-r2-tiling.md (RC 2: tiling persona round 2) | sonnet medium + haiku, claude/p2-r2-tiling ce2c436b | session_016iS3kNo5CzwTTqXM8x3PEa 16:37 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t90 gate-silent baac5dcf alone (running); t91 gate-orphan 437173e1 alone (harness); t92 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix 929de144 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0.
-5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r6, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r1, GATE-ORPHAN r1. Running: FLAKES-L r2 1.2 %, FLAKES-O r1 1 %, KIT-MINOR r1 1 %, XP-MINOR r2 0.5 %, CO-FIX r2 1 %, P2-R2-TILING 1 %. TI-MINOR r1 done (nothing to merge). Later FLAKE-SERIES r3 haiku 1 %.
+4. (F6, rc 3) t90 gate-silent baac5dcf alone (running); t91 gate-orphan 437173e1 alone (harness); t92 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix 929de144 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0 + xp-minor fca4f8b5.
+5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r6, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r1, GATE-ORPHAN r1, XP-MINOR r2. Running: FLAKES-L r2 1.2 %, FLAKES-O r1 1 %, KIT-MINOR r1 1 %, XP-GIVE r1 1 %, CO-FIX r2 1 %, P2-R2-TILING 1 %. Later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

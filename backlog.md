@@ -338,5 +338,6 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - PERSONA-CHECK (CLOSED, persona-check r1, claude/persona-check e3763f69): T4:clock, I1/I3 on the xp child of a construct face, `begin` per goal and the scene state in each contract line are fixed in tests/persona (report reports/persona-check.md). Open: the T5 co-25 face case is a product item (xp lane), not the harness.
 - co-33 one-screen pull gesture (title drag on one output); co-34 Super+C with a cube open steps back (co-fix r1 review 16:12)
 - FLK-ACT1 seen again in the mc-fix r6 gate 16:19 (dup, in flakes-l r2). Book origin labels given/new reverse of api.md: kit-minor r1.
-- xp-T7 (UX, P2 r3-r5 nurse): xp shows no way to hand the screen to another look (Control Panel, Desktop, Display grey; 3 rounds); the persona T7 passes vacuously. Next xp round after xp-minor; tour v9 must show the switch.
+- xp-T7 (UX, P2 r3-r5 nurse): xp shows no way to hand the screen to another look (Control Panel, Desktop, Display grey; 3 rounds); the persona T7 passes vacuously. Next xp round after xp-minor; tour v9 must show the switch. -> xp-give r1 (16:5x).
 - xp volume slider: drag as in XP (xp-minor r1 pr1-2).
+- xp-minor pr2-1 NIT: the Run notice keeps fuzzel's "config.c:17: " source position; strip "<file>.c:<n>: " before the text (crates/chora-kit/src/launcher.rs ask).
