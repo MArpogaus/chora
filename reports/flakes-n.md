@@ -77,3 +77,9 @@ Confirming run: `tests/merge-gate.sh --jobs 2 --only build,matrix,layout,constru
 
 Gate: `--only pre-commit,ci-check,build,test,clippy,gate-lib,matrix` PASS (pre-commit 5, gate-lib 74,
 ci-check 94, build 0, test 209, clippy 21, matrix 284 s; matrix own run time: 212s).
+
+## PM review r2 (2026-11-20 15:56 UTC)
+Base fe398489..d7c69aac, 1 file, 5+/5-. Red d861f34b first, fix d7c69aac.
+- pr1-1 closed: internal `run time:` of 124 matrix.log under /tmp/merge-gate.*: max 309 s (283, 283, 290, 300, 301, 309); cap 387 s = 309 + 25 %. Gate step times reach 405 s but include setup, not the capped run.
+- pr2-1 NIT: the comment says "--jobs 2"; the trains ran at --jobs 1 to 3. Known issue, no round.
+Verdict (computed): no open MAJOR -> MERGE-OK. Joins t91.
