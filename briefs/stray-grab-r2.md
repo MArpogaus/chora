@@ -1,6 +1,6 @@
 # stray-grab-r2 (RC shared bar "no stray keys"): fix review r1 (rv-1 MAJOR, rv-2 MINOR, rv-3/4 NIT)
 
-Model: sonnet, effort high (the fix and its test are named by the review; small diff in state.rs; an opus review follows)
+Model: sonnet, effort high (the fix and its test are named by the review; small diff in state.rs; a seeded review follows)
 Lane: cloud, branch claude/stray-grab at 9859071b (r1 head). One round, stop at 250 k. Cost about 0.8 %.
 Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "stray-grab BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read on claude/session-log: reports/stray-grab.md "## Review r1" (findings rv-1 to rv-4, with file, line, repro and fix). On the branch: crates/chora/src/state.rs 925-944 (choose_manager), crates/chora/src/render.rs node_under, crates/chora/src/input.rs tests near 2639.
