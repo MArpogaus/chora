@@ -1,19 +1,18 @@
 # State
 
-## Now (2026-11-20 04:57 UTC)
+## Now (2026-11-20 05:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 03:13 PM 5.4 %; 25 h left: 60 %, 2.4 %/h; 6 lanes full
-models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
-session branch: 79c8d2b5 (train 81); 43 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
-burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next wk.
+budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
+session branch: 79c8d2b5 (train 81); 43 greens. Train 84 (t83 + harness) running 05:37, head 355cdbe5.
+burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r2 red (xp-35 I5) |
-| 3 | Three greens in a row | 30b, 33-40 green (9); F26 held, F28 holds; F17 open |
-| 4 | CI green | green on 29e2cd77 13:13 (train 41, PR #106, all 10 checks) |
+| 2 | Persona round 4 | xp r2 red (xp-35 I5); mc r2 red (mc-47..49; M2 ruled out) |
+| 3 | Three greens in a row | 30b, 33-40 green (9) |
+| 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
 | 6 | Code review per area | 08:59, no HIGH; MEDIUM fixed or known issues |
 | 7 | deny, machete | clean (ci-rc) |
@@ -24,17 +23,19 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| verify-maj-r2.md (RC 1, rule 6: ti-20, xp-24 asserts; Queue 5) | sonnet medium | session_016iS3kQa2hAkn1uRKgDKcHT |
-| audit-f-r3.md (F1-F8 Friday audit, slices; Queue 5) | opus high | session_016iS3kQKHfjKxDKnKvGXq2e |
-| flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
-| xp-p2r3-r1.md (RC 2, shared bar: face swallow, XPF-R1, co rw-1/2; Queue 5) | sonnet high | session_016iS3kNNbYNpanv6161XNnY |
+| harness-l-r1.md (F6 gates: R15, R12, R14, H-move; Queue 5) | sonnet medium | session_016iS3kND6YHtNvLZZ3zyyMN |
+| mc-fix-r1.md (RC 2: mc-47, 48, 49 MAJOR cand., P2-CHECK; Queue 5) | sonnet high | session_016iS3kPRxyZyGMAUJ4zQHkq |
+| core-l-r1.md (F5 F22, stability: WD2, L16; Queue 5) | sonnet high | session_016iS3kPcj8fM8xQmvDtJAek |
+| flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
+| review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | session_016iS3kQLLfhEJgLJAbKpZ1t |
+| xp-24-r2.md (RC 1 rule 6: xp-24 MAJOR; r1 blocked fuzzel 1.9.2; PM verifies cell) | sonnet high | session_016iS3kPNVdHxB3JTzsMW3gj |
 | co-majors-r3.md (RC 2, rule 6: co-27, co-29 MAJOR, co-28; Queue 5) | sonnet high | session_016iS3kNjVuFx3uAeQzWEbHq |
-| core-minors-r1.md (F5, F8 core MINORs; Queue 5) | sonnet high | session_016iS3kNyrbRy98nAwMrpmiC |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t83 (launcher-click, p2-harness, voice-v12, xp-fix) --jobs 2. t84 harness: debt-f4 fc404a90, harness-k 0dfdad8d. t85: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f, kit-minors 7a7e00a2.
-5. F work: running: VERIFY-MAJ r2 0.6 % (rule 6), CO-MAJORS r3 1.2 % (rule 6), FLAKES-J 1 %, XP-P2R3 1 %, CORE-MINORS 1 % (F5); after t85: LINT-DOWN r3 0.1 %, co-26 pane; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 2 % running.
+4. Trains: t84 running (t83 4 branches + debt-f4, harness-k, flakes-j). t85: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f, kit-minors 7a7e00a2, core-minors d23b03ae, docs-f8e c529242b.
+5. F work: running: HARNESS-L 0.8 % (F6), CO-MAJORS r3 1.2 %, XP-24 1 %, REVIEW-XP-P2R3 0.5 %, FLAKES-K 1.2 % (F5), MC-FIX 1.5 %, CORE-L 1 % (F5); after t85: LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), FLAKE-SERIES r2 haiku 1 %, AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
-- Lane auto mode refused setup.sh (apt) 23:37: allow, or all tools in env setup? Default: skip it. rc.4 tag: kept local (owner).
+- Env setup: lanes have fuzzel 1.9.2 (PM 1.11.1 in ~/.local); xp-24 and ti-1 need >= 1.11. Default: PM verifies fuzzel cells in trains.
+- setup.sh refused in lanes (apt): default skip. rc.4 tag: kept local (owner).
