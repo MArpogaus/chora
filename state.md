@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 15:35 UTC)
+## Now (2026-11-20 15:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 14:48 PM 9.8 %; 6 lanes
 session branch: fee9c695; 47 greens. t89 red xp-question 1x Yes 32 px (flake); t89b running (--jobs 1). t88b green 14:49.
@@ -10,7 +10,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp-36 merged t87e, xp r4 runs; mc r4 15:21: mc-42 FAIL first arrival (4th hit), stop rule not met; mc-fix r6 opus, r5 after; co r2 15:34 not met (co-25 pane, C2), co-fix r1 |
+| 2 | Persona round 4 | xp r4 15:35 meets the stop rule (0 breaches; T4:clock checker); mc r4 15:21: mc-42 FAIL first arrival (4th hit), stop rule not met; mc-fix r6 opus, r5 after; co r2 15:34 not met (co-25 pane, C2), co-fix r1 |
 | 3 | Three greens in a row | 30b, 33-40 green (9) |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -27,12 +27,12 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-n-r2.md (F5: MX-CAP cap from train load, pr1-1 MAJOR) | sonnet medium, claude/flakes-n fe398489 | session_016iS3kLRcZ7yVAPExNPSsPR 15:24 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 | mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
-| p2-r4-xp.md (RC 2: xp persona r4 after xp-36) | sonnet medium, claude/p2-r4-xp fee9c695 | session_016iS3kMyJL9W3hiLkAUZZ12 15:19 |
+| persona-check-r1.md (RC 2: checker fixes) | sonnet medium, claude/persona-check fee9c695 | starting |
 | co-fix-r1.md (RC 2: co-25 persona path, C2 pull, C1 cube row) | opus high, claude/co-fix 59efbc17 | session_016iS3kQV9F7BQukecZNFTL1 15:35 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) Trains: t89b probe-leak f5ac3500 alone (running); t90 gate-silent baac5dcf alone (harness); t91 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8 + flakes-m ecfa2029; flakes-n r1 FIX (cap 293 < 309 s train), r2. No PM selftests during a train.
-5. (F5, F4, shared bar) FLAKES-L r2 1.2 %, FLAKES-M r1, MC-FIX r5 MERGE-OK; FLAKES-N r2 0.3 %, FLAKES-O r1 1 %, MC-FIX r6 opus 2 %, P2-R2-CO done, CO-FIX r1 opus 2 %, P2-R4-XP 1 %; AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %.
+5. (F5, F4, shared bar) FLAKES-L r2 1.2 %, FLAKES-M r1, MC-FIX r5 MERGE-OK; FLAKES-N r2 0.3 %, FLAKES-O r1 1 %, MC-FIX r6 opus 2 %, P2-R2-CO done, CO-FIX r1 opus 2 %, P2-R4-XP done, PERSONA-CHECK r1 1 %; AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
