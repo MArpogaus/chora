@@ -163,6 +163,17 @@ pub fn choose(fuzzel: &[String], apps: &[App]) -> Option<String> {
     None
 }
 
+/// Like [`choose`], and `report` gets the one line that says why the
+/// list could not start.
+#[must_use]
+pub fn choose_reporting(
+    fuzzel: &[String],
+    apps: &[App],
+    _report: &mut dyn FnMut(&str),
+) -> Option<String> {
+    choose(fuzzel, apps)
+}
+
 /// The data directories of the launcher: `first`, the one of a flavor,
 /// then the first folder of `shared` that has `applications` (Chat with a
 /// helper, Screenshot), then the XDG ones.
@@ -321,5 +332,54 @@ mod tests {
             answer(&list, &notice, Some(&notice), on_path),
             Answer::Closed
         );
+    }
+
+    /// A stand-in for fuzzel: a shell script with the `body`.
+    fn stand_in(name: &str, body: &str) -> (crate::testing::TempDir, Vec<String>) {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = crate::testing::TempDir::new(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("fuzzel");
+        std::fs::write(&file, format!("#!/bin/sh\ncat >/dev/null\n{body}\n")).unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let command = vec![file.to_string_lossy().into_owned()];
+        (dir, command)
+    }
+
+    fn reports(fuzzel: &[String]) -> (Option<String>, Vec<String>) {
+        let mut said = Vec::new();
+        let got = choose_reporting(fuzzel, &list(), &mut |line| said.push(line.to_owned()));
+        (got, said)
+    }
+
+    #[test]
+    fn a_launcher_that_fails_says_why_once() {
+        let (_dir, fuzzel) = stand_in(
+            "chora-launcher-fail",
+            "echo 'bad key' >&2; echo 'second line' >&2; exit 1",
+        );
+        let (got, said) = reports(&fuzzel);
+        assert_eq!(got, None);
+        assert_eq!(said, ["Run could not start: bad key"]);
+    }
+
+    #[test]
+    fn a_launcher_that_cannot_spawn_says_so() {
+        let (got, said) = reports(&["/chora-no-such-dir/fuzzel".to_owned()]);
+        assert_eq!(got, None);
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].starts_with("Run could not start: "), "{said:?}");
+    }
+
+    #[test]
+    fn a_cancel_stays_silent() {
+        let (_dir, fuzzel) = stand_in("chora-launcher-cancel", "exit 1");
+        assert_eq!(reports(&fuzzel), (None, vec![]));
+    }
+
+    #[test]
+    fn a_choice_runs_and_says_nothing() {
+        let (_dir, fuzzel) = stand_in("chora-launcher-ok", "echo Screenshot");
+        assert_eq!(reports(&fuzzel), (Some("shot".to_owned()), vec![]));
     }
 }
