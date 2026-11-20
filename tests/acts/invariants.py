@@ -384,22 +384,38 @@ def i2(_before, after, _act):
     return out
 
 
-def hides(box, size, low, high):
-    """Whether a box is opaque or the wallpaper of the look of the upper
-    text over the look of the lower text: a picture of the whole output
-    that belongs to the look above. The boxes report no opacity, so a
-    picture of the look of the lower text, or of a third look, is no cover
-    and an overlap under it stays a breach."""
-    whole = box.get("kind") == "image" and list(box["rect"]) == [0, 0, *size]
-    wallpaper = whole and box.get("owner") == high and box.get("owner") != low
-    return bool(box.get("opaque")) or wallpaper
+def shown_look(after, output, boxes):
+    """The look that is shown on an output: the one that holds the focus,
+    else the owner of the topmost picture of the whole output."""
+    states = looks_with_state(after)
+    holders = [look for look, s in states.items() if (s.get("focus") or {}).get("holder") == look]
+    if len(holders) == 1:
+        return holders[0]
+    size = sizes_of(after).get(output)
+    owners = [b.get("owner") for b in boxes if is_whole(b, size)]
+    return owners[-1] if owners else None
 
 
-def covered(boxes, low, high, rect, size):
+def sizes_of(after):
+    return {o: e.get("size") or [0, 0] for o, e in (after.boxes or {}).items()}
+
+
+def is_whole(box, size):
+    return box.get("kind") == "image" and list(box["rect"]) == [0, 0, *(size or [0, 0])]
+
+
+def hides(box, size, shown):
+    """Whether a box is opaque or the wallpaper of the look shown: a
+    picture of the whole output that belongs to that look. The boxes report
+    no opacity, so a picture of another look (mc drawn over xp while xp is
+    shown) is no cover and an overlap under it stays a breach."""
+    return bool(box.get("opaque")) or (is_whole(box, size) and box.get("owner") == shown)
+
+
+def covered(boxes, low, high, rect, size, shown):
     """Whether an opaque box between two indices covers a rect."""
-    owners = (boxes[low].get("owner"), boxes[high].get("owner"))
     return any(
-        hides(b, size, *owners) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1]
+        hides(b, size, shown) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1]
     )
 
 
@@ -409,8 +425,9 @@ def i5(_before, after, _act):
     whose boxes share a quarter of the smaller height or less pass."""
     out = []
     boxes = boxes_on(after)
-    sizes = {o: e.get("size") or [0, 0] for o, e in (after.boxes or {}).items()}
+    sizes = sizes_of(after)
     for output, items in sorted(screen_texts(after).items()):
+        shown = shown_look(after, output, boxes[output])
         for n, (ia, la, ta, ra) in enumerate(items):
             for ib, lb, tb, rb in items[n + 1 :]:
                 where = overlap(ra, rb)
@@ -418,7 +435,7 @@ def i5(_before, after, _act):
                     continue
                 low, high = sorted((ia, ib))
                 size = sizes[output]
-                if low != high and covered(boxes[output], low, high, where, size):
+                if low != high and covered(boxes[output], low, high, where, size, shown):
                     continue
                 out.append(f"on {output} {ta!r} ({la}) overlaps {tb!r} ({lb}) at {where}")
     return out
