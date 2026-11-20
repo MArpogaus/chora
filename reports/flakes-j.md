@@ -127,3 +127,11 @@ nothing is pushed" (it was a subset); the branch was pushed by hand.
 - tiling-look ink: not shown (item 4). Keep FLAKE open with the next step above.
 - Not reviewed independently: the four commits.
 - The merge gate cells ran with a subset; no full gate.
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: 79c8d2b5..6192f696, 4 files +94 -23, tests only (images.rs `mod tests`, tests/probe, tests/doors).
+Checks: reds first (d13da066, 7641a6f3); the thread scan returns false on a missing status (ESRCH) instead of unwrap; chat_close waits for `leave` on the probe window before Escape; probe `--report` now prints enter/leave: every other consumer greps `^press`/`^key` (3d, cube, out, pull, wm-pane, winit, persona check.py verify_probe), so none breaks.
+- rv-1 MINOR: the churn test runs 4 busy threads for 5 s inside `cargo test` beside the other lib tests; on a loaded train machine that is new load (FLK pattern). 1 s suffices for the race. Backlog FJ-R1.
+- rv-2 NOTE: xp doors runs with `late_field 2` always: +2 s per xp doors run, by design (stress kept on).
+- rv-3 NOTE: same Esc-before-field pattern in tiling, mc, construct doors (lane's Open): backlog FJ-R2; hud 73b, tiling ink, F22 not reproduced: stay open as FLK items, F22 close proposal accepted (e5e44719).
+Verdict (computed): no open MAJOR: MERGE-OK 6192f696; harness train t84 (no conflict with debt-f4 or harness-k).
