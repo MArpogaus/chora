@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 05:39 UTC)
+## Now (2026-11-20 05:41 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -28,12 +28,13 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | p2-r2-mc.md (RC 2 persona round 4, mc; Queue 5) | sonnet medium | session_016iS3kQWQuaukrpP1MwhJDd |
 | docs-f8e-r1.md (F8: kit swallow line, D118, CM-R1; Queue 5) | sonnet medium | session_016iS3kPf7kV5rnZAz313Ehk |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
-| xp-p2r3-r1.md (RC 2, shared bar: face swallow, XPF-R1, co rw-1/2; Queue 5) | sonnet high | session_016iS3kNNbYNpanv6161XNnY |
+| review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | starting |
+| xp-24-r1.md (RC 1 rule 6: xp-24 MAJOR, fields grid; Queue 5) | sonnet high | starting |
 | co-majors-r3.md (RC 2, rule 6: co-27, co-29 MAJOR, co-28; Queue 5) | sonnet high | session_016iS3kNjVuFx3uAeQzWEbHq |
 
 ## Queue (% week; 5 % reserve)
 4. Trains: t84 running (t83 4 branches + debt-f4, harness-k, flakes-j; t83 red only FLK-HUD1). t85: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f, kit-minors 7a7e00a2, core-minors d23b03ae.
-5. F work: running: HARNESS-L 0.8 % (F6), CO-MAJORS r3 1.2 %, XP-P2R3 1 %, FLAKES-K 1.2 % (F5), P2-R2-MC 1 %, DOCS-F8E 0.4 % (F8); after t85: LINT-DOWN r3 0.1 %, co-26 pane; next: XP-24 r1 on 5bd1bdfd after xp-p2r3, FLAKES-L r2 1 % (F5), FLAKE-SERIES r2 haiku 1 %, AUDIT-F r4 Sat 0.6 %.
+5. F work: running: HARNESS-L 0.8 % (F6), CO-MAJORS r3 1.2 %, XP-24 1 %, REVIEW-XP-P2R3 0.5 %, FLAKES-K 1.2 % (F5), P2-R2-MC 1 %, DOCS-F8E 0.4 % (F8); after t85: LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), FLAKE-SERIES r2 haiku 1 %, AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
