@@ -175,7 +175,7 @@ fn a_detached_window_is_forgotten_and_adopted_anew() {
                     ..
                 },
                 Change::Adopt {
-                    origin: Origin::New { token: None },
+                    origin: Origin::Given,
                     ..
                 },
             ]
