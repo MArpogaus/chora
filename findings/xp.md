@@ -29,3 +29,6 @@ xp-27 | MAJOR | journey-1 (tour v4, opus review) X3 01-12-question.png | open | 
 xp-28 | MINOR | journey-1 (tour v4, opus review) X4, X6 | open | Chat header stays 'Working, step 1 of 1' and Stop active after the answer; editor opens over desktop icons, labels clipped
 xp-29 | MINOR | owner 11-17 10:35 "Xp: why click in tray to open clippy chat?" | open | The helper chat opens from the tray icon; POLS for XP users: a click on the paperclip itself opens its balloon and chat.
 xp-30 | MINOR | owner 11-17 10:35 "Why no wrlcom mgs from clippy?" | open | No welcome balloon: at the first session start the paperclip greets once ("Hi, I am your helper ...", names how to ask and how to close; honest "no helper" state when none is set up), then stays quiet.
+xp-31 | MAJOR | P2 r1 pixel-watcher (feedback/2026-11-20-p2r1-pixel.md, T5) | open | Super+D hides the windows and nothing brings them back (no second Super+D, no taskbar button restores); POLS: Super+D toggles, as in XP
+xp-32 | MAJOR | P2 r1 Murat (feedback/2026-11-20-p2r1-murat.md, T4 volume) | open | A click on the tray speaker shows no volume control (shared RC bar: volume reachable by mouse); XP shows the level slider with Mute
+xp-33 | MAJOR | P2 r1 pixel-watcher (T2) | open | Super+F1 (the key list by keys) shows nothing on xp; the key list is reachable only through Help (shared RC bar: key list by keys)

@@ -68,3 +68,9 @@ OK
 ```
 
 Files: feedback/2026-11-20-p2r1-{erika,murat,pixel}.md; captures and logs media/2026-11-20/persona-{erika,murat,pixel}/. No ledger edits.
+
+## PM review r1 (00:08)
+Report-only round; contracts and triage checked against the three feedback files. RC2 xp not met: T1, T2, T3, T4 (clock, volume, lock, screenshot), X2 red.
+Real: xp-31 Super+D, xp-32 speaker click, xp-33 Super+F1 (findings/xp.md), with xp-23, 26, 27 -> briefs/xp-majors-r1.md.
+Harness first (backlog H-persona-env): the persona session lacks the shared scripts (lock, screenshot), a GUI editor stub (xp-25 path) and a draggable probe window (X2), and the helper stays no_helper (T3 fake agent). Until fixed, those contracts measure the harness. Next P2 round after both.
+Slip (driver look before Erika's run) accepted: removed before her start, no effect on her data.
