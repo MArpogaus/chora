@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-19 23:59 UTC)
+## Now (2026-11-20 00:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 13:50: 25 %; tokens.py 23:58 PM 3.4 %; 28 h left: 75 %, 2.7 %/h; 6 lanes
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -25,19 +25,19 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-h-r2.md (F5) | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
-| temp-rest-r1.md (F5) | sonnet med | MERGE-OK 2e8e67f3, train 78 |
-| temp-dirs-r2.md (F5) | sonnet med | MERGE-OK 86f42d1f, train 78 |
-| flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, train 78 |
-| f24-rest-r1.md (F5) | sonnet med | MERGE-OK 7231b51a, train 78 |
-| pw-r2.md (P2) | sonnet med | MERGE-OK 5755b578, train 78 |
+| temp-rest-r1.md (F5) | sonnet med | MERGE-OK 2e8e67f3, t78 |
+| temp-dirs-r2.md (F5) | sonnet med | MERGE-OK 86f42d1f, t78 |
+| flake-k-r1.md (F5) | sonnet high | MERGE-OK 9dde8523, t78 |
+| f24-rest-r1.md (F5) | sonnet med | MERGE-OK 7231b51a, t78 |
+| pw-r2.md (P2) | sonnet med | MERGE-OK 5755b578, t78 |
 | p2-r1-xp.md (RC2, r1b) | sonnet+haiku | session_016iS3kLP7F2X6bjVSt3KzWv |
-| nits-3-r1.md (F5) | sonnet med | MERGE-OK 0b5f8c34, train 78 |
-| block-v-r2.md (mc-38) | sonnet med | MERGE-OK ce230288, train 78 |
-| mc-majors-r1.md (RC) | sonnet high | MERGE-OK 92ecd30a, train 79 |
-| mc-answer-r1.md (RC) | sonnet high | starting |
+| nits-3-r1.md (F5) | sonnet med | MERGE-OK 0b5f8c34, t78 |
+| block-v-r2.md (mc-38) | sonnet med | MERGE-OK ce230288, t78 |
+| mc-majors-r1.md (RC) | sonnet high | MERGE-OK 92ecd30a, t79 |
+| mc-answer-r1.md (RC) | sonnet high | session_016iS3kLHGWuV71ERbiX6uxP |
 | flake-l-r1.md (F5) | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | kit-sec-r2.md (F5) | sonnet high | session_016iS3kNBZH9UzgeiP4vU5iG |
-| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, train 78b |
+| ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t78b |
 | co-majors-r1.md (RC) | opus high | session_016iS3kPUjRZPbSwxzHez5dq |
 
 ## Queue (% week; 5 % reserve)
