@@ -1,0 +1,46 @@
+{"time": 1795142405.543, "action": "click", "look": "construct", "invariant": "I7", "breach": "the work area of VIRTUAL-1 shows one colour"}
+{"time": 1795142405.543, "action": "click", "look": "construct", "invariant": "I7", "breach": "the work area of VIRTUAL-2 shows one colour"}
+{"time": 1795142405.543, "action": "click", "look": "construct", "invariant": "I7", "breach": "the work area of VIRTUAL-3 shows one colour"}
+{"time": 1795142405.543, "action": "click", "look": "construct", "invariant": "I7", "breach": "the work area of VIRTUAL-4 shows one colour"}
+{"time": 1795142433.915, "action": "key", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142433.915, "action": "key", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142434.993, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142434.993, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142440.299, "action": "drag", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142440.299, "action": "drag", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142441.395, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142441.395, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142448.319, "action": "click", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142448.319, "action": "click", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142449.426, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142449.426, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142456.457, "action": "drag", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142456.457, "action": "drag", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142457.584, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142457.584, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142463.653, "action": "drag", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142463.653, "action": "drag", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142464.757, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142464.757, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142470.568, "action": "move", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142470.568, "action": "move", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142471.654, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142471.654, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142476.899, "action": "key", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142476.899, "action": "key", "look": "construct", "invariant": "I3", "breach": "the core focuses s1 of xp, no look says it holds the focus"}
+{"time": 1795142477.956, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142477.956, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142482.849, "action": "key", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142482.849, "action": "key", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142483.931, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142483.931, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142489.126, "action": "key", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142489.126, "action": "key", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142490.207, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142490.207, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142497.53, "action": "click", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142497.53, "action": "click", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142500.592, "action": "key", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142500.592, "action": "key", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
+{"time": 1795142502.907, "action": "look", "look": "construct", "invariant": "I1", "breach": "the toplevel s1 is owned by xp, which is no look"}
+{"time": 1795142502.907, "action": "look", "look": "construct", "invariant": "I3", "breach": "the core focuses xp-dlg-help of xp, construct says it holds the focus"}
