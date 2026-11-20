@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 19:48 UTC)
+## Now (2026-11-20 20:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 19:48 PM 0.9 % since compaction, 11.4 % before; disk 12 G free: one build (train) at a time; 6 lanes
-session branch: 9dc384b3; 49 greens (t90 gate-silent green 17:44); t91 gate-orphan red 18:44 on construct-hud (FLK-HUD-TAB, cell alone 3/3 green): rerun t91b running.
+session branch: b0aa1c75; 50 greens; t92b red 20:10 build: mc-minor vs handover-ti Focus::holder; PM fix dcb77733 (2 lines); t92c running.
 burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
 ## RC (design/rc.md)
@@ -23,12 +23,15 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-pane-r3.md (RC 2: review r2 FIX, rw-1 MAJOR Super chords lost) | opus high, claude/co-pane 628bb930 | session_016iS3kLd6s3WSrsoC56J1YL 19:14 |
+| xp-tidy-r3.md (RC 2: t92 lint-ratchet red) | sonnet medium, claude/xp-tidy 74b423bb | session_016iS3kNmZg2LB7Zqvgg2tnP 20:04 |
+| co-pane-r4.md (RC 2: r3 MERGE-OK 20:12; lint-ratchet +1 eprintln) | sonnet medium, claude/co-pane 18417f06 | session_016iS3kLjHwnKt7Kg8aGj8MC 20:15 |
 | review-tour-one-r1.md (F7, RC 11: tour-one r1 done 8b996cee, one set, 0 copies) | sonnet high, claude/tour-one 8b996cee | session_016iS3kLr7ww1z9iavGDE8qJ 19:48 |
+| tour-diff-r2.md (F7: review r1 FIX, rd-1, rd-2 MAJOR) | sonnet medium, claude/tour-diff fa796bb9 | session_016iS3kQGuYt9aMQradWwz9N 20:20 |
+| guide-checks-r1.md (F7: tour-v9 lane 3) | sonnet medium, claude/guide-checks 8b996cee | session_016iS3kPbqYusAxcH6mxYMgD 19:49 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t91b gate-orphan 437173e1 running; t92 lint-down 78ec62e1, mc-minor f7735e43, flakes-o 16da7bc7, flakes-n d7c69aac, persona-check e3763f69, co-fix bbaad12b, flakes-l cc1282db, kit-minor 939acf6a, xp-tidy 74b423bb (r2 MERGE-OK), handover-ti d1ba7e2c (r2 MERGE-OK); then --jobs 2.
-5. (F5, F4, shared bar) MERGE-OK: the t91, t92 shas. Running: CO-PANE r3 opus 2.5 %, handover-ti MERGE-OK into t92, REVIEW-TOUR-ONE r1 0.5 % (tour-one done 8b996cee; then tour-v9 lanes 2-5); then P2-R3-TILING (I5 open), P2-R4-CO. Later FLAKE-SERIES r3 haiku 1 % (adds FLK-HUD-TAB).
+4. (F6, rc 3) t92c running: lint-down, mc-minor, flakes-o, flakes-n, persona-check, flakes-l, kit-minor, handover-ti; then --jobs 2; xp-tidy after r3; co-fix with co-pane r4 (rx-1 MINOR Super after a construct chord: backlog).
+5. (F5, F7, shared bar) Running: REVIEW-CO-PANE r3 opus 0.6 %, REVIEW-TOUR-ONE 0.5 %, TOUR-DIFF 1.3 %, GUIDE-CHECKS 1 % (tour-v9 4-5 wait for xp-give); after t92: P2-R3-TILING (I5), FLAKE-SERIES r3 haiku 1 % (+FLK-HUD-TAB); then P2-R4-CO.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
