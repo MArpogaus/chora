@@ -1132,6 +1132,20 @@ mod tests {
         assert_eq!(system(true, false)[4].act, None, "Maximize is gray");
     }
 
+    /// xp-give: the window menu has a "Send To" submenu with one row per
+    /// other look, by its plain name.
+    #[test]
+    fn the_system_menu_sends_a_window_to_another_look() {
+        let rows = system(false, false);
+        let send = rows
+            .iter()
+            .find(|e| e.title == "Send To")
+            .expect("the window menu has a Send To row");
+        assert!(send.enabled, "Send To is open");
+        let looks: Vec<&str> = send.sub.iter().map(|e| e.title.as_str()).collect();
+        assert_eq!(looks, ["Tiling desktop", "Media center", "3D space"]);
+    }
+
     #[test]
     fn icons_and_entries_have_xp_menus() {
         let rows = |t: Target| -> Vec<(String, bool)> {
