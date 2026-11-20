@@ -128,7 +128,45 @@ shared=$dir/share/chora/flavors/shared
 mkdir -p "$shared"
 cp -r "$repo"/flavors/shared/. "$shared/"
 printf '#!/bin/sh\necho systemctl "$@" >>"%s"\n' "$marks" >"$fakes/systemctl"
-printf '#!/bin/sh\necho wpctl "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$marks" >"$fakes/wpctl"
+cat >"$fakes/wpctl" <<'EOF'
+#!/bin/sh
+here=$(dirname "$0")
+echo wpctl "$@" >>"$here/calls.log"
+level=$here/volume
+[ -f "$level" ] || echo 0.50 >"$level"
+case "$1" in
+get-volume) echo "Volume: $(cat "$level")" ;;
+set-volume)
+    for last; do :; done
+    awk -v now="$(cat "$level")" -v step="$last" 'BEGIN {
+        v = now
+        if (step ~ /%\+$/) { sub(/%\+$/, "", step); v += step / 100 }
+        else if (step ~ /%-$/) { sub(/%-$/, "", step); v -= step / 100 }
+        else v = step
+        if (v < 0) v = 0
+        if (v > 1) v = 1
+        printf "%.2f\n", v
+    }' >"$level.new" && mv "$level.new" "$level"
+    ;;
+esac
+EOF
+real_fuzzel=$(command -v fuzzel || true)
+if [[ -n $real_fuzzel ]]; then
+    cat >"$fakes/fuzzel" <<EOF
+#!/bin/sh
+here=\$(dirname "\$0")
+echo fuzzel "\$@" >>"\$here/calls.log"
+case " \$* " in
+*" --dmenu "*)
+    IFS= read -r first
+    printf 'fuzzel-first-row %s\\n' "\$first" >>"\$here/calls.log"
+    { printf '%s\\n' "\$first"; cat; } | "$real_fuzzel" "\$@"
+    ;;
+*) exec "$real_fuzzel" "\$@" ;;
+esac
+EOF
+    chmod +x "$fakes/fuzzel"
+fi
 # shellcheck disable=SC2016 # the stand-in expands its own arguments
 printf '#!/bin/sh\necho grim "$@" >>"%s"\nfor last; do :; done\n: >"$last"\n' "$marks" >"$fakes/grim"
 mkdir -p "$dir/pictures"
