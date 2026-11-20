@@ -11,9 +11,11 @@ use super::{KeyAction, State};
 
 /// The grab of a binding, unless the session is locked. A grab that waits
 /// for the manager of another place swallows the key: it must not reach
-/// the focused client as a raw key (sh-24). An injected key has no
-/// place, and goes to the grab, except in the test mode of
-/// `injected_press_is_real`, where it counts as a key of the person.
+/// the focused client as a raw key (sh-24). An injected key follows the
+/// same place, the keyboard of the person, but never the pointer, which
+/// an injection moves too: without a keyboard place it goes to the grab.
+/// In the test mode of `injected_press_is_real` it counts as a key of
+/// the person.
 pub(super) fn grab_action(
     state: &State,
     mods: &ModifiersState,
@@ -23,11 +25,9 @@ pub(super) fn grab_action(
     if state.lock.is_some() {
         return None;
     }
-    let (conn, binding) = state.ipc.grab_for_where(mods, syms, |_| true)?;
-    if injected && !state.injected_press_is_real {
-        return Some(KeyAction::Grab(conn, binding, true));
-    }
-    let place = key_place(state);
+    state.ipc.grab_for_where(mods, syms, |_| true)?;
+    let by_pointer = !injected || state.injected_press_is_real;
+    let place = key_place(state, by_pointer);
     let held_back = |conn| {
         place
             .as_deref()
@@ -44,10 +44,10 @@ pub(super) fn grab_action(
 /// The window manager where the person is when a key goes down: the one
 /// that a click on its empty claim chose (D55), else the owner of the
 /// keyboard focus, of a node or of a window (no window while a clicked
-/// layer surface has the keyboard), else the one whose claim
-/// holds the pointer. The keyboard goes before the pointer, which may
-/// rest on any pane while the person types.
-fn key_place(state: &State) -> Option<String> {
+/// layer surface has the keyboard), else, `by_pointer`, the one whose
+/// claim holds the pointer. The keyboard goes before the pointer, which
+/// may rest on any pane while the person types.
+fn key_place(state: &State, by_pointer: bool) -> Option<String> {
     if let Some(chosen) = state.chosen_manager() {
         return Some(chosen.into());
     }
@@ -63,6 +63,9 @@ fn key_place(state: &State) -> Option<String> {
         .filter(|owner| state.ipc.live(owner) && scene.holds_claim(owner));
     if let Some(owner) = focus_owner {
         return Some(owner.into());
+    }
+    if !by_pointer {
+        return None;
     }
     let spot = state.spot(state.pointer_layout)?;
     let point = [spot.scene.x, spot.scene.y];
