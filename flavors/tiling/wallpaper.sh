@@ -6,8 +6,10 @@
 # chora-tiling of the runtime directory. A unit does not need this script:
 # chora-tiling-swaybg.service runs swaybg itself and is restarted instead.
 # Usage: sh wallpaper.sh
-pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
-mkdir -p "$pids"
+runtime=${XDG_RUNTIME_DIR:-$(mktemp -d)}
+pids=$runtime/chora-tiling
+# shellcheck disable=SC2174
+mkdir -p -m 700 "$pids"
 pid=""
 restart=""
 trap '[ -z "$pid" ] || kill "$pid" 2>/dev/null; rm -f "$pids/wallpaper.pid"; exit 0' TERM INT

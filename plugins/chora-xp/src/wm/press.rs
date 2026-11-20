@@ -327,6 +327,7 @@ impl Wm {
             Act::DateTime => self.open_date_dialog(area),
             Act::Window(sys) => self.act_window(sys),
             Act::Item(item) => self.act_item(item),
+            Act::Volume(change) => self.change_volume(change, false),
             Act::Position(index) => self.with_display(|d| d.set_position(index)),
             Act::Color(color) => self.with_display(|d| d.set_color(color)),
             Act::Month(month) => {

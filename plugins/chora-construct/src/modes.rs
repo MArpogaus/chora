@@ -327,6 +327,9 @@ impl Construct {
         if !changed {
             return Ok(());
         }
+        if act == Act::StepBack {
+            self.make_way();
+        }
         if act == Act::StepIn {
             if by == By::Person {
                 self.give_the_keyboard_back();

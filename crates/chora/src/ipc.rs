@@ -215,10 +215,12 @@ struct Conn {
 
 /// Opens the socket in `chora/` of the runtime directory and returns its path.
 pub fn listen(state: &mut State) -> io::Result<PathBuf> {
-    let runtime = paths::runtime_home()
-        .ok_or_else(|| io::Error::other("no absolute runtime directory in the environment"))?;
-    let dir = runtime.join("chora");
-    private_dir(&dir)?;
+    listen_in(state, paths::runtime_home())
+}
+
+/// [`listen`] below a given runtime directory.
+fn listen_in(state: &mut State, runtime: Option<PathBuf>) -> io::Result<PathBuf> {
+    let dir = paths::runtime_subdir_in(runtime, "chora")?;
     let mut path = dir.join(&state.socket_name);
     path.set_extension("sock");
     let mut assets = path.clone();
@@ -3716,6 +3718,65 @@ mod tests {
         assert!(message.contains("64 client sockets"), "{message}");
         drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn listen_refuses_a_runtime_dir_that_others_can_write() {
+        let runtime = crate::testing::scratch_dir("chora-listen-open");
+        std::fs::set_permissions(&runtime, std::fs::Permissions::from_mode(0o777)).unwrap();
+        let mut core = Core::new();
+        let error = listen_in(&mut core.state, Some(runtime.clone())).expect_err("refused");
+        let text = error.to_string();
+        assert!(text.contains(&runtime.display().to_string()), "{text}");
+        assert!(text.contains("0777"), "{text}");
+        assert!(!runtime.join("chora").exists(), "no directory is made");
+        assert!(core.state.ipc.path.is_none(), "no socket is bound");
+        drop(core);
+        std::fs::remove_dir_all(&runtime).unwrap();
+    }
+
+    #[test]
+    fn the_wayland_socket_binds_below_the_given_dir_not_the_env_one() {
+        let good = crate::testing::scratch_dir("chora-wl-good");
+        let evil = crate::testing::scratch_dir("chora-wl-evil");
+        let link = good.with_extension("link");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(&good, &link).unwrap();
+        let canonical = std::fs::canonicalize(&link).unwrap();
+        std::fs::remove_file(&link).unwrap();
+        std::os::unix::fs::symlink(&evil, &link).unwrap();
+        let mut core = Core::new();
+        core.state.listen_in(&canonical).expect("bound");
+        let name = core.state.socket_name.clone();
+        assert!(
+            good.join(&name).exists(),
+            "the socket is below the checked dir"
+        );
+        assert!(!evil.join(&name).exists(), "none below the swapped link");
+        drop(core);
+        std::fs::remove_file(&link).unwrap();
+        std::fs::remove_dir_all(&good).unwrap();
+        std::fs::remove_dir_all(&evil).unwrap();
+    }
+
+    #[test]
+    fn listen_binds_below_a_runtime_dir_of_the_user() {
+        let runtime = crate::testing::scratch_dir("chora-listen-ok");
+        let mut core = Core::new();
+        core.state.socket_name = "wayland-1".into();
+        let path = listen_in(&mut core.state, Some(runtime.clone())).expect("bound");
+        assert!(
+            path.starts_with(runtime.join("chora")),
+            "{}",
+            path.display()
+        );
+        let mode = std::fs::metadata(runtime.join("chora"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700);
+        drop(core);
+        std::fs::remove_dir_all(&runtime).unwrap();
     }
 
     #[test]

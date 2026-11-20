@@ -7,6 +7,7 @@
 //! the window manager ends, or does not connect in time, the outputs and
 //! the cube go.
 
+mod aside;
 mod construct;
 mod hand;
 mod role;
@@ -28,6 +29,7 @@ use chora_kit::{
 };
 use chora_scene::NodeKind;
 
+pub(crate) use self::aside::Aside;
 use self::start::{Tail, launch};
 use super::{
     ClientError, Command, Construct, FLY_MS, PANES, Pose, PropsUpdate, RpcError, Transform, create,

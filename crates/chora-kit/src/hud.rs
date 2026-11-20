@@ -242,6 +242,10 @@ pub struct Panel {
     /// [`MIN_CHAT_SIZE`] to [`MAX_CHAT_SIZE`], in the font of the chat; the
     /// small text of the host if left out.
     pub size: Option<u32>,
+    /// The widest line of a `plain` sentence in pixels, from 1 to
+    /// [`MAX_CHAT_WIDTH`]; a sentence with an `anchor` stands there, not
+    /// beside the figure.
+    pub width: Option<u32>,
     /// A template for one row of a list.
     pub rows: Option<String>,
     /// The most rows of a list, from 1 to [`MAX_ROWS`].
@@ -978,6 +982,10 @@ impl Panel {
             let message = format!("{size} is not from {MIN_CHAT_SIZE} to {MAX_CHAT_SIZE}");
             fail(errors, at, "size", &message);
         }
+        if let Some(width) = self.width.filter(|w| !(1..=MAX_CHAT_WIDTH).contains(w)) {
+            let message = format!("{width} is not from 1 to {MAX_CHAT_WIDTH}");
+            fail(errors, at, "width", &message);
+        }
     }
 
     fn check_place(&self, at: &str, ids: &BTreeSet<&str>, errors: &mut Vec<String>) {
@@ -1487,6 +1495,16 @@ mod tests {
             assert!(errors(parse(&one_panel(bad))).contains("size"), "{bad}");
         }
         for good in ["size: 14", "size: 19", "size: 48"] {
+            assert!(parse(&one_panel(good)).is_ok(), "{good}");
+        }
+    }
+
+    #[test]
+    fn a_panel_names_the_widest_line_of_its_sentence() {
+        for bad in ["width: 0", "width: 1601"] {
+            assert!(errors(parse(&one_panel(bad))).contains("width"), "{bad}");
+        }
+        for good in ["width: 1", "width: 736", "width: 1600"] {
             assert!(parse(&one_panel(good)).is_ok(), "{good}");
         }
     }

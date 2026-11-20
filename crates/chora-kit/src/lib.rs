@@ -71,12 +71,13 @@ pub fn write_file(path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
 /// Writes `text` to `DIR/NAME` in the runtime directory of the user when
 /// the file differs, and returns its path. The shared temporary
 /// directory never takes it: another local user could plant the file
-/// first.
+/// first. The directory `DIR` is private, as is the runtime directory
+/// above it.
 ///
 /// # Errors
 ///
-/// The runtime directory is not an absolute path, or the file cannot be
-/// written.
+/// The runtime directory is not an absolute path or is not safe, the
+/// directory below it is not private, or the file cannot be written.
 pub fn runtime_file(dir: &str, name: &str, text: &str) -> std::io::Result<std::path::PathBuf> {
     runtime_file_in(chora_scene::paths::runtime_home(), dir, name, text)
 }
@@ -87,10 +88,7 @@ fn runtime_file_in(
     name: &str,
     text: &str,
 ) -> std::io::Result<std::path::PathBuf> {
-    let runtime = runtime
-        .filter(|p| p.is_absolute())
-        .ok_or_else(|| std::io::Error::other("no absolute runtime directory"))?;
-    let path = runtime.join(dir).join(name);
+    let path = chora_scene::paths::runtime_subdir_in(runtime, dir)?.join(name);
     if read_text(&path, MAX_TEXT).ok().as_deref() != Some(text) {
         write_file(&path, text.as_bytes())?;
     }
@@ -210,10 +208,53 @@ mod tests {
         let text = "void main() {}";
         assert!(super::runtime_file_in(None, "d", "x.frag", text).is_err());
         assert!(super::runtime_file_in(Some("rel".into()), "d", "x.frag", text).is_err());
-        let dir = crate::testing::TempDir::unmade("chora-kit-runtime");
-        let path = super::runtime_file_in(Some(dir.to_path_buf()), "d", "x.frag", text).unwrap();
+        let dir = scratch("runtime", 0o700);
+        let path = super::runtime_file_in(Some(dir.clone()), "d", "x.frag", text).unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A directory with a mode, in a scratch folder of its own.
+    fn scratch(tag: &str, mode: u32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = crate::testing::TempDir::new(&format!("chora-kit-{tag}")).keep();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(mode)).unwrap();
+        dir
+    }
+
+    fn mode(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o7777
+    }
+
+    #[test]
+    fn a_runtime_file_is_refused_in_a_runtime_dir_that_others_write() {
+        let runtime = scratch("rt-open", 0o777);
+        let err = super::runtime_file_in(Some(runtime.clone()), "d", "x.frag", "x").unwrap_err();
+        assert!(err.to_string().contains("0777"), "{err}");
+        assert!(!runtime.join("d").exists(), "no directory is made");
+        std::fs::remove_dir_all(runtime).unwrap();
+    }
+
+    #[test]
+    fn the_directory_of_a_runtime_file_is_private() {
+        let runtime = scratch("rt-private", 0o700);
+        let path = super::runtime_file_in(Some(runtime.clone()), "d", "x.frag", "x").unwrap();
+        assert_eq!(mode(path.parent().unwrap()), 0o700);
+        std::fs::remove_dir_all(runtime).unwrap();
+    }
+
+    #[test]
+    fn an_old_directory_of_others_is_refused_for_a_runtime_file() {
+        let runtime = scratch("rt-old", 0o700);
+        let old = runtime.join("d");
+        std::fs::create_dir(&old).unwrap();
+        std::fs::set_permissions(&old, std::os::unix::fs::PermissionsExt::from_mode(0o770))
+            .unwrap();
+        let err = super::runtime_file_in(Some(runtime.clone()), "d", "x.frag", "x").unwrap_err();
+        assert!(err.to_string().contains("mode"), "{err}");
+        assert!(!old.join("x.frag").exists());
+        std::fs::remove_dir_all(runtime).unwrap();
     }
 
     #[test]
