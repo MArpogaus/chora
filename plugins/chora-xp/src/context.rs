@@ -38,6 +38,10 @@ pub const FOCUS: &str = "xp-ctx-0";
 const KEY_GAP: f64 = 20.0;
 /// The room of the sample of a color before the text.
 const SWATCH: i32 = 28;
+/// The width of the track of the level slider of the volume popup.
+const TRACK: i32 = 84;
+/// The room between the track and the right edge of its row.
+const TRACK_END: i32 = 8;
 /// The levels of the volume popup, in percent, loud to quiet.
 const LEVELS: [u32; 4] = [100, 75, 50, 25];
 
@@ -149,6 +153,8 @@ pub struct Entry {
     glyph: Option<Sys>,
     /// A sample of a color before the text, as in a palette.
     swatch: Option<[u8; 3]>,
+    /// The level of a slider row, in percent: a track with a thumb.
+    slider: Option<u32>,
     sub: Vec<Entry>,
 }
 
@@ -165,7 +171,16 @@ impl Entry {
             key: "",
             glyph: None,
             swatch: None,
+            slider: None,
             sub: Vec::new(),
+        }
+    }
+
+    /// The row of the level slider: a click on its track sets the level.
+    pub fn slider(title: &str, percent: u32) -> Self {
+        Self {
+            slider: Some(percent.min(100)),
+            ..Self::item(title, Act::Volume(Change::Set(percent.min(100))))
         }
     }
 
@@ -237,7 +252,12 @@ impl Entry {
         } else {
             0.0
         };
-        theme.text_width(&self.title, self.font()) + key + swatch
+        let track = if self.slider.is_some() {
+            f64::from(TRACK + TRACK_END)
+        } else {
+            0.0
+        };
+        theme.text_width(&self.title, self.font()) + key + swatch + track
     }
 
     /// The place of the access key in the title, XP's underlined letter.
@@ -283,7 +303,7 @@ pub fn taskbar(locked: bool) -> Vec<Entry> {
 
 /// The volume popup of the speaker, which a click on it opens: the
 /// levels from loud to quiet with the current one checked, a separator
-/// and Mute, checked while muted. Without a mixer it holds a gray row
+/// and Mute, checked while muted, and the level slider. Without a mixer it holds a gray row
 /// that says so and one that says why, in the language of the session.
 pub fn volume(reading: Reading) -> Vec<Entry> {
     let Reading::Level(volume) = reading else {
@@ -302,6 +322,8 @@ pub fn volume(reading: Reading) -> Vec<Entry> {
         .collect();
     rows.push(Entry::separator());
     rows.push(Entry::item("Mute", Act::Volume(Change::Mute)).checked(volume.muted));
+    rows.push(Entry::separator());
+    rows.push(Entry::slider("Volume", volume.percent));
     rows
 }
 
@@ -465,6 +487,7 @@ impl Level {
 
     fn lit(&self, index: usize) -> bool {
         self.entries[index].enabled
+            && self.entries[index].slider.is_none()
             && (self.hovered == Some(index) || (self.open == Some(index) && self.hovered.is_none()))
     }
 }
@@ -888,7 +911,17 @@ impl Menu {
         let inside = (f64::from(x)..f64::from(x + w)).contains(&px)
             && (f64::from(y)..f64::from(y + h)).contains(&py);
         let entry = &menu.entries[index];
-        if inside && entry.enabled {
+        if inside && entry.enabled && entry.slider.is_some() {
+            let left = x + w - TRACK_END - TRACK;
+            let along = ((px - f64::from(left)) / f64::from(TRACK)).clamp(0.0, 1.0);
+            #[expect(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "0 to 100"
+            )]
+            let percent = (along * 100.0).round() as u32;
+            Some(Act::Volume(Change::Set(percent)))
+        } else if inside && entry.enabled {
             entry.act
         } else {
             None
@@ -983,6 +1016,9 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) ->
         color,
         [x, 0, w - x - TEXT_END + 4, h],
     ));
+    if let Some(percent) = entry.slider {
+        picture = slider_track(picture, [w, h], percent);
+    }
     if entry.group {
         // XP's arrow of a submenu, 4 by 7 pixels, in the color of the text.
         let y = f64::from(h) / 2.0;
@@ -993,6 +1029,20 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) ->
         ));
     }
     picture
+}
+
+/// The track of the level slider at the right of its row: a sunken groove
+/// with a thumb at the level, as XP's volume slider has.
+fn slider_track(picture: Picture, [w, h]: [i32; 2], percent: u32) -> Picture {
+    let left = f64::from(w - TRACK_END - TRACK);
+    let mid = f64::from(h) / 2.0;
+    let thumb = left + f64::from(TRACK) * f64::from(percent) / 100.0;
+    picture.svg(format!(
+        r##"<rect x="{left}" y="{}" width="{TRACK}" height="4" fill="#fff" stroke="#808080"/><rect x="{}" y="{}" width="7" height="14" fill="#ECE9D8" stroke="#404040"/>"##,
+        mid - 2.0,
+        thumb - 3.5,
+        mid - 7.0
+    ))
 }
 
 /// The glyph and the shortcut of a row of the system menu.
@@ -1086,6 +1136,34 @@ mod tests {
         assert_eq!(slider.title, "Volume", "the level slider ends the popup");
         let gone = volume(Reading::NoWpctl);
         assert!(gone.iter().all(|e| !e.enabled && e.act.is_none()), "gray");
+    }
+
+    /// A click on the track of the slider sets the level of its place; the
+    /// ends give 0 and 100.
+    #[test]
+    fn a_click_on_the_slider_sets_the_level_of_its_place() {
+        use chora_kit::volume::Volume;
+        let (mut theme, cache) = crate::dialog::tests::theme("slider");
+        let reading = Reading::Level(Volume {
+            percent: 40,
+            muted: false,
+        });
+        let mut menu = Menu::new(&theme, volume(reading), [10, 10], SCREEN, 0);
+        let level = &menu.levels[0];
+        let last = level.entries.len() - 1;
+        let [x, y, w, h] = level.row(last);
+        let left = f64::from(level.rect[0] + x + w - TRACK_END - TRACK);
+        let middle = f64::from(level.rect[1] + y + h / 2);
+        for (at, want) in [
+            (0.0, 0),
+            (f64::from(TRACK) / 2.0, 50),
+            (f64::from(TRACK) + 4.0, 100),
+        ] {
+            menu.down = Some((0, last));
+            let act = menu.release([left + at, middle]);
+            assert_eq!(act, Some(Act::Volume(Change::Set(want))), "at {at}");
+        }
+        drop((&mut theme, cache));
     }
 
     #[test]
