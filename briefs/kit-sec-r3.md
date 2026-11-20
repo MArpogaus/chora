@@ -2,7 +2,7 @@
 
 Model: sonnet, effort medium (mechanical moves to TempDir plus three small fixes with given plans)
 Lane: cloud, branch claude/kit-sec at 6de357b9. One round, stop at 250 k. Cost about 0.8 %.
-Step 0: run setup once: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`. Then `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "kit-sec r3 BLOCKED: <MISSING line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script: auto mode refuses it in lanes; rely on the environment setup): `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "kit-sec r3 BLOCKED: <MISSING line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Why: train 79 refused kit-sec: cut-check row "temp folder by pid outside the counted helper" (tools/copies.toml, max 0) found 4 sites of this branch.
 Read on claude/session-log: reports/kit-sec.md "## Review r2" if present, and backlog.md KIT-SEC-R3 (rw-8 to rw-10).
 1. Merge first: `git fetch origin claude/autonomous-dev-session-3w-i33pg7`; it must contain a2f50532 (`git merge-base --is-ancestor a2f50532 FETCH_HEAD`); if not, re-fetch every 10 min, at most 90 min, then BLOCKED. Merge it. Known conflicts: crates/chora-kit/src/lib.rs `scratch()` takes `crate::testing::TempDir::new(&format!("chora-kit-{tag}")).keep()`; tests/merge-gate.sh ci-check keeps the HEAD line (with grab-gap) and adds `tests/tiling-scripts-selftest.sh &&` after screenshot-notice.

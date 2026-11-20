@@ -2,7 +2,7 @@
 
 Model: sonnet, effort high (geometry fixes with plans given by the review; tests in an existing harness)
 Lane: cloud, branch claude/co-majors at db4d703b. One round, stop at 250 k. Cost about 0.8 %.
-Step 0: run setup once: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`. Then `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "co-majors r2 BLOCKED: <MISSING line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script: auto mode refuses it in lanes; rely on the environment setup): `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "co-majors r2 BLOCKED: <MISSING line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read on claude/session-log: reports/co-majors.md "## Review r1" (rv-1 to rv-4), vision-card.md (construct: calm, no lost window).
 Each item: a red test commit first, then the fix commit.
 1. rv-3 first (the gate that missed rv-1): tests/gate-construct-pull.sh compares the mirror y range with the face, tightens the length rule so it fires for long edges, checks pane against pane, and puts a second pane on one side. It must fail on db4d703b (that is the red commit for rv-1 too).
