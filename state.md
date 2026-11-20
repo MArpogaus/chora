@@ -1,9 +1,8 @@
 # State
 
-## Now (2026-11-20 05:56 UTC)
+## Now (2026-11-20 05:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
-models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
 session branch: 79c8d2b5 (train 81); 43 greens. Train 84 (t83 + harness) running 05:37, head 355cdbe5.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
@@ -12,8 +11,8 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
 | 2 | Persona round 4 | xp r2 red (xp-35 I5); mc r2 red (mc-47..49; M2 ruled out) |
-| 3 | Three greens in a row | 30b, 33-40 green (9); F26 held, F28 holds; F17 open |
-| 4 | CI green | green on 29e2cd77 13:13 (train 41, PR #106, all 10 checks) |
+| 3 | Three greens in a row | 30b, 33-40 green (9) |
+| 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
 | 6 | Code review per area | 08:59, no HIGH; MEDIUM fixed or known issues |
 | 7 | deny, machete | clean (ci-rc) |
@@ -29,7 +28,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | core-l-r1.md (F5 F22, stability: WD2, L16; Queue 5) | sonnet high | session_016iS3kPcj8fM8xQmvDtJAek |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
 | review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | session_016iS3kQLLfhEJgLJAbKpZ1t |
-| xp-24-r1.md (RC 1 rule 6: xp-24 MAJOR, fields grid; Queue 5) | sonnet high | session_016iS3kPeHe5eFteANmxugvt |
+| xp-24-r2.md (RC 1 rule 6: xp-24 MAJOR; r1 blocked fuzzel 1.9.2; PM verifies cell) | sonnet high | starting |
 | co-majors-r3.md (RC 2, rule 6: co-27, co-29 MAJOR, co-28; Queue 5) | sonnet high | session_016iS3kNjVuFx3uAeQzWEbHq |
 
 ## Queue (% week; 5 % reserve)
@@ -38,4 +37,5 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
-- Lane auto mode refused setup.sh (apt) 23:37: allow, or all tools in env setup? Default: skip it. rc.4 tag: kept local (owner).
+- Env setup: lanes have fuzzel 1.9.2 (PM 1.11.1 in ~/.local); xp-24 and ti-1 need >= 1.11. Default: PM verifies fuzzel cells in trains.
+- setup.sh refused in lanes (apt): default skip. rc.4 tag: kept local (owner).
