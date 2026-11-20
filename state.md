@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 05:57 UTC)
+## Now (2026-11-20 05:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
 session branch: 79c8d2b5 (train 81); 43 greens. Train 84 (t83 + harness) running 05:37, head 355cdbe5.
@@ -28,7 +28,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | core-l-r1.md (F5 F22, stability: WD2, L16; Queue 5) | sonnet high | session_016iS3kPcj8fM8xQmvDtJAek |
 | flakes-k-r1.md (F5: FLK-AG1, IN1, TR1, HUD1, doors Esc; Queue 5) | sonnet high | session_016iS3kNaWQ8q1kH49DuWMEp |
 | review-xp-p2r3-r1.md (RC 2, seeded review of f89f785c; Queue 4) | sonnet high | session_016iS3kQLLfhEJgLJAbKpZ1t |
-| xp-24-r2.md (RC 1 rule 6: xp-24 MAJOR; r1 blocked fuzzel 1.9.2; PM verifies cell) | sonnet high | starting |
+| xp-24-r2.md (RC 1 rule 6: xp-24 MAJOR; r1 blocked fuzzel 1.9.2; PM verifies cell) | sonnet high | session_016iS3kPNVdHxB3JTzsMW3gj |
 | co-majors-r3.md (RC 2, rule 6: co-27, co-29 MAJOR, co-28; Queue 5) | sonnet high | session_016iS3kNjVuFx3uAeQzWEbHq |
 
 ## Queue (% week; 5 % reserve)
