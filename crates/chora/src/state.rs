@@ -1115,14 +1115,11 @@ impl State {
     /// keyboard changed, by `focus_node`, a click, a lock or a client that
     /// went: the focused surface stays, so no `focus.changed` says it.
     fn tell_key_node(&mut self) {
-        let node = self.scene.focused_node().map(String::from);
+        let (node, owner) = self.key_node().unzip();
         if node == self.told_node {
             return;
         }
         self.told_node.clone_from(&node);
-        let owner = node
-            .as_ref()
-            .and(self.scene.focused_node_owner().map(String::from));
         self.emit(&Event::FocusNode { node, owner });
     }
 
