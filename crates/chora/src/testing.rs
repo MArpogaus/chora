@@ -19,6 +19,64 @@ pub mod wayland;
 
 pub use chora_scene::testing::TempDir;
 
+type Lines = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
+
+thread_local! {
+    static LINES: std::cell::RefCell<Option<Lines>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The writer of the test-wide subscriber: a line goes to the sink of the
+/// thread that logged it.
+struct Route;
+
+impl Write for Route {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        LINES.with(|lines| {
+            if let Some(sink) = lines.borrow().as_ref() {
+                sink.lock().unwrap().extend_from_slice(buf);
+            }
+        });
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Sets the one subscriber of the test binary, at the first core: a span
+/// that smithay makes before any subscriber exists carries the id 0xDEAD
+/// of no subscriber, and the registry of a subscriber that a test sets
+/// later panics on it as a parent: "tried to clone Id(57005), but no span
+/// exists" (FLK-TR1). The subscriber is global because a subscriber of
+/// one test thread loses to the interest in a callsite that another
+/// thread cached without one. A thread with no sink for its lines
+/// disables every span and event, so no test pays for the formatting.
+fn install_subscriber() {
+    use tracing_subscriber::{Layer, layer::SubscriberExt};
+    static SUBSCRIBER: std::sync::Once = std::sync::Once::new();
+    SUBSCRIBER.call_once(|| {
+        let lines = tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_writer(|| Route)
+            .with_filter(tracing_subscriber::filter::dynamic_filter_fn(|_, _| {
+                LINES.with(|lines| lines.borrow().is_some())
+            }));
+        tracing::subscriber::set_global_default(tracing_subscriber::registry().with(lines))
+            .expect("no other subscriber of the test binary");
+    });
+}
+
+/// The log lines of every level that `run` writes in this thread.
+pub fn logged(run: impl FnOnce()) -> String {
+    install_subscriber();
+    let lines = Lines::default();
+    LINES.with(|l| *l.borrow_mut() = Some(std::sync::Arc::clone(&lines)));
+    run();
+    LINES.with(|l| *l.borrow_mut() = None);
+    String::from_utf8_lossy(&lines.lock().unwrap()).into_owned()
+}
+
 /// The event loop and the state of a core without a backend.
 pub struct Core {
     pub event_loop: EventLoop<'static, State>,
@@ -36,6 +94,7 @@ pub fn scratch_dir(name: &str) -> std::path::PathBuf {
 
 impl Core {
     pub fn new() -> Self {
+        install_subscriber();
         let event_loop = EventLoop::try_new().expect("an event loop");
         let display = Display::new().expect("a display");
         let mut state = State::new(display, event_loop.handle(), event_loop.get_signal());
