@@ -30,3 +30,13 @@ Base 59efbc17..e97b55f0, 11 files +336 -84; red b08c5936 first (persona path rep
 - co-33 (C2) decision (PM): no new gesture before the tag (rules 1). The hint at a drag start on one screen names the helper path ("ask the helper to pull this window out"); a one-screen pull gesture goes to backlog. Built in co-fix r2 with the gate-construct-pull measure.
 - co-34 closed as designed; the lead (Super+C with a cube open does nothing) goes to backlog.
 Verdict: MERGE-OK (no open MAJOR on the branch); joins t91. co-33 stays open for co-fix r2.
+
+## r2
+Lane: cloud, branch claude/co-fix from e97b55f0 (the local branch was stale at 59efbc17; moved to e97b55f0 before any work). Step 0: unshallow, `cargo check --workspace` green.
+Head: $head on claude/co-fix (pushed), base merged (ce2c436b; one conflict in tests/merge-gate.sh, the keys cell keeps persona and probe-hangup). Gate `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,keys,construct-hud,construct-extra,cube,pull,doors`: all 12 cells PASS (run dir /tmp/merge-gate.JDHz8o). No red cell.
+
+### co-33 (C2): fixed
+- Red 7fa79f58, cell pull (gate-construct-pull section 5, plus two negative checks): one output, use mode, a title drag to the screen edge and back: the hint text "pull this window out" shows at the drag, no window leaves xp, no pane; gone after the release. Stood back (K12) a plain plane drag shows no hint; with a second output the designed drag shows none. Red: `FAIL: one output: a title drag to the screen edge shows no pull hint: ''`.
+- Fix f92f06bb: the construct hears the press and release of `xp-title-*` (a title bar of xp on a face; the face forwards the pointer, so no other press reaches the construct). `title_hint` in pull.rs sets `pull_hint` when the left button goes down on a title in use mode with one non-virtual output (`all_outputs`), clears it on the release. New hint set `Set::Pull` (overlay.rs) in the dark capsule of the hints at the bottom centre, no keycaps, new word `Word::PullHint` "Ask the helper to pull this window out" (German too). No new gesture. docs/cube-modes.md one sentence beside line 198.
+- Capture: HINT_SHOT of the gate (scratch run): the dark capsule at the bottom with the words over the XP desktop, the window half over the left edge.
+- Hint shows only while the button is down; a lost release leaves it until the next title release (hint_set also needs use mode).
