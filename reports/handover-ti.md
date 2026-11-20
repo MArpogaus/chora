@@ -116,3 +116,6 @@ Findings:
 - rw-5, NIT, crates/chora-kit/src/wm/focus.rs:181: `hear` stores the own owner in `away` for an own node that `node` does not track (tiling's key list), so `holder()` answers `Foreign` while `state()` answers the look; fix: drop an `owner` equal to the look's name in `hear` (needs the name) or check it in `holder`.
 
 Counts: BLOCK 0, MAJOR 1, MINOR 1, NIT 3. Verdict: **FIX** (rw-1).
+
+## PM note r1 (PM not the builder)
+Review r1 verdict computed: open MAJOR rw-1, so FIX. Round r2 (briefs/handover-ti-r2.md, sonnet high) fixes rw-1, rw-2, rw-4, rw-5 and notes rw-3; stacking by root order stays a known MINOR.
