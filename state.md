@@ -26,7 +26,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 |---|---|---|
 | stray-grab-r2.md (RC sh-24, Queue 5; review r1 FIX: rv-1 MAJOR, ae09758d) | sonnet high | session_016iS3kLCUHNpWn4svX2uoxz |
 | black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
-| p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | starting |
+| p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | session_016iS3kM43ZCTqr1jMu5yYFh |
 | launcher-click-r1.md (RC shared bar, Queue 5; tiling r1 done 1ca97496) | sonnet high | session_016iS3kMprawWbAXMgpN35Bw |
 | p2-triage-t1.md (RC 2, Queue 5; mc r1 done 9d76c48f) | sonnet high | session_016iS3kNUDt239FM8PNGcRWS |
 | p2-harness-r1.md (RC 2, Queue 5; construct r1 done 123a4c71, harness slips) | sonnet high | session_016iS3kLa1LBGqhGyJjewzBc |
