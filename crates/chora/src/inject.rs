@@ -655,7 +655,8 @@ mod tests {
 
     /// Injected input is no activity for idle-notify: a client with
     /// `input.inject` cannot keep the session from locking. Input of the
-    /// person still ends the idle state. `slow` is the time that a loaded
+    /// person still ends the idle state, and the idle timer that this starts
+    /// may fire again before the roundtrip. `slow` is the time that a loaded
     /// machine takes between the activity and the roundtrip.
     fn injected_input_keeps_the_session_idle_with(slow: std::time::Duration) {
         let mut core = Core::new();
@@ -683,7 +684,11 @@ mod tests {
         core.state.idle_notifier_state.notify_activity(&seat);
         std::thread::sleep(slow);
         wayland.roundtrip(&mut core);
-        assert_eq!(wayland.take_idle_events(), vec![false]);
+        let resumed = wayland.take_idle_events();
+        assert!(
+            matches!(resumed.as_slice(), [false] | [false, true]),
+            "the activity ends the idle state, and the timer that it starts may end it again: {resumed:?}"
+        );
     }
 
     #[test]
