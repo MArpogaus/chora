@@ -223,6 +223,7 @@ ok "8. the title bar of a csd foot moves $c in tiling ($before to $after) and gi
 send_to_look() {
     inject "[{\"pointer_move\": {\"node\": \"xp-ctx-0-$1\", \"point\": [20, 8]}}]"
     ctl wait "id:xp-ctx-1-$2" --timeout 10 >/dev/null || fail "no Send To submenu"
+    shot "8b-send-to-$2"
     inject "[{\"pointer_move\": {\"node\": \"xp-ctx-1-$2\", \"point\": [20, 8]}},
       {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]"
 }
