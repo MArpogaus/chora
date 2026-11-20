@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 03:42 UTC)
+## Now (2026-11-20 03:43 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 03:13 PM 5.4 %; 25 h left: 60 %, 2.4 %/h; 6 lanes full
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -27,7 +27,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | tiling-bar-r1.md (RC look, ti-21 MAJOR, Queue 5) | sonnet high | session_016iS3kM8MGNJCBw8qRRcTmr |
 | voice-v12-r1.md (RC 9, V12 voice scripts red; Queue 5) | sonnet high | session_016iS3kLFi1M3X4nFLrZr54s |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
-| lint-down-r2.md (F4 guard; r1 FIX: rv-1 MAJOR list vs queued merges) | sonnet high | starting |
+| lint-down-r2.md (F4 guard; r1 FIX: rv-1 MAJOR list vs queued merges) | sonnet high | session_016iS3kNPsBppDum7tLcMWUp |
 | mc-remote-r1.md (RC 2, Queue 5; mc-46 MAJOR remote key out of a window) | sonnet high | session_016iS3kNmyiYJJg8SGuNnYcn |
 | co-p2-fix-r2.md (RC bar; r1 FIX: rv-1 MAJOR swallow timer) | sonnet high | session_016iS3kNfmuVEezbtEfBfuqz |
 
