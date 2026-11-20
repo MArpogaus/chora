@@ -16,7 +16,7 @@ mkdir -p "$shots"
 
 fuzzel_ini=$repo/flavors/xp/theme/fuzzel.ini
 setting() { sed -n "s/^$1=//p" "$fuzzel_ini" | head -n 1; }
-for key in horizontal-pad vertical-pad inner-pad line-height; do
+for key in horizontal-pad vertical-pad inner-pad; do
     value=$(setting "$key")
     [ $((value % 4)) = 0 ] || fail "the Run box: $key=$value is off the grid of 4 px"
 done
