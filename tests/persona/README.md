@@ -21,16 +21,23 @@ driver here gives it exactly that.
   on the session bus) and a `loginctl` that logs `lock-session`.
 - An xp session also has what a real one has: the shared scripts as a
   package installs them (`CHORA_SHARED_DIR` is a copy of `flavors/shared`
-  under `$PERSONA_DIR/share`), a `swaylock` that only logs (a real lock
-  would shut the checker out), the editor `mousepad` (the `editor` of the
-  generated `xp.yaml`; a stand-in window titled `Untitled - Notepad`), the
-  command `persona-probe` (a window `Probe window` with a frame that the
-  look draws, so that a drag moves it) and a helper `atlas` that answers
-  `agent_say` with `Hello` after 3 seconds of `working`.
+  under `$PERSONA_DIR/share`), a `swaylock` that logs and draws a
+  window `Screen locked` for 8 seconds (a real lock would shut the checker
+  out), the editor `mousepad` (the `editor` of the
+  generated `xp.yaml`; a `foot` window titled `Untitled - Notepad` that
+  shows the text that is typed and appends it to `$PERSONA_DIR/notepad.txt`,
+  a probe window when `foot` is not installed), the command `persona-probe`
+  (a window `Probe window` with a frame that the look draws, so that a drag
+  moves it, and the report of `chora-probe window --report` appended to
+  `PERSONA_PROBE`, the file that `check.py end --probe` reads for T5) and a
+  helper `atlas` that answers `agent_say` with `Hello` after 3 seconds of
+  `working`. Start the window of T5 with `persona-probe`, not with a bare
+  `chora-probe window`, which has no title bar to drag.
 - The programs that a click can run on the host are stand-ins in the PATH
   of the session: `systemctl` (xp Stand By runs `systemctl suspend`),
-  `loginctl`, `swaylock`, `wpctl` (`get-volume` answers `Volume: 0.50`), `grim` (writes
-  its file) and `notify-send`. Each writes `NAME ARGS` to
+  `loginctl`, `swaylock`, `wpctl` (it keeps the last level and mute: `get-volume` starts at
+  `Volume: 0.50` and answers what `set-volume` and `set-mute` set), `grim`
+  (writes its file) and `notify-send`. Each writes `NAME ARGS` to
   `$PERSONA_DIR/fake/calls.log` (`PERSONA_CALLS` in `session.env`) and none
   reaches the host. `tests/persona-selftest.sh` shows it.
 - `session.sh tiling+xp` starts a second look beside the first, as the
@@ -123,7 +130,8 @@ $ tests/persona/round.sh stop erika
   `start` is the first snapshot of the run (round.sh runs it); `begin`
   takes the one a task is held against, and `end` reads the newest `begin`.
   C2 fails only for a window that was open at the begin, or came while the
-  task ran, and is gone at the end. Exit status 1 when a contract is red or a breach is outside
+  task ran, and is gone at the end. A key list left open by the persona is no
+  red of a contract. Exit status 1 when a contract is red or a breach is outside
   `tests/acts/known-red.toml`.
 - A task passes when `check.py end` is green and the persona says reached.
   Contracts are selftested in `tests/test_acts.py`, a planted breach in

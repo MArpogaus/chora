@@ -42,7 +42,8 @@
 # $PERSONA_DIR/session.env and prints "PERSONA_ENV=<that file>" as its
 # first output line. The file has PERSONA_ENV, PERSONA_DIR, PERSONA_LOG,
 # PERSONA_SHOTS, CHORA_SOCKET, XDG_RUNTIME_DIR, PATH (with the binaries),
-# CHORA_CORE_PID, PERSONA_SESSION_PID, PERSONA_CALLS, PERSONA_VOICE and
+# CHORA_CORE_PID, PERSONA_SESSION_PID, PERSONA_CALLS, PERSONA_VOICE,
+# PERSONA_PROBE (the report of persona-probe, for check.py --probe) and
 # PERSONA_FLAVORS (the flavors joined by +). act.py reads it.
 set -euo pipefail
 
@@ -123,14 +124,51 @@ cat >"$fakes/loginctl" <<EOF
 echo "loginctl \$*" >>"$marks"
 exit 0
 EOF
-printf '#!/bin/sh\necho swaylock "$@" >>"%s"\n' "$marks" >"$fakes/swaylock"
-printf '#!/bin/sh\nexec "%s/chora-probe" window 240 240 240 --title "Untitled - Notepad" --server-deco "$@"\n' "$bin" >"$fakes/mousepad"
-printf '#!/bin/sh\nexec "%s/chora-probe" window 200 200 200 --title "Probe window" --server-deco "$@"\n' "$bin" >"$fakes/persona-probe"
+cat >"$fakes/swaylock" <<'EOF'
+#!/bin/sh
+echo swaylock "$@" >>"@MARKS@"
+(timeout 8 "@BIN@/chora-probe" window 16 24 48 --title "Screen locked" >/dev/null 2>&1 &)
+EOF
+cat >"$fakes/mousepad" <<'EOF'
+#!/bin/sh
+if command -v foot >/dev/null; then
+    exec foot --title "Untitled - Notepad" sh -c 'exec tee -a "@NOTEPAD@"'
+fi
+exec "@BIN@/chora-probe" window 240 240 240 --title "Untitled - Notepad" --server-deco
+EOF
+cat >"$fakes/persona-probe" <<'EOF'
+#!/bin/sh
+exec "@BIN@/chora-probe" window 200 200 200 --title "Probe window" --server-deco --report "$@" >>"@PROBE@"
+EOF
 shared=$dir/share/chora/flavors/shared
 mkdir -p "$shared"
 cp -r "$repo"/flavors/shared/. "$shared/"
 printf '#!/bin/sh\necho systemctl "$@" >>"%s"\n' "$marks" >"$fakes/systemctl"
-printf '#!/bin/sh\necho wpctl "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$marks" >"$fakes/wpctl"
+cat >"$fakes/wpctl" <<'EOF'
+#!/bin/sh
+echo wpctl "$@" >>"@MARKS@"
+state="@STATE@"
+[ -f "$state" ] || echo "0.50 0" >"$state"
+read -r volume mute <"$state"
+case "$1" in
+get-volume)
+    if [ "$mute" = 1 ]; then echo "Volume: $volume [MUTED]"; else echo "Volume: $volume"; fi ;;
+set-mute)
+    case "$3" in 1) mute=1 ;; 0) mute=0 ;; toggle) mute=$((1 - mute)) ;; esac
+    echo "$volume $mute" >"$state" ;;
+set-volume)
+    for last; do :; done
+    case "$last" in
+    *%+) volume=$(awk -v v="$volume" -v p="${last%\%+}" 'BEGIN{v+=p/100; if (v>1) v=1; printf "%.2f", v}') ;;
+    *%-) volume=$(awk -v v="$volume" -v p="${last%\%-}" 'BEGIN{v-=p/100; if (v<0) v=0; printf "%.2f", v}') ;;
+    *%) volume=$(awk -v p="${last%\%}" 'BEGIN{printf "%.2f", p/100}') ;;
+    esac
+    echo "$volume $mute" >"$state" ;;
+esac
+EOF
+sed -i -e "s|@MARKS@|$marks|g" -e "s|@BIN@|$bin|g" -e "s|@NOTEPAD@|$dir/notepad.txt|g" \
+    -e "s|@PROBE@|$dir/probe.report|g" -e "s|@STATE@|$fakes/wpctl.state|g" \
+    "$fakes/swaylock" "$fakes/mousepad" "$fakes/persona-probe" "$fakes/wpctl"
 # shellcheck disable=SC2016 # the stand-in expands its own arguments
 printf '#!/bin/sh\necho grim "$@" >>"%s"\nfor last; do :; done\n: >"$last"\n' "$marks" >"$fakes/grim"
 mkdir -p "$dir/pictures"
@@ -327,6 +365,7 @@ done
     echo "PERSONA_SESSION_PID=$$"
     echo "PERSONA_CALLS=$marks"
     echo "PERSONA_VOICE=$dir/voice"
+    echo "PERSONA_PROBE=$dir/probe.report"
     echo "PERSONA_FLAVORS=$1"
     [[ -z ${PERSONA_CHECK:-} ]] || echo "PERSONA_CHECK=$PERSONA_CHECK"
 } >"$env_file"

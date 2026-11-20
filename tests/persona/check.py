@@ -25,6 +25,8 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
                          breaches of the run outside tests/acts/known-red.toml;
                          exit status 1 when one is red.
 
+A key list that the persona left open is no red of a contract: the
+checker holds `open` to what the key list leaves, not to nothing.
 A task passes when its contract and the run's breaches are clean; the
 persona's own word (reached) is the third part and is not read here.
 L is the look the task runs on (default: the first flavor); FILE is the
@@ -194,6 +196,14 @@ def after(run, action):
     run.save("last", now, run.marks())
 
 
+def left_open(look, snap):
+    """The key list of the look when the persona left it open: a window
+    that stays by itself, which no contract holds against a person. A menu
+    or a dialog left open stays a red of the contract."""
+    sheet = SHEETS[look]
+    return [sheet] if sheet in invariants.open_ids(snap) else []
+
+
 def new_windows(before, after_):
     """The toplevels that came since `before`, as their nodes."""
     nodes = after_.by_id()
@@ -210,6 +220,7 @@ class Ctx:
     probe: str | None
     keys: list
     entries: list
+    left: list = dataclasses.field(default_factory=list)
 
     def opened(self, sheet):
         """Whether `sheet` was open in some observation."""
@@ -390,16 +401,16 @@ def contracts(task, ctx, before):
     name, _, part = task.partition(":")
     same = verify_same_windows(before)
     table = {
-        "T1": Expect(open=[], verify=verify_new_window(ctx, before)),
-        "T2": Expect(open=[], verify=verify_sheet(ctx)),
+        "T1": Expect(open=ctx.left, verify=verify_new_window(ctx, before)),
+        "T2": Expect(open=ctx.left, verify=verify_sheet(ctx)),
         "T3": Expect(verify=verify_helper(ctx)),
-        "T4": Expect(open=[], verify=verify_system(ctx, part)),
+        "T4": Expect(open=ctx.left, verify=verify_system(ctx, part)),
         "T5": Expect(verify=verify_probe(ctx)),
         "T6": Expect(verify=verify_notice(before)),
         "T7": Expect(verify=same),
         "X1": Expect(focus=ctx.look, verify=verify_shown_focused(ctx)),
         "X2": Expect(
-            open=[],
+            open=ctx.left,
             verify=verify_changed(
                 before,
                 lambda a: [w.get("rect") for w in a.states.get(ctx.look, {}).get("windows", [])],
@@ -409,7 +420,7 @@ def contracts(task, ctx, before):
         "L2": Expect(focus=ctx.look),
         "L3": Expect(focus=ctx.look, verify=verify_shown_focused(ctx)),
         "M1": Expect(verify=verify_changed(before, shown_scene)),
-        "M2": Expect(open=[], focus="mc"),
+        "M2": Expect(open=ctx.left, focus="mc"),
         "C1": Expect(cube={}),
         "C2": Expect(verify=verify_no_window_lost(ctx, before)),
         "C3": Expect(focus=ctx.look),
@@ -463,6 +474,7 @@ def end(run, args):
         probe,
         parse_chords([a for a in actions if a["time"] >= since]),
         entries,
+        left_open(look, now),
     )
     bad = 0
     breaches = [b for b in run.breaches() if b["time"] >= since]
