@@ -4660,6 +4660,54 @@ mod tests {
         assert!(heard.is_empty(), "{heard:?}");
     }
 
+    /// A node of another client that takes the keyboard is told with
+    /// `focus.node`, node and owner, and so is its end: a window manager
+    /// whose window stays the focused surface holds no keyboard meanwhile
+    /// (I3 of tests/acts, p2r2 ricer).
+    #[test]
+    fn a_node_that_takes_the_keyboard_is_told_with_its_owner() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "one");
+        let mut a = core.named("a");
+        let mut b = core.named("b");
+        b.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.node"]}),
+        );
+        let setup = json!({"commands": [
+            {"create": {"id": "menu", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]});
+        a.ok(&mut core, "scene.apply", setup);
+        b.events_now(&mut core);
+        let told = |b: &mut Client, core: &mut Core| -> Vec<Value> {
+            (b.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
+                .filter(|e| e["event"] == "focus.node")
+                .map(|mut e| {
+                    e.as_object_mut().map(|o| o.remove("seq"));
+                    e
+                })
+                .collect()
+        };
+        let node = json!({"commands": [{"focus_node": {"node": "menu"}}]});
+        a.ok(&mut core, "scene.apply", node);
+        assert_eq!(
+            told(&mut b, &mut core),
+            [json!({"event": "focus.node", "node": "menu", "owner": "a"})]
+        );
+        let back = json!({"commands": [{"focus_node": {}}]});
+        a.ok(&mut core, "scene.apply", back);
+        assert_eq!(
+            told(&mut b, &mut core),
+            [json!({"event": "focus.node", "node": null, "owner": null})]
+        );
+    }
+
     /// `surface.created` carries the `parent` of a dialog as it is at the
     /// first commit; a later `set_parent` sends no event (docs/api.md,
     /// D116; rc-6).

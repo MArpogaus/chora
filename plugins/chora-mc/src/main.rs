@@ -1128,7 +1128,8 @@ impl Mc {
         let current = self.current.clone();
         let window = current.as_ref().and_then(|c| self.windows.get(c)).cloned();
         let holds = window.as_ref().is_some_and(|w| {
-            matches!(self.focus.holder(|s| s == w), Holder::Window(_)) && self.chat == Chat::Closed
+            matches!(self.focus.holder(NAME, |s| s == w), Holder::Window(_))
+                && self.chat == Chat::Closed
         });
         self.plain_turn = true;
         match current {
@@ -1646,8 +1647,12 @@ mod tests {
         press_key(&mut mc, "Right", &[]);
         mc.show("terminal", true).unwrap();
         press_key(&mut mc, "Return", &[]);
-        let window =
-            |mc: &super::Mc| matches!(mc.focus.holder(|s| s == "s1"), super::Holder::Window(_));
+        let window = |mc: &super::Mc| {
+            matches!(
+                mc.focus.holder(super::NAME, |s| s == "s1"),
+                super::Holder::Window(_)
+            )
+        };
         assert!(window(&mc), "Return gave the window the keyboard");
         mc.turn(Look::Back);
         assert!(!window(&mc), "XF86Back took the keyboard from the window");

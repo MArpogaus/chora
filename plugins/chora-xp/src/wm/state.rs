@@ -43,15 +43,21 @@ impl Wm {
                 shown: vec![self.desk_of(b) + 1],
             })
             .collect();
-        let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
+        let focus = match (self.focused.as_deref())
+            .filter(|s| !self.node_away() && self.index(s).is_some())
+        {
             Some(surface) => Focus {
                 holder: Some(NAME.into()),
                 surface: Some(surface.into()),
             },
-            None if !self.focus_away() && !self.cube_off() => Focus {
-                holder: Some(NAME.into()),
-                surface: None,
-            },
+            None if self.own_node()
+                || (!self.node_away() && !self.focus_away() && !self.cube_off()) =>
+            {
+                Focus {
+                    holder: Some(NAME.into()),
+                    surface: None,
+                }
+            }
             None => Focus::default(),
         };
         let mut more = Map::new();
@@ -83,8 +89,18 @@ impl Wm {
         }
     }
 
+    /// A node of another client has the keyboard.
+    pub(super) fn node_away(&self) -> bool {
+        (self.key_node.as_deref()).is_some_and(|owner| owner != NAME)
+    }
+
+    /// A node of xp, such as its Start menu, has the keyboard.
+    fn own_node(&self) -> bool {
+        self.key_node.as_deref() == Some(NAME)
+    }
+
     /// A window of another window manager took the focus last.
-    fn focus_away(&self) -> bool {
+    pub(super) fn focus_away(&self) -> bool {
         (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
     }
 
@@ -233,6 +249,37 @@ mod tests {
         wm.event(focus("s1")).unwrap();
         let focus_s1 = json!({"holder": "xp", "surface": "s1"});
         assert_eq!(wm.state().unwrap()["focus"], focus_s1);
+    }
+
+    /// rw-2: the first click on the desktop while a window of another look
+    /// has the focus: xp sent its icons no keyboard then (the window still
+    /// had it), so the `focus.changed` that follows gives it to them.
+    #[test]
+    fn the_desktop_icons_take_the_keys_when_the_focus_leaves_a_foreign_window() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-keys");
+        wm.event(focus("t1")).unwrap();
+        assert!(wm.focus_away());
+        let none = wm.focus_moved(None);
+        let icons = chora_scene::Command::FocusNode {
+            node: Some(crate::desktop_icons::GROUP.into()),
+        };
+        assert!(none.contains(&icons), "the icons get no keys: {none:?}");
+    }
+
+    /// A node of another client that has the keys keeps them: the focus
+    /// that leaves a foreign window does not give the icons the keyboard.
+    #[test]
+    fn the_desktop_icons_leave_the_keys_of_a_node_of_another_client() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-node");
+        wm.event(focus("t1")).unwrap();
+        let taken = json!({"event": "focus.node", "node": "keys", "owner": "tiling"});
+        wm.event(serde_json::from_value(taken).unwrap()).unwrap();
+        let sent = wm.focus_moved(None);
+        assert!(
+            sent.iter()
+                .all(|c| !matches!(c, chora_scene::Command::FocusNode { .. })),
+            "the keys of tiling's node are taken: {sent:?}"
+        );
     }
 
     /// A `focus.changed` of the core.

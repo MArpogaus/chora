@@ -1,9 +1,9 @@
 //! The Control Panel, the Log Off and Turn Off dialogs, the fade and sound.
 
 use super::{
-    Bar, Choice, Command, Dialog, FADE, Instant, Mode, NAME, OutputConfigure, OutputInfo, Picture,
-    PropsUpdate, Reading, Setting, ShaderEffect, Sound, Uniform, Value, Wallpaper, Wm, apps,
-    control, give, json, session, shared, sound, wallpaper, without_reserve,
+    Bar, Choice, Command, DESKTOP, Dialog, FADE, Instant, Mode, NAME, OutputConfigure, OutputInfo,
+    Picture, PropsUpdate, Reading, Setting, ShaderEffect, Sound, Uniform, Value, Wallpaper, Wm,
+    apps, control, give, json, session, shared, sound, wallpaper, without_reserve,
 };
 
 impl Wm {
@@ -131,27 +131,31 @@ impl Wm {
         commands
     }
 
-    /// The gray of the desktop: the whole plugin becomes a layer with the
-    /// shader of the fade. The dialog sits on the overlay root, outside it.
+    /// The gray of the desktop: both roots of the plugin become layers with
+    /// the shader of the fade. The dialog sits on the overlay root, outside it.
     /// The gray starts at the origin of the scene; outputs left of or above
     /// it stay in color.
-    pub(super) fn fade_step(&self, amount: f64) -> Option<Command> {
-        let shader = self.fade_shader.clone()?;
+    pub(super) fn fade_step(&self, amount: f64) -> Vec<Command> {
+        let Some(shader) = self.fade_shader.clone() else {
+            return Vec::new();
+        };
         let size = self.bars.iter().fold([1.0_f64, 1.0_f64], |[w, h], bar| {
             let [x, y, bw, bh] = bar.area();
             [w.max(f64::from(x + bw)), h.max(f64::from(y + bh))]
         });
-        Some(Command::Update {
-            id: NAME.into(),
-            props: PropsUpdate {
-                size: Some(size),
-                effects: Some(vec![ShaderEffect {
-                    shader,
-                    uniforms: [("amount".into(), Uniform::Float(amount))].into(),
-                }]),
-                ..PropsUpdate::default()
-            },
-        })
+        [NAME, DESKTOP]
+            .map(|id| Command::Update {
+                id: id.into(),
+                props: PropsUpdate {
+                    size: Some(size),
+                    effects: Some(vec![ShaderEffect {
+                        shader: shader.clone(),
+                        uniforms: [("amount".into(), Uniform::Float(amount))].into(),
+                    }]),
+                    ..PropsUpdate::default()
+                },
+            })
+            .into()
     }
 
     /// Whether the desktop still fades.
@@ -160,8 +164,10 @@ impl Wm {
     }
 
     /// The next frame of the fade.
-    pub(crate) fn fade_frame(&self, now: Instant) -> Option<Command> {
-        let start = self.fade?;
+    pub(crate) fn fade_frame(&self, now: Instant) -> Vec<Command> {
+        let Some(start) = self.fade else {
+            return Vec::new();
+        };
         let t = now.saturating_duration_since(start).as_secs_f64() / FADE.as_secs_f64();
         self.fade_step(t.min(1.0))
     }
@@ -185,13 +191,13 @@ impl Wm {
         self.open.shut(super::surfaces::SESSION);
         let mut commands = vec![Dialog::remove(), self.desktop_keys()];
         if self.fade.take().is_some() {
-            commands.push(Command::Update {
-                id: NAME.into(),
+            commands.extend([NAME, DESKTOP].map(|id| Command::Update {
+                id: id.into(),
                 props: PropsUpdate {
                     effects: Some(Vec::new()),
                     ..PropsUpdate::default()
                 },
-            });
+            }));
         }
         commands
     }

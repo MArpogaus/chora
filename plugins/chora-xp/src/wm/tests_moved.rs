@@ -556,7 +556,7 @@ mod keys {
     fn without_a_dialog_the_desktop_does_not_fade() {
         let (wm, _methods) = wm_on_fake_core("no-fade");
         assert!(!wm.fading(), "no fade");
-        assert!(wm.fade_frame(Instant::now()).is_none());
+        assert_eq!(wm.fade_frame(Instant::now()), Vec::new());
     }
 }
 
@@ -816,13 +816,17 @@ mod choices {
         assert!(wm.fade.is_some(), "the dialog starts the fade");
         assert!(wm.fading(), "the desktop fades");
         assert!(
-            wm.fade_frame(Instant::now()).is_some(),
+            !wm.fade_frame(Instant::now()).is_empty(),
             "a frame of the fade"
         );
         wm.choose(Choice::Cancel);
         assert!(wm.fade.is_none(), "the fade ends with the dialog");
         assert!(!wm.fading());
-        assert!(wm.fade_frame(Instant::now()).is_none(), "no frame after it");
+        assert_eq!(
+            wm.fade_frame(Instant::now()),
+            Vec::new(),
+            "no frame after it"
+        );
     }
 }
 
