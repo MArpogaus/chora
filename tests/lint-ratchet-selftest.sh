@@ -86,6 +86,29 @@ printf 'fn q() {}\n' >crates/chora/src/lib.rs
 "$tool" --root "$work/repo" >"$work/out" 2>&1 || fail "$label: a fall failed"
 grep -q 'lower the list: allow is 0, listed 2' "$work/out" || fail "$label: a fall does not ask to lower the list"
 
+label="breach names its cause"
+rm -rf crates plugins
+mkdir -p crates/chora/src
+for n in 1 2 3 4 5 6 7; do
+    i=0
+    while [ "$i" -lt "$n" ]; do
+        echo "fn e${n}_$i() { eprintln!(\"x\"); }" >>"crates/chora/src/f$n.rs"
+        i=$((i + 1))
+    done
+done
+"$tool" --root "$work/repo" >"$work/out" 2>&1 && fail "$label: 28 eprintln over a list of 0 passed"
+cause=$(grep '^  eprintln: list ' "$work/out" || true)
+case $cause in
+'  eprintln: list 0, tree 28; most in: '*) ;;
+*) fail "$label: no cause line (counter, list, tree): $(cat "$work/out")" ;;
+esac
+for n in 7 6 5 4 3; do
+    case $cause in *"crates/chora/src/f$n.rs ($n)"*) ;; *) fail "$label: the top files miss f$n.rs ($n): $cause" ;; esac
+done
+for n in 2 1; do
+    case $cause in *"crates/chora/src/f$n.rs"*) fail "$label: the top 5 holds f$n.rs: $cause" ;; esac
+done
+
 label="help"
 "$tool" --help >"$work/out"
 tr '\n' ' ' <"$work/out" | grep -q 'raises .allow. in the list in the same commit' || fail "$label: the help does not say a reasoned new allow raises the list: $(cat "$work/out")"
