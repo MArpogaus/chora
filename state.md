@@ -2,7 +2,7 @@
 
 ## Now (2026-11-20 16:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; 09:13-14:39 only 0.75 %/h: under-spending; tokens.py 15:46 PM 10.3 %; 6 lanes
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 15:46 PM 10.3 %; 6 lanes
 session branch: fee9c695; 47 greens. t89 red xp-question 1x Yes 32 px; t89b running.
 burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
@@ -28,7 +28,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
 | gate-orphan-r1.md (F6: red step leaves no orphan) | sonnet medium, claude/gate-orphan fee9c695 | session_016iS3kNWpf3LijcZ7WSxG1g 15:54 |
 | xp-minor-r1.md (RC 2 known issues: 5 xp MINOR) | sonnet medium, claude/xp-minor fee9c695 | session_016iS3kLKnKNMM5NJqp8UV7Y 15:58 |
-| co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | starting |
+| co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) Trains: t89b probe-leak f5ac3500 alone (running); t90 gate-silent baac5dcf alone (harness); t91 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0. No PM selftests in a train.
