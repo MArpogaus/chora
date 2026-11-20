@@ -237,15 +237,16 @@ surfaces_clean='all(.[] | select(.id == $w); .owner != null and .parent != null 
     and ([.rects[] | select(.[2] > 0 and .[3] > 0)] | length) > 0)'
 
 on_top() {
-    local id=$w parent root top c
-    while parent=$(ctl query "id:$id" | jq -r '.[0].parent // "root"'); [ "$parent" != root ]; do
-        id=$parent
-    done
-    top=$id
-    for c in $(ctl query id:root | jq -r '.[0].children[]'); do
-        [ "$(ctl query "id:$c" | jq -r '.[0].order // "normal"')" = normal ] && root=$c
-    done
-    [ "$root" = "$top" ]
+    local groups root
+    groups=$(ctl query kind:group) || return 1
+    root=$(ctl query id:root) || return 1
+    jq -n -e --arg w "$w" --argjson groups "$groups" --argjson surfaces "$1" --argjson root "$root" '
+        ($groups + $surfaces) as $nodes
+        | def top($id): ($nodes[] | select(.id == $id)) as $n
+            | if ($n.parent // "root") == "root" then $n.id else top($n.parent) end;
+        def normal($id): ([$nodes[] | select(.id == $id)][0].order // "normal") == "normal";
+        top($w) as $held
+        | [$root[0].children[] | select(normal(.))] | last == $held' >/dev/null
 }
 
 arrived() {
@@ -263,7 +264,7 @@ arrived() {
         last_all=$all
         echo "$all" | jq -e --arg w "$w" --arg o "$1" "
             $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused == true)" >/dev/null &&
-            on_top && return 0
+            on_top "$all" && return 0
         sleep 0.2
     done
     return 1
