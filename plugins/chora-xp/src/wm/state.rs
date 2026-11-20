@@ -251,6 +251,37 @@ mod tests {
         assert_eq!(wm.state().unwrap()["focus"], focus_s1);
     }
 
+    /// rw-2: the first click on the desktop while a window of another look
+    /// has the focus: xp sent its icons no keyboard then (the window still
+    /// had it), so the `focus.changed` that follows gives it to them.
+    #[test]
+    fn the_desktop_icons_take_the_keys_when_the_focus_leaves_a_foreign_window() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-keys");
+        wm.event(focus("t1")).unwrap();
+        assert!(wm.focus_away());
+        let none = wm.focus_moved(None);
+        let icons = chora_scene::Command::FocusNode {
+            node: Some(crate::desktop_icons::GROUP.into()),
+        };
+        assert!(none.contains(&icons), "the icons get no keys: {none:?}");
+    }
+
+    /// A node of another client that has the keys keeps them: the focus
+    /// that leaves a foreign window does not give the icons the keyboard.
+    #[test]
+    fn the_desktop_icons_leave_the_keys_of_a_node_of_another_client() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-node");
+        wm.event(focus("t1")).unwrap();
+        let taken = json!({"event": "focus.node", "node": "keys", "owner": "tiling"});
+        wm.event(serde_json::from_value(taken).unwrap()).unwrap();
+        let sent = wm.focus_moved(None);
+        assert!(
+            sent.iter()
+                .all(|c| !matches!(c, chora_scene::Command::FocusNode { .. })),
+            "the keys of tiling's node are taken: {sent:?}"
+        );
+    }
+
     /// A `focus.changed` of the core.
     fn focus(surface: &str) -> chora_scene::Event {
         serde_json::from_value(json!({"event": "focus.changed", "surface": surface})).unwrap()
