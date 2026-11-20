@@ -13,7 +13,7 @@ Branch claude/harness-l, head 75dfa4b9 (from 355cdbe5). Gate `--only pre-commit,
 
 Notes: the R14 change could not have its own red-first commit (the old hook refuses a red guards.sh), so test and fix are one commit. The accept rule needs single-line `*_case` additions: a new helper function goes in a green commit first (done for runtime_case and move_case). H-move limit: an edit that restores a text removed elsewhere in the diff passes (documented in the script header). The R12 tables cover the two guards of R15; mkdir-runtime, injected-optout and clippy-config-sync keep their existing cases.
 
-## PM review r1 (06:20 UTC; PM not the builder; diff 355cdbe5..75dfa4b9, 7 files, +109 -10)
+## PM review r1 (06:17 UTC; PM not the builder; diff 355cdbe5..75dfa4b9, 7 files, +109 -10)
 Checks: red first (ff5ef811 before cead612e; 33a88995 before 75dfa4b9): met. R15 fail closed on any `)]`, case "code after the attribute" red: met. Negated need accepted, `if ! command -v pgrep; then pkill` still red: met. R12 tables incl. quoted names: met. R14 hook accepts only `*_case` additions, 4 cases incl. another file and another line: met. H-move moved passes, copied and edited fail: met. Gate PASS per handback.
 - rv-1 NIT: guards-hook accepts any `*_case` line, including one whose argument runs a command substitution; it is our own test file, so low risk.
 - rv-2 NIT: no-inline-comments collects removed lines from every file in the diff, so a bare `//` removed anywhere lets a new `//` through.

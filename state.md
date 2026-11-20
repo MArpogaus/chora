@@ -3,7 +3,7 @@
 ## Now (2026-11-20 06:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 05:12 PM 6.7 %; 22.8 h left: 60 %, 2.6 %/h; 6 lanes full
-session branch: 79c8d2b5 (train 81); 43 greens. Train 85 red 06:30 on ci-check: my merge of black-pane took its XDG_RUNTIME_DIR:? over the merged mktemp fallback (tiling-scripts-selftest); rebuilt as 85b (head 9973d0eb, only the 2 scripts differ), running 06:35.
+session branch: 79c8d2b5 (train 81); 43 greens. Train 85 red 06:17 on ci-check: my merge of black-pane took its XDG_RUNTIME_DIR:? over the merged mktemp fallback (tiling-scripts-selftest); rebuilt as 85b (head 9973d0eb, only the 2 scripts differ), running 06:20.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
 ## RC (design/rc.md)
