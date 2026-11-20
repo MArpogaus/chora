@@ -27,12 +27,12 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | stray-grab-r2.md (RC sh-24, Queue 5; review r1 FIX: rv-1 MAJOR, ae09758d) | sonnet high | session_016iS3kLCUHNpWn4svX2uoxz |
 | black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
 | p2-r2-xp.md (RC 2, Queue 5; t81 green 79c8d2b5) | sonnet medium | session_016iS3kM43ZCTqr1jMu5yYFh |
-| flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | starting |
+| flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
 | p2-harness-r1.md (RC 2, Queue 5; construct r1 done 123a4c71, harness slips) | sonnet high | session_016iS3kLa1LBGqhGyJjewzBc |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:50 (launcher-click alone, harness: 741d6bca). Next: stray-grab r2, black-pane r2, p2-harness as they turn MERGE-OK.
+4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:42 (launcher-click alone, harness: 741d6bca). Next: stray-grab r2, black-pane r2, p2-harness as they turn MERGE-OK.
 5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); STRAY-GRAB r2 0.8 % (r1 review FIX), BLACK-PANE r2 1 %, FLAKES-J 1 %, P2-HARNESS (construct r1b) 1 %; P2 R2 XP 1 %; then xp-11 MAJOR with the xp r2 findings; T1: tiling stop, construct after r1b; AUDIT-F r3 1 % Fri late.
 
 ## Needs owner

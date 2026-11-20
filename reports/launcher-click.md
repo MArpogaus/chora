@@ -25,7 +25,7 @@ Capture: media/2026-11-20/launcher-click/after-door-launcher-open.png (Apps list
 
 Not touched: crates/chora input.rs, flavors, the launcher config. Open for the PM: whether a compositor that sends an enter and then a motion for an injected `pointer_move` that enters a surface is wanted, so that a one-move click works by itself (input.rs, the stray-grab lane); not needed for the personas now.
 
-## Review r1 (PM, 2026-11-20 02:50 UTC; PM not the builder; small harness diff)
+## Review r1 (PM, 2026-11-20 02:42 UTC; PM not the builder; small harness diff)
 Base b97369d1..741d6bca, 4 files, +269 -6 (tests/persona/act.py, tests/test_act_pointer.py, tests/gate-launcher-click.sh, tests/merge-gate.sh).
 1) Red first: ce194597 (test) before 741d6bca (fix). Pass.
 2) approach(): 3 moves at offsets 3, 2, 1 px then the target, each injected alone with 50 ms; click and drag press use it, move and scroll unchanged; pinned by test_act_pointer.py. Pass.
