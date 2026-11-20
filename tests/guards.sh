@@ -137,6 +137,8 @@ move_case() {
 
 move_case "a new comment in a changed file" fail a.rs 'fn a() {}\n' 'fn a() {}\n// explain\n'
 move_case "a comment edited in place" fail a.rs 'fn a() {\n    // old\n}\n' 'fn a() {\n    // new\n}\n'
+move_case "a comment moved to another function" pass a.rs 'fn a() {\n    // why\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    z();\n}\n' 'fn a() {\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    // why\n    z();\n}\n'
+move_case "a comment copied to another function" fail a.rs 'fn a() {\n    // why\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    z();\n}\n' 'fn a() {\n    // why\n    x();\n}\nfn b() {\n    y();\n}\nfn c() {\n    // why\n    z();\n}\n'
 
 rename_case "rust rename keeps old comments" pass a.rs b.rs '// old\nfn a() {}\n' 'fn b() {}\n'
 rename_case "rust rename checks new comments" fail a.rs b.rs '// old\nfn a() {}\n' '// new\n'
