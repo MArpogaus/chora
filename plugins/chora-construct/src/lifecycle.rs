@@ -371,6 +371,56 @@ mod tests {
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
+    /// The guard of co-27 (rv-2): an overlay shows a window that the core
+    /// reserved for the manager below only when the window carries the
+    /// token of a program it waits for. A stranger without a token, one
+    /// with another token, and one right after a launch are no pane, even
+    /// beside a waiting pane without a token (a plugin or a manager), and
+    /// the waited program keeps waiting.
+    #[test]
+    fn an_overlay_shows_no_reserved_window_without_a_waited_token() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "overlay-stranger");
+        construct.overlay = true;
+        construct.launched = Some(std::time::Instant::now());
+        let pane = |kind| crate::PaneFile {
+            kind,
+            command: Some("foot".into()),
+            plugin: None,
+            scene: None,
+            manager: None,
+            at: None,
+            yaw: None,
+            size: None,
+            placed: false,
+        };
+        let waiting = [
+            crate::Waiting::new(Some("t1".into()), pane(crate::Kind::Program)),
+            crate::Waiting::new(None, pane(crate::Kind::Manager)),
+        ];
+        construct.waiting.extend(waiting);
+        for (surface, token) in [("s1", None), ("s2", Some("t2"))] {
+            surface_of(&core, surface);
+            let event = chora_kit::testing::created_by(surface, "probe", Some("tiling"), token);
+            construct.event(event).unwrap();
+            let shown = construct.panes.iter().any(|p| p.window() == Some(surface));
+            assert!(!shown, "{surface} with the token {token:?} is no pane");
+            assert_eq!(owner(&core.model(), surface), None);
+        }
+        assert_eq!(construct.waiting.len(), 2, "the waited program still waits");
+        assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
+    }
+
+    /// A surface `id` that the core reserved for tiling.
+    fn surface_of(core: &FakeCore, id: &str) {
+        surface(&core.model(), id);
+        core.model()
+            .lock()
+            .unwrap()
+            .scene
+            .reserve(id, Some("tiling"));
+    }
+
     /// co-29: the window list opens under a pointer that stood still, so a
     /// row is hovered at once and the list is drawn again within its fade;
     /// the redraw carries on the fade for the time left. The list opened
