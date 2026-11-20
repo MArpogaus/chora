@@ -53,7 +53,8 @@ round() {
     for _ in $(seq 40); do
         sleep 1
         ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 || continue
-        [ "$(px 640 24)" != "$(px 640 300)" ] && near "$(px 130 50)" "$accent" 12 && break
+        [ "$(px 640 24)" != "$(px 640 300)" ] && near "$(px 130 50)" "$accent" 12 &&
+            near "$(px 30 52)" "$accent" 14 && near "$(px 616 786)" "$accent_2" 14 && break
     done
     pill=$(px 113 16)
     near "$pill" "$accent" 2 || fail "$tag: the current tag is $pill, not the accent $accent"
