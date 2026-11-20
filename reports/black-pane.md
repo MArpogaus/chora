@@ -58,3 +58,44 @@ The merge gate cells (`pre-commit`, `ci-check`, `build`, `test`, `clippy`, `layo
 `tiling-look`, `tiling-audit`, `wm-pane`) were not run: the diff is one new gate script and changes no
 product code. The pre-commit hooks ran on the commit and passed. The gate runs 2 of 2 parts green
 (`outputs`, `panes`) and red with `COMPANIONS=0` (both parts). `crates/chora` `input.rs` is untouched.
+
+## r2 (2026-11-20, branch claude/black-pane, option 1 of r1)
+
+Status: FIXED. Red sha c35404a9, fix sha 91e6a114 (pushed). Dev branch
+origin/claude/autonomous-dev-session-3w-i33pg7 (b97369d1) merged first (bdfd523c). Step 0 passed.
+Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,layout,matrix,doors,tiling-look,tiling-audit,wm-pane,tiling-empty`:
+all 12 cells PASS (tiling-look 522 s, doors 350 s, matrix 274 s, tiling-audit 273 s, tiling-empty 21 s).
+`crates/chora` `input.rs` is untouched.
+
+| Item | Red sha | Fix sha | Test | Gate cell | Capture |
+|------|---------|---------|------|-----------|---------|
+| 1 red first: `--with-companions`, COMPANIONS=0 | c35404a9 | 91e6a114 | `tests/gate-tiling-empty-output.sh flag` (pure black `0 0 0 255` before) | tiling-empty | before `r2/before/flag-tiling.png`, after `r2/after/flag-tiling.png` |
+| 2 start waybar.sh and wallpaper.sh once, pid-file guard | c35404a9 | 91e6a114 | `... flag` (draws) and `... guard` (gate-started companions first, then the flag: one `waybar.sh`, one `waybar`, one `wallpaper.sh`) | tiling-empty | `r2/after/guard-tiling.png` |
+| 3 pane.manager passes the flag, doc | c35404a9 | 91e6a114 | `COMPANIONS=0 ... panes` (black in r1 `before/pane-tiling.png`, draws now) | tiling-empty, wm-pane | `r2/after/pane-tiling.png`, `r2/after/panes-screen.png` |
+| 4 `: "${XDG_RUNTIME_DIR:?}"` in waybar.sh and wallpaper.sh (KIT-SEC MINOR-1) | - | 91e6a114 | covered by every cell that starts them | tiling-empty, tiling-look | - |
+| 5 `tiling-empty` cell in merge-gate | - | 91e6a114 | `tests/gate-tiling-empty-output.sh` (outputs, panes, flag, guard) | tiling-empty | - |
+
+### What changed
+- `chora-tiling --with-companions` (plugins/chora-tiling/src/main.rs, `theme::start_companions`): after start-up
+  it runs `sh waybar.sh FOLDER` and `sh wallpaper.sh` from the flavor directory, each only when its pid file
+  (`panel.pid`, `wallpaper.pid`) names no running process of that script. No flag: nothing changes, so the
+  15 gates and the pixel baselines are as before (tiling-look, tiling-audit, doors PASS).
+- A panel in a session without a D-Bus session bus runs in `dbus-run-session`: the headless sessions of the
+  gates have none, and waybar draws nothing without one (found by the first green attempt: wallpaper, no bar).
+- `managers.tiling` defaults to `chora-tiling --with-companions` (plugins/chora-construct/src/config.rs,
+  docs/configuration.md `managers` row).
+- `waybar.sh` and `wallpaper.sh` use `: "${XDG_RUNTIME_DIR:?}"`. `wallpaper.sh` now also ends, with its pid
+  file removed, when the Wayland socket of its session is gone, so one that tiling started outlives no session
+  (it looped forever on a dead display before).
+
+### Notes for the PM
+- The first red commit tested "a second `--with-companions` tiling" as the second start. A second chora-tiling
+  cannot connect under the name `tiling` (one pane per manager), so that part was vacuous: a mutant without the
+  guard stayed green. The `guard` mode (companions started first, as the units or a gate do) replaces it and
+  goes red on that mutant (`2 waybar.sh in the session, not one`). It is in the fix commit, not the red commit.
+- ci-check failed once on the copy row `XDG_RUNTIME_DIR (KIT1)` (my error message named the variable); reworded
+  and the gate rerun in full, all cells PASS.
+- A race of two starts within the few ms before `waybar.sh` writes its pid file is not guarded; pane.manager
+  starts one tiling per session, so only a unit and a pane starting at the same instant could meet it.
+- Not touched: the tour tools of v4 to v6 (not in the repo); chapter 5 of the tour can pass `--with-companions`
+  to its tiling.
