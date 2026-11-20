@@ -175,3 +175,27 @@ Lane: cloud review of claude/co-majors-r3 head 68790912 against base c839a11c (9
 
 ### co-30: real rule fault, not a stale setup, MINOR
 Evidence. The setup is deliberate: tests/gate-construct-windows.sh:479 starts `chora-mc --manage-windows --output "${outs[0]}"`, the output of the flavor, and section 5 needs mc as a window manager there to drop d2 onto the mc pane (a drop to mc needs its claim). The construct claims the whole output (panes.rs:333, `claim = [x,y,w,h]` for a flavor) and mc its work area (chora-mc build.rs:78, `claim: manage_windows.then_some(work)`). The core routes a Super+button press with `button_grab_for` (ipc.rs:463-480; input.rs:760), which takes `claimant_at` = the smallest claim containing the pointer (scene.rs:257-269), and the unit test at crates/chora/src/input.rs:1823 ("The smallest claim wins") fixes that as the rule. The rule is a flat 2D one: the construct draws a 3D space over its claim, so a pane that stands over the work area of mc is under the pointer for the user, but the claim of mc is smaller and mc takes the press. The same cause makes the d2 drag of line 520 fail, so the drop onto an mc pane cannot work on a shared output at all. Fix (one sentence): in `button_grab_for`, prefer the grabber that owns the node hit under the pointer (the pane node, then its ancestors) and keep the smallest claim as the tiebreak, then update input.rs:1823 and put windows into construct-extra. Severity MINOR: no window is lost (the lane's `no_lost` holds in sections 1 to 4, and the press goes to a client that did not own the window), the case needs mc with `--manage-windows` on the output of a construct, and the shared output is supported (D55, PM 06:05), so it is a fault in a narrow case and not a gate defect; it becomes MAJOR only if the PM counts a drag that does nothing as a lost-window path.
+
+## r4
+
+Lane: cloud, branch claude/co-r4 from 68790912 (co-majors-r3). Step 0 green (`cargo check`, `cargo build --workspace`). Red first for each item; rv-1 and rv-2 are pins of code that is already right, so their red is a mutant of the code, shown and reverted.
+
+| item | red | fix | cell | state |
+|------|-----|-----|------|-------|
+| co-30 MINOR | e758dcfd (unit test `a_shared_button_grab_goes_to_the_owner_of_the_node_under_the_pointer`: the press over a construct pane inside the claim of mc reached mc) | 5a782e58 | construct-extra (windows added, header line dropped in 0355c2bc); windows green 3 of 3 | fixed |
+| rv-1 MINOR | mutants: a fresh FADE_IN on the redraw (0.9925) and no fade (0.756) fail the pin; the head passes | c98adb18 | test (cargo test -p chora-construct) | fixed |
+| rv-2 MINOR | mutants: `shown_not_owned = self.overlay`, and a None token that matches a waiting pane without one, fail the pin; the head passes | 51175f9a | test | fixed |
+| rv-3 NIT | none (a settle) | 31b2d114 | construct-hud green 2 of 2 without the sleep | fixed |
+| co-28 MINOR | the gate itself: 3 cells red 3 of 3 on 31b2d114 | b11cda2a | construct-extra (3d added in 42c9304b) | fixed, stale checks |
+
+### co-30
+`Ipc::button_grab_for` (ipc.rs) takes a `Pointer { point, node }`; `open_button_grab` (input.rs) passes `render::node_under`. Among the grabbers of the binding, the one that owns the node under the pointer, or its nearest ancestor owned by a grabber, wins; over no node of a grabber, the smallest claim breaks the tie, else the first grab. The pins of the smallest-claim rule (`a_shared_button_grab_goes_to_the_claim_under_the_pointer`, `a_button_grab_without_a_claim_has_one_owner`) keep their cases unchanged: they hit no node. The new pin covers the pane over the work area (construct), a node of mc (mc), no node inside the claim of mc (mc, the tie) and outside it (construct). Windows section 5 passes: d1 drops on tiling, d2 on the mc pane, d3 moves on empty space.
+
+### co-28: stale checks, not faults
+- Label (:187): the label became a glass pill (`construct-label-body-text`) with a neighbour pill `construct-label-n-<k>` for every other pane; `construct-label-text` stays hidden. The check now wants the title of pane b (read from its neighbour pill before the hover) in the focus pill, no neighbour pill for b and one for c (the pane ahead), so a label that follows the pane ahead fails it.
+- Recording (:272): the walk goes in pane steps of 800 per tap (D8, 0934fb76), not STEP 90. The first `w` put the camera at z 800, so the fixed window 470-560 x 380-420 lay inside pane c in frames 1 to 3 (equal hashes), and the second tap carried the camera to z 1600, past pane b, which then had no rect (the empty `pointer_move`). The recording now starts after an `s` back at the start point, `view_of` hashes the view below the bar, and an `s` after it brings pane b back for the last check. The frames 1, 2, 3 and the end differ.
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,construct-hud,construct-extra,cube,keys,pull,out,doors,mc-paths,mc-handover,matrix,acts` on 42c9304b (origin/claude/autonomous-dev-session-3w-i33pg7 at 79c8d2b5 already contained): all PASS (run /tmp/merge-gate.xk9Dw8): pre-commit 11 s, gate-lib 71, build 30, test 250, clippy 42, ci-check 64, matrix 292, doors 369, acts 254, cube 130, pull 88, construct-hud 130, out 15, keys 23, mc-paths 67, mc-handover 12, construct-extra 183 (k1, mcpane, nested, k2a, windows, 3d). No red cell, no FLK.
+
+Head 42c9304b.
