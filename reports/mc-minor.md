@@ -16,3 +16,9 @@ Item 2: `is_part_of` in lifecycle.rs: below `mc-s-<name>` only the node, `-panel
 Item 3: T1/T4 allow the key list only when the persona pressed a chord that opens it (`LIST_CHORDS`: xp h/F1, tiling and mc slash, construct slash/F1; `Ctx.asked_for_list`, `Ctx.own_left`). `ctx.opened` was not usable (it is true for an unasked list too). Existing "may stay open" tests now pass the chord.
 
 Gate (--jobs 1): pre-commit, gate-lib, ci-check, build, test, clippy, acts, mc-paths, mc-sofa, mc-column, mc-handover: all PASS. `bash tests/persona-selftest.sh` ok (not a merge-gate step name). cargo test -p chora-mc 183 ok; tests/test_acts.py 156 passed.
+
+## PM review r1 (PM not the builder)
+MERGE-OK f7735e43; reds 5543d938, 2785fadf, 51b595f8; fixes 6f686942, 1b2341ef, f7735e43 (lane gate: acts, mc-paths, mc-sofa, mc-column, mc-handover PASS). Checks: one tracker: Mc::try_apply notes writes only when the core accepts, every try_apply call site moved (build, theme, windows); fading_until and FADE_SLACK gone, busy reads "fade:<id>" from `fading` (color fades now count); a removal clears only the node and its known children (`foot` keeps `foot-server`); T1/T4 pass the key list only when the persona asked. No open MAJOR.
+- pr1-1 NIT: main.rs Mc: the doc lines of the removed fading_until now sit above `left` (two docs on one field).
+- pr1-2 NIT: is_part_of still takes a scene named `<x>-panels` or `<x>-chapter-…` as a child of `<x>`; names come from the user's mc.yaml; reject such names at load or note it.
+Contains mc-fix 929de144 and flakes-l cc1282db: in t92 it replaces mc-fix.
