@@ -1928,7 +1928,9 @@ bold with `Alt+F4`, with XP's glyphs. Restore is gray unless the window is
 maximized or minimized, Minimize is gray for a minimized window and
 Maximize for a maximized one. Move and Size are always gray: `chora-xp`
 moves and sizes windows with the mouse, and does not have XP's keyboard
-commands for them. The click on the icon opens the menu below the icon, the others at
+commands for them. Send To, under Maximize, hands the window to another
+look with a click, as `Super+Alt+1-4` does: one row each for Tiling desktop,
+Media center and 3D space, gray while that look is not running. The click on the icon opens the menu below the icon, the others at
 the pointer. A double click on the icon closes the window, as on XP. A maximized window fills the work
 area above the taskbar. When an output changes, for example its mode or
 its scale, its shown windows move back into its work area. A window that

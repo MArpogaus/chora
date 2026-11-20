@@ -74,6 +74,9 @@ pub enum Act {
     Color([u8; 3]),
     /// A row of the system menu of a window.
     Window(Sys),
+    /// A row of its Send To menu: the window goes to the look of this
+    /// client name.
+    Give(&'static str),
     /// A row of the menu of a desktop icon or a start menu entry.
     Item(Item),
     /// A row of the volume popup of the speaker.
@@ -150,6 +153,9 @@ pub struct Entry {
     /// A sample of a color before the text, as in a palette.
     swatch: Option<[u8; 3]>,
     sub: Vec<Entry>,
+    /// The index of the access key in the title, where the table has
+    /// another one for this menu.
+    access: Option<usize>,
 }
 
 impl Entry {
@@ -166,6 +172,7 @@ impl Entry {
             glyph: None,
             swatch: None,
             sub: Vec::new(),
+            access: None,
         }
     }
 
@@ -242,10 +249,12 @@ impl Entry {
 
     /// The place of the access key in the title, XP's underlined letter.
     fn access(&self) -> Option<usize> {
-        ACCESS
-            .iter()
-            .find(|(title, _)| *title == self.title)
-            .map(|(_, at)| *at)
+        self.access.or_else(|| {
+            ACCESS
+                .iter()
+                .find(|(title, _)| *title == self.title)
+                .map(|(_, at)| *at)
+        })
     }
 
     /// Whether a typed letter is the access key of the row.
@@ -395,13 +404,20 @@ fn file_rows(target: Target, open: Entry, send_to: Entry) -> Vec<Entry> {
 
 /// XP's system menu of a window, as the title bar and the task button
 /// open it. Move and Size are gray, as the keyboard does not work them
-/// (D45); Close is the default row.
-pub fn system(maximized: bool, minimized: bool) -> Vec<Entry> {
+/// (D45); Close is the default row. Send To lists the other looks by
+/// name, gray while a look is not among the `running` client names.
+pub fn system(maximized: bool, minimized: bool, running: &[String]) -> Vec<Entry> {
     let row = |title: &str, sys: Sys, enabled: bool| Entry {
         act: enabled.then_some(Act::Window(sys)),
         glyph: Some(sys),
         ..Entry::item(title, Act::Window(sys)).enabled(enabled)
     };
+    let looks = LOOKS
+        .iter()
+        .map(|(client, name)| {
+            Entry::item(name, Act::Give(client)).enabled(running.iter().any(|r| r == client))
+        })
+        .collect();
     vec![
         row("Restore", Sys::Restore, maximized || minimized),
         Entry::gray("Move"),
@@ -410,12 +426,25 @@ pub fn system(maximized: bool, minimized: bool) -> Vec<Entry> {
         row("Maximize", Sys::Maximize, !maximized),
         Entry::separator(),
         Entry {
+            access: Some(0),
+            ..Entry::sub("Send To", looks)
+        },
+        Entry::separator(),
+        Entry {
             bold: true,
             key: "Alt+F4",
             ..row("Close", Sys::Close, true)
         },
     ]
 }
+
+/// The looks that a window can go to from xp: the client name and the
+/// name that a person reads.
+pub const LOOKS: [(&str, &str); 3] = [
+    ("tiling", "Tiling desktop"),
+    ("mc", "Media center"),
+    ("construct", "3D space"),
+];
 
 /// One menu: the root or the submenu.
 struct Level {
@@ -1106,37 +1135,40 @@ mod tests {
                 .map(|e| (e.title, e.enabled))
                 .collect()
         };
-        let rows = |r: [bool; 6]| -> Vec<(String, bool)> {
-            ["Restore", "Move", "Size", "Minimize", "Maximize", "Close"]
-                .into_iter()
-                .zip(r)
-                .map(|(t, e)| (t.to_string(), e))
-                .collect()
+        let rows = |r: [bool; 7]| -> Vec<(String, bool)> {
+            [
+                "Restore", "Move", "Size", "Minimize", "Maximize", "Send To", "Close",
+            ]
+            .into_iter()
+            .zip(r)
+            .map(|(t, e)| (t.to_string(), e))
+            .collect()
         };
         assert_eq!(
-            state(system(false, false)),
-            rows([false, false, false, true, true, true])
+            state(system(false, false, &[])),
+            rows([false, false, false, true, true, true, true])
         );
         assert_eq!(
-            state(system(true, false)),
-            rows([true, false, false, true, false, true])
+            state(system(true, false, &[])),
+            rows([true, false, false, true, false, true, true])
         );
         assert_eq!(
-            state(system(false, true)),
-            rows([true, false, false, false, true, true])
+            state(system(false, true, &[])),
+            rows([true, false, false, false, true, true, true])
         );
-        let close = system(false, false).pop().expect("Close");
+        let close = system(false, false, &[]).pop().expect("Close");
         assert!(close.bold);
         assert_eq!(close.key, "Alt+F4");
         assert_eq!(close.act, Some(Act::Window(Sys::Close)));
-        assert_eq!(system(true, false)[4].act, None, "Maximize is gray");
+        assert_eq!(system(true, false, &[])[4].act, None, "Maximize is gray");
     }
 
     /// xp-give: the window menu has a "Send To" submenu with one row per
     /// other look, by its plain name.
     #[test]
     fn the_system_menu_sends_a_window_to_another_look() {
-        let rows = system(false, false);
+        let running = ["mc".to_owned(), "tiling".to_owned()];
+        let rows = system(false, false, &running);
         let send = rows
             .iter()
             .find(|e| e.title == "Send To")
@@ -1144,6 +1176,18 @@ mod tests {
         assert!(send.enabled, "Send To is open");
         let looks: Vec<&str> = send.sub.iter().map(|e| e.title.as_str()).collect();
         assert_eq!(looks, ["Tiling desktop", "Media center", "3D space"]);
+        let open: Vec<bool> = send.sub.iter().map(|e| e.enabled).collect();
+        assert_eq!(
+            open,
+            [true, true, false],
+            "a look that is not running is gray"
+        );
+        assert_eq!(send.sub[1].act, Some(Act::Give("mc")));
+        assert_eq!(
+            send.sub[2].act,
+            Some(Act::Give("construct")),
+            "gray still names it"
+        );
     }
 
     #[test]

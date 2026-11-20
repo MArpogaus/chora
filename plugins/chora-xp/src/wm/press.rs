@@ -117,7 +117,8 @@ impl Wm {
             return Vec::new();
         };
         let w = &self.windows[i];
-        let entries = context::system(w.maximized(), w.minimized);
+        let (maximized, minimized) = (w.maximized(), w.minimized);
+        let entries = context::system(maximized, minimized, &self.looks_running());
         let Some(bar) = self
             .bars
             .iter()
@@ -132,6 +133,35 @@ impl Wm {
         let commands = self.show_context(menu, usable);
         self.context_opened(Some(surface));
         commands
+    }
+
+    /// The client names of the other looks that can take a window.
+    fn looks_running(&mut self) -> Vec<String> {
+        #[derive(serde::Deserialize)]
+        struct Client {
+            name: String,
+            methods: Vec<String>,
+        }
+        let list: Vec<Client> = self
+            .rt
+            .conn
+            .call("clients.list", serde_json::Value::Null)
+            .unwrap_or_default();
+        (list.into_iter())
+            .filter(|c| c.methods.iter().any(|m| m == chora_kit::give::METHOD))
+            .map(|c| c.name)
+            .collect()
+    }
+
+    /// Gives the window of the Send To menu to a look.
+    pub(super) fn act_give(&mut self, to: &str) -> Vec<Command> {
+        let Some(surface) = self.sys_window.take() else {
+            return Vec::new();
+        };
+        if let Err(err) = chora_kit::give::Windows::hand(self, &surface, to) {
+            self.notice(None, "Send To", &err.message, -1);
+        }
+        Vec::new()
     }
 
     /// Does what a row of the system menu says to its window.
@@ -326,6 +356,7 @@ impl Wm {
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
             Act::DateTime => self.open_date_dialog(area),
             Act::Window(sys) => self.act_window(sys),
+            Act::Give(to) => self.act_give(to),
             Act::Item(item) => self.act_item(item),
             Act::Volume(change) => self.change_volume(change, false),
             Act::Position(index) => self.with_display(|d| d.set_position(index)),
