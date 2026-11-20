@@ -287,6 +287,23 @@ kill_case "an awk program over several lines" pass "awk '\n    /pkill chora/ { n
 kill_case "an arithmetic shift is no here-document" fail 'n=\x24((n << shift))\npkill chora\n'
 kill_case "a comment naming environ is no filter" fail 'core=\x24(pgrep -x chora)\n# /proc/PID/environ\n'
 
+mkdir_case() {
+  local label=$1 want=$2 text=$3
+  printf '%b' "$text" >"$work/script.sh"
+  bash "$tests_dir/mkdir-runtime.sh" "$work/script.sh" >/dev/null
+  verdict "mkdir-runtime: $label" "$want" $?
+}
+
+mkdir_case "mkdir -p on the runtime directory" fail 'mkdir -p "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "mkdir -p -m 700" pass 'mkdir -p -m 700 "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "mkdir -pm 700" pass 'mkdir -pm 700 "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "mkdir -p -m 755 is no 700" fail 'mkdir -p -m 755 "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "a variable set from the runtime directory" fail 'runtime=\x24{XDG_RUNTIME_DIR:-/tmp}\nmkdir -p "\x24runtime/x"\n'
+mkdir_case "a variable set from a variable" fail 'r=\x24XDG_RUNTIME_DIR\nstyle=\x24r/s\nmkdir -p "\x24style/icons"\n'
+mkdir_case "a path elsewhere" pass 'mkdir -p "\x24HOME/Pictures"\n'
+mkdir_case "a comment" pass '# mkdir -p "\x24XDG_RUNTIME_DIR/x"\n'
+mkdir_case "a variable of a longer name" pass 'runtime=\x24XDG_RUNTIME_DIR\nmkdir -p "\x24runtime_other/x"\n'
+
 sync_case() {
   local label=$1 want=$2 root=$3 plugin=$4
   printf '%b' "$root" >"$work/root.toml"

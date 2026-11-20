@@ -99,6 +99,8 @@ The hooks run:
 - no inline comments: a comment on an added line of Rust, shell or Python
   fails, except doc comments, `// SAFETY:`, tool directives and the usage
   header of a script
+- `mkdir -p` under `$XDG_RUNTIME_DIR` in a shell script of `flavors/` or
+  `plugins/` needs `-m 700`
 - session files: logs, reports and media paths of the autonomous sessions
   fail
 - commit message length: the subject at 68 characters, body lines at 72
