@@ -91,3 +91,37 @@ Checked `git show --cc cb2b80f1` for tests/persona/check.py and session.sh again
 - wpctl: head's state file (volume, mute) logs to @MARKS@ = $fakes/calls.log, the same file mc-fix's fuzzel stand-in writes ($here/calls.log): no lost log.
 - merge-tree vs t87 shas: clean except the known merge-gate.sh comment conflict with co-r4 42c9304b.
 Verdict: MERGE-OK (0 BLOCK, 0 MAJOR); cb2b80f1 joins train 87. Persona-selftest one red rerun green ("no click on Notepad"): watched by flake series.
+
+## r3 (RC 2 persona round 4, mc-42, mc-46, I3 and I5 on xp+mc)
+Lane: cloud, branch claude/mc-fix, from cb2b80f1. The session head had not moved past adf71956, so nothing was merged. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. Pushed b0997b71 to claude/mc-fix. Each fix has a red commit before it.
+
+### 1. mc-42 (BLOCK reopened): the page that a plain Right starts
+- Cause: the Foot page of the cook is the terminal scene, and its program starts with the turn. The plain turn kept the keyboard on the page, then the window came (adopt, not a plain turn) and took it, so Right and Escape reached the shell. terminal-back only reached a window that was already there.
+- Red 34270632: gate-mc-paths cell `terminal-turn` (Home, Right x4 to the terminal page, a fresh start each time, then Left to mission, Right to overview, Escape to mission, XF86Back then Left; fails at the first key, the page stays `terminal`).
+- Fix 03cff6d2: `plain_start` in show.rs/windows.rs: a window that comes for a scene that a plain turn showed and started is adopted as after a plain turn. Super+Return and the launcher still give the window the keyboard (cells terminal-keys and the launcher start of remote-back stay green). The rule of docs/configuration.md (a page reached with a plain key keeps the keyboard) now holds for a turn that starts the program.
+- Same key rule for both arrivals: a plain-key arrival keeps the keyboard on the page, a launcher or Super arrival gives the window the keyboard and XF86Back (first press) gives it back to the page.
+- Capture: none new (the cell reads texts); r3 evidence p2r3-cook 007, 008.
+
+### 2. mc-46 (partly): the first XF86Back
+- Not reproduced as "does nothing": with the program started by the launcher, Escape, then one XF86Back, the keyboard did move (Left then turned the page; sofa 009 shows the terminal cursor hollow). What the persona could not see: the key list on a window page always drew the Super form (`Super+ <- ->`), whoever held the keyboard.
+- Red 9eff365f: gate-mc-sofa `remote-back` starts the window through the launcher (fake fuzzel `pick` file), presses Escape, asserts the key list names Super, presses XF86Back once, asserts the plain arrows.
+- Fix 45fcc3f1: `page_keys_work` (the page of a window uses the plain form while the page node holds the keyboard) and `sync_keys`, which draws the list anew when the holder changes (focus event, XF86Back, Return). docs/configuration.md says it. terminal-turn also asserts the plain arrows. mc-50 loses the first-press half; the yellow square stays.
+
+### 3. I3 and I5 on xp+mc: verified with a live xp+mc session (state dump)
+State of the unchanged build, no action of a persona: `choractl state`: xp `{"focus":{"holder":"xp"}}`, mc `{"focus":{"holder":"mc"}}`; the one focused node of the core: `xp-icons` (owner xp). scene.boxes of HEADLESS-1: mc nodes are the boxes 0 to 56 (mc-bg first), `xp-wall-HEADLESS-1` is box 57 (image, `opaque` false, rect [0,0,1280,800]), the xp panel and the pager 58 to 69. The capture shows xp only.
+- **I5 is the checker.** mc is wholly under the wallpaper of xp, so no mc text is on the screen; the checker counted it as shown because a picture is never opaque for I5. Red 51642134 (three cells in tests/test_acts.py with the coordinates of the breach: a look under the wallpaper passes; the same texts above the wallpaper still fail; a part picture such as the panel still hides nothing). Fix dab46f6b: a picture of the whole output covers the nodes below it. No loosening for the shown look (the wallpaper is box 57, the shown look's texts are above it). Live: no I5 line after the fix. Ledger mc-51.
+- **I3 is mc.** mc's page node had the keyboard at the start; xp then took it with `xp-icons`, and the core sends no `focus.changed` for a node (rw-3), so mc kept saying `holder: mc`. A real lie of `state.get`, not a draw problem. Red 08ae4d56 (unit test `state_says_nobody_when_a_node_of_another_client_has_the_keyboard`), prep 18247e0d (`Plugin::refresh`, runs before `state.get` answers; default does nothing; `Focus::node`, `Focus::drop_node`), fix b0997b71 (mc asks the core which nodes are focused and drops its node when its own is not among them). Live after the fix: xp `{"holder":"xp"}`, mc `{"holder":null}`, no I3 or I5 line from `check.py after`. Ledger mc-52. xp and tiling have the same tracker and keep the old answer until they implement `refresh` (backlog, no breach seen there).
+- Nurse T7 stays "not reached": the way to the other look is not shown on xp (ux row of p2r3-nurse, not in scope).
+
+### Gate
+`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,keys,chat-keys,doors,mc-paths,mc-sofa,mc-handover,matrix,layout` (run dir /tmp/merge-gate.oCVcby): all 13 PASS (pre-commit 5 s, ci-check 96 s, build 28 s, test 237 s, clippy 17 s, chat-keys 9 s, layout 213 s, keys 24 s, matrix 333 s, mc-paths 109 s, mc-handover 14 s, mc-sofa 49 s, doors 375 s). Also `python3 tests/test_acts.py`: 151 OK, `cargo test -p chora-mc`: 175 OK. A red cell I did not cause: none. Partial run, nothing pushed by it.
+
+### Commits (author and committer Marcel Arpogaus, no attribution lines)
+| item | red | fix | test / cell |
+|---|---|---|---|
+| mc-42 | 34270632 | 03cff6d2 | gate-mc-paths `terminal-turn` |
+| mc-46 | 9eff365f | 45fcc3f1 | gate-mc-sofa `remote-back` |
+| I5 (checker) | 51642134 | dab46f6b | tests/test_acts.py I5 (3 cases) |
+| I3 | 08ae4d56 (prep 18247e0d) | b0997b71 | mc unit test, live xp+mc state |
+
+Not touched: T1 checker end-time gap, fuzzel 1.9.2 launcher click, mc-50 yellow square.
