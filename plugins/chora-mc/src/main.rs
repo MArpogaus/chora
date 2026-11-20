@@ -2394,6 +2394,40 @@ mod tests {
         );
     }
 
+    /// The words of `busy` that name a fade.
+    fn fades(mc: &super::Mc) -> Vec<String> {
+        use chora_kit::runtime::Plugin as _;
+        let state = mc.state().unwrap();
+        let busy = state["busy"].as_array().unwrap();
+        (busy.iter().filter_map(|b| b.as_str()))
+            .filter(|b| b.starts_with("fade:"))
+            .map(str::to_owned)
+            .collect()
+    }
+
+    /// A page turn cross-fades its regions for a moment: both sets are
+    /// shown then, so mc is busy until the end of each fade, and a check
+    /// that waits for quiet never reads two sets one over the other
+    /// (mc-48).
+    #[test]
+    fn a_cross_fade_keeps_mc_busy_until_its_end() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("fade-busy", [1920, 1080]);
+        mc.show("agenda", true).unwrap();
+        assert_eq!(fades(&mc), Vec::<String>::new(), "no fade yet");
+        mc.show("morning", true).unwrap();
+        let busy = fades(&mc);
+        assert!(!busy.is_empty(), "the cross-fade of the page is not busy");
+        for word in &busy {
+            mc.event(chora_scene::Event::AnimationDone {
+                node: Some(word.trim_start_matches("fade:").to_owned()),
+                output: None,
+            })
+            .unwrap();
+        }
+        assert_eq!(fades(&mc), Vec::<String>::new(), "the fades ended");
+    }
+
     /// After the watchdog of the core dropped the effects of mc, a scene
     /// shows without the write effect until the settings change.
     #[test]
