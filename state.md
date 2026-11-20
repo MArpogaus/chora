@@ -27,7 +27,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flake-h-r2.md | sonnet med | session_016iS3kNLhgqk1W1n2yc2oRb |
 | 78b: temp-dirs, flake-k, f24-rest, pw, nits-3, block-v | sonnet | in t79 |
 | xp-majors-r1.md (RC) | sonnet high | 81a29fe8 in review |
-| review-xp-majors-r1.md | sonnet hi | starting |
+| review-xp-majors-r1.md | sonnet hi | session_016iS3kLM9RpnbLLNk85sNfu |
 | mc-majors-r1.md (RC) | sonnet high | OK 92ecd30a t79 |
 | mc-answer-r1.md (RC) | sonnet high | a271df2b in review |
 | review-mc-answer-r1.md | sonnet hi | session_016iS3kMDR7M1khmKyPxucfW |
