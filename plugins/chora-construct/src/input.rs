@@ -260,6 +260,12 @@ impl Construct {
             } => {
                 return match self.rt.action(&binding) {
                     Some(&Grab::Give(to)) => self.give_key(to),
+                    Some(Grab::Swallow) => Ok(()),
+                    Some(&Grab::Own(Own::Windows)) => self.open_list(),
+                    Some(&Grab::Own(_)) => {
+                        self.cube_key();
+                        Ok(())
+                    }
                     Some(Grab::Key(System::Terminal)) => self.terminal_beside(),
                     Some(Grab::Key(system)) => {
                         let system = system.clone();

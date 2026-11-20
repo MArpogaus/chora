@@ -642,12 +642,8 @@ impl Tiling {
         // The title bars of the clients drag as `drag` does.
         let moves = MOVE.parse().expect("move is a binding");
         self.rt.grab(moves, Action::System(System::Drag))?;
-        let swallowed: Vec<_> = self.wm.config.swallowed().collect();
-        for binding in swallowed {
-            if self.rt.action(&binding.to_string()).is_none() {
-                self.rt.grab(binding, Action::Look(Own::Swallow))?;
-            }
-        }
+        self.rt
+            .grab_swallowed(&self.wm.config.modifier, &Action::Look(Own::Swallow))?;
         Ok(())
     }
 

@@ -16,7 +16,10 @@
 # pane.remove asks as well, and a window that refuses stays a pane; a
 # radius of settings.set leashes the panes at once; a Super press during
 # the flight into a pane ends it and leaves Alt+Escape and Super+t free
-# in walk mode; a window audit checks that no window is lost.
+# in walk mode; a window audit checks that no window is lost; in a pane
+# that the camera flew into, no Super chord that the construct does not
+# bind (d, q, Tab, 1) reaches the window, a plain key does, and Super+F1
+# and Super+t keep their actions (co-25, co-26).
 # The launcher here is a foot window that starts a second foot; where
 # fuzzel is installed, the programs that it starts become panes too.
 #
@@ -188,6 +191,42 @@ until_ok '! panes | grep -qw chora-probe' || fail "the pane of chora-probe stays
 until_ok 'test "$(ctl query kind:surface | jq length)" = "$(panes | wc -w)"' ||
     fail "a window is lost or left: $(ctl query kind:surface | jq length) windows for the panes '$(panes)'"
 ok "window audit: every window is a pane, and no pane has lost its window"
+
+"$bin/chora-probe" window 200 40 40 --report >"$work/probe.log" 2>&1 &
+probe=$!
+pids+=("$probe")
+until_ok 'panes | grep -qw chora-probe' || fail "chora-probe (report) became no pane: $(panes)"
+ctl call construct pane.fly '{"name": "chora-probe"}' >/dev/null || fail "pane.fly chora-probe"
+until_ok 'test "$(app_focused chora-probe)" = True' || fail "the probe pane has no keyboard"
+until_ok flown_in || fail "the camera is not in the probe pane"
+sleep 1
+down_up() { printf '{"key": {"key": "%s", "state": "pressed"}}, {"key": {"key": "%s", "state": "released"}}' "$1" "$1"; }
+chord() { echo "[{\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}}, $(down_up "$1"), {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]" | ctl inject || fail "inject Super+$1"; }
+got() { grep -c "^key $1\$" "$work/probe.log"; }
+chord d
+chord q
+chord Tab
+chord 1
+echo "[$(down_up a)]" | ctl inject || fail "inject a"
+until_ok 'test "$(got 30)" -ge 1' || fail "a plain a did not reach the probe in its pane: $(grep ^key "$work/probe.log" | tr '\n' ' ')"
+sleep 1
+for code in 32 16 15 2; do
+    [ "$(got "$code")" = 0 ] || fail "a Super chord that the construct does not bind reached the window in its pane (key $code): $(grep ^key "$work/probe.log" | tr '\n' ' ')"
+done
+ok "co-25: Super+d, q, Tab and 1 reach no window in a pane, a plain a does"
+key Super+F1
+until_ok help_shown || fail "Super+F1 in a pane shows no key list (co-26)"
+key Escape
+until_ok '! help_shown' || fail "Escape after Super+F1 in a pane keeps the key list"
+ok "co-26: Super+F1 in a pane shows the key list"
+ctl call construct pane.fly '{"name": "chora-probe"}' >/dev/null || fail "pane.fly chora-probe again"
+until_ok 'test "$(app_focused chora-probe)" = True' || fail "the probe pane has no keyboard again"
+before=$(panes)
+key Super+t
+until_ok 'test "$(panes)" != "$before"' || fail "Super+t in a pane started no terminal: $(panes)"
+ok "Super+t keeps its action in a pane"
+kill "$probe"
+until_ok '! panes | grep -qw chora-probe' || fail "the pane of chora-probe stays: $(panes)"
 
 # fuzzel, a layer-shell launcher, may pass its own token on to the
 # program that it starts; that program's window is a pane all the same.

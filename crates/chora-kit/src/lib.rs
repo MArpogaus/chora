@@ -32,6 +32,7 @@ pub mod notice;
 pub mod runtime;
 pub mod settings;
 pub mod shared;
+pub mod swallow;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 pub mod volume;
