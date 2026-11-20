@@ -52,7 +52,10 @@
 #    works, the helper (`cube.pull`), and it moves no window across; the
 #    hint is gone with the release. Stood back, a plain drag on a plane
 #    turns the cube with no hint (K12), and with a second output the
-#    designed pull works with no hint.
+#    designed pull works with no hint. In use mode the program of the
+#    face keeps Super (rw-1): Super pressed and let go alone opens the
+#    Start menu of xp, and Super with F1 of the construct between opens
+#    none, each key a press and a release of its own.
 # 4. A construct on a client socket opens no cube: the core refuses its
 #    virtual outputs, so it has no face to pull from or to drop on, and
 #    never calls the privileged window.move of xp.
@@ -536,6 +539,26 @@ inject '[{"pointer_move": {"position": [300, 300]}}]'
 inject '[{"button": {"state": "released"}}]'
 [ -z "$(hint_text)" ] || fail "the pull hint stays after the drag: $(hint_text)"
 ok "one output: a title drag to the edge and back shows the hint \"pull this window out\", moves no window across, and the hint is gone after the drag"
+start_menu_open() { ctl query id:xp-item-0 | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0]["rects"] else 1)'; }
+help_shown() { ctl query id:construct-help | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0].get("opacity") == 1.0 else 1)'; }
+with_super() {
+    local keys=""
+    for k in "$@"; do
+        keys="$keys{\"key\": {\"key\": \"$k\", \"state\": \"pressed\"}}, {\"key\": {\"key\": \"$k\", \"state\": \"released\"}}, "
+    done
+    inject "[{\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}}, $keys{\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+}
+with_super
+until_ok start_menu_open 20 || fail "rw-1: in use mode a tap of Super does not reach the xp of the face: no Start menu"
+inject '[{"key": {"key": "Escape", "state": "pressed"}}, {"key": {"key": "Escape", "state": "released"}}]'
+until_ok '! start_menu_open' 20 || fail "Escape does not close the Start menu of the tap"
+with_super F1
+until_ok help_shown 12 || fail "rw-1: Super+F1 as separate presses shows no key list of the construct"
+sleep 1
+! start_menu_open || fail "rw-1: Super with a chord of the construct opens the Start menu of xp, as a lone tap"
+with_super F1
+until_ok '! help_shown' || fail "a second Super+F1 keeps the key list"
+ok "rw-1: in use mode a tap of Super opens the Start menu of the xp of the face, and Super with F1 of the construct opens none"
 end_session
 
 session_start 1280x800 -- sleep 600
