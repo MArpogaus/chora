@@ -1,0 +1,37 @@
+{"time": 1795193087.177, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.048, "result": {"path": "/tmp/persona.BqvbK0/shots/001.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193105.664, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.06, "result": {"path": "/tmp/persona.BqvbK0/shots/002.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193109.877, "action": "key", "args": {"combo": "Super+space"}, "ok": true, "seconds": 0.013, "result": "ok"}
+{"time": 1795193111.374, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.052, "result": {"path": "/tmp/persona.BqvbK0/shots/003.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193114.268, "action": "type", "args": {"text": "Foot"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795193116.0, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.038, "result": {"path": "/tmp/persona.BqvbK0/shots/004.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193118.518, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193120.354, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.171, "result": {"path": "/tmp/persona.BqvbK0/shots/005.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193124.001, "action": "key", "args": {"combo": "Super+Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795193125.77, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.059, "result": {"path": "/tmp/persona.BqvbK0/shots/006.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193129.351, "action": "key", "args": {"combo": "Super+Right"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795193130.963, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.04, "result": {"path": "/tmp/persona.BqvbK0/shots/007.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193133.957, "action": "key", "args": {"combo": "Super+1"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795193135.629, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.056, "result": {"path": "/tmp/persona.BqvbK0/shots/008.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193140.233, "action": "key", "args": {"combo": "Super+Tab"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1795193142.452, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.06, "result": {"path": "/tmp/persona.BqvbK0/shots/009.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193146.075, "action": "key", "args": {"combo": "Super+q"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193147.766, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.071, "result": {"path": "/tmp/persona.BqvbK0/shots/010.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193151.742, "action": "key", "args": {"combo": "Super+Shift+q"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795193153.433, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.05, "result": {"path": "/tmp/persona.BqvbK0/shots/011.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193157.024, "action": "type", "args": {"text": "exit"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795193159.134, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193161.129, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.05, "result": {"path": "/tmp/persona.BqvbK0/shots/012.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193165.121, "action": "key", "args": {"combo": "Super+a"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193166.728, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.062, "result": {"path": "/tmp/persona.BqvbK0/shots/013.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193169.651, "action": "type", "args": {"text": "What keys open a terminal?"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795193171.489, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193173.404, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.066, "result": {"path": "/tmp/persona.BqvbK0/shots/014.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193176.93, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.048, "result": {"path": "/tmp/persona.BqvbK0/shots/015.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795193967.313, "action": "key", "args": {"combo": "Super+x"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193967.681, "action": "key", "args": {"combo": "Super+g"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193968.047, "action": "key", "args": {"combo": "Super+p"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795193972.646, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795193981.556, "action": "key", "args": {"combo": "Super+a"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795193989.953, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.097, "result": {"path": "/tmp/persona.BqvbK0/shots/016.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1795194001.69, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.096, "result": {"path": "/tmp/persona.BqvbK0/shots/017.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1795194008.194, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.105, "result": {"path": "/tmp/persona.BqvbK0/shots/018.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
