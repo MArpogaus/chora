@@ -11,6 +11,11 @@
 # name used before never reads the socket of the old one (F21).
 # gate_elapsed prints the seconds since the gate has the lock: the wait in
 # the queue for the lock is not in it (SECONDS counts from the shell start).
+# gate_probes prints the pids of the chora-probe programs of the gate: each
+# carries CHORA_GATE_PID, the pid of the gate shell, in its environment (an
+# orphan too), or the XDG_RUNTIME_DIR of the session of the gate (one that
+# `choractl run` started). gate_cleanup ends them with the other programs of
+# the gate (sh-30: a leaked probe spun at a full core for hours).
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
 # software EGL for the headless renderer (CONTRIBUTING.md)
@@ -44,16 +49,27 @@ export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 . "$repo/tests/gate-lock.sh"
 gate_lock "$(basename "$0")" || fail "cannot take the gate lock"
 gate_t0=$SECONDS
+export CHORA_GATE_PID=$$
+session_runtime=
 gate_elapsed() { echo $((SECONDS - gate_t0)); }
 pids=()
 tmp_dirs=()
 # gate_cleanup [STATUS]: the EXIT trap. It ends the session and the
 # programs, and removes the temporary directories when the gate did not
 # fail; a failed gate keeps them for its logs.
+gate_probes() {
+    local pid
+    for pid in $(pgrep -x chora-probe); do
+        ! grep -qzx "CHORA_GATE_PID=$$" "/proc/$pid/environ" 2>/dev/null || echo "$pid"
+    done
+    [ -z "$session_runtime" ] || XDG_RUNTIME_DIR=$session_runtime session_pids -x chora-probe
+    return 0
+}
 gate_cleanup() {
-    local status=${1:-$?}
-    kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
-    kill -CONT "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    local status=${1:-$?} probes
+    mapfile -t probes < <(gate_probes | sort -u)
+    kill "${pids[@]}" "${run_pids[@]}" "${probes[@]}" 2>/dev/null
+    kill -CONT "${pids[@]}" "${run_pids[@]}" "${probes[@]}" 2>/dev/null
     wait 2>/dev/null
     [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
 }
@@ -84,6 +100,7 @@ session_start() {
     # session; they refuse the shared /tmp.
     XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file")
     export CHORA_SOCKET WAYLAND_DISPLAY XDG_RUNTIME_DIR
+    session_runtime=$XDG_RUNTIME_DIR
     sleep 2 # the plugin needs a moment before its nodes answer queries
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
