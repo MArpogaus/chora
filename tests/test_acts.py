@@ -550,6 +550,30 @@ class I5(unittest.TestCase):
         ]
         self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
 
+    def test_a_look_under_the_wallpaper_of_another_is_not_on_the_screen(self):
+        nodes = [
+            text_node("mc-r1-right-doors-volume", "Volume 50%", (988, 756, 87, 28)),
+            panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
+
+    def test_the_wallpaper_hides_nothing_above_it(self):
+        nodes = [
+            panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),
+            text_node("mc-r1-right-doors-volume", "Volume 50%", (988, 756, 87, 28)),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_a_picture_of_part_of_the_output_hides_nothing(self):
+        nodes = [
+            text_node("mc-r1-right-doors-volume", "Volume 50%", (988, 756, 87, 28)),
+            panel("xp-panel-HEADLESS-1", (0, 770, 1280, 30)),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
     def test_an_opaque_window_between_hides_the_lower_text(self):
         nodes = [
             text_node("a", "label", (20, 20, 80, 14)),
