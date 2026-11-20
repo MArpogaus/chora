@@ -3277,6 +3277,38 @@ mod tests {
         );
     }
 
+    /// The kept nodes of a window manager with `resume` stay shown during
+    /// the grace time: no hide, no flicker on a quick restart.
+    #[test]
+    fn kept_nodes_stay_visible_during_the_resume_grace() {
+        let mut core = Core::new();
+        let mut reader = core.named("reader");
+        let (wm, _wayland) = resumable(&mut core);
+        let shown = |reader: &mut Client, core: &mut Core| {
+            let all = owned(reader, core);
+            let hidden = all
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|n| n["visible"] != json!(true))
+                .count();
+            (all, hidden)
+        };
+        let (all, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(all.as_array().map(Vec::len), Some(4));
+        assert_eq!(hidden, 0, "shown before the disconnect");
+        drop(wm);
+        core.dispatch();
+        core.advance(GRACE.saturating_sub(Duration::from_millis(1)));
+        let (during, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(during, all, "the nodes are kept");
+        assert_eq!(hidden, 0, "and still visible in the grace");
+        let _wm = hello_resume(&mut core);
+        let (after, hidden) = shown(&mut reader, &mut core);
+        assert_eq!(after, all, "unchanged after the resume hello");
+        assert_eq!(hidden, 0);
+    }
+
     /// A core whose main socket would be in a fresh directory.
     fn socket_dir(tag: &str) -> (Core, PathBuf) {
         let dir = crate::testing::scratch_dir(&format!("chora-{tag}"));
