@@ -74,12 +74,22 @@ pub struct Focus {
     node: Option<String>,
     /// The surface that the core focuses, as it told or the look sent.
     core: Option<String>,
+    /// The owner of a node that took the keyboard, as `focus.node` told,
+    /// unless it is the own node of `node`: the focused surface stays, but
+    /// no window has the keys meanwhile.
+    away: Option<String>,
 }
 
 impl Focus {
     /// Takes in a `focus.changed` of the core and returns its surface, as
     /// [`changed`]; other events change nothing.
     pub fn hear<'a>(&mut self, event: &'a Event) -> Option<Option<&'a str>> {
+        if let Event::FocusNode { node, owner } = event {
+            self.away = (node.as_ref())
+                .filter(|n| Some(n.as_str()) != self.node.as_deref())
+                .and(owner.clone());
+            return None;
+        }
         let surface = changed(event)?;
         self.moved(surface);
         Some(surface)
@@ -168,6 +178,20 @@ impl Focus {
     /// the look did not send.
     #[must_use]
     pub fn holder(&self, own: impl Fn(&str) -> bool) -> Holder {
+        if self.away.is_some() {
+            return Holder::Foreign;
+        }
+        self.held(own)
+    }
+
+    /// Whether a node of another client than `name` has the keyboard.
+    #[must_use]
+    pub fn taken_by_other(&self, name: &str) -> bool {
+        self.away.as_deref().is_some_and(|owner| owner != name)
+    }
+
+    /// Who holds the keyboard, without the node of `focus.node`.
+    fn held(&self, own: impl Fn(&str) -> bool) -> Holder {
         if let Some(node) = &self.node {
             return Holder::Node(node.clone());
         }
@@ -181,7 +205,12 @@ impl Focus {
     /// The focus of `state.get` of the look `name`.
     #[must_use]
     pub fn state(&self, name: &str, own: impl Fn(&str) -> bool) -> state::Focus {
-        let (holder, surface) = match self.holder(own) {
+        let holder = if self.taken_by_other(name) {
+            Holder::Foreign
+        } else {
+            self.held(own)
+        };
+        let (holder, surface) = match holder {
             Holder::Window(surface) => (Some(name.into()), Some(surface)),
             Holder::Node(_) => (Some(name.into()), None),
             Holder::Foreign | Holder::Nobody => (None, None),

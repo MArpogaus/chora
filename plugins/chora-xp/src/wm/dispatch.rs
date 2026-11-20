@@ -28,6 +28,10 @@ impl Wm {
             let commands = self.focus_moved(surface);
             return self.apply(commands);
         }
+        if let Event::FocusNode { owner, .. } = &event {
+            self.key_node.clone_from(owner);
+            return Ok(());
+        }
         let commands = match event {
             Event::SurfaceDetached { .. } => return self.window_left(&event),
             Event::SurfaceDestroyed { ref surface } => {

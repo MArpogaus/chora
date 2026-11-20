@@ -439,7 +439,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 20] = [
     "voice.state",
     "voice.say",
     "voice.remove",
@@ -457,6 +457,7 @@ const EVENTS: [&str; 19] = [
     "pointer.entered",
     "pointer.pressed",
     "focus.changed",
+    "focus.node",
     "input.button",
     "node.key",
 ];
@@ -696,7 +697,7 @@ impl Tiling {
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
-        if self.focus.hear(&event).is_some() {
+        if self.focus.hear(&event).is_some() || matches!(event, Event::FocusNode { .. }) {
             return Ok(());
         }
         match event {

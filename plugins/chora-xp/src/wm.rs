@@ -114,7 +114,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 25] = [
+const EVENTS: [&str; 26] = [
     "client.connected",
     "client.disconnected",
     "surface.created",
@@ -131,6 +131,7 @@ const EVENTS: [&str; 25] = [
     "output.removed",
     "input.key",
     "focus.changed",
+    "focus.node",
     "node.key",
     "input.button",
     "input.moved",
@@ -277,6 +278,8 @@ pub struct Wm {
     focused: Option<String>,
     /// The surface of the last `focus.changed`; read only by `state.get`.
     core_focus: Option<String>,
+    /// The owner of the node with the keyboard, as `focus.node` told.
+    key_node: Option<String>,
     bars: Vec<Bar>,
     menu: Menu,
     drag: Option<Drag>,

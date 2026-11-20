@@ -60,6 +60,7 @@ impl Wm {
             opened: Vec::new(),
             focused: None,
             core_focus: None,
+            key_node: None,
             bars: Vec::new(),
             menu,
             drag: None,

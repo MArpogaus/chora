@@ -100,10 +100,10 @@ now=$(pixel "$shots/give.png" "$cx" "$cy")
 [ "$now" != "$was" ] || fail "give: $w is not on the screen: at $cx,$cy the desktop of xp ($now), capture $shots/give.png"
 ok "give: Super+Alt+1 hands $w to tiling, focused and on the screen ($now at its centre)"
 
-ctl call xp start_menu >/dev/null || fail "node: open the Start menu of xp"
+ctl call xp start_menu '{"open": true}' >/dev/null || fail "node: open the Start menu of xp"
 sleep 0.5
 holds node-menu
-ctl call xp start_menu >/dev/null || fail "node: close the Start menu of xp"
+ctl call xp start_menu '{"open": false}' >/dev/null || fail "node: close the Start menu of xp"
 sleep 0.5
 holds node-desktop
 ok "node: the Start menu of xp opens and closes over the window of tiling, one holder"

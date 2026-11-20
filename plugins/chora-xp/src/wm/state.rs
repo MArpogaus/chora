@@ -43,15 +43,21 @@ impl Wm {
                 shown: vec![self.desk_of(b) + 1],
             })
             .collect();
-        let focus = match self.focused.as_deref().filter(|s| self.index(s).is_some()) {
+        let focus = match (self.focused.as_deref())
+            .filter(|s| !self.node_away() && self.index(s).is_some())
+        {
             Some(surface) => Focus {
                 holder: Some(NAME.into()),
                 surface: Some(surface.into()),
             },
-            None if !self.focus_away() && !self.cube_off() => Focus {
-                holder: Some(NAME.into()),
-                surface: None,
-            },
+            None if self.own_node()
+                || (!self.node_away() && !self.focus_away() && !self.cube_off()) =>
+            {
+                Focus {
+                    holder: Some(NAME.into()),
+                    surface: None,
+                }
+            }
             None => Focus::default(),
         };
         let mut more = Map::new();
@@ -83,8 +89,18 @@ impl Wm {
         }
     }
 
+    /// A node of another client has the keyboard.
+    fn node_away(&self) -> bool {
+        (self.key_node.as_deref()).is_some_and(|owner| owner != NAME)
+    }
+
+    /// A node of xp, such as its Start menu, has the keyboard.
+    fn own_node(&self) -> bool {
+        self.key_node.as_deref() == Some(NAME)
+    }
+
     /// A window of another window manager took the focus last.
-    fn focus_away(&self) -> bool {
+    pub(super) fn focus_away(&self) -> bool {
         (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
     }
 

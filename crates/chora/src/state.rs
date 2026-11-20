@@ -247,6 +247,8 @@ pub struct State {
     pub lock: Option<Lock>,
     /// The surface node that plugins focused.
     focus_wanted: Option<String>,
+    /// The node with the keyboard that `focus.node` told last.
+    told_node: Option<String>,
     /// The watchdog of the render times.
     pub watchdog: Watchdog,
     /// The rect or image node of a press and its button, until the button
@@ -446,6 +448,7 @@ impl State {
             inject_mark: None,
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
+            told_node: None,
             node_grab: None,
             press_via: None,
             client_drag: false,
@@ -515,6 +518,7 @@ impl State {
         // The focus follows the protocols, for example after a popup grab
         // ended.
         self.update_focus();
+        self.tell_key_node();
         self.ipc_flush();
         if let Err(err) = self.display_handle.flush_clients() {
             tracing::warn!(?err, "flushing the wayland clients failed");
@@ -1105,6 +1109,21 @@ impl State {
     /// Whether a layer surface that a click focused has the keyboard.
     pub(crate) fn layer_has_keyboard(&self) -> bool {
         self.layer_focus.is_some()
+    }
+
+    /// Tells the clients with `focus.node` when the node that has the
+    /// keyboard changed, by `focus_node`, a click, a lock or a client that
+    /// went: the focused surface stays, so no `focus.changed` says it.
+    fn tell_key_node(&mut self) {
+        let node = self.scene.focused_node().map(String::from);
+        if node == self.told_node {
+            return;
+        }
+        self.told_node.clone_from(&node);
+        let owner = node
+            .as_ref()
+            .and(self.scene.focused_node_owner().map(String::from));
+        self.emit(&Event::FocusNode { node, owner });
     }
 
     /// The node of `focus_node` that gets the keys, and its owner: not while
