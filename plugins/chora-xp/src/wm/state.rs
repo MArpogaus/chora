@@ -90,7 +90,7 @@ impl Wm {
     }
 
     /// A node of another client has the keyboard.
-    fn node_away(&self) -> bool {
+    pub(super) fn node_away(&self) -> bool {
         (self.key_node.as_deref()).is_some_and(|owner| owner != NAME)
     }
 
