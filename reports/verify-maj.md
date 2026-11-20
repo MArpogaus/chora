@@ -79,3 +79,8 @@ Assert: after `chora-xp --run-box`, the highlighted row is 28 px high and the fi
 
 `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,launcher-click,xp-fields,tiling-look`: pre-commit, build, test, clippy, xp-fields PASS (xp-fields with the SKIP above); launcher-click FAIL; ci-check and tiling-look did not run after that. Not green.
 launcher-click FAIL is pre-existing and environmental: `a click on the Mid row ... did not start mid` after my new assert printed ok. The unmodified gate (git stash) fails the same way 3 of 3 here; r1 passed it on fuzzel 1.11.1. The cell comments say 1.9.x differs in pointer handling (first motion starts the highlight).
+
+## PM review r2 (2026-11-20 05:45 UTC; PM not the builder; head 5bd1bdfd, tests only)
+- ti-20 (launcher-click on fuzzel 1.11.1, binary of train 83): green; launcher visible in 923 ms; Mid row in tiling and construct. Verified.
+- xp-24 (xp-fields on fuzzel 1.11.1): red. "FAIL: 1x: the row of the Run box is 37.0 px high, not 28" (/tmp/claude-0/vm2-xp-fields.log). Edit box 28 px at 1x and 2x ok; Run box on the 4 px grid ok.
+- Verdict: xp-24 is a product MAJOR, open (not a 1.9.2 artefact). The branch is the red test commit of the fix; it does not merge alone (a red cell). Fix lane XP-24 r1 builds on 5bd1bdfd after xp-p2r3 hands back (one lane per look).
