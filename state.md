@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 22:04 UTC)
+## Now (2026-11-20 22:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 21:00 PM 1.4 % (Bangkok day 11-21); disk 13 G free: one build (train) at a time; 4 lanes
-session branch: dcb77733; 51 greens; t92c green 21:24; now --jobs 2; t93 red 21:58 (tiling-look: xp-tidy screenshot notice order vs gate-tiling-power.sh:99); t93b running without xp-tidy (PM check.py merge: review).
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 22:12 PM 1.8 % (Bangkok day 11-21); disk 11 G free (t93b): one build (train) at a time; 4 lanes
+session branch: dcb77733; 51 greens; t92c green 21:24; now --jobs 2; t93 red 21:58 (tiling-look: xp-tidy screenshot notice order vs gate-tiling-power.sh:99); t93b running (build passed 22:12) without xp-tidy (PM check.py merge: review).
 burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
 ## RC (design/rc.md)
