@@ -1,0 +1,67 @@
+#!/bin/sh
+# Lint ratchet (F4): three counts of lint debt may only fall.
+#
+# Usage: tools/lint-ratchet [--root DIR] [--update]
+#   --root DIR  the repository to check (default: the one holding this tool)
+#   --update    rewrite tools/lint-ratchet.list with the counts of the tree
+#
+# The counts, by the commands of the debt report (reports/debt-2026-11-20.md
+# section 8):
+#   allow      lines of crates, plugins, services (*.rs) with #[allow( or #[expect(
+#   no-reason  the same lines without the word "reason" (an attribute that
+#              rustfmt wraps counts here, its reason is on a later line)
+#   eprintln   lines with eprintln! in crates/chora/src, plugins, services
+# tools/lint-ratchet.list holds `NAME COUNT` per line, `#` starts a comment.
+# Fails (status 1) when a count is above the list; a count below only prints
+# "lower the list": run --update. Status 0 ok, 1 breach, 2 usage.
+set -eu
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+update=0
+while [ $# -gt 0 ]; do
+    case $1 in
+    --root) root=$(cd "${2:?--root needs a directory}" && pwd); shift ;;
+    --update) update=1 ;;
+    -h | --help) sed -n '2,/^set -eu/p' "$0" | sed '$d;s/^# \{0,1\}//'; exit 0 ;;
+    *) echo "usage: tools/lint-ratchet [--root DIR] [--update]" >&2; exit 2 ;;
+    esac
+    shift
+done
+cd "$root"
+
+attrs() { grep -rE '#\[(allow|expect)\(' crates plugins services --include=*.rs --exclude-dir=target || true; }
+allow=$(attrs | wc -l)
+noreason=$(attrs | grep -vc reason || true)
+eprintln=$( (grep -rE 'eprintln!' crates/chora/src plugins services --include=*.rs --exclude-dir=target || true) | wc -l)
+
+list=tools/lint-ratchet.list
+if [ "$update" = 1 ]; then
+    {
+        echo "# Lint debt counts (tools/lint-ratchet). A count only falls."
+        echo "allow $allow"
+        echo "no-reason $noreason"
+        echo "eprintln $eprintln"
+    } >"$list"
+    exit 0
+fi
+
+listed() { sed 's/#.*//' "$list" 2>/dev/null | awk -v k="$1" '$1 == k { print $2 }'; }
+fail=0
+for pair in "allow:$allow" "no-reason:$noreason" "eprintln:$eprintln"; do
+    name=${pair%%:*}
+    count=${pair#*:}
+    max=$(listed "$name")
+    if [ -z "$max" ]; then
+        echo "FAIL: lint-ratchet: $name is not in $list"
+        fail=1
+    elif [ "$count" -gt "$max" ]; then
+        echo "FAIL: lint-ratchet: $name is $count, the list holds $max"
+        fail=1
+    elif [ "$count" -lt "$max" ]; then
+        echo "lower the list: $name is $count, listed $max; run tools/lint-ratchet --update"
+    fi
+done
+if [ "$fail" = 1 ]; then
+    exit 1
+fi
+echo "ok: lint-ratchet (allow $allow, no-reason $noreason, eprintln $eprintln)"

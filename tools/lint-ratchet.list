@@ -1,0 +1,4 @@
+# Lint debt counts (tools/lint-ratchet). A count only falls.
+allow 358
+no-reason 148
+eprintln 124
