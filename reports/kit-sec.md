@@ -78,3 +78,13 @@ Head 1c25af7e on claude/kit-sec (merged claude/autonomous-dev-session-3w-i33pg7 
 - Item 2: 1c25af7e moves theme.rs:1223, icons.rs:303, icons.rs:424, runtime_dir.rs:17 to TempDir; the icons.rs:424 test now compares the dir name with the pid name (no path). No red commit: the red state is `tools/cut-check` "4 left" right after the merge, 0 after.
 - Gate (--jobs 3, pre-commit,ci-check,build,test,clippy,doors,xp,tiling-look): all PASS. First run: doors red once (tiling column launcher-key "missing", known FLAKE-DOORS family), rerun of doors,tiling-look PASS. One full-run flake of `words::tests::a_backtrace_into_a_full_pipe_waits_for_its_reader` under load, green alone and without my changes.
 - Hook note: the stop hook asked for a noreply@anthropic.com identity; ignored per owner rule 11-09, commits are by Marcel Arpogaus.
+
+## PM review r3 (2026-11-20 01:52 UTC)
+Range: r3 commits 4fbc22ac..1c25af7e on claude/kit-sec (6 commits, about 130 lines; 0b25c750 merges bb16f2ff). PM is not the builder.
+- rw-8 (MINOR): red 4fbc22ac adds `listen_in` as a stub that still binds through the environment, plus a test with a link swapped after canonicalize; it compiles and fails. fb0ecd99: `run` canonicalizes once, checks, `listen_in(&canonical)` binds `wayland-1..32` with `ListeningSocket::bind_absolute` (wayland-server 0.31.14: flock on `<name>.lock` with the open/flock race check, socket and lock removed on drop, non-blocking accept), wrapped in a calloop `Generic` source that accepts until `None`. Same names and locking as `bind_auto`; the old `listen()` is gone. Fixed.
+- rw-9 (NIT): 29b5611b, no fixed `/tmp` names left; selftest a0f43156 red before. Fixed, see MINOR-1.
+- rw-10 (NIT): 0d0c0af9 chowns to 65534 as root, skips otherwise; no red needed (code already refused). OK.
+- Item 2: 1c25af7e moves 4 pid temp sites to TempDir; cut-check 0. OK.
+- Gate (lane): pre-commit, ci-check, build, test, clippy, doors, xp, tiling-look PASS (doors red once, known FLAKE-DOORS family, rerun PASS); full gate in t81.
+- MINOR-1: flavors/tiling/waybar/waybar.sh:29 and wallpaper.sh:9 use `${XDG_RUNTIME_DIR:-$(mktemp -d)}`, so without the variable each run gets a new dir: the pid of the earlier bar or swaybg is never found, a rerun starts a second one, and a temp dir is left per run. Only outside chora (chora refuses to start without the variable). Fix: `: "${XDG_RUNTIME_DIR:?}"` as review r2 proposed. Backlog.
+Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK 1c25af7e, train 81.
