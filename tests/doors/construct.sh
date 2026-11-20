@@ -37,6 +37,7 @@ size=${SIZE:-1280x800}
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/chora-construct"
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
+late_field 6
 doors_assistant || fail "the HUD host does not start"
 helper_start || fail "no helper starts"
 doors_window
@@ -49,6 +50,7 @@ keys_close() {
 }
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 chat_close() {
+    wait_for_field || return 1
     key Escape
     until_ok '! chat_open' 20
 }
