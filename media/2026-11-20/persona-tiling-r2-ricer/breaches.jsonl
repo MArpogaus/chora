@@ -1,0 +1,6 @@
+{"time": 1795194096.158, "action": "click", "look": "tiling", "invariant": "I3", "breach": "tiling and xp each say they hold the focus"}
+{"time": 1795194096.158, "action": "click", "look": "tiling", "invariant": "I5", "breach": "on HEADLESS-1 'Give window to a look' (tiling-keys-body-96-l) overlaps 'Run could not start' (notify-card-body) at [904.0, 693.5488662719727, 76.60000000000002, 10.451133728027344]"}
+{"time": 1795194097.069, "action": "look", "look": "tiling", "invariant": "I3", "breach": "tiling and xp each say they hold the focus"}
+{"time": 1795194097.069, "action": "look", "look": "tiling", "invariant": "I5", "breach": "on HEADLESS-1 'Give window to a look' (tiling-keys-body-96-l) overlaps 'Run could not start' (notify-card-body) at [904.0, 693.5488662719727, 76.60000000000002, 10.451133728027344]"}
+{"time": 1795194124.314, "action": "key", "look": "tiling", "invariant": "I3", "breach": "the core focuses xp-icons of xp, tiling says it holds the focus"}
+{"time": 1795194124.991, "action": "look", "look": "tiling", "invariant": "I3", "breach": "the core focuses xp-icons of xp, tiling says it holds the focus"}
