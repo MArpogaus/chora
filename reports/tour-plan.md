@@ -39,3 +39,9 @@ This lane: about 0.6 % (opus high, one round, ~110 k).
 - xp-give (22fead94) not yet in 9dc384b3; h2 falls back to Super+Alt+1.
 - Persona contracts were vacuous in places (T7 r5); the tour T7 compares with the chapter's begin and one window with four owners.
 - Natural pace (owner 11-17) and determinism pull apart; the seed of human.py keeps both.
+
+## PM review r1 (PM not the builder)
+Read design/tour-v9.md (194 lines) sections 0, 6-8 in full, 1-5 by heading. It meets the brief: one scenario per look plus the handover chapter, a check per act, the replay baseline on 733967aa, the visual rows, a costed build plan (9.5 %).
+PM decisions on the open points: handover framing: follow-cut as proposed; v8 glitches both builds show are known issues (backlog), not F7 findings (F7 rule); acts with no replay baseline: checks and review only, as written; F-1 notice: TOUR-ONE diagnoses it; 6 min cap: kept.
+Budget: 35 % left at 18:0x with the week under-spent, so TOUR-ONE starts now instead of next week (it only folds tour scripts; the chapters wait for t92, which merges xp-give).
+Verdict: plan accepted (no MAJOR).
