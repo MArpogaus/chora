@@ -56,6 +56,8 @@ pub fn program_name(command: &str) -> String {
 mod tests {
     use super::*;
 
+    const FUZZEL_INI: &str = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+
     #[test]
     fn the_name_is_the_program_without_directory_and_quotes() {
         assert_eq!(program_name("libreoffice --writer"), "libreoffice");
@@ -96,7 +98,7 @@ mod tests {
 
     #[test]
     fn the_shipped_fuzzel_file_is_xp_and_opaque() {
-        let text = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+        let text = FUZZEL_INI;
         assert!(text.contains("font=Tahoma:pixelsize=14"), "{text}");
         assert!(text.contains("prompt=\"Open: \""), "{text}");
         for key in ["background", "text", "selection", "border"] {
@@ -107,5 +109,26 @@ mod tests {
             assert!(value.ends_with("ff"), "{key} is not opaque: {value}");
         }
         assert!(text.contains("selection=316ac5ff"), "{text}");
+    }
+
+    /// fuzzel reads `line-height` in points (96 dpi: 1 pt is 4/3 px), the
+    /// pads in pixels. The row of the Run box is 28 px (xp-v2.md: the edit
+    /// box is 28 px, on the grid of 4), so the line height is 21 pt; 28 pt
+    /// made rows of 37.3 px (xp-24).
+    #[test]
+    fn the_row_of_the_run_box_is_28_px() {
+        let text = FUZZEL_INI;
+        let value = |key: &str| -> f64 {
+            text.lines()
+                .find_map(|l| l.strip_prefix(&format!("{key}=")))
+                .unwrap_or_else(|| panic!("{key}"))
+                .parse()
+                .unwrap_or_else(|_| panic!("{key} is not a plain number of points"))
+        };
+        let row_px = value("line-height") * 96.0 / 72.0;
+        assert!(
+            (row_px - 28.0).abs() < 1e-9,
+            "the row is {row_px} px, not 28"
+        );
     }
 }
