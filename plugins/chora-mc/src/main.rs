@@ -2101,6 +2101,20 @@ mod tests {
         assert_eq!(model.lock().unwrap().focuses.len(), before);
     }
 
+    /// Another client that takes the keyboard with a node tells mc
+    /// nothing, so `state.get` asks the core before it says that mc holds
+    /// the keyboard with a node (xp over mc, I3).
+    #[test]
+    fn state_says_nobody_when_a_node_of_another_client_has_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("node-taken", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+        mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
     /// A window that the user clicked while the chat was open keeps the
     /// keyboard when the chat closes.
     #[test]
