@@ -112,6 +112,7 @@ W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflect
 H5 | 11-11 | later | the construct bindings overlay as a shared plugin that every window manager can use (owner 11-11 19:45).
 H6 | 11-09 | later | users ship their own HUDs easily (owner 11-09 feature request).
 F15 | 11-14 | rc | a lost first key after a keyboard hand-over (mc terminal page; gate-mc-paths types a leading space, reports/review-mc-r3.md F4): a dedicated check types one character after focus, reads it back, logs wl_keyboard enter and key events; cause in core, foot or shell unproven. Next flakes round.
+XPF-R1 | 11-20 | rc-minor | xp-fix review r1 (reports/xp-fix.md): rv-1 kit launch check ends the Starting message of every start on any window, also one with another start's token; end only on a window without a token. rv-2 persona mousepad stand-in names foot or probe in the run log.
 V12 | 11-14 | rc | voice scripts failing on the session branch already (core r2 report): voice-acp.sh (a yes without the key counts as nothing), voice-events.sh (after voice sleep mc shows none), agent.sh step 2 (xs_are 0 640); triage in the voice and mc lanes.
 MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R5-4 (reports/review-mc-r5.md).
 DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500 ms wake, wpctl every 5 s), dr2-9 state word case (reports/review-doors-r2.md).
@@ -285,6 +286,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLAKE-H MINOR-1 (11-20): helper-door click count in the doors cell; a count above 1 means a lost first click, then a product check (input inject under load).
 - FLAKE candidate (11-20 review mc-answer): tiling-look ink-1280x800 failed once at 12 s under --jobs 3 (tag colour 1 1 1 255), PASS alone.
 - XP-MAJORS review r1 MINOR rv-1..4 (11-20): question-card gate asserts no placement or font; paperclip gate asserts no art; popup guarded at 1280x800 only, no outside-click or key-leak act; stepped list for volume. Next xp round.
+- CO-P2-FIX r1 (11-20): xp opens Start on a construct-swallowed Super chord (pre-existing); a face manager (xp) must swallow unbound Super chords for its own windows on a cube face (co-26 face part), kit helper from co-p2-fix r2. Next xp round.
 - MC-ANSWER MINOR-1 (review r2): card.size message printed per notification in Card::new; log it once when values.yaml loads.
 - KIT-SEC MINOR-1 (PM review r3; in black-pane r2): tiling scripts' mktemp fallback without XDG_RUNTIME_DIR makes a new dir per run (no earlier pid found, duplicate bar, leaked dirs); use `: "${XDG_RUNTIME_DIR:?}"`.
 - CO-MAJORS review r2 (11-20): rv2-1 MINOR shrink path (aside.rs:119,128) scales the whole offset toward 0, so a pane too wide for either side can end over the cube or an earlier pane; rv2-2 MINOR no test for 3 panes one side, wide panes both sides, shrink vs cube/panes, 640x720; rv2-3 NIT docs/cube-modes.md lacks per-side order and fallback; rv2-4 NIT leashed/taken with leash < cube distance.
