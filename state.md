@@ -24,10 +24,10 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| stray-grab-r1.md (RC sh-24) | opus high | starting |
+| stray-grab-r1.md (RC sh-24) | opus high | session_016iS3kQiKWvRdXmmZ12b8Tw |
 | xp-majors-r1.md (RC) | sonnet high | MERGE-OK 81a29fe8 (review: 4 MINOR) t81 |
 | mc-answer-r2.md (RC) | sonnet med | MERGE-OK 92f2e52f (PM review: 1 MINOR) t81 |
-| black-pane-r1.md (RC sd-h1) | sonnet high | starting |
+| black-pane-r1.md (RC sd-h1) | sonnet high | session_016iS3kPY5q7FRF2zYvKecmv |
 | review-co-majors-r2.md (RC) | sonnet high | session_016iS3kP64QgetFUkoMzZGNA (co-majors r2 8e24dcb6) |
 | kit-sec-r3.md | sonnet med | MERGE-OK 1c25af7e (PM review: 1 MINOR) t81 |
 
