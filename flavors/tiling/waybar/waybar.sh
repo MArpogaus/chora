@@ -36,7 +36,7 @@ mkdir -p -m 700 "$pids"
 
 prepare() {
     # shellcheck disable=SC2174
-    mkdir -p -m 700 "$style/icons"
+    mkdir -p -m 700 "$style" "$style/icons"
     cp "$dir/style.css" "$style/style.css"
     from=$dir
     own=${XDG_CONFIG_HOME:-$HOME/.config}/chora/tiling
