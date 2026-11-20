@@ -71,3 +71,43 @@ Seeded review of claude/co-pane f10842d8 against bbaad12b (10 files, +288 -18), 
 
 ## PM note r1 (review)
 Computed verdict FIX (rv-1 MAJOR open); not accepted as a known issue (shared bar, default cube has xp faces). co-pane r2 (briefs/co-pane-r2.md) fixes rv-1 first, then rv-2..rv-8. rv-6: PM decides "grab the world" (docs/cube-modes.md:131). Earliest gate that could have caught rv-1: none (act.py sends a chord in one batch): backlog harness item.
+
+## r2
+Lane: cloud, branch claude/co-pane from f10842d8, head 628bb930 (pushed). Step 0: unshallow, `cargo check --workspace` green. No attribution lines, identity Marcel Arpogaus on every commit. Each item: red test commit first, then the fix.
+
+| Item | Red | Fix | Test | Cell |
+|---|---|---|---|---|
+| rv-1 MAJOR lone Super tap | fabe366e | e73e9982 | `cube::tests_moved::a_cube_in_use_mode_swallows_the_lone_super_tap` | unit (grabs after `regrab`: both taps held in use mode, none after step back, other chords stay with the face manager); doc: price in docs/cube-modes.md |
+| rv-2 sheet in the walk with a pressed window | 984ba2fb | 13fd5ce6 | `the_key_sheet_takes_the_keyboard_from_a_pressed_pane_window` | unit |
+| rv-3 give back through `take_focus` | 0207d17b | ea501689 | `the_key_sheet_gives_the_keyboard_back_only_to_the_front_face` | unit (still front: one activate; turned: none) |
+| rv-5 regrab after a glide | 7ac19649 | a6b906b8 | `state::tests::a_step_that_takes_the_pane_out_of_sight_lets_go_of_the_chords` | unit |
+| rv-7 checker reads a child only as face manager | ff4969f1 | 13552608 | `tests/test_acts.py` class `WithChildren` (3 cases, run from `tests/persona-selftest.sh`) | selftest: positive live case still green; negative cases: client not in `cube.list` stays no look (I1), face behind the front shows nothing (I3) |
+| rv-4 Close hit only on the key sheet | 6e4bffed | f0ca2654 | `command::tests::only_the_key_sheet_makes_the_close_a_hit` | unit |
+| rv-6 look follows the hand | b22397b9 | 4463a068 | `tests::a_drag_takes_the_scene_along_with_the_hand` (projects the pane: right drag moves it right, down drag down) | unit; F5 in plans/construct-requirements.md |
+| rv-6 first drag | - | d762d10f (pin) | `a_press_on_a_pane_window_starts_no_look` | by design: a press on the window of a pane focuses the window and starts no look (input.rs:296), so a drag that begins on a shown window does not look |
+| rv-8 NIT | - | - | `the_key_sheet_lets_go_of_the_chords_of_a_pane_window_and_takes_them_back` (628bb930) | the `toggle_help` regrab stays: without it the test is red (the sheet moves the keyboard between the pressed window and the walk, so the chords held for the window must go and come); `swallow_taps` now has two callers |
+
+### Not done
+- rv-1 gate step: tests/persona/act.py sends a chord as one `shortcut` batch (no separate press and release), so no persona step can show the lone tap; unit test only. Harness backlog item stays.
+- Not run live: no persona drag of the new look direction; the gates with a drag (3d, k2a, mcpane, placed) do not read its direction and pass.
+
+### Gate
+`tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,cube,pull,placed,construct-hud,construct-extra,wm-pane,pane-keys,walk,keys` at 628bb930:
+```
+pre-commit PASS     4s
+gate-lib   PASS    73s
+ci-check   PASS    72s
+build      PASS    22s
+test       PASS   175s
+clippy     PASS    13s
+cube       PASS   112s
+pull       PASS    78s
+placed     PASS    14s
+construct-hud PASS   107s
+construct-extra PASS   158s
+wm-pane    PASS    20s
+pane-keys  PASS     8s
+walk       PASS     5s
+keys       PASS    37s
+```
+`bash tests/persona-selftest.sh`: all `ok`, ending `ok: the checker reads a child only as a face manager, and shows only the front face (negative cases)` and `ok: persona session`. `cargo test -p chora-construct`: 259 passed; `python3 -I tests/test_acts.py`: 151 passed.
