@@ -251,3 +251,6 @@ Known, not findings: stacking of a tiling and an xp window by root order
 (MINOR, known); rw-3 (noted, no code).
 
 Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 2. Verdict: **MERGE-OK**.
+
+## PM note r2 (PM not the builder)
+Review r2 computed MERGE-OK (0 BLOCK, 0 MAJOR); d1ba7e2c joins train 92. rx-1 MINOR (xp Start menu open while a tiling window exits) and the NITs rx-2, rx-3 go to backlog.md.
