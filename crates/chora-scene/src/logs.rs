@@ -5,8 +5,8 @@
 //! last run to `NAME.log.1`, so a crash stays next to the new run. Only
 //! the process that holds the lock `NAME.lock` writes and moves the
 //! files; a second process gets no file. The folder has mode 0700 and
-//! the files 0600, also when they were there; a file that is a symlink
-//! is not opened.
+//! the files 0600, also when they were there; a file or a folder that
+//! is a symlink is not opened, and the process goes on without a file.
 
 use std::{
     fs,
@@ -54,7 +54,7 @@ impl File {
             .recursive(true)
             .mode(0o700)
             .create(dir)?;
-        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))?;
+        private_folder(dir)?;
         let lock = create(&dir.join(format!("{name}.lock")))?;
         match lock.try_lock() {
             Ok(()) => {}
@@ -117,6 +117,23 @@ fn shift(path: &Path) -> io::Result<()> {
         }
     }
     fs::rename(path, numbered(path, 1))
+}
+
+/// Gives the folder mode 0700 through a handle that is not a symlink: a
+/// symlinked folder is refused, because a chmod on its path would change
+/// the folder it points to.
+fn private_folder(dir: &Path) -> io::Result<()> {
+    let folder = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
+        .open(dir)
+        .map_err(|err| match err.raw_os_error() {
+            Some(libc::ELOOP) => {
+                io::Error::other(format!("the log folder {} is a symlink", dir.display()))
+            }
+            _ => err,
+        })?;
+    folder.set_permissions(fs::Permissions::from_mode(0o700))
 }
 
 /// Opens `path` for appending, never through a symlink, with mode 0600
@@ -221,6 +238,21 @@ mod tests {
         File::open_in(&dir, "voice", MAX_BYTES).unwrap();
         assert_eq!(mode(&dir), 0o700);
         assert_eq!(mode(&dir.join("voice.log")), 0o600);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_symlinked_folder_gets_no_file_and_no_chmod() {
+        let dir = temp("symlinked-dir");
+        let target = dir.join("target");
+        fs::create_dir_all(&target).unwrap();
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o755)).unwrap();
+        let logs = dir.join("logs");
+        std::os::unix::fs::symlink(&target, &logs).unwrap();
+        assert!(File::open_in(&logs, "chora", MAX_BYTES).is_err());
+        let mode = fs::metadata(&target).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o755, "the target of the symlink keeps its mode");
+        assert_eq!(fs::read_dir(&target).unwrap().count(), 0, "nothing in it");
         let _ = fs::remove_dir_all(&dir);
     }
 

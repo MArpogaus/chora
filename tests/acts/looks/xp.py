@@ -32,14 +32,15 @@ SPEAKER = "xp-speaker-HEADLESS-1"
 
 WPCTL = """#!/bin/sh
 state="$FAKE_STATE"
-[ -f "$state" ] || echo "0.50 0" >"$state"
+put() { echo "$1" >"$state.$$" && mv "$state.$$" "$state"; }
+[ -f "$state" ] || put "0.50 0"
 read -r volume mute <"$state"
 case "$1" in
 get-volume)
     if [ "$mute" = 1 ]; then echo "Volume: $volume [MUTED]"; else echo "Volume: $volume"; fi ;;
 set-mute)
     case "$3" in 1) mute=1 ;; 0) mute=0 ;; toggle) mute=$((1 - mute)) ;; esac
-    echo "$volume $mute" >"$state" ;;
+    put "$volume $mute" ;;
 set-volume)
     for last; do :; done
     case "$last" in
@@ -47,7 +48,7 @@ set-volume)
     *%-) volume=$(awk -v v="$volume" -v p="${last%\\%-}" 'BEGIN{v-=p/100; if (v<0) v=0; printf "%.2f", v}') ;;
     *%) volume=$(awk -v p="${last%\\%}" 'BEGIN{printf "%.2f", p/100}') ;;
     esac
-    echo "$volume $mute" >"$state" ;;
+    put "$volume $mute" ;;
 esac
 """
 EDITOR = """#!/bin/sh

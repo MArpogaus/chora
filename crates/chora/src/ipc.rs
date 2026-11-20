@@ -463,13 +463,15 @@ impl Ipc {
 
     /// The connection that grabbed a pressed pointer button with the
     /// modifiers, and the binding. Of several grabs, the one whose client
-    /// holds the smallest claim under `pointer` wins, else the first (D55).
+    /// owns the node under the pointer or its nearest ancestor of a
+    /// grabber wins; over no node of a grabber, the one whose client holds
+    /// the smallest claim under the pointer, else the first (D55, co-30).
     pub fn button_grab_for(
         &self,
         mods: &ModifiersState,
         button: u32,
         scene: &Scene,
-        pointer: [f64; 2],
+        pointer: &Pointer<'_>,
     ) -> Option<(u64, Binding)> {
         let first = self.grab_of(mods, |t| t == Trigger::Button(button), |_| true)?;
         let grabbers: Vec<u64> = (self.grabs.iter())
@@ -477,8 +479,15 @@ impl Ipc {
             .map(|(_, _, conn)| *conn)
             .collect();
         let grabber = |name: &str| grabbers.iter().find(|c| self.name(**c) == Some(name));
-        let conn = chora_scene::claimant_at(scene.nodes(), pointer, |n| grabber(n).is_some())
-            .and_then(grabber)
+        let owner = (pointer.node.into_iter())
+            .flat_map(|id| scene.ancestors(id))
+            .filter_map(|id| scene.node(id)?.owner.as_deref())
+            .find_map(grabber);
+        let conn = owner
+            .or_else(|| {
+                chora_scene::claimant_at(scene.nodes(), pointer.point, |n| grabber(n).is_some())
+                    .and_then(grabber)
+            })
             .map_or(first.0, |c| *c);
         Some((conn, first.1))
     }
@@ -1380,6 +1389,16 @@ fn refused_at_info(conn: u64, client: &str, code: i64) {
     tracing::info!(conn, client, code, "refused");
 }
 
+/// Where a press of a button grab happens: the point in the scene and the
+/// node of the scene under it that takes pointer input.
+#[derive(Debug, Clone, Copy)]
+pub struct Pointer<'a> {
+    /// The pointer in scene coordinates.
+    pub point: [f64; 2],
+    /// The node under the pointer.
+    pub node: Option<&'a str>,
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -1387,7 +1406,7 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
-    use crate::testing::{Client, Core, rect, wayland::Wayland};
+    use crate::testing::{Client, Core, logged, rect, wayland::Wayland};
 
     const REJECTED: i64 = RpcError::REJECTED;
 
@@ -2225,53 +2244,6 @@ mod tests {
         let (error_code, message) = agent.fails(&mut core, "grants.set", grant);
         assert_eq!(error_code, RpcError::ADMIN_SOCKET_ONLY);
         assert!(message.contains("only on the admin socket"), "{message}");
-    }
-
-    type Lines = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
-
-    thread_local! {
-        static LINES: std::cell::RefCell<Option<Lines>> = const { std::cell::RefCell::new(None) };
-    }
-
-    /// The writer of the test-wide subscriber: a line goes to the sink of
-    /// the thread that logged it, and nowhere when the thread has none.
-    struct Route;
-
-    impl std::io::Write for Route {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            LINES.with(|lines| {
-                if let Some(sink) = lines.borrow().as_ref() {
-                    sink.lock().unwrap().extend_from_slice(buf);
-                }
-            });
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    /// The log lines of every level that `run` writes in this thread. One
-    /// subscriber serves the whole test binary: a subscriber of one test
-    /// thread loses to the interest in a callsite that another thread
-    /// cached without one.
-    fn logged(run: impl FnOnce()) -> String {
-        static SUBSCRIBER: std::sync::Once = std::sync::Once::new();
-        SUBSCRIBER.call_once(|| {
-            let subscriber = tracing_subscriber::fmt()
-                .with_ansi(false)
-                .with_max_level(tracing::Level::TRACE)
-                .with_writer(|| Route)
-                .finish();
-            tracing::subscriber::set_global_default(subscriber)
-                .expect("no other subscriber of the test binary");
-        });
-        let lines = Lines::default();
-        LINES.with(|l| *l.borrow_mut() = Some(std::sync::Arc::clone(&lines)));
-        run();
-        LINES.with(|l| *l.borrow_mut() = None);
-        String::from_utf8_lossy(&lines.lock().unwrap()).into_owned()
     }
 
     /// A refused request leaves a line at info with the client and the

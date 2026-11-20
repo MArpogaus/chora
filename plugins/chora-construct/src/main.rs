@@ -284,6 +284,9 @@ struct ListState {
     query: String,
     /// The row under the pointer.
     hovered: Option<usize>,
+    /// When the list opened: a redraw within its fade-in carries on the
+    /// fade, as an update of a node ends the animation of it where it is.
+    opened: Instant,
 }
 
 /// A unique label from `base`, at most 32 characters, with `-2`, `-3`

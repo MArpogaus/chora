@@ -50,6 +50,12 @@ impl Mc {
         if self.typing.is_some() {
             busy.push("typing".to_owned());
         }
+        if self
+            .fading_until
+            .is_some_and(|until| std::time::Instant::now() < until)
+        {
+            busy.push("fade".to_owned());
+        }
         let own = |s: &str| windows.iter().any(|w| w["surface"] == s);
         let focus = serde_json::to_value(self.focus.state(NAME, own)).unwrap_or_default();
         json!({"windows": windows, "focus": focus, "open": self.open().state(),
@@ -112,6 +118,25 @@ mod tests {
         );
         mc.focus.moved(Some("s1"));
         assert_eq!(mc.state().unwrap()["focus"]["holder"], "mc");
+    }
+
+    /// While the regions cross-fade, the set before shows with the new one,
+    /// with the same texts over each other: the look is busy then, so that
+    /// a reader that waits for quiet reads one set (FLK-PS1: the check of a
+    /// persona session read two sets of the header and found them overprint).
+    #[test]
+    fn mc_is_busy_while_its_regions_cross_fade() {
+        let (mut mc, _model) = testing::mc("busy-fade", [1280, 800]);
+        let fades = |mc: &crate::Mc| {
+            mc.state().unwrap()["busy"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("fade"))
+        };
+        mc.show("agenda", true).unwrap();
+        assert!(!fades(&mc), "the first render has no set to fade");
+        mc.show("morning", true).unwrap();
+        assert!(fades(&mc), "a second set fades in over the first");
     }
 
     /// The key list is open while it shows every binding.

@@ -86,6 +86,9 @@ const WAIT: &str = "mc-wait";
 const WAIT_MS: f64 = 500.0;
 /// The cross-fade between two scenes, in milliseconds.
 const FADE: f64 = 250.0;
+/// The time that a core needs beyond the fade to hide the set before, in
+/// milliseconds.
+const FADE_SLACK: f64 = 300.0;
 /// The cross-fade of the colors when the theme changes, in milliseconds.
 const THEME_FADE: f64 = 600.0;
 /// The effect that writes new text.
@@ -363,6 +366,9 @@ struct Mc {
     set: u8,
     /// How long the regions cross-fade, in milliseconds.
     fade: f64,
+    /// When the set before has faded out under the one of the last render;
+    /// until then the look says it is busy.
+    fading_until: Option<std::time::Instant>,
     /// The docked apps that faded out with the set before; `None` while
     /// that set does not exist.
     left: Option<Vec<String>>,
@@ -554,6 +560,7 @@ impl Mc {
             docks: HashMap::new(),
             set: 0,
             fade: FADE,
+            fading_until: None,
             left: None,
             sigs: BTreeMap::new(),
             fitting: HashMap::new(),

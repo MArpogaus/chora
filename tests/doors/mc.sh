@@ -42,6 +42,7 @@ CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/ch
 grant screen.capture input.inject methods.call
 ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
 doors_voice || fail "voice does not answer"
+late_field 2
 doors_assistant || fail "the HUD host does not start"
 helper_start || fail "no helper starts"
 doors_window
@@ -65,6 +66,7 @@ keys_close() {
 }
 chat_open() { shows "Esc  Close"; }
 chat_close() {
+    wait_for_field || return 1
     key Escape
     until_ok '! chat_open' 20
 }
