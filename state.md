@@ -23,7 +23,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| mc-fix-r3.md (RC 2: mc-42 BLOCK reopened, mc-46, I3/I5) | sonnet high, claude/mc-fix cb2b80f1 | starting 12:25 |
+| mc-fix-r3.md (RC 2: mc-42 BLOCK reopened, mc-46, I3/I5) | sonnet high, claude/mc-fix cb2b80f1 | session_016iS3kLCjuGKMjoZhWui8U1 12:23 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
