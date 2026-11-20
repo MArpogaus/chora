@@ -554,8 +554,7 @@ inject '[{"key": {"key": "Escape", "state": "pressed"}}, {"key": {"key": "Escape
 until_ok '! start_menu_open' 20 || fail "Escape does not close the Start menu of the tap"
 with_super F1
 until_ok help_shown 12 || fail "rw-1: Super+F1 as separate presses shows no key list of the construct"
-sleep 1
-! start_menu_open || fail "rw-1: Super with a chord of the construct opens the Start menu of xp, as a lone tap"
+holds '! start_menu_open' 1 || fail "rw-1: Super with a chord of the construct opens the Start menu of xp, as a lone tap"
 with_super F1
 until_ok '! help_shown' || fail "a second Super+F1 keeps the key list"
 ok "rw-1: in use mode a tap of Super opens the Start menu of the xp of the face, and Super with F1 of the construct opens none"

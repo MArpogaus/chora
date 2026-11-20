@@ -520,17 +520,21 @@ impl Construct {
             .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.start_grabs();
+        let mut drag_errors = Vec::new();
         if self.active && !self.overlay {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
-                eprintln!("chora-construct: the drag: {err}");
+                drag_errors.push(format!("the drag: {err}"));
             }
         }
         if self.active && !self.overlay && self.flown.is_none() {
             let moves = parse(chora_kit::give::MOVE.into())?;
             if let Err(err) = self.rt.grab(moves, Grab::Drag) {
-                eprintln!("chora-construct: the drag of a given window: {err}");
+                drag_errors.push(format!("the drag of a given window: {err}"));
             }
+        }
+        if !drag_errors.is_empty() {
+            eprintln!("chora-construct: {}", drag_errors.join("; "));
         }
         self.rt.grab_give_keys()?;
         if self.in_pane() {
