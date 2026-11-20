@@ -2611,4 +2611,25 @@ mod tests {
             "the layer has the keyboard: the key place is where the pointer is"
         );
     }
+
+    /// sh-24: the keyboard is on a node of the manager on the screen, and
+    /// the manager of a face bound Alt+y. An injected Alt+y follows the
+    /// rule of a real one: the person is not on the face, so the key
+    /// reaches no client, neither the face nor the focused node.
+    #[test]
+    fn an_injected_key_follows_the_keyboard_place_as_a_real_one() {
+        let (mut core, _face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let field = json!([{"create": {"id": "field", "kind": "rect", "parent": "space",
+            "props": {"size": [10, 10], "color": [1, 1, 1, 1]}}}]);
+        apply(&mut space, &mut core, &field);
+        apply(&mut space, &mut core, &focus_node(Some("field")));
+        assert!(
+            matches!(alt_y(&core, false), Some(super::KeyAction::Swallow)),
+            "a real key of the face waits for the face"
+        );
+        assert!(
+            matches!(alt_y(&core, true), Some(super::KeyAction::Swallow)),
+            "an injected key waits for the face too"
+        );
+    }
 }
