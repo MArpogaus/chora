@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 04:24 UTC)
+## Now (2026-11-20 04:25 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 03:13 PM 5.4 %; 25 h left: 60 %, 2.4 %/h; 6 lanes full
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
@@ -32,7 +32,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | core-minors-r1.md (F5, F8 core MINORs; Queue 5) | sonnet high | session_016iS3kNyrbRy98nAwMrpmiC |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t82e (launcher-click 741d6bca) running 04:22 (82c-d flakes). t83 harness: p2-harness 5dbd0ccf, voice-v12 ed4c7bf9, xp-fix a767790d. t84: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f.
+4. Trains (F6): t82f (launcher-click 741d6bca) running 04:26 (82c-e flakes). t83 harness: p2-harness 5dbd0ccf, voice-v12 ed4c7bf9, xp-fix a767790d. t84: co-p2-fix ab4cbb4f, stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, mc-remote dac835dd, kit-tests 40b61f28, tiling-bar 3a9a426f.
 5. F work: running: VERIFY-MAJ r2 0.6 % (rule 6), DEBT-F4 1 % (F4), FLAKES-J 1 %, HARNESS-K 0.6 % (F6), KIT-MINORS 1 %, CORE-MINORS 1 % (F5); after t84: LINT-DOWN r3 0.1 %, P2 r3 xp, co-26 pane; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
 
 ## Needs owner
