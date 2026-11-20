@@ -28,7 +28,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | xp-majors-r1.md (RC) | sonnet high | MERGE-OK 81a29fe8 (review: 4 MINOR) t81 |
 | mc-answer-r2.md (RC) | sonnet med | MERGE-OK 92f2e52f (PM review: 1 MINOR) t81 |
 | persona-env-r1.md (RC2) | sonnet med | 370495ad in t80 |
-| review-co-majors-r2.md (RC) | sonnet high | starting; co-majors r2 8e24dcb6 |
+| review-co-majors-r2.md (RC) | sonnet high | session_016iS3kP64QgetFUkoMzZGNA (co-majors r2 8e24dcb6) |
 | kit-sec-r3.md | sonnet med | session_016iS3kNR1eMLFo3QLJq3f7X |
 
 ## Queue (% week; 5 % reserve)
