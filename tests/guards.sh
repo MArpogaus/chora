@@ -312,6 +312,7 @@ kill_case "a comment naming environ is no filter" fail 'core=\x24(pgrep -x chora
 kill_case "quoted tool names in a check" pass 'need "pgrep" "pkill"\n'
 kill_case "quoted tool names after command -v" pass 'command -v "pgrep" "pkill" >/dev/null\n'
 kill_case "a negated check does not excuse a pkill after it" fail 'if ! command -v pgrep; then pkill chora; fi\n'
+kill_case "a check for the tool after a negation" pass 'if ! command -v pgrep pkill jq >/dev/null; then\n    exit 1\nfi\n'
 
 runtime_case() {
   local label=$1 want=$2 text=$3
@@ -326,6 +327,7 @@ runtime_case "a bare call" fail 'let c = client::connect();\n'
 runtime_case "a call under an allow" pass '#[allow(clippy::disallowed_methods)]\nfn t() {\n    let c = client::connect();\n}\n'
 runtime_case "an allow ending in a comment" pass '#[allow(clippy::disallowed_methods)] // fake core\nfn t() {\n    let c = client::connect();\n}\nfn u() {}\n'
 runtime_case "a call after an allow of another lint" fail '#[allow(dead_code)]\nfn t() {}\nlet c = client::connect();\n'
+runtime_case "an attribute followed by code on its line closes the window" fail '#[allow(clippy::needless_return)] /* c */ let z = 2;\nlet c = client::connect();\n'
 runtime_case "reconnect in a string" fail 'let s = "reconnect";\n'
 
 mkdir_case() {
