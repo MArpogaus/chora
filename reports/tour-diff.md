@@ -46,3 +46,23 @@ Verdict: **FIX** (2 MAJOR, 0 BLOCK, 5 MINOR, 1 NIT). Step 0 green (unshallow, `c
 - rd-8, NIT, reports/tour-diff.md r1: the red counts differ from what a58a39f6 gives (12 + 6 against 14 + 1). Fix: restate the counts.
 
 Not covered by a test: the CLI exit code, H50 (scene only), a size mismatch, `baseline: none`. The "empty or wrongly themed frame" check is open as the report says.
+
+## r2 (fix of Review r1, claude/tour-diff, 2026-11-20)
+
+Red **38690cb8** (tests only, on fa796bb9: 7 failures + 10 errors of 44; the errors are the new `compare(..., none)` argument), green **4f4f1897** (44 OK). rd-8: the red counts of r1 are restated as the review measured them, on a58a39f6 12 failures + 6 errors (not 14 + 1).
+
+| finding | fix | test |
+|---|---|---|
+| rd-1 | compare runs over the union of BASE and CAND; a capture missing in CAND is a regression; no capture exits 1 | `CompareDirs.test_a_capture_missing_in_cand_is_a_regression`, `test_empty_or_missing_cand_exits_1` |
+| rd-2 | `tests/gate-acts.sh` fails (not skips) when ffmpeg is absent | `GateHook.test_the_acts_hook_fails_when_ffmpeg_is_absent` (PATH without ffmpeg) |
+| rd-3 | `shutil.which` first, exit 2 "ffmpeg missing: cannot check" | `VideoCheck.test_a_missing_ffmpeg_is_a_clear_error` (PATH empty) |
+| rd-4 | h2 rows list meta, rect, added | `IntendedRows.test_h2_lists_kinds_and_no_wildcard` |
+| rd-5 | `baseline_none = ["act.capture"]` in intended.toml; an undeclared absence is a regression | `test_an_undeclared_absence_in_base_is_a_regression`, `test_a_declared_baseline_none_is_none`, `test_the_cli_reads_the_none_list_of_intended_toml` |
+| rd-6 | a check green on BASE and not green on CAND, or red on CAND and not red on BASE, is a regression unless a row of kind check; also on none rows | `test_a_check_red_on_cand_and_new_is_a_regression`, `test_a_red_check_on_a_none_row_is_a_regression`, `test_a_new_red_check_with_a_check_row_is_a_change`, `test_a_check_green_on_base_and_gone_on_cand_is_a_regression`, `test_a_check_red_on_both_is_not_new` |
+| rd-7 | flicker finds 1 or 2 frame flashes by ratio (back step under half of the step in and out), so testsrc2 motion does not hide it; every threshold is commented in the module docstring with the six v8 videos' step statistics | `VideoCheck.test_a_two_frame_flash_on_testsrc2_is_flagged`, `test_a_one_frame_flash_on_testsrc2_is_flagged`, `test_testsrc2_alone_has_no_flicker` |
+
+Also covered now: CLI exit code (`test_the_exit_code_follows_the_verdict`), size mismatch, H50 scene only, `baseline: none`.
+
+**v8 rerun** (same inputs as r1): t3 tile_left vs tile_bottom still regression (exit 1), with a pixel row change, same vs same same; 01-xp 21 freezes and 04-construct 7 as in r1, no black and no flicker in any of the six videos (02-tiling 13, 03-mc-light 6, 03b-mc-dark 4, 05-handover 7 freezes). The numbers did not change: the fixes touch absent captures, absent tools and flashes, none of which v8 has.
+
+**Gate** on 4f4f1897 (`--jobs 1 --only pre-commit,ci-check,gate-lib,build,test,acts`): pre-commit PASS 2 s, gate-lib 84 s, ci-check 114 s, build 145 s, test 203 s, acts 265 s (cumulative), all PASS.
