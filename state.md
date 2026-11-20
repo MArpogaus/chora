@@ -25,7 +25,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 |---|---|---|
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ |
 | review-mc-fix-r1.md (RC 2: b4104cae; mc-48, 49 fixed, mc-47 fuzzel, P2-CHECK) | sonnet high | session_016iS3kNGeN79e99qkcgpHnF |
-| review-co-r4-r1.md (RC 2: 42c9304b; co-30 core grab rule, co-28) | opus high | starting |
+| review-co-r4-r1.md (RC 2: 42c9304b; co-30 core grab rule, co-28) | opus high | session_016iS3kMHC5x6KDMoCXJy1gM |
 
 ## Queue (% week; 5 % reserve)
 4. Trains: t85c running (= t85b: t84 + 11 lanes); t86: harness-l 75dfa4b9 (MERGE-OK 06:20, own train); t87: co-majors-r3 68790912, xp-24 2d1e06c6 (MERGE-OK 08:05), core-l b1d1491d (MERGE-OK 08:02), flakes-k e2508ec1 (MERGE-OK 08:25); PATH with fuzzel 1.11.1 (GATE-SILENT).
