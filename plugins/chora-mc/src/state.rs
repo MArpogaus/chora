@@ -43,6 +43,12 @@ impl Mc {
         if self.typing.is_some() {
             busy.push("typing".to_owned());
         }
+        if self
+            .fading_until
+            .is_some_and(|until| std::time::Instant::now() < until)
+        {
+            busy.push("fade".to_owned());
+        }
         let own = |s: &str| windows.iter().any(|w| w["surface"] == s);
         let focus = serde_json::to_value(self.focus.state(NAME, own)).unwrap_or_default();
         json!({"windows": windows, "focus": focus, "open": self.open().state(),
