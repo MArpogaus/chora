@@ -26,7 +26,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 | xp-tidy-r3.md (RC 2: t92 lint-ratchet red) | sonnet medium, claude/xp-tidy 74b423bb | session_016iS3kNmZg2LB7Zqvgg2tnP 20:04 |
 | co-pane-r4.md (RC 2: r3 MERGE-OK 20:12; lint-ratchet +1 eprintln) | sonnet medium, claude/co-pane 18417f06 | session_016iS3kLjHwnKt7Kg8aGj8MC 20:15 |
 | review-tour-one-r1.md (F7, RC 11: tour-one r1 done 8b996cee, one set, 0 copies) | sonnet high, claude/tour-one 8b996cee | session_016iS3kLr7ww1z9iavGDE8qJ 19:48 |
-| tour-diff-r2.md (F7: review r1 FIX, rd-1, rd-2 MAJOR) | sonnet medium, claude/tour-diff fa796bb9 | starting |
+| tour-diff-r2.md (F7: review r1 FIX, rd-1, rd-2 MAJOR) | sonnet medium, claude/tour-diff fa796bb9 | session_016iS3kQGuYt9aMQradWwz9N 20:20 |
 | guide-checks-r1.md (F7: tour-v9 lane 3) | sonnet medium, claude/guide-checks 8b996cee | session_016iS3kPbqYusAxcH6mxYMgD 19:49 |
 
 ## Queue (% week; 5 % reserve)
