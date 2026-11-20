@@ -25,7 +25,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 |---|---|---|
 | guide-checks-r2.md (F7: review r1 FIX, rg-1..rg-3 MAJOR) | sonnet medium, claude/guide-checks a78b1a07 | session_016iS3kNHeeU1tRAuu1PvRx4 21:07 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
-| co-hud-load-r1.md (F5, co-35: Tab after pane.move, red t93b and t94) | sonnet medium, claude/co-hud-load 618ae513 | starting 23:20 |
+| co-hud-load-r1.md (F5, co-35: Tab after pane.move, red t93b and t94) | sonnet medium, claude/co-hud-load 618ae513 | session_016iS3kL7FGQKkxiN4MJm5Z9 23:17 |
 | give-raise-r1.md (RC 2 T7: given window on top) | sonnet medium, claude/give-raise dcb77733 | session_016iS3kMBSo8hkNen2GevR6g 22:04 |
 
 ## Queue (% week; 5 % reserve)
