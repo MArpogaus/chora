@@ -3,6 +3,11 @@
 # 18) with chora-mc in a headless session: the fake agent of
 # services/voice/tests/fake-acp.sh starts, works, asks, gets a yes, is
 # done and stops, and mc shows each state. No audio and no servers.
+# Its question edits a file, so it takes a key or a HUD button (section
+# 18, "Questions"): `voice confirm yes` counts as nothing, and tests/
+# voice-hud.py answers as a HUD does, with `confirm.answer`: it claims the
+# indicator before the question and answers once the go file exists. The
+# `voice confirm yes` before that answers nothing.
 #
 # Usage: tests/voice-acp.sh   (needs the debug binaries, or BIN)
 #   SHOTS  a directory for screenshots of the agents scene (optional)
@@ -13,7 +18,9 @@ bin=${BIN:-$repo/target/debug}
 tmp=$(mktemp -d /tmp/chora-acp.XXXXXX)
 session=
 voice=
+hud=
 cleanup() {
+    [[ -z $hud ]] || kill "$hud" 2>/dev/null || true
     if [[ -n $voice ]]; then
         pkill -P "$voice" 2>/dev/null || true
         kill "$voice" 2>/dev/null || true
@@ -91,12 +98,26 @@ expect() {
     fi
 }
 
+python3 "$repo/tests/voice-hud.py" yes "$tmp/go" >"$tmp/hud.log" 2>&1 &
+hud=$!
 ctl call voice agent '{"tool": "agent_start", "project": "demo", "name": "coder"}' >/dev/null
 expect idle
 ctl call voice agent '{"tool": "agent_say", "name": "coder", "text": "Schreib notes.txt."}' >/dev/null
 expect working
 expect question
 ctl call voice confirm '{"answer": "yes"}' >/dev/null
+sleep 1
+[[ $(state) == question ]] || {
+    echo "FAIL: a yes without the key answered the question: coder is $(state)" >&2
+    exit 1
+}
+echo "ok: a yes without the key counts as nothing"
+touch "$tmp/go"
+wait "$hud" || {
+    echo "FAIL: the HUD answer: $(cat "$tmp/hud.log")" >&2
+    tail -20 "$tmp/voice.log" >&2
+    exit 1
+}
 expect "done"
 ctl call voice agent '{"tool": "agent_stop", "name": "coder"}' >/dev/null
 expect none
