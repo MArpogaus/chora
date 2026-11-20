@@ -56,6 +56,8 @@ pub fn program_name(command: &str) -> String {
 mod tests {
     use super::*;
 
+    const FUZZEL_INI: &str = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+
     #[test]
     fn the_name_is_the_program_without_directory_and_quotes() {
         assert_eq!(program_name("libreoffice --writer"), "libreoffice");
@@ -96,7 +98,7 @@ mod tests {
 
     #[test]
     fn the_shipped_fuzzel_file_is_xp_and_opaque() {
-        let text = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+        let text = FUZZEL_INI;
         assert!(text.contains("font=Tahoma:pixelsize=14"), "{text}");
         assert!(text.contains("prompt=\"Open: \""), "{text}");
         for key in ["background", "text", "selection", "border"] {
@@ -115,7 +117,7 @@ mod tests {
     /// made rows of 37.3 px (xp-24).
     #[test]
     fn the_row_of_the_run_box_is_28_px() {
-        let text = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+        let text = FUZZEL_INI;
         let value = |key: &str| -> f64 {
             text.lines()
                 .find_map(|l| l.strip_prefix(&format!("{key}=")))
