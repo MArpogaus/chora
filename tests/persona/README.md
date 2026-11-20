@@ -98,9 +98,9 @@ of the acts (`tests/acts/invariants.py`) broke on the way.
 $ tests/persona/round.sh start erika xp   # a free slot (2 at once), prints PERSONA_ENV=FILE
 $ export PERSONA_ENV=FILE
 $ tests/persona/round.sh probe erika       # T5 only: a chora-probe window; prints PROBE_REPORT=FILE
-$ python3 -I tests/persona/check.py begin      # before each task: the windows open now, the task is held against them
+$ tests/persona/round.sh begin erika           # before EACH goal (check.py begin): the windows open now, the goal is held against them
   ... the persona works with act.py; PERSONA_CHECK=1 is set by round.sh ...
-$ python3 -I tests/persona/check.py end T1 T4:volume   # one line per task, then the breaches
+$ python3 -I tests/persona/check.py end T1 T4:volume   # one line per task, then the breaches; the next goal starts from this state
 $ tests/persona/round.sh stop erika
 ```
 
@@ -128,7 +128,10 @@ $ tests/persona/round.sh stop erika
   not the socket path, and fails when it does not stay up; T5 is red when
   the report is missing or no `chora-probe` window is in the scene).
   `start` is the first snapshot of the run (round.sh runs it); `begin`
-  takes the one a task is held against, and `end` reads the newest `begin`.
+  takes the one a task is held against (one `begin` per goal, never once
+  per persona), and `end` reads the newest `begin` and leaves its own end
+  state as the begin of the next goal, so a task left open by one goal
+  cannot leak into the next even when a driver forgets `begin`.
   C2 fails only for a window that was open at the begin, or came while the
   task ran, and is gone at the end. A key list left open by the persona is no
   red of a contract. Exit status 1 when a contract is red or a breach is outside

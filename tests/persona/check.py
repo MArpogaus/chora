@@ -8,8 +8,11 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
   start                  start the run: the first snapshot (round.sh runs it)
   begin                  take the snapshot a task is held against: the
                          windows open when the task starts; the driver runs
-                         it before each task. `end` reads the newest begin,
-                         or `start` when there is none
+                         it before each goal (`round.sh begin NAME`). `end`
+                         reads the newest begin, or `start` when there is
+                         none, and leaves its own end state as the begin of
+                         the next goal, so a task left open by one goal
+                         cannot leak into the next
   after ACTION           run the invariants on what ACTION changed since the
                          last snapshot and append the breaches to
                          $PERSONA_DIR/breaches.jsonl; act.py runs it after
@@ -19,7 +22,7 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
                          failed effects)
   end [--look L] [--probe FILE] TASK...
                          the contract of each task against the snapshot of
-                         `start`: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
+                         the newest `begin`: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
                          T4 takes its part as T4:volume|clock|screenshot|
                          lock|power. Prints `task T pass|FAIL: why` and the
                          breaches of the run outside tests/acts/known-red.toml;
@@ -582,6 +585,7 @@ def end(run, args):
     for b in breaches:
         print(f"breach {b['invariant']} in {b['action']}: {b['breach']}")
     print(f"breaches {len(breaches)}")
+    run.save("begin", now, run.marks())
     return 1 if bad or breaches else 0
 
 
