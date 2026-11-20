@@ -221,6 +221,20 @@ fn footer(
             [x + used + gap, top + 2.0],
             m.muted,
         ));
+        if k == last {
+            let [left, width] = [x - 8.0, used + gap + word_w.ceil() + 16.0];
+            let mut hit = rect(
+                &format!("{parent}-foot-{k}-hit"),
+                parent,
+                [left, top - 4.0, width, 32.0],
+                8.0,
+                [0.0; 4],
+            );
+            if let Command::Create { props, .. } = &mut hit {
+                props.input = Some(InputMode::Accept);
+            }
+            commands.push(hit);
+        }
         x += used + gap + word_w.ceil() + 16.0;
     }
     commands

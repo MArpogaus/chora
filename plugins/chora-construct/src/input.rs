@@ -684,6 +684,18 @@ impl Construct {
         if !self.help {
             return Ok(false);
         }
+        if let Event::PointerPressed {
+            node,
+            button: BTN_LEFT,
+            injected,
+            ..
+        } = event
+            && node.starts_with(crate::hud::HELP)
+            && node.ends_with("-hit")
+            && (!injected || self.rt.accepts_injected())
+        {
+            return self.toggle_help().map(|()| true);
+        }
         let Some((key, modifiers, text)) = walk_key(event, self.rt.accepts_injected()) else {
             return Ok(false);
         };

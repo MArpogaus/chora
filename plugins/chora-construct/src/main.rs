@@ -547,6 +547,9 @@ struct Construct {
     /// The search of the help and its chosen row.
     help_query: String,
     help_sel: usize,
+    /// The window that had the keyboard when the help took it, which gets
+    /// it back when the help closes.
+    help_back: Option<String>,
     /// The context hints at the bottom centre.
     hints: hints::State,
     /// The corner capsule with the clock and the doors.
@@ -688,6 +691,7 @@ impl Construct {
             help: false,
             help_query: String::new(),
             help_sel: 0,
+            help_back: None,
             pull_hint: false,
             hints: hints::State::default(),
             doors: doors::State::new(),
