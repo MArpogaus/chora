@@ -24,7 +24,8 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
                          the contract of each task against the snapshot of
                          the newest `begin`: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
                          T4 takes its part as T4:volume|clock|screenshot|
-                         lock|power. Prints `task T pass|FAIL: why` and the
+                         lock|power. Prints `task T pass|FAIL: why [scene: ...]` (the
+                         look state read from the scene) and the
                          breaches of the run outside tests/acts/known-red.toml;
                          exit status 1 when one is red.
 
@@ -542,6 +543,39 @@ def baseline(run):
     return "begin" if run.load("begin") else "start"
 
 
+def scene_state(snap, look):
+    """The look state that the scene shows, never inferred from the steps of
+    a persona: for the construct the cube (closed, stood back or in a face,
+    by `cube.list`), its front face, whether the pane room shows (a visible
+    `construct-pane-*` node) and whether the walk runs (`busy` of its
+    state). Other looks have none; {} says so."""
+    if look != "construct":
+        return {}
+    cube = snap.cube or {}
+    out = {}
+    if cube.get("faces"):
+        out["cube"] = "stood back" if cube.get("mode") == "navigate" else "in a face"
+        out["face"] = cube.get("front")
+    else:
+        out["cube"] = "closed"
+    room = any(
+        n.get("owner") == look
+        and str(n.get("id")).startswith("construct-pane-")
+        and n.get("visible", True)
+        for n in snap.nodes
+    )
+    out["pane room"] = "yes" if room else "no"
+    out["walk"] = "yes" if "walk" in ((snap.states.get(look) or {}).get("busy") or []) else "no"
+    return out
+
+
+def scene_line(snap, look):
+    """The scene state as a suffix of a contract line, empty when none."""
+    state = scene_state(snap, look)
+    words = [f"cube {v}" if k == "cube" else f"{k} {v}" for k, v in state.items()]
+    return f" [scene: {', '.join(words)}]" if words else ""
+
+
 def end(run, args):
     """Check the tasks against the snapshot of `start`."""
     look, probe, tasks = run.s.label, None, []
@@ -581,7 +615,8 @@ def end(run, args):
             sys.exit(f"check.py: no contract for {task}")
         mismatches = expect.check(before, now)
         bad += bool(mismatches)
-        print(f"task {task} {'FAIL: ' + '; '.join(mismatches) if mismatches else 'pass'}")
+        verdict = "FAIL: " + "; ".join(mismatches) if mismatches else "pass"
+        print(f"task {task} {verdict}{scene_line(now, look)}")
     for b in breaches:
         print(f"breach {b['invariant']} in {b['action']}: {b['breach']}")
     print(f"breaches {len(breaches)}")
