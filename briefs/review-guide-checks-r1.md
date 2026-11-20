@@ -3,6 +3,7 @@
 Model: sonnet, effort high (test-harness checks against a written table; the builder never reviews itself, rules.md 7)
 Lane: cloud, read-only on code: claude/guide-checks head a78b1a07, base 8b996cee (claude/tour-one r1). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "review-guide-checks BLOCKED: <line>" and stop.
 Read on claude/session-log: briefs/guide-checks-r1.md (done criteria), reports/guide-checks.md "## r1", design/tour-v9.md sections 7 and 8 row 3. `git diff 8b996cee..a78b1a07`.
 Checks, each with its command and files:
 1) Red first: a2ee5219 (planted breaches) before bd449adf (checks); each planted breach in tests/acts/planted.py goes red at a2ee5219 and green at bd449adf: `python3 -m pytest tests/test_acts.py -q` at both shas (worktrees, no build).
