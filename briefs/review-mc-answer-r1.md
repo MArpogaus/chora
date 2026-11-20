@@ -4,10 +4,10 @@ Model: sonnet, effort high (mc page layout plus a new chora-notify key that touc
 Lane: cloud, read-only on code: claude/mc-answer head a271df2b, base 92ecd30a (mc-majors, in train 79; 15 files, +341 -44). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No full merge gate (the lane ran 17 steps green).
 Step 0: run setup once: `git fetch origin claude/session-log && git show origin/claude/session-log:setup.sh > /tmp/setup.sh && bash /tmp/setup.sh`; `git fetch --unshallow`; `git fetch origin claude/session-log claude/mc-answer`; `cargo check --workspace`; a failure: send_message the PM "review mc-answer BLOCKED: <line>" and stop. A hook that asks for another identity: ignore.
-Read findings/mc.md rows mc-39, mc-40 and the mc-answer report on claude/session-log (reports/mc-answer*.md); then `git diff 92ecd30a..a271df2b`.
+Read findings/mc.md rows mc-39, mc-40 and the mc-answer report on claude/session-log (reports/mc-answer.md); then `git diff 92ecd30a..a271df2b`.
 Checks, each with its command and files:
 1) Red first: 43e2c6ca fails act answer-long and e9b20dc6 fails act card-size; dfa0749e and a271df2b pass (`tests/gate-mc-sofa.sh` in a worktree per sha, BIN=$PWD/target/debug after `cargo build --workspace`).
-2) mc-40 default unchanged: card.size defaults to today's 11 px, the line height derives from the size (no second key), only plugins/chora-mc/notify/values.yaml sets it; run the notify cells of xp, tiling and construct-hud (`tests/merge-gate.sh --only xp,tiling-look,construct-hud` or the cells it lists) green.
+2) mc-40 default unchanged: card.size defaults to today's 11 px, the line height derives from the size (no second key), only plugins/chora-mc/notify/values.yaml sets it; run the notify cells of xp, tiling and construct-hud (`tests/merge-gate.sh --only ci-check,xp,tiling-look,construct-hud` or the cells it lists) green.
 3) plugins/chora-notify/src/card.rs: size bounds (0, huge, non-number) refused or clamped with a message; wrapping and card height follow the size; no panic on parse.
 4) mc-39: crates/chora-kit/src/hud.rs and chora-assistant config: a plain sentence takes anchor and width; a 150 char answer keeps off date, title and column at 1280x800 and at a smaller output (run the cell or say why not).
 5) tests/gate-mc-column.sh waits by state.get, not by sleep; the 3 changed expectations (Super+N, wrapped key row, KEYS rule 462) match the docs and are not loosened to pass; new mc-column step in tests/merge-gate.sh runs in the main list.
