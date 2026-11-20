@@ -37,6 +37,7 @@ size=${SIZE:-1280x800}
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/chora-construct"
 grant screen.capture input.inject methods.call
 doors_voice || fail "voice does not answer"
+late_field 6
 doors_assistant || fail "the HUD host does not start"
 helper_start || fail "no helper starts"
 doors_window
