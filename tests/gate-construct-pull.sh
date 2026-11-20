@@ -27,7 +27,11 @@
 #    Its task button is on the taskbar of that face only.
 # 2a. After the pull the step back (Alt+Escape) keeps the pane in view,
 #    drawn, with no window lost, and a Super drag of the pane over a face
-#    gives the window back to xp.
+#    gives the window back to xp. A pane moved in front of the face, as
+#    large as the face, does not cover the cube that stands back (co-21):
+#    the faces that show meet at a shared edge within 1 px, the edge is as
+#    long on both faces within 2 %, the mirror image of each face lies
+#    under it, and no pane lies over a face.
 # 2b. Stood back (K12): a drag on the floating plane of a window turns
 #    the cube and pulls nothing out; an injected drag on a plane pulls nothing where the construct takes
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
@@ -89,6 +93,56 @@ print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
 prop() { ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); print(n[0].get('$2', False) if n else 'gone')"; }
 width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
 stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
+closed_cube_breaches() {
+    python3 -I -c '
+import json, os, re, socket
+s = socket.socket(socket.AF_UNIX)
+s.connect(os.environ["CHORA_SOCKET"])
+f = s.makefile("rwb")
+f.write(b"{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"scene.boxes\"}\n")
+f.flush()
+boxes = next(m for m in map(json.loads, f) if m.get("id") == 1)["result"]["HEADLESS-1"]["boxes"]
+faces, mirrors, panes = {}, {}, []
+for b in boxes:
+    n = b.get("node") or ""
+    if m := re.fullmatch(r"construct-cube-face-(\d+)", n):
+        faces[int(m[1])] = b
+    elif m := re.fullmatch(r"construct-cube-mirror-(\d+)", n):
+        mirrors[int(m[1])] = b
+    elif re.fullmatch(r"construct-pane-[^-]+", n):
+        panes.append(b)
+def near(p, q):
+    return abs(p[0] - q[0]) <= 1 and abs(p[1] - q[1]) <= 1
+def length(p, q):
+    return ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5
+shown = {k: b for k, b in faces.items() if b.get("corners")}
+if len(shown) < 2:
+    print(f"stood back only the faces {sorted(shown)} show")
+for k, a in shown.items():
+    b = shown.get((k + 1) % 4)
+    if b is None:
+        continue
+    ca, cb = a["corners"], b["corners"]
+    edge = [(ca[i], ca[(i + 1) % 4]) for i in range(4)]
+    other = [(cb[i], cb[(i + 1) % 4]) for i in range(4)]
+    pair = next(((e, o) for e in edge for o in other if (near(e[0], o[0]) and near(e[1], o[1])) or (near(e[0], o[1]) and near(e[1], o[0]))), None)
+    if pair is None:
+        print(f"the faces {k} and {(k + 1) % 4} share no edge: {ca} and {cb}")
+    elif abs(length(*pair[0]) - length(*pair[1])) > 0.02 * length(*pair[0]):
+        print(f"the shared edge of the faces {k} and {(k + 1) % 4} differs in length: {pair}")
+for k, a in shown.items():
+    m = mirrors.get(k)
+    if m is None or abs(m["rect"][0] - a["rect"][0]) > 1 or abs(m["rect"][0] + m["rect"][2] - a["rect"][0] - a["rect"][2]) > 1:
+        print("the mirror of face %d does not lie under it: %s for %s" % (k, m and m["rect"], a["rect"]))
+for p in panes:
+    for k, a in shown.items():
+        r, q = p["rect"], a["rect"]
+        w = min(r[0] + r[2], q[0] + q[2]) - max(r[0], q[0])
+        h = min(r[1] + r[3], q[1] + q[3]) - max(r[1], q[1])
+        if w > 1 and h > 1 and boxes.index(p) > boxes.index(a):
+            print("%s %s lies over face %d %s" % (p["node"], [round(v) for v in r], k, [round(v) for v in q]))
+'
+}
 window_count() {
     call window.list '{}' | python3 -I -c 'import json, sys; print(len(json.load(sys.stdin)["windows"]))'
 }
@@ -216,9 +270,16 @@ for how in super plain; do
         {\"button\": {\"state\": \"released\"}}]"
     sleep 1
     windows_before=$(window_count)
+    name=$(pane_name "$surface")
+    call pane.move "{\"name\": \"$name\", \"right\": -700}" >/dev/null || fail "pane.move $name"
+    call pane.resize "{\"name\": \"$name\", \"scale\": 3}" >/dev/null || fail "pane.resize $name"
     inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
     until_ok "$stood_back" 40 || fail "Alt+Escape did not step back after the pull-out: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
+    sleep 1
     [ -z "${BEHIND_SHOT:-}" ] || ctl capture "$BEHIND_SHOT" >/dev/null
+    breaches=$(closed_cube_breaches)
+    [ -z "$breaches" ] || fail "stood back after the pull-out the cube is not closed (co-21): $breaches"
+    ok "stood back after the pull-out the faces meet, the mirrors lie under them and the pane covers no face"
     pane_drawn() {
         ctl query "id:construct-pane-$surface" | python3 -I -c '
 import json, sys
