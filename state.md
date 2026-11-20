@@ -26,7 +26,7 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at 
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | mc-minor-r1.md (mc MINOR: one fade tracker, rv-1..3) | sonnet medium, claude/mc-minor 929de144 | session_016iS3kNUzWe1Pae3TwpVocA |
 | co-pane-r1.md (RC 2: co r3 pane drag I3, key sheet, checker) | sonnet high, claude/co-pane bbaad12b | session_016iS3kNKpN5aPruPuWBdAXM 17:12 |
-| xp-tidy-r1.md (shared bar: open xp MINORs) | sonnet medium, claude/xp-tidy 22fead94 | starting |
+| xp-tidy-r1.md (shared bar: open xp MINORs) | sonnet medium, claude/xp-tidy 22fead94 | session_016iS3kLbXcJARDTBAnvHK6j 17:23 |
 | handover-ti-r1.md (RC 2: tiling->xp hand-over, I3) | opus high, claude/handover-ti ce2c436b | session_016iS3kNK9SGs6sLHT39bpWD 17:06 |
 
 ## Queue (% week; 5 % reserve)
