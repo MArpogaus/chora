@@ -15,3 +15,9 @@ Items 2 to 5 share one red and one fix commit. Also touched: round.sh smoke and 
 
 Gate: pre-commit, ci-check, build, gate-lib, doors PASS; acts PASS (after 4f07fe6c); tests/persona-selftest.sh PASS; tests/persona/smoke.sh PASS; probe-check.sh PASS. round.sh smoke not run.
 Assumptions: L1 = exactly one window closed (open at begin or seen during the goal, gone at end); "covered" = a later toplevel in root order whose rect contains the given window's rect; L2 config = any non-empty file under PERSONA_DIR/config or xp.yaml.
+
+## PM check r1 (23:46 UTC; PM not the builder; diff dcb77733..4f07fe6c, 7 files, +339 -35, mostly tests)
+- pb-1 MINOR tests/persona/round.sh:128: the smoke path gains a `begin` but `round.sh smoke` was not run; run it in the next persona round (P2-R4-CO) before its verdict.
+- pb-2 MINOR tests/persona/check.py:398 verify_closed: windows that opened and closed inside the goal count as the one closed window; correct per brief item 2, note it in tests/persona/README.md L1 next round.
+- Checked: baseline() exits without a begin (no fallback to start or the goal before); end() deletes begin.json; L2 prints "not measured (no config)"; L3 skips holders of given-away windows; T7 covered is a note, not lost. tests/test_acts.py change only rewrites two cases of the old contract (acts cell red on them): in scope.
+Verdict (computed): no BLOCK or MAJOR: MERGE-OK, head 4f07fe6c, joins train 95.

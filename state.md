@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 23:42 UTC)
+## Now (2026-11-20 23:45 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 22:12 PM 1.8 % (Bangkok day 11-21); disk 11 G free (t93b): one build (train) at a time; 5 lanes
 session branch: dcb77733; 51 greens; t94 red 23:16 again only construct-hud:138 at --jobs 2 (co-35, twice since co-pane: lane co-hud-load); t94b running 23:18 at --jobs 1 (procedure).
@@ -10,7 +10,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r4, mc r5 meet; co r3 fails, co-pane MERGE-OK (t93b), then P2-R4-CO; tiling r3 22:03: 0 breaches; open: T7 window under xp (PM MAJOR: GIVE-RAISE), harness begin (L1-L3, T7), xp Start after Super+Return |
+| 2 | Persona round 4 | xp r4, mc r5 meet; co r3 fails, co-pane MERGE-OK (t93b), then P2-R4-CO; tiling r3 22:03: 0 breaches; open: T7 window under xp (PM MAJOR: GIVE-RAISE), harness begin MERGE-OK 4f07fe6c (t95), xp Start after Super+Return |
 | 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -26,10 +26,9 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | guide-checks-r3.md (F7: review r2 FIX, rg-9 MAJOR flaky rows, rg-10, rg-11) | sonnet medium, claude/guide-checks 4efbf430 | session_016iS3kN5ar7g9J3RE64oRKz 23:42 |
 | flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
 | co-hud-load-r1.md (F5, co-35: Tab after pane.move, red t93b and t94) | sonnet medium, claude/co-hud-load 618ae513 | session_016iS3kL7FGQKkxiN4MJm5Z9 23:17 |
-| persona-begin-r1.md (RC 2: harness begin per goal, L1-L3, T7) | sonnet medium, claude/persona-begin dcb77733 | session_016iS3kNQRgYF3gjvF8SAzob 23:18 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, F5, rc 3) t94b running: co-pane, tour-diff, tour-one, xp-tidy; then the PM fixes dcb77733 and the check.py merge to a seeded review; next train: give-raise 4b561e79 (PM check MERGE-OK).
+4. (F6, F5, rc 3) t94b running: co-pane, tour-diff, tour-one, xp-tidy; then the PM fixes dcb77733 and the check.py merge to a seeded review; next train 95: give-raise 4b561e79, persona-begin 4f07fe6c (PM checks MERGE-OK).
 5. (F5, F7, rc 2) Running: GUIDE-CHECKS review r2 FIX 23:41, r3 0.6 %, FLAKE-SERIES r3 haiku 1 %; after t93b: P2-R4-CO, xp Start-menu check after xp-tidy; tour-v9 4-5 wait for xp-give.
 
 ## Needs owner
