@@ -1,16 +1,16 @@
 # State
 
-## Now (2026-11-20 16:37 UTC)
+## Now (2026-11-20 16:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 15:46 PM 10.3 %; 6 lanes
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 16:44 PM 10.9 %; disk 12 G free: one build (train) at a time; 6 lanes
 session branch: ce2c436b; 48 greens (t89b green 16:25); t90 gate-silent running.
-burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake rows after t89/t88b; bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
+burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 next wk. 0.6 d.
 
 ## RC (design/rc.md)
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r4 15:35 meets the stop rule; mc r5 16:33 meets the stop rule (mc-42, I3 PASS; 0 breaches); co r2 not met; co-25 fixed (co-fix r1 MERGE-OK); co-33 hint in co-fix r2, co r3 after t92 |
+| 2 | Persona round 4 | xp r4 15:35 meets the stop rule; mc r5 16:33 meets the stop rule (mc-42, I3 PASS; 0 breaches); co-25, co-33 fixed (co-fix MERGE-OK); co r3 running |
 | 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -24,15 +24,15 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | Lane | Model, branch | State |
 |---|---|---|
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
-| flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
+| mc-minor-r1.md (mc MINOR: one fade tracker, rv-1..3) | sonnet medium, claude/mc-minor 929de144 | starting |
 | kit-minor-r1.md (kit MINOR: Book origin, kit7 r2 helper) | sonnet medium, claude/kit-minor e7f2410a | session_016iS3kN7xygsb7sS4PkKmav 16:34 |
-| xp-minor-r2.md (RC 2 bar: Run... err vs Escape, pr1-1) | sonnet medium, claude/xp-minor 22884a79 | session_016iS3kQfMuef1xFRc5ak7to 16:27 |
-| co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
+| xp-give-r1.md (RC 2: xp-T7 Send To a look by mouse) | sonnet medium, claude/xp-give ce2c436b | session_016iS3kQeput28U3AD7toYA5 16:49 |
+| p2-r3-co.md (RC 2: construct persona round 3) | sonnet medium + haiku, claude/p2-r3-co bbaad12b | starting |
 | p2-r2-tiling.md (RC 2: tiling persona round 2) | sonnet medium + haiku, claude/p2-r2-tiling ce2c436b | session_016iS3kNo5CzwTTqXM8x3PEa 16:37 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t90 gate-silent baac5dcf alone (running); t91 gate-orphan 437173e1 alone (harness); t92 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix 929de144 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0.
-5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r6, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r1, GATE-ORPHAN r1. Running: FLAKES-L r2 1.2 %, FLAKES-O r1 1 %, KIT-MINOR r1 1 %, XP-MINOR r2 0.5 %, CO-FIX r2 1 %, P2-R2-TILING 1 %. TI-MINOR r1 done (nothing to merge). Later FLAKE-SERIES r3 haiku 1 %.
+4. (F6, rc 3) t90 gate-silent baac5dcf alone (running); t91 gate-orphan 437173e1 alone (harness); t92 lint-down 78ec62e1 + mc-fix 929de144 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix bbaad12b (has co-majors-r4) + xp-minor fca4f8b5 + flakes-l cc1282db (then --jobs 2).
+5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r6, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r2, GATE-ORPHAN r1, XP-MINOR r2, FLAKES-L r2. Running: MC-MINOR r1 1 %, FLAKES-O r1 1 %, KIT-MINOR r1 1 %, XP-GIVE r1 1 %, P2-R3-CO 1 %, P2-R2-TILING 1 %. Later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

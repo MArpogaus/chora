@@ -21,3 +21,19 @@ Base fee9c695..22884a79, 5 files +145 -22; each fix has its red first.
 - Items 2 (balloon through chora-notify first, 6 s), 3 (slider row, click sets the level of its place, unlit), 4 (plain words): hold by their cells and captures; no finding.
 - pr1-2 NIT: the slider takes clicks only, no drag; XP drags. Backlog.
 Verdict: FIX (open MAJOR). r2: item 1 only.
+
+## r2
+Branch claude/xp-minor, head fca4f8b5. Item 1 (pr1-1): `ask` in crates/chora-kit/src/launcher.rs decides by the stderr line: Failed with the text after the first trimmed "err:" line, else Closed (warn, info, nothing, a signal), whatever the exit code. Doc comment of `ask` updated.
+
+| red | fix | cells |
+|-----|-----|-------|
+| c8b3952d | fca4f8b5 | a_launcher_that_fails_says_why_once (back at exit 1, " err: config.c:17: [colors].prompt: invalid key" -> notice with that text), an_err_line_after_a_warning_is_the_reason (new), a_warning_then_escape_stays_silent (unchanged, exit 1) |
+
+Gate (--jobs 1): pre-commit, ci-check, build, test, clippy, gate-lib, xp, xp-question, launcher-click, doors: all PASS.
+
+## PM review r2
+
+Base 22884a79..fca4f8b5, one file (crates/chora-kit/src/launcher.rs, +27 -8); red c8b3952d before fix fca4f8b5.
+- pr1-1 closed: `ask` picks the first trimmed stderr line with prefix "err:" (Failed with the rest), else Closed, any exit code. Checked against fuzzel 1.11.1 log.c:28,82-86: the error prefix is " err" then ": file:line: "; colorize is auto and stderr is a pipe here, so no escape codes reach the match. The exit-1 cell is restored with the real line; the warn-then-err cell is new; warn-then-Escape unchanged. Gate cells named in the brief PASS (worker, --jobs 1).
+- pr2-1 NIT: the notice keeps fuzzel's "config.c:17: " source position ("Run could not start: config.c:17: [colors].prompt: invalid key"); a plain user does not need it. Backlog.
+Verdict (computed): no open MAJOR -> MERGE-OK fca4f8b5. Worker archived.
