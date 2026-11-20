@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 10:15 UTC)
+## Now (2026-11-20 10:27 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent, session ~30 %) at 59 % time: on pace; 39 % left, 2.1 %/h shared; tokens.py 10:01 PM 8.5 %; 5-h window resets 12:00, binds; 2-4 lanes
-session branch: adf71956; 45 greens. Train 87 red 09:58 on layout = flake FLK-LAY1 (passed on co-r4 alone and on c1efe03a rerun 10:10); t87b = t87 + xp-36 924fe266, full gate from 10:12.
+session branch: adf71956; 45 greens. t87 layout red = flake FLK-LAY1; t87b hud red = flake FLK-HUD2 (voice-state-rate timeout, load 5); t87c (same head 924fe266) full gate from 10:28.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
 ## RC (design/rc.md)
@@ -26,7 +26,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ; idle 09:30-10:17 w/o report, nudged 10:17 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains: t87b in the gate (t87 + xp-36 3290f1d4) on adf71956: mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, co-r4 42c9304b (merge-gate.sh comment joined by PM); fuzzel 1.11.1 PATH.
+4. Trains: t87c in the gate (t87 + xp-36 3290f1d4) on adf71956: mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, co-r4 42c9304b (merge-gate.sh comment joined by PM); fuzzel 1.11.1 PATH.
 5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5); next: MC persona r3 1 % (after t87, branch claude/p2-r3-mc), LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner

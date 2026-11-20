@@ -308,6 +308,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FJ-R1 MINOR (flakes-j rv-1): images.rs churn test: 4 threads 5 s in cargo test; cut to 1 s.
 - FJ-R2 MINOR (flakes-j rv-3): tiling, mc, construct doors press Escape before the chat field holds the keyboard (xp fixed 6192f696).
 - FLK-LAY1 (flake, F5, t87 09:58): gate layout light-1280x720 construct HUD red once (Super+T no third terminal, empty hints, a window lost incl. refused give; /tmp/merge-gate.gCAA66/layout.log); passed on adf71956+co-r4 and on the same head c1efe03a at 10:10 (--jobs 2). Next flakes round: the walk waits on a toplevel count, not a time.
+- FLK-HUD2 (flake, F5, t87b 10:25): gate-hud voice-state-rate "missing" (timeout 5s node_has hud-state Listening) at load 5 on 4 cores; no branch of the train touches voice or the HUD state; green in t86. Next flakes round with FLK-HUD1.
 - CM-R1 (core-minors rv-1, rw-2 option a): api.md Window managers resume: kept nodes stay shown during the grace; pinning test in ipc.rs. MINOR, core, sonnet, 0.2 %.
 - P2-CHECK (11-20 06:00, p2-r2-mc): check.py gaps: M1 compares start with end (needs any page change during the task); T6 must accept "Nothing found"; T1 and T4 read `open` after the persona's own key list; the wpctl stand-in always answers 0.50. Into the mc round 3 lane. 0.2 %.
 - AGENDA-OPEN (idea, post-RC; PM M2 ruling 11-20): an agenda row opens its source (panel.set with an action per line).
