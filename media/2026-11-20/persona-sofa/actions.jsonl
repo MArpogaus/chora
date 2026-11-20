@@ -1,0 +1,35 @@
+{"time": 1795140050.014, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.054, "result": {"path": "/tmp/persona.MVVSMv/shots/001.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140053.153, "action": "key", "args": {"combo": "Right"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140054.666, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.077, "result": {"path": "/tmp/persona.MVVSMv/shots/002.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140057.693, "action": "key", "args": {"combo": "Super+space"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140058.24, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.048, "result": {"path": "/tmp/persona.MVVSMv/shots/003.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140061.393, "action": "click", "args": {"x": 345.0, "y": 184.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1795140063.274, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.038, "result": {"path": "/tmp/persona.MVVSMv/shots/004.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140068.491, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795140069.953, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.041, "result": {"path": "/tmp/persona.MVVSMv/shots/005.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140073.473, "action": "key", "args": {"combo": "Super+space"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795140073.984, "action": "type", "args": {"text": "foot"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140075.609, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.034, "result": {"path": "/tmp/persona.MVVSMv/shots/006.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140081.177, "action": "key", "args": {"combo": "Up"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140081.672, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.032, "result": {"path": "/tmp/persona.MVVSMv/shots/007.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140084.557, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140085.146, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.025, "result": {"path": "/tmp/persona.MVVSMv/shots/008.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140089.107, "action": "key", "args": {"combo": "Super+a"}, "ok": true, "seconds": 0.017, "result": "ok"}
+{"time": 1795140089.614, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.022, "result": {"path": "/tmp/persona.MVVSMv/shots/009.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140093.095, "action": "type", "args": {"text": "hello"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795140093.589, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795140095.382, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.024, "result": {"path": "/tmp/persona.MVVSMv/shots/010.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140097.97, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.034, "result": {"path": "/tmp/persona.MVVSMv/shots/011.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140103.345, "action": "key", "args": {"combo": "Super+space"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140103.836, "action": "type", "args": {"text": "volume"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795140105.456, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.021, "result": {"path": "/tmp/persona.MVVSMv/shots/012.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140110.209, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795140110.704, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.022, "result": {"path": "/tmp/persona.MVVSMv/shots/013.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140114.076, "action": "key", "args": {"combo": "Super+F1"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795140114.577, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.022, "result": {"path": "/tmp/persona.MVVSMv/shots/014.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140119.772, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.02, "result": "ok"}
+{"time": 1795140120.273, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.02, "result": {"path": "/tmp/persona.MVVSMv/shots/015.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140124.877, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795140125.367, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.018, "result": {"path": "/tmp/persona.MVVSMv/shots/016.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795140131.655, "action": "key", "args": {"combo": "Left"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795140132.147, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.019, "result": {"path": "/tmp/persona.MVVSMv/shots/017.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
