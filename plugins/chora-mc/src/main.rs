@@ -2164,12 +2164,58 @@ mod tests {
     #[test]
     fn state_says_nobody_when_a_node_of_another_client_has_the_keyboard() {
         use chora_kit::runtime::Plugin as _;
-        let (mut mc, _model) = crate::testing::mc("node-taken", [1280, 800]);
+        let (mut mc, model) = crate::testing::mc("node-taken", [1280, 800]);
         let command = mc.focus.to_node(Some(crate::page_id("agenda")));
         mc.apply(vec![command]).unwrap();
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+        xp_takes_the_keyboard(&model);
         mc.refresh();
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// The node of mc that still has the keyboard stays its holder.
+    #[test]
+    fn state_says_mc_when_its_node_still_has_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("node-kept", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+    }
+
+    /// The query of `refresh` names the node of mc, not every node of the
+    /// scene, which the core would lay out on its main thread (rv-2).
+    #[test]
+    fn refresh_asks_the_core_for_its_own_node_only() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("node-asked", [1280, 800]);
+        let node = crate::page_id("agenda");
+        let command = mc.focus.to_node(Some(node.clone()));
+        mc.apply(vec![command]).unwrap();
+        model.lock().unwrap().selectors.clear();
+        mc.refresh();
+        assert_eq!(model.lock().unwrap().selectors, [format!("id:{node}")]);
+    }
+
+    fn xp_takes_the_keyboard(model: &chora_kit::testing::Model) {
+        let mut core = model.lock().unwrap();
+        core.scene
+            .apply(
+                "xp",
+                &[
+                    super::create(
+                        "xp-icons",
+                        NodeKind::Group,
+                        chora_scene::ROOT,
+                        PropsUpdate::default(),
+                    ),
+                    Command::FocusNode {
+                        node: Some("xp-icons".into()),
+                    },
+                ],
+            )
+            .unwrap();
     }
 
     /// A window that the user clicked while the chat was open keeps the
