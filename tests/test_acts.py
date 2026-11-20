@@ -558,6 +558,22 @@ class I5(unittest.TestCase):
         ]
         self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
 
+    def test_a_picture_of_mc_over_xp_text_may_be_translucent(self):
+        nodes = [
+            text_node("xp-icons-label", "Documents", (988, 756, 87, 28), owner="xp"),
+            panel("mc-bg", (0, 0, 1280, 800), owner="mc"),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_a_picture_of_its_own_look_between_its_texts_hides_nothing(self):
+        nodes = [
+            text_node("mc-a", "Volume 50%", (988, 756, 87, 28)),
+            panel("mc-bg", (0, 0, 1280, 800), owner="mc"),
+            text_node("mc-b", "Mute", (1060, 778, 12, 14)),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
     def test_the_wallpaper_hides_nothing_above_it(self):
         nodes = [
             panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),
