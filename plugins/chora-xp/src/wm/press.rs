@@ -117,7 +117,11 @@ impl Wm {
             return Vec::new();
         };
         let w = &self.windows[i];
-        let entries = context::system(w.maximized(), w.minimized);
+        let (maximized, minimized) = (w.maximized(), w.minimized);
+        if self.looks.is_empty() {
+            self.refresh_looks();
+        }
+        let entries = context::system(maximized, minimized, &self.looks);
         let Some(bar) = self
             .bars
             .iter()
@@ -132,6 +136,48 @@ impl Wm {
         let commands = self.show_context(menu, usable);
         self.context_opened(Some(surface));
         commands
+    }
+
+    /// Asks the core for the client names of the other looks that can take
+    /// a window, and keeps them for the system menu. Called at a start,
+    /// at a client event and at a menu open with no look known (once per
+    /// open), never at a press while the cache is filled. A failure leaves one line per
+    /// streak in the log and the rows gray (no look is known to run).
+    pub(super) fn refresh_looks(&mut self) {
+        #[derive(serde::Deserialize)]
+        struct Client {
+            name: String,
+            methods: Vec<String>,
+        }
+        let list: Result<Vec<Client>, _> =
+            self.rt.conn.call("clients.list", serde_json::Value::Null);
+        self.looks = match list {
+            Ok(list) => {
+                self.looks_failed = false;
+                (list.into_iter())
+                    .filter(|c| c.methods.iter().any(|m| m == chora_kit::give::METHOD))
+                    .map(|c| c.name)
+                    .collect()
+            }
+            Err(err) => {
+                if !self.looks_failed {
+                    eprintln!("chora-xp: clients.list: {err}");
+                }
+                self.looks_failed = true;
+                Vec::new()
+            }
+        };
+    }
+
+    /// Gives the window of the Send To menu to a look.
+    pub(super) fn act_give(&mut self, to: &str) -> Vec<Command> {
+        let Some(surface) = self.sys_window.take() else {
+            return Vec::new();
+        };
+        if let Err(err) = chora_kit::give::Windows::hand(self, &surface, to) {
+            self.notice(None, "Send To", &err.message, -1);
+        }
+        Vec::new()
     }
 
     /// Does what a row of the system menu says to its window.
@@ -295,12 +341,7 @@ impl Wm {
             let home = chora_scene::paths::home().unwrap_or_else(|| "/".into());
             self.start_program(&desktop_icons::open_with(&manager, &home));
         } else {
-            self.notice(
-                None,
-                "No file manager",
-                "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.",
-                10_000,
-            );
+            self.notice(None, "No file manager", &no_file_manager(), 10_000);
         }
         Vec::new()
     }
@@ -328,6 +369,7 @@ impl Wm {
             Act::TaskbarProperties => self.open_taskbar_dialog(area),
             Act::DateTime => self.open_date_dialog(area),
             Act::Window(sys) => self.act_window(sys),
+            Act::Give(to) => self.act_give(to),
             Act::Item(item) => self.act_item(item),
             Act::Volume(change) => self.change_volume(change, false),
             Act::Position(index) => self.with_display(|d| d.set_position(index)),
@@ -378,5 +420,29 @@ impl Wm {
             commands.extend(w.style(&mut self.theme, active));
         }
         commands
+    }
+}
+
+/// The words of the notice that no file manager is installed.
+fn no_file_manager() -> String {
+    "No file manager is installed. Ask whoever looks after this computer to install one.\nTo name one yourself: file_manager in chora-xp.yaml".into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The notice says what to do in plain words; the config file comes
+    /// only as a second line.
+    #[test]
+    fn the_notice_without_a_file_manager_says_what_to_do() {
+        let words = no_file_manager();
+        let (first, second) = words.split_once('\n').expect("a second line");
+        assert!(
+            !first.contains("yaml") && !first.contains("setting"),
+            "{first}"
+        );
+        assert!(first.contains("file manager"), "{first}");
+        assert!(second.contains("chora-xp.yaml"), "{second}");
     }
 }

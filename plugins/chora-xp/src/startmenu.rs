@@ -982,11 +982,17 @@ fn fill_pool<'a>(config: &Config, apps: &'a [Node]) -> Vec<&'a Node> {
 }
 
 /// Whether a program of the desktop files fits the left column: it does
-/// not run in the terminal and its title has no raw suffix such as
-/// "(color depth=q16)".
+/// not run in the terminal (its command is `terminal -e ...`) and its
+/// title has no raw suffix, a setting such as "(color depth=q16)"; a
+/// title with a plain bracket, "Calculator (GNOME)", fits.
 fn pinnable(node: &Node, terminal: &str) -> bool {
-    let runs_in_terminal = matches!(&node.kind, apps::Kind::Run(c) if c.starts_with(terminal));
-    !runs_in_terminal && !node.title.contains('(')
+    let in_terminal = format!("{terminal} -e ");
+    let runs_in_terminal = matches!(&node.kind, apps::Kind::Run(c) if c.starts_with(&in_terminal));
+    let raw = node
+        .title
+        .rsplit_once('(')
+        .is_some_and(|(_, suffix)| suffix.contains('='));
+    !runs_in_terminal && !raw
 }
 
 /// The name that the header shows: the full name of the account, else its
@@ -1448,6 +1454,29 @@ mod tests {
         assert_eq!(menu.entries[2].action, Action::Run("run-Notepad".into()));
         assert_eq!(menu.entries[3].title, "Calc");
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    /// DB8: only a program that the terminal runs is left out (not one
+    /// whose command starts with the same letters), and only a raw suffix
+    /// (a setting, as in "(color depth=q16)") is, not every bracket.
+    #[test]
+    fn the_fill_leaves_out_what_is_raw_and_nothing_else() {
+        let run = |title: &str, command: &str| Node {
+            title: title.into(),
+            icon: String::new(),
+            kind: apps::Kind::Run(command.into()),
+        };
+        let apps: Vec<Node> = vec![
+            run("Kittycad", "kittycad"),
+            run("Calculator (GNOME)", "gnome-calculator"),
+            run("Vim", "kitty -e vim"),
+            run("ImageMagick (color depth=q16)", "display-im6.q16"),
+        ];
+        let titles: Vec<&str> = fill_pool(&config(), &apps)
+            .iter()
+            .map(|n| n.title.as_str())
+            .collect();
+        assert_eq!(titles, ["Kittycad", "Calculator (GNOME)"]);
     }
 
     #[test]

@@ -95,8 +95,12 @@ for f in "$XDG_PICTURES_DIR"/Screenshots/*.png; do
     break
 done
 [ -s "$file" ] || fail "Super+Print wrote no file"
-sleep 1
-grep -q '^notify.*Screenshot saved' "$marks" || fail "Super+Print showed no notice"
+seen=
+for _ in $(seq 20); do
+    shown_notices | grep -q "Screenshot saved.*$(basename "$file")" && seen=1 && break
+    sleep 0.5
+done
+[ -n "$seen" ] || fail "Super+Print showed no notice in chora-notify: $(shown_notices)"
 ok "Super+Print writes $(basename "$file") and notifies"
 
 : >"$marks"
@@ -121,12 +125,16 @@ ok "Apps lists Screenshot, and it takes one"
 
 lost=$(mktemp -d "$fake/lost.XXXXXX")
 cp "$bin/chora-tiling" "$lost/chora-tiling"
-out=$(env -u CHORA_FLAVOR_DIR HOME="$lost" XDG_CONFIG_HOME="$lost" XDG_RUNTIME_DIR="$lost" \
+out=$(env LC_ALL=C CHORA_FLAVOR_DIR="$lost/none" CHORA_SHARED_DIR="$lost/none" \
     "$lost/chora-tiling" --launch power 2>&1)
 status=$?
 [ "$status" != 0 ] || fail "a missing power.sh exited 0"
 grep -q 'power' <<<"$out" || fail "a missing power.sh said nothing on stderr: $out"
-shown_notices | grep -q '^Power menu' || fail "a missing power.sh showed no notice: $(shown_notices)"
+for _ in $(seq 60); do
+    shown_notices | grep -q '^Power menu' && break
+    sleep 0.5
+done
+shown_notices | grep -q '^Power menu' || fail "a missing power.sh showed no notice: $out; $(shown_notices)"
 ok "a missing script is an error and a notice"
 
 stub=$(mktemp -d "$fake/stub.XXXXXX")
