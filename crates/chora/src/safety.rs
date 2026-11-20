@@ -22,7 +22,11 @@
 //! longest wait of one thread, never the sum: waits side by side would add
 //! up to more than the frame and excuse a costly scene. A thread that ends
 //! between the two readings of a frame takes its wait with it, which only
-//! makes the watchdog stricter.
+//! makes the watchdog stricter. The wait counts only in a frame that is
+//! over its budget, and reading the threads takes about 0.13 ms, so the
+//! clock reads them only after a frame that was over the budget: a calm
+//! output reads nothing, and the first frame of a slow run has no wait
+//! to excuse, which only makes the watchdog stricter.
 
 use calloop::{
     LoopHandle,
@@ -73,12 +77,19 @@ const PROC_TASKS: &str = "/proc/self/task";
 
 /// The folder that the frame clock reads. The tests of the core run in
 /// parallel in one process, and the wait of the other tests would count
-/// as host load, so there the clock reads no folder.
-const TASKS: &str = if cfg!(test) {
-    "/nonexistent"
-} else {
-    PROC_TASKS
-};
+/// as host load, so there the clock reads an empty folder, which reads
+/// like a process without threads.
+fn tasks() -> &'static Path {
+    #[cfg(test)]
+    {
+        static EMPTY: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+        EMPTY.get_or_init(|| crate::testing::scratch_dir("chora-no-tasks"))
+    }
+    #[cfg(not(test))]
+    {
+        Path::new(PROC_TASKS)
+    }
+}
 
 /// The time that each thread of the process waited on a run queue for a
 /// CPU since its start, by thread id: the second field of its
@@ -127,19 +138,27 @@ impl FrameClock {
         }
     }
 
+    /// A clock of a frame with no wait to excuse: it reads no thread.
+    fn unmeasured() -> Self {
+        Self {
+            start: Instant::now(),
+            waits: None,
+        }
+    }
+
     /// How long the frame took, and how long of that the process waited
     /// for a CPU.
     fn stop(self) -> (Duration, Duration) {
-        self.stop_in(Path::new(TASKS))
+        self.stop_in(tasks())
     }
 
     fn stop_in(self, tasks: &Path) -> (Duration, Duration) {
         let took = self.start.elapsed();
         let waited = self
             .waits
-            .zip(waits_in(tasks))
-            .and_then(|(before, now)| {
-                now.into_iter()
+            .and_then(|before| {
+                waits_in(tasks)?
+                    .into_iter()
                     .map(|(thread, wait)| {
                         wait.saturating_sub(before.get(&thread).copied().unwrap_or_default())
                     })
@@ -186,6 +205,9 @@ struct Run {
     since: Option<Instant>,
     /// The last slow frame.
     last: Option<Instant>,
+    /// Whether the newest frame took longer than the budget, with the
+    /// time that it waited for a CPU.
+    over: bool,
 }
 
 impl Watchdog {
@@ -208,14 +230,19 @@ impl Watchdog {
 
     /// The clock for the next frame of an output.
     pub fn clock(&self, output: &str) -> FrameClock {
-        self.clock_in(output, Path::new(TASKS))
+        self.clock_in(output, tasks())
     }
 
     /// The clock for the next frame of an output, reading the threads in
-    /// `tasks`.
+    /// `tasks`, but only if the last frame of the output was over its
+    /// budget: a wait counts only in a frame that is over the budget, and
+    /// the read costs about 0.13 ms on the frame path.
     fn clock_in(&self, output: &str, tasks: &Path) -> FrameClock {
-        let _ = (self, output);
-        FrameClock::start_in(tasks)
+        if self.outputs.get(output).is_some_and(|run| run.over) {
+            FrameClock::start_in(tasks)
+        } else {
+            FrameClock::unmeasured()
+        }
     }
 
     /// Counts a frame of an output that took a time, against a budget.
@@ -231,6 +258,7 @@ impl Watchdog {
     ) -> Option<Action> {
         let budget = self.budget.unwrap_or(budget);
         let run = self.outputs.entry(output.into()).or_default();
+        run.over = took > budget;
         if took.saturating_sub(waited) <= budget {
             run.since = None;
             if took > budget && waited >= took / 2 {
@@ -836,6 +864,27 @@ mod tests {
             watchdog.note("out", REFRESH, times, start + REFRESH * i);
         }
         assert_eq!(reads() - before, 20, "start and stop of 10 slow frames");
+    }
+
+    #[test]
+    fn a_starved_frame_after_a_slow_one_is_measured_and_blames_nobody() {
+        let tasks = Tasks::new("primed");
+        tasks.wait(0, 0);
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        watchdog.note("out", REFRESH, (SLOW, Duration::ZERO), start);
+        let clock = watchdog.clock_in("out", &tasks.0);
+        std::thread::sleep(Duration::from_millis(40));
+        tasks.wait(1, 400);
+        let times = clock.stop_in(&tasks.0);
+        assert!(times.1 >= times.0 / 2, "{times:?}");
+        let actions: Vec<Action> = (1..2100 / 16)
+            .filter_map(|i| watchdog.note("out", REFRESH, times, start + REFRESH * i))
+            .collect();
+        assert!(
+            !actions.contains(&Action::Blame),
+            "{actions:?} for {times:?}"
+        );
     }
 
     #[test]
