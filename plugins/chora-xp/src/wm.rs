@@ -799,7 +799,9 @@ fn of_the_cube(action: &KeyAction) -> bool {
 
 /// Grabs the bindings of the settings with those of the cube that `cube`
 /// names; a binding of the cube that another client holds falls back to
-/// its stand-in.
+/// its stand-in. On a face of a cube (no cube of its own) xp is the
+/// window manager of the face, so it then swallows the Super chords that
+/// it binds no action for: no window gets them.
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys(
     rt: &mut Runtime<KeyAction>,
@@ -816,6 +818,9 @@ fn grab_keys(
                 break;
             }
         }
+    }
+    if matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) {
+        rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))?;
     }
     Ok(())
 }
@@ -1175,7 +1180,15 @@ mod tests {
         grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
         calls.lock().unwrap().clear();
         change_keys(&mut rt, &bindings, CubeKeys::Hosted).unwrap();
-        let mut gone = std::mem::take(&mut *calls.lock().unwrap());
+        let sent = std::mem::take(&mut *calls.lock().unwrap());
+        assert!(
+            sent.iter().any(|c| c == "input.grab Super+q"),
+            "on a face the unbound chords are swallowed: {sent:?}"
+        );
+        let mut gone: Vec<String> = sent
+            .into_iter()
+            .filter(|c| c.starts_with("input.ungrab"))
+            .collect();
         gone.sort();
         assert_eq!(
             gone,
@@ -1198,14 +1211,14 @@ mod tests {
             rt.action("Super+BTN_LEFT"),
             Some(&KeyAction::Look(Look::Cube))
         );
-        assert!(
-            calls
-                .lock()
-                .unwrap()
-                .iter()
-                .all(|c| c.starts_with("input.grab ")),
-            "{calls:?}"
-        );
+        let back = calls.lock().unwrap().clone();
+        for kept in ["Super+d", "Super+e", "Super+F1"] {
+            assert!(
+                !back.iter().any(|c| c.ends_with(&format!(" {kept}"))),
+                "{kept} is free in between: {back:?}"
+            );
+        }
+        assert!(rt.action("Super+q").is_none(), "no swallow on a screen");
     }
 
     /// A key does what its binding says, whatever the spelling: Super+F1
