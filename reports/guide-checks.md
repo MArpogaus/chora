@@ -58,3 +58,22 @@ Review of claude/guide-checks head a78b1a07 over base 8b996cee (sonnet, high; re
 | rg-8 | NIT | tests/acts/planted.py:236 | "persona sound" drops every breach of a (look, invariant) in the list and ignores `match` (same pattern pre-existing in tests/persona/check.py:160), so a new fault of a listed invariant cannot fail it. | Filter with `judge()` and the row's `match`. |
 
 Checked, no finding: gaps in whole units reuse `hud-audit.gap_findings` and `tiling-audit.gap_findings` (no second checker); held test compares helper surfaces before and after and excludes cube faces; `\b(?:agents?|HUD)\b` catches "Agents", not "management" or "Shudder". Not findings (brief): g1-g6 looks, rt-1..rt-7 of tour-one.
+
+## r2
+
+Fix round on claude/guide-checks after Review r1. Red 2d14bc26 (19 tests fail on their assertions, none on a TypeError; planted cell "I6 text of its back's colour" added), fixes 03a1f2c1, ca145fc3, 4efbf430.
+
+| id | red | green |
+|---|---|---|
+| rg-1 | 2d14bc26 | ca145fc3: known-red rows key on `act`, `capture`, `match`, one row per fault; a cell keeps each fault once (first act); stale rows block |
+| rg-2 | 2d14bc26 | 03a1f2c1: "no capture of OUTPUT" and "cannot be measured" are breaches; test flipped |
+| rg-3 | 2d14bc26 | 03a1f2c1: back == fore reports 1:1 (unit test and planted cell) |
+| rg-4 | 2d14bc26 | 03a1f2c1: KEY_LINE covers keys, mode and `-k` labels |
+| rg-5 | 2d14bc26 | 03a1f2c1: no font size fails; STATE_WORD is `-state$` |
+| rg-6 | 2d14bc26 | 03a1f2c1: key spelling by word on key-cap nodes; plurals and `agent_id` caught (words rows not used) |
+| rg-7 | 2d14bc26 | the red tests carry shots, so each fails on its assertion |
+| rg-8 | not done | persona sound filter is a separate change from judge() |
+
+Stricter checks found many more faults on the looks (about 260 act/capture/rule rows, mostly 11 px text and tray, pager and button contrast in xp, tiling, construct, mc). They are known-red rows, no look fix. Blank text (` `) is not measured. Two rows (xp-tray contrast) are `flaky = true`: the capture shows them in some runs only. construct I2 also has a held row (a screen-fixed node moves 1 px; the node differs per run), and the gap of construct-mode-step-in is red again.
+
+Gate: pre-commit, gate-lib, ci-check, build, test, hud PASS on 03a1f2c1; layout and tiling-audit PASS on rerun (the first layout run failed in a tiling walk, Super+T no third terminal, not a changed cell); acts PASS on 4efbf430.
