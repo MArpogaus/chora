@@ -236,8 +236,8 @@ fn a_walk_during_a_drag_keeps_its_place() {
         (pose.x - to.x).abs() < 1e-9 && (pose.z - to.z).abs() < 1e-9,
         "{pose:?}"
     );
-    assert!((pose.yaw - 70.0 * LOOK_RATE).abs() < 1e-9);
-    assert!((pose.pitch - 5.0 * LOOK_RATE).abs() < 1e-9);
+    assert!((pose.yaw + 70.0 * LOOK_RATE).abs() < 1e-9);
+    assert!((pose.pitch + 5.0 * LOOK_RATE).abs() < 1e-9);
 }
 
 /// The offsets of `pane.move` add up, as the camera looks.

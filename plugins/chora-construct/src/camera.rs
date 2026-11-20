@@ -25,11 +25,12 @@ pub(crate) fn takes_the_camera(inside: Option<&str>) -> bool {
 
 /// Turns the pose by a drag of `dx`, `dy`, and a running glide with it,
 /// so that a walk during the drag goes on. Only the yaw and the pitch
-/// change.
+/// change. The drag grabs the world: the scene follows the hand, as the
+/// cube does.
 pub(crate) fn turn(pose: &mut Pose, glide: Option<&mut Glide>, dx: f64, dy: f64) {
     let by = |p: &mut Pose| {
-        p.yaw += dx * LOOK_RATE;
-        p.pitch = (p.pitch - dy * LOOK_RATE).clamp(-1.2, 1.2);
+        p.yaw -= dx * LOOK_RATE;
+        p.pitch = (p.pitch + dy * LOOK_RATE).clamp(-1.2, 1.2);
     };
     by(pose);
     if let Some(glide) = glide {
