@@ -283,6 +283,14 @@ plain Escape
 until_ok 'test "$(keys_got 1)" -gt "$before"' 20 || fail "the window has no keyboard after Super+d twice"
 ok "the xp of the faces let its cube keys go and keeps its own: Super+d puts the window away and brings it back, with the keyboard"
 
+sleep 3
+ctl call xp settings.set '{"bindings": {"Super+k": "desktop"}}' >/dev/null || fail "settings.set bindings Super+k of xp"
+key Super+k
+until_ok 'test "$(prop "xp-win-$surface" visible)" = False' 20 || fail "Super+k, bound by the xp of the faces 3 s after it connected, did not reach it: visible $(prop "xp-win-$surface" visible) (rv-1)"
+key Super+k
+until_ok 'test "$(prop "xp-win-$surface" visible)" = True' 20 || fail "a second Super+k did not bring the window back: visible $(prop "xp-win-$surface" visible)"
+ok "rv-1: a chord that the xp of the faces binds late is its own, the construct holds none on a face"
+
 key Ctrl+Alt+Right
 until_ok 'front_is 1' 20 || fail "Ctrl+Alt+Right did not turn the cube in use mode"
 key Ctrl+Alt+Left
