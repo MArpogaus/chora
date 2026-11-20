@@ -2,7 +2,7 @@
 
 Model: sonnet, effort high (a test race under load and one check rewrite; no core change)
 Lane: cloud, branch claude/co-r5 from 42c9304b (co-r4, MERGE-OK; held out of train 87d because of item 1). One round, stop at 250 k. Cost at most 0.7 %.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`, `git fetch origin claude/session-log claude/autonomous-dev-session-3w-i33pg7`, then `cargo build --workspace`; a failure or a missing tool: send_message the PM "co r5 BLOCKED: <MISSING line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`, `git fetch origin claude/session-log claude/autonomous-dev-session-3w-i33pg7`, then `cargo check --workspace` (then `cargo build --workspace`); a failure or a missing tool: send_message the PM "co r5 BLOCKED: <MISSING line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read on claude/session-log: reports/co-majors.md "## r4" and "## Review r1" (rv-5); backlog.md FLK-LAY1, FLK-HUD2.
 Evidence (PM, train 87c, 924fe266, load 4-5 on 4 cores, --jobs 2): construct-extra red: "FAIL: a dragged pane wobbles with depth: 441 False" while "the mirror image bends with its pane" passed. Cause: tests/gate-construct-3d.sh:249-256 reads `mesh_of "$b_node"` once after a fixed `sleep 0.1` during the drag.
 Items, in order; each: red commit first, then the fix, then its passing cell:
