@@ -10,23 +10,17 @@
 use chora_kit::wm::open::{Kind, Open, Surface};
 use serde_json::{Value, json};
 
-use super::{Construct, Content, NAME, hud, space};
+use super::{Construct, Content, NAME, hud};
 
 impl Construct {
     /// The windows that the construct owns, the views of the others, the
     /// focus, what is open and what still moves.
     pub(crate) fn state_value(&self) -> Value {
         let output = self.output.as_ref().map(|o| o.name.as_str());
-        let far = self.radius();
         let inside = self.flown.as_ref().map(|f| f.surface.as_str());
-        let in_sight = |p: &super::Pane| {
-            if let Some(surface) = inside {
-                return p.source == surface;
-            }
-            let covered = (self.cube.as_ref()).is_some_and(|c| c.covers(&self.pose, p.at));
-            !covered
-                && !self.backs.contains(&p.name)
-                && space::sight(&self.lens, &self.pose, p.spot(), far) == "shown"
+        let in_sight = |p: &super::Pane| match inside {
+            Some(surface) => p.source == surface,
+            None => self.in_sight(p),
         };
         let origin = |surface: &str| self.book.origin(surface).map(chora_kit::wm::Origin::word);
         let mut windows = Vec::new();

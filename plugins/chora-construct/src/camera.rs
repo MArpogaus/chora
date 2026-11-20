@@ -318,7 +318,37 @@ impl Construct {
         drag.last = p;
         self.glide.take_if(|g| g.into.is_some());
         turn(&mut self.pose, self.glide.as_mut(), dx, dy);
+        self.unseen_focus_to_walk()?;
         self.frame()
+    }
+
+    /// The keyboard goes back to the walk when a look or a step has taken
+    /// the pane of the focused window out of sight: the focus is a window
+    /// that shows, never one that no one sees, and a key then stays out of
+    /// it. A press on the pane gives it the keyboard again.
+    pub(crate) fn unseen_focus_to_walk(&mut self) -> Result<(), ClientError> {
+        if self.in_pane() || self.cube.is_some() || !self.active || self.overlay {
+            return Ok(());
+        }
+        let Some(focus) = (self.core_focus.clone()).filter(|f| self.own_window(f)) else {
+            return Ok(());
+        };
+        let seen = (self.panes.iter()).any(|p| p.window() == Some(&focus) && self.in_sight(p));
+        if seen {
+            return Ok(());
+        }
+        self.core_focus = None;
+        let walk = self.keys_to_the_walk();
+        self.rt.conn.apply(vec![walk])
+    }
+
+    /// Whether the pane is on the output for the camera now: in front of
+    /// the eye, inside the depth of the view and not behind a cube.
+    pub(crate) fn in_sight(&self, p: &Pane) -> bool {
+        let covered = (self.cube.as_ref()).is_some_and(|c| c.covers(&self.pose, p.at));
+        !covered
+            && !self.backs.contains(&p.name)
+            && space::sight(&self.lens, &self.pose, p.spot(), self.radius()) == "shown"
     }
 
     /// The pane under a point of the output, the nearest one, for the
@@ -394,6 +424,9 @@ impl Construct {
         }
         self.pose = glide.to;
         let into = self.glide.take().and_then(|g| g.into);
+        if into.is_none() {
+            self.unseen_focus_to_walk()?;
+        }
         self.frame()?;
         if let Some(flown) = into {
             self.snap(flown)?;
