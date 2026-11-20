@@ -22,3 +22,12 @@ Head 7b43b063 (pushed). Gate: `tests/merge-gate.sh --jobs 3 --only pre-commit,ci
 2. chora-tiling keeps its own copy of the swallow key list (not touched here, as ordered); swallow.rs repeats it. One shared list in chora-kit is a follow-up.
 3. xp re-grabs its chords when a screen joins its outputs; with the construct holding unbound Super chords after the settle second, a chord xp lost then stays lost until the cube is rebuilt. Not seen in any cell; noted.
 4. Tabs left open: co-26 text "only the Keys item of the top bar" is explained, not a harness issue.
+
+## PM review r1 (2026-11-20 03:35 UTC)
+Range 79c8d2b5..7b43b063 on claude/co-p2-fix (4 commits, +340 -14, 10 files). Red cf27cfcb, c50beafa before fix b061930f: order OK. PM is not the builder.
+- co-25 in a pane: fixed. `swallow_unbound` grabs every unbound Super, Super+Shift, Super+Ctrl chord as `Grab::Swallow` after the construct's own grabs; gate-construct-keys red then green. OK.
+- rv-1 MAJOR, cube face (co-25 face part, co-26): cube.rs `SWALLOW_AFTER` = 1 s after the face manager connected. The core's first grab wins, so (a) an xp that grabs later than 1 s under load (--jobs 3, slow start) loses its own Super+d to the swallow, silently; (b) any later xp regrab (plugins/chora-xp/src/wm.rs:410, settings reload or a new grab set) finds Super+d already held by the construct. A timer as ordering is a workaround (debt-2026-11-20 workarounds row) and fails POLS. Fix: no timer. The window manager that owns the window swallows for it: the construct in a pane, the face manager on a face (xp, its own lane later). The construct holds no swallow on a cube face.
+- rv-2 MINOR (F2): swallow.rs KEYS is a second copy of the tiling list (the builder says so). Move the list and `chords()` into chora-kit (one `swallow` module, with a `Runtime` helper that grabs the unbound ones after a grab set); construct and tiling use it; a copies.toml row with max 0.
+- rv-3 NIT: `chords()` returns nothing when the modifier is not Super; a user who sets modifier Alt gets no swallow and stray Alt chords. Doc line or swallow the configured modifier.
+- Open, pre-existing: xp opens Start on a swallowed chord (to xp backlog).
+Verdict (computed): rv-1 MAJOR open -> FIX. Round r2: briefs/co-p2-fix-r2.md.
