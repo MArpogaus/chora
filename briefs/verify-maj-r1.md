@@ -8,7 +8,7 @@ Scope: no change under crates/, plugins/, services/, flavors/ or tests/. You wri
 Work, per finding:
 1. ti-20 (Apps click in the tiling bar shows no launcher within 1.5 s): run tests/gate-tiling-apps-click.sh 5 times headless; per run pass or fail with the last 10 lines.
 2. co-26 (Super+F1 in a construct face shows no key list): run the construct key-list gate that exists (name it); if none covers a face, say so and run the closest cell 3 times.
-3. xp-24 (text fields off the XP grid): run gate-xp-fields.sh 3 times; list the text fields of xp that the gate does not measure (Run box, search, dialogs) by reading the xp plugin and the flavor config, with file:line.
+3. xp-24 (text fields off the XP grid): run gate-xp-fields.sh 3 times (poll each run in the same turn; never end a turn to wait); list the text fields of xp that the gate does not measure (Run box, search, dialogs) by reading the xp plugin and the flavor config, with file:line.
 Verdict per finding, one of: reproduced (with run output), not reproduced N/N (with run output), partly (what is measured, what is not). Do not change a ledger state to fixed: write "verify-maj r1: <verdict>, <date>" into the row's evidence column only; the PM decides the state.
 Done when: the three verdicts with output are in reports/verify-maj.md "## r1" on claude/session-log and the ledger rows carry them.
 Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines).
