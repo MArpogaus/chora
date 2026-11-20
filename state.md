@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 09:16 UTC)
+## Now (2026-11-20 09:30 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent, session ~30 %) at 59 % time: on pace; 39 % left, 2.1 %/h shared; tokens.py 07:58 PM 7.6 %; 5-h window resets 12:00, binds; 2-4 lanes
-session branch: 9973d0eb (train 85c green 08:38, e2e incl. tiling-apps-click PASS with fuzzel 1.11.1: lane reds = lane fuzzel or flake); 44 greens. Train 86 (harness-l) running 08:40.
+session branch: adf71956 (train 86 harness-l green 09:27, 49 cells PASS incl. e2e); 45 greens. Train 87 (mc-fix, xp-24, core-l, flakes-k, co-r4) building 09:30.
 burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 by design (next wk); F8 holds with docs-f8e (t85). 1.9 d.
 
 ## RC (design/rc.md)
@@ -27,7 +27,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | xp-36-r1.md (RC bar honest failure: Run... silent on launcher fail; xp MAJOR) | sonnet medium | session_016iS3kLTuyjo2azqRJL1sKy |
 
 ## Queue (% week; 5 % reserve)
-4. Trains: t86 running: harness-l 75dfa4b9; t87 next: mc-fix cb2b80f1 (r2 merge, PM review MERGE-OK 09:15), co-r4 42c9304b (contains co-majors-r3; merge-gate.sh comment conflict, PM joins both), xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1; fuzzel 1.11.1 PATH.
+4. Trains: t87 building on adf71956: mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, co-r4 42c9304b (merge-gate.sh comment joined by PM); fuzzel 1.11.1 PATH.
 5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5), XP-36 0.5 % (xp MAJOR from persona r3 09:15: T6; T1, T4:clock reds are harness, P2R3-HARNESS); next: MC persona r3 1 % (after t87, branch claude/p2-r3-mc), LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner
