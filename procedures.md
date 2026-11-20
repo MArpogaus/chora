@@ -16,7 +16,7 @@ Now <= `date -u`; a session-branch change needs a status/ change; the budget lin
 4. Red: bisect by halves; a real fault goes back to its lane. After: worktree remove --force,
    rm -rf ~/.cache/sccache, df -h /; state.md, status page, Queue realigned.
 
-## Lane start
+## Lane start (first: the finding is open in its ledger and its cell is red on the session head)
 Brief (Model line `^Model: (haiku|sonnet|opus|Fable)`, opus/Fable "because <reason>") -> Lanes row naming the brief
 -> commit, push -> git push origin <fullsha>:refs/heads/claude/X (fetch the object first) -> tools/start_lane.sh
 -> create_session(source_url https://github.com/MArpogaus/chora, source_revision claude/X, model claude-sonnet-5-5 |

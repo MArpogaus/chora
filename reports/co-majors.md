@@ -274,3 +274,7 @@ Notes for the PM:
 3. The walk-mode cell passes by design and cannot go red by a mutant of the swallow, since the construct swallows in a pane only. It pins the walk keyboard.
 
 Head e0c3a266 (claude/co-majors-r4, pushed).
+
+## PM review co-majors r4 (claude/co-majors-r4 e0c3a266, 13:31 UTC; PM not the builder)
+Diff d81c8293..e0c3a266: tests/gate-construct-keys.sh +11 -1, test only (a pin, no fix). After Escape from Super+F1 the walk takes the keyboard, then Super+d, q, Tab, 1 in walk mode; the probe counters for 32, 16, 15, 2 must stay 0. The pane part above already asserts 0 for the same codes, so the cumulative counters are sound. Lane gate: keys, pre-commit PASS at e0c3a266; 13 cells at d81c8293.
+Findings: none. Verdict: MERGE-OK (no open BLOCK or MAJOR). co-25, co-26 were fixed before this round (b061930f, 00469c80, b9f4f5f3); joins the next train.
