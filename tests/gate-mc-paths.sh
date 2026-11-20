@@ -35,6 +35,9 @@
 #                  the doors of the column are on the screen; Return
 #                  gives the keyboard to the window, and the key list
 #                  shows on the page of a window (mc-42, mc-43)
+#   chat-focus     after a request to the helper and Escape in the chat
+#                  the page holds the keyboard again, state.get says mc
+#                  (mc-45)
 #   all-keys       the full key list stays in the column and on the
 #                  screen, and its rule crosses no text
 #
@@ -190,6 +193,21 @@ cell_terminal_keys() {
     until_ok '[ "$(current)" = mission ]' 20 || fail "Super+Left does not turn the page from the terminal: $(current)"
     key Left
     until_ok '[ "$(current)" = agents ]' 20 || fail "Left does not turn the page after the terminal: $(current)"
+}
+
+focus_holder() { ctl call mc state.get '{}' | jq -r '.focus.holder'; }
+cell_chat_focus() {
+    key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat"
+    sleep 1
+    type_line "tidy"
+    until_ok 'chat_has_sent tidy' 20 || fail "the request does not reach the chat"
+    key Escape
+    until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat"
+    sleep 1
+    until_ok '[ "$(focus_holder)" = mc ]' 20 || fail "after the chat closed the focus is with $(focus_holder), not mc: $(ctl call mc state.get '{}' | jq -c .focus)"
+    key Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "after the chat closed Right does not turn the page: $(current)"
 }
 
 back_alive() { session_pids -f -- "--app-id=mcback" >/dev/null; }
@@ -445,7 +463,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page arrows terminal-keys terminal-back mouse-back mute terminal-chat chat-click-turn all-keys; do
+for name in first-page arrows terminal-keys terminal-back mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then
