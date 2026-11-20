@@ -53,7 +53,7 @@ Gate (`tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy
 
 Note: the commit hooks reject inline comments and subjects over 68 characters; two commit attempts failed on them and were redone before any commit landed.
 
-## Review r2 (PM, 02:56; PM not the builder)
+## Review r2 (PM, 02:53; PM not the builder)
 Base 79c8d2b5..591e98f8: 1f9479ce red, 4cf1925f fix, 8312fccb docs (6 files, +222 -20).
 - rv-1 MAJOR: closed. `choose_manager` (state.rs) skips the unfocus when `render::node_under` hits; node_under returns only `InputMode::Accept` nodes (picking.rs:77-95), so a chip, door or hint keeps the press and no plain rect counts. Test `a_click_on_an_input_node_over_another_claim_keeps_the_keyboard`, cell construct-hud, doors PASS.
 - rv-2 MINOR: closed. A locked session clears the choice and returns before any focus change.

@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-20 02:53 UTC)
+## Now (2026-11-20 03:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 01:20 PM 4.3 %; 26 h left: 60 %, 2.3 %/h; fill 6 lanes
+budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 03:13 PM 5.4 %; 25 h left: 60 %, 2.4 %/h; 6 lanes full
 models (owner 06:56): haiku tests; sonnet routine; opus complex, planning; Fable by need
 session branch: 79c8d2b5 (train 81); 43 greens; MV1-4, CUT1-2, NET1-3, KIT1-7, WM1-2, WM1b-d, COPIES-0, DOCS-F8c-d, MK, MC-I5, CONSTRUCT-RED, CUBE-TESTS, MX1-M2,ID-GATE, GATE-PICK in.
 burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merges, 85-95 %; F1,3,4,6,8 likely, F5 open, F2 partly, F7 next wk.
@@ -24,15 +24,16 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| black-pane-r2.md (RC sd-h1, Queue 5) | sonnet high | session_016iS3kQidNBeqfq5axQ7gDB |
+| tiling-bar-r1.md (RC look, ti-21 MAJOR, Queue 5) | sonnet high | session_016iS3kM8MGNJCBw8qRRcTmr |
 | xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | session_016iS3kQYqG4zQU8iHR299YZ |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
-| mc-p2-fix-r1.md (RC 2 + shared bar, Queue 5; T1 eca458e5: mc-42 BLOCK, mc-43/44 MAJOR) | sonnet high | session_016iS3kLYw6qEfkL1bdD8ub7 |
+| lint-down-r1.md (F4 debt: lints, eprintln, ratchet; Queue 5) | sonnet high | session_016iS3kLuysHHqZ7ri5h8cBE |
+| mc-remote-r1.md (RC 2, Queue 5; mc-46 MAJOR remote key out of a window) | sonnet high | session_016iS3kNmyiYJJg8SGuNnYcn |
 | co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
 
 ## Queue (% week; 5 % reserve)
-4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 running 02:42 (launcher-click alone, harness: 741d6bca). t83 next: p2-harness 5dbd0ccf (harness, PM review MERGE-OK). t84: stray-grab 591e98f8 (PM review r2 MERGE-OK 02:56), black-pane r2 if ready.
-5. F work: running: MC-P2-FIX 2 % (mc-42 BLOCK); BLACK-PANE r2 1 %, FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR), XP-FIX 1.5 % (xp-11, xp-35 MAJOR; P2 r2 xp red 02:50, 2 of 3 rounds); then P2 r3 xp; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
+4. Trains (F6): t81 green 02:29 (79c8d2b5); t82 cube flake 03:14, alone green, rerun 82b 03:16 (launcher-click 741d6bca, harness). t83: p2-harness 5dbd0ccf (harness, MERGE-OK). t84: stray-grab 591e98f8, black-pane 91e6a114, mc-p2-fix 17d9a798, kit-tests 40b61f28 (PM MERGE-OK 02:53-03:21).
+5. F work: running: MC-REMOTE 0.8 % (mc-46 MAJOR); TILING-BAR 1 % (ti-21 MAJOR), FLAKES-J 1 %, CO-P2-FIX 1 % (co-25 MAJOR), LINT-DOWN 1 % (F4 open: debt-2026-11-20), XP-FIX 1.5 % (xp-11, xp-35 MAJOR; xp r2 red, 2 of 3); then P2 r3 xp; T1: tiling stop; construct reopened (co-25); AUDIT-F r3 Fri.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
