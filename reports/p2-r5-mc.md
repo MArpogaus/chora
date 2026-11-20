@@ -95,3 +95,6 @@ FORMAT OK
 mc MEETS round 5: no new BLOCK or MAJOR backed by a check or capture. 0 breaches in all three runs; all 8 contracts green; mc-42 (first arrival), mc-53 and mc-52 hold on a persona. Open: ux rows only (Volume readout hidden under the chat, no visible way to hand the screen to another look in xp (T7 vacuous, third round), Mission Control empty states). Not reached by a persona and so unproved: mc-43 (Super+F1 on a Foot page), mc-44, mc-46. No ledger edits.
 
 Files: feedback/2026-11-20-p2r5-{cook,sofa,nurse}.md; captures media/2026-11-20/p2r5-{cook,sofa,nurse}/.
+
+## PM review r5 (16:34)
+Checked against the brief: three feedback files, per-task table, fix check, triage, binaries sha, stop line. mc-42 PASS on the cook's first Right from page 4 (no page 7), I3 0 breaches (r4: 8). mc-43, mc-44, mc-46 not reached: their gate cells stay the evidence. Stop rule: mc meets round 5 (no new BLOCK or MAJOR). UX notes: Volume readout under the chat (mc MINOR, known issues); xp T7 vacuous 3rd round -> backlog xp-T7. RC 2 for mc: met on e7f2410a; holds once mc-fix 929de144 merges (t92).
