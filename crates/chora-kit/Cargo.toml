@@ -39,6 +39,10 @@ name = "notice"
 required-features = ["testing"]
 
 [[test]]
+name = "perform"
+required-features = ["testing"]
+
+[[test]]
 name = "wm_book"
 required-features = ["testing"]
 
