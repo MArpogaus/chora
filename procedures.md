@@ -12,7 +12,7 @@ Now <= `date -u`; a session-branch change needs a status/ change; the budget lin
 2. Each MERGE-OK sha in merge order: git -c identity merge -q --no-ff <sha>
    -m "Merge branch 'claude/X' into claude/autonomous-dev-session-3w-i33pg7".
 3. Background, timeout 7200000: (tests/merge-gate.sh --push claude/autonomous-dev-session-3w-i33pg7
-   > /tmp/claude-0/trainN.log 2>&1; echo EXIT $? >> /tmp/claude-0/trainN.log). --jobs 3 after flakes-f 10/10.
+   > /tmp/claude-0/trainN.log 2>&1; echo EXIT $? >> /tmp/claude-0/trainN.log). --jobs 1 until flakes-l r2 merges (4 reds at 2-3, green at 1; 11-20).
 4. Red: bisect by halves; a real fault goes back to its lane. After: worktree remove --force,
    rm -rf ~/.cache/sccache, df -h /; state.md, status page, Queue realigned.
 
