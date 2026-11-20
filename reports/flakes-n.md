@@ -58,3 +58,8 @@ Other findings on the way:
 - The gate does not stop the steps that run beside a failed one: after `construct-extra` failed, its
   sibling `matrix` kept running as an orphan (parent 1) and a queued gate took the lock after it. A row
   for the harness (GATE-ORPHAN).
+
+## PM review r1 (2026-11-20 15:25 UTC)
+Head fe398489 (red da57c00d). rw-3: not reproduced in 60 runs, cause named (ETXTBSY), accepted as evidence.
+- pr1-1 MAJOR: MX-CAP 293 s is below the matrix's own run time in real trains on the PM host: `grep -hoE 'run time: [0-9]+' /tmp/merge-gate.*/matrix.log` over 86 logs gives slowest 283, 290, 300, 301, 309 s (trains of 11-20 04:38, 05:25, 11:23). 293 s would turn those trains red. Measure under a full train set, not beside `layout` alone.
+Verdict: FIX (computed: one open MAJOR). r2: cap from the full-train figure (309 s + 25 % = 387 s, or a slower lane-measured full set), the three numbers and the selftest move together.
