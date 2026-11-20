@@ -38,7 +38,8 @@
 #   terminal-turn  the page of the terminal that a plain Right starts keeps
 #                  the keyboard as a page reached by a plain key does:
 #                  Left, Right, Escape and XF86Back of a remote act on the
-#                  page (mc-42, mc-46)
+#                  page (mc-42, mc-46); also Right, Left, Right before
+#                  the window maps (rv-1)
 #   chat-focus     after a request to the helper and Escape in the chat
 #                  the page holds the keyboard again, state.get says mc
 #                  (mc-45)
@@ -288,6 +289,19 @@ cell_terminal_turn() {
         foot_end
     done
     turn_arrive || fail "no terminal page by Right x4 at the end: $(current)"
+    foot_end
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no first page before the quick turn: $(current)"
+    for _ in 1 2 3 4; do key Right; sleep 0.4; done
+    key Left
+    key Right
+    until_ok '[ "$(current)" = terminal ] && foot_alive' 40 || { foot_end; fail "no terminal page after Right, Left, Right: $(current)"; }
+    sleep 2
+    for k in Left:mission Right:terminal Escape:mission; do
+        key "${k%%:*}"
+        until_ok "[ \"\$(current)\" = ${k##*:} ]" 20 || { foot_end; fail "${k%%:*} after Right, Left, Right before the window mapped does not go to ${k##*:}: $(current)"; }
+    done
+    foot_end
 }
 
 cell_mouse_back() {

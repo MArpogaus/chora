@@ -1641,6 +1641,46 @@ mod tests {
         assert!(!window(&mc), "the first page holds the keyboard");
     }
 
+    /// mc-42 (review r3, rv-1): a turn away from the page that a plain key
+    /// started and back to it, before the window maps, keeps the plain
+    /// start: the window that comes does not take the keyboard from the
+    /// page.
+    #[test]
+    fn a_turn_away_and_back_while_the_program_starts_keeps_the_keyboard_on_the_page() {
+        let (mut mc, model) = crate::testing::mc("turn-back-start", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        for _ in 0..4 {
+            press_key(&mut mc, "Right", &[]);
+        }
+        assert_eq!(mc.current.as_deref(), Some("terminal"));
+        mc.starting
+            .insert("t1".into(), crate::Target::Scene("terminal".into()));
+        press_key(&mut mc, "Left", &[]);
+        press_key(&mut mc, "Right", &[]);
+        assert_eq!(mc.current.as_deref(), Some("terminal"));
+        model
+            .lock()
+            .unwrap()
+            .scene
+            .add_surface("s1", chora_scene::SurfaceInfo::default());
+        mc.adopt("s1", Some("foot"), Some("t1")).unwrap();
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_node()
+            .map(str::to_owned);
+        assert_eq!(
+            focused,
+            Some(super::page_id("terminal")),
+            "the page keeps the keyboard"
+        );
+        assert!(
+            matches!(mc.focus.holder(|s| s == "s1"), super::Holder::Node(_)),
+            "the window did not take the keyboard"
+        );
+    }
+
     /// The default file binds the keys of a remote, and mc grabs them
     /// only with a claim, as the media keys.
     #[test]
