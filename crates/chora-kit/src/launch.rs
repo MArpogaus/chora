@@ -148,6 +148,7 @@ struct Entry {
     token: String,
     since: Instant,
     windows_before: u64,
+    bare_before: u64,
     note: Option<u32>,
     shown: bool,
     watched: bool,
@@ -244,6 +245,7 @@ struct Started {
     answer: Option<Answer>,
     since: Instant,
     windows_before: u64,
+    bare_before: u64,
     next: Next,
 }
 
@@ -251,6 +253,9 @@ struct Started {
 pub struct Launches {
     entries: Vec<Entry>,
     windows: u64,
+    /// How many of the windows carried no token: only those can be the
+    /// window of a start that loads, so only they end its message.
+    bare: u64,
     /// The tokens of the latest windows, for a window that shows before
     /// the answer of its start arrives.
     opened: Vec<String>,
@@ -280,6 +285,7 @@ impl Launches {
         Self {
             entries: Vec::new(),
             windows: 0,
+            bare: 0,
             opened: Vec::new(),
             failed: Vec::new(),
             heard,
@@ -368,6 +374,7 @@ impl Launches {
         let sender = self.sender.clone();
         let starter = self.start.clone();
         let windows_before = self.windows;
+        let bare_before = self.bare;
         let name = name.to_owned();
         std::thread::spawn(move || {
             let answer = starter(&command, next.activation.as_deref());
@@ -376,6 +383,7 @@ impl Launches {
                 answer,
                 since: now,
                 windows_before,
+                bare_before,
                 next,
             }));
         });
@@ -462,6 +470,7 @@ impl Launches {
             token,
             since: started.since,
             windows_before: started.windows_before,
+            bare_before: started.bare_before,
             note: None,
             shown: false,
             watched,
@@ -475,7 +484,10 @@ impl Launches {
     pub fn window(&mut self, token: Option<&str>) -> Option<u32> {
         self.drain();
         self.windows += 1;
-        let token = token?;
+        let Some(token) = token else {
+            self.bare += 1;
+            return None;
+        };
         if self.opened.len() >= OPENED {
             self.opened.remove(0);
         }
@@ -512,7 +524,7 @@ impl Launches {
         let mut changes = Vec::new();
         let mut failed = Vec::new();
         let mut served = Vec::new();
-        let windows = self.windows;
+        let (windows, bare) = (self.windows, self.bare);
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
             let silent = entry.windows_before == windows;
@@ -532,7 +544,7 @@ impl Launches {
                 return false;
             }
             if entry.shown
-                && !silent
+                && entry.bare_before != bare
                 && let Some(note) = entry.note.take()
             {
                 changes.push(Change::Done { note: Some(note) });
@@ -815,6 +827,7 @@ mod tests {
             answer: Some(answer(None)),
             since,
             windows_before: 0,
+            bare_before: 0,
             next: Next::default(),
         }
     }
@@ -967,6 +980,26 @@ mod tests {
             [Change::Done { note: Some(12) }]
         );
         assert_eq!(launches.check(seconds(now, 4)), none());
+    }
+
+    #[test]
+    fn the_window_of_another_start_leaves_the_message_of_a_start() {
+        let (mut launches, now) = launches();
+        launches.add(Started {
+            answer: Some(Answer {
+                token: "t2".into(),
+                pid: None,
+                unit: None,
+            }),
+            name: "browser".into(),
+            ..started(now)
+        });
+        assert_eq!(launches.check(seconds(now, 2)).len(), 2, "both start");
+        launches.noted("t1", 12);
+        launches.noted("t2", 13);
+        assert_eq!(launches.window(Some("t2")), Some(13));
+        assert_eq!(launches.check(seconds(now, 3)), none(), "t1 still loads");
+        assert_eq!(launches.window(Some("t1")), Some(12));
     }
 
     #[test]

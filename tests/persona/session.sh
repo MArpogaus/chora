@@ -132,8 +132,10 @@ EOF
 cat >"$fakes/mousepad" <<'EOF'
 #!/bin/sh
 if command -v foot >/dev/null; then
+    echo "mousepad stand-in foot" >>"@MARKS@"
     exec foot --title "Untitled - Notepad" sh -c 'exec tee -a "@NOTEPAD@"'
 fi
+echo "mousepad stand-in probe" >>"@MARKS@"
 exec "@BIN@/chora-probe" window 240 240 240 --title "Untitled - Notepad" --server-deco
 EOF
 cat >"$fakes/persona-probe" <<'EOF'
