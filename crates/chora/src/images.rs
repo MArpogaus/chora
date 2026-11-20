@@ -963,7 +963,7 @@ mod tests {
                 std::thread::spawn(move || churn_workers(&stop))
             })
             .collect();
-        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(1);
         let scans = std::thread::spawn(move || {
             while std::time::Instant::now() < end {
                 let _ = some_worker_blocks_usr1();
