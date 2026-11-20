@@ -236,3 +236,10 @@ The script of `choractl record` now has two `methods.call` cues, `construct.save
 `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,construct-hud,construct-extra,cube,layout` on c2b0310f (origin/claude/autonomous-dev-session-3w-i33pg7 merged; the one conflict, the comment of `construct-extra` in merge-gate.sh, keeps both texts: launcher-click from the integration branch, k2a, windows and 3d from co-r4): all PASS (run /tmp/merge-gate.zEUbYE): pre-commit 4 s, gate-lib 69, ci-check 66, build 19, test 161, clippy 12, cube 119, layout 173, construct-hud 106, construct-extra 155. construct-extra alone 2 more times: PASS 155 s, PASS 153 s. No red cell, no FLK.
 
 Head c2b0310f.
+
+## PM review r1 (claude/co-r5 c2b0310f, 11:58 UTC; PM not the builder)
+- Red first: 39a709b5 (read with no wait, red 2 of 5 under 8 busy loops) before fix 1454c349 (5 of 5 green). OK.
+- rv-5 6bd3b6f7: test-only; camera z read from construct.save at frames 2 and 3, must rise; red shown by a scratch mutant of the stride start (poses 0, 0, 0, 0), reverted, in the report. OK for a test-only change.
+- Diff: one file, tests/gate-construct-3d.sh (+44 -31); fixed sleeps replaced by until_ok waits on state. wobbles() moves the pointer each poll: the hold continues, so the check still asks "does a held pane wobble with depth". Accepted, no finding.
+- Gate: 10 cells PASS plus construct-extra twice (155 s, 153 s).
+- Findings open: 0 BLOCK, 0 MAJOR. Verdict computed: MERGE-OK. co-31, co-32 fixed. Joins train 88 (carries co-r4; its 12 h ends ~20:38).

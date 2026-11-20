@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 11:33 UTC)
+## Now (2026-11-20 11:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 09:13: 61 % (half other agent, session ~30 %) at 59 % time: on pace; 39 % left, 2.1 %/h shared; tokens.py 11:05 PM 8.8 %; 5-h window resets 12:00, binds; 2-4 lanes
 session branch: adf71956; 45 greens. t87 layout red = flake FLK-LAY1; t87b hud red = flake FLK-HUD2 (voice-state-rate timeout, load 5); t87c K5 wobble race (co-r4 out, co-r5); t87d tiling-look ink@2 red = known flake (4th, load 5-6); t87e same head d81c8293 --jobs 1 from 11:34.
@@ -23,12 +23,11 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-r5-r1.md (F5: K5 race, rv-5) | sonnet high, claude/co-r5 | session_016iS3kMFvB6oM18XzG5egto 11:06 |
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ; idle 09:30-10:17 w/o report, nudged 10:17 |
 
 ## Queue (% week; 5 % reserve)
-4. Trains: t87e (--jobs 1, flakes) in the gate from 11:34 (d81c8293 = adf71956 + mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4); co-r4 held out: K5 wobble race (t87c), fix lane co-r5; fuzzel 1.11.1 PATH.
-5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5); running: CO-R5 sonnet 0.7 % (F5, 12 h co-r4 ~20:38); next: MC persona r3 1 % (after t87, branch claude/p2-r3-mc), LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
+4. Trains: t87e (--jobs 1, flakes) in the gate from 11:34 (d81c8293 = adf71956 + mc-fix cb2b80f1, xp-24 2d1e06c6, core-l b1d1491d, flakes-k e2508ec1, xp-36 3290f1d4); next: t88 co-r5 c2b0310f (MERGE-OK 11:58, carries co-r4; 12 h ~20:38); fuzzel 1.11.1 PATH.
+5. F work: running: FLAKE-SERIES r2 haiku 1 % (F5); next: MC persona r3 1 % (after t87, branch claude/p2-r3-mc), LINT-DOWN r3 0.1 %, co-26 pane; FLAKES-L r2 1 % (F5), AUDIT-F r4 Sat 0.6 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
