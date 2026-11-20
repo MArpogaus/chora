@@ -916,8 +916,9 @@ sys.path.insert(0, str(ROOT / "tests" / "persona"))
 import check  # noqa: E402
 
 
-def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=()):
-    return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries))
+def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=(), left=()):
+    more = {"left": list(left)} if left else {}
+    return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries), **more)
 
 
 def seen(open_ids=(), helper="idle", keysheet=None, look="xp"):
@@ -1129,6 +1130,47 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("C3", ctx(), snap(), snap()), [])
         lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": None}}})
         self.assertIn("the focus", verdict("C3", ctx(), snap(), lost)[0])
+
+    def test_a_key_list_left_open_is_no_red_but_a_menu_is(self):
+        help_open = snap(
+            states={
+                "xp": {
+                    "windows": [],
+                    "focus": {"holder": "xp"},
+                    "open": [{"id": "xp-dlg-help"}],
+                    "busy": [],
+                }
+            }
+        )
+        menu_open = snap(
+            states={
+                "xp": {
+                    "windows": [],
+                    "focus": {"holder": "xp"},
+                    "open": [{"id": "xp-menu"}],
+                    "busy": [],
+                }
+            }
+        )
+        left = ["xp-dlg-help"]
+        lock = ["swaylock -f"]
+        self.assertIn("expected open", verdict("T4:lock", ctx(calls=lock), snap(), help_open)[0])
+        self.assertEqual(verdict("T4:lock", ctx(calls=lock, left=left), snap(), help_open), [])
+        self.assertIn(
+            "expected open",
+            verdict("T4:lock", ctx(calls=lock, left=left), snap(), menu_open)[0],
+        )
+        hist = [seen(["xp-dlg-help"], keysheet=[])]
+        self.assertEqual(verdict("T2", ctx(hist=hist, left=left), snap(), help_open), [])
+
+    def test_the_key_list_is_left_open_only_when_it_is_open(self):
+        help_open = snap(
+            states={"xp": {"windows": [], "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        )
+        menu_open = snap(states={"xp": {"windows": [], "open": [{"id": "xp-menu"}], "busy": []}})
+        self.assertEqual(check.left_open("xp", help_open), ["xp-dlg-help"])
+        self.assertEqual(check.left_open("xp", menu_open), [])
+        self.assertEqual(check.left_open("xp", snap()), [])
 
     def test_no_contract_for_an_unknown_task(self):
         self.assertIsNone(check.contracts("T99", ctx(), snap()))

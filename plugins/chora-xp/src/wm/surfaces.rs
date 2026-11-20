@@ -30,11 +30,13 @@ pub(super) const SWITCHER: &str = "xp-switcher";
 impl Wm {
     /// The Start menu opened.
     pub(super) fn menu_opened(&mut self) {
+        self.clear_starting();
         self.open.open(Surface::new(MENU, Kind::Menu));
     }
 
     /// A context menu or the system menu of a window opened.
     pub(super) fn context_opened(&mut self, window: Option<&str>) {
+        self.clear_starting();
         let menu = Surface::new(CONTEXT, Kind::Menu);
         self.open.open(match window {
             Some(surface) => menu.by(surface),
@@ -44,11 +46,13 @@ impl Wm {
 
     /// The Turn Off dialog opened: it holds the keyboard and the pointer.
     pub(super) fn session_opened(&mut self) {
+        self.clear_starting();
         self.open.open(Surface::new(SESSION, Kind::Dialog).modal());
     }
 
     /// The switcher opened. It follows the keys and stays through a drag.
     pub(super) fn switcher_opened(&mut self) {
+        self.clear_starting();
         self.open
             .open(Surface::new(SWITCHER, Kind::Switcher).staying());
     }
@@ -57,8 +61,17 @@ impl Wm {
     /// through a drag and a give, as its title bar drags it.
     pub(super) fn push_panel(&mut self, panel: Panel) {
         let id = panel.window_ref().group();
+        self.clear_starting();
         self.open.open(Surface::new(id, Kind::Dialog).staying());
         self.panels.push(panel);
+    }
+
+    /// A menu, a popup or a dialog opens: the messages that a program
+    /// starts go, so that no message covers it (I5). The start goes on.
+    fn clear_starting(&mut self) {
+        for note in self.launches.take_notes() {
+            self.dismiss_notice(note);
+        }
     }
 
     /// Takes a dialog of the settings off the list.

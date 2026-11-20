@@ -48,19 +48,30 @@ def door_acts(s, sheet, close="Escape"):
 NOTICE = "Probe notice"
 
 
+def notify_up(s, assets=None, config=None):
+    """Start chora-notify beside the look, as its unit does, with the
+    `assets` folder and the `config` file of the look when it has them; a
+    running one stays."""
+    ready(s)
+    if "notify" in s.clients():
+        return
+    argv = [
+        str(s.bin / "chora-notify"),
+        "--assets",
+        str(assets or REPO / "plugins/chora-notify/assets"),
+    ]
+    if config:
+        argv += ["--config", str(config)]
+    s.spawn(argv, "chora-notify.log")
+    s.until(lambda: s.state("notify") is not None, 30, "chora-notify")
+
+
 def notice_acts(s, slot=None):
     """chora-notify runs beside the look, as its unit does, with the folder
     `slot` of the look (assets and notify.yaml) when it has one. A notice
     that a plugin sends through `notify.show` shows in a card inside the
     output and clear of the helper (I9), and goes when dismissed."""
-    ready(s)
-    if "notify" not in s.clients():
-        assets = slot or REPO / "plugins/chora-notify/assets"
-        argv = [str(s.bin / "chora-notify"), "--assets", str(assets)]
-        if slot:
-            argv += ["--config", str(slot / "notify.yaml")]
-        s.spawn(argv, "chora-notify.log")
-        s.until(lambda: s.state("notify") is not None, 30, "chora-notify")
+    notify_up(s, slot, slot / "notify.yaml" if slot else None)
     sent = {}
 
     def show(s):
