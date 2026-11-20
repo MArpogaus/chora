@@ -181,12 +181,13 @@ impl Focus {
         Command::FocusNode { node }
     }
 
-    /// Who holds the keyboard; `own` tells the windows of the look. A
-    /// window of the look that the core focuses holds it, also one that
-    /// the look did not send.
+    /// Who holds the keyboard, seen from the look `name`; `own` tells the
+    /// windows of the look. A window of the look that the core focuses
+    /// holds it, also one that the look did not send; a node of the look
+    /// itself that `focus.node` tells is no loss.
     #[must_use]
-    pub fn holder(&self, own: impl Fn(&str) -> bool) -> Holder {
-        if self.away.is_some() {
+    pub fn holder(&self, name: &str, own: impl Fn(&str) -> bool) -> Holder {
+        if self.taken_by_other(name) {
             return Holder::Foreign;
         }
         self.held(own)
@@ -223,12 +224,7 @@ impl Focus {
     /// The focus of `state.get` of the look `name`.
     #[must_use]
     pub fn state(&self, name: &str, own: impl Fn(&str) -> bool) -> state::Focus {
-        let holder = if self.taken_by_other(name) {
-            Holder::Foreign
-        } else {
-            self.held(own)
-        };
-        let (holder, surface) = match holder {
+        let (holder, surface) = match self.holder(name, own) {
             Holder::Window(surface) => (Some(name.into()), Some(surface)),
             Holder::Node(_) => (Some(name.into()), None),
             Holder::Foreign | Holder::Nobody => (None, None),
