@@ -970,6 +970,26 @@ mod tests {
     }
 
     #[test]
+    fn the_window_of_another_start_leaves_the_message_of_a_start() {
+        let (mut launches, now) = launches();
+        launches.add(Started {
+            answer: Some(Answer {
+                token: "t2".into(),
+                pid: None,
+                unit: None,
+            }),
+            name: "browser".into(),
+            ..started(now)
+        });
+        assert_eq!(launches.check(seconds(now, 2)).len(), 2, "both start");
+        launches.noted("t1", 12);
+        launches.noted("t2", 13);
+        assert_eq!(launches.window(Some("t2")), Some(13));
+        assert_eq!(launches.check(seconds(now, 3)), none(), "t1 still loads");
+        assert_eq!(launches.window(Some("t1")), Some(12));
+    }
+
+    #[test]
     fn a_popup_takes_the_messages_and_the_start_still_gives_up() {
         let (mut launches, now) = launches();
         launches.check(seconds(now, 2));
