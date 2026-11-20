@@ -95,12 +95,13 @@ marked() {
 }
 unmark() { : >"$marks"; }
 until_ok() {
-    local _
-    for _ in $(seq "${2:-40}"); do
+    local rounds=${2:-40}
+    local end=$((SECONDS + rounds / 2))
+    while :; do
         eval "$1" && return 0
+        [ "$SECONDS" -lt "$end" ] || return 1
         sleep 0.25
     done
-    return 1
 }
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject - >/dev/null; }
 click() {
