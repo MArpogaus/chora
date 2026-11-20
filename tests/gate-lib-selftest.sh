@@ -228,5 +228,57 @@ if ! kill -0 "$bystander" 2>/dev/null; then
     failures=$((failures + 1))
 fi
 kill "$bystander" 2>/dev/null
+stub=$work/fuzzel-stub
+mkdir -p "$stub/old" "$stub/new" "$stub/none"
+printf '#!/bin/sh\necho "fuzzel version: 1.9.2 +cairo +png +svg(nanosvg) -assertions"\n' >"$stub/old/fuzzel"
+printf '#!/bin/sh\necho "fuzzel version: 1.11.1 +cairo +png +svg(nanosvg) -assertions"\n' >"$stub/new/fuzzel"
+printf '#!/bin/sh\necho "fuzzel version: 1.12.0 +cairo"\n' >"$stub/none/fuzzel"
+chmod +x "$stub"/*/fuzzel
+fuzzel_gate() { PATH=$stub/$1:$PATH CHORA_GATE_LOCK_HELD=1 env -u CI bash -c ". \"\$1/tests/gate-lib.sh\"; $2; echo went-on" gate "$repo" 2>&1; }
+out=$(fuzzel_gate old 'need_fuzzel 1.11')
+if [ "$out" != "SKIP: fuzzel 1.9.2 < 1.11" ]; then
+    echo "FAIL: need_fuzzel 1.11 with fuzzel 1.9.2 does not end in 'SKIP: fuzzel 1.9.2 < 1.11': $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate new 'need_fuzzel 1.11')
+if [ "$out" != went-on ]; then
+    echo "FAIL: need_fuzzel 1.11 with fuzzel 1.11.1 does not go on: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate none 'need_fuzzel 1.11')
+if [ "$out" != went-on ]; then
+    echo "FAIL: need_fuzzel 1.11 with fuzzel 1.12.0 does not go on: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate old 'fuzzel_older 1.11 && echo older; echo "$fuzzel_version"')
+if [ "$out" != "$(printf 'older\n1.9.2\nwent-on')" ]; then
+    echo "FAIL: fuzzel_older 1.11 with fuzzel 1.9.2 is not true with fuzzel_version 1.9.2: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate new 'fuzzel_older 1.11 || echo not-older')
+if [ "$out" != "$(printf 'not-older\nwent-on')" ]; then
+    echo "FAIL: fuzzel_older 1.11 with fuzzel 1.11.1 is true: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate new 'cell_skip launcher-click-row "fuzzel 1.9.2 < 1.11"')
+if [ "$out" != "$(printf 'SKIP: cell launcher-click-row: fuzzel 1.9.2 < 1.11\nwent-on')" ]; then
+    echo "FAIL: cell_skip does not print one SKIP line and go on: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate new 'cells_end 0 "launcher-click-row"')
+if [ "$out" != "SKIP: no subtest ran (skipped: launcher-click-row)" ]; then
+    echo "FAIL: a cell list with no subtest run does not end in SKIP: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate new 'cells_end 3 ""')
+if [ "$out" != "$(printf 'ok: 3 cells ran\nwent-on')" ]; then
+    echo "FAIL: a cell list that ran does not end in ok: $out"
+    failures=$((failures + 1))
+fi
+out=$(fuzzel_gate new 'cells_end 3 "launcher-click-row"')
+if [ "$out" != "$(printf 'ok: 3 cells ran\nwent-on')" ]; then
+    echo "FAIL: a cell list that ran 3 and skipped 1 does not end in ok: $out"
+    failures=$((failures + 1))
+fi
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"
