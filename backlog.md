@@ -338,3 +338,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - PERSONA-CHECK (CLOSED, persona-check r1, claude/persona-check e3763f69): T4:clock, I1/I3 on the xp child of a construct face, `begin` per goal and the scene state in each contract line are fixed in tests/persona (report reports/persona-check.md). Open: the T5 co-25 face case is a product item (xp lane), not the harness.
 - co-33 one-screen pull gesture (title drag on one output); co-34 Super+C with a cube open steps back (co-fix r1 review 16:12)
 - FLK-ACTS-MIXER: acts xp act:session reads an empty mixer file (xp.py:167), race (mc-fix r6 gate, 16:19). Book origin labels given/new reverse of api.md (kit, mc-fix r6).
+- xp volume slider: drag as in XP (xp-minor r1 pr1-2).
