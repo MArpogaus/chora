@@ -26,12 +26,13 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | flakes-o-r1.md (F5: FLK-CUBE-STILL, FLK-XP-HW) | sonnet high, claude/flakes-o ecfa2029 | session_016iS3kLHNi8VhaXCo2eoCGT 15:21 |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 | mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
+| gate-orphan-r1.md (F6: red step leaves no orphan) | sonnet medium, claude/gate-orphan fee9c695 | starting |
 | persona-check-r1.md (RC 2: checker fixes) | sonnet medium, claude/persona-check fee9c695 | session_016iS3kM5GUQDYs15ZovFHdJ 15:36 |
 | co-fix-r1.md (RC 2: co-25 persona path, C2 pull, C1 cube row) | opus high, claude/co-fix 59efbc17 | session_016iS3kQV9F7BQukecZNFTL1 15:35 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) Trains: t89b probe-leak f5ac3500 alone (running); t90 gate-silent baac5dcf alone (harness); t91 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8 + flakes-m ecfa2029 + flakes-n d7c69aac (r2 MERGE-OK 15:56). No PM selftests during a train.
-5. (F5, F4, shared bar) FLAKES-L r2 1.2 %, FLAKES-M r1, MC-FIX r5 MERGE-OK; FLAKES-N r2 MERGE-OK, FLAKES-O r1 1 %, MC-FIX r6 opus 2 %, P2-R2-CO done, CO-FIX r1 opus 2 %, P2-R4-XP done, PERSONA-CHECK r1 1 %; AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %.
+5. (F5, F4, shared bar) FLAKES-L r2 1.2 %, FLAKES-M r1, MC-FIX r5 MERGE-OK; FLAKES-N r2 MERGE-OK, FLAKES-O r1 1 %, MC-FIX r6 opus 2 %, P2-R2-CO done, CO-FIX r1 opus 2 %, P2-R4-XP done, PERSONA-CHECK r1 1 %, GATE-ORPHAN r1 0.8 %; AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
