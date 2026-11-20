@@ -4,6 +4,7 @@
 # bottom edges are those of the Send button beside it, at scale 1 and 2.
 # The Run box is fuzzel: its settings stay on the grid of 4 px, and the
 # label is in the text colour.
+# The Run box, rendered: a row of 28 px and its text on the grid of 4 px, at 1x and 2x; fuzzel before 1.11 does not read the file of xp, and the cell skips there.
 # BIN: directory with the binaries, SHOTS: directory for the captures.
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -62,3 +63,38 @@ field_cell() {
 }
 field_cell 1
 field_cell 2
+
+runbox_cell() {
+    local scale=$1 apps out
+    temp_config
+    export HOME=$XDG_CONFIG_HOME/home
+    apps=$HOME/share/applications
+    mkdir -p "$apps"
+    for p in alpha:Alpha mid:Mid; do
+        printf '[Desktop Entry]\nType=Application\nName=%s\nExec=foot -a %s\n' "${p#*:}" "${p%%:*}" >"$apps/${p%%:*}.desktop"
+    done
+    export XDG_DATA_DIRS=$HOME/share XDG_DATA_HOME=$HOME/none XDG_CACHE_HOME=$HOME/cache
+    session_start "1280x800@$scale" -- "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
+    grant screen.capture
+    ctl run "$bin/chora-xp" --run-box "${RUNBOX_INI:-$fuzzel_ini}" foot >/dev/null || fail "the run of the Run box"
+    for _ in $(seq 40); do
+        session_pids -x fuzzel >/dev/null && break
+        sleep 0.25
+    done
+    sleep 1.5
+    ctl capture "$shots/runbox-${scale}x.png" >/dev/null || fail "the capture failed"
+    out=$(python3 -I "$repo/tests/xp-runbox-rows.py" "$shots/runbox-${scale}x.png" "$scale")
+    [ "$out" != none ] || fail "${scale}x: no Run box in the capture"
+    local height text list
+    read -r height text list <<<"$out"
+    [ "$height" = "${RUNBOX_ROW:-28}.0" ] || fail "${scale}x: the row of the Run box is $height px high, not ${RUNBOX_ROW:-28}"
+    [ "$(python3 -I -c "print(int(float('$text')) % 4 == 0 and float('$text') == int(float('$text')))")" = True ] ||
+        fail "${scale}x: the text of the Run box stands $text px from the border, off the grid of 4 px (rows: $list px)"
+    ok "${scale}x: the Run box has a row of $height px and its text $text px from the border"
+    gate_cleanup 0
+    pids=()
+}
+fuzzel_minor=$(fuzzel --version | sed -n 's/^fuzzel version: 1\.\([0-9]*\).*/\1/p')
+[ "${fuzzel_minor:-0}" -ge 11 ] || [ -n "${RUNBOX_INI:-}" ] || skip "fuzzel $(fuzzel --version | cut -d' ' -f3) does not read the Run box file of xp (1.11 and later do)"
+runbox_cell 1
+runbox_cell 2
