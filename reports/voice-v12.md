@@ -27,3 +27,10 @@ Branch `claude/voice-v12` from 79c8d2b5; the session branch had nothing new to m
 ### Notes
 - The pre-commit hook no-inline-comments rejected the first commit attempt; reasons moved into the script headers. Commits: 128a8660, 17e65d25, ed4c7bf9.
 - A failed commit leaves its files staged and the next commit takes them; check `git status` after a hook failure.
+
+## PM review r1 (2026-11-20, PM is not the builder)
+Range: merge-base..ed4c7bf9 (128a8660, 17e65d25, ed4c7bf9), 4 files +141 -8, tests only (merge-gate.sh, voice-acp.sh, voice-events.sh, new voice-hud.py). Harness branch: own train.
+Checks: both scripts were wrong against the docs, not the product: voice.md section 18 (an edit question takes a key or HUD button) and docs/configuration.md (the HUD host draws the voice state, mc unit test the_host_draws_the_voice_status). No product change, so no red-first fix commit applies; each script asserts the documented behavior plus its negative (a bare yes leaves the question open; mc shows no agent voice).
+- rv-1 NIT: voice-hud.py answers after a fixed 1.2 s pause (the 400 ms button rule plus margin); a slow host could still race. 3/3 green; watch in flakes.
+- rv-2 NOTE: agent.sh step 2 passes on base 3/3; V12 "xs_are 0 640" not reproduced. Close V12 for agent.sh as stale; the new agent cell guards it.
+Verdict (computed): no open MAJOR: MERGE-OK ed4c7bf9; own train (harness) after t83.
