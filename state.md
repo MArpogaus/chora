@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 16:17 UTC)
+## Now (2026-11-20 16:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left in 13.3 h = 2.6 %/h shared; under-spending; tokens.py 15:46 PM 10.3 %; 6 lanes
 session branch: fee9c695; 47 greens. t89 red xp-question 1x Yes 32 px; t89b running.
@@ -28,10 +28,11 @@ burn-down: audit-f r4 14:23 on d81c8293: F1-F4, F6, F8 met; F5 open (12 flake ro
 | mc-fix-r6.md (RC 2: mc-42 first arrival, I3 chat over window) | opus high, claude/mc-fix bb7cbeb8 | session_016iS3kLWs5G6iqU2TsBAiTy 15:22 |
 | xp-minor-r1.md (RC 2 known issues: 5 xp MINOR) | sonnet medium, claude/xp-minor fee9c695 | session_016iS3kLKnKNMM5NJqp8UV7Y 15:58 |
 | co-fix-r2.md (RC 2: co-33 one-screen pull hint) | sonnet medium, claude/co-fix e97b55f0 | session_016iS3kNHGpdqC8kd76BiPhK 16:13 |
+| ti-minor-r1.md (RC 2 known issues: ti-5, ti-6/19, ti-7) | sonnet medium, claude/ti-minor fee9c695 | starting |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) t89b probe-leak f5ac3500 alone (running); t90 gate-silent baac5dcf, t91 gate-orphan 437173e1: each alone (harness); t92 co-majors-r4 e0c3a266 + lint-down 78ec62e1 + mc-fix bb7cbeb8 + flakes-m ecfa2029 + flakes-n d7c69aac + persona-check e3763f69 + co-fix e97b55f0.
-5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r5, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r1, GATE-ORPHAN r1. Running: FLAKES-L r2 1.2 %, FLAKES-O r1 1 %, MC-FIX r6 opus 2 %, XP-MINOR r1 1.5 %, CO-FIX r2 1 %. AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %.
+5. (F5, F4, shared bar) MERGE-OK: FLAKES-M r1, MC-FIX r5, FLAKES-N r2, PERSONA-CHECK r1, CO-FIX r1, GATE-ORPHAN r1. Running: FLAKES-L r2 1.2 %, FLAKES-O r1 1 %, MC-FIX r6 opus 2 %, XP-MINOR r1 1.5 %, CO-FIX r2 1 %, TI-MINOR r1 1.5 %. AUDIT-F r4: F5 open 12 rows; later FLAKE-SERIES r3 haiku 1 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
