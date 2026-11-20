@@ -629,7 +629,17 @@ with `settings.reload`:
   program, Right and Left alone turn the page as well, Home and
   XF86HomePage alone go to the first page, and Escape goes
   back one step: it closes the full key list, else it shows the page that
-  showed before.
+  showed before. The page of a window (a program that mc adopted, or the
+  window of an app scene) shows the column beside the window, with its
+  doors and the key list. A window gets every key that it needs in normal
+  typing, so mc takes no plain key from it: after `Super+Right`,
+  `Super+Left` or a start of the program the window has the keyboard, and
+  only the bindings with Super act. A page that you reach with a plain key
+  of a remote (Right, Left, Escape, Home) keeps the keyboard, so Right,
+  Left and Escape still turn it and go back; Return gives the window the
+  keyboard, and a click on the window does too. The launcher, `run:
+  fuzzel`, is the list of the installed programs, and text that finds
+  nothing shows the list again under the row `Nothing found for "TEXT"`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `keys`, `chat`, `lock`, `power`, `screenshot`, `volume: up|down|mute`,

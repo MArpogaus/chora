@@ -288,6 +288,10 @@ struct Mc {
     manage_windows: bool,
     /// Whether a page takes the keyboard for its plain keys.
     page_keys: keys::PageKeys,
+    /// A turn of a plain key is going on: the page that it shows keeps the
+    /// keyboard also when a window stands in it, so that the next plain key
+    /// still turns the page (mc-42).
+    plain_turn: bool,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -501,6 +505,7 @@ impl Mc {
             rt,
             manage_windows: false,
             page_keys: keys::PageKeys::Plain,
+            plain_turn: false,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -1012,10 +1017,37 @@ impl Mc {
             "Home" | "XF86HomePage" => Look::Scene(self.settings.value.default_scene.clone()),
             "Right" => Look::NextScene,
             "Left" => Look::PreviousScene,
-            "Escape" => return self.back(),
+            "Escape" => {
+                self.plain_turn = true;
+                self.back();
+                self.plain_turn = false;
+                return;
+            }
+            "Return" => return self.enter_window(),
             _ => return,
         };
+        self.plain_turn = true;
         self.turn(look);
+        self.plain_turn = false;
+    }
+
+    /// Return on a page that stands over a window gives the window the
+    /// keyboard: the keys of the person then belong to the program, and
+    /// only the bindings with Super turn the page (mc-42).
+    fn enter_window(&mut self) {
+        let window = self
+            .current
+            .as_ref()
+            .and_then(|c| self.windows.get(c))
+            .cloned();
+        if let Some(window) = window
+            && self.chat == Chat::Closed
+        {
+            let focus = self.focus.to(Some(window));
+            if let Err(err) = self.apply(vec![focus]) {
+                eprintln!("chora-mc: enter window: {err}");
+            }
+        }
     }
 
     /// One step back: the full key list closes; else the page that showed

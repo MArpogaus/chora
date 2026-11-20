@@ -181,10 +181,9 @@ impl Mc {
     }
 
     /// Whether a region shows in a scene: as the toggle says, else as the
-    /// scene says, else as the settings say; over a window without a
-    /// scene the sides show only by a toggle, so that the window keeps its
-    /// width. The window of an app scene fills its text block, so that the
-    /// column shows beside it as beside a page.
+    /// scene says, else as the settings say. The window of a program
+    /// fills the text block of its page, so that the column shows beside
+    /// it as beside any page, and its doors stay on the screen (mc-42).
     pub(super) fn shown(&self, region: Region, name: &str) -> bool {
         let scene = self.scenes.get(name);
         let side = matches!(region, Region::Left | Region::Right);
@@ -197,8 +196,7 @@ impl Mc {
                 let preset = config.presets.get(&config.preset);
                 let shown = (preset.and_then(|p| p.shown.get(&region)).copied())
                     .unwrap_or(config.regions.get(region).shown);
-                let bare = scene.is_none_or(|s| !Self::has_chapter(s));
-                shown && !(side && bare)
+                shown && !(side && scene.is_none())
             })
     }
 
