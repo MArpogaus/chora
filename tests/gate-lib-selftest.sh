@@ -195,5 +195,38 @@ if [ "$again" != /new/chora/wayland-1.sock ]; then
     echo "FAIL: session_start took the socket ${again:-none} of an old env file, not the one of its new session"
     failures=$((failures + 1))
 fi
+leak=$work/leak
+mkdir -p "$leak/own" "$leak/other"
+cp "$(command -v sleep)" "$leak/chora-probe"
+PATH=$leak:$PATH XDG_RUNTIME_DIR=$leak/other chora-probe 300 &
+bystander=$!
+for ending in 'exit 0' 'fail "a cell that fails"'; do
+    rm -f "$leak/direct" "$leak/orphan"
+    XDG_RUNTIME_DIR=$leak/own CHORA_GATE_LOCK=$leak/gate.lock timeout --foreground -k 1 15 bash -c '
+. "$1/tests/gate-lib.sh"
+temp_config
+"$2/chora-probe" 30 &
+echo $! >"$2/direct"
+( "$2/chora-probe" 30 & echo $! >"$2/orphan" )
+sleep 0.3
+eval "$3"' gate "$repo" "$leak" "$ending" >/dev/null 2>&1
+    for which in direct orphan; do
+        pid=$(cat "$leak/$which" 2>/dev/null)
+        for _ in $(seq 20); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.1
+        done
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "FAIL: the $which chora-probe $pid outlives a cell that ends with: $ending"
+            kill -KILL "$pid"
+            failures=$((failures + 1))
+        fi
+    done
+done
+if ! kill -0 "$bystander" 2>/dev/null; then
+    echo "FAIL: the gate ended a chora-probe of another runtime directory"
+    failures=$((failures + 1))
+fi
+kill "$bystander" 2>/dev/null
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"
