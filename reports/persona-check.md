@@ -14,3 +14,12 @@ Lane: cloud, branch claude/persona-check from fee9c695. Step 0 green (`cargo che
 4. Scene state: each `task` line ends with `[scene: cube stood back|in a face|closed, face N, pane room yes|no, walk yes|no]` for the construct, read from `cube.list` (mode navigate = stood back), a visible `construct-pane-*` node and `busy` "walk"; other looks print nothing. Whether "pane room" is exactly the node set that shows shot 012 of r2 is not checked on a capture; the `construct-pane-*` read is my reading of the scene ids.
 
 Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,gate-lib,doors` all PASS (doors 365 s); `tests/persona/smoke.sh` PASS; `tests/persona-selftest.sh` all ok. No red cell. Head e3763f69.
+
+## PM review r1 (2026-11-20 15:59 UTC)
+Base fee9c695..e3763f69, 5 files, +387/-12 (282 selftest). Four red-first pairs (610ee6f7, 84705542, 003b24bd, b8e7d6ab first). Not a merge-gate step; persona-selftest runs test_check.py (19 cases).
+- Item 1 clock: clock_nodes reads xp-tray-* text with a time, as clock-door does. Closed.
+- Item 2 I1/I3: read_states adds the xp child's state in a construct session. Closed by planted cases; live only cube.open + 2 moves (lane caveat): co persona r3 is the live check.
+- Item 3 begin: round.sh begin; end saves its state as the next begin. Closed.
+- Item 4 scene: [scene: ...] from cube.list and construct-pane-* nodes. Closed.
+- pr1-1 NIT: scene_state counts a pane node without `visible` as visible (n.get("visible", True)). Known issue.
+Verdict (computed): no open MAJOR -> MERGE-OK. Joins t91.
