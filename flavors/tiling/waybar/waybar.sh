@@ -26,10 +26,11 @@ command -v jq >/dev/null 2>&1 || {
     exit 1
 }
 dir=$1
-config=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar.json
-style=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar
+runtime=${XDG_RUNTIME_DIR:-$(mktemp -d)}
+config=$runtime/chora-tiling-waybar.json
+style=$runtime/chora-tiling-waybar
 
-pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
+pids=$runtime/chora-tiling
 # shellcheck disable=SC2174
 mkdir -p -m 700 "$pids"
 
