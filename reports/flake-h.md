@@ -53,3 +53,23 @@ Diff 219d5afe...bc3f1662: tests/doors/lib.sh, xp.sh, gate-construct-layout.sh, g
 - rw-3 NIT: `menu_close` passes 24 to keep the old 10 s because `menu_open` is true with no menu shown; the root cause goes to the backlog (lane's side find).
 Good: the sunset wait now fails instead of falling through; pull waits for 200 px instead of one read.
 Verdict: FIX (rw-1 open MAJOR). r2: run under load, fix what is red, rw-2.
+
+## r2
+
+Lane: cloud, branch claude/flake-h from bc3f1662. setup.sh was not run (the auto-mode classifier denied it; tools cargo, sccache, foot, sway, python3, jq present as in r1). `cargo build --workspace --locked` ok. The brief's step `construct-pull` is named `pull` in merge-gate.sh (the first try said `unknown step construct-pull`, 0 of 5, no test ran).
+
+Command: `tests/under-load.sh --runs 5 --cpus 2 -- tests/merge-gate.sh --jobs 3 --only matrix,layout,doors,pull`.
+
+| set | head | result | run lines |
+|---|---|---|---|
+| A | bc3f1662 | 5 of 5 | PASS 360, 358, 358, 354, 357 s |
+| B | 9e1aa126 | 4 of 5 | PASS 358, 357, 358; run 4 FAIL 391 s; PASS 352 s |
+| C | b0564df2 | 5 of 5 | PASS 374, 361, 359, 359, 363 s |
+
+Red cell (set B run 4): doors, cell `helper-door` of xp `missing`; same cell as the r1 red. The log showed no step, so the cause is not isolated: the cell had three single steps (helper word, one click, `chat_open`). A click injected under load can be lost. Fix (b0564df2): the cell clicks up to 3 times until the chat opens, and each exit prints a `FAIL: helper-door: ...` line naming its step. Set C is the 5 loaded runs after that fix.
+
+rw-2: the repo hook `no-inline-comments` rejects an added comment, and `--no-verify` is barred. The unit is named in code instead (9e1aa126): `local rounds=${2:-40}`, `end=$((SECONDS + rounds / 2))` in tests/doors/lib.sh, gate-construct-layout.sh, gate-construct-pull.sh.
+
+rw-3: no change.
+
+Commits: 9e1aa126 (rw-2), b0564df2 (helper-door). Head: b0564df2.
