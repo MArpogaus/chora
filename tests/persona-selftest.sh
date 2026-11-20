@@ -10,7 +10,7 @@
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need jq
-need_bins chora choractl chora-mc chora-tiling chora-assistant
+need_bins chora choractl chora-mc chora-tiling chora-assistant chora-xp chora-notify chora-probe
 
 dir=$(mktemp -d /tmp/persona-selftest.XXXXXX)
 tmp_dirs+=("$dir")
@@ -106,5 +106,78 @@ until_ok "client_names | grep -qw mc && client_names | grep -qw tiling" 80 ||
     fail "mc+tiling: the clients are $(client_names)"
 [ "$(env_value PERSONA_FLAVORS)" = "mc+tiling" ] || fail "PERSONA_FLAVORS is '$(env_value PERSONA_FLAVORS)'"
 ok "mc+tiling starts both looks"
+stop_session
+
+rm -rf "$dir"
+mkdir "$dir"
+start xp
+calls=$(env_value PERSONA_CALLS)
+session_path=$(env_value PATH)
+mapfile -d '' core_env <"/proc/$(env_value CHORA_CORE_PID)/environ"
+state() { admin call xp state.get '{}'; }
+wayland=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$dir/headless.out")
+run_in_session() { PATH=$session_path WAYLAND_DISPLAY=$wayland admin run "$@" >/dev/null; }
+until_ok "state >/dev/null 2>&1" 80 || fail "the look xp does not answer state.get"
+
+shared=$(printf '%s\n' "${core_env[@]}" | sed -n 's/^CHORA_SHARED_DIR=//p')
+[ -n "$shared" ] || fail "the core has no CHORA_SHARED_DIR: the look cannot find power.sh and screenshot.sh"
+for script in power.sh screenshot.sh; do
+    [ -f "$shared/$script" ] || fail "$shared has no $script"
+done
+case $shared in
+"$repo"/*) fail "CHORA_SHARED_DIR $shared is in the checkout, not installed like a package" ;;
+esac
+found=$(PATH=$session_path command -v swaylock || true)
+case $found in
+"$dir"/fake/*) ;;
+*) fail "swaylock in the PATH of the session is '$found', not a stand-in" ;;
+esac
+: >"$calls"
+env "${core_env[@]}" sh "$shared/power.sh" lock || fail "power.sh lock failed"
+grep -Eq '^(swaylock|loginctl lock-session)' "$calls" || fail "power.sh lock left no mark in PERSONA_CALLS: $(cat "$calls")"
+ok "shared scripts installed under the session, lock leaves a mark"
+
+found=$(PATH=$session_path command -v mousepad || true)
+case $found in
+"$dir"/fake/*) ;;
+*) fail "mousepad in the PATH of the session is '$found', not a stand-in" ;;
+esac
+click_node() {
+    local at cx cy
+    at=$(admin query "id:$1" | jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
+    read -r cx cy <<<"$at"
+    PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" click "$cx" "$cy" >/dev/null
+}
+click_node xp-start-HEADLESS-1 || fail "no Start button"
+notepad=$(admin query '*' | jq -r '.[] | select(.meta.text == "Notepad") | .id' | head -n1)
+[ -n "$notepad" ] || fail "the Start menu has no Notepad"
+click_node "$notepad" || fail "no click on Notepad"
+until_ok "state | jq -e 'any(.windows[]; .title == \"Untitled - Notepad\")' >/dev/null" 40 ||
+    fail "mousepad shows no window titled Untitled - Notepad: $(state | jq -c '[.windows[].title]')"
+ok "mousepad stand-in starts a window Untitled - Notepad"
+
+run_in_session persona-probe
+until_ok "state | jq -e 'any(.windows[]; .title == \"Probe window\")' >/dev/null" 40 ||
+    fail "persona-probe shows no window titled Probe window: $(state | jq -c '[.windows[].title]')"
+surface=$(state | jq -r '.windows[] | select(.title == "Probe window") | .surface')
+rect() { state | jq -c --arg s "$surface" '.windows[] | select(.surface == $s) | .rect'; }
+before=$(rect)
+title=$(admin query "id:xp-title-$surface" | jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') ||
+    fail "the probe window has no title bar node xp-title-$surface"
+read -r tx ty <<<"$title"
+PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" drag "$tx" "$ty" "$((tx + 300))" "$((ty + 150))" >/dev/null ||
+    fail "act.py drag failed"
+until_ok "[ \"\$(rect)\" != '$before' ]" 20 || fail "the probe window did not move: still $before"
+ok "the probe window has a title bar and a drag moves it ($before to $(rect))"
+
+until_ok "[ \"\$(state | jq -r .helper)\" = idle ]" 40 || fail "the helper is $(state | jq -c .helper), not idle, before anything was said"
+admin call voice agent '{"tool": "agent_say", "name": "atlas", "text": "hello"}' >/dev/null ||
+    fail "the call agent_say failed"
+until_ok "[ \"\$(state | jq -r .helper)\" = working ]" 20 || fail "the helper never worked after hello: $(state | jq -c .helper)"
+until_ok "[ \"\$(state | jq -r .helper)\" = idle ]" 80 || fail "the helper did not rest again: $(state | jq -c .helper)"
+jq -e 'any(.[]; .role == "agent" and (.text | length > 0))' "$dir/voice/entries.json" >/dev/null ||
+    fail "no agent entry answers hello: $(cat "$dir/voice/entries.json")"
+ok "the helper works on hello, rests and answers"
+
 stop_session
 ok "persona session"

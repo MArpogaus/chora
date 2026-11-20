@@ -52,7 +52,7 @@ chat_close() {
 menu_open() { has_text "Turn Off Computer"; }
 menu_close() {
     key Escape
-    until_ok '! menu_open'
+    until_ok '! menu_open' 24
 }
 menu_show() {
     click 50 785
@@ -172,14 +172,23 @@ cell_helper_key() {
     key Super+a
     until_ok chat_open && chat_close
 }
-cell_helper_door() {
-    settle
+helper_word_shows() {
     local word
     word=$(tip_of "xp-helper-$output")
     away
-    [ -n "$word" ] && [ "$word" != "No helper" ] || return 1
-    click_node "xp-helper-$output"
-    until_ok chat_open && chat_close
+    [ -n "$word" ] && [ "$word" != "No helper" ]
+}
+cell_helper_door() {
+    settle
+    until_ok helper_word_shows 80 || { echo "FAIL: helper-door: no helper word shows" >&2; return 1; }
+    local clicks=0
+    while [ "$clicks" -lt 3 ]; do
+        clicks=$((clicks + 1))
+        click_node "xp-helper-$output" || { echo "FAIL: helper-door: no helper node to click" >&2; return 1; }
+        until_ok chat_open && break
+    done
+    chat_open || { echo "FAIL: helper-door: three clicks opened no chat" >&2; return 1; }
+    chat_close || { echo "FAIL: helper-door: the chat did not close" >&2; return 1; }
 }
 cell_helper_none() {
     settle

@@ -45,7 +45,8 @@
 //!   With `--report`, it activates with `XDG_ACTIVATION_TOKEN` when the
 //!   environment has it, and prints a line `press X Y` for each button
 //!   press, at the point of the surface, and `key CODE` for each key
-//!   press that it gets.
+//!   press that it gets. With `--title TEXT`, the toplevel has that title;
+//!   with `--server-deco`, it asks the compositor for a frame.
 
 #![allow(
     clippy::print_stdout,
@@ -609,6 +610,9 @@ fn toplevel(queue: &mut Queue, probe: &mut Probe) -> Result<(WlSurface, XdgSurfa
     let xdg_surface = wm_base.get_xdg_surface(&surface, &qh, 1);
     let toplevel = xdg_surface.get_toplevel(&qh, ());
     toplevel.set_app_id("chora-probe".into());
+    if let Some(title) = std::env::args().skip_while(|a| a != "--title").nth(1) {
+        toplevel.set_title(title);
+    }
     if std::env::args().any(|a| a == "--server-deco")
         && let Some(manager) = &probe.decoration_manager
     {

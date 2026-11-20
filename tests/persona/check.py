@@ -261,7 +261,7 @@ def verify_system(ctx, part):
     want = {
         "volume": r"wpctl set-(volume|mute)",
         "screenshot": r"grim ",
-        "lock": r"loginctl lock-session",
+        "lock": r"(swaylock|loginctl lock-session)",
     }
 
     def verify(after_):
