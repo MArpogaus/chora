@@ -28,7 +28,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | xp-fix-r1.md (RC 2, Queue 5; p2 r2 xp red: xp-35 I5 MAJOR, xp-11 MAJOR) | sonnet high | session_016iS3kQYqG4zQU8iHR299YZ |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | kit-tests-r1.md (F5, Queue 5; perform harness + wm/give, kept, conn tests) | haiku high | session_016iS3kMSdbqA2ZbhRinpqcB |
-| mc-remote-r1.md (RC 2, Queue 5; mc-46 MAJOR remote key out of a window) | sonnet high | starting |
+| mc-remote-r1.md (RC 2, Queue 5; mc-46 MAJOR remote key out of a window) | sonnet high | session_016iS3kNmyiYJJg8SGuNnYcn |
 | co-p2-fix-r1.md (RC shared bar, Queue 5; r1b: co-25 MAJOR stray Super, co-26 verify) | sonnet high | session_016iS3kMxh7Tusb2G8Z8TRGK |
 
 ## Queue (% week; 5 % reserve)
