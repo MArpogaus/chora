@@ -66,3 +66,11 @@ Also covered now: CLI exit code (`test_the_exit_code_follows_the_verdict`), size
 **v8 rerun** (same inputs as r1): t3 tile_left vs tile_bottom still regression (exit 1), with a pixel row change, same vs same same; 01-xp 21 freezes and 04-construct 7 as in r1, no black and no flicker in any of the six videos (02-tiling 13, 03-mc-light 6, 03b-mc-dark 4, 05-handover 7 freezes). The numbers did not change: the fixes touch absent captures, absent tools and flashes, none of which v8 has.
 
 **Gate** on 4f4f1897 (`--jobs 1 --only pre-commit,ci-check,gate-lib,build,test,acts`): pre-commit PASS 2 s, gate-lib 84 s, ci-check 114 s, build 145 s, test 203 s, acts 265 s (cumulative), all PASS.
+
+## PM check r2 (2026-11-20 20:43 UTC)
+Diff fa796bb9..4f4f1897 (red 38690cb8, green 4f4f1897); PM is not the builder.
+- rd-1: compare() walks the union of BASE and CAND; missing in CAND is a regression; missing in BASE is a regression unless listed in baseline_none; no rows exits 1. Fixed.
+- rd-2: gate-acts.sh fails when ffmpeg is absent; tour-video-check.py exits 2 without ffmpeg. Fixed.
+- rd-3..rd-7: thresholds documented from v8 data, flicker runs, intended.toml rows without "*". Fixed.
+- New MINOR rd-9: a "*" or "check" row in intended.toml forgives every check flip of its act; backlog (only meta, rect, added rows exist now).
+Verdict: MERGE-OK; train 93.
