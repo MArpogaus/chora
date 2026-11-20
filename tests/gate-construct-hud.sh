@@ -19,9 +19,6 @@
 # Then Super+F1 shows the help panel with the bindings; settings.set of the
 # modifier changes it at once, and help.toggle hides it.
 #
-# The pointer move before the last Tab (line 140) stays: without it Tab opens no
-# list after a flight in and out at 1280x720@1.5 (2 of 2 runs, finding co-29
-# in findings/construct.md, backlog DB10).
 # Usage: tests/gate-construct-hud.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as
 #          construct-hud-THEME-SIZE-CASE.png
@@ -125,7 +122,7 @@ round() {
     key Alt+Escape
     until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(not (c[\"z\"] == 0.0 and c[\"x\"] == 0.0))"' ||
         fail "$tag: no flight back out of the black pane"
-    ok "$tag: a flight in and out, which Tab needs after the press and a new window (kit7-a2, known red in the acts)"
+    ok "$tag: a flight in and out, which Tab needs after the press and a new window"
 
     foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
     pids+=($!)
@@ -137,8 +134,6 @@ round() {
     long_pane=$(ctl call construct construct.list | python3 -I -c 'import json, sys; print(next(p["name"] for p in json.load(sys.stdin)["panes"] if p["name"].startswith("Donau")))')
     call pane.move "{\"name\": \"$long_pane\", \"ahead\": -4000}"
     sleep 2
-    echo '[{"pointer_move": {"position": [4, 300]}}]' | ctl inject || fail "inject pointer"
-    sleep 0.5
     key Tab
     until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list: $(ctl call construct construct.list | tr -d "\n " | cut -c1-900) $(ctl call construct window.list "{}" | tr -d "\n " | cut -c1-500)"
     for row in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-list-row-") and n["id"].endswith(("-name", "-note"))])'); do

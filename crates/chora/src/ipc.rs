@@ -463,13 +463,15 @@ impl Ipc {
 
     /// The connection that grabbed a pressed pointer button with the
     /// modifiers, and the binding. Of several grabs, the one whose client
-    /// holds the smallest claim under `pointer` wins, else the first (D55).
+    /// owns the node under the pointer or its nearest ancestor of a
+    /// grabber wins; over no node of a grabber, the one whose client holds
+    /// the smallest claim under the pointer, else the first (D55, co-30).
     pub fn button_grab_for(
         &self,
         mods: &ModifiersState,
         button: u32,
         scene: &Scene,
-        pointer: [f64; 2],
+        pointer: &Pointer<'_>,
     ) -> Option<(u64, Binding)> {
         let first = self.grab_of(mods, |t| t == Trigger::Button(button), |_| true)?;
         let grabbers: Vec<u64> = (self.grabs.iter())
@@ -477,8 +479,15 @@ impl Ipc {
             .map(|(_, _, conn)| *conn)
             .collect();
         let grabber = |name: &str| grabbers.iter().find(|c| self.name(**c) == Some(name));
-        let conn = chora_scene::claimant_at(scene.nodes(), pointer, |n| grabber(n).is_some())
-            .and_then(grabber)
+        let owner = (pointer.node.into_iter())
+            .flat_map(|id| scene.ancestors(id))
+            .filter_map(|id| scene.node(id)?.owner.as_deref())
+            .find_map(grabber);
+        let conn = owner
+            .or_else(|| {
+                chora_scene::claimant_at(scene.nodes(), pointer.point, |n| grabber(n).is_some())
+                    .and_then(grabber)
+            })
             .map_or(first.0, |c| *c);
         Some((conn, first.1))
     }
@@ -1378,6 +1387,16 @@ fn refused_in_a_race(conn: u64, client: &str, code: i64) {
 
 fn refused_at_info(conn: u64, client: &str, code: i64) {
     tracing::info!(conn, client, code, "refused");
+}
+
+/// Where a press of a button grab happens: the point in the scene and the
+/// node of the scene under it that takes pointer input.
+#[derive(Debug, Clone, Copy)]
+pub struct Pointer<'a> {
+    /// The pointer in scene coordinates.
+    pub point: [f64; 2],
+    /// The node under the pointer.
+    pub node: Option<&'a str>,
 }
 
 #[cfg(test)]

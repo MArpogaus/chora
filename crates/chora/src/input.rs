@@ -746,18 +746,21 @@ type Grabbed = (u64, String, PressState, bool, bool);
 
 /// The grab that a press of a button with modifiers starts, if a client
 /// grabbed the binding. As for a new toplevel: without an output, the
-/// pointer is in no claim.
+/// pointer is in no claim and over no node.
 fn open_button_grab(state: &mut State, code: u32) -> Option<Grabbed> {
     if state.button_grab.is_some() || state.lock.is_some() {
         return None;
     }
     let keyboard = state.keyboard();
     let mods = keyboard.modifier_state();
-    let pointer =
-        (state.spot(state.pointer_layout)).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
-    let (conn, binding) = state
-        .ipc
-        .button_grab_for(&mods, code, &state.scene, pointer)?;
+    let spot = state.spot(state.pointer_layout);
+    let pointer = (spot.as_ref()).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+    let under = (spot.as_ref()).and_then(|s| render::node_under(state, s));
+    let at = crate::ipc::Pointer {
+        point: pointer,
+        node: under.as_deref(),
+    };
+    let (conn, binding) = (state.ipc).button_grab_for(&mods, code, &state.scene, &at)?;
     let binding = binding.to_string();
     let to_pointer = binding == MOVE;
     let window = window_under_pointer(state);
@@ -1833,6 +1836,55 @@ mod tests {
         drag(&mut core, (700.0, 500.0), (710.0, 510.0));
         assert_eq!(buttons(&mut left, &mut core), all);
         assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+    }
+
+    /// mc and the construct on one output (co-30, D55): the construct
+    /// claims the output, mc its work area, and a pane of the construct
+    /// stands over the work area. A press over the pane goes to the
+    /// construct, over a node of mc to mc; over no node of either, the
+    /// smallest claim breaks the tie, and outside the claim of mc the
+    /// construct gets it.
+    #[test]
+    fn a_shared_button_grab_goes_to_the_owner_of_the_node_under_the_pointer() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grab = json!({"binding": "Super+BTN_LEFT"});
+        let mut construct = claimer(&mut core, "construct", [0.0, 0.0, 800.0, 600.0]);
+        let mut mc = claimer(&mut core, "mc", [0.0, 56.0, 800.0, 488.0]);
+        let node = |id: &str, parent: &str, at: [f64; 2]| {
+            json!([{"create": {"id": id, "kind": "rect", "parent": parent,
+                "props": {"size": [100, 100], "color": [1, 1, 1, 1],
+                    "transform": {"translate": at}}}}])
+        };
+        apply(
+            &mut construct,
+            &mut core,
+            &node("pane", "construct", [100.0, 100.0]),
+        );
+        apply(&mut mc, &mut core, &node("page", "mc", [500.0, 300.0]));
+        construct.ok(&mut core, "input.grab", grab.clone());
+        mc.ok(&mut core, "input.grab", grab);
+        let drag = |core: &mut Core, from: (f64, f64)| {
+            move_to(core, from.0, from.1);
+            press(core, SUPER, true);
+            click(core, true);
+            move_to(core, from.0 + 10.0, from.1 + 10.0);
+            click(core, false);
+            press(core, SUPER, false);
+        };
+        let all = ["pressed", "moved", "released"];
+        drag(&mut core, (150.0, 150.0));
+        assert_eq!(buttons(&mut construct, &mut core), all);
+        assert_eq!(buttons(&mut mc, &mut core), Vec::<String>::new());
+        drag(&mut core, (550.0, 350.0));
+        assert_eq!(buttons(&mut mc, &mut core), all);
+        assert_eq!(buttons(&mut construct, &mut core), Vec::<String>::new());
+        drag(&mut core, (700.0, 100.0));
+        assert_eq!(buttons(&mut mc, &mut core), all);
+        assert_eq!(buttons(&mut construct, &mut core), Vec::<String>::new());
+        drag(&mut core, (700.0, 20.0));
+        assert_eq!(buttons(&mut construct, &mut core), all);
+        assert_eq!(buttons(&mut mc, &mut core), Vec::<String>::new());
     }
 
     #[test]
