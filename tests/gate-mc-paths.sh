@@ -46,8 +46,8 @@
 #   terminal-turn  the page of the terminal that a plain Right starts keeps
 #                  the keyboard as a page reached by a plain key does:
 #                  Left, Right, Escape and XF86Back of a remote act on the
-#                  page (mc-42, mc-46); also Right, Left, Right before
-#                  the window maps (rv-1)
+#                  page, XF86Back one step back as Escape (mc-42, mc-46);
+#                  also Right, Left, Right before the window maps (rv-1)
 #   chat-focus     after a request to the helper and Escape in the chat
 #                  the page holds the keyboard again, state.get says mc
 #                  (mc-45)
@@ -315,19 +315,12 @@ cell_first_turn() {
 }
 cell_terminal_turn() {
     local k want
-    for k in Left:mission Right:overview Escape:mission XF86Back:terminal; do
+    for k in Left:mission Right:overview Escape:mission XF86Back:mission; do
         turn_arrive || { foot_end; fail "no terminal page by Right x4 before $k: $(current)"; }
         texts | grep -qE '^←.*→$' || { foot_end; fail "the page that Right started names no plain arrows: $(texts | grep -F '←' | tr '\n' '|')"; }
         key "${k%%:*}"
         want=${k##*:}
-        sleep 1
-        if [ "$want" = terminal ]; then
-            [ "$(current)" = terminal ] || { foot_end; fail "XF86Back left the page: $(current)"; }
-            key Left
-            until_ok '[ "$(current)" = mission ]' 20 || { foot_end; fail "after XF86Back on the page reached by Right, Left does not turn it: $(current)"; }
-        else
-            until_ok "[ \"\$(current)\" = $want ]" 20 || { foot_end; fail "${k%%:*} on the terminal page reached by Right does not go to $want: $(current)"; }
-        fi
+        until_ok "[ \"\$(current)\" = $want ]" 20 || { foot_end; fail "${k%%:*} on the terminal page reached by Right does not go to $want: $(current)"; }
         foot_end
     done
     turn_arrive || fail "no terminal page by Right x4 at the end: $(current)"

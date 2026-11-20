@@ -188,7 +188,10 @@ impl Mc {
             let Some(id) = node["id"].as_str().filter(|_| node["owner"].is_null()) else {
                 continue;
             };
-            let named = Named::Is(node["surface"]["app_id"].as_str().map(str::to_owned));
+            let named = Named::Is {
+                app_id: node["surface"]["app_id"].as_str().map(str::to_owned),
+                token: None,
+            };
             let changes = self.book.claim(id, node["to"].as_str(), None);
             self.settle(changes, &named)?;
         }

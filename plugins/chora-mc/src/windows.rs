@@ -17,8 +17,12 @@ impl Policy for Mc {
 
 /// What mc knows of the app of a surface that the book proposes.
 pub(crate) enum Named {
-    /// The event of the core said it, if it had one.
-    Is(Option<String>),
+    /// The event of the core said it: the app id, if it had one, and the
+    /// activation token that mapped the window, if one did.
+    Is {
+        app_id: Option<String>,
+        token: Option<String>,
+    },
     /// The core says it: the surface lost its parent.
     Ask,
 }
@@ -27,14 +31,24 @@ impl Mc {
     /// An event of the life of a window: the book decides which windows
     /// are mc's, and mc settles what it proposes.
     pub(crate) fn lifecycle(&mut self, event: &Event) -> Result<(), ClientError> {
-        let named = Book::announced_app(event)
-            .map_or(Named::Ask, |app_id| Named::Is(app_id.map(str::to_owned)));
+        let token = match event {
+            Event::SurfaceCreated { token, .. } => token.clone(),
+            _ => None,
+        };
+        let named = Book::announced_app(event).map_or(Named::Ask, |app_id| Named::Is {
+            app_id: app_id.map(str::to_owned),
+            token,
+        });
         let changes = self.book.apply(event);
         self.settle(changes, &named)
     }
 
     /// Does what the book says, in order. A detached window of mc leaves
     /// no data: the proposal that follows puts it back.
+    /// A new window that the core reserved for mc (mc holds the claim of
+    /// its output, `to` names it) has the origin `given` in the book,
+    /// which keeps no token; the token of its `surface.created` still
+    /// finds the scene that started it (mc-42).
     pub(crate) fn settle(
         &mut self,
         changes: Vec<Change>,
@@ -43,9 +57,13 @@ impl Mc {
         for change in changes {
             match change {
                 Change::Adopt { id, origin } => {
-                    let token = match &origin {
-                        Origin::New { token } => token.as_deref(),
-                        Origin::Given | Origin::Kept => None,
+                    let token = match (&origin, named) {
+                        (Origin::New { token: Some(token) }, _) => Some(token.as_str()),
+                        (Origin::New { .. } | Origin::Given, Named::Is { token, .. }) => {
+                            token.as_deref()
+                        }
+                        (Origin::New { token: None } | Origin::Given, Named::Ask)
+                        | (Origin::Kept, _) => None,
                     };
                     let next = match self.take(&id, named, token) {
                         Ok(true) => self.book.confirm(&id),
@@ -101,7 +119,7 @@ impl Mc {
             return Ok(true);
         }
         let app_id = match named {
-            Named::Is(app_id) => app_id.clone(),
+            Named::Is { app_id, .. } => app_id.clone(),
             Named::Ask => {
                 let nodes: Vec<Value> =
                     (self.rt.conn).call("scene.query", Query::new(format!("id:{surface}")))?;
