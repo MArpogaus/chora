@@ -24,7 +24,7 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-series-r2.md (F5: 5 gates on t85b head 9973d0eb, kit cov) | haiku high | session_016iS3kMGkHjEB73ojsbgotQ |
-| mc-fix-r2.md (RC 2: merge session head, resolve check.py/session.sh conflict; then PM review, t88) | sonnet high | starting |
+| mc-fix-r2.md (RC 2: merge session head, resolve check.py/session.sh conflict; then PM review, t88) | sonnet high | session_016iS3kNHBMbi3VStszbq1N5 |
 | p2-r3-xp.md (RC 2: xp persona r3 on c61ad6c8 = 85c + xp-24) | sonnet medium | session_016iS3kNeZESVqcoF5B5qrYP |
 
 ## Queue (% week; 5 % reserve)
