@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/home/user/chora/tests/persona/check.py", line 473, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/user/chora/tests/persona/check.py", line 454, in main
+    now = run.snapshot()
+  File "/home/user/chora/tests/persona/check.py", line 88, in snapshot
+    return self.s.snapshot(wait_quiet(self.s.states, QUIET), self.s.watch.drain())
+                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/chora/tests/acts/harness.py", line 236, in wait_quiet
+    raise NotQuiet(f"still busy after {timeout} s: {', '.join(busy)}")
+harness.NotQuiet: still busy after 10 s: mc:write:mc-s-agenda-panels-today
+PERSONA_ENV=/tmp/persona.v8N4y3/session.env
