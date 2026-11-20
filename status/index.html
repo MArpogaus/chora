@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-20T03:21:00Z",
+  updated: "2026-11-20T03:42:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 40,                      // % of the week used (owner's reading)
@@ -65,7 +65,7 @@ const S = {
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
-    ["F4", "No file over 1,500 lines", "risk", "0 production files over; recount 11-20: lint and eprintln counts above RC, lint-down lane running"],
+    ["F4", "No file over 1,500 lines", "risk", "0 production files over; lint counts at or below RC (PM recount 11-20); open: workarounds 13 > 9, hygiene 16 > 14; lint ratchet round 2 running"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.06 %; flake-i merged (train 76); three flake lanes and kit-sec running; temp-folder fixes in train 78"],
     ["F6", "Every change through the merge gate", "done", "43 green merges (train 81 green 02:29: security, xp, mc and cube fixes); xp persona round 2 next"],
     ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],

@@ -32,3 +32,11 @@ The no-`reason` count cannot fall by adding reasons: all 44 lines of the five cr
 ### 3. Ratchet: 74525d85 (red), 0d1394f1 (green)
 
 `tools/lint-ratchet` (sh) prints the three counts, fails when one is above `tools/lint-ratchet.list`, prints "lower the list" when one is below, and has `--update` and `--root`. 74525d85 holds the list at 358, 148, 124 (the counts minus one): the script prints three `FAIL:` lines and exits 1. 0d1394f1 holds the list at 359, 149, 125: `ok: lint-ratchet (allow 359, no-reason 149, eprintln 125)`. Wired into the `ci-check` step of tests/merge-gate.sh and into .github/workflows/ci.yaml. The gate cell ci-check PASS (90 s) has the line `ok: lint-ratchet`; pre-commit PASS (2 s) on the range. No self-test file was written (the brief did not ask for one).
+
+## PM review r1 (2026-11-20 03:42 UTC)
+Base 79c8d2b5..0d1394f1, 5 files +76 -6. Red first 74525d85. PM recount on 79c8d2b5 by the section 8 commands: allow 360, no reason 150, eprintln 125: the base already met RC (378, 238, 135); reports/debt-2026-11-20.md section 8 (395, 251, 147) was stale. PM fault: the brief took counts from the report without a recount (friction).
+- rv-1 MAJOR (train order): the list holds the base counts, but MERGE-OK branches in the queue add eprintln (black-pane +3, mc-p2-fix +2); merged before them, the ratchet turns trains 83-85 red at ci-check. The list must hold the counts of the session branch with the queued merges.
+- rv-2 MINOR: no-reason counts a rustfmt-wrapped attribute that carries its reason on a later line (44 in scope); the number does not say what its name says.
+- rv-3 MINOR: a reasoned new allow can only pass by raising the list; the help does not say so.
+- eprintln in chat and notify: kept (PM decision: their stderr is the plugin log; no new dependency, KISS).
+Verdict (computed): open MAJOR -> FIX; r2 brief briefs/lint-down-r2.md.
