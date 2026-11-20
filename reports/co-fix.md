@@ -40,3 +40,11 @@ Head: bbaad12b on claude/co-fix (pushed), base merged (ce2c436b; one conflict in
 - Fix f92f06bb: the construct hears the press and release of `xp-title-*` (a title bar of xp on a face; the face forwards the pointer, so no other press reaches the construct). `title_hint` in pull.rs sets `pull_hint` when the left button goes down on a title in use mode with one non-virtual output (`all_outputs`), clears it on the release. New hint set `Set::Pull` (overlay.rs) in the dark capsule of the hints at the bottom centre, no keycaps, new word `Word::PullHint` "Ask the helper to pull this window out" (German too). No new gesture. docs/cube-modes.md one sentence beside line 198.
 - Capture: HINT_SHOT of the gate (scratch run): the dark capsule at the bottom with the words over the XP desktop, the window half over the left edge.
 - Hint shows only while the button is down; a lost release leaves it until the next title release (hint_set also needs use mode).
+
+## PM review r2
+
+e97b55f0..bbaad12b: red 7fa79f58 (gate-construct-pull section 5 plus two negative checks), fix f92f06bb (pull.rs title_hint, overlay Set::Pull, docs/cube-modes.md one sentence), merge of ce2c436b (merge-gate.sh `keys` keeps keys-persona and probe-hangup: checked against ce2c436b, the only gate-list diff).
+- co-33 closed by cell pull: one output, use mode, a title press shows "Ask the helper to pull this window out"; the window stays with xp, no pane; the hint goes on a release away from the title bar (the cell releases at 300,300, so the implicit grab path is tested). With a second output and stood back: no hint.
+- pr2-1 MINOR: the hint shows on every left press on a title bar in use mode on one screen, a plain click to focus included, so it flashes on each click. Show it only once the pointer has moved past a drag threshold. Backlog (construct, after the rc).
+- pr2-2 NIT: the hint names the helper even when no helper is configured (vision: honest states). Backlog.
+Verdict (computed): no open MAJOR -> MERGE-OK bbaad12b (replaces e97b55f0 in train 92). Worker archived.
