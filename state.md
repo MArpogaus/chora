@@ -32,7 +32,7 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 | flake-l-r1.md | sonnet high | session_016iS3kNsnUdKFttt9hzxaMo |
 | persona-env-r1.md (RC2) | sonnet med | session_016iS3kQ3EGb5mbzEmjoaDug |
 | ti-majors-r1.md (RC) | sonnet high | MERGE-OK c9ed1cfd, t79 |
-| co-majors-r2.md (RC) | sonnet high | starting (r1 FIX: rv-1 MAJOR) |
+| co-majors-r2.md (RC) | sonnet high | session_016iS3kLM7SynXWn3xN4LfFd |
 | kit-sec-r3.md | sonnet med | session_016iS3kP2sBAKuSnG7vt9bjh |
 
 ## Queue (% week; 5 % reserve)
