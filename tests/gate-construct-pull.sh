@@ -37,6 +37,10 @@
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
 #    window half over the right edge of the face shows in full on its
 #    plane, past the edge.
+# 2c. Two panes that cover a cube that steps back, both on its left, take
+#    places beside it that overlap neither each other nor a face; the
+#    mirror of each face lies under it (top, height, depth) and the
+#    shared edges of the faces agree within 1 px.
 # 3. Without the flag the core refuses the give of an injected drag:
 #    past the edge the window is still with xp, and no pane shows it;
 #    back in the face it goes on with the drag, and stays after the
@@ -83,6 +87,7 @@ pane_name() {
 import json, sys
 print(next((w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]), ""))' "$1"
 }
+pane_name_of() { call window.list '{}' | python3 -I -c 'import json, sys; print(next((w["name"] for w in json.load(sys.stdin)["windows"] if w["name"] == sys.argv[1] and w["pane"] != "none"), ""))' "$1"; }
 pane_middle() {
     ctl query "id:construct-pane-$surface" | python3 -I -c '
 import json, sys
@@ -128,12 +133,32 @@ for k, a in shown.items():
     pair = next(((e, o) for e in edge for o in other if (near(e[0], o[0]) and near(e[1], o[1])) or (near(e[0], o[1]) and near(e[1], o[0]))), None)
     if pair is None:
         print(f"the faces {k} and {(k + 1) % 4} share no edge: {ca} and {cb}")
-    elif abs(length(*pair[0]) - length(*pair[1])) > 0.02 * length(*pair[0]):
+    elif abs(length(*pair[0]) - length(*pair[1])) > 1:
         print(f"the shared edge of the faces {k} and {(k + 1) % 4} differs in length: {pair}")
 for k, a in shown.items():
     m = mirrors.get(k)
-    if m is None or abs(m["rect"][0] - a["rect"][0]) > 1 or abs(m["rect"][0] + m["rect"][2] - a["rect"][0] - a["rect"][2]) > 1:
-        print("the mirror of face %d does not lie under it: %s for %s" % (k, m and m["rect"], a["rect"]))
+    if m is None or not m.get("corners"):
+        print("face %d has no mirror under it: %s" % (k, m and m["rect"]))
+        continue
+    fc, mc = a["corners"], m["corners"]
+    gap = []
+    for top, bottom in ((0, 3), (1, 2)):
+        height = fc[bottom][1] - fc[top][1]
+        gap.append((mc[bottom][1] - fc[bottom][1]) / height)
+        if (abs(mc[top][0] - fc[top][0]) > 1 or abs(mc[bottom][0] - fc[bottom][0]) > 1
+                or abs((mc[top][1] - mc[bottom][1]) - height) > 1 or gap[-1] < 0):
+            print("the mirror of face %d does not lie under it: %s for %s" % (k, mc, fc))
+            break
+    else:
+        if abs(gap[0] - gap[1]) > 0.02:
+            print("the mirror of face %d hangs at another depth at its two edges: %s for %s" % (k, mc, fc))
+for i, p in enumerate(panes):
+    for q in panes[i + 1:]:
+        r, t = p["rect"], q["rect"]
+        w = min(r[0] + r[2], t[0] + t[2]) - max(r[0], t[0])
+        h = min(r[1] + r[3], t[1] + t[3]) - max(r[1], t[1])
+        if w > 1 and h > 1:
+            print("%s %s and %s %s overlap" % (p["node"], [round(v) for v in r], q["node"], [round(v) for v in t]))
 for p in panes:
     for k, a in shown.items():
         r, q = p["rect"], a["rect"]
@@ -311,6 +336,30 @@ print("%d %d" % (r[0] + r[2] * 0.4, r[1] + r[3] * 0.5))')
     ok "stood back, the pane dragged ($how) over a face is a window of xp again, on the taskbar of that face, with no pane drawn: $(probe)"
     end_session
 done
+
+CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
+until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
+inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
+    {\"button\": {\"state\": \"released\"}}]"
+sleep 1
+first=$(pane_name "$surface")
+"$bin/chora-probe" window 200 40 120 --server-deco >"$work/pair-probe2.log" 2>&1 &
+pids+=($!)
+until_ok '[ "$(probe | wc -l)" = 2 ]' 80 || fail "the second probe window did not map: $(probe)"
+second=$(call window.list '{}' | python3 -I -c '
+import json, sys
+print(next(w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] != sys.argv[1]))' "$surface")
+until_ok 'test "$(pane_name_of "$second")" != ""' 20 || fail "the second window is no pane: $(call window.list '{}')"
+call pane.move "{\"name\": \"$first\", \"right\": -700}" >/dev/null || fail "pane.move $first"
+call pane.resize "{\"name\": \"$first\", \"scale\": 3}" >/dev/null || fail "pane.resize $first"
+call pane.move "{\"name\": \"$second\", \"right\": -150}" >/dev/null || fail "pane.move $second"
+inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
+until_ok "$stood_back" 40 || fail "Alt+Escape did not step back with two panes: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
+sleep 1
+breaches=$(closed_cube_breaches)
+[ -z "$breaches" ] || fail "stood back with two panes the cube is not closed or the panes overlap (rv-1): $breaches"
+ok "stood back with two panes on one side the faces meet, the mirrors lie under them and no pane covers a face or the other pane"
+end_session
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
