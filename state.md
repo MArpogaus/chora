@@ -24,11 +24,11 @@ burn-down: F1, F8 done; F2-F5, F7 open; F6 partly; 1.9 d. Sat (07:00): ~20 merge
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| verify-maj-r1.md (RC 1, rule 6: ti-20, co-26, xp-24; Queue 5) | haiku high | starting |
+| verify-maj-r1.md (RC 1, rule 6: ti-20, co-26, xp-24; Queue 5) | haiku high | session_016iS3kNcFaqP488Tte7zEm4 |
 | voice-v12-r1.md (RC 9, V12 voice scripts red; Queue 5) | sonnet high | session_016iS3kLFi1M3X4nFLrZr54s |
 | flakes-j-r1.md (F5, Queue 5; launcher-click PM review MERGE-OK, t82) | sonnet high | session_016iS3kP9upx2vf4oJ8gNtxW |
 | lint-down-r2.md (F4 guard; r1 FIX: rv-1 MAJOR list vs queued merges) | sonnet high | session_016iS3kNPsBppDum7tLcMWUp |
-| debt-f4-r1.md (F4 workarounds, hygiene; Queue 5) | sonnet high | starting |
+| debt-f4-r1.md (F4 workarounds, hygiene; Queue 5) | sonnet high | session_016iS3kNYwtxZaiim9JXJjzh |
 | co-p2-fix-r2.md (RC bar, Queue 5; r1 FIX: rv-1 MAJOR swallow timer) | sonnet high | session_016iS3kNfmuVEezbtEfBfuqz |
 
 ## Queue (% week; 5 % reserve)
