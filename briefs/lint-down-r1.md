@@ -1,0 +1,15 @@
+# lint-down-r1 (F4: debt counts at or below RC): lint lines in crates no other lane touches
+
+Model: sonnet, effort high (mechanical lint fixes and one ratchet script; the PM reviews)
+Lane: cloud, branch claude/lint-down from 79c8d2b5 (session branch, train 81). One round, stop at 250 k. Cost about 1 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow` and `cargo check --workspace`; a failure: send_message the PM "lint-down BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/debt-2026-11-20.md sections 7, 8 and "F4: open" (the exact commands and counts). On the branch: tools/size-ratchet (the ratchet style to copy), tests/merge-gate.sh (ci-check step).
+Scope: only crates/chora-scene, crates/chora-draw, crates/chora-kit, services/voice, plugins/chora-notify. Do not touch crates/chora, other plugins or tests/ scripts other lanes own (input, grab, doors, flakes); other lanes are in them.
+Targets (counts by the section 8 commands over the whole tree, measured at the end):
+1. `eprintln!` 147 -> at most 135: replace the 8 in services/voice and 5 in plugins/chora-notify by the crate's existing log facade (log or tracing, whichever it already depends on; no new dependency); a message a user must see on a terminal stays and gets a comment why.
+2. `#[allow]`/`#[expect]` 395 -> at most 378 and without `reason` 251 -> at most 238: first remove allows whose lint no longer fires (`cargo clippy` stays clean), then fix the code where the fix is local (unused, needless, too-many-args by a struct only if under 20 lines), then add `reason = "..."` naming the real cause to the rest in scope. No `#[allow]` moved to a wider scope, no crate-level allow added.
+3. Ratchet: tools/lint-ratchet (shell, like size-ratchet) prints the three counts and fails when one is above tools/lint-ratchet.list (the counts you reach); wired into the ci-check step of tests/merge-gate.sh and .github/workflows ci.yaml. Red first: commit the list at the reached counts minus one with the script, show it fails, then the real list. Show a valid commit is not blocked (pre-commit and ci-check PASS).
+Gate: merge origin/claude/autonomous-dev-session-3w-i33pg7 first, then `tests/merge-gate.sh --jobs 3 --only pre-commit,ci-check,build,test,clippy,doors,matrix`; poll it in the same turn; never end a turn to wait. A red cell you did not cause: rerun it alone once and name it.
+Done when: the three counts at or below the targets (before and after, by command), clippy clean, gate cells pass, reports/lint-down.md "## r1" on claude/session-log (per item: shas, counts, gate cell; per crate the allows removed, fixed, reasoned).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
+Rules: push claude/lint-down and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.
