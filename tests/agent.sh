@@ -500,8 +500,8 @@ injector_exits_slowly() {
 
 step "22. an MCP client draws a panel and moves the camera on a click"
 rm -f "$out/panel-ready.txt"
-ctl_name=user
-"$bin/choractl" grant user input.inject || fail "the grant failed"
+ctl_name=clicker
+"$bin/choractl" grant clicker input.inject || fail "the grant failed"
 timeout 60 python3 -I "$tests/mcp-client.py" "$bin/choractl" "$out" panel >"$out/panel.log" 2>&1 &
 panel_pid=$!
 pids+=("$panel_pid")
