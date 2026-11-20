@@ -36,8 +36,18 @@ pub const SIZES: std::ops::RangeInclusive<u32> = 14..=48;
 /// The text size of a card: `size` itself in `SIZES`, else the nearest
 /// end of the range, with a message that names the value and the range.
 pub fn bounded(size: Option<u32>) -> (Option<u32>, Option<String>) {
-    debug_assert!(SIZES.start() < SIZES.end());
-    (size, None)
+    let Some(size) = size else {
+        return (None, None);
+    };
+    let kept = size.clamp(*SIZES.start(), *SIZES.end());
+    let message = (kept != size).then(|| {
+        format!(
+            "card.size {size} is outside {} to {}: using {kept}",
+            SIZES.start(),
+            SIZES.end()
+        )
+    });
+    (Some(kept), message)
 }
 
 /// The most lines of the body that a card shows.
@@ -103,7 +113,7 @@ impl Metrics {
                 most: MAX_TEXT,
             },
             |size| Self {
-                line: i32::try_from((size * LEADING).div_ceil(100)).unwrap_or(LINE),
+                line: i32::try_from(size.saturating_mul(LEADING).div_ceil(100)).unwrap_or(LINE),
                 most: MAX_TEXT * f64::from(size) / f64::from(SMALL),
             },
         )
@@ -383,7 +393,7 @@ fn write(
             layout.title,
         )),
     };
-    let rows = usize::try_from(metrics.line).unwrap_or(1);
+    let rows = usize::try_from(metrics.line).unwrap_or(1).max(1);
     let width = layout.size[0] - 2 * PAD;
     for (line, y) in lines.iter().zip((layout.text_top..).step_by(rows)) {
         picture = match sized {

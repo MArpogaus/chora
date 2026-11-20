@@ -17,6 +17,6 @@ one pixel border, no tail and a round close button. The text uses the
 | `font` | the base font family; `sans-serif` is the family of the system |
 | `margin` | the distance of the card from the corner of the output, x and y in pixels; the y of the neutral folder leaves room for the dot of chora-assistant |
 | `card.fill`, `card.border`, `card.text` | red, green and blue of the inside, the border and the text |
-| `card.size` | the size of the text in pixels; left out, the card has the small text of the host (11 pixels) and no value changes. With a size the title and the text are set in `font` at that size, a line is 147 hundredths of it and the longest line of the text grows in step (300 pixels at 11) |
+| `card.size` | the size of the text in pixels, 14 to 48 (a value outside is set to the nearest end, and the log names it); left out, the card has the small text of the host (11 pixels) and no value changes. With a size the title and the text are set in `font` at that size, a line is 147 hundredths of it and the longest line of the text grows in step (300 pixels at 11) |
 | `card.radius` | the radius of the corners in pixels |
 | `card.tail`, `card.tail_base`, `card.tail_inset` | the height of a tail below the card (0 for none), its width at the card and the distance of its tip from the edge nearer to the corner |

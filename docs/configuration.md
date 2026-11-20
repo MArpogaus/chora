@@ -1363,7 +1363,7 @@ start with an error that names it. The folder holds:
 
 | File | Content |
 |------|---------|
-| `values.yaml` | `font`, the base font family (`sans-serif` is the family of the system); `margin`, the distance of the card from its corner; `card`, with `fill`, `border` and `text` as red, green and blue, `radius`, `size`, the text size in pixels (left out, the small text of the host), and `tail`, `tail_base` and `tail_inset` for a tail below the card, which `tail: 0` leaves out; a key that the file leaves out takes the neutral value |
+| `values.yaml` | `font`, the base font family (`sans-serif` is the family of the system); `margin`, the distance of the card from its corner; `card`, with `fill`, `border` and `text` as red, green and blue, `radius`, `size`, the text size in pixels, 14 to 48 (a value outside is set to the nearest end and logged; left out, the small text of the host), and `tail`, `tail_base` and `tail_inset` for a tail below the card, which `tail: 0` leaves out; a key that the file leaves out takes the neutral value |
 | `close.svg`, `close-hover.svg` | the close button, 14 by 14 pixels, normal and under the pointer |
 | `fonts/` | font files, optional |
 
