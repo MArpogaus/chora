@@ -2,21 +2,27 @@
 keys page), the Start menu by its button and the dialog Turn Off Computer
 by its key (tests/doors keys-key, keys-alias, power-key; the Start button
 is the door of launcher-door and power-door). The session has a `wpctl`
-that keeps its volume and mute (`STAND_INS`), so that what one act sets
-the next act reads back."""
+that keeps its volume and mute and a `lowriter`, the first editor that
+Notepad tries, that shows its window when an act lets it (`STAND_INS`), so
+that what one act sets the next act reads back and a start takes as long
+as the act wants."""
 
 import contextlib
+import os
+import signal
 
 from common import (
     click_node,
     door_acts,
     helper_acts,
     keysheet_acts,
+    keysheet_breaches,
     notice_acts,
+    notify_up,
     ready,
     window_acts,
 )
-from harness import Expect, click, drag_title, key, program
+from harness import REPO, Expect, click, drag_title, key, program
 
 HELP = "xp-dlg-help"
 MENU = "xp-menu"
@@ -44,7 +50,13 @@ set-volume)
     echo "$volume $mute" >"$state" ;;
 esac
 """
-STAND_INS = {"wpctl": WPCTL}
+EDITOR = """#!/bin/sh
+until [ -e @WORK@/fake-state.go ]; do sleep 0.2; done
+rm -f @WORK@/fake-state.go
+echo $$ >@WORK@/editor.pid
+exec chora-probe window 40 120 200
+"""
+STAND_INS = {"wpctl": WPCTL, "lowriter": EDITOR}
 
 
 def run(s):
@@ -55,9 +67,11 @@ def run(s):
     drag_acts(s)
     door_acts(s, HELP)
     keysheet_acts(s, HELP, drawn_in_state=True)
+    help_acts(s)
     helper_acts(s)
     desktop_acts(s)
     volume_acts(s)
+    starting_acts(s)
     s.act(
         "the Start button opens the Start menu",
         [click(50, 785)],
@@ -280,3 +294,180 @@ def volume_acts(s):
     s.act(
         "Escape shuts the volume popup", [key("Escape")], closes=[CONTEXT], expect=Expect(open=[])
     )
+
+
+def item_node(s, text):
+    """The node of the Start menu item that says `text`."""
+    runs = (s.state("xp") or {}).get("texts") or []
+    return next(r["node"] for r in runs if r["text"] == text and r["node"].startswith("xp-item-"))
+
+
+def click_item(text):
+    """A cue: click the item of the open Start menu that says `text`."""
+    return lambda s: click_node(item_node(s, text))(s)
+
+
+def help_texts(after):
+    """The texts and their boxes of the right pane of Help, and the size
+    of the pane."""
+    runs = (after.states["xp"] or {}).get("texts") or []
+    body = [r for r in runs if r["node"] == f"{HELP}-content-body"]
+    node = after.by_id().get(f"{HELP}-content-body") or {}
+    size = next(iter((node.get("rects") or {}).values()), [0, 0, 0, 0])
+    return body, size
+
+
+def pane_says(line):
+    """A check: the pane of Help says `line`."""
+
+    def check(after):
+        body, _ = help_texts(after)
+        return [] if any(r["text"] == line for r in body) else [f"the pane of Help lacks {line!r}"]
+
+    return check
+
+
+def key_table_whole(after):
+    """A check: the key list of Help in its pane speaks the keysheet and
+    every row of it ends inside the pane."""
+    body, [_, _, _, height] = help_texts(after)
+    texts = [r["text"] for r in body if r["rect"][0] >= 200]
+    breaches = keysheet_breaches(texts)
+    low = [r["text"] for r in body if r["rect"][1] + r["rect"][3] > height]
+    return breaches + [f"the row {t!r} ends below the pane ({height})" for t in low]
+
+
+def help_acts(s):
+    """Help and Support by the Start menu (xp-11): it opens on its first
+    topic with the right pane filled, the topic of the keys lists every row
+    of the keysheet inside the window at 1280x800, and Escape shuts it."""
+    ready(s)
+    s.act(
+        "the Start button opens the Start menu for Help",
+        [click(50, 785)],
+        opens=[MENU],
+        expect=Expect(open=[MENU]),
+    )
+    s.act(
+        "Help and Support of the Start menu opens Help on a filled pane",
+        [click_item("Help and Support")],
+        opens=[HELP],
+        closes=[MENU],
+        expect=Expect(
+            open=[HELP],
+            verify=pane_says("Click Start in the bottom left corner and click a program."),
+        ),
+    )
+    s.act(
+        "the topic Keyboard shortcuts lists every key inside the window",
+        [click_node(f"{HELP}-content-c-topic-4")],
+        expect=Expect(verify=key_table_whole),
+    )
+    s.act("Escape shuts Help", [key("Escape")], closes=[HELP], expect=Expect(open=[]))
+
+
+NOTIFY_ASSETS = REPO / "flavors/xp/assets/notify"
+STARTING = "Starting Notepad"
+
+
+def starting_shown(after):
+    """Whether chora-notify shows the balloon that Notepad starts."""
+    shown = (after.blocks or {}).get("notify", {}).get("shown", [])
+    return any(n.get("summary") == STARTING for n in shown)
+
+
+def balloon_is(want):
+    """A check: the balloon of the start of Notepad shows, or does not."""
+
+    def check(after):
+        return (
+            [] if starting_shown(after) == want else [f"the balloon {STARTING!r} shows: {not want}"]
+        )
+
+    return check
+
+
+def balloon_comes(want):
+    """A cue: wait up to 12 s until the balloon shows (`want`) or goes."""
+
+    def cue(s):
+        def now():
+            shown = (s.state("notify") or {}).get("shown", [])
+            return any(n.get("summary") == STARTING for n in shown) == want
+
+        with contextlib.suppress(RuntimeError):
+            s.until(now, 12, f"the balloon {'there' if want else 'gone'}")
+
+    return cue
+
+
+def let_notepad_show(s):
+    """A cue: the stand-in of the editor shows its window."""
+    (s.work / "fake-state.go").touch()
+    s.until(
+        lambda: any(
+            n.get("surface", {}).get("app_id") == "chora-probe"
+            for n in s.core.call("scene.query", {"selector": "kind:surface"}) or []
+        ),
+        10,
+        "the window of Notepad",
+    )
+
+
+def end_notepad(s):
+    """A cue: the stand-in of the editor ends with its window."""
+    os.kill(int((s.work / "editor.pid").read_text()), signal.SIGTERM)
+
+
+def start_notepad(s, why):
+    """The Start menu starts Notepad, whose window waits for the act."""
+    s.act(
+        f"the Start button opens the Start menu to start Notepad {why}",
+        [click(50, 785)],
+        opens=[MENU],
+        expect=Expect(open=[MENU]),
+    )
+    s.act(
+        f"a click on Notepad starts it {why}",
+        [click_item("Notepad")],
+        closes=[MENU],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        f"the balloon says that Notepad starts {why}",
+        [balloon_comes(True)],
+        expect=Expect(verify=balloon_is(True)),
+    )
+
+
+def starting_acts(s):
+    """The balloon that a program starts (xp-35) never covers a menu or a
+    popup (I5, which every act holds) and goes when the window of the
+    program shows, with or without the activation token."""
+    notify_up(s, NOTIFY_ASSETS)
+    start_notepad(s, "under the volume popup")
+    s.act(
+        "the volume popup opens while the balloon shows",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "Escape shuts the volume popup over the balloon",
+        [key("Escape")],
+        closes=[CONTEXT],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "the window of Notepad shows",
+        [let_notepad_show, balloon_comes(False)],
+        expect=Expect(new_window={"app_id": "chora-probe"}, verify=balloon_is(False)),
+    )
+    s.act("Notepad ends", [end_notepad], expect=Expect(gone=1))
+    start_notepad(s, "to see it go")
+    s.act(
+        "the balloon goes when the window of Notepad shows",
+        [let_notepad_show, balloon_comes(False)],
+        expect=Expect(new_window={"app_id": "chora-probe"}, verify=balloon_is(False)),
+    )
+    s.act("the second Notepad ends", [end_notepad], expect=Expect(gone=1))

@@ -941,6 +941,19 @@ mod tests {
     }
 
     #[test]
+    fn a_window_without_the_token_ends_the_message_of_a_start_that_shows_one() {
+        let (mut launches, now) = launches();
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        assert_eq!(launches.window(None), None);
+        assert_eq!(
+            launches.check(seconds(now, 3)),
+            [Change::Done { note: Some(12) }]
+        );
+        assert_eq!(launches.check(seconds(now, 4)), none());
+    }
+
+    #[test]
     fn a_window_that_shows_before_the_answer_of_its_start_ends_the_wait() {
         let now = Instant::now();
         let mut launches = Launches::new();

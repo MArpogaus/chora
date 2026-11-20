@@ -5,3 +5,31 @@
 # act `act:NAME`), its finding id and the slice that turns it green. An
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
+
+[[red]]
+finding = "xp-35: the Starting balloon of a program covers a row of the volume popup"
+id = "I5"
+look = "xp"
+match = "Starting Notepad"
+slice = "xp-fix"
+
+[[red]]
+finding = "xp-35: the Starting balloon stays up when the window of the program shows without the activation token"
+id = "act:the window of Notepad shows"
+look = "xp"
+match = "Starting Notepad"
+slice = "xp-fix"
+
+[[red]]
+finding = "xp-35: the Starting balloon stays up when the window of the program shows without the activation token"
+id = "act:the balloon goes when the window of Notepad shows"
+look = "xp"
+match = "Starting Notepad"
+slice = "xp-fix"
+
+[[red]]
+finding = "xp-35: a Starting balloon that stays up queues the next notice behind it"
+id = "act:a notice shows"
+look = "xp"
+match = "no notice 'Probe notice'"
+slice = "xp-fix"
