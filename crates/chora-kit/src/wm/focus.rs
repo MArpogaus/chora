@@ -85,6 +85,18 @@ impl Focus {
         Some(surface)
     }
 
+    /// The own node that has the keyboard, as the look sent it.
+    #[must_use]
+    pub fn node(&self) -> Option<&str> {
+        self.node.as_deref()
+    }
+
+    /// The core does not focus the own node any more: another client took
+    /// the keyboard with a node, which tells the look nothing.
+    pub fn drop_node(&mut self) {
+        self.node = None;
+    }
+
     /// The surface that the core focuses, as it told or the look sent.
     #[must_use]
     pub fn core(&self) -> Option<&str> {

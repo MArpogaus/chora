@@ -48,7 +48,9 @@
 #               (mc-40)
 #
 #   remote-back a remote without Super leaves a window that has the keys:
-#               XF86Back gives the keyboard to the page of the window,
+#               a program that the launcher started, then one press of
+#               XF86Back after the Escape that the shell got shows the
+#               plain arrows in the key list and gives the keyboard to the page of the window,
 #               where Left turns the page, and XF86HomePage goes to the
 #               first page, which holds the keyboard (mc-46)
 #
@@ -103,7 +105,10 @@ cat >"$work/fake/fuzzel" <<FAKE
 n=\$((\$(cat "$work/fake/calls" 2>/dev/null || echo 0) + 1))
 echo "\$n" >"$work/fake/calls"
 case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
-case " \$* " in *" --dmenu "*) [ "\$n" != 1 ] || echo nosuchprogram ;; esac
+case " \$* " in *" --dmenu "*)
+    if [ -s "$work/fake/pick" ]; then cat "$work/fake/pick"; rm "$work/fake/pick"
+    elif [ "\$n" = 1 ]; then echo nosuchprogram; fi ;;
+esac
 FAKE
 chmod +x "$work/fake/fuzzel"
 export PATH=$work/fake:$PATH
@@ -362,11 +367,16 @@ remote_end() {
 cell_remote_back() {
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
-    foot --app-id=mcremote &
-    until_ok 'remote_alive && [ "$(current)" = mcremote ]' 40 || { remote_end; fail "the window has no page: $(current)"; }
+    echo "foot --app-id=mcremote" >"$work/fake/pick"
+    key Super+space
+    until_ok 'remote_alive && [ "$(current)" = mcremote ]' 40 || { remote_end; fail "the window of the launcher has no page: $(current)"; }
     sleep 2
+    key Escape
+    sleep 1
+    texts | grep -qE '^Super\+.*←' || { remote_end; fail "the window has the keys, the key list names no Super: $(texts | grep -F '←' | tr '\n' '|')"; }
     key XF86Back
     sleep 2
+    texts | grep -qE '^←.*→$' || { remote_end; fail "after one XF86Back the key list does not name the plain arrows: $(texts | grep -F '←' | tr '\n' '|')"; }
     [ "$(current)" = mcremote ] || { remote_end; fail "XF86Back left the page of the window: $(current)"; }
     key Left
     until_ok '[ "$(current)" != mcremote ]' 40 || { remote_end; fail "after XF86Back the page does not hold the keyboard, Left does not turn it"; }

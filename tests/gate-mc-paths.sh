@@ -35,6 +35,11 @@
 #                  the doors of the column are on the screen; Return
 #                  gives the keyboard to the window, and the key list
 #                  shows on the page of a window (mc-42, mc-43)
+#   terminal-turn  the page of the terminal that a plain Right starts keeps
+#                  the keyboard as a page reached by a plain key does:
+#                  Left, Right, Escape and XF86Back of a remote act on the
+#                  page (mc-42, mc-46); also Right, Left, Right before
+#                  the window maps (rv-1)
 #   chat-focus     after a request to the helper and Escape in the chat
 #                  the page holds the keyboard again, state.get says mc
 #                  (mc-45)
@@ -253,6 +258,52 @@ cell_terminal_back() {
     return 0
 }
 
+foot_alive() { session_pids -x foot >/dev/null; }
+foot_end() {
+    local pid
+    for pid in $(session_pids -x foot); do kill "$pid"; done
+    until_ok '! foot_alive' 20
+}
+turn_arrive() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || return 1
+    for _ in 1 2 3 4; do key Right; sleep 0.4; done
+    until_ok '[ "$(current)" = terminal ] && foot_alive' 40 || return 1
+    sleep 2
+}
+cell_terminal_turn() {
+    local k want
+    for k in Left:mission Right:overview Escape:mission XF86Back:terminal; do
+        turn_arrive || { foot_end; fail "no terminal page by Right x4 before $k: $(current)"; }
+        texts | grep -qE '^←.*→$' || { foot_end; fail "the page that Right started names no plain arrows: $(texts | grep -F '←' | tr '\n' '|')"; }
+        key "${k%%:*}"
+        want=${k##*:}
+        sleep 1
+        if [ "$want" = terminal ]; then
+            [ "$(current)" = terminal ] || { foot_end; fail "XF86Back left the page: $(current)"; }
+            key Left
+            until_ok '[ "$(current)" = mission ]' 20 || { foot_end; fail "after XF86Back on the page reached by Right, Left does not turn it: $(current)"; }
+        else
+            until_ok "[ \"\$(current)\" = $want ]" 20 || { foot_end; fail "${k%%:*} on the terminal page reached by Right does not go to $want: $(current)"; }
+        fi
+        foot_end
+    done
+    turn_arrive || fail "no terminal page by Right x4 at the end: $(current)"
+    foot_end
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no first page before the quick turn: $(current)"
+    for _ in 1 2 3; do key Right; sleep 0.4; done
+    echo '[{"shortcut": {"keys": "Right"}}, {"shortcut": {"keys": "Left"}}, {"shortcut": {"keys": "Right"}}]' |
+        ctl inject >/dev/null || fail "inject Right, Left, Right"
+    until_ok '[ "$(current)" = terminal ] && foot_alive' 40 || { foot_end; fail "no terminal page after Right, Left, Right: $(current)"; }
+    sleep 2
+    for k in Left:mission Right:terminal Escape:mission; do
+        key "${k%%:*}"
+        until_ok "[ \"\$(current)\" = ${k##*:} ]" 20 || { foot_end; fail "${k%%:*} after Right, Left, Right before the window mapped does not go to ${k##*:}: $(current)"; }
+    done
+    foot_end
+}
+
 cell_mouse_back() {
     key Super+Right
     until_ok '[ "$(current)" = morning ]' 20 || fail "no page 2"
@@ -463,7 +514,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page arrows terminal-keys terminal-back mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
+for name in first-page arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat chat-click-turn chat-focus all-keys; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

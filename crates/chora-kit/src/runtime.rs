@@ -103,6 +103,12 @@ pub trait Plugin {
         Ok(())
     }
 
+    /// Called before `state.get` answers, so that a plugin brings up to
+    /// date what only the core knows, such as which node has the keyboard
+    /// (the core tells no look when a node of another client takes it);
+    /// nothing by default.
+    fn refresh(&mut self) {}
+
     /// The state behind `state.get`: what the plugin shows and holds, as
     /// the shape of `choractl state`; none by default.
     fn state(&self) -> Option<Value> {
@@ -502,9 +508,10 @@ fn answer_call<P: Plugin>(plugin: &mut P, method: &str, params: Value) -> Result
             .map(|s| plugin.shown_settings(s)),
         "settings.set" => set_settings(plugin, params),
         "settings.reload" => reload_settings(plugin),
-        "state.get" => plugin
-            .state()
-            .ok_or_else(|| RpcError::new(RpcError::METHOD_NOT_FOUND, "state.get")),
+        "state.get" => {
+            plugin.refresh();
+            (plugin.state()).ok_or_else(|| RpcError::new(RpcError::METHOD_NOT_FOUND, "state.get"))
+        }
         _ => plugin.method(method, params),
     }
 }

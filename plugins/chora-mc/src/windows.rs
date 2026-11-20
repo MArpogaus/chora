@@ -171,13 +171,29 @@ impl Mc {
             return Ok(false);
         }
         self.windows.insert(name.clone(), surface.into());
+        self.plain_turn = self.take_plain_start(&name);
         if let Err(err) = self.show(&name, user) {
             chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
+        self.plain_turn = false;
         if new {
             self.renumber()?;
         }
         Ok(true)
+    }
+
+    /// Whether a plain turn started the program of scene `name` and that
+    /// scene shows: the start counts once (mc-42). A window of another
+    /// scene does not leave the start: `show` of that scene clears it.
+    /// The name match stays as a guard of its own, because the kept name
+    /// is what keeps `plain_start` an `Option` and the struct at three
+    /// bools, the limit of clippy.
+    fn take_plain_start(&mut self, name: &str) -> bool {
+        let own = self.plain_start.as_deref() == Some(name);
+        if own {
+            self.plain_start = None;
+        }
+        own && self.current.as_deref() == Some(name)
     }
 
     /// Takes the window of a docked app that started. It waits hidden

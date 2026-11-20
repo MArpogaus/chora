@@ -293,6 +293,13 @@ struct Mc {
     /// keyboard also when a window stands in it, so that the next plain key
     /// still turns the page (mc-42).
     plain_turn: bool,
+    /// The scene that a plain turn showed and whose program it started:
+    /// the window that comes keeps no keyboard from the page, as when the
+    /// program already ran (mc-42).
+    plain_start: Option<String>,
+    /// The error of the last focus query of `refresh`, if it failed: a
+    /// failure logs once and not on every `state.get`.
+    focus_query_error: Option<String>,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -402,6 +409,9 @@ struct Mc {
     solo: Option<Solo>,
     /// How much of the key list shows.
     keys: keys::List,
+    /// Whether the key list drew the plain keys of a page the last time:
+    /// it follows who holds the keyboard on the page of a window.
+    keys_plain: std::cell::Cell<bool>,
     /// Whether the HUD host shows the chat in the margin column.
     chat: Chat,
     /// Where the box of the chat of the last layout is.
@@ -511,6 +521,8 @@ impl Mc {
             manage_windows: false,
             page_keys: keys::PageKeys::Plain,
             plain_turn: false,
+            plain_start: None,
+            focus_query_error: None,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -564,6 +576,7 @@ impl Mc {
             agent_focus: None,
             solo: None,
             keys: keys::List::default(),
+            keys_plain: std::cell::Cell::new(false),
             chat: Chat::Closed,
             slot: None,
             slot_sent: None,
@@ -633,6 +646,37 @@ impl Plugin for Mc {
         &mut self.rt
     }
 
+    /// Drops the node that mc holds the keyboard with when the core does
+    /// not focus it: the core sends no event for the focus of a node
+    /// (backlog rw-3), so the answer of `state.get` depends on this call.
+    fn refresh(&mut self) {
+        let Some(node) = self.focus.node().map(str::to_owned) else {
+            return;
+        };
+        let query = Query {
+            selector: format!("id:{node}"),
+            filter: Some(chora_scene::ipc::Filter {
+                focused: true,
+                ..chora_scene::ipc::Filter::default()
+            }),
+        };
+        match self.rt.conn.call::<_, Vec<Value>>("scene.query", query) {
+            Ok(nodes) => {
+                self.focus_query_error = None;
+                if nodes.is_empty() {
+                    self.focus.drop_node();
+                }
+            }
+            Err(err) => {
+                let text = err.to_string();
+                if self.focus_query_error.as_deref() != Some(&text) {
+                    chora_kit::runtime::report(NAME, &format_args!("focus query: {text}"));
+                    self.focus_query_error = Some(text);
+                }
+            }
+        }
+    }
+
     fn state(&self) -> Option<Value> {
         Some(self.state_value())
     }
@@ -648,7 +692,7 @@ impl Plugin for Mc {
         }
         if let Some(surface) = self.focus.hear(&event) {
             self.core_focus = surface.map(String::from);
-            return Ok(());
+            return self.sync_keys();
         }
         match event {
             Event::SurfaceChanged {
@@ -1037,6 +1081,25 @@ impl Mc {
         self.plain_turn = false;
     }
 
+    /// Draws the key list anew when the plain keys of the page began or
+    /// ended to work, as when the keyboard moves between a window and its
+    /// page.
+    fn sync_keys(&mut self) -> Result<(), ClientError> {
+        let named = self.chat == Chat::Closed && self.built && self.current.is_some();
+        if named && self.page_keys_work() != self.keys_plain.get() {
+            self.render()?;
+        }
+        Ok(())
+    }
+
+    /// Whether the plain keys of the page turn it now: the page of a window
+    /// holds them only while the page has the keyboard.
+    pub(crate) fn page_keys_work(&self) -> bool {
+        let page = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
+        let holds_page = matches!(self.focus.holder(|_| false), Holder::Node(_));
+        self.page_keys == keys::PageKeys::Plain && (page || holds_page)
+    }
+
     /// Return on a page that stands over a window gives the window the
     /// keyboard: the keys of the person then belong to the program, and
     /// only the bindings with Super turn the page (mc-42).
@@ -1050,7 +1113,7 @@ impl Mc {
             && self.chat == Chat::Closed
         {
             let focus = self.focus.to(Some(window));
-            if let Err(err) = self.apply(vec![focus]) {
+            if let Err(err) = self.apply(vec![focus]).and_then(|()| self.sync_keys()) {
                 eprintln!("chora-mc: enter window: {err}");
             }
         }
@@ -1069,7 +1132,7 @@ impl Mc {
         match current {
             Some(name) if holds => {
                 let commands = self.keyboard_to(&name, window);
-                if let Err(err) = self.apply(commands) {
+                if let Err(err) = self.apply(commands).and_then(|()| self.sync_keys()) {
                     eprintln!("chora-mc: leave window: {err}");
                 }
             }
@@ -1596,6 +1659,46 @@ mod tests {
         assert!(!window(&mc), "the first page holds the keyboard");
     }
 
+    /// mc-42 (review r3, rv-1): a turn away from the page that a plain key
+    /// started and back to it, before the window maps, keeps the plain
+    /// start: the window that comes does not take the keyboard from the
+    /// page.
+    #[test]
+    fn a_turn_away_and_back_while_the_program_starts_keeps_the_keyboard_on_the_page() {
+        let (mut mc, model) = crate::testing::mc("turn-back-start", [1280, 800]);
+        mc.show("agenda", true).unwrap();
+        for _ in 0..4 {
+            press_key(&mut mc, "Right", &[]);
+        }
+        assert_eq!(mc.current.as_deref(), Some("terminal"));
+        mc.starting
+            .insert("t1".into(), crate::Target::Scene("terminal".into()));
+        press_key(&mut mc, "Left", &[]);
+        press_key(&mut mc, "Right", &[]);
+        assert_eq!(mc.current.as_deref(), Some("terminal"));
+        model
+            .lock()
+            .unwrap()
+            .scene
+            .add_surface("s1", chora_scene::SurfaceInfo::default());
+        mc.adopt("s1", Some("foot"), Some("t1")).unwrap();
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_node()
+            .map(str::to_owned);
+        assert_eq!(
+            focused,
+            Some(super::page_id("terminal")),
+            "the page keeps the keyboard"
+        );
+        assert!(
+            matches!(mc.focus.holder(|s| s == "s1"), super::Holder::Node(_)),
+            "the window did not take the keyboard"
+        );
+    }
+
     /// The default file binds the keys of a remote, and mc grabs them
     /// only with a claim, as the media keys.
     #[test]
@@ -2071,6 +2174,66 @@ mod tests {
         mc.event(chat_event("assistant", true, "other")).unwrap();
         mc.event(chat_event("assistant", false, "other")).unwrap();
         assert_eq!(model.lock().unwrap().focuses.len(), before);
+    }
+
+    /// Another client that takes the keyboard with a node tells mc
+    /// nothing, so `state.get` asks the core before it says that mc holds
+    /// the keyboard with a node (xp over mc, I3).
+    #[test]
+    fn state_says_nobody_when_a_node_of_another_client_has_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("node-taken", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+        xp_takes_the_keyboard(&model);
+        mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// The node of mc that still has the keyboard stays its holder.
+    #[test]
+    fn state_says_mc_when_its_node_still_has_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("node-kept", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+    }
+
+    /// The query of `refresh` names the node of mc, not every node of the
+    /// scene, which the core would lay out on its main thread (rv-2).
+    #[test]
+    fn refresh_asks_the_core_for_its_own_node_only() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("node-asked", [1280, 800]);
+        let node = crate::page_id("agenda");
+        let command = mc.focus.to_node(Some(node.clone()));
+        mc.apply(vec![command]).unwrap();
+        model.lock().unwrap().selectors.clear();
+        mc.refresh();
+        assert_eq!(model.lock().unwrap().selectors, [format!("id:{node}")]);
+    }
+
+    fn xp_takes_the_keyboard(model: &chora_kit::testing::Model) {
+        let mut core = model.lock().unwrap();
+        core.scene
+            .apply(
+                "xp",
+                &[
+                    super::create(
+                        "xp-icons",
+                        NodeKind::Group,
+                        chora_scene::ROOT,
+                        PropsUpdate::default(),
+                    ),
+                    Command::FocusNode {
+                        node: Some("xp-icons".into()),
+                    },
+                ],
+            )
+            .unwrap();
     }
 
     /// A window that the user clicked while the chat was open keeps the
