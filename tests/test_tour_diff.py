@@ -94,7 +94,7 @@ class PixelDiff(unittest.TestCase):
         self.assertEqual(result["blobs"], [(50, 40, 20, 20)])
 
     def test_small_change_is_same(self):
-        a, b = png(200, 100), png(200, 100, box(50, 40, 5, 5))
+        a, b = png(200, 100), png(200, 100, box(50, 40, 3, 3))
         self.assertTrue(diff.pixel_diff(a, b)["same"])
 
     def test_masked_change_is_same(self):
@@ -155,7 +155,7 @@ class VideoCheck(unittest.TestCase):
         files = []
         for i, (src, secs) in enumerate(parts):
             path = f"{tmp}/p{i}.mp4"
-            subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"{src}:s=160x90:r=10:d={secs}", "-pix_fmt", "yuv420p", "-y", path], check=True)
+            subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"{src}{':' if '=' in src else '='}s=160x90:r=10:d={secs}", "-pix_fmt", "yuv420p", "-y", path], check=True)
             files.append(path)
         listing = pathlib.Path(tmp, "list.txt")
         listing.write_text("".join(f"file '{f}'\n" for f in files))

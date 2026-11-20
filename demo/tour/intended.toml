@@ -1,0 +1,10 @@
+# Intended changes of tour v9 against the v8 replay (design/tour-v9.md section 6).
+# One [[change]] per act and kind of diff that is meant: act (the act id), kind (rect, visible,
+# meta, owner, missing, added, z-order, pixel, or * for any), cause (a commit or a finding id).
+# A v8 open row that is gone in v9 needs a row here too. tests/tour-diff.py reads it with
+# --intended; a diff with no row is a regression.
+
+[[change]]
+act = "h2"
+cause = "xp-give Send To row (22fead94)"
+kind = "*"
