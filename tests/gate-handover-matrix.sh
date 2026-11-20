@@ -36,8 +36,8 @@
 # both directions, so a fix must flip its line. It fails too when a window
 # is lost or the whole run, startup and last cell included, takes more
 # than the cap. The cap is a guard against a hang, not a speed test: 293 s
-# is the slowest of five runs under `tests/merge-gate.sh --jobs 2 --only
-# build,matrix,layout` on 4 CPUs (229, 231, 232, 233 and 234 s) plus 25 %,
+# is the slowest of five runs in real trains of `tests/merge-gate.sh --jobs 2`
+# on the PM host, 86 logs (283, 290, 300, 301 and 309 s) plus 25 %,
 # rounded up (tests/matrix-cap-selftest.sh holds the three places that name
 # the cap to that rule: move all of them when a new measurement moves it).
 # The run time is the script's own: from the moment it holds the
