@@ -424,7 +424,7 @@ gate_only() {
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
 check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
 mkdir "$work/nopc"
-for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout; do
+for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout setsid ps; do
     ln -s "$(command -v "$tool")" "$work/nopc/$tool"
 done
 rm -rf "$work/runs"
