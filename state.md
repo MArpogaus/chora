@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-20 22:31 UTC)
+## Now (2026-11-20 22:44 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 22:12 PM 1.8 % (Bangkok day 11-21); disk 11 G free (t93b): one build (train) at a time; 4 lanes
-session branch: dcb77733; 51 greens; t92c green 21:24; now --jobs 2; t93 red 21:58 (tiling-look: xp-tidy screenshot notice order vs gate-tiling-power.sh:99); t93b running (build passed 22:12) without xp-tidy (PM check.py merge: review).
+session branch: dcb77733; 51 greens; t93b red 22:37 only construct-hud (Tab list, load flake co-35; 3/3 green alone); t94 running 22:47 = t93b + tour-one + xp-tidy at --jobs 2.
 burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
 ## RC (design/rc.md)
@@ -28,7 +28,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | give-raise-r1.md (RC 2 T7: given window on top) | sonnet medium, claude/give-raise dcb77733 | session_016iS3kMBSo8hkNen2GevR6g 22:04 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 3) t93b at --jobs 2: co-pane 79787d9f with co-fix, tour-diff 4f4f1897; next train: tour-one c7bac047 (r2 MERGE-OK), xp-tidy 32c3e4fb (r4 PM check MERGE-OK); PM fixes dcb77733 and t93 check.py merge to the next seeded review.
+4. (F6, F5, rc 3) t94 running: co-pane, tour-diff, tour-one, xp-tidy; then the PM fixes dcb77733 and the check.py merge to a seeded review; co-35 to flake-series r4 if it repeats.
 5. (F5, F7, rc 2) Running: GUIDE-CHECKS r2 0.7 % (merges after tour-one), FLAKE-SERIES r3 haiku 1 %; GIVE-RAISE 0.8 %; after t93b: P2-R4-CO, PERSONA-BEGIN (harness), xp Start-menu check after xp-tidy; tour-v9 4-5 wait for xp-give.
 
 ## Needs owner
