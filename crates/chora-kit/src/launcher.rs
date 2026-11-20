@@ -225,7 +225,7 @@ fn tell(why: &str) {
             icon: "dialog-error",
             summary: "Run could not start",
             body: why.strip_prefix("Run could not start: ").unwrap_or(why),
-            expire_ms: 0,
+            expire_ms: -1,
             urgency: crate::notice::Urgency::Normal,
         },
     );
