@@ -2705,6 +2705,48 @@ mod tests {
         assert_eq!(busy_words(&mc, "fade:"), Vec::<String>::new());
     }
 
+    /// The removal of a scene forgets its own nodes, not those of a scene
+    /// whose name starts with the same letters (rv-1 of mc-fix).
+    #[test]
+    fn removing_a_scene_keeps_the_fade_of_a_sibling_that_shares_its_prefix() {
+        let (mut mc, _model) = crate::testing::mc("sibling", [1920, 1080]);
+        let fade = |id: String| Command::Animate {
+            id,
+            props: PropsUpdate {
+                opacity: Some(0.0),
+                ..PropsUpdate::default()
+            },
+            duration: 250.0,
+            easing: chora_scene::Easing::EaseInOut,
+        };
+        let sibling = super::panel_id("foot-server", "today");
+        let today_x = super::panel_id("foot", "today-x");
+        mc.note_writes(&[
+            fade(super::panel_id("foot", "today")),
+            fade(sibling.clone()),
+            fade(today_x.clone()),
+            fade(super::page_id("foot")),
+        ]);
+        mc.note_writes(&[Command::Remove {
+            id: super::scene_id("foot"),
+            to: None,
+        }]);
+        assert_eq!(
+            busy_words(&mc, "fade:"),
+            vec![format!("fade:{sibling}")],
+            "only the nodes of scene foot are forgotten"
+        );
+        mc.note_writes(&[
+            fade(today_x.clone()),
+            fade(super::panel_id("foot", "today")),
+        ]);
+        mc.note_writes(&[Command::Remove {
+            id: super::panel_id("foot", "today"),
+            to: None,
+        }]);
+        assert!(busy_words(&mc, "fade:").contains(&format!("fade:{today_x}")));
+    }
+
     /// After the watchdog of the core dropped the effects of mc, a scene
     /// shows without the write effect until the settings change.
     #[test]
