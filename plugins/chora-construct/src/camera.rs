@@ -502,8 +502,10 @@ impl Construct {
     /// of the construct reaches the window. While the window of a pane
     /// has the keyboard (`keys_with_pane`), the bindings with a modifier
     /// are grabbed and, without a cube, the chords that no binding uses
-    /// are swallowed. A binding that stays is not let go in between, so
-    /// its key never reaches a window.
+    /// are swallowed. A cube in use mode swallows the tap of the modifier
+    /// alone, so a grabbed chord leaves no bare tap for the program of a
+    /// face. A binding that stays is not let go in between, so its key
+    /// never reaches a window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {
@@ -540,6 +542,9 @@ impl Construct {
         self.grab_cube_keys();
         if self.keys_with_pane() && self.cube.is_none() {
             self.swallow_for_window()?;
+        }
+        if (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use) {
+            self.swallow_taps()?;
         }
         self.rt.end_grabs()
     }
