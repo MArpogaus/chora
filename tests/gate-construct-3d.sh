@@ -28,9 +28,11 @@
 # 7. `choractl record` writes one picture per frame, and the walk of the
 #    camera moves with the steps of its clock, not with the time: from
 #    the start point, a tap of w (one pane step of 800 in 320 ms, D8)
-#    shows the view below the bar, which `view_of` hashes, at another
-#    place in the first frame, in the second and at the end. A tap of s
-#    then walks back, so that pane b shows for the last check.
+#    puts the camera at a place nearer than the end point in the first
+#    frame and further on in the second. The script saves the construct at
+#    those frames (construct.save), and the check reads the pose z of the
+#    camera from the saves, not the picture, which any HUD node changes.
+#    A tap of s then walks back, so that pane b shows for the last check.
 #
 # Each check reports on its own; the gate fails when one of them fails.
 # panes_spec gives the name, centre, yaw, size and colour of each pane;
@@ -274,26 +276,26 @@ click_at "640, 60"
 sleep 0.5
 inject '[{"shortcut": {"keys": "s"}}]'
 until_ok 'test "$(camera)" = "$view"' 20 || fail "s walks back to the start point: $(camera)"
-echo '{"frame": 1, "method": "input.inject", "params": {"events": [{"shortcut": {"keys": "w"}}]}}' >"$frames/script"
+cue() { printf '{"frame": %s, "method": "%s", "params": %s}\n' "$1" "$2" "$3"; }
+{
+    cue 1 input.inject '{"events": [{"shortcut": {"keys": "w"}}]}'
+    cue 2 methods.call '{"client": "construct", "method": "construct.save", "params": {"name": "k5-frame-1"}}'
+    cue 3 methods.call '{"client": "construct", "method": "construct.save", "params": {"name": "k5-frame-2"}}'
+} >"$frames/script"
 "$bin/choractl" grant choractl input.inject methods.call methods.privileged >/dev/null || fail "the grant"
+z_of() { sed -n '/^camera:/,/^radius:/s/^  z: //p' "$work/chora/constructs/$1.yaml"; }
+camera >/dev/null
+z_start=$(z_of k5-now)
 check "choractl record writes one picture per frame" \
     'timeout 60 "$bin/choractl" record --frames 3 --out "$frames" --script "$frames/script" >/dev/null &&
      test "$(ls "$frames" | grep -c "^frame-0000[123].png$")" = 3'
-sleep 1
-ctl capture "$frames/end.png" --output HEADLESS-1 >/dev/null
-view_of() {
-    python3 -I - "$repo/tests/png-pixel.py" "$1" <<'PY'
-import hashlib, importlib.util, pathlib, sys
-spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
-png = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(png)
-rows = list(png.rows(pathlib.Path(sys.argv[2]).read_bytes()))
-print(hashlib.sha256(b"".join(bytes(row) for row in rows[100:])).hexdigest())
-PY
-}
-check "the frames of a recording show the walk part of its way" \
-    'test "$(view_of "$frames/frame-00001.png")" != "$(view_of "$frames/frame-00002.png")" &&
-     test "$(view_of "$frames/frame-00002.png")" != "$(view_of "$frames/end.png")"'
+rising() { python3 -I -c 'import sys; z = [float(a) for a in sys.argv[1:]]; sys.exit(not all(a < b for a, b in zip(z, z[1:])))' "$@"; }
+at_rest() { test "$(camera)" = "$(sleep 0.5; camera)"; }
+until_ok at_rest 40 || fail "the camera does not rest after the recording"
+camera >/dev/null
+z_end=$(z_of k5-now)
+check "the camera walked part of its way in frames 1 and 2: $z_start, $(z_of k5-frame-1), $(z_of k5-frame-2), $z_end" \
+    'rising "$z_start" "$(z_of k5-frame-1)" "$(z_of k5-frame-2)" "$z_end"'
 inject '[{"shortcut": {"keys": "s"}}]'
 until_ok 'test "$(camera)" = "$view"' 20 || fail "s walks back after the recording: $(camera)"
 call settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
