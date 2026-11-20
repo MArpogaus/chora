@@ -38,3 +38,6 @@ Verdict: MERGE-OK 74b423bb (no BLOCK or MAJOR).
 - eprintln: no existing log path in chora-xp, so the two eprintln of Failure::NotStarted/NotGiven (wm/keys.rs) became one eprintln of a formatted line; same messages, count back to 131. clients.list error still logs once a streak.
 - gate cells: pre-commit, gate-lib, ci-check, build, test, clippy, xp, xp-faces, xp-notepad PASS. launcher-click FAILED once (tiling: no launcher in 31 captures after the click, unrelated to xp) and PASSED on an immediate rerun alone (17s): flaky, not caused by this change.
 - note: a first commit attempt failed the commit-message-length hook (73-char line); recommitted, no --no-verify.
+
+## PM check r3 (2026-11-20 20:34 UTC)
+Diff 9d381736..efe85512: keys.rs joins two eprintln into one (same text, NoScript path unchanged), lint-ratchet.list allow 359 -> 360 (reason in the commit, per brief). Behaviour unchanged. Verdict: MERGE-OK (r2 review stands for the code). launcher-click flake noted for FLAKE-SERIES r3. Train 93.
