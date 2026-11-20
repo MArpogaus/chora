@@ -99,3 +99,10 @@ all 12 cells PASS (tiling-look 522 s, doors 350 s, matrix 274 s, tiling-audit 27
   starts one tiling per session, so only a unit and a pane starting at the same instant could meet it.
 - Not touched: the tour tools of v4 to v6 (not in the repo); chapter 5 of the tour can pass `--with-companions`
   to its tiling.
+
+## Review r2 (PM, 02:55; PM not the builder)
+Base dev..91e6a114: 2a1e2638, c35404a9 red, 91e6a114 fix (8 files, +212 -8).
+- Brief items 1-5: met. Flag off keeps every baseline (tiling-look, tiling-audit, doors PASS); `managers.tiling` default passes it, so a pane.manager tiling pane and a second output draw bar and wallpaper (captures r2/after/{flag,pane,guard}-tiling.png). Children are reaped (theme.rs:596 waits in a thread); wallpaper.sh ends with its socket.
+- Red-first: the pure-black flag mode is red in c35404a9; the guard mode came with the fix after the first red was found vacuous (honestly reported). Accepted.
+- Nit bp-1: `bus` is keyed on `folder` (theme.rs start_companions), so "needs D-Bus" rides on "takes its folder"; name it per companion. Nit bp-2: the pid-file race of two starts within ms is unguarded (documented).
+Verdict: MERGE-OK (no open BLOCK or MAJOR). sd-h1 and sh-23 render half close with the merge. Train t84 with stray-grab.
