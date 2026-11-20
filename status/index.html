@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-20T03:42:00Z",
+  updated: "2026-11-20T08:32:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 40,                      // % of the week used (owner's reading)
@@ -65,11 +65,17 @@ const S = {
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
-    ["F4", "No file over 1,500 lines", "risk", "0 production files over; lint counts at or below RC (PM recount 11-20); open: workarounds 13 > 9, hygiene 16 > 14; lint ratchet round 2 running"],
-    ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.06 %; flake-i merged (train 76); three flake lanes and kit-sec running; temp-folder fixes in train 78"],
-    ["F6", "Every change through the merge gate", "done", "43 green merges (train 81 green 02:29: security, xp, mc and cube fixes); xp persona round 2 next"],
+    ["F4", "No file over 1,500 lines", "risk", "0 production files over; lint counts at or below RC (PM recount 11-20); open: workarounds 13 > 9, hygiene 16 > 14; lint ratchet round 3 queued after train 85c"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.06 %; only flakes open: flakes-k passed review (merges in train 87); a 5-gate flake series runs on the 85c head; launcher-click red is checked against the old fuzzel in lanes"],
+    ["F6", "Every change through the merge gate", "done", "43 green merges; train 85c (11 lanes) passing all steps so far; trains 86 and 87 (5 reviewed branches) wait behind it"],
     ["F7", "No visual regression vs tour v8", "behind", "needs the new tour: next week"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
+  ],
+  now: [
+    "Train 85c: 11 lane branches in the merge gate, all steps green so far.",
+    "Then train 86 (harness) and train 87 (co majors, xp-24, core watchdog, flakes-k).",
+    "Lanes: flake series (haiku), reviews of mc fixes (sonnet) and co round 4 (opus).",
+    "5-hour usage window was hit 06:39; it resets 12:00 UTC (19:00 Bangkok)."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
@@ -97,6 +103,11 @@ const S = {
       <span class="risk"><i></i>at risk</span>
       <span class="behind"><i></i>behind plan</span>
     </div>
+  </section>
+
+  <section class="card" aria-label="Running now">
+    <h2>Running now</h2>
+    <ul id="now"></ul>
   </section>
 
   <section class="card" aria-label="Needs you">
@@ -148,6 +159,7 @@ const S = {
 
   document.getElementById("goals").innerHTML = g.map(x =>
     '<div class="goal ' + x[2] + '"><i class="dot"></i><b>' + x[0] + " " + x[1] + "</b><span>" + x[3] + "</span></div>").join("");
+  document.getElementById("now").innerHTML = S.now.map(x => "<li>" + x + "</li>").join("");
   document.getElementById("needs").innerHTML = S.needs.map(x => "<li>" + x + "</li>").join("");
 })();
 </script>

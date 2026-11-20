@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-20 08:28 UTC)
+## Now (2026-11-20 08:30 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 01:45: 40 %; tokens.py 07:58 PM 7.6 %; 20 h left; 5-h limit hit 06:39-06:50, lanes idle to 07:57 (resumed); the 5-h window, not the week, binds
 session branch: 79c8d2b5 (train 81); 43 greens. Train 85b (9973d0eb) red 07:3x only on matrix time cap (320 s > 315, all cells ok; container restart under it); rerun as 85c 07:56.
