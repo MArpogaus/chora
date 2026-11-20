@@ -292,9 +292,9 @@ cell_terminal_turn() {
     foot_end
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no first page before the quick turn: $(current)"
-    for _ in 1 2 3 4; do key Right; sleep 0.4; done
-    key Left
-    key Right
+    for _ in 1 2 3; do key Right; sleep 0.4; done
+    echo '[{"shortcut": {"keys": "Right"}}, {"shortcut": {"keys": "Left"}}, {"shortcut": {"keys": "Right"}}]' |
+        ctl inject >/dev/null || fail "inject Right, Left, Right"
     until_ok '[ "$(current)" = terminal ] && foot_alive' 40 || { foot_end; fail "no terminal page after Right, Left, Right: $(current)"; }
     sleep 2
     for k in Left:mission Right:terminal Escape:mission; do
