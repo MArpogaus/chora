@@ -25,11 +25,12 @@ burn-down: audit-f r3 on 79c8d2b5: F1-F4, F6, F8 met; F5 open (flakes only); F7 
 |---|---|---|
 | review-mc-fix-r3.md (RC 2: seeded review of mc-fix b0997b71) | opus high, claude/mc-fix b0997b71 | session_016iS3kLLmrd2xP52Xgy7QsZ 13:22 |
 | flakes-m-r1.md (F5: cube-queue, FJ-R2, xp helper word) | sonnet high, claude/flakes-m d81c8293 | session_016iS3kQkhdam4gPFKKZCUse 12:56 |
+| lint-down-r3.md (F4: ratchet list matches the head) | sonnet medium, claude/lint-down 2254d32a | starting |
 | flakes-l-r2.md (F5: 6 gate flakes) | sonnet high, claude/flakes-l | session_016iS3kN8oKpH32yd68zAAp2 11:58 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 3) Trains: t88 co-r5 c2b0310f on d81c8293 (head fee9c695, --jobs 1) in the gate from 12:51; next: co-majors-r4 e0c3a266 (PM MERGE-OK, test pin), mc-fix b0997b71 after review r3 (opus 0.6 %); fuzzel 1.11.1 PATH.
-5. (F5, F4, shared bar) running: FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, REVIEW MC-FIX r3 0.6 % then mc r4 1 %; next: AUDIT-F r4 opus 0.6 % after t88 (F4, F6 recheck), LINT-DOWN r3 (F4) 0.3 %. Greens at --jobs 1 do not count for F5.
+5. (F5, F4, shared bar) running: FLAKES-L r2 1.2 %, FLAKES-M r1 1.2 %, REVIEW MC-FIX r3 0.6 % then mc r4 1 %; next: AUDIT-F r4 opus 0.6 % after t88 (F4, F6 recheck); running LINT-DOWN r3 (F4) 0.3 %. Greens at --jobs 1 do not count for F5.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
