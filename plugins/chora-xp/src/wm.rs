@@ -85,6 +85,10 @@ use crate::{
 const VOLUME_AGAIN: Duration = Duration::from_secs(5);
 /// The client name, and the group of all nodes of the plugin.
 pub const NAME: &str = "xp";
+/// The root group of the wallpaper and the icons, in the background order
+/// (D89): the windows of another window manager on the same output show
+/// above the desktop of xp, as above the page of mc.
+const DESKTOP: &str = "xp-desktop";
 const WALLPAPERS: &str = "xp-wallpapers";
 const WINDOWS: &str = "xp-windows";
 const BARS: &str = "xp-bars";
