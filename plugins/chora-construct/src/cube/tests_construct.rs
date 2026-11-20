@@ -571,3 +571,243 @@ fn the_outputs_are_added_together_and_a_refusal_takes_back_the_others() {
         "a refusal does not stop the others"
     );
 }
+
+/// A cube of two faces on a fake core, and a placed pane `name` of
+/// `size` at `at` in front of it.
+fn with_panes(tag: &str, panes: &[(&str, [f64; 2], [f64; 2])]) -> Construct {
+    let (mut construct, _core, _lines) = on_core(tag, cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    for (name, at, size) in panes {
+        construct.panes.push(crate::Pane {
+            name: (*name).into(),
+            source: format!("s-{name}"),
+            content: crate::Content::Window { command: None },
+            at: *at,
+            yaw: 0.0,
+            size: *size,
+            taken: true,
+            attached: false,
+            placed: true,
+        });
+    }
+    construct
+}
+
+/// Steps the cube of `construct` back as the person does, and lets the
+/// panes that gave way reach their places.
+fn stepped_back(construct: &mut Construct) {
+    let stepped = construct
+        .cube
+        .as_mut()
+        .unwrap()
+        .act(Act::StepBack, Instant::now());
+    assert!(stepped, "the cube steps back");
+    construct.make_way();
+    construct.cube.as_mut().unwrap().stand = 1.0;
+    construct.step_asides();
+}
+
+/// The box that a pane covers on the screen, and the box of the cube
+/// that stands back.
+fn boxes(construct: &mut Construct, name: &str) -> ([f64; 4], [f64; 4]) {
+    let (lens, pose) = (construct.lens, construct.pose);
+    let pane = construct.panes.iter().find(|p| p.name == name).unwrap();
+    let pane = construct.screen_box_of(pane);
+    let host = construct.cube.as_mut().unwrap();
+    host.aim(&lens, &pose);
+    (pane, host.screen_box(&lens, &pose).unwrap())
+}
+
+fn at_of(construct: &Construct, name: &str) -> ([f64; 2], f64) {
+    let p = construct.panes.iter().find(|p| p.name == name).unwrap();
+    (p.at, p.yaw)
+}
+
+const FRONT: [f64; 2] = [0.0, 700.0];
+const PANE: [f64; 2] = [400.0, 300.0];
+
+/// A pane in front of the cube that would cover it once it stands back
+/// goes beside it, clear of it, on the side where it was.
+#[test]
+fn a_placed_pane_in_front_of_the_cube_goes_beside_it_on_its_side() {
+    for (x, side) in [(-200.0, -1.0), (200.0, 1.0)] {
+        let mut construct = with_panes("aside-side", &[("p", [x, FRONT[1]], PANE)]);
+        let (before, _) = boxes(&mut construct, "p");
+        construct.cube.as_mut().unwrap().stand = 1.0;
+        let (_, cube) = boxes(&mut construct, "p");
+        construct.cube.as_mut().unwrap().stand = 0.0;
+        assert!(crate::frame::overlaps(cube, before), "it covers the cube");
+        stepped_back(&mut construct);
+        let (pane, cube) = boxes(&mut construct, "p");
+        assert!(
+            !crate::frame::overlaps(cube, pane),
+            "{pane:?} beside {cube:?}"
+        );
+        let centre = f64::midpoint(pane[0], pane[2]) - f64::midpoint(cube[0], cube[2]);
+        assert_eq!(centre.signum(), side, "the side of x {x}");
+    }
+}
+
+/// A pane that is not placed, one behind the cube and one that clears
+/// it stay where they are.
+#[test]
+fn a_pane_that_does_not_cover_the_cube_stays() {
+    let mut construct = with_panes(
+        "aside-stays",
+        &[
+            ("loose", [0.0, 700.0], PANE),
+            ("behind", [0.0, 5000.0], PANE),
+            ("clear", [-2500.0, 3000.0], PANE),
+        ],
+    );
+    construct.panes[0].placed = false;
+    stepped_back(&mut construct);
+    assert!(construct.asides.is_empty(), "no pane gave way");
+    for (name, at) in [
+        ("loose", FRONT),
+        ("behind", [0.0, 5000.0]),
+        ("clear", [-2500.0, 3000.0]),
+    ] {
+        assert_eq!(at_of(&construct, name), (at, 0.0), "{name}");
+    }
+}
+
+/// Two panes on one side take places that overlap neither each other
+/// nor the cube (rv-1): the one nearer the cube takes the inner place.
+#[test]
+fn two_panes_on_one_side_go_beside_the_cube_without_overlap() {
+    let mut construct = with_panes(
+        "aside-two",
+        &[
+            ("far", [-300.0, 700.0], PANE),
+            ("near", [-100.0, 700.0], PANE),
+        ],
+    );
+    stepped_back(&mut construct);
+    assert_eq!(construct.asides.len(), 2);
+    let ((far, cube), (near, _)) = (boxes(&mut construct, "far"), boxes(&mut construct, "near"));
+    assert!(!crate::frame::overlaps(far, near), "{far:?} and {near:?}");
+    assert!(!crate::frame::overlaps(cube, far) && !crate::frame::overlaps(cube, near));
+    assert!(
+        near[2] > far[2],
+        "the pane nearer the cube is the inner one"
+    );
+}
+
+/// The panes on both sides do not take the room of each other.
+#[test]
+fn panes_on_both_sides_go_to_their_own_sides() {
+    let mut construct = with_panes(
+        "aside-both",
+        &[("l", [-200.0, 700.0], PANE), ("r", [200.0, 700.0], PANE)],
+    );
+    stepped_back(&mut construct);
+    let ((l, cube), (r, _)) = (boxes(&mut construct, "l"), boxes(&mut construct, "r"));
+    assert!(l[2] <= cube[0] && r[0] >= cube[2], "{l:?} {cube:?} {r:?}");
+}
+
+/// A pane that gave way is home again, at the same place and the same
+/// turn, when the cube has stepped in or is gone, and no longer aside.
+#[test]
+fn a_pane_that_gave_way_goes_home_exactly_when_the_cube_steps_in_or_closes() {
+    for closes in [false, true] {
+        let mut construct = with_panes("aside-home", &[("p", [-200.0, 700.0], PANE)]);
+        construct.panes[0].yaw = 0.25;
+        let home = at_of(&construct, "p");
+        stepped_back(&mut construct);
+        assert_ne!(at_of(&construct, "p"), home, "it gave way");
+        assert_eq!(construct.asides.len(), 1);
+        if closes {
+            construct.cube = None;
+        } else {
+            let host = construct.cube.as_mut().unwrap();
+            host.stand = 0.0;
+            host.step = None;
+        }
+        construct.step_asides();
+        assert_eq!(at_of(&construct, "p"), home, "closes: {closes}");
+        assert!(construct.asides.is_empty(), "closes: {closes}");
+    }
+}
+
+/// A pane that is still on its way (the cube steps in) is not home yet.
+#[test]
+fn a_pane_is_aside_until_the_step_in_has_ended() {
+    let mut construct = with_panes("aside-glide", &[("p", [-200.0, 700.0], PANE)]);
+    let home = at_of(&construct, "p");
+    stepped_back(&mut construct);
+    let beside = at_of(&construct, "p");
+    construct.cube.as_mut().unwrap().stand = 0.5;
+    construct.step_asides();
+    let halfway = at_of(&construct, "p");
+    assert!(halfway.0[0] > beside.0[0].min(home.0[0]) && halfway.0[0] < beside.0[0].max(home.0[0]));
+    assert_eq!(construct.asides.len(), 1, "still aside");
+}
+
+/// A pane that the person moves while the cube stands back stays where
+/// it was put: the move takes it out of the asides (panes.rs).
+#[test]
+fn a_pane_that_the_person_moves_while_aside_stays_there() {
+    let mut construct = with_panes("aside-moved", &[("p", [-200.0, 700.0], PANE)]);
+    stepped_back(&mut construct);
+    construct
+        .move_pane_facing(0, [900.0, 1500.0], [0.0, 0.0])
+        .unwrap();
+    assert!(construct.asides.is_empty(), "the move ends the aside");
+    let put = at_of(&construct, "p");
+    construct.cube.as_mut().unwrap().stand = 0.0;
+    construct.step_asides();
+    assert_eq!(at_of(&construct, "p"), put, "and the step in leaves it");
+}
+
+/// The place beside the cube is inside the leash (rv-4).
+#[test]
+fn the_place_beside_the_cube_is_inside_the_leash() {
+    let mut construct = with_panes("aside-leash", &[("p", [-200.0, 700.0], PANE)]);
+    construct.radius = Some(1000.0);
+    stepped_back(&mut construct);
+    let (at, _) = at_of(&construct, "p");
+    assert!(
+        at[0].hypot(at[1]) <= 1000.0 + 1e-6,
+        "{at:?} is outside 1000"
+    );
+}
+
+/// A pane that is wider than the room beside the cube shrinks its offset
+/// to stay on the screen (rv-4).
+#[test]
+fn a_wide_pane_beside_the_cube_stays_on_the_screen() {
+    let mut construct = with_panes("aside-wide", &[("p", [-200.0, 700.0], [1400.0, 600.0])]);
+    stepped_back(&mut construct);
+    let (pane, _) = boxes(&mut construct, "p");
+    let width = construct.lens.w;
+    assert!(pane[0] >= 0.0 && pane[2] <= width, "{pane:?} on {width} px");
+}
+
+/// A pane that has no room left on screen on its own side goes to the
+/// other side, and does not take the room of a pane there (rv-1, rv-4).
+#[test]
+fn a_pane_with_no_room_on_its_side_goes_to_the_other_side() {
+    let mut construct = with_panes(
+        "aside-other",
+        &[
+            ("wide", [-100.0, 700.0], [1280.0, 800.0]),
+            ("slim", [-300.0, 700.0], [600.0, 600.0]),
+        ],
+    );
+    stepped_back(&mut construct);
+    let ((wide, cube), (slim, _)) = (boxes(&mut construct, "wide"), boxes(&mut construct, "slim"));
+    let width = construct.lens.w;
+    assert!(!crate::frame::overlaps(wide, slim), "{wide:?} and {slim:?}");
+    for pane in [wide, slim] {
+        assert!(pane[0] >= 0.0 && pane[2] <= width, "{pane:?} on {width} px");
+        assert!(
+            !crate::frame::overlaps(cube, pane),
+            "{pane:?} beside {cube:?}"
+        );
+    }
+    assert!(
+        slim[0] > cube[2],
+        "the slim pane is right of the cube: {slim:?}"
+    );
+}
