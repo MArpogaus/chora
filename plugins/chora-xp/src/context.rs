@@ -1072,12 +1072,18 @@ mod tests {
         let rows = |percent, muted| volume(Reading::Level(Volume { percent, muted }));
         let checked = |rows: &[Entry]| rows.iter().position(|e| e.checked);
         let loud = rows(75, false);
-        assert_eq!(loud.len(), 6, "four levels, a separator and Mute");
+        assert_eq!(
+            loud.len(),
+            8,
+            "four levels, Mute and the slider, in two groups"
+        );
         assert_eq!(loud[1].act, Some(Act::Volume(Change::Set(75))));
         assert_eq!(loud[5].act, Some(Act::Volume(Change::Mute)));
         assert_eq!(checked(&loud), Some(1), "75% is the checked row");
         assert_eq!(checked(&rows(55, false)), None, "55% is no row");
         assert_eq!(checked(&rows(75, true)), Some(5), "Mute is checked");
+        let slider = rows(55, false).pop().unwrap();
+        assert_eq!(slider.title, "Volume", "the level slider ends the popup");
         let gone = volume(Reading::NoWpctl);
         assert!(gone.iter().all(|e| !e.enabled && e.act.is_none()), "gray");
     }
