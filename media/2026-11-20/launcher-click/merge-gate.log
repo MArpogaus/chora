@@ -1,0 +1,12 @@
+run directory: /tmp/merge-gate.lpNFgE
+pre-commit PASS     1s /tmp/merge-gate.lpNFgE/pre-commit.log
+build      PASS    24s /tmp/merge-gate.lpNFgE/build.log
+test       PASS   209s /tmp/merge-gate.lpNFgE/test.log
+clippy     PASS    16s /tmp/merge-gate.lpNFgE/clippy.log
+ci-check   PASS    89s /tmp/merge-gate.lpNFgE/ci-check.log
+keys       PASS    18s /tmp/merge-gate.lpNFgE/keys.log
+launcher-click PASS     9s /tmp/merge-gate.lpNFgE/launcher-click.log
+doors      PASS   355s /tmp/merge-gate.lpNFgE/doors.log
+tiling-look PASS   577s /tmp/merge-gate.lpNFgE/tiling-look.log
+partial run: nothing is pushed
+GATE_EXIT=0
