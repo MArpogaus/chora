@@ -79,6 +79,7 @@ impl Wm {
             fade_shader: None,
             context: None,
             sys_window: None,
+            looks: Vec::new(),
             last_icon: None,
             panels: Vec::new(),
             hide_at: None,
@@ -110,6 +111,7 @@ impl Wm {
         wm.create_scene(old_root)?;
         wm.grab()?;
         wm.rt.announce(&EVENTS, methods)?;
+        wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
         wm.sync_cube_keys();

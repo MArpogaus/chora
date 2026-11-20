@@ -72,9 +72,17 @@ impl Wm {
                 self.voice_state(heard)
             }
             Event::InputUngrabbed { binding } => self.ungrabbed(&binding),
-            Event::ClientConnected { name } if name == "voice" && heard => self.trays(),
+            Event::ClientConnected { name } => {
+                self.refresh_looks();
+                if name == "voice" && heard {
+                    self.trays()
+                } else {
+                    Vec::new()
+                }
+            }
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
+                self.refresh_looks();
                 if name == "voice" && heard {
                     self.trays()
                 } else {

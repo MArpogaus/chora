@@ -118,7 +118,7 @@ impl Wm {
         };
         let w = &self.windows[i];
         let (maximized, minimized) = (w.maximized(), w.minimized);
-        let entries = context::system(maximized, minimized, &self.looks_running());
+        let entries = context::system(maximized, minimized, &self.looks);
         let Some(bar) = self
             .bars
             .iter()
@@ -135,22 +135,28 @@ impl Wm {
         commands
     }
 
-    /// The client names of the other looks that can take a window.
-    fn looks_running(&mut self) -> Vec<String> {
+    /// Asks the core for the client names of the other looks that can take
+    /// a window, and keeps them for the system menu. Called at a start and
+    /// at a client event, never at a press. A failure leaves one line in
+    /// the log and the rows gray (no look is known to run).
+    pub(super) fn refresh_looks(&mut self) {
         #[derive(serde::Deserialize)]
         struct Client {
             name: String,
             methods: Vec<String>,
         }
-        let list: Vec<Client> = self
-            .rt
-            .conn
-            .call("clients.list", serde_json::Value::Null)
-            .unwrap_or_default();
-        (list.into_iter())
-            .filter(|c| c.methods.iter().any(|m| m == chora_kit::give::METHOD))
-            .map(|c| c.name)
-            .collect()
+        let list: Result<Vec<Client>, _> =
+            self.rt.conn.call("clients.list", serde_json::Value::Null);
+        self.looks = match list {
+            Ok(list) => (list.into_iter())
+                .filter(|c| c.methods.iter().any(|m| m == chora_kit::give::METHOD))
+                .map(|c| c.name)
+                .collect(),
+            Err(err) => {
+                eprintln!("chora-xp: clients.list: {err}");
+                Vec::new()
+            }
+        };
     }
 
     /// Gives the window of the Send To menu to a look.
