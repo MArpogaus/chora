@@ -285,6 +285,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - H-pane-overlap (co-majors review r1 FIX 00:40): earliest gate gate-construct-pull (no pane-pane check, mirror x only); fixed in co-majors r2 item 1. 0 %.
 - FLAKE-H MINOR-1 (11-20): helper-door click count in the doors cell; a count above 1 means a lost first click, then a product check (input inject under load).
 - FLAKE candidate (11-20 review mc-answer): tiling-look ink-1280x800 failed once at 12 s under --jobs 3 (tag colour 1 1 1 255), PASS alone.
+- FLAKE (t82b 11-20 03:35, --jobs 3): tiling-look ink-2560x1600@2 "the focus border starts in 0 0 0 255, not the accent"; PASS alone 03:46 (633 s). Second tiling-look ink hit this day (with the line above); F23 family (effects dropped under load?). Next flakes round: a wait for the first drawn border, not a retry.
 - XP-MAJORS review r1 MINOR rv-1..4 (11-20): question-card gate asserts no placement or font; paperclip gate asserts no art; popup guarded at 1280x800 only, no outside-click or key-leak act; stepped list for volume. Next xp round.
 - CO-P2-FIX r1 (11-20): xp opens Start on a construct-swallowed Super chord (pre-existing); a face manager (xp) must swallow unbound Super chords for its own windows on a cube face (co-26 face part), kit helper from co-p2-fix r2. Next xp round.
 - MC-ANSWER MINOR-1 (review r2): card.size message printed per notification in Card::new; log it once when values.yaml loads.
