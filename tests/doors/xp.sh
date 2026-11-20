@@ -47,8 +47,10 @@ help_close() {
 }
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 escapes() { grep -c '^key 1$' "$work/window"; }
+field_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = leave ]; }
 chat_close() {
     local before
+    until_ok field_has_keyboard || { echo "note: the chat field never took the keyboard from the window" >&2; return 1; }
     before=$(escapes)
     key Escape
     until_ok '! chat_open' && return 0
