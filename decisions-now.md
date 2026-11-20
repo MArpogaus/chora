@@ -1,6 +1,7 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-20T08:00:00Z
-- 11-20 08:00Z "What's again at ng with env?" -> question (env): lanes have fuzzel 1.11.1; nothing open for the owner
+screened-through: 2026-11-20T08:30:00Z
+- 11-20 08:30Z "Update status page" -> order: status page refreshed
+- 11-20 08:00Z "What's again at ng with env?" -> question (env): fuzzel 1.11.1 in lanes; nothing open
 - 11-20 01:45Z "40% how are things going?" -> reading: 40 %; question; 2.3 %/h needed, fill 6 lanes
 - 11-19 13:55Z "I've resaved env already twice" -> saved; misses were runtime (apt mirror)
 - 11-19 10:55Z "...at a glance... on plan or where we are behind..." -> order: status page at a glance, plan vs actual
@@ -13,7 +14,7 @@ screened-through: 2026-11-20T08:00:00Z
 - 11-19 06:04Z "No, budget is reset and we shall use it up conpkeetl until sat. We agreed on that. How do you adapt to that tho make best out of it?" -> correction (goal change, agreed before): plan to use the whole week to Sat 03:59; 6 lanes full, opus reviews; 06:01Z setup clone -> yes (F27 check at lane start)
 - 11-19 05:59Z dialog: rc.4 tag "Keep local for now." -> no tag push; F27 "Yes, what do I have to do?" -> he re-saves; D77 vs D95 "D95 holds, amends D77 (Recommended)" -> decision; release-rc4 "Yes, delete it (Recommended)" -> owner deletes in GitHub
 
-- 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 % (Fable 10 %); 14:55 decisions agreed; P1 into next week; opus for big chunks
+- 11-17 15:35Z "F 10% all 61%. Agree with decitions. If not done by sat wie move to next Week. You may usw opus session to finalize bigger chunks. Wie habe an full reset available." -> 61 %; decisions agreed; P1 next week; opus for big chunks
 - 11-17 14:24Z "Gate sound good, but no more time wasting on thus demo. Bow redactor then intensive simulated user test, than the new tour with automatic checks + visual validation against ux ui guidelines." -> order: refactor, simulated user test, new tour (checks + design/looks); invariants built in the refactor
 - 11-17 12:56Z "Not aiming towards 1.0 yet. We remain unstable until daily driving proves stability. Session keeps running in slower pace after 30.11. Try to land as much of our goals until then. Agree?" -> goal: no 1.0 date; 1.0 after daily driving proves stability; land most by 11-30, then slower
 - 11-17 10:59Z "Be perfectionist and very critical about the met targets. We want to push towards perfection." -> F1-F8 met only with evidence and an independent check; no partial credit
