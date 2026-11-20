@@ -276,5 +276,6 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - F24R-1 NIT (11-19 22:33): tests/grab-gap-check.py misses a grab skipped on a branch in a callee (f24-rest r1).
 - H-mkdir (kit-sec r1 FIX 23:38): earliest gate none; a pre-commit check that flags `mkdir -p` without `-m 700` under $XDG_RUNTIME_DIR in flavors/ and plugins/ shell scripts. 0.2 %.
 - H-persona-env (P2 r1 00:08, RC2): persona sessions lack the shared scripts (lock, screenshot), a GUI editor stub, a draggable probe window and a helper that answers (fake agent); fix in tests/persona round.sh before the next P2 round. 0.6 %, sonnet medium.
+- FLAKE-SIG (kit-sec r2 00:12): images::the_worker_thread_blocks_the_emergency_signal failed once in a full `cargo test -p chora`, passes alone and in the gate; next flake lane. 0.3 %.
 - ENV (11-19 23:37): p2-r1-xp worker's auto-mode check refused `bash /tmp/setup.sh` (apt, downloads); r1b runs without it. Other lanes ran it. Owner decides: allow it, or keep all tools in the environment setup (Needs owner).
 - HARNESS (train 78 red 23:51): f24-rest added a pid temp file while temp-dirs r2 set the copies row to 0; each branch was green alone. Earliest gate: ci-check on the merged train; the PM could run tools/cut-check after merging, before the gate (1 min). Build: merge-gate.sh runs ci-check first.
