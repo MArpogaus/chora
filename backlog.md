@@ -291,3 +291,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - LAUNCHER-CLICK nits (11-20 PM review): lc-1 negative approach start near x,y<3; lc-2 sleep 2 before the row click; lc-3 hard-coded positions; the one-move click via an enter+motion in input.rs (not RC). 0.2 %.
 - P2-HARNESS nits (11-20 PM review r1b): ph-1 round.sh probe fixed 3 s wait; ph-2 checker reads only the construct state (I1/I3 x21 on the cube's xp). 0.2 %.
 - HARNESS perform-test (11-20 03:00, confirm-guard r1): `cargo test -p chora-kit --test perform` does not compile without the testing feature (chora_kit::testing is feature-gated); add required-features in Cargo.toml or a gate cell. MINOR.
+- FLAKE-CUBE-QUEUE (F5, 11-20 03:15): train 82 cube cell red once under --jobs 3 (34 s, "a turn key during a turn did not queue one turn: True True True"); alone green 132 s on 88258c87. Next flake lane.
