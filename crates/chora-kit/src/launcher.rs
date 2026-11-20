@@ -121,9 +121,14 @@ enum Asked {
     Failed(String),
 }
 
-/// Shows the rows with `fuzzel --dmenu`. A fuzzel that prints nothing
-/// and exits was closed by the person (it exits 1 on Escape); one that
-/// exits non-zero with a message on stderr, or cannot start, failed.
+/// Shows the rows with `fuzzel --dmenu`. The exit code cannot tell a
+/// close from a failure (fuzzel exits 1 on Escape and on every error),
+/// so the stderr decides: a fuzzel that prints nothing and whose first
+/// line starting with "err:" (its log prefix, after trimming) is absent
+/// was closed by the person, whatever its exit code, a signal included;
+/// one with such a line failed, and the text after the prefix is why.
+/// A warning or info line alone is no failure. One that cannot start
+/// failed too.
 fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
     let Some((program, args)) = fuzzel.split_first() else {
         return Asked::Failed("no launcher command".into());
@@ -151,9 +156,9 @@ fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
         return Asked::Line(line);
     }
     let err = String::from_utf8_lossy(&out.stderr);
-    match err.lines().map(str::trim).find(|l| !l.is_empty()) {
-        Some(first) if out.status.code().is_none_or(|c| c >= 2) => Asked::Failed(first.to_owned()),
-        _ => Asked::Closed,
+    match err.lines().find_map(|l| l.trim().strip_prefix("err:")) {
+        Some(why) => Asked::Failed(why.trim().to_owned()),
+        None => Asked::Closed,
     }
 }
 
