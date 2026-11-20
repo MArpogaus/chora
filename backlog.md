@@ -326,3 +326,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - P2R3-MINOR (xp): screenshot gives no visible sign (Murat); volume menu tick but no level bar; Super+E notice names a config file; small yellow square after clicks (Erika). Rule 6: after xp-36. xp-36 rv-1: a warning on stderr plus Escape shows a false "Run could not start" (exit 1 = Closed, 2+ = Failed).
 - FLK-ACT1 (flake, F5, flake-series r2): acts xp act:session tests/acts/looks/xp.py:167 ValueError on an empty mixer read (2 of 15); acts selftest persona sound I5 overlap on the mc header (1 of 10). Into flakes-l r2.
 - FLK-TA1 (flake, F5, flake-series r2): tiling-audit fullscreen paper-2560x1600@2 bar does not hide within 20 s (1 of 15). Into flakes-l r2.
+- H-ID (harness, 11-20): pre-commit identity check on claude/session-log (author must be the owner); lanes.py: Queue % total vs "left - 5 %".

@@ -5,7 +5,7 @@ Procedures (train, lane start, seeded review, ids): procedures.md. Time: `date -
 ## By time
 - Budget (owner 11-15, "your main job"): week resets at the owner's reset; check the pace line at each lane start; model and effort in create_session.
 - Every 2 h: watchdog (tools/triggers.md), prunes idle children (11-17); heartbeat checks the PM.
-- Daily 12:50 UTC (19:50 Bangkok), workday close (owner 11-15 09:35): self-check and main-duty
+- Daily 12:50 UTC (19:50 Bangkok), workday close (owner 11-15): self-check and main-duty
   questions, one independent opus critic, every open friction resolved, one workflow change;
   reflections/selfcheck-<date>.md.
 - Friday: reports/week-N.md (done, missed, burn-down, budget, PM decisions; no overselling);
@@ -15,7 +15,7 @@ Procedures (train, lane start, seeded review, ids): procedures.md. Time: `date -
 
 ## By event
 - Each handback, merge, train (11-19): realign Queue 4-5 (rank, F moved, unmerged <= 4, budget), same turn.
-- Train (11-19 07:01): each MERGE-OK sha joins the next unstarted train; red: bisect; --jobs 3 after flakes-f.
+- Train (11-19 07:01): each MERGE-OK sha joins the next train; red: bisect; --jobs 1 until flakes-l merges (procedures).
   `df -h /`; under 20 G one build at a time, clear sccache (friction 53).
 - A harness branch is MERGE-OK: its own train at once, before other trains; then tell the running
   lanes to merge the session branch. A new hook or check shows it never blocks a valid commit.

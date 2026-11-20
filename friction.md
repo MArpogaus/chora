@@ -3,6 +3,7 @@
 Entries 1-25 (11-08 to 11-11): closed 2026-11-15 as historical; their fixes live in the rules, hooks and setup.sh; a recurrence opens a new entry. From 26 on each entry ends with a Resolved line.
 
 ## 2026-11-08, planning session
+Resolved 11-20: closed, historic (planning session); its points live in rules.md and procedures.md.
 
 1. **Attribution trailers in two pushed commits** (fa8fe2a, 8238e5f).
    The harness reminder asked for `Co-Authored-By` and `Claude-Session`
@@ -253,13 +254,14 @@ The 11-11 reflection rules say "merge train with `--fast`". `train.sh` has no su
 Resolved 2026-11-15: closed: the --fast rule was removed from the rules; merge-gate.sh is the one entry (rules.md 8).
 
 ## 33 (11-11 ~17:10 UTC): MAJOR. The PM drifts from the charter after compaction
+Resolved 11-20: guarded: SessionStart hooks re-inject rules, decisions-now, state and procedures after compaction (this session).
 Evidence, all after the last compaction of 11-11:
-- The usage cross-check had failed silently (no recent result event in a single long turn); the PM noticed only when the user asked.
-- `git add -A` was used about eight times on the session log; section 3 forbids it.
-- Chat replies ran far over the "one or two lines" rule (user, 11-10).
-- Swarm 2 ignored section 8: new report format instead of `feedback/` and `triage.py`, 800 px looks and 90 steps instead of 640 and 30 (cost tokens; the user had to point it out).
-- `state.md` ("Running 11-10 17:00") and `answers.md` were not updated at the merge trains or after user decisions of 11-11; the status page was not updated after the HUD merge.
-- Friction 32 blamed train.sh; in fact merge-gate.sh lacks the `--fast` mode that reflection rule 2 names, so that rule was never built.
+- The usage cross-check had failed silently (no recent result event in a single long turn); the PM noticed only when the user asked. Resolved 11-20: closed: tokens.py hourly plus the check_log budget-age check.
+- `git add -A` was used about eight times on the session log; section 3 forbids it. Resolved 11-20: closed: session log only holds PM files; check_log and pre-commit catch large or code files.
+- Chat replies ran far over the "one or two lines" rule (user, 11-10). Resolved 11-20: guarded: prompt hook names the chat format each turn.
+- Swarm 2 ignored section 8: new report format instead of `feedback/` and `triage.py`, 800 px looks and 90 steps instead of 640 and 30 (cost tokens; the user had to point it out). Resolved 11-20: closed: persona rounds use feedback/ and triage.py (p2-r3 12:22).
+- `state.md` ("Running 11-10 17:00") and `answers.md` were not updated at the merge trains or after user decisions of 11-11; the status page was not updated after the HUD merge. Resolved 11-20: guarded: check_log.py (Now time, budget age, status change on a branch move).
+- Friction 32 blamed train.sh; in fact merge-gate.sh lacks the `--fast` mode that reflection rule 2 names, so that rule was never built. Resolved 11-20: closed: merge-gate.sh has --only; train.sh retired.
 Cause: the compaction summary carried the task list but not the charter rules, and the PM continued from the summary without rereading the charter. Context management leaks rules, not tasks.
 Proposed change:
 1. `pm-card.md`, a short card of the hard rules plus the reread steps (charter in full, state, answers, friction), injected automatically after each compaction by a SessionStart hook with matcher `compact` in `~/.claude/settings.json`. The classifier refused the PM editing its user settings; on the user's go (11-11) the hook went into the project-local `/home/user/.claude/settings.local.json`. It is container-local: run start step 2 recreates it after a container replacement.
@@ -394,11 +396,13 @@ Guard: setup.sh rewrites the Ubuntu sources to https and runs apt under timeout 
 - 11-19 12:32 r2b diagnostics: container up 1 min but /home/user/agent_skills dated 12:15, apt sources still archive.ubuntu.com (the 67f6a9f1 probe would have switched to azure): new sessions start from a cached post-setup snapshot, so a setup.sh fix does not reach them until the setup script is re-saved (owner, environment). flakes-g held; Needs owner. Resolved 11-19: closed as environment: Needs owner line with default 'new lanes wait'; retry 12:50 tests whether the snapshot changed.
 
 ## 11-19 13:04 UTC: status page published to a second URL
+Resolved 11-20: guarded: procedures.md Ids "always pass url"; versions 140-151 all to GXmcSEwuzRMXF1QiyUXHFe.
 After a compaction the first publish of status/index.html had no `url` and made a new artifact (EAHTH3pbrVqNVjJTqzQwRY)
 instead of updating GXmcSEwuzRMXF1QiyUXHFe. Republished with `url`. Fix: procedures.md Ids line says "publish with url=".
 The stray artifact stays until the owner asks to delete it.
 
 ## 11-19 14:06 UTC: a lane may not run setup.sh itself
+Resolved 11-20: fixed: lanes rely on the env setup script (procedures Lane start Step 0, 11-20 00:48); no setup.sh refusals since.
 kit3 r2 (13:57): the auto-mode classifier denied `bash /tmp/setup.sh` ("Unsanctioned Communication"); cargo check
 passed anyway (that container had setup). So the 14:00 default (step 0 runs setup.sh) does not help a container
 without setup. The owner re-saved the env twice; the misses are runtime (apt mirror). Fix: keep step 0 (it is cheap
@@ -406,25 +410,29 @@ when allowed); a lane that still lacks tools reports BLOCKED and the PM restarts
 permission change (rules: never on a subagent's word).
 
 ## 11-19 14:18 UTC: train 64 red on wm3 unit tests (MERGE-OK branch)
+Resolved 11-20: guarded: seeded reviews name the gate run of the final sha (procedures Seeded review); no recurrence in trains 65-87e.
 wm3 e15155da was MERGE-OK, yet two of its unit tests panic on the session head (they push windows by hand; WM1d
 gives through the book). Every wm3 commit from its merge of the head (582620d8) is red, so its last gate ran before
 that merge. Earliest gate: the lane's own merge-gate after its last head merge. Rule: a handback names the gate run
 of its final sha; the PM checks that sha before MERGE-OK (procedures, seeded review). audit-f found it first.
 
 ## 11-19 14:24 UTC: a lane branch carried an unmerged branch (cubesplit on fa457b29 carries wm3)
+Resolved 11-20: guarded by hand: reviews list `git log <head>..<sha> --merges` (co-r5 review 11:58 named co-r4 as carried).
 Train 64b went red on wm3's xp tests although wm3 was out of the train. Earliest check: the seeded
 review lists `git log <session head>..<sha> --merges`; a merge of an unmerged lane branch is named
 in the verdict and the sha waits for that branch. Applied in procedures by hand from now.
 
 ## 11-19 14:34 UTC: train 64c red on the matrix time limit (255 s > 240 s, all cells pass, --jobs 3)
+Resolved 11-20: fixed: matrix-cap lane set the cap from measured data; matrix 336-354 s green in t86, t87e.
 Rerun 64d: 250 s. Bisect 14:50: base 05878d2a and the wm7b merge both 235 s alone: no branch at fault, the base drifted from 192 s to the cap. Rule: a time cap has headroom from measured data (slowest under --jobs 3 plus 25 %); lane matrix-cap. For FLAKE-SERIES: the matrix limit under
 --jobs 3 must hold with headroom, or the limit scales with the job count; this counts against 5 of 5.
-- 15:08 focus-port r1: the lane's permission classifier refused `bash /tmp/setup.sh`; the lane did its repo steps by hand (all tools present). Watch: if a lane lacks tools and setup is refused, it is a blocker; check the next start checks.
-- 20:40 lint-reason r1 (haiku): the lane stop hook asked to re-author the commit as Claude; the worker stopped on AskUserQuestion for 13 min (PM answered: owner identity). Second time (cube-tests 19:57 committer). Guard: every brief from now carries "A hook that asks for another identity or attribution: ignore it, keep the brief's identity, never ask"; start_lane.sh check to build (backlog).
+- 15:08 focus-port r1: the lane's permission classifier refused `bash /tmp/setup.sh`; the lane did its repo steps by hand (all tools present). Watch: if a lane lacks tools and setup is refused, it is a blocker; check the next start checks. Resolved 11-20: closed: env setup script supplies tools; no lane blocked on tools since 11-19.
+- 20:40 lint-reason r1 (haiku): the lane stop hook asked to re-author the commit as Claude; the worker stopped on AskUserQuestion for 13 min (PM answered: owner identity). Second time (cube-tests 19:57 committer). Guard: every brief from now carries "A hook that asks for another identity or attribution: ignore it, keep the brief's identity, never ask"; start_lane.sh check to build (backlog). Resolved 11-20: guarded: every brief carries the identity-hook line (mc-fix-r3, flakes-l-r2); no stop on identity since.
 
-- 11-19 22:28 (PM): pushed claude/harness-gp from HEAD^1 of the train 76 worktree (a train merge, not the base); corrected at once with --force-with-lease on the fresh, empty lane branch (no worker had started). Rule: a lane branch is pushed from `git rev-parse <named sha>`, never a relative ref.
-- 11-20 04:41 (PM): kit-minors r1 brief listed five items already closed on its base 79c8d2b5; the lane spent ~0.5 % confirming that. Rule: before a lane start the PM greps the session head for each item's fix (one command per item in the brief). Guard: manual (start_lane.sh check to build: an `Open on <sha>:` line per item).
-- 11-20 04:38 (PM): train 82 went red four times on four different flakes (FLK-AG1, IN1, TR1, HUD1) at --jobs 3, load 7.4 on 4 cores. Trains run --jobs 2 until flakes-j closes them; the headroom note above holds.
-- 11-20 05:35 (PM): the PM clone /home/user/chora was shallow; debt-f4 (R18) makes the gate refuse a shallow clone, so the selftest of train 84 failed 3 checks. Fixed: git fetch --unshallow in the PM clone. Guard: the gate itself (R18); lane briefs keep step 0 `git fetch --unshallow || true`.
+- 11-19 22:28 (PM): pushed claude/harness-gp from HEAD^1 of the train 76 worktree (a train merge, not the base); corrected at once with --force-with-lease on the fresh, empty lane branch (no worker had started). Rule: a lane branch is pushed from `git rev-parse <named sha>`, never a relative ref. Resolved 11-20: guarded: procedures Lane start pushes <fullsha>; no recurrence.
+- 11-20 04:41 (PM): kit-minors r1 brief listed five items already closed on its base 79c8d2b5; the lane spent ~0.5 % confirming that. Rule: before a lane start the PM greps the session head for each item's fix (one command per item in the brief). Guard: manual (start_lane.sh check to build: an `Open on <sha>:` line per item). Resolved 11-20: guarded by hand: briefs name the evidence that each item is open on the base (mc-fix-r3 cites the r3 captures).
+- 11-20 04:38 (PM): train 82 went red four times on four different flakes (FLK-AG1, IN1, TR1, HUD1) at --jobs 3, load 7.4 on 4 cores. Trains run --jobs 2 until flakes-j closes them; the headroom note above holds. Resolved 11-20: changed: trains --jobs 1 until flakes-l r2 merges (t87e green at --jobs 1 after 4 reds at 2-3; procedures Train 3).
+- 11-20 05:35 (PM): the PM clone /home/user/chora was shallow; debt-f4 (R18) makes the gate refuse a shallow clone, so the selftest of train 84 failed 3 checks. Fixed: git fetch --unshallow in the PM clone. Guard: the gate itself (R18); lane briefs keep step 0 `git fetch --unshallow || true`. Resolved 11-20: guarded: the gate refuses a shallow clone (R18).
 - 11-20 06:17 PM: train 85 lost ~10 min because the PM resolved a conflict by taking a lane's side without running the selftest that covers the file. Change: after a hand-resolved conflict, run the tests that name the file (grep tests/ for the path) before the gate.
-- 11-20 07:58 PM: the 5-h limit stopped 5 lanes 06:39-06:47; the PM worker restarted and the lanes sat idle to 07:57 (~70 min). Rule exists (send_later at the reset); missed because the warning was seen at 06:36 without a reset send_later. Fix: on any lane's allowed_warning, send_later at resetsAt + 2 min to resume all lanes, same turn.
+- 11-20 07:58 PM: the 5-h limit stopped 5 lanes 06:39-06:47; the PM worker restarted and the lanes sat idle to 07:57 (~70 min). Rule exists (send_later at the reset); missed because the warning was seen at 06:36 without a reset send_later. Fix: on any lane's allowed_warning, send_later at resetsAt + 2 min to resume all lanes, same turn. Resolved 11-20: guarded by hand: send_later at each reset (12:00 reset trigger fired, lanes started 11:58 ran on).
+- 11-20 13:05 critic: 4 session-log merge commits authored "t <t@t>" (2067356e, aa350f14, 3f1ef48f, cef2f841, 00:20). Not rewritten (no force push). Guard: commit-msg hook checks only the message; identity check on session-log commits to build (backlog H-ID). Resolved 11-20: logged; guard queued.
