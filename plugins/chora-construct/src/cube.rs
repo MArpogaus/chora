@@ -153,10 +153,6 @@ pub(crate) struct Host {
     owing: BTreeSet<usize>,
     again: Option<Instant>,
     denied: BTreeSet<usize>,
-    /// When the construct starts to hold the chords of `Super` that
-    /// nothing binds, and whether it does. The window manager of the faces
-    /// grabs its own chords as it connects, and a chord that the construct
-    /// held first would be lost to it.
     /// The front face and the turning that the event of the cube role
     /// told last.
     told: Option<chora_kit::cube::Turned>,
