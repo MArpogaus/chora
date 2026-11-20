@@ -130,3 +130,26 @@ Checks run: `cargo check --workspace` ok; `cargo test -p chora-construct` 241 pa
 | rv2-2 | MINOR | plugins/chora-construct/src/cube/tests_construct.rs:786 | No test covers 3 panes on one side, wide panes on both sides, or the shrink path against a pane or the cube (only against the screen), so rv2-1 passes; the 640x720 lens is not tested at all. | Add the scratch cases above (shrink, wide on both sides, 3 panes) and one at `Lens::new(640.0, 720.0)`. |
 | rv2-3 | NIT | docs/cube-modes.md:203 | Check 7 not met: nothing on the nearest-first order per side, the GAP, the other-side fallback or the shrink. | One sentence: the nearest pane takes the inner place on its side; a pane that does not show in full goes to the other side. |
 | rv2-4 | NIT | plugins/chora-construct/src/cube/aside.rs:120,161 | `leashed` runs after the running offset, so a leash smaller than the distance to the cube clamps places together and they overlap (scratch: radius 1000 or 1200 with the cube 3136 away; no breach at 3500 to 6000). Also `taken` starts at 0 although `make_way` can run again (step back during a step in) with panes still aside (filtered at :155), so a new covering pane may take the place of an aside. Both far from default use. | Start `taken` from the asides already beside the cube, and skip `leashed` when the cube is outside the leash. |
+
+## r3
+
+Lane: cloud, branch claude/co-majors-r3 from fc404a90 (debt-f4) plus the merge of co-p2-fix ab4cbb4f (step 0: `cargo check` and `cargo build --workspace` green). Red first for each item, on the head of the branch.
+
+| item | red | fix | cell | state |
+|------|-----|-----|------|-------|
+| co-27 MAJOR | fc4cf8c0 (unit test `an_overlay_shows_the_window_of_its_own_program_reserved_for_the_manager_below`; gate k2a red 3 of 3 before) | 193039bf | construct-extra (k2a added, header line dropped in 68790912) | fixed for k2a; windows: see co-30 |
+| co-29 MAJOR | b0ea6e26 (unit test `a_row_hovered_while_the_list_fades_in_leaves_it_fully_opaque`, 0.578 after 1 s); gate red 857f9408 (pointer move dropped, red 3 of 3 at 1280x720@1.5 light) | 8313efab | construct-hud | fixed |
+| co-28 MINOR | not started | none | none | open: rule 6 order (items 1 and 2 first) and the budget; the 3d gate stays out of construct-extra |
+| co-30 MINOR (new) | tests/gate-construct-windows.sh:511 red with and without co-p2-fix | none | none | open, see below |
+
+### co-27 cause
+218c2a6b ("adopt only a window that the book claimed") made `Construct::created` adopt a window only when `book.claim` returned a change. The core reserves the window of a program that the overlay starts for the window manager below (tiling), and the book claims no window reserved for another manager, so the overlay (which only shows such a window, D66) took no pane for its own program. The flavor path stays green because nothing is reserved. Fix (adopt.rs): an overlay takes the pane of a window whose token it waited for without the claim (it is shown, not attached, so no phase, origin or give is involved); the flavor still refuses a reserved window (`a_launch_adopts_no_window_reserved_for_another_manager` stays green).
+
+### co-29 cause
+Not the keyboard: the core keeps the focus on construct-look and the construct state says `open: construct-list`. The list node stood at opacity 0.87 for 4 s. The list opens under a pointer that stood still, so `pointer.entered` (moved false) hovers row 0 at once; `draw_list(false)` updates the node, and an update (or animate) of a node ends its running animation where it is (chora-scene `change_props`), so the 160 ms fade-in stopped at about half. The pointer move to [4, 300] only kept the pointer off the rows. Fix (overlay.rs, list.rs, main.rs): the list remembers when it opened and a redraw within the fade-in issues the fade again for the time left. The workaround line and its header note are gone. kit7-a2 has no line in tests/acts/known-red.toml any more (nothing to remove); `tests/gate-acts.sh --no-selftest construct`: 55 pass, 0 known red, 0 blocking.
+
+### co-30 (new, found behind co-27)
+With co-27 fixed, windows passes sections 1 to 4 and fails at line 511 (section 5): the Super drag of d1 on the flavor's output never reaches the construct (no `release` in its log). A/B on fc404a90 plus the co-27 fix without co-p2-fix fails the same way, so co-p2-fix is not the cause. `claimant_at` takes the smallest claim among the grabbers of the binding: mc with `--manage-windows` claims [0,56,1280,688] and grabs the drag, the construct claims [0,0,1280,800]. With `--manage-windows` left out the d1 drop passes (and d2 to mc then fails as it must). Decision for the PM: a stale setup (a window manager of its own output) or a D55 rule for two window managers on one output. windows stays out of construct-extra, its header names co-30.
+
+### Gate
+`tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,construct-hud,construct-extra,cube,keys,pull,out,doors` on the merge with origin/claude/autonomous-dev-session-3w-i33pg7 (already up to date): all PASS (run /tmp/merge-gate.dGKMG5): pre-commit 10 s, gate-lib 70, build 32, test 242, clippy 23, ci-check 106, cube 129, pull 80, doors 365, construct-extra 63 (k1, mcpane, nested, k2a), construct-hud 123, out 15, keys 22. No red cell, no FLK. Head 68790912.
