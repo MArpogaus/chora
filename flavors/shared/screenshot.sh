@@ -4,11 +4,10 @@
 # pictures folder (`xdg-user-dir PICTURES` when that is installed, else
 # XDG_PICTURES_DIR, else ~/Pictures), a copy goes to the clipboard when wl-copy is there, and
 # a notice names the file, or the reason when grim fails. German with a German locale. grim is needed,
-# and slurp for an area. The notice goes through notify-send to the
-# notification server of the session bus; when that fails, as in a
-# session without a session bus, through `choractl call notify
-# notify.show` to chora-notify on the live API. Without either, the
-# result goes to stderr.
+# and slurp for an area. The notice is a short balloon through `choractl call notify
+# notify.show` to chora-notify on the live API; when that fails, through
+# notify-send to the notification server of the session bus. Without
+# either, the result goes to stderr.
 # Usage: sh screenshot.sh [full|area]
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
 de*) saved="Bildschirmfoto gespeichert" failed="Bildschirmfoto fehlgeschlagen" ;;
@@ -18,13 +17,13 @@ json() {
     printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
 }
 say() {
-    if command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2" 2>/dev/null; then
-        return 0
-    fi
     if command -v choractl >/dev/null 2>&1 &&
         choractl call notify notify.show \
-            "{\"app\": \"Screenshot\", \"summary\": $(json "$1"), \"body\": $(json "$2")}" \
+            "{\"app\": \"Screenshot\", \"summary\": $(json "$1"), \"body\": $(json "$2"), \"expire_ms\": 6000}" \
             >/dev/null 2>&1; then
+        return 0
+    fi
+    if command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2" 2>/dev/null; then
         return 0
     fi
     echo "screenshot.sh: $1 $2" >&2
