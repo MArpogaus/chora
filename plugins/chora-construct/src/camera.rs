@@ -4,9 +4,10 @@
 use super::{
     Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
     LOOK_RATE, Own, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, System, TURN, Transform,
-    Value, json, space, stride, update,
+    Value, json, space, stride, swallow, update,
 };
 use chora_kit::wm::focus;
+use chora_scene::Binding;
 
 /// The surface that the camera is in or on its way into.
 pub(crate) fn window_flown_into<'a>(
@@ -466,12 +467,36 @@ impl Construct {
         if self.in_pane() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
-            for (key, action) in self.grab_keys() {
-                self.rt.grab(parse(key)?, Grab::Key(action))?;
+        }
+        if self.in_pane() || self.cube.is_some() {
+            for (key, grab) in self.grab_keys() {
+                self.rt.grab(parse(key)?, grab)?;
             }
         }
         self.grab_cube_keys();
+        if self.in_pane() || self.cube.as_ref().is_some_and(crate::cube::Host::swallows) {
+            self.swallow_unbound()?;
+        }
         self.rt.end_grabs()
+    }
+
+    /// Holds every chord of `Super` that nothing of the construct binds,
+    /// so that the window that has the keyboard, in a pane or on a face of
+    /// the cube, never gets it. It comes after every other grab: a chord
+    /// that is held already, by the construct or by another client, stays.
+    fn swallow_unbound(&mut self) -> Result<(), ClientError> {
+        for chord in swallow::chords(&self.settings.value.modifier) {
+            let binding: Binding = chord.parse().map_err(|e| {
+                ClientError::Rpc(RpcError::new(
+                    RpcError::INVALID_PARAMS,
+                    format!("{chord}: {e}"),
+                ))
+            })?;
+            if self.rt.action(&binding.to_string()).is_none() {
+                self.rt.grab(binding, Grab::Swallow)?;
+            }
+        }
+        Ok(())
     }
 
     /// Puts the window back into its pane and gives the keys back to the
@@ -526,19 +551,23 @@ impl Construct {
         self.frame()
     }
 
-    /// The keys that start a terminal or are keys of every look and carry
-    /// a modifier, or are media keys: the keys that a program in the pane
-    /// never gets, so that they work from use mode.
-    fn grab_keys(&self) -> Vec<(String, System)> {
+    /// The chords that the construct binds with a modifier, and the media
+    /// keys: the keys that a window never gets while the keyboard may be
+    /// with it, so that they work from use mode.
+    fn grab_keys(&self) -> Vec<(String, Grab)> {
         (self.settings.value.common.bindings.iter())
+            .filter(|(key, _)| key.contains('+') || key.starts_with("XF86"))
             .filter_map(|(key, action)| match action {
                 Action::System(system)
-                    if (*system == System::Terminal || system.in_every_look())
-                        && (key.contains('+') || key.starts_with("XF86")) =>
+                    if matches!(system, System::Terminal | System::Close | System::Run(_))
+                        || system.in_every_look() =>
                 {
-                    Some((key.clone(), system.clone()))
+                    Some((key.clone(), Grab::Key(system.clone())))
                 }
-                _ => None,
+                Action::Look(own @ (Own::Cube | Own::Windows)) => {
+                    Some((key.clone(), Grab::Own(*own)))
+                }
+                Action::System(_) | Action::Look(_) => None,
             })
             .collect()
     }

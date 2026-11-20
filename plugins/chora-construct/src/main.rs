@@ -62,6 +62,7 @@ mod space;
 mod start;
 mod state;
 mod stride;
+mod swallow;
 mod voice;
 mod wm;
 mod wobble;
@@ -440,6 +441,12 @@ enum Grab {
     /// With a cube: the step back from its face, and a turn of it.
     StepBack,
     Turn(i32),
+    /// A chord of the modifier that the construct binds to an action of
+    /// its own, held while the keyboard may be with a window.
+    Own(Own),
+    /// A chord of the modifier that nothing binds: held, so that no
+    /// window gets it, and it does nothing (`swallow`).
+    Swallow,
 }
 
 /// A drag with the modifier: the pane, the press, and its centre and

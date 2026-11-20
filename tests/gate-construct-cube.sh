@@ -171,6 +171,7 @@ help_shown() { ctl query id:construct-help | python3 -I -c 'import json, sys; n 
 before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "on the front face a plain a does not reach the probe window"
+sleep 2
 for chord in Super+q Super+Tab Super+1 Super+Shift+x Super+Ctrl+z; do
     key "$chord"
 done
@@ -178,12 +179,20 @@ sleep 1
 for code in 16 15 2 45 44; do
     [ "$(keys_got "$code")" = 0 ] || fail "on the front face a Super chord that nothing binds reached the probe window (key $code, co-25)"
 done
+start_menu_open() { ctl query id:xp-item-0 | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0]["rects"] else 1)'; }
+if start_menu_open; then
+    plain Escape
+    until_ok '! start_menu_open' 20 || fail "Escape does not close the Start menu that the release of Super opened"
+fi
+before=$(keys_got 30)
+plain a
+until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the swallowed chords the probe window has no keyboard"
 ok "co-25: on the front face Super+q, Tab, 1, Shift+x and Ctrl+z reach no window, a plain a does"
 key Super+F1
 until_ok help_shown || fail "Super+F1 on the front face shows no key list of the construct (co-26)"
-key Escape
-until_ok '! help_shown' || fail "Escape after Super+F1 on the front face keeps the key list"
-ok "co-26: Super+F1 on the front face shows the key list of the construct, Escape hides it"
+key Super+F1
+until_ok '! help_shown' || fail "a second Super+F1 on the front face keeps the key list"
+ok "co-26: Super+F1 on the front face shows the key list of the construct, and a second one hides it"
 before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the key list the probe window has no keyboard"
@@ -198,6 +207,14 @@ before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "view.step_back, a method, took the keyboard from the window"
 ok "view.step_back: the cube stands back, the face forwards nothing, three chips show, the keyboard stays"
+key Super+Tab
+sleep 1
+[ "$(keys_got 15)" = 0 ] || fail "stood back, Super+Tab reached the probe window (co-25)"
+if start_menu_open; then
+    plain Escape
+    until_ok '! start_menu_open' 20 || fail "stood back, Escape does not close the Start menu"
+fi
+ok "co-25: stood back, Super+Tab reaches no window"
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True' 20 || fail "stood back, the next face does not show: the cube rests square"
 [ "$(prop construct-cube-face-3 visible)" = False ] || fail "stood back, the face before the front shows"
 until_ok 'test "$(prop construct-cube-mirror-0 visible)" = True && test "$(prop construct-cube-mirror-1 visible)" = True' 20 || fail "stood back, the cube has no mirror image in the floor"
