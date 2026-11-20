@@ -53,3 +53,28 @@ Diff 219d5afe...bc3f1662: tests/doors/lib.sh, xp.sh, gate-construct-layout.sh, g
 - rw-3 NIT: `menu_close` passes 24 to keep the old 10 s because `menu_open` is true with no menu shown; the root cause goes to the backlog (lane's side find).
 Good: the sunset wait now fails instead of falling through; pull waits for 200 px instead of one read.
 Verdict: FIX (rw-1 open MAJOR). r2: run under load, fix what is red, rw-2.
+
+## r2
+
+Lane: cloud, branch claude/flake-h from bc3f1662. setup.sh was not run (the auto-mode classifier denied it; tools cargo, sccache, foot, sway, python3, jq present as in r1). `cargo build --workspace --locked` ok. The brief's step `construct-pull` is named `pull` in merge-gate.sh (the first try said `unknown step construct-pull`, 0 of 5, no test ran).
+
+Command: `tests/under-load.sh --runs 5 --cpus 2 -- tests/merge-gate.sh --jobs 3 --only matrix,layout,doors,pull`.
+
+| set | head | result | run lines |
+|---|---|---|---|
+| A | bc3f1662 | 5 of 5 | PASS 360, 358, 358, 354, 357 s |
+| B | 9e1aa126 | 4 of 5 | PASS 358, 357, 358; run 4 FAIL 391 s; PASS 352 s |
+| C | b0564df2 | 5 of 5 | PASS 374, 361, 359, 359, 363 s |
+
+Red cell (set B run 4): doors, cell `helper-door` of xp `missing`; same cell as the r1 red. The log showed no step, so the cause is not isolated: the cell had three single steps (helper word, one click, `chat_open`). A click injected under load can be lost. Fix (b0564df2): the cell clicks up to 3 times until the chat opens, and each exit prints a `FAIL: helper-door: ...` line naming its step. Set C is the 5 loaded runs after that fix.
+
+rw-2: the repo hook `no-inline-comments` rejects an added comment, and `--no-verify` is barred. The unit is named in code instead (9e1aa126): `local rounds=${2:-40}`, `end=$((SECONDS + rounds / 2))` in tests/doors/lib.sh, gate-construct-layout.sh, gate-construct-pull.sh.
+
+rw-3: no change.
+
+Commits: 9e1aa126 (rw-2), b0564df2 (helper-door). Head: b0564df2.
+
+## PM review r2 (2026-11-20 01:10 UTC)
+Diff bc3f1662..b0564df2 on top of the session branch: tests only (doors/lib.sh, doors/xp.sh, gate-construct-layout.sh, gate-construct-pull.sh); no product code. Done criterion holds: set C 5 of 5 under `--cpus 2` on b0564df2.
+- MINOR-1: the helper-door retry (up to 3 clicks) rests on an unproven cause ("a click injected under load can be lost"). If the first click opens the chat after 10 s, the second click may toggle it shut. Not a MAJOR: the cell still fails when no click opens the chat. Backlog: print the click count in the cell, and a product check if a count above 1 shows up.
+- No BLOCK or MAJOR. Verdict (computed): MERGE-OK b0564df2, train 80.

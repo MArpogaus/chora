@@ -282,3 +282,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - KIT-SEC-R3 (F5, security, 0.4 %): rw-8 MINOR crates/chora-scene lib.rs:113 Wayland socket binds via raw XDG_RUNTIME_DIR after a link-following check (use the canonical dir as the IPC socket does); rw-9 NIT script /tmp fallbacks use fixed names (mktemp -d); rw-10 NIT runtime_dir.rs lacks a foreign-owned case. Source: reports/kit-sec.md "## Review r2".
 - FLAKE-DOORS (F5, 0.3 %): train 78b doors cell red once (00:12, xp column "helper-door missing", plus a jq "null has no keys" in the construct part); 3/3 reruns green on a2f50532. Find the race in tests/gate-doors.sh xp helper-door step.
 - H-pane-overlap (co-majors review r1 FIX 00:40): earliest gate gate-construct-pull (no pane-pane check, mirror x only); fixed in co-majors r2 item 1. 0 %.
+- FLAKE-H MINOR-1 (11-20): helper-door click count in the doors cell; a count above 1 means a lost first click, then a product check (input inject under load).
+- FLAKE candidate (11-20 review mc-answer): tiling-look ink-1280x800 failed once at 12 s under --jobs 3 (tag colour 1 1 1 255), PASS alone.
+- XP-MAJORS review r1 MINOR rv-1..4 (11-20): question-card gate asserts no placement or font; paperclip gate asserts no art; popup guarded at 1280x800 only, no outside-click or key-leak act; stepped list for volume. Next xp round.
+- MC-ANSWER MINOR-1 (review r2): card.size message printed per notification in Card::new; log it once when values.yaml loads.
