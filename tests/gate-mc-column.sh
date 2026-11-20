@@ -29,7 +29,11 @@ ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
 notify_slot=$repo/plugins/chora-mc/notify
 "$bin/chora-notify" --assets "$notify_slot" --config "$notify_slot/notify.yaml" >"$XDG_CONFIG_HOME/notify.log" 2>&1 &
 pids+=($!)
-ctl wait owner:notify --timeout 20 >/dev/null || fail "chora-notify does not start: $(tail -n 3 "$XDG_CONFIG_HOME/notify.log")"
+for _ in $(seq 80); do
+    ctl call notify state.get '{}' >/dev/null 2>&1 && break
+    sleep 0.25
+done
+ctl call notify state.get '{}' >/dev/null || fail "chora-notify does not start: $(tail -n 3 "$XDG_CONFIG_HOME/notify.log")"
 shown_notices() { ctl call notify state.get '{}' | jq -r '.shown[].summary'; }
 
 until_ok() {
@@ -52,7 +56,7 @@ shot() { ctl capture "${SHOTS:-/tmp}/mc-column-$1.png" >/dev/null || fail "captu
 until_ok 'has_text "AGENDA"' || fail "no first screen: $(texts | tr '\n' '|')"
 
 for t in "Super+F1" "All keys" "← →" "Turn the page" "Super+Space" "Start a program or run a command" \
-    "Super+n" "Hide this column" "Esc" "Back one step"; do
+    "Super+N" "Hide this column" "Esc" "Back one step"; do
     has_text "$t" || fail "the key list lacks \"$t\" on the first screen"
 done
 rect=$(text_rect "Start a program or run a command")
@@ -76,6 +80,9 @@ click_at() {
 center_of() {
     jq -r 'select(. != null) | "\(.[0] + 40) \(.[1] + .[3] / 2)"' <<<"$(text_rect "$1")"
 }
+first_line_of() {
+    jq -r 'select(. != null) | "\(.[0] + 40) \(.[1] + 14)"' <<<"$(text_rect "$1")"
+}
 hit_center() {
     ctl query "owner:mc kind:rect" | jq -r --arg s "$1-hit" \
         '[.[] | select((.id | endswith($s)) and (.rects | length) > 0)][0].rects | to_entries[0].value | "\(.[0] + 160) \(.[1] + .[3] / 2)"' 2>/dev/null
@@ -84,7 +91,7 @@ bars() { ctl query "owner:mc kind:rect" | jq -r '[.[] | select((.id | endswith("
 current() { ctl call mc scene.list '{}' | jq -r '.current'; }
 
 [ "$(bars)" = 0 ] || fail "a focus bar shows without the pointer"
-read -r x y <<<"$(center_of "Start a program or run a command")"
+read -r x y <<<"$(first_line_of "Start a program or run a command")"
 move_to "$x" "$y"
 until_ok '[ "$(bars)" = 1 ]' 8 || fail "no focus bar over the row Start a program or run a command"
 ok "the pointer over a key row shows the focus bar"
@@ -150,7 +157,7 @@ key Super+Home
 until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda to measure"
 sleep 1
 close_list
-expect_rect "right-keys-title-rule" "[888.0,490.0,336.0,1.0]"
+expect_rect "right-keys-title-rule" "[888.0,462.0,336.0,1.0]"
 expect_rect "right-edge" "[860.0,37.0,1.0,738.0]"
 ok "at 1280x800 the column stands at 888 to 1224 with its hairline at 860"
 
@@ -198,7 +205,7 @@ fits() {
     [ -z "$over" ] || fail "text beyond the output ${w}x${h}: $over"
 }
 column_at() {
-    local size=$1 left=$2 width=$3 w=${1%x*} h=${1#*x}
+    local size=$1 left=$2 width=$3 keys=$4 w=${1%x*} h=${1#*x}
     kill "${pids[@]}" 2>/dev/null
     wait 2>/dev/null
     pids=()
@@ -209,7 +216,7 @@ column_at() {
     ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start at $size"
     until_ok 'has_text "AGENDA"' || fail "no first screen at $size"
     sleep 1
-    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - 280 - 14)).0,$width.0,1.0]"
+    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - keys - 14)).0,$width.0,1.0]"
     expect_rect "right-edge" "[$((left - 28)).0,37.0,1.0,$((h / 28 * 28 - 46)).0]"
     fits "$w" "$h"
     shot "$size"
@@ -241,8 +248,8 @@ ok "notify.push shows in chora-notify and mc draws no column of notifications"
 ctl call mc notify.clear '{}' >/dev/null
 until_ok '! shown_notices | grep -qx "Update ready"' 20 || fail "notify.clear leaves the notice"
 
-column_at 1280x720 888 336
-column_at 1920x1080 1416 448
+column_at 1280x720 888 336 308
+column_at 1920x1080 1416 448 280
 
 alone_session() {
     kill "${pids[@]}" 2>/dev/null

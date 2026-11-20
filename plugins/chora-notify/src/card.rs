@@ -22,8 +22,34 @@ use crate::{
     config::Config,
 };
 
-/// The widest line of the text.
+/// The widest line of the text of the small text of the host.
 const MAX_TEXT: f64 = 300.0;
+/// The size in pixels of the small text of the host, which `MAX_TEXT` and
+/// `LINE` belong to.
+const SMALL: u32 = 11;
+/// The distance of two lines of a sized text, in hundredths of its size.
+const LEADING: u32 = 147;
+/// The smallest and the largest text size of a card in pixels, the range
+/// of the text of the HUD.
+pub const SIZES: std::ops::RangeInclusive<u32> = 14..=48;
+
+/// The text size of a card: `size` itself in `SIZES`, else the nearest
+/// end of the range, with a message that names the value and the range.
+pub fn bounded(size: Option<u32>) -> (Option<u32>, Option<String>) {
+    let Some(size) = size else {
+        return (None, None);
+    };
+    let kept = size.clamp(*SIZES.start(), *SIZES.end());
+    let message = (kept != size).then(|| {
+        format!(
+            "card.size {size} is outside {} to {}: using {kept}",
+            SIZES.start(),
+            SIZES.end()
+        )
+    });
+    (Some(kept), message)
+}
+
 /// The most lines of the body that a card shows.
 const MAX_LINES: usize = 8;
 /// The most bytes of the body that are laid out.
@@ -65,6 +91,66 @@ impl Default for Values {
             card: Style::default(),
         }
     }
+}
+
+/// The heights and the widest line of a card for a text size: the small
+/// text of the host if the values name none, else a line of 147 hundredths
+/// of the size, and the width of a line in step with the size.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Metrics {
+    /// The height of a line of the text, and of the title.
+    line: i32,
+    /// The widest line of the text.
+    most: f64,
+}
+
+impl Metrics {
+    /// The metrics of a text size, `None` for the small text of the host.
+    pub fn of(size: Option<u32>) -> Self {
+        size.map_or(
+            Self {
+                line: LINE,
+                most: MAX_TEXT,
+            },
+            |size| Self {
+                line: i32::try_from(size.saturating_mul(LEADING).div_ceil(100)).unwrap_or(LINE),
+                most: MAX_TEXT * f64::from(size) / f64::from(SMALL),
+            },
+        )
+    }
+
+    fn title(self, sized: bool) -> i32 {
+        if sized { self.line } else { TITLE_HEIGHT }
+    }
+}
+
+/// The family of a sized text: the font of the values, or the sans of the
+/// host for a name with a character that a family does not have.
+fn family_of(font: &str) -> &str {
+    let plain = |c: char| c.is_alphanumeric() || " _-".contains(c);
+    let font = font.trim();
+    if !font.is_empty() && font.chars().all(plain) {
+        font
+    } else {
+        chora_draw::text::SANS_SERIF
+    }
+}
+
+/// The SVG element of a line of a sized text in a row of `line` pixels
+/// that starts at `y`, `x` from the left.
+fn element(
+    (family, size, line): (&str, u32, i32),
+    text: &str,
+    [x, y]: [i32; 2],
+    [red, green, blue]: [u8; 3],
+    bold: bool,
+) -> String {
+    let baseline = f64::from(y) + f64::from(line) / 2.0 + f64::from(size) * 0.34;
+    let weight = if bold { r#" font-weight="bold""# } else { "" };
+    format!(
+        r#"<text x="{x}" y="{baseline:.2}" font-family="{family}, sans-serif"{weight} font-size="{size}" fill="rgb({red},{green},{blue})" xml:space="preserve">{}</text>"#,
+        chora_draw::text::escape(text)
+    )
 }
 
 /// The notification that shows and the ones that wait.
@@ -205,13 +291,13 @@ pub struct Layout {
 }
 
 /// The layout for a title and lines of text of some widths.
-pub fn layout(icon: bool, title: f64, lines: &[f64]) -> Layout {
+pub fn layout(icon: bool, title: f64, lines: &[f64], (metrics, sized): (Metrics, bool)) -> Layout {
     let ceil = |w: f64| {
         #[expect(
             clippy::cast_possible_truncation,
-            reason = "a text width in pixels, capped at MAX_TEXT"
+            reason = "a text width in pixels, capped at the widest line"
         )]
-        let w = w.min(MAX_TEXT).ceil() as i32;
+        let w = w.min(metrics.most).ceil() as i32;
         w
     };
     let title_x = if icon { PAD + ICON + 6 } else { PAD };
@@ -220,28 +306,29 @@ pub fn layout(icon: bool, title: f64, lines: &[f64]) -> Layout {
         .max(PAD + ceil(text) + PAD)
         .max(MIN_WIDTH);
     let lines = i32::try_from(lines.len()).unwrap_or(0);
-    let text_top = TOP + TITLE_HEIGHT + GAP;
+    let title_height = metrics.title(sized);
+    let text_top = TOP + title_height + GAP;
     let height = if lines == 0 {
-        TOP + TITLE_HEIGHT + TOP
+        TOP + title_height + TOP
     } else {
-        text_top + lines * LINE + PAD
+        text_top + lines * metrics.line + PAD
     };
     Layout {
         size: [width, height],
         icon: icon.then_some([PAD, TOP, ICON, ICON]),
-        title: [title_x, TOP, width - title_x - CLOSE - 12, TITLE_HEIGHT],
+        title: [title_x, TOP, width - title_x - CLOSE - 12, title_height],
         close: [width - CLOSE - 6, 6, CLOSE, CLOSE],
         text_top,
     }
 }
 
 /// The wrapped lines of a body that fit the card.
-fn body_lines(body: &str, width: impl Fn(&str) -> f64) -> Vec<String> {
+fn body_lines(body: &str, most: f64, width: impl Fn(&str) -> f64) -> Vec<String> {
     let mut end = body.len().min(MAX_BYTES);
     while !body.is_char_boundary(end) {
         end -= 1;
     }
-    let mut lines = wrap(&body[..end], MAX_TEXT, width);
+    let mut lines = wrap(&body[..end], most, width);
     if end < body.len() || lines.len() > MAX_LINES {
         lines.truncate(MAX_LINES);
         if let Some(last) = lines.last_mut() {
@@ -303,6 +390,40 @@ pub struct Card {
     hovered: bool,
 }
 
+/// The title and the lines of the text of a card on its picture: the small
+/// text of the host, or SVG text of a face when the values name a size.
+fn write(
+    mut picture: Picture,
+    (summary, lines): (&str, &[String]),
+    layout: &Layout,
+    (style, metrics, sized): (&Style, Metrics, Option<(&str, u32, i32)>),
+) -> Picture {
+    let [title_x, title_y, ..] = layout.title;
+    picture = match sized {
+        Some(face) => picture.svg(element(face, summary, [title_x, title_y], style.text, true)),
+        None => picture.text(Text::new(
+            summary,
+            Font::UiBold,
+            style.text_rgba(),
+            layout.title,
+        )),
+    };
+    let rows = usize::try_from(metrics.line).unwrap_or(1).max(1);
+    let width = layout.size[0] - 2 * PAD;
+    for (line, y) in lines.iter().zip((layout.text_top..).step_by(rows)) {
+        picture = match sized {
+            Some(face) => picture.svg(element(face, line, [PAD, y], style.text, false)),
+            None => picture.text(Text::new(
+                line,
+                Font::Ui,
+                style.text_rgba(),
+                [PAD, y, width, metrics.line],
+            )),
+        };
+    }
+    picture
+}
+
 impl Card {
     /// Lays out a notification in a corner of an output, beside the box
     /// of the chat on it, if any.
@@ -314,14 +435,27 @@ impl Card {
         (output, corner, chat): (&OutputInfo, Corner, Option<[i32; 4]>),
     ) -> Self {
         let style = &values.card;
-        let color = style.text_rgba();
-        let width = |s: &str| theme.text_width(s, Font::Ui);
-        let lines = body_lines(&note.body, width);
+        let (size, message) = bounded(style.size);
+        if let Some(message) = message {
+            eprintln!("chora-notify: {message}");
+        }
+        let metrics = Metrics::of(size);
+        let sized = size.map(|size| (family_of(&values.font), size, metrics.line));
+        let width = |s: &str| match sized {
+            Some(face) => theme.svg_width(&element(face, s, [0, 0], style.text, false)),
+            None => theme.text_width(s, Font::Ui),
+        };
+        let title_width = match sized {
+            Some(face) => theme.svg_width(&element(face, &note.summary, [0, 0], style.text, true)),
+            None => theme.text_width(&note.summary, Font::UiBold),
+        };
+        let lines = body_lines(&note.body, metrics.most, width);
         let widths: Vec<f64> = lines.iter().map(|l| width(l)).collect();
         let layout = layout(
             icon.is_some(),
-            theme.text_width(&note.summary, Font::UiBold),
+            title_width,
             &widths,
+            (metrics, sized.is_some()),
         );
         let [w, h] = layout.size;
         let height = h + style.tail;
@@ -337,15 +471,12 @@ impl Card {
         if let (Some(path), Some(rect)) = (icon, layout.icon) {
             picture = picture.foreign(path, rect);
         }
-        picture = picture.text(Text::new(&note.summary, Font::UiBold, color, layout.title));
-        for (line, y) in lines.iter().zip((layout.text_top..).step_by(LINE as usize)) {
-            picture = picture.text(Text::new(
-                line,
-                Font::Ui,
-                color,
-                [PAD, y, w - 2 * PAD, LINE],
-            ));
-        }
+        picture = write(
+            picture,
+            (&note.summary, &lines),
+            &layout,
+            (style, metrics, sized),
+        );
         Self {
             output: output.name.clone(),
             layout,
@@ -502,14 +633,63 @@ mod tests {
 
     #[test]
     fn the_card_fits_its_text() {
-        let short = layout(true, 40.0, &[]);
+        let short = layout(true, 40.0, &[], (Metrics::of(None), false));
         assert_eq!(short.size, [MIN_WIDTH, 32]);
         assert_eq!(short.icon, Some([10, 8, 16, 16]));
         assert_eq!(short.title[0], 32);
-        let long = layout(false, 40.0, &[300.0, 120.0]);
+        let long = layout(false, 40.0, &[300.0, 120.0], (Metrics::of(None), false));
         assert_eq!(long.size, [320, 29 + 26 + 10]);
         assert_eq!(long.close, [320 - 20, 6, 14, 14]);
         assert!(long.icon.is_none());
+    }
+
+    #[test]
+    fn a_sized_text_has_a_line_of_147_hundredths_and_a_wider_card() {
+        let small = Metrics::of(None);
+        assert_eq!((small.line, small.most), (LINE, MAX_TEXT));
+        let sized = Metrics::of(Some(19));
+        assert_eq!(sized.line, 28);
+        assert!(sized.most > 500.0 && sized.most < 530.0, "{}", sized.most);
+        let card = layout(false, 40.0, &[400.0], (sized, true));
+        assert_eq!(card.size, [420, 8 + 28 + 5 + 28 + 10]);
+        assert_eq!(card.title[3], 28);
+        assert_eq!(Metrics::of(Some(11)).line, 17);
+    }
+
+    #[test]
+    fn a_text_size_outside_the_range_is_clamped_with_a_message() {
+        for (bad, kept) in [(0, 14), (13, 14), (49, 48), (100_000, 48), (u32::MAX, 48)] {
+            let (size, message) = bounded(Some(bad));
+            assert_eq!(size, Some(kept), "size {bad}");
+            let message = message.unwrap_or_default();
+            assert!(message.contains(&bad.to_string()), "{message}");
+            assert!(
+                message.contains("14") && message.contains("48"),
+                "{message}"
+            );
+            let metrics = Metrics::of(size);
+            assert!(metrics.line > 0 && metrics.line < 100, "{}", metrics.line);
+        }
+        for good in [14, 19, 48] {
+            assert_eq!(bounded(Some(good)), (Some(good), None));
+        }
+        assert_eq!(bounded(None), (None, None));
+    }
+
+    #[test]
+    fn the_metrics_of_any_size_do_not_overflow() {
+        for size in [0, 1, 100_000, u32::MAX] {
+            let metrics = Metrics::of(bounded(Some(size)).0);
+            assert!(metrics.line > 0 && metrics.line < 100, "size {size}");
+        }
+    }
+
+    #[test]
+    fn a_font_with_a_character_that_a_family_lacks_is_the_sans_of_the_host() {
+        assert_eq!(family_of(" Inter "), "Inter");
+        assert_eq!(family_of("TeX Gyre Pagella"), "TeX Gyre Pagella");
+        assert_eq!(family_of("a\"b"), chora_draw::text::SANS_SERIF);
+        assert_eq!(family_of(""), chora_draw::text::SANS_SERIF);
     }
 
     fn chars_wide(s: &str) -> f64 {
@@ -519,11 +699,11 @@ mod tests {
     #[test]
     fn an_unbounded_body_is_cut_to_a_few_lines_with_an_ellipsis() {
         let body = "word ".repeat(200_000);
-        let lines = body_lines(&body, chars_wide);
+        let lines = body_lines(&body, MAX_TEXT, chars_wide);
         assert!(lines.len() <= MAX_LINES, "{} lines", lines.len());
         assert!(lines.last().is_some_and(|l| l.ends_with('…')));
         let one_line = "x".repeat(1_000_000);
-        let lines = body_lines(&one_line, chars_wide);
+        let lines = body_lines(&one_line, MAX_TEXT, chars_wide);
         assert!(lines.iter().map(String::len).sum::<usize>() <= MAX_BYTES + MAX_LINES * 4);
     }
 

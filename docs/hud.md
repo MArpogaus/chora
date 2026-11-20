@@ -199,6 +199,7 @@ chat:
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
 | `size` | The text size in pixels of a `plain` sentence, 14 to 48, set in the font of the chat. Left out, the sentence is the small text of the host. A `bubble` sentence ignores it. |
+| `width` | The widest line of a `plain` sentence in pixels, 1 to 1600. Left out, 420 pixels, or 640 with a `size`. |
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
 | `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |
@@ -226,7 +227,7 @@ A sentence (`source: say`) shows in a bubble above the figure, or below
 a figure at the top. With `style: plain` it has no hairline and no
 tail: the text stands beside the figure, on the side of the middle of
 the output, in the text colour of the chat on a backing in the fill of
-the chat, so that it reads on any window behind it. A sentence that the agent still speaks shows again
+the chat, so that it reads on any window behind it. A `plain` sentence with an `anchor` and no `near` stands at that place of the work area, not beside the figure, so that a long answer keeps off the rest of the screen: the mc folder puts it at the bottom left, 736 pixels wide. A sentence that the agent still speaks shows again
 when the look is built again.
 
 With `style: island` the voice panel is one glass capsule after the

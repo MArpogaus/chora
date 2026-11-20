@@ -5,4 +5,5 @@ card:
   border: [66, 66, 64]
   text: [217, 212, 201]
   radius: 2
+  size: 19
   tail: 0

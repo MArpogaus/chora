@@ -66,6 +66,10 @@ pub struct Style {
     /// The distance of the tip of the tail from the edge of the bubble
     /// that is nearer to its corner of the output.
     pub tail_inset: i32,
+    /// The size of the text in pixels, read by chora-notify: the card has
+    /// the line height of that size. Left out, the card has the small text
+    /// of the host.
+    pub size: Option<u32>,
 }
 
 impl Default for Style {
@@ -78,6 +82,7 @@ impl Default for Style {
             tail: 0,
             tail_base: 16,
             tail_inset: 40,
+            size: None,
         }
     }
 }
