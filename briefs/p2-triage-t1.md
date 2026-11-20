@@ -24,6 +24,6 @@ Done when: each feedback finding has one outcome; ledgers rewritten; reports/p2-
 per look (new BLOCK, new MAJOR, duplicates, verify, rejected) and the stop-rule verdict per look (new BLOCK or
 MAJOR backed by a check: another round; else stop).
 Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines): counts per look,
-the new BLOCK and MAJOR ids, stop verdicts.
+the new BLOCK and MAJOR ids, stop verdicts. Poll every command in the same turn; never end a turn to wait.
 Rules: push claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus
 <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.
