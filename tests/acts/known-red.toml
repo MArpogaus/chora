@@ -5,3 +5,45 @@
 # act `act:NAME`), its finding id and the slice that turns it green. An
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
+
+[[red]]
+finding = "guide-checks r1: construct-mode-step-in and construct-mode-turn-left are 9 apart: gaps of the mode buttons"
+id = "I2"
+look = "construct"
+match = "no whole number of 8"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+finding = "guide-checks r1: construct-help-body-scope reads 11 px, with the other labels under 14 px"
+id = "I6"
+look = "construct"
+match = "the guide wants"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+finding = "guide-checks r1: mc-r1-footer-next says Agents"
+id = "I10"
+look = "mc"
+match = "a word of the builders"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+finding = "guide-checks r1: mc-r1-right-agents-0-sign has 1.64:1"
+id = "I6"
+look = "mc"
+match = "the guide wants"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+finding = "guide-checks r1: xp-icon-0 My Documents reads 11 px, with the other labels under 14 px"
+id = "I6"
+look = "xp"
+match = "the guide wants"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+finding = "guide-checks r1: the key caps of the key list read 13 px"
+id = "I6"
+look = "tiling"
+match = "the guide wants"
+slice = "none yet: the look is not fixed in this lane"

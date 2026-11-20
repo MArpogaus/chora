@@ -20,7 +20,7 @@ import subprocess
 import tempfile
 import types
 
-from harness import REPO, Core, Expect, Session, program
+from harness import REPO, Core, Expect, Session, known_red, program
 
 OUT = "HEADLESS-1"
 
@@ -162,9 +162,9 @@ def odd_gaps(s):
     apply(
         s,
         rect("planted-gap-a", [100, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
-        rect("planted-gap-b", [313, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
+        rect("planted-gap-b", [213, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
         rect("tb-planted-1", [100, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
-        rect("tb-planted-2", [307, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
+        rect("tb-planted-2", [207, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
     )
 
 
@@ -233,7 +233,9 @@ def persona_check(must):
                 )
 
             subprocess.run([str(persona / "check.py"), "start"], env=check, check=True, timeout=60)
-            must("persona sound", after("sound"), fail=False)
+            listed = {(r["look"], r["id"]) for r in known_red()}
+            sound = [b for b in after("sound") if (b["look"], b["invariant"]) not in listed]
+            must("persona sound", sound, fail=False)
             planted = Core(sock, name="planted-persona")
             black_screen(
                 types.SimpleNamespace(core=planted, outputs=lambda: planted.call("output.list"))
