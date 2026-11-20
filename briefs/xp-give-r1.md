@@ -9,6 +9,7 @@ Items:
 1. Red first (own commit, cell fails on ce2c436b): a cell (unit in context.rs plus one step in tests/gate-handover.sh or an xp gate) that opens the window menu of a window (title-bar right click and Alt+Space), picks "Send To" > a look, and asserts the window is owned by that look (I1), inside an output (I2), and gone from the xp taskbar.
 2. Fix: a "Send To" submenu in the xp window menu, XP style (same menu art as the file "Send To"), one row per running look other than xp, by its plain name (Tiling desktop, Media center, 3D space; take the names the key list uses), calling the same give as Super+Alt+N. A look that is not running: row greyed, no error. No new API; no change to other looks.
 3. Docs: docs/configuration.md or the xp section where the window menu is described; the key list row stays.
+Poll the gate in the same turn; never end a turn to wait.
 Gate: `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,xp,xp-fields,xp-question,doors` plus the handover cell you touch; all PASS.
 Done when: red sha and fix sha on claude/xp-give; gate lines pasted in reports/xp-give.md "## r1" with a capture of the open submenu (path under media/2026-11-20/); report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
 Not in scope: the volume slider drag, the XP-MAJORS rv-1..4 test gaps, Control Panel rows (backlog).
