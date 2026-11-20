@@ -20,6 +20,7 @@ status)
     ;;
 rev-parse)
     case $* in
+    *--is-shallow-repository*) echo "${FAKE_GIT_SHALLOW:-false}" ;;
     *refs/heads/*)
         [ -n "${FAKE_GIT_LOCAL:-}" ] || exit 1
         echo "$FAKE_GIT_LOCAL"
@@ -536,6 +537,13 @@ check "df: exactly 6 GB free passes" "$rc" 0
 check "df: a pass prints no df line" "$(grep -c 'GB free on /' "$work/out")" 0
 FAKE_DF_FREE_KB=5242880 run_gate --list
 check "df: --list needs no free space" "$rc" 0
+rm -f "$work/ran"
+FAKE_GIT_SHALLOW=true run_gate
+check "shallow: a shallow clone fails the gate" "$rc" 1
+check "shallow: the gate says how to deepen it" "$(grep -c 'shallow clone; run git fetch --unshallow' "$work/out")" 1
+check "shallow: no step runs in a shallow clone" "$(test -e "$work/ran" && echo ran)" ""
+FAKE_GIT_SHALLOW=true run_gate --list
+check "shallow: --list needs no full history" "$rc" 0
 FAKE_GIT_LOCAL=aaaaaaaa11111111 FAKE_GIT_ORIGIN=bbbbbbbb22222222 run_gate
 check "drift: a session branch that differs from origin warns" "$(grep -c 'WARNING: drift: claude/autonomous-dev-session-3w-i33pg7 is at aaaaaaaa, origin/claude/autonomous-dev-session-3w-i33pg7 at bbbbbbbb' "$work/out")" 1
 check "drift: the warning does not fail the gate" "$rc" 0

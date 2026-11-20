@@ -80,6 +80,7 @@
 #   MERGE_GATE_RUNS   directory for the run directories (default: /tmp)
 #   CHORA_GATE_LOCK   the lock file of the gates (see tests/gate-lock.sh)
 # A run that starts has at least 6 GB free on / (D90): under that the gate prints df and exits 1.
+# A shallow clone fails at once (git fetch --unshallow first, R18).
 # When the session branch of BASE exists here, the gate fetches it and warns when its head differs
 # from the head on origin (a drift of the container).
 # Exit status: 0 all steps passed, 1 a step failed or the push was
@@ -331,7 +332,14 @@ warn_on_drift() {
         echo "merge-gate: WARNING: drift: $branch is at ${local_sha:0:8}, $base at ${origin_sha:0:8} (D90)"
 }
 
+check_full_history() {
+    [ "$(git -C "$repo" rev-parse --is-shallow-repository)" != true ] && return 0
+    echo "merge-gate: this is a shallow clone; run git fetch --unshallow and start again (R18)" >&2
+    return 1
+}
+
 check_free_space || exit 1
+check_full_history || exit 1
 warn_on_drift
 
 . "$repo/tests/gate-lock.sh"
