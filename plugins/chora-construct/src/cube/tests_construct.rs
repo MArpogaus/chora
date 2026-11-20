@@ -945,6 +945,46 @@ fn a_press_on_a_pane_window_starts_no_look() {
     );
 }
 
+/// co-pane r2 (rv-8): the toggle of the key sheet regrabs, because the sheet
+/// moves the keyboard from a pressed pane window to the walk and back, and
+/// the chords held for that window go and come with it.
+#[test]
+fn the_key_sheet_lets_go_of_the_chords_of_a_pane_window_and_takes_them_back() {
+    let (mut construct, _core, _lines) = on_core("help-regrab", |method, params| {
+        let focused = params["filter"]["focused"].as_bool() == Some(true);
+        match method {
+            "scene.query" if focused => Some(json!([{"id": "s1"}])),
+            _ => cube_core(json!([]))(method, params),
+        }
+    });
+    construct.panes.push(crate::Pane {
+        name: "probe".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s1"))).unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_some(),
+        "held for the window"
+    );
+    construct.toggle_help().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "the sheet holds the keyboard, the window gets no chord"
+    );
+    construct.toggle_help().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_some(),
+        "the window has the keyboard and its chords again"
+    );
+}
+
 /// co-pane r1: the Close of the key sheet is a button.
 #[test]
 fn a_press_on_the_close_of_the_key_sheet_closes_it() {
