@@ -1,0 +1,130 @@
+#!/bin/sh
+# Lint ratchet (F4): three counts of lint debt may only fall.
+#
+# Usage: tools/lint-ratchet [--root DIR] [--update]
+#   --root DIR  the repository to check (default: the one holding this tool)
+#   --update    rewrite tools/lint-ratchet.list with the counts of the tree
+#
+# The counts, by the commands of the debt report (reports/debt-2026-11-20.md
+# section 8):
+#   allow      lines of crates, plugins, services (*.rs) with #[allow( or #[expect(
+#   no-reason  the same attributes without the word "reason" between the
+#              opening and the closing `)]`, over any number of lines (an
+#              attribute that rustfmt wraps keeps its reason on a later line)
+#   eprintln   lines with eprintln! in crates/chora/src, plugins, services
+# tools/lint-ratchet.list holds `NAME COUNT` per line, `#` starts a comment.
+# no-reason and eprintln only fall. A new allow with a reason raises `allow` in
+# the list in the same commit, and the commit message says why.
+# Only outer attributes are read; inner attributes (#![allow(...)]) and files
+# outside crates, plugins and services are not counted. An attribute has a
+# reason when the word "reason" stands between its parentheses: a comment on
+# the line above or next to the attribute is not a reason.
+# Fails (status 1) when a count is above the list, naming the counter, the
+# list value, the tree value and the 5 files that add the most; a count below
+# only prints
+# "lower the list": run --update. Status 0 ok, 1 breach, 2 usage.
+set -eu
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+update=0
+while [ $# -gt 0 ]; do
+    case $1 in
+    --root) root=$(cd "${2:?--root needs a directory}" && pwd); shift ;;
+    --update) update=1 ;;
+    -h | --help) sed -n '2,/^set -eu/p' "$0" | sed '$d;s/^# \{0,1\}//'; exit 0 ;;
+    *) echo "usage: tools/lint-ratchet [--root DIR] [--update]" >&2; exit 2 ;;
+    esac
+    shift
+done
+cd "$root"
+
+dirs=
+for d in crates plugins services; do
+    if [ -d "$d" ]; then dirs="$dirs $d"; fi
+done
+rust_files() { find $dirs -name target -prune -o -name '*.rs' -type f -print | LC_ALL=C sort; }
+per_file=$(
+    rust_files | xargs awk '
+        function close_attr() {
+            fa++
+            if (text !~ /reason/) fn++
+            open = 0
+            text = ""
+        }
+        function flush() {
+            if (cur != "") {
+                if (fa) print "allow", cur, fa
+                if (fn) print "no-reason", cur, fn
+            }
+            fa = 0
+            fn = 0
+        }
+        FNR == 1 {
+            if (open) close_attr()
+            flush()
+            cur = FILENAME
+        }
+        {
+            line = $0
+            if (!open && match(line, /#\[(allow|expect)\(/)) {
+                open = 1
+                line = substr(line, RSTART)
+            }
+            if (open) {
+                if (match(line, /\)\]/)) {
+                    text = text substr(line, 1, RSTART + 1)
+                    close_attr()
+                } else {
+                    text = text line "\n"
+                }
+            }
+        }
+        END {
+            if (open) close_attr()
+            flush()
+        }'
+    (grep -rcE 'eprintln!' $(for d in crates/chora/src plugins services; do [ -d "$d" ] && echo "$d"; done) --include=*.rs --exclude-dir=target 2>/dev/null || true) |
+        awk -F: '$NF > 0 { n = $NF; sub(/:[0-9]+$/, ""); print "eprintln", $0, n }'
+)
+total() { printf '%s\n' "$per_file" | awk -v k="$1" '$1 == k { n += $3 } END { print n + 0 }'; }
+allow=$(total allow)
+noreason=$(total no-reason)
+eprintln=$(total eprintln)
+top_files() {
+    printf '%s\n' "$per_file" | awk -v k="$1" '$1 == k { print $3, $2 }' |
+        LC_ALL=C sort -k1,1nr -k2,2 | head -5 |
+        awk '{ printf "%s%s (%s)", sep, $2, $1; sep = ", " } END { print "" }'
+}
+
+list=tools/lint-ratchet.list
+if [ "$update" = 1 ]; then
+    {
+        echo "# Lint debt counts (tools/lint-ratchet). A count only falls."
+        echo "allow $allow"
+        echo "no-reason $noreason"
+        echo "eprintln $eprintln"
+    } >"$list"
+    exit 0
+fi
+
+listed() { sed 's/#.*//' "$list" 2>/dev/null | awk -v k="$1" '$1 == k { print $2 }'; }
+fail=0
+for pair in "allow:$allow" "no-reason:$noreason" "eprintln:$eprintln"; do
+    name=${pair%%:*}
+    count=${pair#*:}
+    max=$(listed "$name")
+    if [ -z "$max" ]; then
+        echo "FAIL: lint-ratchet: $name is not in $list"
+        fail=1
+    elif [ "$count" -gt "$max" ]; then
+        echo "FAIL: lint-ratchet: $name is $count, the list holds $max"
+        echo "  $name: list $max, tree $count; most in: $(top_files "$name")"
+        fail=1
+    elif [ "$count" -lt "$max" ]; then
+        echo "lower the list: $name is $count, listed $max; run tools/lint-ratchet --update"
+    fi
+done
+if [ "$fail" = 1 ]; then
+    exit 1
+fi
+echo "ok: lint-ratchet (allow $allow, no-reason $noreason, eprintln $eprintln)"

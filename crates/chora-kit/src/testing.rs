@@ -205,10 +205,6 @@ impl FakeCore {
     ///
     /// The connection fails.
     #[must_use]
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "the test connects to its fake core"
-    )]
     pub fn connect(&self, name: &str) -> Conn {
         Conn::connect_at(name, &self.path).unwrap()
     }
