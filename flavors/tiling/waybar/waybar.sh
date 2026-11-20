@@ -20,16 +20,19 @@
 # chora-tiling that arrives before waybar has its handlers is lost, where
 # the default action would end waybar without a word. Waybar sets its own
 # handlers later.
+# XDG_RUNTIME_DIR must be set: without it every run would use a directory
+# of its own and never find the pid of an earlier panel.
 # Usage: sh waybar.sh DIR   DIR: the waybar folder of the flavor
 command -v jq >/dev/null 2>&1 || {
     echo "waybar.sh: jq is not installed; the panel of the tiling flavor needs it" >&2
     exit 1
 }
+: "${XDG_RUNTIME_DIR:?}"
 dir=$1
-config=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar.json
-style=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar
+config=$XDG_RUNTIME_DIR/chora-tiling-waybar.json
+style=$XDG_RUNTIME_DIR/chora-tiling-waybar
 
-pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
+pids=$XDG_RUNTIME_DIR/chora-tiling
 mkdir -p "$pids"
 
 prepare() {
