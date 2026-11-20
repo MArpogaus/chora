@@ -584,6 +584,8 @@ struct Construct {
     glow: Option<PropsUpdate>,
     /// How far each pane that wobbles is from its place, for its shadow.
     drifts: HashMap<String, [f64; 2]>,
+    /// The panes that gave way to the cube that stands back, by name.
+    asides: BTreeMap<String, cube::Aside>,
     /// The pane whose mesh the focus glow has.
     glow_bend: wobble::GlowBend,
     /// The wobble of the panes of own windows that the modifier drags.
@@ -690,6 +692,7 @@ impl Construct {
             backs: std::collections::BTreeSet::new(),
             glow: None,
             drifts: HashMap::new(),
+            asides: BTreeMap::new(),
             glow_bend: wobble::GlowBend::default(),
             effects: effects::Driver::default(),
             cube: None,

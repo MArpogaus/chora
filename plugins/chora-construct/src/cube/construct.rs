@@ -228,6 +228,7 @@ impl Construct {
                 host.step = None;
             }
         }
+        self.move_asides()?;
         self.frame()?;
         self.sync_float()
     }
@@ -293,6 +294,7 @@ impl Construct {
             .map(|id| Command::Remove { id, to: None })
             .collect();
         self.rt.conn.try_apply(removed)?;
+        self.move_asides()?;
         self.close_modes()
     }
 

@@ -12,7 +12,7 @@ use crate::panes::PaneLook;
 use chora_kit::modes::Mode;
 
 /// Whether two boxes `[left, top, right, bottom]` overlap.
-fn overlaps(a: [f64; 4], b: [f64; 4]) -> bool {
+pub(crate) fn overlaps(a: [f64; 4], b: [f64; 4]) -> bool {
     a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]
 }
 
@@ -178,16 +178,21 @@ impl Construct {
         let Some(cube) = host.screen_box(&self.lens, &self.pose) else {
             return false;
         };
+        let in_front = space::depth(&self.pose, pane.at) < host.depth_of(&self.pose);
+        in_front && overlaps(cube, self.screen_box_of(pane))
+    }
+
+    /// The box `[left, top, right, bottom]` that a pane covers on the
+    /// screen.
+    pub(crate) fn screen_box_of(&self, pane: &Pane) -> [f64; 4] {
         let m = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
         let [w, h] = pane.size;
-        let box_of = [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)]
+        [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)]
             .map(|(u, v)| space::project(&m, u, v))
             .into_iter()
             .fold([f64::MAX, f64::MAX, f64::MIN, f64::MIN], |b, [x, y]| {
                 [b[0].min(x), b[1].min(y), b[2].max(x), b[3].max(y)]
-            });
-        let in_front = space::depth(&self.pose, pane.at) < host.depth_of(&self.pose);
-        in_front && overlaps(cube, box_of)
+            })
     }
 
     /// Hides a pane and its mirror image while the camera stands behind
