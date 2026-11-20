@@ -15,6 +15,10 @@
 #                                   path), fails when it does not stay up and
 #                                   prints PROBE_REPORT=<file> for
 #                                   check.py end --probe (T5)
+#        tests/persona/round.sh begin NAME
+#                                   before each goal of NAME: the checker
+#                                   takes the snapshot the goal is held
+#                                   against (check.py begin)
 #        tests/persona/round.sh stop NAME
 #        tests/persona/round.sh smoke              each look: start, one action,
 #                                   check.py end T7, stop
@@ -97,6 +101,12 @@ probe() {
     echo "PROBE_REPORT=$report"
 }
 
+begin() {
+    local env_file
+    env_file=$(cat "$dir/run/$name.env" 2>/dev/null) || { echo "no session $name" >&2; exit 1; }
+    PERSONA_ENV=$env_file python3 -I "$repo/tests/persona/check.py" begin && echo "begin $name"
+}
+
 stop() {
     local env_file
     env_file=$(cat "$dir/run/$name.env" 2>/dev/null) || { echo "no session $name" >&2; exit 1; }
@@ -130,6 +140,7 @@ case $cmd in
 snapshot) snapshot ;;
 start) [[ -n $name ]] && start "$@" ;;
 probe) [[ -n $name ]] && probe ;;
+begin) [[ -n $name ]] && begin ;;
 stop) [[ -n $name ]] && stop ;;
 smoke) smoke ;;
 *) sed -n '2,/^set -u/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 2 ;;

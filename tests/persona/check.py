@@ -8,8 +8,11 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
   start                  start the run: the first snapshot (round.sh runs it)
   begin                  take the snapshot a task is held against: the
                          windows open when the task starts; the driver runs
-                         it before each task. `end` reads the newest begin,
-                         or `start` when there is none
+                         it before each goal (`round.sh begin NAME`). `end`
+                         reads the newest begin, or `start` when there is
+                         none, and leaves its own end state as the begin of
+                         the next goal, so a task left open by one goal
+                         cannot leak into the next
   after ACTION           run the invariants on what ACTION changed since the
                          last snapshot and append the breaches to
                          $PERSONA_DIR/breaches.jsonl; act.py runs it after
@@ -19,9 +22,10 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
                          failed effects)
   end [--look L] [--probe FILE] TASK...
                          the contract of each task against the snapshot of
-                         `start`: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
+                         the newest `begin`: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
                          T4 takes its part as T4:volume|clock|screenshot|
-                         lock|power. Prints `task T pass|FAIL: why` and the
+                         lock|power. Prints `task T pass|FAIL: why [scene: ...]` (the
+                         look state read from the scene) and the
                          breaches of the run outside tests/acts/known-red.toml;
                          exit status 1 when one is red.
 
@@ -70,7 +74,16 @@ LETTERS = dict(
         strict=True,
     )
 )
-CODES = LETTERS | {"Space": 57, "Return": 28, "Escape": 1, "F1": 59, "Print": 210, "Tab": 15, "/": 53}
+CODES = LETTERS | {
+    "Space": 57,
+    "Return": 28,
+    "Escape": 1,
+    "F1": 59,
+    "Print": 210,
+    "Tab": 15,
+    "/": 53,
+}
+CLOCK = re.compile(r"\b\d{1,2}:\d{2}\b")
 POWER = r"(systemctl .*(suspend|poweroff|reboot|hibernate|halt|kexec)|loginctl terminate)"
 
 
@@ -86,6 +99,22 @@ def dump(snap):
     return json.dumps(dataclasses.asdict(snap), default=sorted)
 
 
+MANAGER = "xp"
+
+
+def read_states(s):
+    """The states of the looks of the session. In a construct session the
+    xp that a face starts is a client of its own and owns the windows of its
+    face: the construct lists such a window as a view of xp and the core
+    focuses it for xp, so I1 and I3 hold for it only with the state of xp
+    read beside the construct's (round p2r2: I1 x23, I3 x21 on demo)."""
+    states = s.states()
+    if s.label == "construct" and MANAGER in s.clients() and MANAGER not in states:
+        if (child := s.state(MANAGER)) is not None:
+            states[MANAGER] = child
+    return states
+
+
 class Run:
     """The files of the run in $PERSONA_DIR and the connection to the session."""
 
@@ -99,7 +128,7 @@ class Run:
     def snapshot(self, marks=None):
         """A snapshot once quiet; the logs since `marks` (path: size)."""
         self.s.log_marks = {pathlib.Path(k): v for k, v in (marks or {}).items()}
-        return self.s.snapshot(wait_quiet(self.s.states, QUIET), self.s.watch.drain())
+        return self.s.snapshot(wait_quiet(lambda: read_states(self.s), QUIET), self.s.watch.drain())
 
     def marks(self):
         """The end of every log now."""
@@ -290,6 +319,19 @@ def verify_helper(ctx):
     return verify
 
 
+def clock_nodes(snap):
+    """The nodes that draw the clock, as the cell clock-door of the doors
+    gate reads it: the text of a node (`meta.text` or `text`) of the tray
+    `xp-tray-OUTPUT` shows a time; a node whose id says clock counts too."""
+    found = []
+    for n in snap.nodes:
+        nid = str(n.get("id"))
+        text = str((n.get("meta") or {}).get("text") or n.get("text") or "")
+        if "clock" in nid or (nid.startswith("xp-tray-") and CLOCK.search(text)):
+            found.append(nid)
+    return found
+
+
 def verify_system(ctx, part):
     """The stand-in of the part got its call; a power menu that was
     cancelled left nothing open and called no systemctl."""
@@ -301,8 +343,7 @@ def verify_system(ctx, part):
 
     def verify(after_):
         if part == "clock":
-            clock = [n["id"] for n in after_.nodes if "clock" in str(n.get("id"))]
-            return [] if clock else ["no clock node in the scene"]
+            return [] if clock_nodes(after_) else ["no clock node in the scene"]
         if part == "power":
             return [f"systemctl was called: {line}" for line in ctx.calls if re.match(POWER, line)]
         return [] if ctx.called(want[part]) else [f"no call of {want[part]} in PERSONA_CALLS"]
@@ -513,6 +554,39 @@ def baseline(run):
     return "begin" if run.load("begin") else "start"
 
 
+def scene_state(snap, look):
+    """The look state that the scene shows, never inferred from the steps of
+    a persona: for the construct the cube (closed, stood back or in a face,
+    by `cube.list`), its front face, whether the pane room shows (a visible
+    `construct-pane-*` node) and whether the walk runs (`busy` of its
+    state). Other looks have none; {} says so."""
+    if look != "construct":
+        return {}
+    cube = snap.cube or {}
+    out = {}
+    if cube.get("faces"):
+        out["cube"] = "stood back" if cube.get("mode") == "navigate" else "in a face"
+        out["face"] = cube.get("front")
+    else:
+        out["cube"] = "closed"
+    room = any(
+        n.get("owner") == look
+        and str(n.get("id")).startswith("construct-pane-")
+        and n.get("visible", True)
+        for n in snap.nodes
+    )
+    out["pane room"] = "yes" if room else "no"
+    out["walk"] = "yes" if "walk" in ((snap.states.get(look) or {}).get("busy") or []) else "no"
+    return out
+
+
+def scene_line(snap, look):
+    """The scene state as a suffix of a contract line, empty when none."""
+    state = scene_state(snap, look)
+    words = [f"cube {v}" if k == "cube" else f"{k} {v}" for k, v in state.items()]
+    return f" [scene: {', '.join(words)}]" if words else ""
+
+
 def end(run, args):
     """Check the tasks against the snapshot of `start`."""
     look, probe, tasks = run.s.label, None, []
@@ -552,10 +626,12 @@ def end(run, args):
             sys.exit(f"check.py: no contract for {task}")
         mismatches = expect.check(before, now)
         bad += bool(mismatches)
-        print(f"task {task} {'FAIL: ' + '; '.join(mismatches) if mismatches else 'pass'}")
+        verdict = "FAIL: " + "; ".join(mismatches) if mismatches else "pass"
+        print(f"task {task} {verdict}{scene_line(now, look)}")
     for b in breaches:
         print(f"breach {b['invariant']} in {b['action']}: {b['breach']}")
     print(f"breaches {len(breaches)}")
+    run.save("begin", now, run.marks())
     return 1 if bad or breaches else 0
 
 

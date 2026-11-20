@@ -12,6 +12,9 @@ set -u
 need jq
 need_bins chora choractl chora-mc chora-tiling chora-assistant chora-xp chora-notify chora-probe
 
+out=$(python3 -I "$repo/tests/persona/test_check.py" 2>&1) || fail "the selftest of check.py is red: $out"
+ok "check.py: its contracts and reads on planted snapshots"
+
 dir=$(mktemp -d /tmp/persona-selftest.XXXXXX)
 tmp_dirs+=("$dir")
 spid=
