@@ -14,3 +14,18 @@ Read: own diff aadbf9b8..bd6fed1e (12 files, +275 -32), the report, cells named 
 - pr3-2 NIT: items 3 and 7 put red and fix in one commit (fmt and subject hooks); the red was run and failed first per the report. Next time: format the red test and shorten the subject instead.
 - pr3-3 NIT press.rs refresh_looks: a failing clients.list warns at each client event, not once overall; the cell checks once per call.
 Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 2. Verdict: **MERGE-OK** bd6fed1e (contains xp-minor fca4f8b5 and xp-give 22fead94; replaces both in t92).
+
+## r2
+Branch claude/xp-tidy at 74b423bb (on bd6fed1e).
+1. pr3-1: red edba63f6 (`a_look_that_exports_give_late_is_listed_at_menu_open`, failed), fix 1f14d9a8: open_system refreshes the looks when the cache is empty (once per open); a filled cache is not asked at the press (pr1-1 cell stays green).
+2. pr3-3: red bdaa8095 (`a_failed_clients_list_warns_once` with two failures, failed with two lines), fix in 1f14d9a8: `looks_failed` flag, one warn per failure streak.
+3. e2e: 74b423bb adds a cell to gate-xp-notepad-gui-only.sh: editor `foot -a notepad-terminal nano` in chora-xp.yaml, the Start menu Notepad opens its window. Passes at once (no code change; test-only, so no red).
+Gate (--jobs 1, brief list): pre-commit, gate-lib, ci-check, build, test, clippy, xp, matrix, xp-faces, xp-notepad PASS. launcher-click failed once ("tiling: no launcher in 26 captures", a tiling timing flake) and PASSed on rerun alone.
+
+## PM review r2 (bd6fed1e..74b423bb, 5 files +62 -11; PM not the builder)
+Verdict: MERGE-OK 74b423bb (no BLOCK or MAJOR).
+- pr3-1: red edba63f6 then fix 1f14d9a8: the menu open refreshes only when the cache is empty.
+- pr4-1 MINOR press.rs:121: with one look already cached, a second look that exports give later stays gray until the next client event. The usual order (a look connects and exports at once) works. Known issue; backlog.
+- pr3-3: one warn per streak; the test now refuses twice. OK.
+- e2e editor cell: passes at once (coverage, no fix), accepted.
+- launcher-click red once and then green alone: a flake row for FLAKE-SERIES r3 (FLK-LAUNCHER).
