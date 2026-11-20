@@ -119,11 +119,14 @@ EOF
 cat >"$fakes/loginctl" <<EOF
 #!/bin/sh
 echo "loginctl \$*" >>"$marks"
-if [ "\${1:-}" = lock-session ] && command -v swaylock >/dev/null; then
-    setsid swaylock --color 000000 >>"$fakes/swaylock.log" 2>&1 </dev/null &
-fi
 exit 0
 EOF
+printf '#!/bin/sh\necho swaylock "$@" >>"%s"\n' "$marks" >"$fakes/swaylock"
+printf '#!/bin/sh\nexec "%s/chora-probe" window 240 240 240 --title "Untitled - Notepad" --server-deco "$@"\n' "$bin" >"$fakes/mousepad"
+printf '#!/bin/sh\nexec "%s/chora-probe" window 200 200 200 --title "Probe window" --server-deco "$@"\n' "$bin" >"$fakes/persona-probe"
+shared=$dir/share/chora/flavors/shared
+mkdir -p "$shared"
+cp -r "$repo"/flavors/shared/. "$shared/"
 printf '#!/bin/sh\necho systemctl "$@" >>"%s"\n' "$marks" >"$fakes/systemctl"
 printf '#!/bin/sh\necho wpctl "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$marks" >"$fakes/wpctl"
 # shellcheck disable=SC2016 # the stand-in expands its own arguments
@@ -131,7 +134,7 @@ printf '#!/bin/sh\necho grim "$@" >>"%s"\nfor last; do :; done\n: >"$last"\n' "$
 mkdir -p "$dir/pictures"
 printf '#!/bin/sh\necho "%s"\n' "$dir/pictures" >"$fakes/xdg-user-dir"
 chmod +x "$fakes/xdg-user-dir"
-chmod +x "$fakes/notify-send" "$fakes/loginctl" "$fakes/systemctl" "$fakes/wpctl" "$fakes/grim"
+chmod +x "$fakes/swaylock" "$fakes/mousepad" "$fakes/persona-probe" "$fakes/notify-send" "$fakes/loginctl" "$fakes/systemctl" "$fakes/wpctl" "$fakes/grim"
 while read -r name hud; do
     ln -sfn "$hud" "$dir/data/chora/huds/$name"
 done < <("$repo/tests/hud-folders.sh")
@@ -140,6 +143,7 @@ echo '[]' >"$dir/voice/entries.json"
 # The plugins start apps with `choractl run` from PATH (D42).
 export PATH="$fakes:$bin:$PATH"
 export XDG_DATA_HOME=$dir/data
+export CHORA_SHARED_DIR=$shared
 export XDG_PICTURES_DIR=$dir/pictures
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 unset DBUS_SESSION_BUS_ADDRESS
@@ -157,7 +161,7 @@ startup_of() {
     case $1 in
     tiling) startup=("$bin/chora-tiling") ;;
     xp)
-        sed 's/^  sounds: true/  sounds: false/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
+        sed -e 's/^  sounds: true/  sounds: false/' -e 's/^editor:.*/editor: mousepad/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
         startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
         ;;
     mc) startup=("$bin/chora-mc" --manage-windows) ;;
@@ -271,7 +275,7 @@ CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona-chec
 
 mkfifo "$dir/voice/in"
 exec 4<>"$dir/voice/in"
-CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime FAKE_VOICE_ENTRIES=$dir/voice/entries.json \
+CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime FAKE_VOICE_ENTRIES=$dir/voice/entries.json FAKE_VOICE_ANSWER=Hello \
     python3 -I "$repo/tests/fake-voice.py" "$dir/voice/claims" <&4 >"$dir/voice/voice.log" 2>&1 &
 voice_pid=$!
 echo 'voice.state {"state": "listening", "task": "", "said": ""}' >&4

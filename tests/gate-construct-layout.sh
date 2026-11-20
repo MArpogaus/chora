@@ -81,11 +81,13 @@ rect_of() { ctl query "id:$1" | jq -r '.[0].rects | to_entries[0].value | @tsv' 
 card_shows() { ctl query id:construct-start | jq -e 'length > 0 and (.[0].visible != false) and (.[0].opacity // 1) > 0.9' >/dev/null 2>&1; }
 card_gone() { ! ctl query id:construct-start | jq -e '.[0] | (.visible != false) and (.opacity // 1) > 0.05' >/dev/null 2>&1; }
 until_ok() {
-    for _ in $(seq 40); do
+    local rounds=${2:-40}
+    local end=$((SECONDS + rounds / 2))
+    while :; do
         eval "$1" && return 0
+        [ "$SECONDS" -lt "$end" ] || return 1
         sleep 0.25
     done
-    return 1
 }
 pane_named() { ctl call construct construct.list | jq -e --arg n "$1" '.panes | any(.name | test($n; "i"))' >/dev/null 2>&1; }
 shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
@@ -434,10 +436,8 @@ SCRIPT
     foot -a sunset -T 'Sunset over the Donaudampfschifffahrtsgesellschaft harbour' \
         -f 'DejaVu Sans Mono:size=10' sh -c 'sleep 600' >/dev/null 2>&1 &
     run_pid $!
-    for _ in $(seq 40); do
-        ctl call construct construct.list | grep -q '"name": "sunset' && break
-        sleep 0.25
-    done
+    until_ok "ctl call construct construct.list | grep -q '\"name\": \"sunset'" ||
+        { echo "FAIL: $tag: the construct has no pane of the sunset"; failed=1; }
     key Return
     until_ok any_front || { echo "FAIL: $tag: Return did not fly into the pane of the sunset"; failed=1; }
     key Alt+Escape
