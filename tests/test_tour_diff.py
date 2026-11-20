@@ -7,6 +7,8 @@ Usage: python3 -I tests/test_tour_diff.py [-v]
 """
 
 import importlib.util
+import json
+import os
 import pathlib
 import shutil
 import struct
@@ -147,6 +149,116 @@ class Verdict(unittest.TestCase):
             self.assertEqual([(r["act"], r["capture"], r["verdict"]) for r in rows], [("x1", "Q", "regression")])
 
 
+def write_capture(folder, name, shape=None, size=(200, 100), data='{"nodes": []}'):
+    """<name>.png (the shape painted on grey) and <name>.json in a folder."""
+    folder = pathlib.Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{name}.png").write_bytes(png(*size, shape))
+    (folder / f"{name}.json").write_text(data)
+
+
+def run_tool(tool, *args, path=None):
+    """The tool as a command: (exit code, stdout, stderr); `path` replaces PATH when given."""
+    env = {**os.environ, **({"PATH": path} if path is not None else {})}
+    done = subprocess.run([sys.executable, "-I", str(HERE / tool), *map(str, args)], capture_output=True, text=True, env=env)
+    return done.returncode, done.stdout, done.stderr
+
+
+class CompareDirs(unittest.TestCase):
+    """rd-1, rd-5, rd-6 and the cases r1 left uncovered: size, H50, baseline none, the exit code."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base, self.cand = pathlib.Path(self.tmp.name, "b"), pathlib.Path(self.tmp.name, "c")
+        self.addCleanup(self.tmp.cleanup)
+
+    def verdicts(self, intended=(), none=()):
+        return [(r["act"], r["capture"], r["verdict"]) for r in diff.compare(self.base, self.cand, list(intended), none)]
+
+    def test_a_capture_missing_in_cand_is_a_regression(self):
+        write_capture(self.base, "x1.Q")
+        write_capture(self.base, "x2.Q")
+        write_capture(self.cand, "x1.Q")
+        self.assertEqual(self.verdicts(), [("x1", "Q", "same"), ("x2", "Q", "regression")])
+
+    def test_empty_or_missing_cand_exits_1(self):
+        write_capture(self.base, "x1.Q")
+        self.cand.mkdir()
+        self.assertEqual(run_tool("tour-diff.py", self.base, self.cand)[0], 1)
+        self.assertEqual(run_tool("tour-diff.py", self.base, self.cand / "nope")[0], 1)
+
+    def test_the_exit_code_follows_the_verdict(self):
+        write_capture(self.base, "x1.Q")
+        write_capture(self.cand, "x1.Q")
+        self.assertEqual(run_tool("tour-diff.py", self.base, self.cand)[0], 0)
+        write_capture(self.cand, "x1.Q", box(50, 40, 20, 20))
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand)
+        self.assertEqual(code, 1)
+        self.assertIn("1 regression", out)
+
+    def test_a_size_mismatch_is_a_regression(self):
+        write_capture(self.base, "x1.Q", size=(200, 100))
+        write_capture(self.cand, "x1.Q", size=(160, 100))
+        self.assertEqual(self.verdicts(), [("x1", "Q", "regression")])
+
+    def test_h50_is_scene_only(self):
+        write_capture(self.base, "x1.H50")
+        write_capture(self.cand, "x1.H50", box(50, 40, 20, 20))
+        self.assertEqual(self.verdicts(), [("x1", "H50", "same")])
+
+    def test_a_declared_baseline_none_is_none(self):
+        write_capture(self.cand, "x1.Q")
+        self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "none")])
+
+    def test_an_undeclared_absence_in_base_is_a_regression(self):
+        write_capture(self.cand, "x1.Q")
+        self.assertEqual(self.verdicts(), [("x1", "Q", "regression")])
+
+    def test_the_cli_reads_the_none_list_of_intended_toml(self):
+        write_capture(self.cand, "x1.Q")
+        self.base.mkdir()
+        toml = pathlib.Path(self.tmp.name, "intended.toml")
+        toml.write_text('baseline_none = ["x1.Q"]\n')
+        self.assertEqual(run_tool("tour-diff.py", self.base, self.cand, "--intended", toml)[0], 0)
+        toml.write_text("")
+        self.assertEqual(run_tool("tour-diff.py", self.base, self.cand, "--intended", toml)[0], 1)
+
+    def test_a_check_red_on_cand_and_new_is_a_regression(self):
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I4": "green"}}')
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I4": "green", "I9": "red"}}')
+        self.assertEqual(self.verdicts(), [("x1", "Q", "regression")])
+
+    def test_a_red_check_on_a_none_row_is_a_regression(self):
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I9": "red"}}')
+        self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "regression")])
+
+    def test_a_new_red_check_with_a_check_row_is_a_change(self):
+        write_capture(self.base, "x1.Q")
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I9": "red"}}')
+        row = {"act": "x1", "kind": "check", "cause": "I9 is known red"}
+        self.assertEqual(self.verdicts(intended=[row]), [("x1", "Q", "change")])
+
+    def test_a_check_green_on_base_and_gone_on_cand_is_a_regression(self):
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I4": "green"}}')
+        write_capture(self.cand, "x1.Q")
+        self.assertEqual(self.verdicts(), [("x1", "Q", "regression")])
+
+    def test_a_check_red_on_both_is_not_new(self):
+        data = '{"nodes": [], "checks": {"I4": "red"}}'
+        write_capture(self.base, "x1.Q", data=data)
+        write_capture(self.cand, "x1.Q", data=data)
+        self.assertEqual(self.verdicts(), [("x1", "Q", "same")])
+
+
+class IntendedRows(unittest.TestCase):
+    def test_h2_lists_kinds_and_no_wildcard(self):
+        import tomllib
+
+        rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        h2 = sorted(r["kind"] for r in rows if r["act"] == "h2")
+        self.assertEqual(h2, ["added", "meta", "rect"])
+
+
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
 class VideoCheck(unittest.TestCase):
     def clip(self, *parts):
@@ -162,6 +274,34 @@ class VideoCheck(unittest.TestCase):
         out = f"{tmp}/clip.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", "-y", out], check=True)
         return out
+
+    def flash_clip(self, frames):
+        """testsrc2 for 4 s at 10 fps with the given frame numbers painted over in one colour."""
+        tmp = tempfile.mkdtemp(prefix="tour-flash-")
+        enable = "+".join(f"eq(n,{n})" for n in frames)
+        out = f"{tmp}/flash.mp4"
+        vf = f"drawbox=x=0:y=0:w=iw:h=ih:color=0xcc6633:t=fill:enable='{enable}'"
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=s=160x90:r=10:d=4", "-vf", vf, "-pix_fmt", "yuv420p", "-y", out], check=True)
+        return out
+
+    def test_a_two_frame_flash_on_testsrc2_is_flagged(self):
+        found = [f for f in video.check(self.flash_clip([20, 21])) if f["kind"] == "flicker"]
+        self.assertEqual(len(found), 1)
+        self.assertAlmostEqual(found[0]["start"], 2.0, delta=0.15)
+
+    def test_a_one_frame_flash_on_testsrc2_is_flagged(self):
+        found = [f for f in video.check(self.flash_clip([20])) if f["kind"] == "flicker"]
+        self.assertEqual(len(found), 1)
+
+    def test_testsrc2_alone_has_no_flicker(self):
+        self.assertEqual([f for f in video.check(self.flash_clip([999])) if f["kind"] == "flicker"], [])
+
+    def test_a_missing_ffmpeg_is_a_clear_error(self):
+        clip = self.clip(("testsrc2", 1))
+        code, out, err = run_tool("tour-video-check.py", clip, path="")
+        self.assertEqual(code, 2)
+        self.assertIn("ffmpeg missing: cannot check", out + err)
+        self.assertNotIn("Traceback", err)
 
     def kinds(self, path, **kw):
         return sorted({f["kind"] for f in video.check(path, **kw)})
@@ -196,6 +336,21 @@ class VideoCheck(unittest.TestCase):
     def test_a_step_that_stays_is_not_a_flicker(self):
         clip = self.clip(("color=c=0x336699", 1), ("color=c=0xcc6633", 1))
         self.assertEqual([f for f in video.check(clip, cuts=[(0, 3)]) if f["kind"] == "flicker"], [])
+
+
+class GateHook(unittest.TestCase):
+    def test_the_acts_hook_fails_when_ffmpeg_is_absent(self):
+        """rd-2: a runner with no ffmpeg must not pass the gate with the video tests skipped."""
+        with tempfile.TemporaryDirectory() as tmp:
+            for tool in ("bash", "dirname", "python3", "env"):
+                found = shutil.which(tool)
+                if found:
+                    os.symlink(found, f"{tmp}/{tool}")
+            self.assertFalse(shutil.which("ffmpeg", path=tmp))
+            done = subprocess.run([f"{tmp}/bash", str(HERE / "gate-acts.sh")], capture_output=True, text=True, env={"PATH": tmp, "HOME": tmp})
+            self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+            self.assertIn("FAIL", done.stderr)
+            self.assertIn("ffmpeg", done.stderr)
 
 
 class FixedInCameraMove(unittest.TestCase):
