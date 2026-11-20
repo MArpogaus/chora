@@ -331,6 +331,46 @@ mod tests {
         assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
     }
 
+    /// co-27 (D66): the window of a program that an overlay construct
+    /// started is a pane of it even when the core reserved the surface for
+    /// the window manager below (tiling), as the overlay only shows it: the
+    /// book does not claim it, the construct owns it not, and no phase opens.
+    #[test]
+    fn an_overlay_shows_the_window_of_its_own_program_reserved_for_the_manager_below() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "overlay-own");
+        construct.overlay = true;
+        let pane = crate::PaneFile {
+            kind: crate::Kind::Program,
+            command: Some("foot".into()),
+            plugin: None,
+            scene: None,
+            manager: None,
+            at: None,
+            yaw: None,
+            size: None,
+            placed: false,
+        };
+        construct
+            .waiting
+            .push(crate::Waiting::new(Some("t1".into()), pane));
+        surface(&core.model(), "s1");
+        core.model()
+            .lock()
+            .unwrap()
+            .scene
+            .reserve("s1", Some("tiling"));
+        construct.event(created("s1", Some("tiling"))).unwrap();
+        let shown = construct.panes.iter().any(|p| p.window() == Some("s1"));
+        assert!(shown, "the own program of the overlay is a pane");
+        assert!(
+            !Driven(&mut construct).has("s1"),
+            "the book claims no window of tiling"
+        );
+        assert_eq!(owner(&core.model(), "s1"), None);
+        assert_eq!(chora_kit::testing::phases(&core.model(), NAME).len(), 0);
+    }
+
     /// kit7-a2 (D116): a press on the window of a pane gives it the
     /// keyboard; a new window that comes as a pane without a flight takes
     /// the keyboard back to the walk, as a new window takes it in the
