@@ -574,6 +574,17 @@ class I5(unittest.TestCase):
         ]
         self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
 
+    def test_mc_drawn_over_xp_while_xp_has_the_focus_is_no_cover(self):
+        """rv-r4-1: xp text, the picture of mc over the whole output, mc
+        text. xp is the look shown (it holds the focus), so a picture of mc
+        is no wallpaper of the look shown and the overlap is a breach."""
+        nodes = snap().nodes + [
+            text_node("xp-icons-label", "Documents", (988, 756, 87, 28), owner="xp"),
+            panel("mc-bg", (0, 0, 1280, 800), owner="mc"),
+            text_node("mc-volume", "Volume 50%", (1000, 760, 87, 28)),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
     def test_the_wallpaper_hides_nothing_above_it(self):
         nodes = [
             panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),
