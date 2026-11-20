@@ -557,6 +557,44 @@ check "gate-lib: the step runs merge-gate-selftest.sh" \
 check "gate-lib: the step runs cells-for-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
 
+printf 'one|true\nlauncher|echo "SKIP: fuzzel 1.9.2 < 1.11"\nthree|echo "ok: three"\n' >"$work/steps"
+run_gate
+check "skip: a run with a skipped step exits 0" "$rc" 0
+check "skip: the step line says SKIP, not PASS" "$(grep -c '^launcher *SKIP ' "$work/out")" 1
+check "skip: a step without a SKIP line still says PASS" "$(grep -c '^three *PASS ' "$work/out")" 1
+check "skip: the summary names the cell and its reason" "$(grep -c '^skipped: launcher (fuzzel 1.9.2 < 1.11)$' "$work/out")" 1
+run_gate --push session
+check "skip: --push refuses a run with a skipped step" "$rc" 1
+check "skip: --push with a skipped step does not push" "$pushes" 0
+check "skip: the refusal names the cell and --allow-skip" "$(grep -c 'launcher.*--allow-skip' "$work/out")" 1
+run_gate --push session --allow-skip other
+check "skip: --allow-skip of another cell still refuses" "$rc" 1
+check "skip: --allow-skip of another cell does not push" "$pushes" 0
+run_gate --push session --allow-skip launcher
+check "skip: --allow-skip of the cell lets the push through" "$rc" 0
+check "skip: --allow-skip of the cell pushes once" "$pushes" 1
+check "skip: an allowed skip is still listed" "$(grep -c '^skipped: launcher' "$work/out")" 1
+run_gate --push session --allow-skip other,launcher
+check "skip: --allow-skip takes a list" "$pushes" 1
+run_gate --only one,launcher
+check "skip: a partial run lists the skip too" "$(grep -c '^skipped: launcher' "$work/out")" 1
+printf 'one|true\nfuzz|echo "SKIP: cell a: x"; echo "SKIP: cell b: y"\n' >"$work/steps"
+run_gate
+check "skip: two SKIP lines of one step give one SKIP step line" "$(grep -c '^fuzz *SKIP ' "$work/out")" 1
+check "skip: the summary gives both reasons of the step" "$(grep -c '^skipped: fuzz (cell a: x; cell b: y)$' "$work/out")" 1
+printf 'one|true\nfuzz|echo "SKIP: cell a: x"\nfizz|echo "SKIP: y"\n' >"$work/steps"
+run_gate --push session
+check "skip: the refusal hint is a comma list of the steps" "$(grep -c -- '--allow-skip fuzz,fizz to push' "$work/out")" 1
+run_gate --push session --allow-skip fuzz,fizz
+check "skip: the comma list of the hint lets the push through" "$pushes" 1
+printf 'one|true\nbad|echo "SKIP: x"; exit 1\n' >"$work/steps"
+run_gate
+check "skip: a step that skips and fails is FAIL" "$(grep -c '^bad *FAIL ' "$work/out")" 1
+check "skip: the header states the rule" "$([ "$(sed -n '1,/^set -u/p' "$gate" | grep -c -- '--allow-skip')" -ge 2 ] && echo yes)" yes
+printf 'one|true\n' >"$work/steps"
+run_gate --allow-skip
+check "skip: --allow-skip needs a list" "$rc" 2
+
 check "ci-check: the step runs before build in the step list" \
     "$("$gate" --list | grep -nx -e ci-check -e build | head -1 | cut -d: -f2)" ci-check
 check "ci-check: tools/cut-check is the first command of the step" \

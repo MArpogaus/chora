@@ -16,6 +16,13 @@
 # orphan too), or the XDG_RUNTIME_DIR of the session of the gate (one that
 # `choractl run` started). gate_cleanup ends them with the other programs of
 # the gate (sh-30: a leaked probe spun at a full core for hours).
+# fuzzel_older MIN is true when the fuzzel on PATH is older than MIN (1.11);
+# fuzzel_version holds the version found ("unknown" when it has none).
+# need_fuzzel MIN is the one version check of the fuzzel cells (launcher-click,
+# the Run box of xp-fields): below MIN the gate is SKIP with the version, not red.
+# cell_skip NAME REASON: a cell of a script of several cells does not run; its
+# line says SKIP, the others go on (under CI a skip fails, as skip does).
+# cells_end RAN SKIPPED ends such a script: with no cell run it is SKIP, else ok.
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bin=${BIN:-$repo/target/debug}
 # software EGL for the headless renderer (CONTRIBUTING.md)
@@ -38,6 +45,31 @@ fail() {
     exit 1
 }
 need() { command -v "$1" >/dev/null 2>&1 || skip "$1 is not installed here"; }
+fuzzel_version=
+fuzzel_older() {
+    fuzzel_version=$(fuzzel --version 2>/dev/null | sed -n 's/^fuzzel version: \([0-9][0-9.]*\).*/\1/p')
+    [ -n "$fuzzel_version" ] || {
+        fuzzel_version=unknown
+        return 0
+    }
+    [ "$(printf '%s\n%s\n' "$1" "$fuzzel_version" | sort -V | head -n 1)" != "$1" ]
+}
+need_fuzzel() {
+    need fuzzel
+    ! fuzzel_older "$1" || skip "fuzzel $fuzzel_version < $1"
+}
+cell_skip() {
+    echo "SKIP: cell $1: $2"
+    [ -z "${CI:-}" ] || {
+        echo "FAIL: a skip does not pass in CI: cell $1: $2" >&2
+        exit 1
+    }
+    return 0
+}
+cells_end() {
+    [ "$1" != 0 ] || skip "no subtest ran (skipped: ${2:-none})"
+    ok "$1 cells ran"
+}
 # need_bins NAME...: the binaries of the build in $bin.
 need_bins() {
     local b

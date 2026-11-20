@@ -43,6 +43,11 @@
 #               for ..." and does not close without a word, as in xp and
 #               tiling (mc-44)
 #
+#   launcher-click-row  the real fuzzel lists Chat with a helper, Foot and
+#               Screenshot, 19 px apart from y 237 on 1280x720; a click on the
+#               row Foot starts that program as Return does, and its window
+#               has a page (mc-47)
+#
 #   card-size   the text of the card of chora-notify is at least as high
 #               as the body of the page, and its ink is no grey: 7 to 1
 #               (mc-40)
@@ -62,6 +67,12 @@
 need_bins chora choractl chora-mc chora-assistant chora-chat chora-notify
 need jq
 need foot
+fuzzel_old=
+if ! command -v fuzzel >/dev/null 2>&1; then
+    fuzzel_old="fuzzel is not installed here"
+elif fuzzel_older 1.11; then
+    fuzzel_old="fuzzel $fuzzel_version < 1.11"
+fi
 export PATH=$bin:$PATH
 export CHORA_BIN=$bin
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
@@ -98,8 +109,10 @@ cat >"$work/entries.json" <<'JSON'
  {"seq": 2, "role": "agent", "text": "I will go through your notes and group them by day."}]
 JSON
 mkdir -p "$work/fake"
+real_fuzzel=$(command -v fuzzel)
 cat >"$work/fake/fuzzel" <<FAKE
 #!/bin/sh
+[ ! -e "$work/fake/real" ] || exec "$real_fuzzel" "\$@"
 n=\$((\$(cat "$work/fake/calls" 2>/dev/null || echo 0) + 1))
 echo "\$n" >"$work/fake/calls"
 case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
@@ -107,6 +120,9 @@ case " \$* " in *" --dmenu "*) [ "\$n" != 1 ] || echo nosuchprogram ;; esac
 FAKE
 chmod +x "$work/fake/fuzzel"
 export PATH=$work/fake:$PATH
+mkdir -p "$work/data/applications"
+printf '[Desktop Entry]\nType=Application\nName=Foot\nExec=foot --app-id=mcclick\n' >"$work/data/applications/mcclick.desktop"
+export XDG_DATA_HOME=$work/data XDG_DATA_DIRS=$work/data
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x720 -- "$bin/chora-mc" --manage-windows
 grant screen.capture input.inject methods.call
 mkfifo "$work/voice.in"
@@ -382,19 +398,56 @@ cell_remote_back() {
     remote_end
 }
 
+click_at() {
+    move_to "$1" "$2"
+    sleep 0.4
+    echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' |
+        ctl inject >/dev/null || fail "inject click"
+}
+click_alive() { session_pids -f -- "--app-id=mcclick" >/dev/null; }
+click_end() {
+    local pid
+    for pid in $(session_pids -f -- "--app-id=mcclick"); do kill "$pid"; done
+    : >/dev/null
+}
+foot_row_x=540
+foot_row_y=256
+cell_launcher_click_row() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    : >"$work/fake/real"
+    key Super+space
+    sleep 3
+    shot launcher-click-row
+    click_at "$foot_row_x" "$foot_row_y"
+    until_ok 'click_alive' 40 || { rm -f "$work/fake/real"; key Escape; fail "a click on the row Foot starts no program (Return does)"; }
+    until_ok '[ "$(current)" = mcclick ]' 40 || { click_end; rm -f "$work/fake/real"; fail "the window of the program has no page: $(current)"; }
+    click_end
+    rm -f "$work/fake/real"
+}
+
 failed=()
+skipped=()
+ran=0
 run_cell() {
     local name=$1
     [[ $name =~ ${CELLS:-.} ]] || return 0
+    if [ "$name" = launcher-click-row ] && [ -n "$fuzzel_old" ]; then
+        cell_skip "$name" "$fuzzel_old"
+        skipped+=("$name")
+        return 0
+    fi
     if ("cell_${name//-/_}"); then
+        ran=$((ran + 1))
         ok "$name ($theme)"
     else
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
 [ ${#failed[@]} = 0 ] || fail "cells failed: ${failed[*]}"
-ok "every cell of the mc sofa gate ($theme)"
+cells_end "$ran" "${skipped[*]}"
+[ ${#skipped[@]} != 0 ] || ok "every cell of the mc sofa gate ($theme)"

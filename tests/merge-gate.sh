@@ -44,6 +44,11 @@
 # tools/cut-check (blocking: a plugin depending on a plugin or an extra workspace crate, an asset or
 # link that leaves its crate, a name of another plugin beyond tools/cut-known.toml; it reports the
 # new match arms on a kit enum since the merge base), each with its self-test.
+# A step that passed but whose log has a line `SKIP: <reason>` did not check what it
+# is for (a tool missing or too old, a cell that does not run): its line says SKIP, not
+# PASS, and the summary after the steps lists each SKIP step with its reasons. A train
+# stays honest: `--push` refuses while any step is SKIP unless the step is named by
+# `--allow-skip` (a host gap the owner knows, e.g. `--allow-skip launcher-click`).
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -57,7 +62,7 @@
 # ones are stopped.
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
-#                            [--base REF] [--jobs N] [--red-first-check]
+#                            [--base REF] [--jobs N] [--allow-skip STEP,...] [--red-first-check]
 #                            [--identity-check] [--list] [--commands]
 #   --only STEP,...  run only these steps; never pushes
 #   --worker STEP,...  the lane mode: build, test, clippy and the steps
@@ -67,6 +72,8 @@
 #                    origin/claude/autonomous-dev-session-3w-i33pg7)
 #   --push BRANCH    after every step passed, `git push origin HEAD:BRANCH`;
 #                    refuses when the work tree has uncommitted changes
+#   --allow-skip STEP,...  steps that may be SKIP when --push runs; a SKIP
+#                    step not named here makes --push refuse
 #   --jobs N         run up to N steps after 2d-guard at once (default 1)
 #   --red-first-check  run only the red-first check, without the lock
 #   --identity-check run only the identity check, without the lock
@@ -108,6 +115,7 @@ id_check=""
 list_steps=""
 list_commands=""
 jobs_max=1
+allow_skip=""
 while [ $# -gt 0 ]; do
     case $1 in
     -h | --help)
@@ -149,6 +157,11 @@ while [ $# -gt 0 ]; do
     --jobs)
         [[ ${2:-} =~ ^[1-9][0-9]*$ ]] || die "--jobs needs a number above 0"
         jobs_max=$2
+        shift 2
+        ;;
+    --allow-skip)
+        [ $# -ge 2 ] || die "--allow-skip needs a list of steps"
+        allow_skip=$2
         shift 2
         ;;
     --push)
@@ -358,6 +371,8 @@ echo "run directory: $run_dir"
 
 declare -A running=()
 declare -A started=()
+skipped_steps=()
+skipped_reasons=()
 stop_children() {
     local pid
     for pid in "${!running[@]}"; do
@@ -375,6 +390,10 @@ on_signal() {
 }
 trap on_signal INT TERM
 trap stop_children EXIT
+
+log_reasons() {
+    sed -n 's/^SKIP: //p' "$1" | paste -sd ';' - | sed 's/;/; /g'
+}
 
 log_failed() {
     grep -Eq '^(FAIL:|MISMATCH|test result: FAILED)' "$1"
@@ -398,7 +417,12 @@ wait_step() {
     if [ "$code" != 0 ] || log_failed "$log"; then
         result=FAIL
     fi
-    printf '%-10s %s %5ss %s\n' "$name" "$result" "$((SECONDS - started[$pid]))" "$log"
+    if [ "$result" = PASS ] && grep -q '^SKIP: ' "$log"; then
+        result=SKIP
+        skipped_steps+=("$name")
+        skipped_reasons+=("$(log_reasons "$log")")
+    fi
+    printf '%-10s %-4s %5ss %s\n' "$name" "$result" "$((SECONDS - started[$pid]))" "$log"
     if [ "$result" = FAIL ]; then
         stop_children
         echo "exit code $code; last 30 lines of $log:"
@@ -421,6 +445,10 @@ for i in "${!step_names[@]}"; do
 done
 while [ "${#running[@]}" -gt 0 ]; do wait_step; done
 
+for i in "${!skipped_steps[@]}"; do
+    echo "skipped: ${skipped_steps[$i]} (${skipped_reasons[$i]})"
+done
+
 if [ -n "$only" ]; then
     echo "partial run: nothing is pushed"
     exit 0
@@ -428,5 +456,14 @@ fi
 if [ -z "$push_branch" ]; then
     echo "all steps passed; no --push, nothing is pushed"
     exit 0
+fi
+refused=()
+for name in "${skipped_steps[@]}"; do
+    case ",$allow_skip," in *",$name,"*) ;; *) refused+=("$name") ;; esac
+done
+if [ "${#refused[@]}" -gt 0 ]; then
+    refused_list=$(IFS=,; echo "${refused[*]}")
+    echo "merge-gate: refusing to push: ${refused[*]} skipped; pass --allow-skip $refused_list to push with a host gap you know" >&2
+    exit 1
 fi
 cd "$repo" && git push origin "HEAD:$push_branch"
