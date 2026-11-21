@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 |---|---|---|
 | guide-checks-r6.md (F7: Tahoma, I13) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-keys.md (rc 2: co-38, co-40, co-41 MAJOR) | sonnet high, claude/co-keys a76476be | session_016iS3kQPiKokwPWu5EF5vt7 04:26 |
-| review-flakes-r-r1.md (F5: DOORS-CO, MATRIX-S1 fixed 789aab53; XP-FACES open) | sonnet high, claude/flakes-r 789aab53 | starting |
+| review-flakes-r-r1.md (F5: DOORS-CO, MATRIX-S1 fixed; XP-FACES open) | sonnet high, claude/flakes-r 789aab53 | session_016iS3kMREmbvandfhvkU62b 06:37 |
 | ti-29-r1.md (rc 2 tiling: launcher order, helper panel covers tile) | sonnet medium, claude/ti-29 598a34ff | session_016iS3kMGHWcQ12HZmuhWrPd 06:25 |
 | xp-37-r1.md (xp MINOR: rxf-1..4, 6; pixel round 2 of 2) | sonnet medium, claude/xp-37 9a6506d6 | session_016iS3kM5HiUCpS3mS1QRtvH 06:28 |
 | gate-path.md (F5: selftest PATH) | sonnet low, claude/gate-path 598a34ff | session_016iS3kNQJyehsuVKCLz4tuV 06:36 |
