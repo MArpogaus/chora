@@ -319,6 +319,10 @@ impl Mc {
     /// One node per row, so that a row wraps and its note stays on
     /// its first line; `align` stacks the rows as the core lays
     /// them out, and moves the notes flush right to the margin.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one pass over the parts of one panel"
+    )]
     pub(crate) fn panel(&self, name: &str, panel: &Panel) -> Vec<Command> {
         let (Some([x, y, w, h]), Some(geo)) = (self.place(name, panel), self.geometry(name)) else {
             return Vec::new();
@@ -345,7 +349,11 @@ impl Mc {
         };
         let add = |part: &str, props| create(&format!("{id}-{part}"), NodeKind::Text, &id, props);
         if !panel.title.is_empty() {
-            let title = self.ty("heading", panel.title_style.as_ref());
+            let local = panel
+                .title_style
+                .as_ref()
+                .filter(|_| !panel.lines.is_empty());
+            let title = self.ty("heading", local);
             let at = self.lift(y, 0.0, &title);
             commands.push(add("title", text(&title, &panel.title, indent, at, true)));
         }
@@ -373,8 +381,18 @@ impl Mc {
             let props = text(&body, &panel.text(), indent, self.lift(y, top, &body), true);
             commands.push(add("lines", props));
         } else if !panel.empty.is_empty() {
-            let quiet = self.quiet(&body);
-            let props = text(&quiet, &panel.empty, indent, self.lift(y, top, &body), true);
+            let plain = panel
+                .style
+                .clone()
+                .map(|s| crate::config::Style { base: None, ..s });
+            let quiet = self.quiet(&self.ty("body", plain.as_ref()));
+            let props = text(
+                &quiet,
+                &panel.empty,
+                indent,
+                self.lift(y, top, &quiet),
+                true,
+            );
             commands.push(add("empty", props));
         }
         commands

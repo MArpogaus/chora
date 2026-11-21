@@ -314,7 +314,12 @@ impl Mc {
             .and_then(|c| self.settings.value.colors().get(c))
             .copied()
             .unwrap_or_default();
-        let line = [(x - geo.note - 1.5 * geo.gap).round(), y, 1.0, h];
+        let before = if panel.columns().is_some() {
+            geo.note + 1.5 * geo.gap
+        } else {
+            f64::midpoint(geo.note, 2.0 * geo.gap)
+        };
+        let line = [(x - before).round(), y, 1.0, h];
         let id = format!("{}-rule", panel_id(name, &panel.id));
         Some(region::rect(&id, &panels_id(name), line, color))
     }

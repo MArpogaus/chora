@@ -963,6 +963,7 @@ impl Mc {
 
     /// Places the items of a side: one under the other from the top, the
     /// items of the foot above the lower edge, a row beside its first item.
+    #[allow(clippy::too_many_lines, reason = "one pass over the items of a side")]
     fn stack(
         &mut self,
         items: &[Item],
@@ -1013,7 +1014,13 @@ impl Mc {
                     top: ink.top + shift,
                     ..ink
                 };
-                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at, ink));
+                let beside = items[idx + 1..]
+                    .iter()
+                    .zip(&heights[idx + 1..])
+                    .take_while(|(i, _)| i.put == Put::FootRow && i.hit.is_none())
+                    .map(|(_, h)| *h)
+                    .fold(heights[idx], f64::max);
+                commands.extend(hit_place(&item.id, [x, y, w, beside], at, ink));
             }
             if item.put == Put::FootRule {
                 let y = y - (baseline / 2.0).round();

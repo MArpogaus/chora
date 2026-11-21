@@ -1886,10 +1886,7 @@ mod tests {
             .into_iter()
             .filter_map(|item| item.props.text)
             .collect();
-        assert!(
-            keys.contains(&"Super+\u{2009}←\u{2009}→".to_owned()),
-            "{keys:?}"
-        );
+        assert!(keys.contains(&"Super+←\u{2009}→".to_owned()), "{keys:?}");
     }
 
     fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {

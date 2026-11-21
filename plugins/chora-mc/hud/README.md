@@ -11,7 +11,7 @@ of state, and the door of the chat is its line `Chat with a helper ...`:
 the host draws no row and no pill there. A click on the mark mutes the mic,
 and so does a click on the word `Mute`, which mc draws at the left of that
 line; the badge of the host turns the mic on again.
-The chat is a plain page in the colours of mc, set in TeX Gyre Pagella 18
+The chat is a plain page in the colours of mc, set in TeX Gyre Pagella 19
 (a serif of the system where the host does not have it), the speakers in
 `muted` on lines of their own; the question card takes its fill and its
 rule, its title and key line in Inter 500, its prompt in the serif of the
