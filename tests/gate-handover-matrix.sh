@@ -236,6 +236,20 @@ owner_of() { ctl query "id:$w" | jq -r '.[0].owner // "none"'; }
 surfaces_clean='all(.[] | select(.id == $w); .owner != null and .parent != null and ((.rects // {}) | length) > 0
     and ([.rects[] | select(.[2] > 0 and .[3] > 0)] | length) > 0)'
 
+on_top() {
+    local groups root
+    case "$2" in xp | tiling) ;; *) return 0 ;; esac
+    groups=$(ctl query kind:group) || return 1
+    root=$(ctl query id:root) || return 1
+    jq -n -e --arg w "$w" --argjson groups "$groups" --argjson surfaces "$1" --argjson root "$root" '
+        ($groups + $surfaces) as $nodes
+        | def top($id): ($nodes[] | select(.id == $id)) as $n
+            | if ($n.parent // "root") == "root" then $n.id else top($n.parent) end;
+        def normal($id): ([$nodes[] | select(.id == $id)][0].order // "normal") == "normal";
+        top($w) as $held
+        | [$root[0].children[] | select(normal(.))] | last == $held' >/dev/null
+}
+
 arrived() {
     local all owned=0
     for _ in $(seq "$(awk -v s="$2" 'BEGIN {print s * 5}')"); do
@@ -251,7 +265,7 @@ arrived() {
         last_all=$all
         echo "$all" | jq -e --arg w "$w" --arg o "$1" "
             $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused == true)" >/dev/null &&
-            return 0
+            on_top "$all" "$1" && return 0
         sleep 0.2
     done
     return 1
