@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 17:45 UTC)
+## Now (2026-11-21 17:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 17:45 week 6.1 % (0.44 %/h since reset, under pace 8.3 %; 6 lanes); disk: one train at a time on the PM machine (not a lane limit); 6 lanes
 session branch: 892d035c; 58 greens; t101 green 17:45 (7 branches); t102 running (gate-drift, deps, xp-rd). F5 series r4 5/5 green at --jobs 2 (16:21).
@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | p2-harness-l-r1.md (rc 2: persona L1-L3, ph-1, ph-2, RPM-1) | sonnet medium, claude/p2-harness-l a84effda | session_016iS3kMzndQRcQR2ZTYuC5D 16:16 |
 | h-guards-r1.md (rules 9-10 guards) | sonnet low, claude/h-guards a84effda | session_016iS3kMGJFUA5UD9i4t5akK 16:24 |
 | ti-xdg-r1.md (rc 6: runtime dir) | sonnet low, claude/ti-xdg a84effda | session_016iS3kPEp1dge5wArJRTLrH 16:18 |
-| record-v9-r1.md (F7, rc 11: tour v9 take and diff) | sonnet medium, claude/record-v9 892d035c | starting |
+| record-v9-r1.md (F7, rc 11: tour v9 take and diff) | sonnet medium, claude/record-v9 892d035c | session_016iS3kP27Gxp9nLotrS2Xgm 17:46 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
 ## Queue (% week; 5 % reserve)
