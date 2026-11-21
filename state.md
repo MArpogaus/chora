@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | Lane | Model, branch | State |
 |---|---|---|
 | keys-route-r2.md (rc 2: rw-1 MAJOR state.rs:1001, M4 reversed) | sonnet high, claude/keys-route 541b92bb | session_016iS3kLcMj8WwZZXQm3ng6H 20:08 |
-| co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | starting 21:51 |
+| co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | session_016iS3kQftQgVnSgb4hmQy5h 21:51 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
