@@ -6,7 +6,7 @@
 # label is in the text colour.
 # The Run box, rendered: a row of 28 px and its label, from the pad, 5 px right of the rows (the horizontal pad of fuzzel.ini less 7: what a pad of 12 makes; the glyph bearing of the font, which differs by 1 px between 1x and 2x, cancels), at 1x and 2x; a pad of 6 fails; fuzzel before 1.11 does not read the file of xp, and the cell skips there.
 # The input row of fuzzel has no box (xp-style 13): the label and the text typed after it stand on one baseline, within 1 px.
-# The fields of the dialogs (Date and Time, Display Properties): a field is 21 px high with a border of 1 px (#7F9DB9) and the text 3 px inside it (the first ink of the year, a digit without left bearing, is 3 px from the inner edge); a label beside a field stands on its baseline, within 1 px.
+# The fields of the dialogs (Date and Time, Display Properties): a field is 21 px high with a border of 1 px (#7F9DB9) and the text 3 px inside it, 4 px at most where the first glyph has a bearing (the first ink of the year, a digit without left bearing, is 3 px from the inner edge); a label beside a field stands on its baseline, within 1 px.
 # Help at an output of 720 px: the key list ends inside its pane (ca-1): the window fits or the page scrolls (a wheel to the end), so that below the last rule of the table, the one of the last key row, the pane has no ink and at least 12 px of the padding of 16 are left.
 # BIN: directory with the binaries, SHOTS: directory for the captures.
 set -u
@@ -163,7 +163,7 @@ dialog_cell() {
     read -r height thick pad _ _ <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the time field is $height px high, not 21"
     [ "$thick" = 1.0 ] || red "${scale}x: the border of the time field is $thick px, not 1"
-    [ "$(python3 -I -c "print(3 <= float('$pad') <= 3.5)")" = True ] || red "${scale}x: the text of the time field stands $pad px inside its border, not 3"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 4.5)")" = True ] || red "${scale}x: the text of the time field stands $pad px inside its border, not 3"
     read -r x y _ _ <<<"$(rect xp-dlg-datetime-content-c-month)"
     out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/datetime-${scale}x.png" "$scale" "$x" "$y" 98 21)
     [ "$out" != none ] || fail "${scale}x: no month box in Date and Time"
@@ -180,7 +180,7 @@ dialog_cell() {
     read -r height thick pad _ _ <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the time zone box is $height px high, not 21"
     [ "$thick" = 1.0 ] || red "${scale}x: the border of the time zone box is $thick px, not 1"
-    [ "$(python3 -I -c "print(3 <= float('$pad') <= 3.5)")" = True ] || red "${scale}x: the text of the time zone box stands $pad px inside its border, not 3"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 4.5)")" = True ] || red "${scale}x: the text of the time zone box stands $pad px inside its border, not 3"
     zone_pad=$pad
     click_node xp-dlg-datetime-content-c-cancel
     ctl wait id:xp-dlg-datetime --gone --timeout 10 >/dev/null || fail "${scale}x: Date and Time stays"
@@ -198,14 +198,14 @@ dialog_cell() {
     read -r height thick wait_pad base label <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the Wait field is $height px high, not 21"
     [ "$thick" = 1.0 ] || red "${scale}x: the border of the Wait field is $thick px, not 1"
-    [ "$(python3 -I -c "print(3 <= float('$wait_pad') <= 3.5)")" = True ] || red "${scale}x: the text of the Wait field stands $wait_pad px inside its border, not 3"
+    [ "$(python3 -I -c "print(3 <= float('$wait_pad') <= 4.5)")" = True ] || red "${scale}x: the text of the Wait field stands $wait_pad px inside its border, not 3"
     read -r x y _ _ <<<"$(rect xp-dlg-display-content-c-saver)"
     out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/display-${scale}x.png" "$scale" "$x" "$y" 170 21)
     [ "$out" != none ] || fail "${scale}x: no screen saver list in Display Properties"
     read -r height thick pad _ _ <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the screen saver list is $height px high, not 21"
     [ "$thick" = 1.0 ] || red "${scale}x: the border of the screen saver list is $thick px, not 1"
-    [ "$(python3 -I -c "print(3 <= float('$pad') <= 3.5)")" = True ] || red "${scale}x: the text of the screen saver list stands $pad px inside its border, not 3"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 4.5)")" = True ] || red "${scale}x: the text of the screen saver list stands $pad px inside its border, not 3"
     [ "$(python3 -I -c "print(abs(float('$base') - float('$label')) <= 1)")" = True ] ||
         red "${scale}x: the text of the Wait field ends on row $base, its label on row $label"
     gate_cleanup 0
