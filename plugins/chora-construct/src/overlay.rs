@@ -674,6 +674,12 @@ impl Construct {
         } else {
             Vec::new()
         };
+        if matches!(had, Some((crate::hints::Set::Cube, ..)))
+            && set != Some(crate::hints::Set::Cube)
+        {
+            let language = chora_kit::words::Language::of_session();
+            commands.extend(crate::hints::hide_chip_words(&self.cube_hints(language)));
+        }
         if let Some(set) = set {
             let items = self.hint_items(set);
             let out = [self.lens.w, self.lens.h];

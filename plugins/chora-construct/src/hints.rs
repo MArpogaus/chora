@@ -584,6 +584,22 @@ pub fn places(look: &Look, items: &[Item], out: [f64; 2]) -> Vec<[f64; 2]> {
         .collect()
 }
 
+/// The commands that hide the words of the chips among `items`: the hints
+/// of a cube went while it stands back (the key list covers the screen),
+/// and no mode redraw hides a chip then.
+#[must_use]
+pub fn hide_chip_words(items: &[Item]) -> Vec<Command> {
+    (items.iter().filter(|item| item.chip))
+        .map(|item| Command::Update {
+            id: format!("{}-text", item.hit),
+            props: PropsUpdate {
+                visible: Some(false),
+                ..PropsUpdate::default()
+            },
+        })
+        .collect()
+}
+
 /// The commands that take the hints away; the chips of a cube go back to
 /// hiding with their mode.
 #[must_use]
@@ -600,6 +616,29 @@ pub fn remove() -> Vec<Command> {
 mod tests {
     use super::*;
     use crate::{config::Config, hud::Metrics};
+
+    #[test]
+    fn the_words_of_the_chips_hide_when_the_hints_of_a_cube_go() {
+        let item = |hit: &str, chip| Item {
+            keys: vec!["Return".into()],
+            word: "Step in".into(),
+            keys_last: false,
+            hit: hit.into(),
+            chip,
+        };
+        let items = [
+            item("construct-mode-turn-left", true),
+            item("construct-hint-keys", false),
+        ];
+        let hidden: Vec<_> = hide_chip_words(&items)
+            .into_iter()
+            .filter_map(|c| match c {
+                Command::Update { id, props } if props.visible == Some(false) => Some(id),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(hidden, ["construct-mode-turn-left-text"]);
+    }
 
     #[test]
     fn the_walk_shows_the_hints_that_apply_and_at_most_five() {
