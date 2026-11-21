@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 06:07 UTC)
+## Now (2026-11-21 06:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 05:35 week 3.6 %; disk 18 G free: one build (train) at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35 (flakes-q, flakes-p, chapters-b, mc-column; lanes told to merge). F5 series waits for flakes-r (a series now blocks trains for 5 h).
@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | co-keys.md (rc 2: co-38, co-40, co-41 MAJOR) | sonnet high, claude/co-keys a76476be | session_016iS3kQPiKokwPWu5EF5vt7 04:26 (restart) |
 | flakes-r.md (F5: FLK-DOORS-CO, FLK-MATRIX-S1, FLK-XP-FACES) | sonnet high, claude/flakes-r a5b77488 | session_016iS3kQqiW8EoPxjH4tvYxg 04:25 |
 | review-chapters-a-r2.md (F7: rca-1..5; build 186d8506 done 06:05) | sonnet medium, claude/chapters-a 186d8506 | session_016iS3kPH9fAtTCPw6p3DmZd 06:05 |
-| ledger-audit-r1.md (rc 1-2: open BLOCK and MAJOR rows against 598a34ff) | sonnet medium, claude/autonomous-dev-session-3w-i33pg7 598a34ff | starting |
+| ledger-audit-r1.md (rc 1-2: open BLOCK, MAJOR rows) | sonnet medium, claude/autonomous-dev-session-3w-i33pg7 598a34ff | session_016iS3kLUGoojYNw27XEfEW5 06:08 |
 | handover-mo-r1.md (rc 2: sh-23, sd-h1, sd-h2, ca-4 two-output MAJORs) | opus medium, claude/handover-mo a5b77488 | session_016iS3kMiT7ZFUvvmZSp7dwY 05:16 |
 
 ## Queue (% week; 5 % reserve)
