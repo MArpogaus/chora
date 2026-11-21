@@ -124,12 +124,25 @@ cell_faces_have_bars() {
     done
 }
 
+opens_state() {
+    echo "opens-under-pointer: pointer 960,200 injected at $1, window $w seen at $2, gave up at $(date +%s.%N)" >&2
+    echo "opens-under-pointer: window $(ctl query "id:$w" | jq -c '.[0] | {owner, parent, focused, rects}')" >&2
+    echo "opens-under-pointer: render-stats $(drawn)" >&2
+    echo "opens-under-pointer: pane-host $(tail -n 3 "$shots/pane-host.log" | tr '\n' ' ')" >&2
+    echo "opens-under-pointer: xp.log $(tail -n 3 "$shots/xp.log" | tr '\n' ' ')" >&2
+}
+
 cell_opens_under_pointer() {
+    local moved seen
+    moved=$(date +%s.%N)
     inject '[{"pointer_move": {"position": [960, 200]}}]'
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
     run_pid $!
     w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
-    on_face "${faces[1]}" 10
+    seen=$(date +%s.%N)
+    on_face "${faces[1]}" 10 && return 0
+    opens_state "$moved" "$seen"
+    return 1
 }
 
 cell_moves_to_face() {
