@@ -21,3 +21,10 @@ Assumptions: L1 = exactly one window closed (open at begin or seen during the go
 - pb-2 MINOR tests/persona/check.py:398 verify_closed: windows that opened and closed inside the goal count as the one closed window; correct per brief item 2, note it in tests/persona/README.md L1 next round.
 - Checked: baseline() exits without a begin (no fallback to start or the goal before); end() deletes begin.json; L2 prints "not measured (no config)"; L3 skips holders of given-away windows; T7 covered is a note, not lost. tests/test_acts.py change only rewrites two cases of the old contract (acts cell red on them): in scope.
 Verdict (computed): no BLOCK or MAJOR: MERGE-OK, head 4f07fe6c, joins train 95.
+
+## r2
+
+- merge of claude/autonomous-dev-session-3w-i33pg7 (618ae513): d72ca975; selftest red at the C2 case as briefed ("no `begin` for this goal").
+- fix dad65a95: `check begin` right before the give in the construct case; no other `check end` without a begin in tests/ (probe-check.sh, round.sh already begin). check.py unchanged.
+- head: dad65a95. Cells PASS: pre-commit, ci-check, build, doors, acts; tests/persona-selftest.sh twice green.
+- gate-lib FAIL (3 checks of merge-gate-selftest: "leaves no log directory" got 4/6, want 0), identical on the untouched session head 618ae513, so not from this lane; not touched.
