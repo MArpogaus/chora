@@ -203,7 +203,9 @@ impl Default for Watchdog {
 struct Run {
     /// The first frame of the current run of slow frames.
     since: Option<Instant>,
-    /// The last slow frame.
+    /// The last slow frame that was measured: the first one of a run is
+    /// not (see `Watchdog::clock_in`), so it proves nothing about a
+    /// suspect.
     last: Option<Instant>,
     /// Whether the newest frame took longer than the budget, with the
     /// time that it waited for a CPU.
@@ -258,6 +260,7 @@ impl Watchdog {
     ) -> Option<Action> {
         let budget = self.budget.unwrap_or(budget);
         let run = self.outputs.entry(output.into()).or_default();
+        let measured = run.over;
         run.over = took > budget;
         if took.saturating_sub(waited) <= budget {
             run.since = None;
@@ -271,7 +274,9 @@ impl Watchdog {
             }
             return None;
         }
-        run.last = Some(now);
+        if measured {
+            run.last = Some(now);
+        }
         let since = *run.since.get_or_insert(now);
         if now - since < SLOW_FOR {
             return None;
