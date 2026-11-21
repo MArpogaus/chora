@@ -84,3 +84,18 @@ launcher-click FAIL is pre-existing and environmental: `a click on the Mid row .
 - ti-20 (launcher-click on fuzzel 1.11.1, binary of train 83): green; launcher visible in 923 ms; Mid row in tiling and construct. Verified.
 - xp-24 (xp-fields on fuzzel 1.11.1): red. "FAIL: 1x: the row of the Run box is 37.0 px high, not 28" (/tmp/claude-0/vm2-xp-fields.log). Edit box 28 px at 1x and 2x ok; Run box on the 4 px grid ok.
 - Verdict: xp-24 is a product MAJOR, open (not a 1.9.2 artefact). The branch is the red test commit of the fix; it does not merge alone (a red cell). Fix lane XP-24 r1 builds on 5bd1bdfd after xp-p2r3 hands back (one lane per look).
+
+## r3
+
+Date 2026-11-21. Tree: claude/verify-maj3 at 1c599c74, no change (no test commit, no product code). Step 0: `git fetch --unshallow`, `cargo check --workspace` exit 0, `cargo build --workspace` exit 0. fuzzel 1.11.1. Each cell ran 5 times with `tests/merge-gate.sh --jobs 1 --only build,<cell>`.
+
+| line | cell | green of 5 | verdict |
+|---|---|---|---|
+| co-36 (construct does not reopen after kill plus capture) | acts, look construct: `act:construct killed mid-turn leaves the windows with a flat xp within 3 s`, `act:construct started again reopens the cube with the windows on its faces` (Expect faces 4); `tests/gate-acts.sh --no-selftest construct` | 5 of 5 (each: `acts: 55 pass, 0 known red, 0 blocking`) | closed on 1c599c74: not reproduced. The harness on this head still captures the flat xp while construct is gone (the skip 1e10b202 is not an ancestor of 1c599c74), so the capture trigger of the finding is present and the cube reopens. |
+| ti-20 (Apps click, launcher within 1.5 s) | launcher-click (tiling part: visible-after-click assert, limit 1500 ms) | 5 of 5: 531, 465, 493, 512, 474 ms | closed (verified; matches PM review r2, 923 ms on a train). Ledger gap: findings/tiling.md ti-20 still says "partly" (verify-maj r1); the PM should set the state to verified. |
+| mc-47 (click on a launcher row does nothing on mc) | mc-sofa, cell launcher-click-row (`CELLS=launcher-click-row`); ran, not skipped (fuzzel 1.11.1) | 5 of 5 (`ok: launcher-click-row (dark)`, `ok: 1 cells ran`) | closed: the click starts Foot and its window has a page. Ledger row mc.md mc-47 still says "not a bug (mc)", open for the PM; the cell it asked for exists and is green. |
+| A13 (mc drag onto construct loses panes) | matrix, cells `mc construct leak` and `mc construct panes` (`ONLY='mc construct (leak\|panes)'`): three more windows, drag from mc three times, each round 4 windows and none of the construct with `pane: none` | 5 of 5 via merge-gate, plus 2 direct runs (7 of 7); `ok: gate-handover-matrix: every cell as in EXPECTED that ran` | closed: no window loss. The cells print no per-round counts on ok (round lines go to the gate's own temp log), so the count is the assert (4 windows, no lost pane) passing. |
+
+### Gate
+
+`tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,launcher-click,mc-sofa,matrix,acts`: pre-commit PASS 54s, ci-check PASS 112s, build PASS, matrix PASS 327s, acts PASS 286s, mc-sofa PASS 50s, launcher-click PASS 17s. Green. No red cell.
