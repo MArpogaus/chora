@@ -57,10 +57,10 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T22:50:00Z",
+  updated: "2026-11-21T23:45:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 7.1,                       // % of the new week used (reset 04:00)
+  budget: 7.3,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
@@ -72,10 +72,10 @@ const S = {
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 103 (three reviewed test-harness branches) is green and merged at 22:45 UTC (05:45 Bangkok); its first run failed once in the long acts cell, which then passed twice, so that was a flaky test (noted as sh-32). Train 104 runs now: key routing (review r2 passed, no MAJOR), the 3D-look face hint, shared-kit tests and the mc and helper-chat file split.",
-    "The 3D look's MAJOR bug (after one click on a face, both the 3D look and the XP desktop claim the keyboard) is in its third fix round.",
-    "Four lanes: tour fixes for the v9 recording (the F7 check against tour v8), the two-keyboard-owners fix r3, flaky-test waits, and the tiling simulated-user round 4 on the fixed harness.",
-    "Spending is under pace (7.1 % used at 21:10 UTC, the line is at 10.3 %)."
+    "Train 104 runs now: key routing (review r2 passed, no MAJOR), the 3D-look face hint, shared-kit tests and the mc and helper-chat file split.",
+    "The tiling simulated-user round 4 does not pass yet: a new 10 px gap between tiles (off the 4 px grid, 13 hits), and in a mixed tiling and XP session Super+Return opened an XP window instead of a tile (to verify on the train 104 build, which changes key routing). A fix lane follows train 104.",
+    "Four lanes: tour fixes for the v9 recording (the F7 check against tour v8), the 3D-look two-keyboard-owners fix r3, flaky-test waits, and a test-harness fix (it hid some breaches and passed two tiling tasks without checking them).",
+    "Spending is under pace (7.3 % used at 23:37 UTC, the line is at 11.8 %); more lanes start after train 104."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };

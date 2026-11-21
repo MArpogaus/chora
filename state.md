@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| p2-harness-m.md (rc 2: known-red filter, L2, T7 vacuous; r4 harness check) | sonnet medium, claude/p2-harness-m 1c9e64f7 | starting 23:45 |
+| p2-harness-m.md (rc 2: known-red filter, L2, T7 vacuous; r4 harness check) | sonnet medium, claude/p2-harness-m 1c9e64f7 | session_016iS3kMxK3mijyHf3skqCwg 23:38 |
 | co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | session_016iS3kQftQgVnSgb4hmQy5h 21:51 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
