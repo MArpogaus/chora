@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T01:20:00Z",
+  updated: "2026-11-21T02:28:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 65,                      // % of the week used (owner's reading)
@@ -67,15 +67,15 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % (met); the five-run series at 2 jobs was 2 of 5 green (00:30 UTC); two lanes fix the three red steps"],
-    ["F6", "Every change through the merge gate", "done", "52 green merges, all reviewed (audit r4); train 94b green; train 95 red at a test-harness clash (not product), re-run as 95b without that branch"],
+    ["F6", "Every change through the merge gate", "done", "53 green merges, all reviewed (audit r4); train 95b green (tiling hand-over raise, construct HUD load); train 96 runs the persona harness fix alone"],
     ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 95 failed on a clash between two test-harness changes (not the product). Train 95b runs without the clashing branch: the tiling hand-over raise fix and the construct HUD load fix; the harness branch gets a short fix round.",
+    "Train 95b is green: the tiling hand-over raise fix and the construct HUD load fix are merged. Train 96 merges the persona harness fix; then the two flake fixes (train 97).",
     "Flakes: the five-run series was 2 of 5 green, so goal F5 is not met yet. Two lanes now fix the three steps that failed (construct HUD, xp faces, construct pull).",
     "xp: the Start menu that opened by itself was not reproduced in a full replay; it goes to the known issues.",
-    "Tour v9: the design-guide checks are in their third fix round after review."
+    "Tour v9: the design-guide checks are in their fourth round; two lanes now give every tour act a real check (xp, tiling, handover; mc, construct)."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
