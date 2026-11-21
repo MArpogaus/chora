@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-20 23:57 UTC)
+## Now (2026-11-21 00:05 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 22:12 PM 1.8 % (Bangkok day 11-21); disk 11 G free (t93b): one build (train) at a time; 5 lanes
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 00:05 PM 2.2 % (Bangkok day 11-21); disk 11 G free (t93b): one build (train) at a time; 5 lanes
 session branch: dcb77733; 51 greens; t94 red 23:16 again only construct-hud:138 at --jobs 2 (co-35, twice since co-pane: lane co-hud-load); t94b running 23:18 at --jobs 1 (procedure).
 burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
