@@ -423,6 +423,15 @@ gate_only() {
 }
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
 check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
+wrap=$work/wrap
+mkdir "$wrap"
+cat >"$wrap/rm" <<'WRAP'
+#!/bin/bash
+PATH=${PATH//"$(dirname "$0")":/}
+exec rm "$@"
+WRAP
+chmod +x "$wrap/rm"
+PATH="$wrap:$PATH"
 mkdir "$work/nopc"
 for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout setsid ps; do
     ln -s "$(command -v "$tool")" "$work/nopc/$tool"
@@ -454,6 +463,7 @@ ci_local --help
 check "--help leaves no log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
 ci_local deny
 check "a run without a failure removes its log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
+check "a wrapper first on PATH does not change the nobin results" "$(head -c0 "$work/out"; command -v rm | grep -c "$wrap")" 1
 
 runtime_case() {
     rm -rf "$work/plugins"
