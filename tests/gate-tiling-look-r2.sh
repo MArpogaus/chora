@@ -91,7 +91,7 @@ start_round() {
     pids+=($!)
     for i in 1 2; do ctl run "$bin/chora-tiling" --launch foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$theme: foot"; done
     bar_shows || fail "$theme: no bar after 15 s: $(tail -n 3 "$shots/waybar-$theme.log")"
-    sleep 4
+    pace 4
 }
 
 end_round() {
@@ -106,7 +106,7 @@ end_round() {
 cell_tooltip() {
     local theme=$1 base=$work/tip-base.png shot=$work/tip.png door name x y x0 x1 shown
     move 300 500
-    sleep 1
+    settle
     shoot "$base" || fail "$theme tooltip: the capture"
     for door in "Apps 42 25 14 400" "Helper 955 24 700 1262" "Keys 1190 24 700 1262" "Power 1247 24 700 1262"; do
         read -r name x y x0 x1 <<<"$door"
@@ -115,7 +115,7 @@ cell_tooltip() {
         move "$x" "$y"
         sleep 0.3
         move $((x + 1)) $((y + 1))
-        sleep 3
+        pace 3
         shoot "$shot" || fail "$theme tooltip: the capture"
         shown=$(differing "$base" "$shot" "$x0" 56 "$x1" 110)
         [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-tooltip-$name-$theme.png"
@@ -124,11 +124,11 @@ cell_tooltip() {
     move 42 25
     sleep 0.3
     move 43 26
-    sleep 1
+    settle
     keys Super+space
     sleep 1.5
     keys Escape
-    sleep 3
+    pace 3
     shoot "$shot" || fail "$theme tooltip: the capture"
     shown=$(differing "$base" "$shot" 14 56 400 110)
     [ "$shown" = 0 ] || fail "$theme tooltip: something of the bar stands over the tile after the launcher closed ($shown pixels differ)"
@@ -138,9 +138,9 @@ cell_tooltip() {
 cell_door() {
     local theme=$1 shot=$work/door.png rows word
     ctl run "$bin/chora-tiling" --launch foot -T w3 sh -c 'echo hello; sleep 600' >/dev/null || fail "$theme door: foot"
-    sleep 2
+    settle
     echo 'voice.state {"state": "listening", "task": "", "said": ""}' >&3
-    sleep 3
+    pace 3
     word=$(sh "$flavor/waybar/helper.sh" | jq -r .text)
     [ "$word" = "No helper" ] || fail "$theme door: the bar word is \"$word\" without a helper"
     shoot "$shot" || fail "$theme door: the capture"
@@ -148,7 +148,7 @@ cell_door() {
     rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row-")) | .id] | join(" ")')
     [ -z "$rows" ] || fail "$theme door: a \"Chat ...\" row floats over the tiles beside the bar word \"$word\": $rows"
     echo 'voice.state {"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 1, "steps": 2, "seq": 4}' >&3
-    sleep 3
+    pace 3
     shoot "$shot" || fail "$theme door: the capture"
     [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-door-working-$theme.png"
     rows=$(ctl query '*' | jq -r '[.[] | select(.id | startswith("hud-row-")) | .id] | join(" ")')
@@ -181,7 +181,7 @@ listed_after() {
         grep -q "$1" <<<"$out" && break
         sleep 0.5
     done
-    sleep 1
+    pace 1
     echo "$out"
 }
 
@@ -207,7 +207,7 @@ cell_notice() {
     [ "$changed" -gt 500 ] || fail "$theme notice: nothing stands at the bottom right ($changed pixels differ)"
     ok "$theme notice: Super+Print saves $(basename "$file") and the notice names it"
     dismiss_notices
-    sleep 1
+    settle
     : >"$work/stub/grim-fails"
     shoot "$base" || fail "$theme notice: the capture"
     keys Super+Print

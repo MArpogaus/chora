@@ -104,15 +104,6 @@ marked() {
     until_ok "grep -Eq -- \"$1\" \"$marks\"" 20
 }
 unmark() { : >"$marks"; }
-until_ok() {
-    local rounds=${2:-40}
-    local end=$((SECONDS + rounds / 2))
-    while :; do
-        eval "$1" && return 0
-        [ "$SECONDS" -lt "$end" ] || return 1
-        sleep 0.25
-    done
-}
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject - >/dev/null; }
 click() {
     echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
@@ -184,7 +175,7 @@ helper_start() {
 doors_window() {
     "$bin/chora-probe" window 40 120 200 --report >"$work/window" 2>&1 &
     pids+=($!)
-    sleep 2
+    until_ok "grep -qx enter \"$work/window\"" 20 || echo "the probe window has no keyboard yet" >&2
 }
 got_key() { until_ok "grep -qx 'key $1' \"$work/window\"" 12; }
 window_has_keyboard() { [ "$(grep -E '^(enter|leave)$' "$work/window" | tail -n 1)" = enter ]; }

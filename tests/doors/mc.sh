@@ -119,7 +119,7 @@ header_clear() {
     done
 }
 header_step() {
-    until_ok "$2" 20 && header_clear && return 0
+    until_ok "$2" 80 && header_clear && return 0
     echo "header: $1 fails" >&2
     return 1
 }

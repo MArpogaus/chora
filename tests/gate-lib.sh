@@ -133,7 +133,26 @@ session_start() {
     XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file")
     export CHORA_SOCKET WAYLAND_DISPLAY XDG_RUNTIME_DIR
     session_runtime=$XDG_RUNTIME_DIR
-    sleep 2 # the plugin needs a moment before its nodes answer queries
+    local owner=''
+    while [ $# -gt 0 ] && [ "$1" != -- ]; do shift; done
+    [ $# -lt 2 ] || owner=$(basename "$2")
+    case $owner in chora-*) owner=${owner#chora-} ;; *) owner='' ;; esac
+    until_ok "ctl query 'owner:${owner:-core}' | jq -e 'length > 0' >/dev/null || { [ -z '$owner' ] && ctl query '*' >/dev/null; }" 60 ||
+        fail "the nodes of ${owner:-the core} do not answer queries"
+}
+settled() {
+    until_ok "a=\$($1); sleep 0.3; [ -n \"\$a\" ] && [ \"\$a\" = \"\$($1)\" ]" "${2:-30}" || true
+}
+settle() { settled "ctl render-stats | jq -c .outputs"; }
+pace() { sleep "$1"; }
+until_ok() {
+    local rounds=${2:-40}
+    local end=$((SECONDS + rounds / 2))
+    while :; do
+        eval "$1" && return 0
+        [ "$SECONDS" -lt "$end" ] || return 1
+        sleep 0.25
+    done
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 holds() {

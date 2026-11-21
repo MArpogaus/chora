@@ -84,7 +84,7 @@ rm -rf "$XDG_PICTURES_DIR/Screenshots"
 click 1238 24
 sleep 2
 echo '[{"text": {"text": "Screenshot"}}]' | ctl inject - >/dev/null || fail "typing Screenshot"
-sleep 1
+settle
 keys Return
 wait_notice || fail "the power menu row Screenshot: no notice at the bottom right, the pixel 1000,700 is $(pixel "$shot" 1000 700)"
 stays_3s || fail "the power menu row Screenshot: the notice was gone within 3 s"
