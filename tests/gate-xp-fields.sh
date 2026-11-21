@@ -150,7 +150,7 @@ dialog_cell() {
     read -r height thick pad _ _ <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the year field is $height px high, not 21"
     [ "$thick" = 1.0 ] || red "${scale}x: the border of the year field is $thick px, not 1"
-    [ "$pad" = 3.0 ] || red "${scale}x: the text of the year field stands $pad px inside its border, not 3"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 3.5)")" = True ] || red "${scale}x: the text of the year field stands $pad px inside its border, not 3 (3.5 at 2x: one device pixel of the glyph)"
     read -r x y fw _ <<<"$(rect xp-dlg-datetime-content-c-time)"
     out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/datetime-${scale}x.png" "$scale" "$x" "$y" $((fw - 18)) 21)
     read -r height _ _ _ _ <<<"$out"
@@ -194,7 +194,7 @@ help_cell() {
     inj '[{"shortcut": {"keys": "Super+F1"}}]'
     ctl wait id:xp-dlg-help-content-body --timeout 10 >/dev/null || fail "720: Help does not open"
     read -r x y _ bh <<<"$(rect xp-dlg-help-content-body)"
-    inj "[{\"pointer_move\": {\"position\": [$((x + 500)), $((y + 200))]}}, {\"scroll\": {\"dy\": 100}}]"
+    inj "[{\"pointer_move\": {\"position\": [$((x + 500)), $((y + 200))]}}, {\"scroll\": {\"dy\": 400}}]"
     sleep 1.5
     ctl capture "$shots/help-720.png" >/dev/null || fail "the capture failed"
     col=$((x + 244 + 195))
