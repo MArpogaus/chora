@@ -95,7 +95,7 @@ impl Wm {
     }
 
     /// A node of xp, such as its Start menu, has the keyboard.
-    fn own_node(&self) -> bool {
+    pub(super) fn own_node(&self) -> bool {
         self.key_node.as_deref() == Some(NAME)
     }
 
