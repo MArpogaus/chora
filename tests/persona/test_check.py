@@ -10,6 +10,7 @@ import json
 import pathlib
 import sys
 import tempfile
+import time
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -190,38 +191,222 @@ def run_end(run, *args):
 
 
 class BeginPerTask(unittest.TestCase):
-    """A task left open by an earlier goal cannot leak into the next: `end`
-    leaves the end state as the begin of what follows, so a driver that
-    forgets `begin` still holds the next goal against the state it found."""
+    """Every goal is held against the `begin` taken right before it: `end`
+    uses that begin up, so the next goal never compares with the begin or the
+    end of the one before (r3: a repeat `end` compared with the end state of
+    the previous one and meant nothing)."""
 
-    def test_the_end_of_a_task_is_the_begin_of_the_next(self):
+    def test_end_without_a_begin_is_no_verdict(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
             run.save("start", snap(), {})
+            with self.assertRaises(SystemExit) as raised:
+                run_end(run, "T7")
+            self.assertIn("begin", str(raised.exception))
+
+    def test_the_end_of_a_goal_leaves_no_begin_for_the_next(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, one_window("s1"))
+            run.save("start", snap(), {})
+            run.save("begin", snap(), {})
             run_end(run, "T7")
-            saved = run.load("begin")
-            self.assertIsNotNone(saved, "no begin after the end")
-            self.assertEqual(saved[0].toplevels, {"s1"})
+            self.assertIsNone(run.load("begin"), "the begin of goal one is left for goal two")
 
     def test_a_window_left_open_by_goal_one_is_no_new_window_of_goal_two(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
             run.save("start", snap(), {})
+            run.save("begin", snap(), {})
             status, out = run_end(run, "T1")
             self.assertEqual(status, 0, out)
+            run.save("begin", run.scene, {})
             status, out = run_end(run, "T1")
             self.assertEqual(status, 1, "the window of goal one counts for goal two")
             self.assertIn("no new focused window", out)
 
-    def test_an_explicit_begin_still_wins(self):
+    def test_a_second_end_without_a_begin_does_not_pass_on_the_first_end(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
             run.save("start", snap(), {})
-            run_end(run, "T7")
-            run.scene = one_window("s2")
             run.save("begin", snap(), {})
-            status, out = run_end(run, "T1")
+            run_end(run, "T1")
+            with self.assertRaises(SystemExit):
+                run_end(run, "T1")
+
+
+def win(sid, owner, rect=(14, 54, 1252, 702), shown=True):
+    return {"surface": sid, "owner": owner, "shown": shown, "rect": list(rect)}
+
+
+def look_state(holder_surface, windows, holder="self"):
+    focus = {"holder": holder, "surface": holder_surface}
+    return {"windows": windows, "focus": focus, "open": [], "busy": []}
+
+
+def goal(run, before, after, task, hist=(), look=None):
+    """One goal: `begin` is the snapshot `before`, the scene at `end` is
+    `after`, `hist` the toplevels the persona's actions saw."""
+    run.save("begin", before, {})
+    run.scene = after
+    with open(run.state_dir / "history.jsonl", "a", encoding="utf-8") as f:
+        for i, tops in enumerate(hist):
+            row = {"t": time.time() + 1 + i, "action": "x", "open": [], "helper": {}}
+            row |= {"page": None, "toplevels": list(tops), "keysheet": None}
+            f.write(json.dumps(row) + "\n")
+    if look:
+        run.s.label = look
+    return run_end(run, task)
+
+
+def task_line(out, task):
+    return next((x for x in out.splitlines() if x.startswith(f"task {task}")), "")
+
+
+class Closed(unittest.TestCase):
+    """L1 holds the goal to its own begin and says "closed" for a window the
+    persona closed, whether it was open at the begin or came during the goal."""
+
+    def after(self):
+        state = look_state("s1", [win("s1", "xp")], holder="xp")
+        return snap(states={"xp": state}, nodes=[surface("s1", "xp", True)], toplevels={"s1"})
+
+    def test_a_window_opened_and_closed_in_the_goal_is_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, snap(), self.after(), "L1", hist=[{"s1", "s2"}])
             self.assertEqual(status, 0, out)
+            self.assertIn("task L1 pass", out)
+
+    def test_a_window_of_the_begin_that_the_persona_closed_is_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, one_window("s0"), self.after(), "L1")
+            self.assertEqual(status, 0, out)
+
+    def test_no_window_closed_is_red_and_never_says_gone(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, snap(), self.after(), "L1", hist=[{"s1"}])
+            self.assertEqual(status, 1, out)
+            line = task_line(out, "L1")
+            self.assertIn("closed", line)
+            self.assertNotIn("gone", line)
+
+
+class NoConfig(unittest.TestCase):
+    """L2 measures a reload of the config; with no config it is "not
+    measured (no config)", neither red nor green."""
+
+    def after(self):
+        state = look_state("s1", [win("s1", "xp")], holder="xp")
+        return snap(states={"xp": state}, nodes=[surface("s1", "xp", True)], toplevels={"s1"})
+
+    def test_a_missing_config_is_not_measured(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, snap(), snap(), "L2")
+            self.assertEqual(status, 0, out)
+            self.assertIn("task L2 not measured (no config)", out)
+            self.assertNotIn("pass", task_line(out, "L2"))
+
+    def test_an_empty_config_is_not_measured(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            (pathlib.Path(folder) / "config").mkdir()
+            (pathlib.Path(folder) / "config" / "chora.yaml").write_text("")
+            status, out = goal(run, snap(), snap(), "L2")
+            self.assertEqual(status, 0, out)
+            self.assertIn("not measured (no config)", out)
+
+    def test_a_config_is_measured(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
+            status, out = goal(run, snap(), self.after(), "L2")
+            self.assertEqual(status, 0, out)
+            self.assertIn("task L2 pass", out)
+            status, out = goal(run, snap(), snap(), "L2")
+            self.assertEqual(status, 1, out)
+
+
+class GivenAway(unittest.TestCase):
+    """L3 does not count against the look the windows that a later goal gave
+    to another look."""
+
+    def scene(self, holders, extra=()):
+        tiling = look_state("s1", [win("s1", "tiling")], holder=holders.get("tiling"))
+        xp = look_state("s2", [win("s2", "xp")], holder=holders.get("xp"))
+        nodes = [surface("s1", "tiling", True), surface("s2", "xp")] + list(extra)
+        tops = {"s1", "s2"} | {n["id"] for n in extra}
+        return snap(states={"tiling": tiling, "xp": xp}, nodes=nodes, toplevels=tops)
+
+    def before(self):
+        nodes = [surface("s1", "tiling", True), surface("s2", "tiling")]
+        return snap(nodes=nodes, toplevels={"s1", "s2"})
+
+    def test_a_holder_that_holds_a_given_window_does_not_count(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            after = self.scene({"tiling": "tiling", "xp": "xp"})
+            status, out = goal(run, self.before(), after, "L3", look="tiling")
+            self.assertEqual(status, 0, out)
+
+    def test_only_the_given_window_holds_the_focus(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            after = self.scene({"xp": "xp"})
+            status, out = goal(run, self.before(), after, "L3", look="tiling")
+            self.assertEqual(status, 0, out)
+
+    def test_a_holder_of_a_window_that_was_not_given_still_counts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            xp = look_state("s3", [win("s3", "xp")], holder="xp")
+            tiling = look_state("s1", [win("s1", "tiling")], holder="tiling")
+            nodes = [surface("s1", "tiling", True), surface("s3", "xp")]
+            after = snap(states={"tiling": tiling, "xp": xp}, nodes=nodes, toplevels={"s1", "s3"})
+            before = snap(nodes=[surface("s1", "tiling", True)], toplevels={"s1"})
+            status, out = goal(run, before, after, "L3", look="tiling")
+            self.assertEqual(status, 1, out)
+
+
+class Covered(unittest.TestCase):
+    """T7: a given window that is shown but drawn under another window is not
+    lost; it is a separate MINOR line (root order, known)."""
+
+    def before(self):
+        nodes = [surface("s1", "tiling", True), surface("s2", "tiling")]
+        return snap(nodes=nodes, toplevels={"s1", "s2"})
+
+    def after(self, order, shown=True):
+        nodes = {"s1": surface("s1", "tiling", True), "s2": surface("s2", "xp")}
+        states = {
+            "tiling": look_state("s1", [win("s1", "tiling")], holder="tiling"),
+            "xp": look_state("s2", [win("s2", "xp", shown=shown)], holder=None),
+        }
+        return snap(states=states, nodes=[nodes[i] for i in order], toplevels={"s1", "s2"})
+
+    def test_a_covered_window_is_not_lost_and_is_a_minor_line(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, self.before(), self.after(["s2", "s1"]), "T7")
+            self.assertEqual(status, 0, out)
+            self.assertIn("task T7 pass", out)
+            self.assertIn("minor T7 covered: s2 under s1", out)
+
+    def test_a_window_on_top_has_no_minor_line(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, self.before(), self.after(["s1", "s2"]), "T7")
+            self.assertEqual(status, 0, out)
+            self.assertNotIn("minor", out)
+
+    def test_a_window_that_is_gone_is_lost(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, self.before(), one_window("s1"), "T7")
+            self.assertEqual(status, 1, out)
+            self.assertIn("windows lost ['s2']", out)
 
 
 def pane_node(visible=True):
@@ -272,7 +457,7 @@ class SceneState(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, cube_snap("navigate", front=3))
             run.s.label = "construct"
-            run.save("start", cube_snap("navigate", front=3), {})
+            run.save("begin", cube_snap("navigate", front=3), {})
             _, out = run_end(run, "T7")
             line = next(x for x in out.splitlines() if x.startswith("task T7"))
             self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)

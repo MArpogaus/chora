@@ -125,6 +125,7 @@ smoke() {
         [[ -n $env_file ]] || { echo "FAIL: $look: no session" >&2; return 1; }
         export PERSONA_ENV=$env_file PERSONA_CHECK=1
         python3 -I "$repo/tests/persona/check.py" start
+        python3 -I "$repo/tests/persona/check.py" begin
         python3 -I "$repo/tests/persona/act.py" move 100 100 >/dev/null || { echo "FAIL: $look: act.py move" >&2; return 1; }
         grep -q '"action": "move"' "$(sed -n 's/^PERSONA_LOG=//p' "$env_file")" || { echo "FAIL: $look: no action in the log" >&2; return 1; }
         [[ -s $(dirname "$env_file")/check/history.jsonl ]] || { echo "FAIL: $look: the checker saw no action" >&2; return 1; }
