@@ -23,7 +23,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| guide-checks-r4.md (F7: rg-9 xp tray exemption, construct restart red) | sonnet medium, claude/guide-checks 9881ccda | starting 01:3x |
+| guide-checks-r4.md (F7: rg-9 xp tray exemption, construct restart red) | sonnet medium, claude/guide-checks 9881ccda | session_016iS3kMwg6gNXRJSvVuuage 01:26 |
 | flakes-p-r1.md (F5: FLK-PULL, 1/10 alone) | sonnet high, claude/flakes-p 618ae513 | session_016iS3kPWeWefDk7yoWfkha2 00:31 |
 | flakes-q-r1.md (F5: FLK-HUD-TAB, FLK-XP-FACES) | sonnet high, claude/flakes-q 618ae513 | session_016iS3kPEoGRNCsNpH93eJTX 00:31 |
 | persona-begin-r2.md (RC 2: t95 red, C2 selftest begin) | sonnet medium, claude/persona-begin 4f07fe6c | session_016iS3kMUwWxpyAtCvvNqNG1 01:16 |
