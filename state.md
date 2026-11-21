@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (5/5 at --jobs 2); F7 tour-v9 b
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| guide-checks-r6.md (F7: xp-task Tahoma row, I13 proof) | sonnet medium, claude/guide-checks 07aa97d4 | starting |
+| guide-checks-r6.md (F7: xp-task Tahoma row, I13 proof) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-capture.md (rc 2: co-36 MAJOR capture blocks cube reopen) | sonnet high, claude/co-capture f4f49783 | session_016iS3kPWudoCEpaHQaXSgts 03:17 |
 | chapters-a.md (F7: xp, tiling, handover rows checked) | sonnet high, claude/chapters-a f4f49783 | session_016iS3kLLge6driZZFcqW4i5 02:29 |
 | mc-column.md (rc 2: mc-54 MAJOR column not back after Super+n) | sonnet high, claude/mc-column a76476be | session_016iS3kMHtkD5w7RGAv7Txcp 03:28 |
