@@ -203,7 +203,9 @@ impl Default for Watchdog {
 struct Run {
     /// The first frame of the current run of slow frames.
     since: Option<Instant>,
-    /// The last slow frame.
+    /// The last slow frame that was measured: the first one of a run is
+    /// not (see `Watchdog::clock_in`), so it proves nothing about a
+    /// suspect.
     last: Option<Instant>,
     /// Whether the newest frame took longer than the budget, with the
     /// time that it waited for a CPU.
@@ -226,6 +228,13 @@ impl Watchdog {
             owner_budget,
             ..Self::default()
         }
+    }
+
+    /// Forgets the frames of an output that went away: a run of slow
+    /// frames cut by an unplug must not blame at the first slow frame
+    /// after a replug.
+    pub fn forget(&mut self, output: &str) {
+        self.outputs.remove(output);
     }
 
     /// The clock for the next frame of an output.
@@ -258,6 +267,7 @@ impl Watchdog {
     ) -> Option<Action> {
         let budget = self.budget.unwrap_or(budget);
         let run = self.outputs.entry(output.into()).or_default();
+        let measured = run.over;
         run.over = took > budget;
         if took.saturating_sub(waited) <= budget {
             run.since = None;
@@ -271,7 +281,9 @@ impl Watchdog {
             }
             return None;
         }
-        run.last = Some(now);
+        if measured {
+            run.last = Some(now);
+        }
         let since = *run.since.get_or_insert(now);
         if now - since < SLOW_FOR {
             return None;
@@ -884,6 +896,47 @@ mod tests {
         assert!(
             !actions.contains(&Action::Blame),
             "{actions:?} for {times:?}"
+        );
+    }
+
+    /// After a blame the load comes in single starved frames, a few
+    /// seconds apart, with fast frames between: each is the first of its
+    /// run, so nothing measured it and nothing proves a slow client. The
+    /// suspect clears after `CALM_FOR` of such frames.
+    #[test]
+    fn an_unmeasured_slow_frame_is_no_sign_that_a_suspect_stays_guilty() {
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        assert_eq!(
+            slow_for(&mut watchdog, start, 2100, Some("a")),
+            [Action::Blame]
+        );
+        let slow = (SLOW, Duration::ZERO);
+        let fast = (Duration::from_millis(1), Duration::ZERO);
+        let begin = start + Duration::from_millis(2100);
+        for i in 0..2000u32 {
+            let times = if i % 300 == 0 { slow } else { fast };
+            watchdog.note("out", REFRESH, times, begin + REFRESH * i);
+        }
+        assert_eq!(watchdog.suspect, None, "32 s of single starved frames");
+    }
+
+    #[test]
+    fn an_output_that_went_starts_a_new_run_when_it_returns() {
+        let mut core = Core::new();
+        let output = core.add_output("HDMI-1", (800, 600));
+        for _ in 0..60 {
+            core.state.time.advance(REFRESH);
+            core.state
+                .frame_took("HDMI-1", REFRESH, (SLOW, Duration::ZERO));
+        }
+        assert!(core.state.watchdog.slow("HDMI-1"), "a run of slow frames");
+        core.state.remove_output(&output);
+        core.state.time.advance(Duration::from_secs(5));
+        core.add_output("HDMI-1", (800, 600));
+        assert!(
+            !core.state.watchdog.slow("HDMI-1"),
+            "the run of the plug before is not forgotten"
         );
     }
 
