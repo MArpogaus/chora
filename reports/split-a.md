@@ -14,3 +14,6 @@ Pure moves: no item renamed, no body changed. Visibility widened only as the mov
 Checks: cargo test -p chora-mc 189 ok, -p chora-assistant 243 ok; clippy --all-targets clean; tools/size-ratchet ok (list empty, nothing to lower); lint-ratchet ok (allow 360, no-reason 0, eprintln 131).
 
 Gate: `tests/merge-gate.sh --jobs 1` (no --only) all steps passed, 49 PASS, 0 red.
+
+## Review r1 (PM, 2026-11-21 20:38 UTC; builder: lane split-a)
+Range 892d035c..a3c14590, 2 commits (b59aeeae mc, a3c14590 assistant), owner identity, no stray commit. `git diff --color-moved=plain`: every non-moved line is an import, a `mod` line, a doc header of the new module, a visibility change (pub(crate) in mc methods.rs, pub(super) in assistant chat/dialogue.rs) or a rustfmt reflow of a moved signature; no body changed. Lane gate 49/49 green on the merged tree. 0 BLOCK, 0 MAJOR. Verdict: MERGE-OK; joins t104.
