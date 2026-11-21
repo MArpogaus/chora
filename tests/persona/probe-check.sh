@@ -51,6 +51,7 @@ echo "$out" | grep -q 'task T5 pass' || fail "T5 did not pass with a live probe:
 pid=$(cat "$ROUND_DIR/run/probe-check.probe.pid")
 kill "$pid"
 ctl wait 'kind:surface' --gone --timeout 10 >/dev/null 2>&1 || fail "the window of the probe stayed after the probe died"
+python3 -I "$repo/tests/persona/check.py" begin
 if out=$(python3 -I "$repo/tests/persona/check.py" end --probe "$report" T5); then
     fail "T5 passed with a dead probe: $out"
 fi

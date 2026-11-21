@@ -1243,7 +1243,7 @@ class PersonaContracts(unittest.TestCase):
     def test_l1_one_window_closed_focus_with_the_look(self):
         before = snap(nodes=[surface("s1", "xp"), surface("s2", "xp")], toplevels={"s1", "s2"})
         self.assertEqual(verdict("L1", ctx(), before, snap()), [])
-        self.assertIn("1 windows gone", verdict("L1", ctx(), before, before)[0])
+        self.assertIn("expected 1 window closed", verdict("L1", ctx(), before, before)[0])
         elsewhere = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": None}}})
         self.assertIn("the focus", verdict("L1", ctx(), before, elsewhere)[0])
 
@@ -1284,18 +1284,20 @@ class PersonaContracts(unittest.TestCase):
         out = verdict("C2", ctx("construct", hist=hist), empty, empty)
         self.assertIn("windows lost ['s1']", out[0])
 
-    def test_end_reads_the_newest_begin_else_start(self):
+    def test_end_reads_the_begin_of_the_goal_and_never_start(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = object.__new__(check.Run)
             run.state_dir = pathlib.Path(tmp)
             run.calls = pathlib.Path(tmp) / "calls.log"
             run.calls.write_text("")
             run.save("start", snap(), {})
-            self.assertEqual(check.baseline(run), "start")
+            with self.assertRaises(SystemExit):
+                check.baseline(run)
             run.save("begin", snap(), {})
             self.assertEqual(check.baseline(run), "begin")
             run.state_dir.joinpath("begin.json").unlink()
-            self.assertEqual(check.baseline(run), "start")
+            with self.assertRaises(SystemExit):
+                check.baseline(run)
 
     def test_c3_the_look_holds_the_focus(self):
         self.assertEqual(verdict("C3", ctx(), snap(), snap()), [])
