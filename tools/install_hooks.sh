@@ -17,4 +17,6 @@ if [ -e "$target" ] && ! cmp -s "$target" "$root/tools/hooks/post-checkout"; the
     grep -q "keeps the PM's log worktree" "$target" || { echo "install_hooks: foreign $target; merge by hand" >&2; exit 1; }
 fi
 install -m 755 "$root/tools/hooks/post-checkout" "$target"
+install -m 755 "$root/tools/hooks/pre-commit" "$hooks_dir/pre-commit.legacy"
+install -m 755 "$root/tools/hooks/commit-msg" "$hooks_dir/commit-msg.legacy"
 echo "install_hooks: hooks in $settings, scripts in $pm_dir, guard in $target"

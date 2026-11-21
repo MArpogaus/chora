@@ -1,0 +1,8 @@
+#!/bin/sh
+# commit-msg (H-ID): no Co-Authored-By or Claude-Session line on claude/session-log. $1 is the message file.
+[ "$(git symbolic-ref --short -q HEAD)" = claude/session-log ] || exit 0
+if grep -iqE '^(Co-Authored-By|Claude-Session):' "$1"; then
+    echo "commit-msg: claude/session-log takes no Co-Authored-By or Claude-Session line" >&2
+    exit 1
+fi
+exit 0

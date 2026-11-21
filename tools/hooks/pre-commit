@@ -1,0 +1,13 @@
+#!/bin/sh
+# pre-commit (H-ID): on claude/session-log, author and committer must be the owner.
+# Installed by tools/install_hooks.sh as pre-commit.legacy, which the pre-commit framework hook runs first.
+[ "$(git symbolic-ref --short -q HEAD)" = claude/session-log ] || exit 0
+want="Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>"
+for who in GIT_AUTHOR_IDENT GIT_COMMITTER_IDENT; do
+    got=$(git var "$who" | sed 's/ [0-9]* [+-][0-9]*$//')
+    if [ "$got" != "$want" ]; then
+        echo "pre-commit: $who is '$got', claude/session-log wants '$want' (git -c user.name -c user.email)" >&2
+        exit 1
+    fi
+done
+exit 0
