@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-21 16:02 UTC)
+## Now (2026-11-21 16:05 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 16:01 week 5.6 % (0.47 %/h since reset, under pace; 6 lanes); disk: one train at a time on the PM machine (not a lane limit); 6 lanes
-session branch: 1c599c74; 56 greens; t98 green 08:46 (gate-path, xp-fields, chapters-a, xp-37, flakes-r). F5 series in the cloud (flake-series r4).
+session branch: a84effda; 57 greens; t100 green 16:02 (ci-head); t101 running (7 branches). F5 series in the cloud (flake-series r4).
 burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadline, carried into this week (owner 11-17 15:35).
 
 ## RC (design/rc.md)
@@ -31,7 +31,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3; after t100) t101: FLK-DOORS-CHAT ec8de7b7 (doors stand-in newline), guide-checks, ti-29, mc-minor, handover-mo 73180551 form t101 with CO-KEYS r3 c69354ae and CORE-RV 1db1a50f. Then RECORD-V9 1.2 % on its head.
+4. (F7, rc 2-3) t101 running on a84effda: guide-checks, ti-29, mc-minor, handover-mo, CO-KEYS r3 (camera.rs conflict resolved by hand), CORE-RV, FLK-DOORS-CHAT. Then RECORD-V9 1.2 % on its head.
 5. (plans/week-3.md D1-D2) running: GATE-WAITS 1.6 %; FLAKE-SERIES r4 1 % then FLAKES-S r1; DEPS 0.9 %; GATE-DRIFT 0.95 %; next as lanes free: KEYS-ROUTE, LOOP-SLEEPS (after co-hint); HARNESS-CELLS dropped; REVIEW 1 % after RECORD; REVIEW-DELTA r1 1 % now (under pace), r2 on the Thu head.
 
 ## Needs owner
