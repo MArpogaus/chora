@@ -398,6 +398,25 @@ pub fn combo([w, h]: [i32; 2], text: &str, enabled: bool) -> Picture {
 /// The width of a scroll bar.
 pub const SCROLL: i32 = 17;
 
+/// The lines that a click scrolls on a scroll bar, at a height `y` from
+/// its top, with a `track` between the two arrows and the `grip` as
+/// (top, size) in the track: one line at an arrow, a `page` in the track
+/// beside the grip, nothing on the grip.
+pub fn bar_click(y: i32, track: i32, (grip, size): (i32, i32), page: i64) -> i64 {
+    let y = y - SCROLL;
+    if y < 0 {
+        -1
+    } else if y >= track {
+        1
+    } else if y < grip {
+        -page
+    } else if y >= grip + size {
+        page
+    } else {
+        0
+    }
+}
+
 /// The farthest the view scrolls: what does not fit.
 fn max_scroll(height: i32, view: i32) -> i32 {
     (height - view).max(0)
@@ -1157,6 +1176,16 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use super::*;
+
+    #[test]
+    fn a_click_on_a_scroll_bar_is_a_line_at_an_arrow_and_a_page_in_the_track() {
+        let click = |y| bar_click(y, 100, (20, 30), 5);
+        assert_eq!(click(5), -1, "the up arrow");
+        assert_eq!(click(17 + 100 + 3), 1, "the down arrow");
+        assert_eq!(click(17 + 10), -5, "the track above the grip");
+        assert_eq!(click(17 + 80), 5, "the track below the grip");
+        assert_eq!(click(17 + 30), 0, "the grip");
+    }
 
     /// The theme of the source tree, with a cache of its own for a test.
     pub fn theme(test: &str) -> (Theme, PathBuf) {

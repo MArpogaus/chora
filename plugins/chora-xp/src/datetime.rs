@@ -207,7 +207,7 @@ impl DateDialog {
                 h - 6
             ))
             .svg(dialog::arrow_button([w - 18, 2, 16, h - 4], false))
-            .text(Text::new(name, Font::Ui, WHITE, [5, 0, w - 26, h]))
+            .text(dialog::field_text(name, WHITE, [0, 0, w, h], 20))
     }
 
     /// The month calendar: a sunken frame, the blue row of the weekdays
@@ -428,6 +428,29 @@ fn dial(center: f64, radius: f64) -> String {
 mod tests {
     use super::*;
     use crate::dialog::tests::{preview, theme};
+
+    #[test]
+    fn the_month_box_draws_its_text_through_the_field_text() {
+        let area = [0, 0, 1280, 800];
+        let now = chrono::NaiveDate::from_ymd_opt(2026, 3, 5)
+            .unwrap()
+            .and_hms_opt(10, 0, 0)
+            .unwrap();
+        let dialog = DateDialog::new(now, area);
+        let [_, _, w, h] = MONTH;
+        let want = dialog::field_text(MONTHS[2], WHITE, [0, 0, w, h], 20);
+        let texts: Vec<_> = dialog
+            .month_box()
+            .layers
+            .into_iter()
+            .filter_map(|l| match l {
+                chora_draw::theme::Layer::Text(t) => Some(t),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts.len(), 1);
+        assert_eq!(texts[0].rect, want.rect, "the text stands as in a field");
+    }
 
     #[test]
     fn months_have_their_days_and_leap_years_a_29th_of_february() {

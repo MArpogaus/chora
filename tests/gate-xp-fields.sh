@@ -6,7 +6,7 @@
 # label is in the text colour.
 # The Run box, rendered: a row of 28 px and its label, from the pad, 5 px right of the rows (the horizontal pad of fuzzel.ini less 7: what a pad of 12 makes; the glyph bearing of the font, which differs by 1 px between 1x and 2x, cancels), at 1x and 2x; a pad of 6 fails; fuzzel before 1.11 does not read the file of xp, and the cell skips there.
 # The input row of fuzzel has no box (xp-style 13): the label and the text typed after it stand on one baseline, within 1 px.
-# The fields of the dialogs (Date and Time, Display Properties): a field is 21 px high with a border of 1 px (#7F9DB9) and the text 3 px inside it (the first ink of the year, a digit without left bearing, is 3 px from the inner edge); a label beside a field stands on its baseline, within 1 px.
+# The fields of the dialogs (Date and Time, Display Properties): a field is 21 px high with a border of 1 px (#7F9DB9) and the text 3 px inside it, 4 px at most where the first glyph has a bearing (the first ink of the year, a digit without left bearing, is 3 px from the inner edge); a label beside a field stands on its baseline, within 1 px.
 # Help at an output of 720 px: the key list ends inside its pane (ca-1): the window fits or the page scrolls (a wheel to the end), so that below the last rule of the table, the one of the last key row, the pane has no ink and at least 12 px of the padding of 16 are left.
 # BIN: directory with the binaries, SHOTS: directory for the captures.
 set -u
@@ -109,10 +109,16 @@ runbox_cell() {
     gate_cleanup 0
     pids=()
 }
-[ -n "${RUNBOX_INI:-}" ] || need_fuzzel 1.11
-runbox_cell 1
-runbox_cell 2
-if [ -z "${RUNBOX_ONLY:-}" ]; then
+runbox_ran=1
+if [ -z "${RUNBOX_INI:-}" ] && fuzzel_older 1.11; then
+    runbox_ran=0
+    cell_skip runbox_cell "fuzzel $fuzzel_version < 1.11 does not read the file of xp: the baseline assert (the label and the typed text of the Run box on one baseline, within 1 px), the row and label asserts and the pad 6 check do not run"
+fi
+if [ "$runbox_ran" = 1 ]; then
+    runbox_cell 1
+    runbox_cell 2
+fi
+if [ -z "${RUNBOX_ONLY:-}" ] && [ "$runbox_ran" = 1 ]; then
     wrong=$shots/pad6.ini
     sed 's/^horizontal-pad=.*/horizontal-pad=6/' "$fuzzel_ini" >"$wrong"
     if RUNBOX_ONLY=1 RUNBOX_INI=$wrong SHOTS=$shots/pad6 "$0" >"$shots/pad6.log" 2>&1; then
@@ -153,8 +159,29 @@ dialog_cell() {
     [ "$(python3 -I -c "print(3 <= float('$pad') <= 3.5)")" = True ] || red "${scale}x: the text of the year field stands $pad px inside its border, not 3 (3.5 at 2x: one device pixel of the glyph)"
     read -r x y fw _ <<<"$(rect xp-dlg-datetime-content-c-time)"
     out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/datetime-${scale}x.png" "$scale" "$x" "$y" $((fw - 18)) 21)
-    read -r height _ _ _ _ <<<"$out"
+    [ "$out" != none ] || fail "${scale}x: no time field in Date and Time"
+    read -r height thick pad _ _ <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the time field is $height px high, not 21"
+    [ "$thick" = 1.0 ] || red "${scale}x: the border of the time field is $thick px, not 1"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 4.5)")" = True ] || red "${scale}x: the text of the time field stands $pad px inside its border, not 3"
+    read -r x y _ _ <<<"$(rect xp-dlg-datetime-content-c-month)"
+    out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/datetime-${scale}x.png" "$scale" "$x" "$y" 98 21)
+    [ "$out" != none ] || fail "${scale}x: no month box in Date and Time"
+    read -r height thick _ _ _ <<<"$out"
+    [ "$height" = 21.0 ] || red "${scale}x: the month box is $height px high, not 21"
+    [ "$thick" = 1.0 ] || red "${scale}x: the border of the month box is $thick px, not 1"
+    click_node xp-dlg-datetime-content-c-tab-1
+    ctl wait id:xp-dlg-datetime-content-c-ok --timeout 10 >/dev/null || fail "${scale}x: no Time Zone page"
+    sleep 1
+    ctl capture "$shots/timezone-${scale}x.png" >/dev/null || fail "the capture failed"
+    read -r x y _ _ <<<"$(rect xp-dlg-datetime-content-c-ok)"
+    out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/timezone-${scale}x.png" "$scale" $((x - 156 + 13)) $((y - 287 + 40)) 370 21)
+    [ "$out" != none ] || fail "${scale}x: no time zone box in Date and Time"
+    read -r height thick pad _ _ <<<"$out"
+    [ "$height" = 21.0 ] || red "${scale}x: the time zone box is $height px high, not 21"
+    [ "$thick" = 1.0 ] || red "${scale}x: the border of the time zone box is $thick px, not 1"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 4.5)")" = True ] || red "${scale}x: the text of the time zone box stands $pad px inside its border, not 3"
+    zone_pad=$pad
     click_node xp-dlg-datetime-content-c-cancel
     ctl wait id:xp-dlg-datetime --gone --timeout 10 >/dev/null || fail "${scale}x: Date and Time stays"
     inj "[{\"pointer_move\": {\"position\": [$((w / 2 + 60)), 150]}}, {\"click\": {\"button\": 273}}]"
@@ -168,15 +195,23 @@ dialog_cell() {
     read -r x y _ _ <<<"$(rect xp-dlg-display-content-c-wait)"
     out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/display-${scale}x.png" "$scale" "$x" "$y" 50 21 $((x - 30)) $((x - 2)))
     [ "$out" != none ] || fail "${scale}x: no Wait field in Display Properties"
-    read -r height thick _ base label <<<"$out"
+    read -r height thick wait_pad base label <<<"$out"
     [ "$height" = 21.0 ] || red "${scale}x: the Wait field is $height px high, not 21"
     [ "$thick" = 1.0 ] || red "${scale}x: the border of the Wait field is $thick px, not 1"
+    [ "$(python3 -I -c "print(3 <= float('$wait_pad') <= 4.5)")" = True ] || red "${scale}x: the text of the Wait field stands $wait_pad px inside its border, not 3"
+    read -r x y _ _ <<<"$(rect xp-dlg-display-content-c-saver)"
+    out=$(python3 -I "$repo/tests/xp-field-text.py" "$shots/display-${scale}x.png" "$scale" "$x" "$y" 170 21)
+    [ "$out" != none ] || fail "${scale}x: no screen saver list in Display Properties"
+    read -r height thick pad _ _ <<<"$out"
+    [ "$height" = 21.0 ] || red "${scale}x: the screen saver list is $height px high, not 21"
+    [ "$thick" = 1.0 ] || red "${scale}x: the border of the screen saver list is $thick px, not 1"
+    [ "$(python3 -I -c "print(3 <= float('$pad') <= 4.5)")" = True ] || red "${scale}x: the text of the screen saver list stands $pad px inside its border, not 3"
     [ "$(python3 -I -c "print(abs(float('$base') - float('$label')) <= 1)")" = True ] ||
         red "${scale}x: the text of the Wait field ends on row $base, its label on row $label"
     gate_cleanup 0
     pids=()
     [ "${#reds[@]}" = 0 ] || fail "${#reds[@]} measures are off the grid: ${reds[*]}"
-    ok "${scale}x: the year and time fields of Date and Time and the Wait field of Display are 21 px high with a border of 1 px; the year has a padding of 3 px; Wait and its field stand on one baseline ($base, $label)"
+    ok "${scale}x: the year, time, month and time zone fields of Date and Time, the Wait field and the screen saver list of Display are 21 px high with a border of 1 px; the text stands 3 to 4 px inside (time zone $zone_pad, Wait $wait_pad); Wait and its field stand on one baseline ($base, $label)"
 }
 if [ -z "${RUNBOX_ONLY:-}" ]; then
     dialog_cell 1
