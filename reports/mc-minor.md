@@ -22,3 +22,13 @@ MERGE-OK f7735e43; reds 5543d938, 2785fadf, 51b595f8; fixes 6f686942, 1b2341ef, 
 - pr1-1 NIT: main.rs Mc: the doc lines of the removed fading_until now sit above `left` (two docs on one field).
 - pr1-2 NIT: is_part_of still takes a scene named `<x>-panels` or `<x>-chapter-…` as a child of `<x>`; names come from the user's mc.yaml; reject such names at load or note it.
 Contains mc-fix 929de144 and flakes-l cc1282db: in t92 it replaces mc-fix.
+## r1
+
+Branch claude/mc-minor at fb9827a0 (red d3cc19de, fix 6fa86c16, gate cell fb9827a0). Gate green: pre-commit, ci-check, build, test, clippy, doors, acts, mc-paths, mc-sofa, mc-column, mc-handover. The brief's step `mc` does not exist in merge-gate.sh; I ran the four mc-* steps in its place. gate-mc-paths expected the old "Super+ <- ->" text; I changed it (fb9827a0).
+
+- mc-41 closed: the hit of a key row spans the wrapped lines of its words (region.rs stack).
+- mc-14: key text "Super+<- ->" without the stray space (keys.rs). The chat body was 19/28 already in hud.yaml (since 0fbb751e), so no red cell; README said 18 and now says 19. The 18 fallback is in chora-assistant (Face::serif(18)), outside mc.
+- mc-13 closed: "collector" gone from page 2; empty lines in the serif muted body on every page; a head with no lines is not red; the divider stands midway between the texts of a panel without notes.
+- mc-50 open: no mc node found; the yellow square reads as the pointer marker of the headless capture (p2-r3-tiling, sofa). No cell.
+- Lint ratchet allow 360 to 362 (two too_many_lines with reasons).
+- Captures: none; this container has no compositor session, so no after PNGs in reports/evidence/mc-minor-r1/.
