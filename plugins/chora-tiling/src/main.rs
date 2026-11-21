@@ -290,7 +290,12 @@ fn launch(argv: &[String]) -> ExitCode {
     };
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
-        chora_kit::launcher::run(&line, "chora-tiling --launch foot", flavor.cloned());
+        chora_kit::launcher::run_ordered(
+            &line,
+            "chora-tiling --launch foot",
+            flavor.cloned(),
+            true,
+        );
         return ExitCode::SUCCESS;
     }
     let mut command = std::process::Command::new(&line[0]);
@@ -439,13 +444,14 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 20] = [
+const EVENTS: [&str; 21] = [
     "voice.state",
     "voice.say",
     "voice.remove",
     "client.connected",
     "client.disconnected",
     "assistant.ready",
+    "assistant.chat",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -690,10 +696,38 @@ impl Tiling {
         {
             return self.name_theme();
         }
+        if let Event::Emitted {
+            event: name,
+            client,
+            data,
+        } = &event
+            && name == "assistant.chat"
+            && client == "assistant"
+        {
+            return self.helper_panel(data);
+        }
         match self.overlay_event(&event) {
             Some(done) => done,
             None => self.handle_scene(event),
         }
+    }
+
+    /// The open helper panel keeps its width: the tiles shrink beside it,
+    /// and the width comes back when it closes.
+    fn helper_panel(&mut self, data: &Value) -> Result<(), ClientError> {
+        let rect = data["rect"]
+            .as_array()
+            .filter(|_| data["open"] == true)
+            .and_then(|r| {
+                let at = |i: usize| r.get(i)?.as_f64();
+                #[allow(clippy::cast_possible_truncation, reason = "logical pixels")]
+                Some([at(0)? as i32, at(1)? as i32, at(2)? as i32, at(3)? as i32])
+            });
+        let output = data["output"].as_str().unwrap_or_default();
+        if self.wm.set_panel(output, rect) {
+            self.relayout()?;
+        }
+        Ok(())
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {

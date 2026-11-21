@@ -200,11 +200,11 @@ rows_of() { sed -n 's/^row //p' "$marks"; }
 check_launcher_order() {
     unmark
     key Super+space
-    marked '^row ' || return 1
+    until_ok 'rows_of | grep -qx "Chat with a helper"' 20 || why "no helper row in $(rows_of | tr "\n" "|")" || return 1
     local first
     first=$(rows_of | head -n 1)
+    [ -z "${CAPTURE_DIR:-}" ] || rows_of >"$CAPTURE_DIR/launcher-rows-${CAPTURE_SHA:-x}.txt"
     { [ "$first" != "Chat with a helper" ] && [ -n "$first" ]; } || why "the first row is \"$first\"" || return 1
-    rows_of | grep -qx "Chat with a helper" || why "no helper row" || return 1
 }
 tile_rects() { ctl query kind:surface | jq -c '[.[] | select(.owner == null or .owner == "tiling") | .rects | to_entries[0].value]'; }
 panel_rect() { ctl query id:hud-chat | jq -c '.[0].rects | to_entries[0].value'; }
@@ -220,6 +220,7 @@ check_helper_beside_tiles() {
     panel=$(panel_rect)
     tiles=$(tile_rects)
     echo "note: panel $panel tiles $tiles" >&2
+    [ -z "${CAPTURE_DIR:-}" ] || ctl capture --output HEADLESS-1 "$CAPTURE_DIR/two-tiles-helper-${CAPTURE_SHA:-x}.png" >/dev/null 2>&1
     jq -ne --argjson p "$panel" --argjson t "$tiles" '
         ($t | length) >= 2 and
         all($t[]; . as $r | ($r[0] + $r[2] <= $p[0]) or ($p[0] + $p[2] <= $r[0]) or ($r[1] + $r[3] <= $p[1]) or ($p[1] + $p[3] <= $r[1]))' >/dev/null ||

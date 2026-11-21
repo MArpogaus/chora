@@ -72,6 +72,25 @@ pub fn arrange(
     }
 }
 
+/// The `area` without the width of a side `panel` that lies in it: the
+/// panel docks at the side of the area that its middle is nearer to, and
+/// the tiles take what is left.
+pub fn beside(area: Rect, panel: Option<Rect>) -> Rect {
+    let Some([px, _, pw, _]) = panel else {
+        return area;
+    };
+    let [x, y, w, h] = area;
+    if pw <= 0 || px >= x + w || px + pw <= x {
+        return area;
+    }
+    if 2 * px + pw >= 2 * x + w {
+        [x, y, (px - x).clamp(0, w), h]
+    } else {
+        let cut = (px + pw - x).clamp(0, w);
+        [x + cut, y, w - cut, h]
+    }
+}
+
 /// The tile layout with the masters on the left, then mirrored and turned
 /// for the other sides.
 fn tile(n: usize, area: Rect, params: Params, mirror: bool, turn: bool) -> Vec<Rect> {
@@ -212,6 +231,16 @@ fn mirrored([x, y, w, h]: Rect, [fx, _, fw, _]: Rect) -> Rect {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_side_panel_takes_its_width_from_the_area() {
+        use super::beside;
+        let area = [0, 40, 1280, 740];
+        assert_eq!(beside(area, None), area);
+        assert_eq!(beside(area, Some([868, 52, 400, 736])), [0, 40, 868, 740]);
+        assert_eq!(beside(area, Some([10, 52, 400, 736])), [410, 40, 870, 740]);
+        assert_eq!(beside(area, Some([2000, 0, 10, 10])), area);
+    }
+
     use super::*;
 
     const AREA: Rect = [0, 0, 100, 60];

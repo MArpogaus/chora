@@ -68,6 +68,8 @@ pub struct Output {
     pub area: Rect,
     /// The whole output in scene coordinates.
     pub full: Rect,
+    /// The open helper panel at a side: the tiles keep clear of it.
+    panel: Option<Rect>,
     /// One bit per shown tag.
     selected: u16,
     previous: u16,
@@ -235,6 +237,7 @@ impl Wm {
             name: name.into(),
             area,
             full,
+            panel: None,
             selected: 1,
             previous: 1,
             tags: vec![tag; self.config.tags],
@@ -247,6 +250,18 @@ impl Wm {
                 window.at = None;
             }
         }
+    }
+
+    /// Reserves the width of the helper panel `rect` on the output `name`
+    /// (none gives it back); whether anything changed.
+    pub fn set_panel(&mut self, name: &str, rect: Option<Rect>) -> bool {
+        let mut changed = false;
+        for output in &mut self.outputs {
+            let wanted = if output.name == name { rect } else { None };
+            changed |= output.panel != wanted;
+            output.panel = wanted;
+        }
+        changed
     }
 
     /// Removes an output; its windows go to the first other output, or wait
@@ -678,7 +693,10 @@ impl Wm {
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
-            (layout::shrink(output.area, edge), output.full),
+            (
+                layout::shrink(layout::beside(output.area, output.panel), edge),
+                output.full,
+            ),
             Some(top_at),
             tag.params,
         );
