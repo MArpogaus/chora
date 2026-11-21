@@ -3,7 +3,7 @@
 Model: sonnet, effort medium (tour harness Python only, no product code; the builder never reviews itself, rules.md 7)
 Lane: cloud, read-only on code: claude/chapters-a head 8435d386, red bc8cf213, base f4f49783. One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it).
-Step 0 (no setup script): `git fetch --unshallow`, `cargo build --workspace`; a failure: send_message the PM "review-chapters-a-r1 BLOCKED: <line>" and stop.
+Step 0 (no setup script): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "review-chapters-a-r1 BLOCKED: <line>" and stop.
 Read on claude/session-log: briefs/chapters-a.md, reports/chapters-a.md "## r1". `git diff f4f49783..8435d386` (4 files, +648 -128: demo/tour/chapters/{xp,tiling,handover}.py, tests/test_tour.py).
 Checks, each with its command and files:
 1) Red first: `python3 -I -m pytest tests/test_tour.py -q` fails on bc8cf213 and passes on 8435d386 (worktrees).
