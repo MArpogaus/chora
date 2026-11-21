@@ -65,15 +65,6 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "the cube is held halfway through a turn"
-capture = "construct-mode-step-in-text"
-finding = "guide-checks r2: construct-mode-step-in-text: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-0-VIRTUAL-2"
 finding = "guide-checks r2: xp-pager-0-VIRTUAL-2: the contrast"
