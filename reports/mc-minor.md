@@ -44,3 +44,9 @@ Verdict computed: FIX (rmm-1). Earliest gate: pre-commit lint-ratchet accepts a 
 rmm-1 fixed: both new too_many_lines allows dropped. `Mc::panel` (layout.rs) split into panel_title, panel_body, panel_rows, panel_lines, panel_empty with a `Spot` struct; the second allow was on `stack` in region.rs (not a minor.rs test): split into measure_side and stack_item. Ratchet allow 360. No change of behaviour: cargo test -p chora-mc 189 pass, clippy clean.
 Merge of autonomous-dev-session-3w-i33pg7: already an ancestor (598a34ff), no-op.
 Gate (--jobs 1, pre-commit,ci-check,build,test,clippy,acts,doors,mc-paths,mc-sofa,mc-column,mc-handover): all PASS.
+
+## PM review r2 (2026-11-21, PM; builder was the mc-minor lane)
+Base fb9827a0, head 12869800 (3 files, +218 -104; one refactor commit, no test change).
+- rmm-1 closed: tools/lint-ratchet.list back to allow 360, equal to the session head 598a34ff; clippy allow count in plugins/chora-mc 13 on both 598a34ff and 12869800. `Mc::panel` (layout.rs) and the region.rs stack split into helpers. Cells: test, clippy, mc-paths, mc-sofa, mc-column, mc-handover (lane gate 11/11 PASS).
+- rmm-2 MINOR (no after-captures) stays open; rmm-3 NIT in backlog.
+Verdict (computed): no BLOCK or MAJOR open -> MERGE-OK on 12869800; joins t99.
