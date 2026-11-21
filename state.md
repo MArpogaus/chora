@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 17:48 UTC)
+## Now (2026-11-21 17:50 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 17:45 week 6.1 % (0.44 %/h since reset, under pace 8.3 %; 6 lanes); disk: one train at a time on the PM machine (not a lane limit); 6 lanes
 session branch: 892d035c; 58 greens; t101 green 17:45 (7 branches); t102 running (gate-drift, deps, xp-rd). F5 series r4 5/5 green at --jobs 2 (16:21).
@@ -24,15 +24,15 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | Lane | Model, branch | State |
 |---|---|---|
 | co-hint-r1.md (rc 2, F7: co-42 hint) | sonnet medium, claude/co-hint c69354ae | session_016iS3kL6rhVtqF6gejqFJ7c 14:10 |
-| keys-route-r1.md (RC bar: stray keys) | sonnet high, claude/keys-route 892d035c | session_016iS3kLf6vLYHFxmrD54UXA 17:48 |
-| h-guards-r1.md (rules 9-10 guards) | sonnet low, claude/h-guards a84effda | session_016iS3kMGJFUA5UD9i4t5akK 16:24 |
+| keys-route-r1.md (rc 2, Queue 5: stray keys) | sonnet high, claude/keys-route 892d035c | session_016iS3kLf6vLYHFxmrD54UXA 17:48 |
+| p2-r5-co.md (rc 2: construct persona round 5) | sonnet medium, claude/p2-r5-co 892d035c | starting |
 | ti-xdg-r1.md (rc 6: runtime dir) | sonnet low, claude/ti-xdg a84effda | session_016iS3kPEp1dge5wArJRTLrH 16:18 |
 | record-v9-r1.md (F7, rc 11: tour v9 take and diff) | sonnet medium, claude/record-v9 892d035c | session_016iS3kP27Gxp9nLotrS2Xgm 17:46 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) RECORD-V9 1.2 % on 892d035c (t101 head); t102 running on 892d035c: GATE-DRIFT 96a91f1f (harness first), DEPS a606a00f, XP-RD 2dfc7507 (PM review MERGE-OK); t103 next: P2-HARNESS-L 1bf67e98 (PM review MERGE-OK).
-5. (plans/week-3.md D1-D2) running: GATE-WAITS 1.6 %; FLAKES-S dropped (r4 no reds); H-GUARDS 0.82 %; TI-XDG 0.82 %; KEYS-ROUTE 1.6 %; next as lanes free: LOOP-SLEEPS (after co-hint); REVIEW 1 % after RECORD; REVIEW-DELTA r2 on the Thu head.
+4. (F7, rc 2-3) RECORD-V9 1.2 % on 892d035c (t101 head); t102 running on 892d035c: GATE-DRIFT 96a91f1f (harness first), DEPS a606a00f, XP-RD 2dfc7507 (PM review MERGE-OK); t103 next (harness): H-GUARDS 9b25d65e, P2-HARNESS-L 1bf67e98 (PM reviews MERGE-OK).
+5. (rc 2-3, process; week-3 D1-D2) running: GATE-WAITS 1.6 %; FLAKES-S dropped (r4 no reds); TI-XDG 0.82 %; KEYS-ROUTE 1.6 %; P2-R5-CO 0.8 %; next as lanes free: LOOP-SLEEPS (after co-hint); REVIEW 1 % after RECORD; REVIEW-DELTA r2 on the Thu head.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
