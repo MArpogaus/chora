@@ -411,6 +411,7 @@ class KnownRed(unittest.TestCase):
             return {}
 
         s.core = type("C", (), {"call": staticmethod(call)})()
+        s.label, s.looks = "xp", ["xp"]
         s.shots = lambda outputs: {}
         s.settled_scene([], sleep=lambda _t: None)
         self.assertEqual(len(reads), 4)
