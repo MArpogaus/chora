@@ -54,96 +54,6 @@ match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "a window opens on the front face"
-capture = "xp-task-s4-VIRTUAL-1"
-finding = "guide-checks r2: xp-task-s4-VIRTUAL-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-icon-0"
-finding = "guide-checks r2: xp-icon-0: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-icon-1"
-finding = "guide-checks r2: xp-icon-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-icon-2"
-finding = "guide-checks r2: xp-icon-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-pager-0-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-0-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-pager-1-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-1-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-pager-2-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-2-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-pager-3-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-3-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-task-s4-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s4-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the cube is held halfway through a turn"
 capture = "construct-hints-construct-mode-step-in-keys-0-text"
 evidence = "met in 4 of 5 runs of the construct acts at 05c1fc25 (loop 2 did not meet it): the dim of the keys is read mid-fade"
@@ -165,65 +75,11 @@ slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
 act = "the cube opens with one xp on four faces"
-capture = "xp-icon-0"
-finding = "guide-checks r2: xp-icon-0: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-icon-1"
-finding = "guide-checks r2: xp-icon-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-icon-2"
-finding = "guide-checks r2: xp-icon-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
 capture = "xp-pager-0-VIRTUAL-2"
 finding = "guide-checks r2: xp-pager-0-VIRTUAL-2: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-3: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -238,15 +94,6 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-0-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-4: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-4"
 finding = "guide-checks r2: xp-pager-0-VIRTUAL-4: the contrast"
 id = "I6"
 look = "construct"
@@ -256,37 +103,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-1-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-1"
 finding = "guide-checks r2: xp-pager-1-VIRTUAL-1: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-3: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -301,28 +121,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-1-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-4: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-4"
 finding = "guide-checks r2: xp-pager-1-VIRTUAL-4: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -337,37 +139,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-2-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-2"
 finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-3: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -382,28 +157,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-3-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-1"
 finding = "guide-checks r2: xp-pager-3-VIRTUAL-1: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -418,64 +175,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-pager-3-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-3: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-3"
 finding = "guide-checks r2: xp-pager-3-VIRTUAL-3: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-4: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-tray-VIRTUAL-1"
-finding = "guide-checks r2: xp-tray-VIRTUAL-1: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-tray-VIRTUAL-2"
-finding = "guide-checks r2: xp-tray-VIRTUAL-2: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-tray-VIRTUAL-3"
-finding = "guide-checks r2: xp-tray-VIRTUAL-3: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-tray-VIRTUAL-4"
-finding = "guide-checks r2: xp-tray-VIRTUAL-4: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1201,28 +904,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "Super+Shift+e opens Turn Off Computer"
 capture = "xp-session-button-0"
-finding = "guide-checks r2: xp-session-button-0: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-0"
 finding = "guide-checks r2: xp-session-button-0: the contrast"
 id = "I6"
 look = "xp"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-1"
-finding = "guide-checks r2: xp-session-button-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1237,28 +922,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "Super+Shift+e opens Turn Off Computer"
 capture = "xp-session-button-2"
-finding = "guide-checks r2: xp-session-button-2: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-2"
 finding = "guide-checks r2: xp-session-button-2: the contrast"
 id = "I6"
 look = "xp"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-3"
-finding = "guide-checks r2: xp-session-button-3: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1273,28 +940,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "Super+Shift+e opens Turn Off Computer"
 capture = "xp-session-button-4"
-finding = "guide-checks r2: xp-session-button-4: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-4"
 finding = "guide-checks r2: xp-session-button-4: the contrast"
 id = "I6"
 look = "xp"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-5"
-finding = "guide-checks r2: xp-session-button-5: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1307,102 +956,12 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "a click on the speaker opens the volume popup"
-capture = "xp-ctx-0-0"
-finding = "guide-checks r2: xp-ctx-0-0: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a click on the speaker opens the volume popup"
-capture = "xp-ctx-0-1"
-finding = "guide-checks r2: xp-ctx-0-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a click on the speaker opens the volume popup"
-capture = "xp-ctx-0-2"
-finding = "guide-checks r2: xp-ctx-0-2: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a click on the speaker opens the volume popup"
-capture = "xp-ctx-0-3"
-finding = "guide-checks r2: xp-ctx-0-3: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a click on the speaker opens the volume popup"
-capture = "xp-ctx-0-5"
-finding = "guide-checks r2: xp-ctx-0-5: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "a drag of a window shuts the Start menu"
 capture = "xp-task-s2-HEADLESS-1"
 finding = "guide-checks r2: xp-task-s2-HEADLESS-1: the contrast"
 id = "I6"
 look = "xp"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-icon-0"
-finding = "guide-checks r2: xp-icon-0: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-icon-1"
-finding = "guide-checks r2: xp-icon-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-icon-2"
-finding = "guide-checks r2: xp-icon-2: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-0-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-0-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-1-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-1-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1417,28 +976,10 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "a window opens"
 capture = "xp-pager-2-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-2-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-2-HEADLESS-1"
 finding = "guide-checks r2: xp-pager-2-HEADLESS-1: the contrast"
 id = "I6"
 look = "xp"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-3-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-3-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1451,183 +992,12 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "a window opens"
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-0"
-finding = "guide-checks r2: xp-item-0: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-1"
-finding = "guide-checks r2: xp-item-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-10"
-finding = "guide-checks r2: xp-item-10: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-11"
-finding = "guide-checks r2: xp-item-11: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-12"
-finding = "guide-checks r2: xp-item-12: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-13"
-finding = "guide-checks r2: xp-item-13: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-14"
-finding = "guide-checks r2: xp-item-14: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-15"
-finding = "guide-checks r2: xp-item-15: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-16"
-finding = "guide-checks r2: xp-item-16: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-2"
-finding = "guide-checks r2: xp-item-2: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-3"
-finding = "guide-checks r2: xp-item-3: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-4"
-finding = "guide-checks r2: xp-item-4: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-5"
-finding = "guide-checks r2: xp-item-5: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-6"
-finding = "guide-checks r2: xp-item-6: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-7"
-finding = "guide-checks r2: xp-item-7: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-8"
-finding = "guide-checks r2: xp-item-8: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-item-9"
-finding = "guide-checks r2: xp-item-9: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the Start button opens the Start menu before a drag"
 capture = "xp-menu-frame"
 finding = "guide-checks r2: xp-menu-frame: the contrast"
 id = "I6"
 look = "xp"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the balloon says that Notepad starts under the volume popup"
-capture = "notify-card-body"
-finding = "guide-checks r2: notify-card-body: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1638,32 +1008,6 @@ id = "I6"
 look = "xp"
 match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the tooltip of the speaker says the level that the key set"
-capture = "xp-tooltip"
-finding = "guide-checks r2: xp-tooltip: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a click on the speaker opens the volume popup"
-capture = "xp-ctx-0-7"
-finding = "guide-checks r5: xp-ctx-0-7: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the vision card"
-
-[[red]]
-capture = "xp-task-*"
-finding = "guide-checks r6: xp-task-*: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the taskbar buttons"
 
 [[red]]
 act = "the hint Keys of a face names a key that opens the key list"

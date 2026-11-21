@@ -231,7 +231,8 @@ class Checker:
 
     def judge(self, row, expect, before, after):
         """The red lines of an act. On a build without `scene.boxes` (OldCore) the boxes cannot be
-        read, so "missing boxes" is no breach there."""
+        read, so "missing boxes" is no breach there. The design exemptions of tests/acts/known-red.toml
+        (`[[exempt]]`: the Luna tray down to 3.0:1) hold here too; its known-red rows do not."""
         import dataclasses
 
         import harness
@@ -244,7 +245,8 @@ class Checker:
             red += [f"{key}: {b}" for b in check(before, after, act)]
         if after.boxes is None:
             red = [line for line in red if "missing boxes" not in line]
-        return red
+        exempt = harness.exemptions()
+        return [line for line in red if not harness.exempted(line, exempt)]
 
 
 def checker_for(session, looks, work, wallpaper=None):

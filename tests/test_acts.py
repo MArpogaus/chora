@@ -510,45 +510,6 @@ class KnownRed(unittest.TestCase):
         self.assertEqual([e["node"] for e in harness.exemptions()], ["xp-tray-"])
         self.assertFalse([r for r in harness.known_red() if r.get("flaky") and "xp-tray" in r.get("capture", "")])
 
-    def test_the_list_names_the_authentic_tahoma_volume_label_of_the_xp_popup(self):
-        rows = [r for r in harness.known_red() if r.get("capture") == "xp-ctx-0-7"]
-        self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual((row["look"], row["id"], row["act"]), ("xp", "I6", "a click on the speaker opens the volume popup"))
-        self.assertIn("authentic Tahoma 8 pt", row["slice"])
-        seen = "in act 'a click on the speaker opens the volume popup': on O 'Volume' (xp-ctx-0-7) is 11 px, the guide wants 14 px"
-        other = seen.replace("xp-ctx-0-7", "xp-ctx-0-6")
-        elsewhere = seen.replace("'a click on the speaker opens the volume popup'", "'another act'")
-        self.assertEqual(harness.judge({("xp", "I6"): [seen]}, [row]).blocking, [])
-        self.assertTrue(harness.judge({("xp", "I6"): [other]}, [row]).blocking)
-        self.assertTrue(harness.judge({("xp", "I6"): [elsewhere]}, [row]).blocking)
-
-    def test_the_list_names_the_authentic_tahoma_text_of_the_xp_taskbar_buttons(self):
-        rows = [r for r in harness.known_red() if r.get("capture") == "xp-task-*"]
-        self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual((row["look"], row["id"]), ("xp", "I6"))
-        self.assertIn("authentic Tahoma 8 pt", row["slice"])
-        per_node = [
-            r["capture"]
-            for r in harness.known_red()
-            if (r["look"], r["id"]) == ("xp", "I6") and r.get("capture", "").startswith("xp-task-") and "14 px" in r.get("match", "")
-        ]
-        self.assertEqual(per_node, ["xp-task-*"])
-        size = "on O 'chora-probe' (xp-task-s4-HEADLESS-1) is 11 px, the guide wants 14 px"
-        for act in ("a window opens to hear the keys", "another act"):
-            self.assertEqual(harness.judge({("xp", "I6"): [f"in act {act!r}: {size}"]}, [row]).blocking, [])
-        for other in (
-            size.replace("xp-task-s4", "xp-tasks-s4"),
-            size.replace("xp-task-s4-HEADLESS-1", "xp-ctx-0-7"),
-            size.replace("xp-task-s4-HEADLESS-1", "xp-tray-O"),
-            "on O 'chora-probe' (xp-task-s4-HEADLESS-1) leaves its panel xp-bar [0, 0, 1, 1]",
-            "on O 'chora-probe' (xp-task-s4-HEADLESS-1) has the contrast 2.1:1 (grey on blue), the guide wants 4.5:1",
-        ):
-            with self.subTest(other=other):
-                self.assertTrue(harness.judge({("xp", "I6"): ["in act 'a': " + other]}, [row]).blocking)
-        self.assertTrue(harness.judge({("xp", "I3"): ["in act 'a': " + size]}, [row]).blocking)
-
     def test_a_flaky_row_needs_evidence_and_an_act(self):
         row = dict(self.rows[0], capture="l1", flaky=True)
         with self.assertRaises(ValueError):
@@ -1667,7 +1628,7 @@ class GuideSize(unittest.TestCase):
     def test_a_small_run_fails(self):
         nodes = snap().nodes + [panel("xp-tip", (100, 100, 200, 30), size=(200, 30))]
         states = with_texts(run("xp-tip", "Tooltip", (5, 3, 80, 14), px=10))
-        self.assertTrue(any("14 px" in b for b in breaches("I6", snap(), snap(states=states, nodes=nodes))))
+        self.assertTrue(any("is 10 px, the guide wants 11 px" in b for b in breaches("I6", snap(), snap(states=states, nodes=nodes))))
 
 
 def surf(nid, rect, owner="assistant"):

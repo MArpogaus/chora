@@ -27,7 +27,7 @@ I2   a shown window has a size and lies at least 32 px inside its
 I5   no two text boxes of visible nodes or reported runs overlap on one
      output without an opaque node between
 I6   a text box lies inside its panel; its text reads at least 14 px
-     (a state word may be smaller) and has the contrast of the guide on the
+     (11 px in xp, the replica; a state word may be smaller) and has the contrast of the guide on the
      capture: 4.5:1, 7:1 for a key line or a button (png-contrast.py)
 I9   a notice chora-notify accepted during the act is in its `shown`,
      `waiting` or `closed`; one that shows has a box inside the output,
@@ -239,6 +239,7 @@ MARGIN = 32
 SEAM = 1.0
 HELD_SLACK = 0.5
 LEAST_PX = 14
+XP_PX = 11
 STATE_WORD = re.compile(r"-state$")
 KEY_LINE = re.compile(r"(?:^|[-_])(?:keys?|keycap|button|btn)(?:[-_]|$)|-k$|^construct-mode-")
 READ = 4.5
@@ -535,12 +536,21 @@ def text_sizes(snap):
     return sizes
 
 
+def least_px(owner, shown):
+    """The least size of text: 14 px, and for xp 11 px (design/product-briefs.md: 8 pt Tahoma at 96 DPI
+    is the replica and replaces the floor for xp). A text is xp's when its node is or, a card of
+    chora-notify, when xp is the look shown on its output."""
+    return XP_PX if "xp" in (owner, shown if owner == "notify" else None) else LEAST_PX
+
+
 def guide_breaches(snap):
     """Text that is too small, and text of too little contrast on the capture."""
     out = []
     sizes = text_sizes(snap)
+    nodes = snap.by_id()
     contrast = tool("png-contrast")
     for output, items in sorted(screen_texts(snap).items()):
+        shown = shown_look(snap, output, boxes_on(snap).get(output) or [])
         scale, rows = (snap.shots or {}).get(output) or (None, None)
         if rows is None and items and snap.shots is not None:
             out.append(f"no capture of {output}: the contrast of its text cannot be measured")
@@ -548,10 +558,11 @@ def guide_breaches(snap):
             if not words.strip():
                 continue
             px = sizes.get((label, words))
+            least = least_px((nodes.get(label) or {}).get("owner"), shown)
             if px is None:
                 out.append(f"on {output} {words!r} ({label}) has no font size, its size cannot be checked")
-            elif px < LEAST_PX and not STATE_WORD.search(label):
-                out.append(f"on {output} {words!r} ({label}) is {px:g} px, the guide wants {LEAST_PX} px")
+            elif px < least and not STATE_WORD.search(label):
+                out.append(f"on {output} {words!r} ({label}) is {px:g} px, the guide wants {least} px")
             if rows is None:
                 continue
             x, y = max(int(rect[0] * scale), 0), max(int(rect[1] * scale), 0)
