@@ -274,14 +274,41 @@ print("[second node: %s; pane tree: %s; surfaces: %s]" % (
     "; ".join(map(line, mine)) or "none",
     "; ".join(map(line, tree)) or "none",
     "; ".join(line(n) for n in nodes if n.get("kind") == "surface") or "none"))' "$1"
+    echo "[events up to the failure: $(tail -n 16 "$work/pair-events.log" | tr '\n' '|')]"
+}
+pair_events() {
+    "$bin/choractl" events 'focus.*' surface.created 2>&1 | python3 -I -c '
+import sys, time
+for line in sys.stdin:
+    now = time.time()
+    print("%s.%03d %s" % (time.strftime("%H:%M:%S", time.localtime(now)), now * 1000 % 1000, line.strip()[:240]), flush=True)'
+}
+keyboard_holder() {
+    python3 -I -c '
+import json, sys
+focus, node = "none", "none"
+for line in open(sys.argv[1]):
+    try:
+        event = json.loads(line.split(" ", 1)[1])
+    except (IndexError, ValueError):
+        continue
+    if event.get("event") == "focus.changed":
+        focus = event.get("surface") or "none"
+    elif event.get("event") == "focus.node":
+        node = event.get("owner") or "none"
+print(focus, node)' "$work/pair-events.log"
 }
 pair_cell() {
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
+pair_events >"$work/pair-events.log" 2>&1 &
+pids+=($!)
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
 sleep 1
 first=$(pane_name "$surface")
+until_ok '[ "$(keyboard_holder)" = "$surface none" ]' 20 ||
+    fail "after the drop the keyboard is not with the window of the pane: surface and node holder $(keyboard_holder), the new window goes to the manager of that holder"
 "$bin/chora-probe" window 200 40 120 --server-deco >"$work/pair-probe2.log" 2>&1 &
 pids+=($!)
 until_ok '[ "$(probe | wc -l)" = 2 ]' 80 || fail "the second probe window did not map: $(probe)"
