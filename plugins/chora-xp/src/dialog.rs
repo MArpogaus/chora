@@ -301,6 +301,24 @@ pub fn label(picture: Picture, text: &str, rect: Rect, enabled: bool) -> Picture
     ))
 }
 
+/// The height of a text field of Luna.
+pub const FIELD_HEIGHT: i32 = 21;
+/// The distance from the left edge of a field to its text: the border
+/// of 1 px and a padding of 3 px.
+const FIELD_PAD: i32 = 4;
+
+/// The text of a field in a rectangle, 3 px inside its border, on the
+/// middle of its height, with `right` px kept free at the right edge for a
+/// button.
+pub fn field_text(text: &str, color: [u8; 4], [x, y, w, h]: Rect, right: i32) -> Text {
+    Text::new(
+        text,
+        Font::Ui,
+        color,
+        [x + FIELD_PAD, y, w - FIELD_PAD - right, h],
+    )
+}
+
 /// A field with XP's blue-gray border, white inside.
 pub fn field([x, y, w, h]: Rect) -> String {
     format!(
@@ -374,7 +392,97 @@ pub fn combo([w, h]: [i32; 2], text: &str, enabled: bool) -> Picture {
             h - 4
         ));
     }
-    picture.text(Text::new(text, Font::Ui, color, [4, 0, w - 24, h]))
+    picture.text(field_text(text, color, [0, 0, w, h], 20))
+}
+
+/// The width of a scroll bar.
+pub const SCROLL: i32 = 17;
+
+/// The lines that a click scrolls on a scroll bar, at a height `y` from
+/// its top, with a `track` between the two arrows and the `grip` as
+/// (top, size) in the track: one line at an arrow, a `page` in the track
+/// beside the grip, nothing on the grip.
+pub fn bar_click(y: i32, track: i32, (grip, size): (i32, i32), page: i64) -> i64 {
+    let y = y - SCROLL;
+    if y < 0 {
+        -1
+    } else if y >= track {
+        1
+    } else if y < grip {
+        -page
+    } else if y >= grip + size {
+        page
+    } else {
+        0
+    }
+}
+
+/// The farthest the view scrolls: what does not fit.
+fn max_scroll(height: i32, view: i32) -> i32 {
+    (height - view).max(0)
+}
+
+/// The thumb of a scroll bar in a track of a height, for a view of a
+/// height over content of a height, scrolled by an offset: its top in
+/// the track and its height, at least 8 pixels.
+pub fn thumb(track: i32, view: i32, height: i32, offset: i32) -> (i32, i32) {
+    let max = max_scroll(height, view);
+    if max == 0 || track <= 0 {
+        return (0, track.max(0));
+    }
+    let size = (i64::from(track) * i64::from(view) / i64::from(height.max(1))).max(8);
+    let size = i32::try_from(size).unwrap_or(track).min(track);
+    let top = i64::from(track - size) * i64::from(offset.clamp(0, max)) / i64::from(max);
+    (i32::try_from(top).unwrap_or(0), size)
+}
+
+/// The parts of XP's Luna scroll bar in a rectangle: the arrows at the
+/// ends, the pale track and the blue thumb, as pictures with their
+/// rectangles in the bar.
+pub fn scroll_bar([w, h]: [i32; 2], (top, size): (i32, i32)) -> [(Rect, Picture); 4] {
+    let track = Picture::new(w, h - 2 * w).svg(format!(
+        r##"<rect width="{w}" height="{}" fill="#FEFEFB"/><rect width="1" height="{}" fill="#F3F1EC"/>"##,
+        h - 2 * w,
+        h - 2 * w
+    ));
+    let arrow = |down: bool| {
+        let mut svg = arrow_button([0, 0, w, w], false);
+        if !down {
+            svg = format!(
+                r#"<g transform="rotate(180 {c} {c})">{svg}</g>"#,
+                c = f64::from(w) / 2.0
+            );
+        }
+        Picture::new(w, w).svg(svg)
+    };
+    let thumb = Picture::new(w, size).svg(thumb_svg(w, size));
+    [
+        ([0, w, w, h - 2 * w], track),
+        ([0, w + top, w, size], thumb),
+        ([0, 0, w, w], arrow(false)),
+        ([0, h - w, w, w], arrow(true)),
+    ]
+}
+
+/// The blue thumb with its grip of four lines in the middle.
+fn thumb_svg(w: i32, h: i32) -> String {
+    let mut svg = format!(
+        r##"<defs><linearGradient id="t" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C9DAFC"/><stop offset="1" stop-color="#B1C8FA"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#t)" stroke="#9CB6F2"/>"##,
+        w - 1,
+        h - 1
+    );
+    if h > 14 {
+        let mid = h / 2 - 4;
+        for i in 0..4 {
+            let _ = write!(
+                svg,
+                r##"<rect x="5" y="{}" width="7" height="1" fill="#EEF4FE"/><rect x="6" y="{}" width="7" height="1" fill="#8CB0F8"/>"##,
+                mid + 2 * i,
+                mid + 2 * i + 1
+            );
+        }
+    }
+    svg
 }
 
 /// A sunken frame around a rectangle, as around a sample picture: dark
@@ -1068,6 +1176,16 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use super::*;
+
+    #[test]
+    fn a_click_on_a_scroll_bar_is_a_line_at_an_arrow_and_a_page_in_the_track() {
+        let click = |y| bar_click(y, 100, (20, 30), 5);
+        assert_eq!(click(5), -1, "the up arrow");
+        assert_eq!(click(17 + 100 + 3), 1, "the down arrow");
+        assert_eq!(click(17 + 10), -5, "the track above the grip");
+        assert_eq!(click(17 + 80), 5, "the track below the grip");
+        assert_eq!(click(17 + 30), 0, "the grip");
+    }
 
     /// The theme of the source tree, with a cache of its own for a test.
     pub fn theme(test: &str) -> (Theme, PathBuf) {

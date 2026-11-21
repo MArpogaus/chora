@@ -765,6 +765,26 @@ class I5(unittest.TestCase):
         ]
         self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
 
+    def test_a_picture_that_is_a_dialog_hides_the_text_under_it(self):
+        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-help", "modal": False, "by": "key"}]}
+        nodes = snap().nodes + [
+            text_node("xp-title-s1", "Notepad", (400, 300, 80, 14), owner="xp"),
+            panel("xp-dlg-help-frame", (380, 280, 400, 300)),
+            text_node("xp-dlg-help-title", "Help", (410, 302, 60, 14), owner="xp"),
+        ]
+        self.assertEqual(breaches("I5", snap(), snap(states={"xp": state}, nodes=nodes)), [])
+        other = nodes[:-2] + [panel("xp-menu-frame", (380, 280, 400, 300)), nodes[-1]]
+        self.assertTrue(breaches("I5", snap(), snap(states={"xp": state}, nodes=other)))
+
+    def test_an_icon_under_a_dialog_id_hides_nothing(self):
+        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-help", "modal": False, "by": "key"}]}
+        nodes = snap().nodes + [
+            text_node("xp-title-s1", "Notepad", (400, 300, 80, 14), owner="xp"),
+            panel("xp-dlg-help-icon", (380, 280, 400, 300)),
+            text_node("xp-dlg-help-title", "Help", (410, 302, 60, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(states={"xp": state}, nodes=nodes)))
+
     def test_the_wallpaper_hides_nothing_above_it(self):
         nodes = [
             panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),

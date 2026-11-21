@@ -10,6 +10,8 @@
 # PULL_SHOT: a PNG path that keeps a capture of the pane in the pull.
 # BEHIND_SHOT: a PNG path that keeps a capture of the pane after the step
 # back.
+# PAIR_ONLY: set, runs only the two-pane part of the cell (about 7 s), the
+# reproducer of "the second window is no pane" under load.
 #
 # 1. With the flag --test-injected-press-is-real of the core (headless
 #    only), where an injected press gives its drag: inside the face the window moves and
@@ -243,6 +245,81 @@ end_session() {
     pids=()
 }
 
+pair_why() {
+    local windows
+    windows=$(call window.list '{}' 2>/dev/null)
+    ctl query '*' 2>/dev/null | WINDOWS=$windows python3 -I -c '
+import json, sys
+try:
+    nodes = json.load(sys.stdin)
+except ValueError:
+    nodes = []
+import os
+try:
+    windows = json.loads(os.environ.get("WINDOWS") or "{}").get("windows", [])
+except ValueError:
+    windows = []
+by_name = {w["name"]: w["surface"] for w in windows}
+second = by_name.get(sys.argv[1], sys.argv[1])
+def line(n):
+    surf = n.get("surface") or {}
+    r = next(iter((n.get("rects") or {}).values()), None)
+    return "%s owner=%s parent=%s visible=%s role=%s size=%s rect=%s" % (
+        n["id"], n.get("owner"), n.get("parent"), n.get("visible"),
+        surf.get("role") or surf.get("kind"), surf.get("size"),
+        [round(v) for v in r] if r else None)
+mine = [n for n in nodes if n["id"] == second]
+tree = [n for n in nodes if n["id"].startswith(("construct-pane-", "construct-windows")) or n.get("parent") in ("construct-windows",)]
+print("[second node: %s; pane tree: %s; surfaces: %s]" % (
+    "; ".join(map(line, mine)) or "none",
+    "; ".join(map(line, tree)) or "none",
+    "; ".join(line(n) for n in nodes if n.get("kind") == "surface") or "none"))' "$1"
+    echo "[keyboard $(keyboard_holder)]"
+}
+keyboard_holder() {
+    for look in construct xp; do
+        ctl state "$look" | python3 -I -c '
+import json, sys
+focus = json.load(sys.stdin).get("focus") or {}
+print("%s:%s/%s" % (sys.argv[1], focus.get("holder"), focus.get("surface")), end=" ")' "$look"
+    done
+}
+xp_let_go() { ctl state xp | python3 -I -c 'import json, sys; sys.exit(any(w["surface"] == sys.argv[1] for w in json.load(sys.stdin)["windows"]))' "$surface"; }
+xp_holds_no_keys() { [ "$(ctl state xp | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["focus"].get("holder"))')" != xp ]; }
+pair_cell() {
+CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
+until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
+inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
+    {\"button\": {\"state\": \"released\"}}]"
+sleep 1
+first=$(pane_name "$surface")
+until_ok xp_let_go 20 || fail "xp still lists the window after the drop: $(keyboard_holder)"
+until_ok xp_holds_no_keys 20 ||
+    fail "after the drop xp holds the keyboard for its icons behind the window of the pane: $(keyboard_holder); the new window goes to the manager that holds it"
+"$bin/chora-probe" window 200 40 120 --server-deco >"$work/pair-probe2.log" 2>&1 &
+pids+=($!)
+until_ok '[ "$(probe | wc -l)" = 2 ]' 80 || fail "the second probe window did not map: $(probe)"
+second=$(call window.list '{}' | python3 -I -c '
+import json, sys
+print(next(w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] != sys.argv[1]))' "$surface")
+until_ok 'test "$(pane_name_of "$second")" != ""' 20 || fail "the second window is no pane: $(call window.list '{}') $(pair_why "$second")"
+call pane.move "{\"name\": \"$first\", \"right\": -700}" >/dev/null || fail "pane.move $first"
+call pane.resize "{\"name\": \"$first\", \"scale\": 3}" >/dev/null || fail "pane.resize $first"
+call pane.move "{\"name\": \"$second\", \"right\": -150}" >/dev/null || fail "pane.move $second"
+inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
+until_ok "$stood_back" 40 || fail "Alt+Escape did not step back with two panes: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
+sleep 1
+breaches=$(closed_cube_breaches)
+[ -z "$breaches" ] || fail "stood back with two panes the cube is not closed or the panes overlap (rv-1): $breaches"
+ok "stood back with two panes on one side the faces meet, the mirrors lie under them and no pane covers a face or the other pane"
+end_session
+}
+
+if [ -n "${PAIR_ONLY:-}" ]; then
+    pair_cell
+    exit 0
+fi
+
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull given
 ok "inside its face the window moves with the drag and stays with xp"
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
@@ -376,29 +453,7 @@ print("%d %d" % (r[0] + r[2] * 0.4, r[1] + r[3] * 0.5))')
     end_session
 done
 
-CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
-until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
-inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
-    {\"button\": {\"state\": \"released\"}}]"
-sleep 1
-first=$(pane_name "$surface")
-"$bin/chora-probe" window 200 40 120 --server-deco >"$work/pair-probe2.log" 2>&1 &
-pids+=($!)
-until_ok '[ "$(probe | wc -l)" = 2 ]' 80 || fail "the second probe window did not map: $(probe)"
-second=$(call window.list '{}' | python3 -I -c '
-import json, sys
-print(next(w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] != sys.argv[1]))' "$surface")
-until_ok 'test "$(pane_name_of "$second")" != ""' 20 || fail "the second window is no pane: $(call window.list '{}')"
-call pane.move "{\"name\": \"$first\", \"right\": -700}" >/dev/null || fail "pane.move $first"
-call pane.resize "{\"name\": \"$first\", \"scale\": 3}" >/dev/null || fail "pane.resize $first"
-call pane.move "{\"name\": \"$second\", \"right\": -150}" >/dev/null || fail "pane.move $second"
-inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
-until_ok "$stood_back" 40 || fail "Alt+Escape did not step back with two panes: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
-sleep 1
-breaches=$(closed_cube_breaches)
-[ -z "$breaches" ] || fail "stood back with two panes the cube is not closed or the panes overlap (rv-1): $breaches"
-ok "stood back with two panes on one side the faces meet, the mirrors lie under them and no pane covers a face or the other pane"
-end_session
+pair_cell
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"

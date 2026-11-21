@@ -99,6 +99,25 @@ impl Wm {
         self.key_node.as_deref() == Some(NAME)
     }
 
+    /// The commands for a `focus.node` of the core. xp sent the keys of its
+    /// desktop icons from a view of the focus older than the core's when
+    /// the window that left xp already has the focus: the core then keeps
+    /// the icons as the holder of the keyboard behind that window, and the
+    /// next new window goes to xp, not to the manager of the window.
+    pub(super) fn node_focused(
+        &mut self,
+        node: Option<&str>,
+        owner: Option<&str>,
+    ) -> Vec<chora_scene::Command> {
+        self.key_node = owner.map(String::from);
+        let desktop = node == Some(crate::desktop_icons::GROUP) && owner == Some(NAME);
+        if desktop && self.focus_away() {
+            vec![chora_scene::Command::FocusNode { node: None }]
+        } else {
+            Vec::new()
+        }
+    }
+
     /// A window of another window manager took the focus last.
     pub(super) fn focus_away(&self) -> bool {
         (self.core_focus.as_deref()).is_some_and(|s| self.index(s).is_none())
@@ -280,6 +299,25 @@ mod tests {
                 .all(|c| !matches!(c, chora_scene::Command::FocusNode { .. })),
             "the keys of tiling's node are taken: {sent:?}"
         );
+    }
+
+    /// The core says that the icons of xp hold the keyboard while a window
+    /// of another look has the focus: xp sent them the keys from a view of
+    /// the focus older than the window's, so it takes them back. The icons
+    /// that hold them with no window of another look focused stay.
+    #[test]
+    fn the_desktop_icons_give_back_keys_that_a_foreign_window_holds_by_focus() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-stale");
+        let icons = Some(crate::desktop_icons::GROUP);
+        assert!(
+            wm.node_focused(icons, Some(super::NAME)).is_empty(),
+            "no window is away"
+        );
+        wm.event(focus("t1")).unwrap();
+        let sent = wm.node_focused(icons, Some(super::NAME));
+        assert_eq!(sent, vec![chora_scene::Command::FocusNode { node: None }]);
+        assert_eq!(wm.node_focused(icons, Some("tiling")), vec![]);
+        assert_eq!(wm.node_focused(Some("menu"), Some(super::NAME)), vec![]);
     }
 
     /// A `focus.changed` of the core.

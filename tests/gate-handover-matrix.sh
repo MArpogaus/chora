@@ -327,9 +327,15 @@ place() {
     rects_stable
 }
 
+card_gone() { ctl query id:construct-start | jq -e 'all(.[]; .visible != true)' >/dev/null; }
+
 super_drag() {
     local point='[100,60]'
     if [ "$2" = construct ]; then
+        for _ in $(seq 50); do
+            card_gone && break
+            sleep 0.2
+        done
         point=$(ctl query "id:$w" | jq -c '.[0].rects | to_entries[0].value | [.[2] / 2, .[3] / 2]')
     fi
     inject "[{\"pointer_move\": {\"node\": \"$w\", \"point\": $point}},

@@ -39,7 +39,7 @@ const YEAR: Rect = [135, 57, 54, 21];
 const YEAR_SPIN: Rect = [190, 57, 16, 21];
 const CALENDAR: Rect = [27, 89, 162, 128];
 const CLOCK: Rect = [222, 51, 140, 140];
-const TIME: Rect = [245, 200, 108, 20];
+const TIME: Rect = [245, 200, 108, dialog::FIELD_HEIGHT];
 /// The rows of the calendar.
 const HEADER: i32 = 18;
 const CELL_HEIGHT: i32 = 18;
@@ -144,11 +144,11 @@ impl DateDialog {
         if self.tab == 0 {
             body = dialog::group_box(theme, body, [16, 33, 183, 202], "Date");
             body = dialog::group_box(theme, body, [208, 33, 170, 202], "Time");
-            body = body.svg(dialog::field(YEAR)).text(Text::new(
+            body = body.svg(dialog::field(YEAR)).text(dialog::field_text(
                 &self.year.to_string(),
-                Font::Ui,
                 dialog::BLACK,
-                [YEAR[0] + 5, YEAR[1], YEAR[2] - 6, YEAR[3]],
+                YEAR,
+                2,
             ));
             body = dialog::label(
                 body,
@@ -173,7 +173,7 @@ impl DateDialog {
                     [combo[0] + combo[2] - 18, 42, 16, 17],
                     false,
                 ))
-                .text(Text::new(&line, Font::Ui, dialog::BLACK, [18, 40, 330, 21]));
+                .text(dialog::field_text(&line, dialog::BLACK, combo, 20));
             controls.push(
                 Control::check(
                     "dst",
@@ -207,7 +207,7 @@ impl DateDialog {
                 h - 6
             ))
             .svg(dialog::arrow_button([w - 18, 2, 16, h - 4], false))
-            .text(Text::new(name, Font::Ui, WHITE, [5, 0, w - 26, h]))
+            .text(dialog::field_text(name, WHITE, [0, 0, w, h], 20))
     }
 
     /// The month calendar: a sunken frame, the blue row of the weekdays
@@ -341,11 +341,11 @@ fn time_box(now: NaiveDateTime) -> Picture {
     Picture::new(w, h)
         .svg(dialog::field([0, 0, field, h]))
         .svg(dialog::arrow_button([field + 1, 0, 17, h], true))
-        .text(Text::new(
+        .text(dialog::field_text(
             &now.format("%-I:%M:%S %p").to_string(),
-            Font::Ui,
             dialog::BLACK,
-            [4, 0, field - 6, h],
+            [0, 0, field, h],
+            2,
         ))
 }
 
@@ -428,6 +428,29 @@ fn dial(center: f64, radius: f64) -> String {
 mod tests {
     use super::*;
     use crate::dialog::tests::{preview, theme};
+
+    #[test]
+    fn the_month_box_draws_its_text_through_the_field_text() {
+        let area = [0, 0, 1280, 800];
+        let now = chrono::NaiveDate::from_ymd_opt(2026, 3, 5)
+            .unwrap()
+            .and_hms_opt(10, 0, 0)
+            .unwrap();
+        let dialog = DateDialog::new(now, area);
+        let [_, _, w, h] = MONTH;
+        let want = dialog::field_text(MONTHS[2], WHITE, [0, 0, w, h], 20);
+        let texts: Vec<_> = dialog
+            .month_box()
+            .layers
+            .into_iter()
+            .filter_map(|l| match l {
+                chora_draw::theme::Layer::Text(t) => Some(t),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts.len(), 1);
+        assert_eq!(texts[0].rect, want.rect, "the text stands as in a field");
+    }
 
     #[test]
     fn months_have_their_days_and_leap_years_a_29th_of_february() {

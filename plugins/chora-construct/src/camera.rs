@@ -633,7 +633,7 @@ impl Construct {
     /// keys and F1: the keys that a window never gets while the keyboard may
     /// be with it, so that they work from use mode. F1 has no modifier, so
     /// the core grabs it only with the grant `input.grab-any`.
-    fn grab_keys(&self) -> Vec<(String, Grab)> {
+    pub(crate) fn grab_keys(&self) -> Vec<(String, Grab)> {
         (self.settings.value.common.bindings.iter())
             .filter(|(key, _)| key.contains('+') || key.starts_with("XF86") || *key == "F1")
             .filter_map(|(key, action)| match action {

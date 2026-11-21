@@ -62,6 +62,20 @@ t, g = rect('$1'), rect('$2')
 ok = t and g and t[0] >= g[0] - 0.5 and t[1] >= g[1] - 0.5 and t[0] + t[2] <= g[0] + g[2] + 0.5 and t[1] + t[3] <= g[1] + g[3] + 0.5
 sys.exit(not ok and print(f'$1 {t} not inside $2 {g}', file=sys.stderr) is None)"
 }
+hud_state() {
+    local nodes
+    nodes=$(ctl query '' 2>&1 | python3 -I -c "
+import json, sys
+try:
+    n = json.load(sys.stdin)
+except Exception as e:
+    print('query failed:', e); sys.exit()
+foc = [x['id'] for x in n if x.get('focused')]
+lst = [(x['id'], x.get('opacity'), x.get('visible')) for x in n if x['id'] == 'construct-list']
+srf = [(x['id'], (x.get('surface') or {}).get('app_id', '')[:12], x.get('parent'), x.get('owner')) for x in n if x.get('kind') == 'surface']
+print('focused', foc, 'list', lst, 'surfaces', srf)")
+    echo "$nodes | session log: $(tail -n 6 "${GATE_ENV:-/dev/null}" | tr -d '\n' | cut -c1-600)"
+}
 long=Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen
 foot_pane() {
     foot -a "$1" -T "$4" -f "$font" -o "colors-dark.background=$2" -o "colors-dark.foreground=$3" \
@@ -87,7 +101,7 @@ round() {
     call pane.move '{"name": "black", "ahead": -1000}'
 
     key Tab
-    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list"
+    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list: $(hud_state)"
     shot "$shots/construct-hud-$tag-list.png"
     key Escape
     until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 0.0' || fail "$tag: Escape did not close the list"
@@ -135,7 +149,7 @@ round() {
     call pane.move "{\"name\": \"$long_pane\", \"ahead\": -4000}"
     sleep 2
     key Tab
-    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list: $(ctl call construct construct.list | tr -d "\n " | cut -c1-900) $(ctl call construct window.list "{}" | tr -d "\n " | cut -c1-500)"
+    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list: $(hud_state) $(ctl call construct construct.list | tr -d "\n " | cut -c1-900) $(ctl call construct window.list "{}" | tr -d "\n " | cut -c1-500)"
     for row in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-list-row-") and n["id"].endswith(("-name", "-note"))])'); do
         fits "$row" construct-list-body-glass || fail "$tag: $row runs out of the list"
     done

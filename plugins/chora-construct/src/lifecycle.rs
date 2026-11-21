@@ -454,6 +454,31 @@ mod tests {
         );
     }
 
+    /// FLK-DOORS-CO: a regrab lets go of the chords of the construct when
+    /// the keyboard goes back to the walk, and the core may have a press
+    /// of one on its way: the event comes for a binding that the plugin
+    /// holds no more. In the walk the key is the key of the walk, so
+    /// Super+space still starts the launcher (gate doors, cell
+    /// launcher-key after a step out of a pane).
+    #[test]
+    fn a_chord_that_a_regrab_let_go_acts_as_a_key_of_the_walk() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "chord-let-go");
+        assert!(!construct.rt.holds("Super+space"));
+        assert!(construct.launched.is_none());
+        construct
+            .event(Event::InputKey {
+                binding: "Super+space".into(),
+                state: chora_scene::ipc::PressState::Pressed,
+                injected: false,
+            })
+            .unwrap();
+        assert!(
+            construct.launched.is_some(),
+            "the chord of the launcher did nothing in the walk"
+        );
+    }
+
     /// co-hud-load r1: under load the scene animation lags the wall time.
     /// A redraw after the 160 ms of the fade asks for no fade, and the
     /// update of the redraw stops the one that runs, short of 1; the list
@@ -483,6 +508,39 @@ mod tests {
         assert!(
             (opacity - 1.0).abs() < f64::EPSILON,
             "the list is opaque after its fade time: {opacity}"
+        );
+    }
+
+    /// FLK-HUD-TAB: under load the core starts and steps the fade later
+    /// than the plugin counts it, so a redraw can come when the plugin's
+    /// clock says the 160 ms are over and the core's fade has 20 ms left.
+    /// The redraw must not leave the list at the opacity of that moment
+    /// (0.998 in the failing runs, where Tab then "opened no list").
+    #[test]
+    fn a_redraw_after_the_fade_time_leaves_a_late_list_fully_opaque() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "list-late");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct.open_list().unwrap();
+        let back = std::time::Duration::from_millis(200);
+        let list = construct.list.as_mut().unwrap();
+        list.opened = list.opened.checked_sub(back).unwrap();
+        core.model().lock().unwrap().scene.advance(140.0);
+        construct
+            .event(Event::PointerEntered {
+                node: format!("{}0", crate::command::LIST_ROW),
+                moved: false,
+                injected: false,
+            })
+            .unwrap();
+        let model = core.model();
+        let mut model = model.lock().unwrap();
+        model.scene.advance(1000.0);
+        let opacity = model.scene.node(crate::hud::LIST).unwrap().props.opacity;
+        assert!(
+            (opacity - 1.0).abs() < f64::EPSILON,
+            "the redraw stopped the fade of the list: {opacity}"
         );
     }
 
