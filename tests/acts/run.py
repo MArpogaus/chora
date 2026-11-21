@@ -61,12 +61,13 @@ def main():
         except Exception:  # noqa: BLE001
             results[(look, "act:session")] = [traceback.format_exc()]
     rows = [r for r in harness.known_red() if r["look"] in looks]
-    verdict = harness.judge(results, rows, full=True)
+    verdict = harness.judge(results, rows, full=True, exempt=harness.exemptions())
     for key in sorted(results):
         word = "red" if key in verdict.red else "pass" if key in verdict.passed else "FAIL"
         print(f"cell {key[0]} {key[1]} {word}")
         if word == "red":
-            print(f"  red: {results[key][0][:300]}")
+            for line in results[key]:
+                print(f"  red: {line[:400]}")
     blocking += verdict.blocking
     if blocking:
         print(f"acts: evidence kept in {runs}")
