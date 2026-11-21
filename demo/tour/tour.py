@@ -89,7 +89,7 @@ def mmss(frame):
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
 
-NO_METHOD = re.compile(r"no method|has no method|method not found|unknown method", re.IGNORECASE)
+NO_METHOD = re.compile(r"no (?:exported )?method|method not found|unknown method", re.IGNORECASE)
 BUS_IDS = 24
 """How many notification ids `close_on_bus` tries on a build that cannot list the open cards."""
 
