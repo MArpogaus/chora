@@ -370,6 +370,32 @@ class GivenAway(unittest.TestCase):
             self.assertEqual(status, 1, out)
 
 
+class NoEvent(unittest.TestCase):
+    """A contract that holds state ("no window lost") is not reached when no
+    observation came since the begin: neither pass nor FAIL."""
+
+    def test_t7_without_an_event_is_not_reached(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, one_window("s1"))
+            status, out = goal(run, one_window("s1"), one_window("s1"), "T7")
+            self.assertEqual(status, 0, out)
+            self.assertIn("task T7 not reached (no event since begin)", out)
+            self.assertNotIn("pass", task_line(out, "T7"))
+
+    def test_t7_with_an_event_is_judged(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, one_window("s1"))
+            status, out = goal(run, one_window("s1"), one_window("s1"), "T7", hist=[["s1"]])
+            self.assertIn("task T7 pass", out)
+
+    def test_c2_and_l3_without_an_event_are_not_reached(self):
+        for task in ("C2", "L3"):
+            with self.subTest(task), tempfile.TemporaryDirectory() as folder:
+                run = FakeRun(folder, one_window("s1"))
+                _, out = goal(run, one_window("s1"), one_window("s1"), task)
+                self.assertIn(f"task {task} not reached", out)
+
+
 class Covered(unittest.TestCase):
     """T7: a given window that is shown but drawn under another window is not
     lost; it is a separate MINOR line (root order, known)."""
