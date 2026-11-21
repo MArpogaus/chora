@@ -18,3 +18,12 @@ Head `2b571478` on claude/co-i3 (merged with origin/claude/autonomous-dev-sessio
 - Red unit test `9903d353` `state::tests::a_focused_node_of_another_client_takes_the_focus_off_the_construct` (failed: holder construct, wanted null).
 - Fix `66cccb18` (`state.rs` focus_value: `None if self.active && !self.overlay && !self.kit_focus.taken_by_other(NAME)`; `kit_focus` is a chora_kit `Focus` fed in `plugin.rs on_event` through `hear`) and `2b571478` (the subscription lacked `focus.node`: the first full gate still showed the i3 FAIL; `EVENTS` in main.rs now lists it). No reply changes, docs/api.md untouched.
 - `cargo test -p chora-construct`: 266 passed. Full `tests/merge-gate.sh --jobs 1`: all steps passed, construct-extra PASS (includes gate-construct-i3.sh).
+
+## Review r2 (PM, not the builder; afd63654..2b571478, 3 files +28 -3)
+
+Checked: red first (9903d353 before 66cccb18); the kit is reused (`Focus::hear`, `taken_by_other`), no copy; `focus.node` is subscribed (main.rs EVENTS); the construct's own node does not count (owner == NAME); no core or xp code; the lane's gate green with construct-extra (gate-construct-i3.sh) PASS.
+
+- rv-1 MAJOR, plugins/chora-construct/src/state.rs:65: the foreign-node check guards only the `None` arm. With a construct pane window focused (`core_focus` = an owned surface) a click on an xp node sends `focus.node` (owner xp) and no `focus.changed` (focus.rs: "the focused surface stays, but no window has the keys meanwhile"), so construct still answers `{"holder": "construct", "surface": ...}` while xp holds the node: I3 two holders again. Fix: answer holder null whenever `kit_focus.taken_by_other(NAME)`, before the match (as `Focus::holder` does, focus.rs:205), with a unit test: an owned pane surface focused, then a foreign `focus.node`, then holder null; and a gate step (a window in a pane, then a click in the xp face).
+- rv-2 MINOR, crates/chora-kit/src/wm/focus.rs:120: `moved` does not clear `away`, so a foreign node that is followed by a window focus and then by an empty focus (that window exits) leaves the construct with no holder until a `focus.node` null comes. Pre-existing in the kit; check whether the core sends `focus.node` null when a window takes the keys and pin it in a kit test either way.
+
+Verdict: FIX (rv-1 MAJOR). Next: r3 on 2b571478.
