@@ -26,6 +26,8 @@ mod layout;
 mod lifecycle;
 mod manage;
 mod mic;
+#[cfg(test)]
+mod minor;
 mod region;
 mod scene;
 mod show;
