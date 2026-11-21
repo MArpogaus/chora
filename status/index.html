@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T16:05:00Z",
+  updated: "2026-11-21T16:25:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 5.6,                       // % of the new week used (reset 04:00)
@@ -66,14 +66,14 @@ const S = {
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
-    ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % (met); the five-run series at 2 jobs was 2 of 5 green (00:30 UTC); two lanes fix the three red steps"],
+    ["F5", "No flaky tests, coverage over 80 %", "done", "coverage 91.76 %; five full gates in a row at 2 jobs all green (series r4, 16:21 UTC, one cloud host); older unreproduced flake notes stay open for the RC"],
     ["F6", "Every change through the merge gate", "done", "57 green merges, all reviewed; train 100 green 16:02 UTC"],
     ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
     "Train 100 is green (gate tool checks on the session head). Train 101 now merges seven reviewed branches: the door-test fix, design-guide checks, the construct key list by mouse and F1, the core review fixes, tiling beside the helper and the mc layout split.",
-    "Six lanes run: construct face hint, flaky-test waits, the five-run flake series, tool-version checks, dependency bumps, and an independent code review of everything since the last review.",
+    "Six lanes run: construct face hint, flaky-test waits, two xp fixes from the review, test-harness limits, a runtime-folder rule for the tiling scripts, and commit guards. Tool-version checks and dependency bumps passed review and join train 102.",
     "Spending is a little under pace (0.47 %/h against 0.6); the review was started early to use it."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
