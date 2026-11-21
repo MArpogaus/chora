@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T17:46:00Z",
+  updated: "2026-11-21T18:13:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 6.1,                       // % of the new week used (reset 04:00)
@@ -73,7 +73,8 @@ const S = {
   ],
   now: [
     "Train 101 is green: seven reviewed branches merged (door-test fix, design-guide checks, construct key list by mouse and F1, core review fixes, tiling beside the helper, mc layout split). Train 102 runs: tool-version checks, dependency bumps and two xp fixes from the review.",
-    "Six lanes: the tour v9 recording (the F7 check against tour v8) starts now on the new head; construct face hint, flaky-test waits, test-harness limits, a runtime-folder rule for the tiling scripts, commit guards.",
+    "The simulated-user test of the 3D look (round 5) fails two tasks: a program started from a cube face belongs to the wrong owner, and the key list cannot be opened by mouse there. It also found a new likely MAJOR bug: after one click on a face, both the 3D look and the XP desktop claim the keyboard. A lane now finds the commit that caused it and adds a failing test.",
+    "Six lanes: tour v9 recording (the F7 check against tour v8), stray-key fixes, the two-keyboard-owners bug, coverage tests for the shared kit, construct face hint, flaky-test waits. Three reviewed harness branches wait for train 103.",
     "Spending is under pace (6.1 % used, the line is at 8.3 %); the next free lanes take the stray-keys and blocking-sleep fixes."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]

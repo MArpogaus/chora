@@ -1,0 +1,887 @@
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:56 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:56 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:56 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:56 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:56 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:56 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:56 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.502, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:56 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:56 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:56 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:56 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:56 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:56 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:56 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:56 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283822.558, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:56 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283832.665, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283840.831, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283852.449, "action": "key", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283860.58, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283871.043, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:57 PM' (xp-tray-VIRTUAL-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:57 PM' (xp-tray-VIRTUAL-2) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:57 PM' (xp-tray-VIRTUAL-3) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283879.531, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:57 PM' (xp-tray-VIRTUAL-4) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:58 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:58 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:58 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:58 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:58 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:58 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 2.67:1 ((255, 255, 255) on (85, 160, 255)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:58 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283938.519, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:58 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I3", "breach": "construct and xp each say they hold the focus"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Terminal' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Type commands' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Chat with a helper' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Ask in your words' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Control Panel' (xp-item-10) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-item-11) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Run...' (xp-item-12) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Screenshot' (xp-item-13) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Lock' (xp-item-14) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Log Off' (xp-item-15) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Turn Off Computer' (xp-item-16) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Notepad' (xp-item-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice' (xp-item-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice Calc' (xp-item-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'All Programs' (xp-item-5) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-item-6) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Pictures' (xp-item-7) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Music' (xp-item-8) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-item-9) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283948.07, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I3", "breach": "construct and xp each say they hold the focus"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Terminal' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Type commands' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Chat with a helper' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Ask in your words' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Control Panel' (xp-item-10) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-item-11) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Run...' (xp-item-12) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Screenshot' (xp-item-13) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Lock' (xp-item-14) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Log Off' (xp-item-15) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Turn Off Computer' (xp-item-16) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Notepad' (xp-item-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice' (xp-item-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice Calc' (xp-item-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'All Programs' (xp-item-5) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-item-6) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Pictures' (xp-item-7) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Music' (xp-item-8) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-item-9) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283956.455, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283965.594, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '5:59 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '5:59 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '5:59 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795283973.839, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '5:59 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:01 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:01 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:01 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:01 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:01 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:01 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:01 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284113.925, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:01 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Terminal' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Type commands' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Chat with a helper' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Ask in your words' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Control Panel' (xp-item-10) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-item-11) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Run...' (xp-item-12) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Screenshot' (xp-item-13) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Lock' (xp-item-14) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Log Off' (xp-item-15) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Turn Off Computer' (xp-item-16) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Notepad' (xp-item-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice' (xp-item-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice Calc' (xp-item-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'All Programs' (xp-item-5) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-item-6) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Pictures' (xp-item-7) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Music' (xp-item-8) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-item-9) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:01 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:01 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:01 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:01 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:01 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:01 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:01 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284123.981, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:01 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Terminal' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Type commands' (xp-item-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Chat with a helper' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Ask in your words' (xp-item-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Control Panel' (xp-item-10) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-item-11) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Run...' (xp-item-12) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Screenshot' (xp-item-13) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Lock' (xp-item-14) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Log Off' (xp-item-15) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Turn Off Computer' (xp-item-16) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Notepad' (xp-item-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice' (xp-item-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'LibreOffice Calc' (xp-item-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'All Programs' (xp-item-5) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-item-6) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Pictures' (xp-item-7) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Music' (xp-item-8) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-item-9) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284132.108, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I3", "breach": "construct and xp each say they hold the focus"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-task-helppanel-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-title-s1) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284141.335, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I3", "breach": "construct and xp each say they hold the focus"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-task-helppanel-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-title-s1) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284149.344, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I3", "breach": "construct and xp each say they hold the focus"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-task-helppanel-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-title-s1) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284158.344, "action": "click", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I3", "breach": "construct and xp each say they hold the focus"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '1' (xp-pager-0-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'Help and Support' (xp-task-helppanel-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-task-s1-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 'foot' (xp-title-s1) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-1 '6:02 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '2' (xp-pager-1-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-2 '6:02 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '3' (xp-pager-2-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-3 '6:02 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '4' (xp-pager-3-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) is 11 px, the guide wants 14 px"}
+{"time": 1795284166.541, "action": "look", "look": "construct", "invariant": "I6", "breach": "on VIRTUAL-4 '6:02 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"}
