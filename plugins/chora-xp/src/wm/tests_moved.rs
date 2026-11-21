@@ -323,6 +323,26 @@ mod keys {
         assert!(!wm.menu.is_open(), "no tap after a combination");
     }
 
+    /// CO-P2-FIX r1: on a face of a cube, xp swallows the Super chords it
+    /// binds nothing for, and the swallowed chord is a combination: the
+    /// release of Super after it opens no Start menu.
+    #[test]
+    fn a_swallowed_chord_on_a_face_opens_no_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("keys-tap-swallowed");
+        let bindings = crate::config::defaults().common.bindings;
+        super::super::change_keys(&mut wm.rt, &bindings, CubeKeys::Hosted).unwrap();
+        assert_eq!(
+            wm.rt.action("Super+q"),
+            Some(&KeyAction::Look(Look::Swallow)),
+            "the unbound chord is swallowed on a face"
+        );
+        wm.key("Super+Super_L");
+        wm.key("Super+q");
+        assert_eq!(wm.tap, Some(true), "the swallowed chord went with Super");
+        let _ = wm.key_released("Super+Super_L");
+        assert!(!wm.menu.is_open(), "no tap after a swallowed chord");
+    }
+
     /// ca-4: Super held and a drag with the left button on the desktop
     /// turns the cube; the release of Super after it opens no Start menu.
     #[test]
