@@ -249,7 +249,8 @@ mod tests {
         fs::set_permissions(&target, fs::Permissions::from_mode(0o755)).unwrap();
         let logs = dir.join("logs");
         std::os::unix::fs::symlink(&target, &logs).unwrap();
-        assert!(File::open_in(&logs, "chora", MAX_BYTES).is_err());
+        let err = File::open_in(&logs, "chora", MAX_BYTES).err().unwrap();
+        assert!(err.to_string().contains("is a symlink"), "{err}");
         let mode = fs::metadata(&target).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o755, "the target of the symlink keeps its mode");
         assert_eq!(fs::read_dir(&target).unwrap().count(), 0, "nothing in it");
