@@ -366,3 +366,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - rmm-3 NIT (mc-minor): chora-assistant falls back to Face::serif(18) while the mc spec says chat body 19/28.
 - harness: lint-ratchet accepts a raised allow line in pre-commit; require `ratchet-raise:` in the commit message (mc-minor r1 raised 360 to 362).
 - rck-7 NIT co-keys hints.rs:110: several bound keys chords, first in BTreeMap order wins; document if a second default appears.
+- rti-7 NIT ti-29 launcher.rs:47: empty program leaves generic name as last word in helper_last.
