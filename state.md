@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | co-hint-r1.md (rc 2, F7: co-42 face hint gone after 3 s) | sonnet medium, claude/co-hint c69354ae | session_016iS3kL6rhVtqF6gejqFJ7c 14:10 |
 | flk-doors-chat-r1.md (rc 2-3, F5: t99c, t99d red at doors) | sonnet medium, claude/flk-doors-chat 32a505db | session_016iS3kPXboVoSG2KpYtSdoQ 12:55 |
 | flake-series-r4.md (F5: 5 full gates at --jobs 2) | haiku high, claude/flake-series-r4 1c599c74 | session_016iS3kL8UvFUknonKbwRzEb 12:55 |
-| gate-drift-r1.md (F6, rc 3: tool versions as SKIP) | sonnet medium, claude/gate-drift 1c599c74 | starting |
+| gate-drift-r1.md (F6, rc 3: tool versions as SKIP) | sonnet medium, claude/gate-drift 1c599c74 | session_016iS3kPnspxzzYMoUj6sGSE 14:44 |
 | deps-r1.md (rc 7: minor bumps) | sonnet low, claude/deps 1c599c74 | session_016iS3kLjqSJKWsiFCCvs8M5 14:41 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
