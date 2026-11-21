@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 13:11 UTC)
+## Now (2026-11-21 13:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 12:54 week 5.2 % (6 lanes from 13:10); disk: one train at a time on the PM machine (not a lane limit); 6 lanes
 session branch: 1c599c74; 56 greens; t98 green 08:46 (gate-path, xp-fields, chapters-a, xp-37, flakes-r). F5 series in the cloud (flake-series r4).
