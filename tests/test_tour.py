@@ -237,5 +237,100 @@ class TourRows(unittest.TestCase):
         self.assertFalse(tour.checking())
 
 
+CHAPTERS_B = ("mc", "construct")
+
+
+def act_calls(chapter):
+    """The `t.act(...)` calls of a chapter file, as {keyword names}: the rows of the chapter, read
+    from the source (no session needed)."""
+    import ast
+
+    tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text())
+    return [
+        (call.lineno, {k.arg for k in call.keywords})
+        for call in ast.walk(tree)
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == "act"
+    ]
+
+
+class ChaptersB(unittest.TestCase):
+    """F7 (design/tour-v9.md section 8, lane 5): every act row of mc and construct says what it
+    expects, so `run.py --check` counts no `inv` row for these chapters."""
+
+    def test_every_row_has_an_expect(self):
+        for chapter in CHAPTERS_B:
+            rows = act_calls(chapter)
+            self.assertTrue(rows, chapter)
+            bare = [line for line, keys in rows if "expect" not in keys and "todo" not in keys]
+            self.assertEqual(bare, [], f"{chapter}: rows without `expect` (would be `inv`), by line")
+
+    def test_rows_name_their_contract(self):
+        """Each chapter holds the contracts of the design rows it plays (sections 3 and 4). Not here: T6
+        (m11, the launcher list is a layer surface of fuzzel that the scene does not list) and T1, T3
+        of construct (c1, c7: the walk room and the strip helper are not in the cube scene)."""
+        want = {"mc": {"M1", "T3", "T2", "T1", "T4"}, "construct": {"C1", "C2", "T2"}}
+        for chapter, contracts in want.items():
+            text = (ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text()
+            missing = sorted(c for c in contracts if f'contract="{c}' not in text)
+            self.assertEqual(missing, [], f"{chapter}: contracts not on any row")
+
+    def test_mc_expects_turn_red_on_a_planted_state(self):
+        """Planted wrong state: each mc check says red where the state is not the one the act names."""
+        from chapters import mc
+
+        after = snap("xp")
+        wrong_page = FakeSession()
+        wrong_page.call = lambda client, method, params=None: {"current": "ingredients"}
+        self.assertTrue(mc.page_is(wrong_page, "boil")(after))
+        self.assertEqual(mc.page_is(wrong_page, "ingredients")(after), [])
+        hud = dataclasses.replace(after, nodes=[{"id": "mc-r0-footer-hud", "kind": "text", "visible": True, "text": "next step"}])
+        self.assertTrue(mc.hud_says("how much garlic")(hud))
+        self.assertEqual(mc.hud_says("next step")(hud), [])
+        none = dataclasses.replace(after, blocks={"notify": {"shown": []}})
+        self.assertTrue(mc.notice_shown("Timer: spaghetti, 9 minutes")(none))
+        card = dataclasses.replace(after, blocks={"notify": {"shown": [{"id": 1, "summary": "Timer: spaghetti, 9 minutes"}]}})
+        self.assertEqual(mc.notice_shown("Timer: spaghetti, 9 minutes")(card), [])
+        self.assertTrue(mc.clock_shown()(after))
+        chat = dataclasses.replace(after, blocks={"assistant": {"shown": []}})
+        self.assertTrue(mc.chat_is(True)(chat))
+        self.assertEqual(mc.chat_is(False)(chat), [])
+
+    def test_mc_column_counts_the_texts_that_are_drawn(self):
+        """mc-54 (cb-4): the closed list of all keys (`mc-r1-right-*`) and a hidden column keep
+        `visible: true` but no rect on any output, so nothing is drawn. The count of the column
+        reads the texts with a rect: 24 drawn before Super+n, none while it hides, 24 again after."""
+        from chapters import mc
+
+        def text(region, name, rects):
+            return {"id": f"mc-{region}-right-{name}", "kind": "text", "visible": True, "rects": rects}
+
+        drawn = {"HEADLESS-1": [888.0, 110.0, 204.0, 28.0]}
+        column = lambda rects: [text("r0", f"keys-{i}", rects) for i in range(24)]
+        stale = [text("r1", f"keys-{i}", {}) for i in range(48)]
+        before = column(drawn) + stale
+        hidden = column({})
+        back = column(drawn)
+        self.assertEqual(mc.column_count(before), 24)
+        self.assertEqual(mc.column_count(hidden), 0)
+        self.assertEqual(mc.column_count(back), 24)
+        self.assertEqual(mc.column_fewer_than(24)(dataclasses.replace(snap("xp"), nodes=hidden)), [])
+        self.assertTrue(mc.column_fewer_than(24)(dataclasses.replace(snap("xp"), nodes=back)))
+        self.assertEqual(mc.column_back_to(24)(dataclasses.replace(snap("xp"), nodes=back)), [])
+        self.assertTrue(mc.column_back_to(24)(dataclasses.replace(snap("xp"), nodes=hidden)))
+
+    def test_construct_expects_turn_red_on_a_planted_state(self):
+        """Planted wrong state: the cube is on face 0 where the act says face 1; s1 is still a pane."""
+        from chapters import construct
+
+        cube = {"faces": [{}, {}, {}, {}], "front": 0, "mode": "navigate", "turning": False}
+        after = dataclasses.replace(snap("xp"), cube=cube)
+        self.assertTrue(construct.cube_is(front=1).check(after, after))
+        self.assertEqual(construct.cube_is(front=0, mode="navigate").check(after, after), [])
+        self.assertTrue(construct.cube_is(mode="use").check(after, after))
+        pane = dataclasses.replace(after, nodes=[{"id": "s1", "kind": "surface", "owner": "xp"}])
+        self.assertTrue(construct.window_is_pane(pane))
+        self.assertEqual(construct.window_back_on_face(pane), [])
+
+
 if __name__ == "__main__":
     unittest.main()

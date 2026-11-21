@@ -28,9 +28,9 @@ impl Wm {
             let commands = self.focus_moved(surface);
             return self.apply(commands);
         }
-        if let Event::FocusNode { owner, .. } = &event {
-            self.key_node.clone_from(owner);
-            return Ok(());
+        if let Event::FocusNode { node, owner } = &event {
+            let commands = self.node_focused(node.as_deref(), owner.as_deref());
+            return self.apply(commands);
         }
         let commands = match event {
             Event::SurfaceDetached { .. } => return self.window_left(&event),
