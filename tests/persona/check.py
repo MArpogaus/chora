@@ -603,6 +603,21 @@ def verify_only_keys_open(ctx):
     return verify
 
 
+def verify_reloaded(ctx):
+    """L2: the config value changed against the begin, and the reload took:
+    the look answers again and holds the focus. The state answer has no
+    reload counter, so the read of the value is the digest of the files."""
+
+    def verify(after_):
+        begin, now = ctx.config or (None, None)
+        out = [] if begin != now else ["the config value did not change since the begin"]
+        if (after_.states.get(ctx.look) or {}).get("focus", {}).get("holder") != ctx.look:
+            out.append(f"the look is not back with the focus after the reload ({ctx.look})")
+        return out
+
+    return verify
+
+
 def verify_all(*verifiers):
     """The mismatches of every verifier."""
     return lambda after_: [m for verifier in verifiers for m in verifier(after_)]
@@ -662,7 +677,7 @@ def contracts(task, ctx, before):
             ),
         ),
         "L1": Expect(focus=ctx.look, verify=verify_closed(ctx, before)),
-        "L2": Expect(focus=ctx.look),
+        "L2": Expect(focus=ctx.look, verify=verify_reloaded(ctx)),
         "L3": Expect(verify=verify_focus_kept(ctx, before)),
         "M1": Expect(verify=verify_page_changed(ctx, before)),
         "M2": Expect(open=ctx.left, focus="mc"),
