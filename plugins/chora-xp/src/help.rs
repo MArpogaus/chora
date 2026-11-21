@@ -638,6 +638,14 @@ mod tests {
     }
 
     #[test]
+    fn a_sideways_wheel_does_not_scroll_the_table() {
+        let rows = rows(&defaults(), all);
+        let mut short = HelpDialog::new(KEYBOARD, rows, [0, 0, 1280, 690]);
+        assert!(short.max_top() > 0);
+        assert!(!short.wheel(0.0) && short.top == 0, "dy 0 stays put");
+    }
+
+    #[test]
     fn every_bound_key_is_in_the_table() {
         let rows = rows(&defaults(), all);
         let shown: Vec<String> = rows.iter().flat_map(|r| r.keys.clone()).collect();
