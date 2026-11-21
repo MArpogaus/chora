@@ -1,0 +1,14 @@
+# co-i3 r3 (rc 2, RC bar: no stray keys; review r2 rv-1 MAJOR)
+
+Model: sonnet, effort medium (one guard moved in the construct focus state behind a red test; one gate step)
+Lane: cloud, claude/co-i3 at 2b571478 (r2 head). Cost at most 0.6 %; stop at 200 k context. One area: plugins/chora-construct focus state (state.rs, plugin.rs) and tests/gate-construct-i3.sh; a kit test in crates/chora-kit/src/wm/focus.rs only for rv-2; no core and no xp code.
+Why: reports/co-i3.md "## Review r2" on claude/session-log (c434149d). rv-1 MAJOR: state.rs:65 checks `kit_focus.taken_by_other(NAME)` only in the `None` arm; with an owned pane surface focused, a click on an xp node sends focus.node (owner xp) and no focus.changed, so construct still answers holder construct with that surface: I3 two holders. rv-2 MINOR: focus.rs:120 `moved` does not clear `away`.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "co-i3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Red unit test in state.rs: an owned attached pane surface is core_focus, then a foreign `focus.node` (owner xp): focus answers holder null; after `focus.node` null it answers construct with that surface again. Commit (red).
+2) Fix (KISS): holder null whenever `self.kit_focus.taken_by_other(NAME)`, checked before the match, as chora_kit `Focus::holder` does (focus.rs:205). Commit.
+3) Gate step in tests/gate-construct-i3.sh: open a window in a pane, focus it, click in the xp face; I3 holds (one holder). Red before 2) if cheap to show, green after. Waits by until_ok, no bare sleep.
+4) rv-2: read what the core sends on focus.node when a window takes the keys (crates/chora/src, grep FocusNode). If it sends node null, pin that in a kit test; if not, clear `away` in `Focus::moved` for a Some surface with a red kit test first. Say which in the report.
+Gate: full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/co-i3 merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Run it in the background and poll in the same turn; never end a turn to wait.
+Done when: red and fix commits for rv-1, the gate step green, rv-2 pinned or fixed, cargo test -p chora-construct and -p chora-kit green, the full gate green.
+Report: reports/co-i3.md "## r3" on claude/session-log (shas, tests, the fix line, rv-2 outcome, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/co-i3 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
