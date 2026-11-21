@@ -333,7 +333,7 @@ impl HelpDialog {
 
     /// The wheel: a line for every row of height that it scrolled.
     pub fn wheel(&mut self, dy: f64) -> bool {
-        if self.topic != KEYBOARD {
+        if self.topic != KEYBOARD || dy == 0.0 {
             return false;
         }
         let lines = (dy / f64::from(self.row)).round().clamp(-1000.0, 1000.0) as i64;
@@ -635,6 +635,14 @@ mod tests {
         assert!(!short.scroll(1), "no line below the last");
         assert!(short.scroll(-1000) && short.top == 0);
         assert!(short.wheel(100.0) && short.top > 0, "the wheel scrolls");
+    }
+
+    #[test]
+    fn a_sideways_wheel_does_not_scroll_the_table() {
+        let rows = rows(&defaults(), all);
+        let mut short = HelpDialog::new(KEYBOARD, rows, [0, 0, 1280, 690]);
+        assert!(short.max_top() > 0);
+        assert!(!short.wheel(0.0) && short.top == 0, "dy 0 stays put");
     }
 
     #[test]

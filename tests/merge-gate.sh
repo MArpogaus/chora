@@ -50,6 +50,8 @@
 # PASS, and the summary after the steps lists each SKIP step with its reasons. A train
 # stays honest: `--push` refuses while any step is SKIP unless the step is named by
 # `--allow-skip` (a host gap the owner knows, e.g. `--allow-skip launcher-click`).
+# Before the steps, tool_minimums (one table: tool|minimum|steps|source) is checked: a tool
+# older than its minimum, or missing, makes its steps SKIP with `SKIP: <tool> <found> < <min>`.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -359,9 +361,36 @@ check_full_history() {
     return 1
 }
 
+tool_minimums() {
+    cat <<TOOLS
+fuzzel|1.11|launcher-click|findings/mc.md mc-47 (1.9.2 ignores clicks, 1.11.1 works), tests/gate-package-deps.sh (fuzzel >= 1.11)
+TOOLS
+}
+
+preflight_tools() {
+    local tool min need _source found i
+    while IFS='|' read -r tool min need _source; do
+        [ -n "$tool" ] || continue
+        found=$(command -v "$tool" >/dev/null 2>&1 &&
+            { "$tool" --version 2>/dev/null | sed -n 's/^[^0-9]*\([0-9][0-9.]*\).*/\1/p' | head -n 1; })
+        command -v "$tool" >/dev/null 2>&1 || found=missing
+        [ "$found" = missing ] || [ -n "$found" ] || found=unknown
+        case $found in
+        missing | unknown) ;;
+        *) [ "$(printf '%s\n%s\n' "$min" "$found" | sort -V | head -n 1)" = "$min" ] && continue ;;
+        esac
+        for i in "${!step_names[@]}"; do
+            case ",$need," in *",${step_names[$i]},"*)
+                step_commands[i]="echo 'SKIP: $tool $found < $min'" ;;
+            esac
+        done
+    done < <(tool_minimums)
+}
+
 check_free_space || exit 1
 check_full_history || exit 1
 warn_on_drift
+preflight_tools
 
 . "$repo/tests/gate-lock.sh"
 gate_lock merge-gate || die "cannot take the gate lock"
