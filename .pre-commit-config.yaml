@@ -30,6 +30,11 @@ repos:
     entry: tests/no-agent-trailers.sh
     language: script
     stages: [commit-msg]
+  - id: ratchet-raise
+    name: a raised count in tools/*-ratchet.list needs a `ratchet-raise:` line
+    entry: tests/ratchet-raise.sh
+    language: script
+    stages: [commit-msg]
   - id: commit-message-length
     name: commit message length (subject 68, body lines 72 characters)
     entry: python3 -I tests/commit-message-length.py
