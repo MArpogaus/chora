@@ -290,16 +290,52 @@ class ChaptersARows(unittest.TestCase):
     def test_tiling_expect_turns_red_on_a_wrong_window_count(self):
         """t3: four terminals tile; the session shows one window."""
         windows_are = check_of("tiling", "windows_are")
-        self.assertTrue(Expect(verify=windows_are(4, look="xp")).check(snap(), snap()), "one window passes for four")
-        self.assertEqual(Expect(verify=windows_are(1, look="xp")).check(snap(), snap()), [])
+        one = snap("xp")
+        self.assertTrue(Expect(verify=windows_are(4, look="xp")).check(one, one), "one window passes for four")
+        self.assertEqual(Expect(verify=windows_are(1, look="xp")).check(one, one), [])
 
     def test_handover_expect_turns_red_on_a_wrong_owner(self):
         """h3: the window is given to mc; the node still says xp owns it."""
         owner_is = check_of("handover", "owner_is")
         want = Expect(verify=owner_is("s1", "mc"))
-        self.assertTrue(want.check(snap(), snap()), "owner xp passes for mc")
-        mine = snap(nodes=[test_acts.surface("s1", "mc", focused=True)])
-        self.assertEqual(want.check(snap(), mine), [])
+        sound = test_acts.snap()
+        self.assertTrue(want.check(sound, sound), "owner xp passes for mc")
+        mine = test_acts.snap(nodes=[test_acts.surface("s1", "mc", focused=True)])
+        self.assertEqual(want.check(sound, mine), [])
+
+    def test_xp_letter_and_run_box_turn_red_on_a_wrong_state(self):
+        """x3: the letter holds other text; x9: the Run box never said Nothing found."""
+        letter_is, box_says = check_of("xp", "letter_is"), check_of("xp", "box_says")
+        d = pathlib.Path(tempfile.mkdtemp(prefix="tour-test-"))
+        (d / "letter.txt").write_text("Dear Anna,\n")
+        self.assertTrue(letter_is("Dear Anna,\nLove, Erika", d / "letter.txt")(snap()))
+        (d / "letter.txt").write_text("Dear Anna,\nLove, Erika\n")
+        self.assertEqual(letter_is("Dear Anna,\nLove, Erika", d / "letter.txt")(snap()), [])
+        (d / "fuzzel.rows.1").write_text("Zebra\nalpha\n")
+        self.assertTrue(box_says(str(d), "nosuch")(snap()))
+        (d / "fuzzel.rows.2").write_text('Nothing found for "nosuch"\nZebra\n')
+        self.assertEqual(box_says(str(d), "nosuch")(snap()), [])
+
+    def test_tiling_tiles_turn_red_when_they_overlap_or_the_gaps_differ(self):
+        tiles_hold = check_of("tiling", "tiles_hold")
+
+        def tiled(*rects):
+            wins = [{"surface": f"s{i}", "shown": True, "rect": r, "floating": False} for i, r in enumerate(rects)]
+            return test_acts.snap(states={"tiling": {"windows": wins, "focus": {}, "open": [], "busy": []}})
+
+        good = tiled([14, 54, 619, 652], [647, 54, 619, 652])
+        self.assertEqual(tiles_hold(2)(good), [])
+        self.assertTrue(tiles_hold(2)(tiled([14, 54, 700, 652], [647, 54, 619, 652])), "overlap")
+        self.assertTrue(tiles_hold(3)(tiled([14, 54, 600, 200], [647, 54, 619, 200], [14, 300, 619, 200])), "gaps 47 and 46 differ")
+
+    def test_handover_lock_and_windows_turn_red(self):
+        lock_called, windows_only = check_of("handover", "lock_called"), check_of("handover", "windows_only")
+        calls = pathlib.Path(tempfile.mkdtemp(prefix="tour-test-")) / "calls.log"
+        self.assertTrue(lock_called(str(calls))(snap()), "no call yet")
+        calls.write_text("swaylock -f\n")
+        self.assertEqual(lock_called(str(calls))(snap()), [])
+        self.assertTrue(windows_only("s1", "s2")(test_acts.snap()), "a window is lost")
+        self.assertEqual(windows_only("s1")(test_acts.snap()), [])
 
 
 if __name__ == "__main__":

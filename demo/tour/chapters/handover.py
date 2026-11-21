@@ -1,6 +1,6 @@
 """Chapter handover: one function `run(ctx)`; the rows are `t.act(..., expect=, contract=, cells=, capture=)`."""
 
-import sys, time, os, json, subprocess
+import sys, time, os, json, subprocess, re
 from launch import *
 import launch
 from human import Quick
@@ -8,6 +8,63 @@ from tour import Session, checker_for
 from harness import Expect
 import json, shutil
 from slides import slide
+from chapters.xp import Diff, letter_is, logged, shown, gone, both, LETTER
+
+LINE1 = "Ward 3: check bed 4 at 14:00"
+LINE2 = "- Monday: plan the week"
+LOCK = r"(swaylock|loginctl lock-session)"
+
+
+def owner_is(sid, look):
+    """A check: the node of the window says that the look owns it (the window has an owner, none is lost)."""
+
+    def check(after):
+        node = after.by_id().get(sid)
+        if node is None:
+            return [f"no window {sid} in the scene"]
+        return [] if node.get("owner") == look else [f"{sid} is owned by {node.get('owner')}, expected {look}"]
+
+    return check
+
+
+def focus_with(look):
+    """A check: the look says that it holds the focus, and no other look does (I3)."""
+
+    def check(after):
+        holders = [name for name, state in after.states.items() if state and (state.get("focus") or {}).get("holder") == name]
+        return [] if holders == [look] else [f"the focus is with {holders}, expected {look}"]
+
+    return check
+
+
+def windows_only(*sids):
+    """A check: the toplevels are these windows: one window through all four looks, none lost, none new (T7)."""
+    return lambda after: [] if after.toplevels == set(sids) else [f"the windows are {sorted(after.toplevels)}, expected {sorted(sids)}"]
+
+
+def shown_in(look, sid):
+    """A check: the state of the look lists the window as shown (a page of mc, a pane of the construct)."""
+
+    def check(after):
+        windows = (after.states.get(look) or {}).get("windows") or []
+        return [] if any(w.get("surface") == sid and w.get("shown") for w in windows) else [f"{look} does not show {sid}: {windows}"]
+
+    return check
+
+
+def no_task_button(sid):
+    """A check: xp keeps no task button for the window it gave away."""
+    return lambda after: [f"xp keeps a task button for {sid}" for n in after.nodes if str(n.get("id")).startswith(f"xp-task-{sid}-")][:1]
+
+
+def lock_called(calls):
+    """A check: the lock command of a look ran (the stand-in `swaylock` or `loginctl` logs its call)."""
+
+    def check(after):
+        lines = open(calls).read().splitlines() if os.path.exists(calls) else []
+        return [] if any(re.match(LOCK, line) for line in lines) else [f"no swaylock or loginctl lock-session call: {lines}"]
+
+    return check
 
 def start_multi():
     L = Launcher("multi")
@@ -25,6 +82,10 @@ def start_multi():
     names = [o["name"] for o in outs]
     assert len(names) == 4, names
     out_of = dict(zip(["construct", "xp", "tiling", "mc"], names))
+    for what in ("swaylock", "loginctl"):
+        open(f"{L.dir}/stub/{what}", "w").write(f"#!/bin/sh\necho {what} \"$@\" >>{L.dir}/calls.log\n")
+        os.chmod(f"{L.dir}/stub/{what}", 0o755)
+    open(LETTER, "w").write("")
     note_stub = f"{L.dir}/stub/mousepad"
     open(note_stub, "w").write("#!/bin/sh\nexec foot --app-id=Notepad --title=Notepad -o pad=14x12 -o colors.background=ffffff -o colors.foreground=000000 -o 'font=DejaVu Sans Mono:size=11' -o cursor.blink=no -e sh -c \'cat >>/home/user/notes/letter.txt\'\n")
     os.chmod(note_stub, 0o755)
@@ -103,67 +164,49 @@ def run(ctx):
         return r[0] + r[2] / 2, r[1] + r[3] / 2
 
     try:
+        calls = f"{L.dir}/calls.log"
+        both_lines = LINE1 + "\n" + LINE2
         t.pair = [XP, TI]
         t.pointer_output = XP
         t.jump(640, 360)
         t.wait(0.3)
-        t.act("look", "Two screens: xp on the left, tiling on the right (empty)", "xp desktop with taskbar; tiling desktop empty", still="05-01-two-screens", known="I3: construct and xp each say they hold the focus on a four-output session")
+        t.act("look", "Two screens: xp on the left, tiling on the right (empty)", "xp desktop with taskbar; tiling desktop empty", still="05-01-two-screens", contract="X1", cells=["gate-handover-matrix.sh"], capture="Q", expect=Expect(verify=windows_only()))
         t.done()
-        t.act("pointer", "Click Start", "The Start menu opens on the xp screen", still="05-02-start", opens=["xp-menu"], known="I3: construct and xp each say they hold the focus on a four-output session")
+        t.act("pointer", "Click Start", "The Start menu opens on the xp screen", still="05-02-start", opens=["xp-menu"], contract="T1", cells=["doors launcher-door"], capture="Q", known="I3: ca-3 construct and xp each say they hold the focus on a four-output session", expect=Expect(open=["xp-menu"]))
         goto(50, 705, XP, 1.0); t.click(); t.done()
         ex, ey = find_item("Notepad", XP)
-        t.act("pointer", "Click Notepad", "A text editor opens on the xp screen", settle=1.0, still="05-03-editor-open", contract="T1", capture="Q", expect=Expect(new_window={"owner": "xp"}), closes=["xp-menu"])
+        t.act("pointer", "Click Notepad", "A text editor opens on the xp screen", settle=1.0, still="05-03-editor-open", contract="T1", cells=["doors launcher-door"], capture="Q", closes=["xp-menu"], expect=Expect(new_window={"owner": "xp", "focused": True}, open=[]))
         goto(ex, ey, XP, 1.0); t.click(); t.done()
-        note("05-03-editor-open")
-        t.act("pointer", "Title-bar right click, Send To > Tiling desktop", "the editor window moves to tiling by the menu (h2 of design/tour-v9.md: waits for xp-give; CHAPTERS-A fills it)", todo=True, contract="T7", cells=["gate-handover.sh 8b"], capture="Q")
-        t.done()
+        t.act("keys", "The nurse types the first line in the editor", "Ward 3: check bed 4 at 14:00 shows in the editor", settle=1.0, still="05-03b-typed-on-xp", contract="T1", cells=["gate-xp-notepad-fallback.sh"], capture="Q", expect=Expect(verify=letter_is(LINE1)))
+        t.type_quick(LINE1 + "\n"); t.done()
+        t.flush("menu")
         tx, ty = mid("id:xp-title-s1", XP)
-        cx, cy = 640, 400
-        t.act("pointer", "DRAG 1: pull the title bar of the editor window from xp to the tiling screen", "the editor window leaves xp and tiles in the tiling screen (full height)", settle=0.8, still="05-04-drag-xp-to-tiling", lead=1.0, cells=["gate-handover.sh 8b"], capture="H50")
-        goto(tx, ty, XP, 1.0); press()
-        goto(1100, 300, XP, 1.0)
-        goto(100, 300, TI, 1.0); goto(cx, cy, TI, 0.8)
-        release(); t.done()
-        note("05-04-drag-xp-to-tiling")
-        t.act("keys", "The person types a line in the editor on its new screen", "The text appears in the editor on the tiling screen", settle=1.0, still="05-04b-typed-on-tiling")
-        t.type_quick("- Monday: plan the week", typo_at=9, typo_char="q"); t.done()
-        t.pair = [TI, CO]
-        x, y = mid("id:s1", TI)
-        t.act("pointer", "DRAG 2: Super+drag the editor window from tiling to the construct screen", "the editor window leaves tiling and becomes a pane in the construct space", settle=1.0, still="05-05-drag-tiling-to-construct", cells=["gate-handover-matrix.sh tiling-construct"], capture="H50")
-        on_node(TI); press(("Super_L",))
-        goto(100, 360, CO, 1.0); goto(640, 360, CO, 0.8)
-        release(("Super_L",)); t.done()
-        note("05-05-drag-tiling-to-construct")
+        t.act("pointer", "Title-bar right click, Send To, Tiling desktop", "The editor window moves to the tiling screen by the menu and tiles there", settle=1.0, still="05-04-send-to-tiling", contract="T7", cells=["gate-handover.sh 8b"], capture="Q", expect=Expect(focus="tiling", verify=both(owner_is("s1", "tiling"), no_task_button("s1"), windows_only("s1"))))
+        goto(tx, ty, XP, 1.0); t.click(273); t.wait(0.4)
+        t.flush("ctx")
+        sx, sy = mid("id:xp-ctx-0-6", XP)
+        goto(sx, sy, XP, 0.6); t.wait(0.5)
+        t.flush("sub")
+        ux, uy = mid("id:xp-ctx-1-0", XP)
+        goto(ux, uy, XP, 0.4); t.click(); t.done()
+        t.pair = [TI, MC]
+        t.act("keys", "The nurse types a line in the editor on its new screen", "The text appears in the editor on the tiling screen", settle=1.0, still="05-05-typed-on-tiling", contract="T7", cells=["gate-handover-matrix.sh"], capture="Q", expect=Expect(verify=both(letter_is(both_lines), owner_is("s1", "tiling"))))
+        t.type_quick(LINE2, typo_at=9, typo_char="q"); t.tap("Return", 0.3); t.done()
+        t.act("key", "Super+Alt+3 gives the window to mc", "The window leaves tiling and shows in mc as a page", settle=1.0, still="05-06-give-key-mc", contract="T7", cells=["gate-handover-matrix.sh tiling-mc"], capture="Q", expect=Expect(focus="mc", verify=both(owner_is("s1", "mc"), shown_in("mc", "s1"), windows_only("s1"))))
+        t.key("Super+Alt+3"); t.done()
+        t.pair = [MC, CO]
+        t.act("key", "Super+Alt+4 gives the window to the construct", "The window leaves mc and is a pane in the construct", settle=1.0, still="05-07-give-key-construct", contract="C2", cells=["gate-handover-matrix.sh mc-construct", "gate-give-holders.sh"], capture="Q", expect=Expect(verify=both(owner_is("s1", "construct"), windows_only("s1"))))
+        t.key("Super+Alt+4"); t.done()
         t.pair = [CO, XP]
-        x, y = mid("id:s1", CO)
-        t.act("pointer", "DRAG 3: Super+drag the the editor window pane from construct to the xp screen", "the editor window leaves the construct and shows in xp with a title bar and a task button", settle=1.0, still="05-06-drag-construct-to-xp", cells=["gate-construct-pull.sh drop"], capture="H50")
+        t.act("pointer", "Super+drag the pane of the editor from the construct onto the xp screen", "The window leaves the construct and shows in xp with a title bar and a task button", settle=1.0, still="05-08-drag-construct-to-xp", contract="C2", cells=["gate-construct-pull.sh drop"], capture="H50", expect=Expect(verify=both(owner_is("s1", "xp"), windows_only("s1"))))
         on_node(CO); press(("Super_L",))
         goto(100, 300, XP, 1.0); goto(500, 300, XP, 0.8)
         release(("Super_L",)); t.done()
-        note("05-06-drag-construct-to-xp")
-        t.pair = [XP, MC]
-        tx, ty = mid("id:xp-title-s1", XP)
-        t.act("pointer", "DRAG 4: pull the title bar of the editor window from xp to the mc screen", "the editor window becomes the window of an mc scene", settle=1.0, still="05-05-drag-xp-to-mc")
-        t.pointer_output = XP; goto(tx, ty, XP, 1.0); press()
-        goto(1100, 300, XP, 1.0)
-        goto(100, 300, MC, 1.0); goto(640, 360, MC, 0.8)
-        release(); t.done()
-        note("05-05-drag-xp-to-mc")
-        t.pair = [MC, XP]
-        x, y = mid("id:s1", MC)
-        t.act("pointer", "DRAG 5: Super+drag the editor window out of mc to the xp screen", "the editor window leaves mc and shows in xp", settle=1.0, still="05-08-drag-mc-out")
-        on_node(MC); press(("Super_L",))
-        goto(100, 300, XP, 1.0); goto(500, 300, XP, 0.8)
-        release(("Super_L",)); t.done()
-        note("05-08-drag-mc-out")
         t.pair = [XP, TI]
-        t.act("key", "GIVE BY KEY: Super+Alt+1 (give the focused window to tiling)", "the editor window goes to tiling and fills its screen", settle=1.0, still="05-09-give-key-tiling", cells=["gate-handover-matrix.sh tiling-mc"], capture="Q")
-        t.key("Super+Alt+1"); t.done()
-        note("05-09-give-key-tiling")
-        t.pair = [TI, XP]
-        t.act("key", "GIVE BY KEY: Super+Alt+2 (give the focused window to xp)", "the editor window goes back to xp", settle=1.0, still="05-10-give-key-xp", cells=["gate-handover-matrix.sh mc-construct"], capture="Q")
-        t.key("Super+Alt+2"); t.done()
-        note("05-10-give-key-xp")
+        t.act("look", "xp has the window with all the lines", "The editor window of xp has every line; one window, none lost", settle=1.0, still="05-09-all-lines", contract="T7", cells=["gate-handover-matrix.sh"], capture="Q", expect=Expect(verify=both(owner_is("s1", "xp"), windows_only("s1"), letter_is(both_lines))))
+        t.done()
+        t.act("key", "Super+Shift+Escape locks every screen", "Every look asks to lock", settle=1.0, still="05-10-lock", contract="T4:lock", cells=["doors lock-key"], capture="Q", expect=Expect(verify=lock_called(calls)))
+        t.key("Super+Shift+Escape"); t.wait(0.8); t.done()
         t.wait(1)
         t.flush("audit")
         audit = S.query("kind:surface")
