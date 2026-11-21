@@ -58,6 +58,23 @@ run_gate() {
     pushes=$(grep -c '^push ' "$work/git.log")
 }
 
+mkdir "$work/old" "$work/new" "$work/empty"
+printf '#!/bin/bash\necho "fuzzel version: 1.9.2 +cairo"\n' >"$work/old/fuzzel"
+printf '#!/bin/bash\necho "fuzzel version: 1.11.1 +cairo"\n' >"$work/new/fuzzel"
+chmod +x "$work/old/fuzzel" "$work/new/fuzzel"
+printf 'launcher-click|echo ran\nother|true\n' >"$work/steps"
+PATH="$work/old:$PATH" run_gate
+check "fuzzel 1.9.2: the step that needs it says SKIP" "$(grep -c 'launcher-click *SKIP' "$work/out")" 1
+check "fuzzel 1.9.2: the reason names tool, found and minimum" "$(grep -c 'skipped: launcher-click (fuzzel 1.9.2 < 1.11)' "$work/out")" 1
+check "fuzzel 1.9.2: other steps stay PASS" "$(grep -c 'other *PASS' "$work/out")" 1
+check "fuzzel 1.9.2: the run is not red" "$rc" 0
+PATH="$work/old:$PATH" run_gate --push session
+check "fuzzel 1.9.2: --push refuses without --allow-skip" "$rc" 1
+PATH="$work/old:$PATH" run_gate --push session --allow-skip launcher-click
+check "fuzzel 1.9.2: --allow-skip lets --push go on" "$pushes" 1
+PATH="$work/new:$PATH" run_gate
+check "fuzzel 1.11.1: the step runs and passes" "$(grep -c 'launcher-click *PASS' "$work/out")" 1
+
 printf 'one|true\ntwo|true\n' >"$work/steps"
 run_gate
 check "a passing run exits 0" "$rc" 0
