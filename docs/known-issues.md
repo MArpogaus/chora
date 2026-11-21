@@ -132,3 +132,6 @@ MINOR
 COSMETIC
 - sh-18: door wording and notification shape differ per look.
 - sh-21: the task cut is per character and can leave a space before the ellipsis; a long task hides the step count.
+
+DEFERRED DEPENDENCIES
+- zbus 6 (#96) and serde-saphyr 2 (#87) are major bumps, deferred past rc 7.
