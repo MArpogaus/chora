@@ -21,7 +21,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows and 3d (K5, direct input on the 3D base). `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows, 3d (K5, direct input on the 3D base) and i3 (one focus holder after a click in the xp face of the cube). `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
@@ -257,7 +257,7 @@ cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
 placed|BIN=$repo/target/debug tests/gate-construct-placed.sh
 construct-hud|BIN=$repo/target/debug tests/gate-construct-hud.sh
-construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh && BIN=$repo/target/debug tests/gate-construct-windows.sh && BIN=$repo/target/debug tests/gate-construct-3d.sh
+construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh && BIN=$repo/target/debug tests/gate-construct-windows.sh && BIN=$repo/target/debug tests/gate-construct-3d.sh && BIN=$repo/target/debug tests/gate-construct-i3.sh
 out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
