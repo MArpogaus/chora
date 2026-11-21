@@ -187,7 +187,7 @@ def compare(base, cand, intended, none=()):
     names = sorted({p.name for p in base.glob("*.png")} | {p.name for p in cand.glob("*.png")})
     for name in names:
         stem = name[: -len(".png")]
-        act, _, capture = stem.rpartition(".")
+        act, _, capture = stem.partition(".")
         row = {"act": act, "capture": capture}
         if not (cand / name).exists():
             rows.append({**row, "verdict": "regression", "unnamed": ["missing capture"], "flipped": [], "detail": "in the baseline only"})

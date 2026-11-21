@@ -51,6 +51,9 @@ class FakeSession:
     def rect(self, selector, output=None):
         return None
 
+    def capture(self, path, output=None):
+        pass
+
 
 class Fixed(tour.Checker):
     """A checker whose judgement is a fixed list of red lines (the row logic, not the invariants)."""

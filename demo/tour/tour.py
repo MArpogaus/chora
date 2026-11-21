@@ -61,6 +61,29 @@ def red_key(line):
     return "snapshot" if line.startswith("no snapshot") else "expect"
 
 
+LOOK_LETTERS = {"01-xp": "x", "02-tiling": "t", "04-construct": "c", "05-handover": "h"}
+CAPTURES = "captures"
+
+
+def act_id(slug, number):
+    """The id of an act in the files of a take: the letter of its look and its number in the chapter
+    (`x3`, `t10`, `m4`; `md4` in the dark mc chapter, which numbers again from 1), as intended.toml names it."""
+    if "-mc-" in slug:
+        letter = "md" if slug.endswith("dark") else "m"
+    else:
+        letter = LOOK_LETTERS.get(slug, slug[:1])
+    return f"{letter}{number}"
+
+
+def text_masks(boxes, output=None):
+    """The rects of the text boxes of one output in a `scene.boxes` answer (the first output when
+    `output` is None), for the pixel diff to ignore; none when the build has no `scene.boxes`."""
+    if not boxes:
+        return []
+    entry = boxes.get(output) if output in boxes else next(iter(boxes.values()), None)
+    return [[round(v) for v in b["rect"]] for b in (entry or {}).get("boxes") or [] if b.get("kind") == "text" and b.get("rect")]
+
+
 def mmss(frame):
     seconds = int(frame / FPS)
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
@@ -101,6 +124,10 @@ class Session:
         state = self.call("notify", "state.get")
         for note in (state.get("shown") if isinstance(state, dict) else None) or []:
             self.call("notify", "notify.close", {"id": note["id"]})
+
+    def capture(self, path, output=None):
+        """A PNG of an output (the scene, no pointer) at the moment; the first output when `output` is None."""
+        self.ctl("capture", *(["--output", output] if output else []), path)
 
     def query(self, selector):
         out = self.ctl("query", selector, check=False)
@@ -204,6 +231,10 @@ class Tour:
         self.armed = []
         self.quiet_gap = 0.3
         self.quiet_timeout = 20.0
+        self.segments = 0
+        self._act_segment = 0
+        self.frames_wanted = []
+        self.held = {}
 
     def begin(self, chapter, slug):
         self.chapter = chapter
@@ -359,6 +390,7 @@ class Tour:
         self.act_no += 1
         row = {
             "chapter": self.chapter,
+            "id": act_id(self.slug, self.act_no),
             "act": self.act_no,
             "frame": self.frame + 1,
             "kind": kind,
@@ -383,6 +415,7 @@ class Tour:
 
             self.expects[id(row)] = expect or harness.Expect()
         self.rows.append(row)
+        self._act_segment = self.segments
         self._open = (row, still, settle, tail)
         return row
 
@@ -390,6 +423,9 @@ class Tour:
         row, still, settle, tail = self._open
         if row["status"] == "todo":
             return
+        if row["capture"] == "H50" and not checking():
+            start = row["frame"] if self.segments == self._act_segment else 1
+            self.frames_wanted.append(((start + self.frame) // 2, f"{row['id']}.H50", (self.px, self.py)))
         self.wait(settle)
         if still:
             self.still(still)
@@ -439,6 +475,8 @@ class Tour:
             keys = known_keys(row["known"]) if row.get("known") else []
             row["hidden"] = [line for line in lines if red_key(line) in keys]
             row["red"] = [line for line in lines if red_key(line) not in keys]
+            if after is not None:
+                self.dump(row, after)
             if row["red"]:
                 row["status"] = "RED"
                 print(f"RED act {row['act']} {row['description']}: {row['red']}", flush=True)
@@ -453,10 +491,52 @@ class Tour:
         if after is not None:
             self.before = after
 
+    def dump(self, row, after):
+        """The files of a capture for tests/tour-diff.py, in `<out>/captures`: `<id>.<capture>.json`
+        (the nodes of `scene.query`, the rects of the text boxes of `scene.boxes` as masks, the colour
+        of every check) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
+        the frame in the middle of the act (taken by `run_segment`; the pointer is masked). Nothing
+        is written by `--check`."""
+        if checking() or not row.get("capture"):
+            return
+        folder = os.path.join(self.out, CAPTURES)
+        os.makedirs(folder, exist_ok=True)
+        name = f"{row['id']}.{row['capture']}"
+        png = os.path.join(folder, f"{name}.png")
+        masks = text_masks(after.boxes, self.pointer_output or self.output)
+        if row["capture"] == "H50":
+            at = self.held.get(name)
+            if at:
+                masks.append([round(at[0]) - 2, round(at[1]) - 2, 28, 36])
+        if not os.path.exists(png):
+            try:
+                self.s.capture(png, self.pointer_output or self.output)
+            except Exception as err:  # noqa: BLE001
+                print(f"capture: no picture for {name}: {type(err).__name__}: {err}", flush=True)
+        import invariants
+
+        lines = row["red"] + row["hidden"]
+        red = {red_key(line) for line in lines}
+        checks = {key: "red" if key in red else "green" for key in [*invariants.ALL, "expect"]}
+        with open(os.path.join(folder, f"{name}.json"), "w", encoding="utf-8") as f:
+            json.dump({"nodes": after.nodes, "masks": masks, "checks": checks}, f)
+
+    def copy_held(self, frames_dir, count):
+        """The frames in the middle of the acts that hold a motion (capture H50) become their `<id>.H50.png`."""
+        folder = os.path.join(self.out, CAPTURES)
+        for at, name, pointer in self.frames_wanted:
+            src = os.path.join(frames_dir, f"frame-{min(max(1, at), count):05d}.png")
+            if os.path.exists(src):
+                os.makedirs(folder, exist_ok=True)
+                shutil.copy(src, os.path.join(folder, f"{name}.png"))
+                self.held[name] = pointer
+        self.frames_wanted = []
+
     def run_segment(self, label=""):
         """Record the pending cues as one chunk, keep the stills."""
         if self.frame <= 0:
             return
+        self.segments += 1
         count = self.frame + 1
         frames_dir = os.path.join(self.work, "frames")
         shutil.rmtree(frames_dir, ignore_errors=True)
@@ -488,6 +568,7 @@ class Tour:
                     if os.path.exists(src):
                         shutil.copy(src, os.path.join(self.out, "stills", f"{name}-{tag}.png"))
             self.stills_wanted = []
+            self.copy_held(dirs[0], count)
             self.chunk_no += 1
             chunk = os.path.join(self.work, f"{self.slug}-{self.chunk_no:03d}.mkv")
             subprocess.run(
@@ -519,6 +600,7 @@ class Tour:
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(self.out, "stills", f"{name}.png"))
         self.stills_wanted = []
+        self.copy_held(frames_dir, count)
         count = self.apply_cuts(frames_dir, count)
         self.chunk_no += 1
         chunk = os.path.join(self.work, f"{self.slug}-{self.chunk_no:03d}.mkv")
