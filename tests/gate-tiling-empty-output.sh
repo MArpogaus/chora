@@ -14,6 +14,9 @@
 # 3. flag: no gate-started companion at all (COMPANIONS=0 is the rule of
 #    this part): `chora-tiling --with-companions` starts waybar.sh and
 #    wallpaper.sh itself, so its output shows the bar and the wallpaper.
+# 3b. bare (rhm-1): the documented start, a plain `chora-tiling --output
+#    NAME` beside xp with no flag and no gate-started companion, shows the
+#    bar within 5 s and its Apps door starts the launcher.
 # 4. guard: the gate starts the companions first, as the units of a session
 #    do; a `chora-tiling --with-companions` that follows starts no second
 #    bar and no second wallpaper (one waybar.sh, one waybar, one
@@ -30,9 +33,9 @@
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
 case "${1:-}" in
-"") "$0" outputs || exit 1; "$0" panes || exit 1; "$0" flag || exit 1; exec "$0" guard ;;
-outputs | panes | flag | guard) ;;
-*) echo "usage: $0 [outputs|panes|flag|guard]" >&2; exit 2 ;;
+"") "$0" outputs || exit 1; "$0" panes || exit 1; "$0" flag || exit 1; "$0" bare || exit 1; exec "$0" guard ;;
+outputs | panes | flag | bare | guard) ;;
+*) echo "usage: $0 [outputs|panes|flag|bare|guard]" >&2; exit 2 ;;
 esac
 . "$(dirname "$0")/doors/lib.sh"
 need waybar
@@ -84,6 +87,20 @@ until_ok 'drawn HEADLESS-2 640 "$bare" && ! black "$bare"' 80 ||
     { keep "$bare" flag-tiling.png; fail "a tiling started with --with-companions is black: pixel at the bar $(pixel "$bare" 640 24), in the body $(pixel "$bare" 100 300)"; }
 keep "$bare" flag-tiling.png
 ok "a tiling started with --with-companions shows the bar and the wallpaper with no companion of the gate"
+exit 0
+fi
+
+if [ "$1" = bare ]; then
+session_start "1280x800,1280x800+1280+0" -- sh -c "$bin/chora-xp --output HEADLESS-1 --theme $repo/flavors/xp/theme & $bin/chora-tiling --output HEADLESS-2 & wait"
+grant screen.capture input.inject methods.call
+plain=$fakes/plain.png
+until_ok 'drawn HEADLESS-2 640 "$plain" && ! black "$plain"' 20 ||
+    { keep "$plain" bare-tiling.png; fail "a bare chora-tiling paints nothing within 5 s: pixel at the bar $(pixel "$plain" 640 24), in the body $(pixel "$plain" 100 300)"; }
+keep "$plain" bare-tiling.png
+unmark
+echo "[{\"pointer_move\": {\"position\": [55, 24], \"output\": \"HEADLESS-2\"}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
+marked '^fuzzel' || fail "a click on Apps of a bare chora-tiling starts no launcher"
+ok "a bare chora-tiling shows the bar within 5 s and its start door starts the launcher"
 exit 0
 fi
 
