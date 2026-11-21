@@ -25,7 +25,7 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 |---|---|---|
 | guide-checks-r4.md (F7: rg-9 xp tray exemption, construct restart red) | sonnet medium, claude/guide-checks 9881ccda | session_016iS3kMwg6gNXRJSvVuuage 01:26 |
 | chapters-a.md (F7: xp, tiling, handover rows checked) | sonnet high, claude/chapters-a f4f49783 | session_016iS3kLLge6driZZFcqW4i5 02:29 |
-| p2-r4-co.md (rc 2: construct round 4, run only) | sonnet medium, haiku personas, claude/p2-r4-co a5b77488 | starting |
+| p2-r4-co.md (rc 2: construct round 4, run only) | sonnet medium, haiku personas, claude/p2-r4-co a5b77488 | session_016iS3kP7cApKDmicJ986DxZ 02:37 |
 | chapters-b.md (F7: mc, construct rows checked) | sonnet high, claude/chapters-b f4f49783 | session_016iS3kQFBrWrwCWGMfrVhpP 02:29 |
 
 ## Queue (% week; 5 % reserve)
