@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-20T21:35:00Z",
+  updated: "2026-11-21T00:26:00Z",
   start: "2026-11-19T05:55:00Z",   // budget reset (owner)
   end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
   budget: 65,                      // % of the week used (owner's reading)
@@ -67,15 +67,15 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "kit 91.87 %; 12 flaky rows open, three flake lanes fix them now; the bar: 5 full gate runs green in a row at 2 jobs; only then met"],
-    ["F6", "Every change through the merge gate", "done", "51 green merges, all reviewed (audit r4); train 92 (ten approved fixes, among them three flake fixes and the tiling hand-over fix) green 21:24 UTC"],
+    ["F6", "Every change through the merge gate", "done", "52 green merges, all reviewed (audit r4); train 94b (construct pane fix, tour picture diff, xp tidy) green before 00:26 UTC; train 95 runs"],
     ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 92 merged green at 21:24 UTC (04:24 Bangkok): ten approved fixes, with the tiling hand-over fix. Train 93 runs now: xp lint tidy, the construct Super-key fix, the v8 picture diff.",
+    "Train 94b merged green (52nd merge). Train 95 runs now: the tiling hand-over raise fix (window no longer under xp), the persona harness begin, the construct HUD load fix.",
     "Flakes: a lane runs the full gate five times in a row; all five green meets goal F5.",
-    "Tiling: persona round 3 (three simulated users) starts on the hand-over fix.",
-    "Tour v9: the tour set and the design-guide checks are in a fix round after an independent review (it found 6 real look faults: known issues for the rc)."
+    "xp: a lane replays the full ricer action log to find why the Start menu opens by itself.",
+    "Tour v9: the design-guide checks are in their third fix round after review."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
