@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import ast  # noqa: E402
 import json  # noqa: E402
+from unittest import mock  # noqa: E402
 import contextlib  # noqa: E402
 import dataclasses  # noqa: E402
 import importlib.util  # noqa: E402
@@ -428,6 +429,18 @@ class OldBuild(unittest.TestCase):
         helper = test_acts.snap(boxes=None, nodes=[{"id": "hud-chat", "kind": "node", "owner": "assistant", "meta": {"surface": "chat"}, "rects": {"HEADLESS-1": [0, 0, 10, 10]}}])
         got = tour.Checker(lambda: before).judge({"description": "an act"}, None, before, helper)
         self.assertEqual([line for line in got if "missing boxes" in line], [])
+
+    def test_the_exemption_of_the_list_holds_in_the_tour_too(self):
+        """The one design exemption of tests/acts/known-red.toml (the Luna tray, down to 3.0:1) is no red line of a row; known-red rows are not applied."""
+        import invariants
+
+        tray = "on O '6:34 PM' (xp-tray-O) has the contrast {}:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"
+        pager = "on O '2' (xp-pager-1-O) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+        lines = [tray.format("3.21"), tray.format("2.90"), pager]
+        shown = {"I6": lambda before, after, act: list(lines)}
+        with mock.patch.dict(invariants.ALL, shown, clear=True):
+            got = tour.Checker(lambda: snap()).judge({"description": "an act"}, None, snap(), snap())
+        self.assertEqual(got, ["I6: " + tray.format("2.90"), "I6: " + pager])
 
     def test_a_chapter_that_cannot_run_on_the_baseline_is_none_with_its_reason(self):
         import os

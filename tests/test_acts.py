@@ -1620,8 +1620,8 @@ class GuideContrast(unittest.TestCase):
 class GuideSize(unittest.TestCase):
     """I6: text a person must read is 14 px or more."""
 
-    def sized(self, px, label="mc-line"):
-        node = text_node(label, "Next step", (100, 100, 80, 20)) | {"font_size": px}
+    def sized(self, px, label="mc-line", owner="mc"):
+        node = text_node(label, "Next step", (100, 100, 80, 20), owner=owner) | {"font_size": px}
         return snap(nodes=snap().nodes + [node], shots=shot(at=(100, 104, 70, 10)))
 
     def test_sixteen_passes(self):
@@ -1629,6 +1629,20 @@ class GuideSize(unittest.TestCase):
 
     def test_ten_fails(self):
         self.assertTrue(any("14 px" in b for b in breaches("I6", snap(), self.sized(10))))
+
+    def test_xp_text_is_eleven_px_the_replica(self):
+        """design/product-briefs.md: 8 pt Tahoma at 96 DPI is 11 px; it replaces the 14 px floor for xp."""
+        self.assertEqual([b for b in breaches("I6", snap(), self.sized(11, "xp-icon-0", "xp")) if " px" in b], [])
+
+    def test_xp_text_under_eleven_px_fails(self):
+        self.assertTrue(any("is 10 px, the guide wants 11 px" in b for b in breaches("I6", snap(), self.sized(10, "xp-icon-0", "xp"))))
+
+    def test_a_card_of_the_notice_in_xp_is_xp_size(self):
+        self.assertEqual([b for b in breaches("I6", snap(), self.sized(11, "notify-card-body", "notify")) if " px" in b], [])
+
+    def test_the_other_looks_keep_fourteen(self):
+        for owner in ("mc", "tiling", "construct"):
+            self.assertTrue(any("is 11 px, the guide wants 14 px" in b for b in breaches("I6", snap(), self.sized(11, f"{owner}-line", owner))), owner)
 
     def test_a_state_word_may_be_small(self):
         self.assertEqual(breaches("I6", snap(), self.sized(11, "mc-helper-state")), [])
