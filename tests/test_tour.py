@@ -265,8 +265,10 @@ class ChaptersB(unittest.TestCase):
             self.assertEqual(bare, [], f"{chapter}: rows without `expect` (would be `inv`), by line")
 
     def test_rows_name_their_contract(self):
-        """Each chapter holds the contracts the design names for its acts (sections 3 and 4)."""
-        want = {"mc": {"M1", "T3", "T2", "T1", "T4", "T6"}, "construct": {"T1", "C1", "C2", "T2", "T3"}}
+        """Each chapter holds the contracts of the design rows it plays (sections 3 and 4). Not here: T6
+        (m11, the launcher list is a layer surface of fuzzel that the scene does not list) and T1, T3
+        of construct (c1, c7: the walk room and the strip helper are not in the cube scene)."""
+        want = {"mc": {"M1", "T3", "T2", "T1", "T4"}, "construct": {"C1", "C2", "T2"}}
         for chapter, contracts in want.items():
             text = (ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text()
             missing = sorted(c for c in contracts if f'contract="{c}' not in text)
