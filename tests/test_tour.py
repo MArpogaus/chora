@@ -337,6 +337,29 @@ class ChaptersARows(unittest.TestCase):
         self.assertTrue(windows_only("s1", "s2")(test_acts.snap()), "a window is lost")
         self.assertEqual(windows_only("s1")(test_acts.snap()), [])
 
+    def test_notice_check_reads_the_text_of_the_notice(self):
+        """rca-1: act 3 names the missing editor; a stale notice of act 2 or another text is red."""
+        notice_says, notice_is_new = check_of("xp", "notice_says"), check_of("xp", "notice_is_new")
+        block = lambda text: {"notify": {"shown": [{"id": 2, "summary": "Notepad", "body": text}], "waiting": [], "closed": [], "accepted": []}}
+        stale = test_acts.snap(blocks=block("Saved"))
+        self.assertTrue(notice_says("mousepad")(stale), "a notice without the editor passes")
+        right = test_acts.snap(blocks=block("Install mousepad"))
+        self.assertEqual(notice_says("mousepad")(right), [])
+        self.assertTrue(notice_is_new(right, right), "the notice of the read before is no new notice")
+        self.assertEqual(notice_is_new(snap(), right), [])
+
+    def test_i5_a_dialog_picture_hides_the_text_under_it(self):
+        """rca-2: Help (a picture of an open dialog) over a title: I5 holds, a picture of no dialog still breaches."""
+        i5 = importlib.import_module("invariants").i5
+        under = test_acts.text_node("xp-title-s1", "Notepad", (400, 300, 80, 14), owner="xp")
+        over = test_acts.text_node("xp-dlg-help-title", "Help", (410, 302, 60, 14), owner="xp")
+        nodes = lambda pic: snap().nodes + [under, test_acts.panel(pic, (380, 280, 400, 300)), over]
+        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-help", "modal": False, "by": "key"}]}
+        got = test_acts.snap(states={"xp": state}, nodes=nodes("xp-dlg-help-frame"))
+        self.assertEqual(i5(got, got, test_acts.ACT), [], "a dialog picture does not hide the text under it")
+        plain = test_acts.snap(nodes=nodes("xp-menu-frame"))
+        self.assertTrue(i5(plain, plain, test_acts.ACT), "a picture of no dialog hides nothing")
+
 
 if __name__ == "__main__":
     unittest.main()
