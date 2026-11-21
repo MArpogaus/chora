@@ -691,6 +691,12 @@ class ChaptersB(unittest.TestCase):
         self.assertTrue(construct.window_is_pane(pane))
         self.assertEqual(construct.window_back_on_face(pane), [])
 
+    def test_mc_starts_chora_notify_as_the_mc_session_does(self):
+        """tests/gate-mc-sofa.sh: `chora-notify --assets plugins/chora-mc/notify` (card text 19 px, bottom left); the plain default drew the card at 11 px and the tour read it as a breach of the mc."""
+        text = (ROOT / "demo" / "tour" / "chapters" / "mc.py").read_text()
+        self.assertIn('f"{BIN}/chora-notify", "--assets", f"{REPO}/plugins/chora-mc/notify"', text)
+        self.assertIn('notify_config(position="bottom_left")', text)
+
 
 if __name__ == "__main__":
     unittest.main()
