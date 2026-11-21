@@ -355,3 +355,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - TOUR (11-20 review-tour-one r2, MINOR/nit): rt-8 SCRIPT_CLIENTS drops every client named choractl (fix: --name tour); rt-9 dismiss_notices skips queued waiting cards; rt-10 quiet_snapshot timeout silent; rt-11 tour-probe.py hardcoded /tmp; rt-12 known="I4,I5" partial drop.
 - GIVE-TOP (give-raise PM check rv-1, rv-2, MINOR): matrix assert that the given window is the receiver's top window inside its group, and an assert for mc and construct receivers.
 - HARNESS (11-21 xp-super-start r3, sh-23 not reproduced): persona rounds dump `choractl query xp` (open menus, focus) at each `act.py look` into the round dir, so a one-off state names itself.
+- FLK-PULL (11-21 flake-series r3): gate pull "the second window is no pane" in full run 5 at --jobs 2 on dcb77733 and 1 of 10 alone; for flakes-p.
+- FLK-XP-FACES (11-21 flake-series r3): xp-faces "MISMATCH opens-under-pointer: measured gap" in full run 4 at --jobs 2, 0 of 10 alone; for flakes-q.

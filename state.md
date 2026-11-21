@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-21 00:29 UTC)
+## Now (2026-11-21 00:30 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 00:26 PM 2.3 % (Bangkok day 11-21); disk 18 G free: one build (train) at a time; 2 lanes
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 00:26 PM 2.3 % (Bangkok day 11-21); disk 18 G free: one build (train) at a time; 3 lanes
 session branch: 618ae513 (t94b green at --jobs 1: co-pane, tour-diff, tour-one, xp-tidy); 52 greens; t95 running at --jobs 1: give-raise, persona-begin, co-hud-load (co-35).
 burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 plan accepted (tour-v9, 9.5 %), build started. 0.6 d.
 
@@ -24,11 +24,12 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | guide-checks-r3.md (F7: review r2 FIX, rg-9 MAJOR flaky rows, rg-10, rg-11) | sonnet medium, claude/guide-checks 4efbf430 | session_016iS3kN5ar7g9J3RE64oRKz 23:42 |
-| flake-series-r3.md (F5: 5 gates in a row at --jobs 2) | haiku high, claude/flake-series-r3 dcb77733 | session_016iS3kM9VU8jgbUii5hViVY 21:29 |
+| flakes-p-r1.md (F5: FLK-PULL, 1/10 alone) | sonnet high, claude/flakes-p 618ae513 | starting |
+| flakes-q-r1.md (F5: FLK-HUD-TAB, FLK-XP-FACES) | sonnet high, claude/flakes-q 618ae513 | starting |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, F5, rc 3) t95 running: give-raise 4b561e79, persona-begin 4f07fe6c, co-hud-load 06ea05e4 (co-35); then the PM fixes dcb77733 and the check.py merge to a seeded review.
-5. (F5, F7, rc 2) xp-super-start r3 done 00:29 (not reproduced, known issue, harness backlog). Running: GUIDE-CHECKS review r2 FIX 23:41, r3 0.6 %, FLAKE-SERIES r3 haiku 1 %; after t95: P2-R4-CO, tour-v9 4-5 wait for xp-give.
+5. (F5, F7, rc 2) xp-super-start r3: not reproduced, known issue. FLAKE-SERIES r3: 2/5 green at --jobs 2 (construct-hud, xp-faces, pull red), kit 91.76 %: F5 not met. Running: GUIDE-CHECKS r3 0.6 %, FLAKES-P, FLAKES-Q 1 % each. After t95: P2-R4-CO, tour-v9 4-5.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
