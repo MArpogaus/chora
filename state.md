@@ -26,9 +26,9 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | guide-checks-r6.md (F7: Tahoma, I13) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-keys.md (rc 2: co-38, co-40, co-41 MAJOR) | sonnet high, claude/co-keys a76476be | session_016iS3kQPiKokwPWu5EF5vt7 04:26 (restart) |
 | flakes-r.md (F5: FLK-DOORS-CO, FLK-MATRIX-S1, FLK-XP-FACES) | sonnet high, claude/flakes-r a5b77488 | session_016iS3kQqiW8EoPxjH4tvYxg 04:25 |
-| review-chapters-a-r2.md (F7: rca-1..5; build 186d8506 done 06:05) | sonnet medium, claude/chapters-a 186d8506 | session_016iS3kPH9fAtTCPw6p3DmZd 06:05 |
+| review-chapters-a-r2.md (F7: rca-1..5) | sonnet medium, claude/chapters-a 186d8506 | session_016iS3kPH9fAtTCPw6p3DmZd 06:05 |
 | ledger-audit-r1.md (rc 1-2: open BLOCK, MAJOR rows) | sonnet medium, claude/autonomous-dev-session-3w-i33pg7 598a34ff | session_016iS3kLUGoojYNw27XEfEW5 06:08 |
-| review-handover-mo-r1.md (rc 2: ca-4, sd-h2 fixed; sh-23, sd-h1 not red; build f7dded7a 06:14) | sonnet high, claude/handover-mo f7dded7a | starting |
+| review-handover-mo-r1.md (ca-4, sd-h2 fixed; sh-23, sd-h1 not red) | sonnet high, claude/handover-mo f7dded7a | session_016iS3kNaKFZRp8cMp7n3q8F 06:15 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 2-3) t97 green 05:35; next train: xp-fields 9a6506d6 (MERGE-OK), chapters-a r2 after review; flakes-r later.
