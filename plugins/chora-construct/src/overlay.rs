@@ -11,6 +11,9 @@ impl Construct {
     /// the search line with the count, a row per window that its search
     /// leaves, with its thumbnail, its name and where it is, and the keys
     /// at the bottom. `open` fades it in; any change makes the body anew.
+    /// A redraw after the fade time sets the opacity to 1 itself: under
+    /// load the animation of the scene lags, and the update of the redraw
+    /// stops it short of 1.
     #[allow(
         clippy::too_many_lines,
         reason = "the parts of the list, one after the other"
@@ -95,6 +98,14 @@ impl Construct {
             commands.push(hud::fade(LIST, 1.0, hud::FADE_IN));
         } else if left > 0.0 {
             commands.push(hud::fade(LIST, 1.0, left));
+        } else {
+            commands.push(crate::panes::update(
+                LIST,
+                PropsUpdate {
+                    opacity: Some(1.0),
+                    ..PropsUpdate::default()
+                },
+            ));
         }
         commands.extend(self.label_commands());
         self.rt.conn.apply(commands)?;
