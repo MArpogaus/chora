@@ -484,8 +484,13 @@ def hint_click(node):
     def cue(s):
         w, h = s.outputs()[0]["size"]
         s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
-        s.until(lambda: hint_rect(s, node), 10, f"the hint {node} on the screen")
-        x, y, bw, bh = hint_rect(s, node)
+        seen = []
+        s.until(
+            lambda: seen.append(hint_rect(s, node)) or seen[-1],
+            10,
+            f"the hint {node} on the screen",
+        )
+        x, y, bw, bh = seen[-1]
         s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
 
     return cue
@@ -535,7 +540,7 @@ def keys_default_acts(s):
     s.act("xp gives the window of a face the keyboard", [activate_probe])
     s.act(
         "the hint Keys of a face names a key that opens the key list",
-        [hint_shown, press_hinted("keys")],
+        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_shown, press_hinted("keys")],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )
