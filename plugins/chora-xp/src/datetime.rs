@@ -207,7 +207,7 @@ impl DateDialog {
                 h - 6
             ))
             .svg(dialog::arrow_button([w - 18, 2, 16, h - 4], false))
-            .text(Text::new(name, Font::Ui, WHITE, [5, 0, w - 26, h]))
+            .text(dialog::field_text(name, WHITE, [0, 0, w, h], 20))
     }
 
     /// The month calendar: a sunken frame, the blue row of the weekdays

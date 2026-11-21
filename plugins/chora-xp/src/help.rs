@@ -21,7 +21,7 @@ use chora_kit::{
 
 use crate::{
     config::{KeyAction, Look},
-    dialog::{Control, Dialog, Hit, Page, SCROLL, scroll_bar, thumb},
+    dialog::{Control, Dialog, Hit, Page, SCROLL, bar_click, scroll_bar, thumb},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
     wm::fallback,
@@ -349,24 +349,13 @@ impl HelpDialog {
         let track = self.room() - 2 * SCROLL;
         let all = items(&self.rows).len();
         let page = i64::try_from(self.shown(self.top)).unwrap_or(1).max(1);
-        let (grip, size) = thumb(
+        let grip = thumb(
             track,
             i32::try_from(self.shown(self.top)).unwrap_or(0),
             i32::try_from(all).unwrap_or(0),
             i32::try_from(self.top).unwrap_or(0),
         );
-        let y = y - SCROLL;
-        let lines = if y < 0 {
-            -1
-        } else if y >= track {
-            1
-        } else if y < grip {
-            -page
-        } else if y >= grip + size {
-            page
-        } else {
-            0
-        };
+        let lines = bar_click(y, track, grip, page);
         self.scroll(lines);
     }
 

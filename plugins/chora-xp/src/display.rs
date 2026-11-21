@@ -21,7 +21,7 @@ use crate::{
     context::{Act, Entry},
     control::{self, SCALES, Toggles},
     decoration::{self, BORDER, TITLE},
-    dialog::{self, BLACK, Control, Dialog, Hit, Page, SCROLL, scroll_bar, thumb},
+    dialog::{self, BLACK, Control, Dialog, Hit, Page, SCROLL, bar_click, scroll_bar, thumb},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
     wallpaper::{self, Position},
@@ -562,20 +562,16 @@ impl DisplayDialog {
         if x >= w - 1 - SCROLL {
             let rows = i32::try_from(self.walls.len() + 1).unwrap_or(0);
             let top = i32::try_from(self.top).unwrap_or(0);
-            let (thumb, size) = thumb(h - 2 - 2 * SCROLL, h - 2, rows * ROW, top * ROW);
-            let y = y - 1 - SCROLL;
-            self.top = if y < 0 {
-                self.top.saturating_sub(1)
-            } else if y >= h - 2 - 2 * SCROLL {
-                self.top + 1
-            } else if y < thumb {
-                self.top.saturating_sub(page)
-            } else if y >= thumb + size {
-                self.top + page
-            } else {
-                self.top
-            }
-            .min(self.max_top());
+            let grip = thumb(h - 2 - 2 * SCROLL, h - 2, rows * ROW, top * ROW);
+            let lines = bar_click(
+                y - 1,
+                h - 2 - 2 * SCROLL,
+                grip,
+                i64::try_from(page).unwrap_or(1),
+            );
+            self.top = usize::try_from(i64::try_from(self.top).unwrap_or(0) + lines)
+                .unwrap_or(0)
+                .min(self.max_top());
             return;
         }
         let row = self.top + usize::try_from((y - 1).max(0) / ROW).unwrap_or(0);

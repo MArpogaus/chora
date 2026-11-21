@@ -395,14 +395,27 @@ pub fn combo([w, h]: [i32; 2], text: &str, enabled: bool) -> Picture {
     picture.text(field_text(text, color, [0, 0, w, h], 20))
 }
 
-/// The lines that a click on a scroll bar scrolls.
-#[cfg(test)]
-pub fn bar_click(_y: i32, _track: i32, _grip: (i32, i32), _page: i64) -> i64 {
-    0
-}
-
 /// The width of a scroll bar.
 pub const SCROLL: i32 = 17;
+
+/// The lines that a click scrolls on a scroll bar, at a height `y` from
+/// its top, with a `track` between the two arrows and the `grip` as
+/// (top, size) in the track: one line at an arrow, a `page` in the track
+/// beside the grip, nothing on the grip.
+pub fn bar_click(y: i32, track: i32, (grip, size): (i32, i32), page: i64) -> i64 {
+    let y = y - SCROLL;
+    if y < 0 {
+        -1
+    } else if y >= track {
+        1
+    } else if y < grip {
+        -page
+    } else if y >= grip + size {
+        page
+    } else {
+        0
+    }
+}
 
 /// The farthest the view scrolls: what does not fit.
 fn max_scroll(height: i32, view: i32) -> i32 {
