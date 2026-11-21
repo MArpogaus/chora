@@ -2772,6 +2772,98 @@ mod tests {
         );
     }
 
+    /// The window of the manager of a face has the keyboard, the pointer
+    /// rests on the claim of a manager on the screen, and that manager
+    /// grabbed Super+F1 while the face grabbed Super+e. A chord of the
+    /// screen's manager does not make it the place of the next keys: the
+    /// window of the face still has the keyboard, so Super+e still goes
+    /// to the face (construct rx-1).
+    fn face_window_with_a_chord_on_the_screen() -> (Core, Client, Client, Wayland) {
+        let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "probe");
+        wayland.attach(&mut core, &window, (20, 20));
+        let give = json!([{"attach": {"surface": "s1", "parent": "space"}},
+            {"remove": {"id": "s1", "to": "face"}}]);
+        apply(&mut space, &mut core, &give);
+        let take = json!([{"attach": {"surface": "s1", "parent": "face"}},
+            {"focus": {"surface": "s1"}}]);
+        apply(&mut face, &mut core, &take);
+        face.ok(&mut core, "input.grab", json!({"binding": "Super+e"}));
+        space.ok(&mut core, "input.grab", json!({"binding": "Super+F1"}));
+        key_presses(&mut face, &mut core);
+        key_presses(&mut space, &mut core);
+        (core, face, space, wayland)
+    }
+
+    fn super_e_after_the_screens_chord(injected: bool) {
+        let (mut core, mut face, mut space, _wayland) = face_window_with_a_chord_on_the_screen();
+        core.state.injected_press_is_real = injected;
+        let key = |core: &mut Core, linux: u32, down: bool| {
+            let state = if down {
+                KeyState::Pressed
+            } else {
+                KeyState::Released
+            };
+            let keycode = Keycode::new(linux + 8);
+            super::key(&mut core.state, keycode, state, InputTime::now(), injected);
+        };
+        key(&mut core, SUPER, true);
+        key(&mut core, F1, true);
+        key(&mut core, F1, false);
+        let got = key_presses(&mut space, &mut core);
+        assert_eq!(got.len(), 1, "the screen gets its chord: {got:?}");
+        key(&mut core, E, true);
+        key(&mut core, E, false);
+        key(&mut core, SUPER, false);
+        let got = key_presses(&mut face, &mut core);
+        assert!(
+            got.iter().any(|e| e["binding"] == "Super+e"),
+            "the face still gets Super+e after the chord of the screen: {got:?}"
+        );
+    }
+
+    #[test]
+    fn a_chord_of_the_screens_manager_does_not_take_the_keys_from_a_face_window() {
+        super_e_after_the_screens_chord(false);
+    }
+
+    /// The same in the test mode, where an injected key counts as a key
+    /// of the person, so that a gate can reach the path.
+    /// In the test mode an injected chord of a manager chooses it for the
+    /// next windows, as the key of a person does, so that a gate reaches
+    /// the choice (construct rx-1).
+    #[test]
+    fn the_test_mode_lets_an_injected_chord_choose_its_manager() {
+        let (mut core, _face, mut space) = manager_of_a_face_and_one_under_the_pointer();
+        space.ok(&mut core, "input.grab", json!({"binding": "Super+F1"}));
+        let chord = |core: &mut Core, injected: bool| {
+            for (code, state) in [
+                (SUPER, KeyState::Pressed),
+                (F1, KeyState::Pressed),
+                (F1, KeyState::Released),
+                (SUPER, KeyState::Released),
+            ] {
+                let keycode = Keycode::new(code + 8);
+                super::key(&mut core.state, keycode, state, InputTime::now(), injected);
+            }
+        };
+        chord(&mut core, true);
+        assert_eq!(
+            core.state.chosen_manager(),
+            None,
+            "an injected key is no key of a person"
+        );
+        core.state.injected_press_is_real = true;
+        chord(&mut core, true);
+        assert_eq!(core.state.chosen_manager(), Some("space"));
+    }
+
+    #[test]
+    fn the_test_mode_keeps_the_keys_of_a_face_window_after_a_chord_of_the_screen() {
+        super_e_after_the_screens_chord(true);
+    }
+
     /// sh-23: the window of the manager of a face has the keyboard, and
     /// the person clicks the empty claim of the manager on the screen.
     /// The click takes the keyboard from the window of the face: a typed
