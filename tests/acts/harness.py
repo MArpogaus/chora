@@ -695,14 +695,17 @@ class Session:
     def settled_scene(self, outputs, tries=5, sleep=time.sleep):
         """The nodes, the boxes and the captures of a moment in which no
         text changed while the captures were taken: a clock that redraws
-        at the minute tick would else show its new text on the old pixels."""
+        at the minute tick would else show its new text on the old pixels. The boxes are read
+        before and after the captures too: a sheet that still slides in has its boxes where
+        it ends and its pixels where it began."""
         for attempt in range(tries):
             nodes = self.core.call("scene.query", {"selector": "*"}) or []
             boxes = self.core.call("scene.boxes")
             shots = self.shots(outputs) if self.capturing() else None
             again = self.core.call("scene.query", {"selector": "*"}) or []
-            if scene_texts(nodes) == scene_texts(again) or attempt == tries - 1:
-                return nodes, boxes, shots
+            boxes_again = self.core.call("scene.boxes")
+            if (scene_texts(nodes) == scene_texts(again) and boxes == boxes_again) or attempt == tries - 1:
+                return nodes, boxes_again, shots
             sleep(0.3)
 
     def colours(self, output):
