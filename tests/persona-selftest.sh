@@ -242,6 +242,7 @@ until_ok "admin state xp >/dev/null 2>&1" 80 || fail "construct: the cube starts
 sleep 4
 act key Super+t
 until_ok "admin query kind:surface | jq -e 'length > 0' >/dev/null" 80 || fail "construct: no terminal came"
+check begin || fail "construct: check.py begin failed"
 admin give xp --surface s1 >/dev/null || fail "construct: the give of s1 to xp failed"
 until_ok "admin state xp | jq -e '.windows | length > 0' >/dev/null" 80 ||
     fail "construct: no window in the face of xp: $(admin state xp | jq -c .windows)"
