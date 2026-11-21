@@ -6,3 +6,8 @@ Head 31736130 on claude/xp-super-start (base 618ae513). Not reproduced: sh-23 is
 - Same-output case (tests/gate-handover-shared.sh, tiling and xp on one output, raw Super_L + Return events): also no Start menu after Super+Return (tried, not committed).
 - No xp change, lint ratchet untouched. Merge-gate cells of step 3 not run (test-only change; pane-keys cell run green).
 - Suggest closing sh-23 as fixed by 363276e8.
+
+## PM check r1 (00:08 UTC; PM not the builder; diff 618ae513..31736130, 1 file, +10 -1, test only)
+- xs-1 MAJOR: "sh-23 not reproducible" is not backed: the new assert replays a click into the tiling pane, then Super+Return; the persona (feedback/2026-11-20-p2r3-ricer.md:27) did Super+2, Super+1, Super+Return with no click, at 22:03, twenty hours after 363276e8. The persona's path is untested; sh-23 stays open.
+- xs-2 MINOR: merge-gate cells of step 3 not run (test only; the train runs them).
+Verdict (computed): open MAJOR: FIX. The added asserts are kept (a good guard); r2 replays the persona's steps red first.
