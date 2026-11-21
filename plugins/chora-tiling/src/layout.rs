@@ -72,6 +72,32 @@ pub fn arrange(
     }
 }
 
+/// How far a side panel may stand from the edge and the top and bottom of
+/// the area, in pixels: the gap of the chat to the edge of the output.
+const DOCK: i32 = 24;
+
+/// The `area` without the width of a side `panel`: a rect that fills the
+/// height of the area and touches its left or its right edge. A centred,
+/// top, bottom, full-width or empty rect leaves the area whole.
+pub fn beside(area: Rect, panel: Option<Rect>) -> Rect {
+    let Some([px, py, pw, ph]) = panel else {
+        return area;
+    };
+    let [x, y, w, h] = area;
+    let tall = py <= y + DOCK && py + ph >= y + h - DOCK;
+    let left = px <= x + DOCK;
+    let right = px + pw >= x + w - DOCK;
+    if pw <= 0 || !tall || left == right {
+        return area;
+    }
+    if right {
+        [x, y, (px - x).clamp(0, w), h]
+    } else {
+        let cut = (px + pw - x).clamp(0, w);
+        [x + cut, y, w - cut, h]
+    }
+}
+
 /// The tile layout with the masters on the left, then mirrored and turned
 /// for the other sides.
 fn tile(n: usize, area: Rect, params: Params, mirror: bool, turn: bool) -> Vec<Rect> {
@@ -212,6 +238,31 @@ fn mirrored([x, y, w, h]: Rect, [fx, _, fw, _]: Rect) -> Rect {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_side_panel_takes_its_width_from_the_area() {
+        use super::beside;
+        let area = [0, 40, 1280, 740];
+        assert_eq!(beside(area, None), area);
+        assert_eq!(beside(area, Some([868, 52, 400, 736])), [0, 40, 868, 740]);
+        assert_eq!(beside(area, Some([10, 52, 400, 736])), [410, 40, 870, 740]);
+        assert_eq!(beside(area, Some([2000, 0, 10, 10])), area);
+    }
+
+    #[test]
+    fn a_centred_full_width_top_bottom_or_empty_rect_leaves_the_area_whole() {
+        use super::beside;
+        let area = [0, 40, 1280, 740];
+        assert_eq!(beside(area, Some([440, 52, 400, 736])), area, "centred");
+        assert_eq!(beside(area, Some([12, 52, 1256, 736])), area, "full width");
+        assert_eq!(beside(area, Some([868, 52, 400, 300])), area, "top half");
+        assert_eq!(
+            beside(area, Some([868, 500, 400, 280])),
+            area,
+            "bottom half"
+        );
+        assert_eq!(beside(area, Some([868, 52, 0, 736])), area, "no width");
+    }
+
     use super::*;
 
     const AREA: Rect = [0, 0, 100, 60];

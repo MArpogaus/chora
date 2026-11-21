@@ -290,7 +290,12 @@ fn launch(argv: &[String]) -> ExitCode {
     };
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
-        chora_kit::launcher::run(&line, "chora-tiling --launch foot", flavor.cloned());
+        chora_kit::launcher::run_ordered(
+            &line,
+            "chora-tiling --launch foot",
+            flavor.cloned(),
+            true,
+        );
         return ExitCode::SUCCESS;
     }
     let mut command = std::process::Command::new(&line[0]);
@@ -439,13 +444,14 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 20] = [
+const EVENTS: [&str; 21] = [
     "voice.state",
     "voice.say",
     "voice.remove",
     "client.connected",
     "client.disconnected",
     "assistant.ready",
+    "assistant.chat",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -688,12 +694,47 @@ impl Tiling {
         self.voiced.hear_asking(&event, &mut self.rt.conn);
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
+            self.clear_panel()?;
             return self.name_theme();
+        }
+        if matches!(&event, Event::ClientDisconnected { name } if name == "assistant") {
+            return self.clear_panel();
+        }
+        if let Event::Emitted {
+            event: name,
+            client,
+            data,
+        } = &event
+            && name == "assistant.chat"
+            && client == "assistant"
+        {
+            return self.helper_panel(data);
         }
         match self.overlay_event(&event) {
             Some(done) => done,
             None => self.handle_scene(event),
         }
+    }
+
+    /// The open helper panel keeps its width: the tiles shrink beside it,
+    /// and the width comes back when it closes.
+    fn helper_panel(&mut self, data: &Value) -> Result<(), ClientError> {
+        let rect: Option<[i32; 4]> = serde_json::from_value(data["rect"].clone())
+            .ok()
+            .filter(|_| data["open"] == true);
+        let output = data["output"].as_str().unwrap_or_default();
+        if self.wm.set_panel(output, rect) {
+            self.relayout()?;
+        }
+        Ok(())
+    }
+
+    /// Gives the width of the helper panel back on every output.
+    fn clear_panel(&mut self) -> Result<(), ClientError> {
+        if self.wm.set_panel("", None) {
+            self.relayout()?;
+        }
+        Ok(())
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
@@ -1892,6 +1933,56 @@ mod tests {
         assert_eq!(tiling.dragged, None, "an injected press");
         send(&mut tiling, true, true);
         assert!(tiling.dragged.is_some(), "an injected press in a test");
+    }
+
+    fn panel_data(open: bool, rect: &Value) -> Event {
+        Event::Emitted {
+            event: "assistant.chat".into(),
+            client: "assistant".into(),
+            data: serde_json::json!({"output": "A", "open": open, "rect": rect}),
+        }
+    }
+
+    /// A tiling with one output whose panel is open.
+    fn with_open_panel(tag: &str) -> Tiling {
+        let (mut tiling, _) = on_fake_core_with(tag, &[]);
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling
+            .handle(panel_data(true, &serde_json::json!([60, 0, 40, 60])))
+            .unwrap();
+        tiling
+    }
+
+    #[test]
+    fn a_null_rect_or_a_closed_chat_gives_the_panel_back() {
+        let mut tiling = with_open_panel("panel-null");
+        assert!(!tiling.wm.set_panel("A", Some([60, 0, 40, 60])), "open");
+        tiling.handle(panel_data(true, &Value::Null)).unwrap();
+        assert!(!tiling.wm.set_panel("A", None), "null rect cleared it");
+        tiling
+            .handle(panel_data(true, &serde_json::json!([60, 0, 40, 60])))
+            .unwrap();
+        tiling
+            .handle(panel_data(false, &serde_json::json!([60, 0, 40, 60])))
+            .unwrap();
+        assert!(!tiling.wm.set_panel("A", None), "open false cleared it");
+    }
+
+    #[test]
+    fn the_panel_goes_with_the_assistant() {
+        let gone = Event::ClientDisconnected {
+            name: "assistant".into(),
+        };
+        let ready = Event::Emitted {
+            event: "assistant.ready".into(),
+            client: "assistant".into(),
+            data: Value::Null,
+        };
+        for (tag, event) in [("panel-gone", gone), ("panel-ready", ready)] {
+            let mut tiling = with_open_panel(tag);
+            tiling.handle(event).unwrap();
+            assert!(!tiling.wm.set_panel("A", None), "{tag}: still reserved");
+        }
     }
 
     fn tiler(windows: &[&str]) -> Wm {

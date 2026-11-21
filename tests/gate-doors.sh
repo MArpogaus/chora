@@ -53,6 +53,14 @@ for look in $looks; do
     small=
     [ "$look" != construct ] || small=layout
     [ "$look" != mc ] || small=header
+    if [ "$look" = tiling ]; then
+        for name in launcher-order helper-beside-tiles; do
+            grep -q "^check tiling $name pass\$" "$out/tiling.log" || {
+                echo "check tiling $name missing"
+                bad=$((bad + 1))
+            }
+        done
+    fi
     [ -z "$small" ] || grep -q "^check $look $small-1024x768 pass\$" "$out/$look-1024.log" || {
         echo "check $look $small-1024x768 missing"
         bad=$((bad + 1))
