@@ -358,11 +358,12 @@ impl Construct {
 
     /// The construct takes the keyboard for the keys of navigate mode,
     /// because the person stepped back, and notes the window that had it.
-    fn take_the_keyboard(&mut self) -> Result<(), ClientError> {
+    pub(crate) fn take_the_keyboard(&mut self) -> Result<(), ClientError> {
         let window = self.focused_surface()?;
         if let Some(host) = &mut self.cube {
             host.note_focus(window);
         }
+        self.walk_keys = true;
         self.rt.conn.apply(the_keyboard_to_the_look())
     }
 
@@ -370,10 +371,16 @@ impl Construct {
     /// again, through its window manager, when the person steps in and
     /// the face of then is at the front again. After a turn to another
     /// face it stays without. A step in by a method moves no keyboard.
-    fn give_the_keyboard_back(&mut self) {
+    pub(crate) fn give_the_keyboard_back(&mut self) {
         let Some(surface) = self.cube.as_mut().and_then(cube::Host::take_focus) else {
             return;
         };
+        self.activate_in_face(&surface);
+    }
+
+    /// The window of a face gets the keyboard, through the window manager
+    /// of the faces.
+    pub(crate) fn activate_in_face(&mut self, surface: &str) {
         let call = json!({"client": self.face_manager(), "method": "activate",
             "params": {"surface": surface}});
         let wait = super::float::ANSWER;

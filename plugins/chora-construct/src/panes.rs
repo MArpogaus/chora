@@ -299,6 +299,7 @@ impl Construct {
         match self.rt.conn.query(&format!("id:{NAME}"))?.first() {
             None => {
                 commands = space_nodes(&self.fog_shader, &root);
+                self.walk_keys = true;
                 if !self.glass.plain {
                     commands.push(create(
                         FOCUS,

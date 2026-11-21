@@ -813,3 +813,217 @@ fn a_pane_with_no_room_on_its_side_goes_to_the_other_side() {
         "the slim pane is right of the cube: {slim:?}"
     );
 }
+
+/// co-pane r1: the key sheet takes the keyboard from the window of a
+/// face, so that Escape reaches the sheet and not the program (an XP
+/// Start menu took it), and gives it back when the sheet closes.
+#[test]
+fn the_key_sheet_takes_the_keyboard_from_a_face_and_closes_on_escape() {
+    let (mut construct, core, _lines) = on_core("help-keyboard", cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    let last = || core.model().lock().unwrap().focuses.last().cloned();
+    construct.toggle_help().unwrap();
+    assert!(construct.help, "the sheet is open");
+    assert_eq!(last(), Some(None), "no surface keeps the keyboard");
+    assert!(construct.walk_keys, "the look holds the keys");
+    let escape = Event::NodeKey {
+        node: crate::LOOK.into(),
+        key: "Escape".into(),
+        state: crate::PressState::Pressed,
+        modifiers: Vec::new(),
+        text: None,
+        code: 1,
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, escape).unwrap();
+    assert!(!construct.help, "Escape closes the sheet first");
+    assert!(construct.cube.is_some(), "and nothing else");
+}
+
+/// co-pane r2 (rv-2): in the walk, a window of a pane that a press gave the
+/// keyboard keeps it while the key sheet shows, so Escape and the typed
+/// search went to the program; the sheet takes it as it does in a flown pane.
+#[test]
+fn the_key_sheet_takes_the_keyboard_from_a_pressed_pane_window() {
+    let (mut construct, core, _lines) = on_core("help-pressed", |method, params| {
+        let focused = params["filter"]["focused"].as_bool() == Some(true);
+        match method {
+            "scene.query" if focused => Some(json!([{"id": "s1"}])),
+            _ => cube_core(json!([]))(method, params),
+        }
+    });
+    construct.panes.push(crate::Pane {
+        name: "probe".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s1"))).unwrap();
+    assert!(!construct.in_pane(), "the camera is in no pane");
+    assert!(
+        construct.keys_with_pane(),
+        "the pressed window has the keys"
+    );
+    construct.toggle_help().unwrap();
+    assert!(construct.help, "the sheet is open");
+    assert_eq!(
+        core.model().lock().unwrap().focuses.last().cloned(),
+        Some(None),
+        "the sheet holds the keyboard, not the program"
+    );
+    assert!(construct.walk_keys, "the look holds the keys");
+}
+
+/// co-pane r2 (rv-3): the key sheet gives the keyboard back to the window of
+/// a face only while that face is at the front, as a step in does; after a
+/// turn it stays with the walk, so no window that no one sees gets it.
+#[test]
+fn the_key_sheet_gives_the_keyboard_back_only_to_the_front_face() {
+    let activated = |lines: &Log| {
+        (lines.lock().unwrap().iter())
+            .filter(|line| line.starts_with("methods.call ") && line.contains("\"w1\""))
+            .count()
+    };
+    let answer = |method: &str, params: &Value| {
+        let focused = params["filter"]["focused"].as_bool() == Some(true);
+        match method {
+            "scene.query" if focused => Some(json!([{"id": "w1"}])),
+            _ => cube_core(json!([]))(method, params),
+        }
+    };
+    let (mut still, _core, lines) = on_core("help-front", answer);
+    still.cube = Some(host_of(2));
+    still.toggle_help().unwrap();
+    still.toggle_help().unwrap();
+    assert_eq!(activated(&lines), 1, "the front face gets its window back");
+    let (mut turned, _core, lines) = on_core("help-turned", answer);
+    turned.cube = Some(host_of(2));
+    turned.toggle_help().unwrap();
+    turned.cube.as_mut().expect("the cube").front = 1;
+    turned.toggle_help().unwrap();
+    assert!(!turned.help, "the sheet is closed");
+    assert_eq!(activated(&lines), 0, "another face is at the front now");
+}
+
+/// co-pane r2 (rv-6, by design): a press on the window of a pane gives that
+/// window the keyboard and starts no look, so the first drag of a session
+/// that begins on a shown window does not look (F5).
+#[test]
+fn a_press_on_a_pane_window_starts_no_look() {
+    let (mut construct, core, _lines) = on_core("press-window", cube_core(json!([])));
+    construct.active = true;
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    let press = Event::PointerPressed {
+        node: "s1".into(),
+        button: 272,
+        position: [640.0, 400.0],
+        local: [320.0, 200.0],
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press).unwrap();
+    assert!(construct.drag.is_none(), "no look starts on the window");
+    assert_eq!(
+        core.model().lock().unwrap().focuses.last().cloned(),
+        Some(Some("s1".into())),
+        "the window has the keyboard"
+    );
+}
+
+/// co-pane r2 (rv-8): the toggle of the key sheet regrabs, because the sheet
+/// moves the keyboard from a pressed pane window to the walk and back, and
+/// the chords held for that window go and come with it.
+#[test]
+fn the_key_sheet_lets_go_of_the_chords_of_a_pane_window_and_takes_them_back() {
+    let (mut construct, _core, _lines) = on_core("help-regrab", |method, params| {
+        let focused = params["filter"]["focused"].as_bool() == Some(true);
+        match method {
+            "scene.query" if focused => Some(json!([{"id": "s1"}])),
+            _ => cube_core(json!([]))(method, params),
+        }
+    });
+    construct.panes.push(crate::Pane {
+        name: "probe".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s1"))).unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_some(),
+        "held for the window"
+    );
+    construct.toggle_help().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "the sheet holds the keyboard, the window gets no chord"
+    );
+    construct.toggle_help().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_some(),
+        "the window has the keyboard and its chords again"
+    );
+}
+
+/// co-pane r1: the Close of the key sheet is a button.
+#[test]
+fn a_press_on_the_close_of_the_key_sheet_closes_it() {
+    let (mut construct, _core, _lines) = on_core("help-close", cube_core(json!([])));
+    construct.toggle_help().unwrap();
+    assert!(construct.help);
+    let press = Event::PointerPressed {
+        node: "construct-help-body-foot-0-hit".into(),
+        button: 272,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press).unwrap();
+    assert!(!construct.help, "the Close button closes the sheet");
+}
+
+/// co-pane r1: a window of a pane that the cube hides does not get the
+/// keyboard back when the key sheet closes: the focus stays a shown window.
+#[test]
+fn the_key_sheet_does_not_focus_a_pane_that_is_out_of_sight_on_close() {
+    let (mut construct, core, _lines) = on_core("help-hidden", cube_core(json!([])));
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, -1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    construct.help = true;
+    construct.help_back = Some("s1".into());
+    let before = core.model().lock().unwrap().focuses.len();
+    construct.toggle_help().unwrap();
+    assert!(!construct.help);
+    let focuses = core.model().lock().unwrap().focuses.clone();
+    assert_eq!(focuses.len(), before, "{focuses:?}");
+}

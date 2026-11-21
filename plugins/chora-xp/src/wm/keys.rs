@@ -71,11 +71,15 @@ impl Host for Acting<'_> {
     }
 
     fn failed(&mut self, failure: Failure) -> Result<(), Infallible> {
-        match failure {
-            Failure::NoScript(script) => self.wm.cannot_do(&script),
-            Failure::NotStarted(name) => eprintln!("chora-xp: {name} did not start"),
-            Failure::NotGiven { to, why } => eprintln!("chora-xp: give to {to}: {why}"),
-        }
+        let line = match failure {
+            Failure::NoScript(script) => {
+                self.wm.cannot_do(&script);
+                return Ok(());
+            }
+            Failure::NotStarted(name) => format!("{name} did not start"),
+            Failure::NotGiven { to, why } => format!("give to {to}: {why}"),
+        };
+        eprintln!("chora-xp: {line}");
         Ok(())
     }
 

@@ -136,6 +136,15 @@ session_start() {
     sleep 2 # the plugin needs a moment before its nodes answer queries
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
+holds() {
+    local step
+    step=$(awk -v w="${2:-1}" 'BEGIN { print w / 4 }')
+    eval "$1" || return 1
+    for _ in 1 2 3 4; do
+        sleep "$step"
+        eval "$1" || return 1
+    done
+}
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
 notify_start() {
     need_bins chora-notify

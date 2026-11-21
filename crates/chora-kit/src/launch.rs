@@ -133,7 +133,7 @@ impl Change {
                     Why::Refused => "The session could not start it.".into(),
                     Why::Slow => format!("No window opened in {} seconds.", GIVE_UP.as_secs()),
                     Why::Exited => "The program ended without a window.".into(),
-                    Why::NoEditor => "No text editor installed (for example mousepad).".into(),
+                    Why::NoEditor => "No text editor installed (for example mousepad).\nTo name one yourself: editor in chora-xp.yaml".into(),
                 };
                 (format!("Cannot open {name}"), body)
             }
@@ -1199,7 +1199,8 @@ mod tests {
             change.text(),
             (
                 "Cannot open Notepad".to_owned(),
-                "No text editor installed (for example mousepad).".to_owned()
+                "No text editor installed (for example mousepad).\nTo name one yourself: editor in chora-xp.yaml"
+                    .to_owned()
             )
         );
     }

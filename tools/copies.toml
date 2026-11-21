@@ -1,6 +1,6 @@
 # Copies of mechanisms that moved to a shared part (tools/cut-check, check
 # "copies"). Per row: a regex, the path prefixes that may hold it, and the
-# count of matching lines allowed elsewhere. A count only falls; at 0 the
+# count of matching lines allowed elsewhere. A row with `files` (a regex on the path) counts files instead. A count only falls; at 0 the
 # row blocks. `paths` limits the scan (default: crates, plugins, services).
 
 [[row]]
@@ -299,3 +299,11 @@ allow = ["crates/chora-kit/"]
 max = 0
 name = "own list of swallowed keys (chora_kit::swallow)"
 pattern = '^\s*"bracketleft",\s*$'
+
+# demo/tour is one set (tour-v9 lane 1): a new version of a script is an edit of the set, not a
+# copy beside it (`v8_xp.py`, `tour8.py`, `assemble8.py`, `ch7b.py` had grown to 5,307 lines).
+[[row]]
+files = '(^|/)(v[0-9]+_[a-z0-9]+|tour[0-9]+|assemble[0-9]+|ch[0-9]+b?)[.]py$'
+max = 0
+name = "tour: a versioned copy of a tour script"
+paths = ["demo/tour"]

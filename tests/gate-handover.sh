@@ -220,6 +220,33 @@ settled xp "$c"
 shot 8-csd-xp
 ok "8. the title bar of a csd foot moves $c in tiling ($before to $after) and gives it to xp"
 
+send_to_look() {
+    inject "[{\"pointer_move\": {\"node\": \"xp-ctx-0-$1\", \"point\": [20, 8]}}]"
+    ctl wait "id:xp-ctx-1-$2" --timeout 10 >/dev/null || fail "no Send To submenu"
+    shot "8b-send-to-$2"
+    inject "[{\"pointer_move\": {\"node\": \"xp-ctx-1-$2\", \"point\": [20, 8]}},
+      {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]"
+}
+inject "[{\"pointer_move\": {\"node\": \"xp-title-$w\", \"point\": [60, 10]}},
+  {\"button\": {\"button\": 273, \"state\": \"pressed\"}}, {\"button\": {\"button\": 273, \"state\": \"released\"}}]"
+ctl wait "id:xp-ctx-0-6" --timeout 10 >/dev/null || fail "no window menu on the title bar"
+shot 8b-menu
+send_to_look 6 1
+settled mc
+[ -z "$(ctl query "id:xp-task-$w-*" | jq -r '.[]?.id')" ] || fail "xp keeps a task button for $w"
+ctl query "id:$w" | jq -e '.[0].rects | length > 0' >/dev/null || fail "$w shows in no output"
+ok "8b. title bar menu, Send To > Media center: mc owns $w, xp has no task button"
+ctl call mc window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null || fail "mc window.give to xp"
+settled xp
+inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "space", "state": "pressed"}},
+  {"key": {"key": "space", "state": "released"}}, {"key": {"key": "Alt_L", "state": "released"}}]'
+ctl wait "id:xp-ctx-0-6" --timeout 10 >/dev/null || fail "Alt+Space opens no window menu"
+send_to_look 6 0
+settled tiling
+ok "8b. Alt+Space, Send To > Tiling desktop: tiling owns $w"
+ctl call tiling window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null || fail "tiling window.give to xp"
+settled xp
+
 # 9. The target ends right after the give. With resume its grace time of
 # 10 s keeps the window, then another window manager takes it.
 ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||

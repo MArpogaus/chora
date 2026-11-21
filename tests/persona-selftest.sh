@@ -229,4 +229,31 @@ if out=$(check_py end T7 2>&1); then fail "a second check.py end T7 reused the b
 ok "check.py end holds each goal to its own begin and uses it up"
 
 stop_session
+rm -rf "$dir"
+mkdir "$dir"
+PERSONA_CHECK=1 start construct
+PERSONA_ENV=$(env_value PERSONA_ENV)
+export PERSONA_ENV
+act() { python3 -I "$repo/tests/persona/act.py" "$@" >/dev/null; }
+check() { python3 -I "$repo/tests/persona/check.py" "$@"; }
+sleep 2
+act key Super+c
+until_ok "admin state xp >/dev/null 2>&1" 80 || fail "construct: the cube starts no xp"
+sleep 4
+act key Super+t
+until_ok "admin query kind:surface | jq -e 'length > 0' >/dev/null" 80 || fail "construct: no terminal came"
+admin give xp --surface s1 >/dev/null || fail "construct: the give of s1 to xp failed"
+until_ok "admin state xp | jq -e '.windows | length > 0' >/dev/null" 80 ||
+    fail "construct: no window in the face of xp: $(admin state xp | jq -c .windows)"
+act look
+out=$(check end C2 2>&1 || true)
+echo "$out" | grep -q '^task C2 pass' || fail "construct: C2 is red with a window in the xp face: $out"
+echo "$out" | grep -E '^breach I[13] ' >/dev/null &&
+    fail "construct: the checker reads no state of the xp child: $(echo "$out" | grep -E '^breach I[13] ' | head -n 3)"
+ok "the checker counts the windows of the xp child of a cube as shown (no I1, no I3)"
+python3 -I "$repo/tests/test_acts.py" WithChildren >/dev/null 2>"$dir.unit" ||
+    fail "the checker reads a child that is no face manager, or shows a face behind the front: $(tail -n 5 "$dir.unit")"
+ok "the checker reads a child only as a face manager, and shows only the front face (negative cases)"
+
+stop_session
 ok "persona session"

@@ -547,6 +547,9 @@ struct Construct {
     /// The search of the help and its chosen row.
     help_query: String,
     help_sel: usize,
+    /// The window that had the keyboard when the help took it, which gets
+    /// it back when the help closes.
+    help_back: Option<String>,
     /// The context hints at the bottom centre.
     hints: hints::State,
     /// The corner capsule with the clock and the doors.
@@ -563,6 +566,9 @@ struct Construct {
     asked: bool,
     /// The hint under the pointer.
     hint_hover: Option<String>,
+    /// A title bar of a face is held on a single screen: the drag cannot
+    /// leave the face, so the hint names the path that works.
+    pull_hint: bool,
     /// The capsule of the pane label exists.
     label_drawn: bool,
     /// The text of the label that is drawn.
@@ -603,9 +609,13 @@ struct Construct {
     cube: Option<cube::Host>,
     /// The window managers of the panes (`wm.rs`).
     managed: Vec<wm::Managed>,
-    /// The surface with the keyboard as `focus.changed` last told; read
-    /// only by `state.get`.
+    /// The surface with the keyboard as `focus.changed` last told: read by
+    /// `state.get`, and by `regrab` for a pane whose window has it.
     core_focus: Option<String>,
+    /// Whether the walk took the keyboard with `focus_node` since a window
+    /// of a pane got it: the core keeps the focus of that surface then, but
+    /// its keys go to the look (`keys_with_pane`).
+    walk_keys: bool,
     /// The word of `state.get`; only reads.
     voiced: chora_kit::helper::Helper,
     /// Which windows are the construct's, and where each came from
@@ -681,6 +691,8 @@ impl Construct {
             help: false,
             help_query: String::new(),
             help_sel: 0,
+            help_back: None,
+            pull_hint: false,
             hints: hints::State::default(),
             doors: doors::State::new(),
             mixer: chora_kit::volume::Mixer::new(NAME),
@@ -707,6 +719,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             core_focus: None,
+            walk_keys: true,
             voiced: chora_kit::helper::Helper::default(),
             book: chora_kit::wm::Book::new(NAME, false),
         };

@@ -138,6 +138,9 @@ pub enum Word {
     HudNotice,
     /// The control that steps back from a face of a cube.
     StepBack,
+    /// The hint over a title drag that cannot leave its face on one
+    /// screen: the helper pulls the window out.
+    PullHint,
     /// The control that steps into a face of a cube.
     StepIn,
     /// The control that turns a cube to the left.
@@ -212,7 +215,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 81] = [
+pub const ALL: [Word; 82] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -259,6 +262,7 @@ pub const ALL: [Word; 81] = [
     Word::HudNoticeOne,
     Word::HudNotice,
     Word::StepBack,
+    Word::PullHint,
     Word::StepIn,
     Word::TurnLeft,
     Word::TurnRight,
@@ -359,6 +363,7 @@ impl Word {
                 "The look “{name}” has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
             }
             Self::StepBack => "Step back",
+            Self::PullHint => "Ask the helper to pull this window out",
             Self::StepIn => "Step in",
             Self::TurnLeft => "Turn left",
             Self::TurnRight => "Turn right",
@@ -452,6 +457,7 @@ impl Word {
                 "Das Aussehen „{name}“ hat {n} Fehler, das alte bleibt. Wählen Sie in den Einstellungen ein anderes oder fragen Sie, wer es gemacht hat."
             }
             Self::StepBack => "Zurücktreten",
+            Self::PullHint => "Bitten Sie den Helfer, dieses Fenster herauszuziehen",
             Self::StepIn => "Hineingehen",
             Self::TurnLeft => "Nach links drehen",
             Self::TurnRight => "Nach rechts drehen",
