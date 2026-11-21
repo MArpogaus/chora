@@ -1,0 +1,1 @@
+- 11-21 01:26Z PM: xp tray white on Luna blue (3.27:1) is authentic per the vision card; the guide check exempts that node, not per act (guide-checks r4).
