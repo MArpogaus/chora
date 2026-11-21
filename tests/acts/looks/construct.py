@@ -416,6 +416,149 @@ def stood_back_whole(s):
     return verify
 
 
+def one_holder(after):
+    """`Expect.verify` for co-38: exactly one client says it holds the focus."""
+    claims = sorted(
+        look
+        for look, st in after.states.items()
+        if (st or {}).get("focus", {}).get("holder") == look
+    )
+    return (
+        []
+        if len(claims) == 1
+        else [f"{' and '.join(claims) or 'no client'} say they hold the focus"]
+    )
+
+
+def pull_keep(s):
+    """A cue: cube.pull makes the probe window a pane of the space, which
+    stays; its name is kept for `pane_remove`."""
+    s.pane = s.call("construct", "cube.pull", {"surface": probe_surface(s)}).get("pane")
+
+
+def activate_probe(s):
+    """A cue: xp gives the keyboard to the window of chora-probe, as a
+    click on it does; the window is the focus of the core."""
+    sid = probe_surface(s)
+    s.call(MANAGER, "activate", {"surface": sid})
+    s.until(
+        lambda: (s.state(MANAGER) or {}).get("focus", {}).get("surface") == sid,
+        10,
+        "xp focuses the window",
+    )
+
+
+def pane_remove(s):
+    """A cue: the pane of `pull_keep` goes, its window back to the face."""
+    s.call("construct", "pane.remove", {"name": s.pane})
+    s.until(lambda: owner_of(s, probe_surface(s)) == MANAGER, 20, "the window back with xp")
+
+
+def hint_box(node):
+    """A cue: a click in the middle of the box of the hint `node` on the
+    screen; the pointer rests low first, which shows the hints of a face."""
+
+    def cue(s):
+        screen = s.outputs()[0]
+        w, h = screen["size"]
+        s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
+        s.until(lambda: box(s, node), 10, f"a box of {node}")
+        x, y, bw, bh = box(s, node)
+        s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
+
+    return cue
+
+
+SHEET = "construct-help"
+KEYS_HINT = "construct-hint-keys"
+
+
+def keys_acts(s):
+    """co-38, co-40, co-41 (keys rc 2): after a pane was pulled and the cube
+    stepped back one client holds the focus; Escape shuts the key list of
+    the stood back cube and Return steps in; F1 opens the key list in a
+    face and stood back, and the hint of its key opens it by a click."""
+    s.act("xp gives the window the keyboard", [activate_probe])
+    s.act(
+        "a window is pulled to a pane of the space",
+        [pull_keep],
+        expect=Expect(cube={"mode": "use"}),
+    )
+    s.act(
+        "Alt+Escape with a pane in the space leaves one client with the focus",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}, verify=one_holder),
+    )
+    s.act(
+        "the pane goes back to its face while the cube stands back",
+        [pane_remove],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act("Super+F1 shows the key list of the stood back cube", [key("Super+F1")], opens=[SHEET])
+    s.act(
+        "Escape shuts the key list of the stood back cube",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[], cube={"mode": "navigate"}),
+    )
+    s.act(
+        "Return steps in after the key list shut",
+        [plain("Return")],
+        expect=Expect(cube={"mode": "use"}),
+    )
+    s.act(
+        "F1 opens the key list in a face", [plain("F1")], opens=[SHEET], expect=Expect(open=[SHEET])
+    )
+    s.act(
+        "Escape shuts the key list of a face",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "the hint Keys of a face opens the key list by a click",
+        [hint_box(KEYS_HINT)],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act(
+        "Escape shuts the key list opened by the hint",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "Alt+Escape stands back for the key hints",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act(
+        "F1 opens the key list of the stood back cube",
+        [plain("F1")],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act(
+        "Escape shuts the key list of the cube again",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "the chip Keys of the stood back cube opens the key list by a click",
+        [hint_box(KEYS_HINT)],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act(
+        "Escape shuts the key list opened by the chip",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act("Return steps in after the chip", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+
+
 def cube_acts(s):
     """The cube turns by key, pager and drag, comes back to 1:1 with no
     construct surface left, stands back and is read held in a turn and at
@@ -494,6 +637,7 @@ def cube_acts(s):
         [pull_and_remove],
         expect=Expect(gone=0, cube={"mode": "use"}),
     )
+    keys_acts(s)
     s.act("the cube stands back", [method("view.step_back")], timeout=30)
     s.act(
         "the cube is held halfway through a turn",
