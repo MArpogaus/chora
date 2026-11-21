@@ -416,6 +416,25 @@ class KnownRed(unittest.TestCase):
         s.settled_scene([], sleep=lambda _t: None)
         self.assertEqual(len(reads), 4)
 
+    def test_the_scene_is_read_again_while_a_box_moves(self):
+        """The capture and the boxes are one moment: a sheet that still slides in (mc, Super+F1) read
+        its boxes at the end of the slide on the capture of its start, and the text measured 1.00:1."""
+        s = object.__new__(harness.Session)
+        moving = iter([{"O": {"boxes": [{"node": "n", "rect": [0, 28, 5, 5]}]}}] + [{"O": {"boxes": [{"node": "n", "rect": [0, 56, 5, 5]}]}}] * 6)
+        shots = []
+
+        def call(method, _params=None):
+            if method == "scene.boxes":
+                return next(moving)
+            return [{"id": "n", "text": "x"}] if method == "scene.query" else {}
+
+        s.core = type("C", (), {"call": staticmethod(call)})()
+        s.label, s.looks = "xp", ["xp"]
+        s.shots = lambda outputs: shots.append(1) or {}
+        _, boxes, _ = s.settled_scene([], sleep=lambda _t: None)
+        self.assertEqual(len(shots), 2)
+        self.assertEqual(boxes["O"]["boxes"][0]["rect"], [0, 56, 5, 5])
+
     def test_a_snapshot_reads_the_boxes_after_the_clients(self):
         s = object.__new__(harness.Session)
         order = []
