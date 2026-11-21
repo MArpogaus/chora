@@ -360,6 +360,97 @@ class CaptureDumps(unittest.TestCase):
         self.assertTrue(any(m[0] <= 300 <= m[0] + m[2] and m[1] <= 200 <= m[1] + m[3] for m in masks), masks)
 
 
+class OldBuild(unittest.TestCase):
+    """F7 r1: the v9 harness replays on 733967aa, which has no `scene.boxes` and no `state.get` of
+    chora-notify (design/tour-v9.md section 6): it degrades, it does not break."""
+
+    class Core:
+        def __init__(self, error=None):
+            self.error = error
+            self.calls = []
+
+        def call(self, method, params=None, timeout=10):
+            self.calls.append(method)
+            if self.error and method in ("scene.boxes", "scene.query"):
+                raise RuntimeError(f"{method}: {self.error}")
+            return {"ok": method}
+
+    def test_a_core_without_scene_boxes_answers_none(self):
+        core = tour.OldCore(self.Core("no method"))
+        self.assertIsNone(core.call("scene.boxes"))
+        self.assertEqual(core.call("screen.capture"), {"ok": "screen.capture"})
+        self.assertEqual(core.missing, {"scene.boxes"})
+
+    def test_a_real_error_of_scene_boxes_is_not_hidden(self):
+        core = tour.OldCore(self.Core("the output is gone"))
+        with self.assertRaises(RuntimeError):
+            core.call("scene.boxes")
+
+    def test_only_scene_boxes_may_be_missing(self):
+        core = tour.OldCore(self.Core("no method"))
+        with self.assertRaises(RuntimeError):
+            core.call("scene.query", {"selector": "*"})
+
+    def notify(self, error):
+        closed = []
+
+        class Notify(tour.Session):
+            def call(self, client, method, params=None):
+                raise RuntimeError(error)
+
+            def close_on_bus(self, ids):
+                closed.append(list(ids))
+
+        return Notify({}, [], ""), closed
+
+    def test_dismiss_notices_without_state_get_closes_on_the_bus(self):
+        s, closed = self.notify("methods.call: notify has no method state.get")
+        s.dismiss_notices()
+        self.assertEqual(len(closed), 1)
+        self.assertEqual(closed[0][0], 1)
+
+    def test_dismiss_notices_does_not_hide_another_error(self):
+        s, closed = self.notify("the core closed the connection during methods.call")
+        with self.assertRaises(RuntimeError):
+            s.dismiss_notices()
+        self.assertEqual(closed, [])
+
+    def test_a_build_without_boxes_is_not_red_for_missing_boxes(self):
+        class Missing(tour.Checker):
+            pass
+
+        before = test_acts.snap(boxes=None)
+        helper = test_acts.snap(boxes=None, nodes=[{"id": "hud-chat", "kind": "node", "owner": "assistant", "meta": {"surface": "chat"}, "rects": {"HEADLESS-1": [0, 0, 10, 10]}}])
+        got = tour.Checker(lambda: before).judge({"description": "an act"}, None, before, helper)
+        self.assertEqual([line for line in got if "missing boxes" in line], [])
+
+    def test_a_chapter_that_cannot_run_on_the_baseline_is_none_with_its_reason(self):
+        import os
+        import types
+
+        module = types.ModuleType("chapters.xp")
+
+        def boom(ctx):
+            raise RuntimeError("choractl call xp-give: no method window.give")
+
+        module.run = boom
+        sys.modules["chapters.xp"] = module
+        os.environ["TOUR_BASELINE"] = "1"
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = run.main(["--check", "xp"])
+        finally:
+            del os.environ["TOUR_BASELINE"]
+            del sys.modules["chapters.xp"]
+            os.environ.pop("TOUR_CHECK", None)
+        text = out.getvalue()
+        self.assertEqual(code, 0, text)
+        self.assertIn("baseline: none", text)
+        self.assertIn("no method window.give", text)
+        self.assertNotIn("BROKE", text)
+
+
 CHAPTERS_A = ("xp", "tiling", "handover")
 
 
