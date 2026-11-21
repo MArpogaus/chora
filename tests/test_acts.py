@@ -490,6 +490,19 @@ class KnownRed(unittest.TestCase):
         self.assertEqual([e["node"] for e in harness.exemptions()], ["xp-tray-"])
         self.assertFalse([r for r in harness.known_red() if r.get("flaky") and "xp-tray" in r.get("capture", "")])
 
+    def test_the_list_names_the_authentic_tahoma_volume_label_of_the_xp_popup(self):
+        rows = [r for r in harness.known_red() if r.get("capture") == "xp-ctx-0-7"]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual((row["look"], row["id"], row["act"]), ("xp", "I6", "a click on the speaker opens the volume popup"))
+        self.assertIn("authentic Tahoma 8 pt", row["slice"])
+        seen = "in act 'a click on the speaker opens the volume popup': on O 'Volume' (xp-ctx-0-7) is 11 px, the guide wants 14 px"
+        other = seen.replace("xp-ctx-0-7", "xp-ctx-0-6")
+        elsewhere = seen.replace("'a click on the speaker opens the volume popup'", "'another act'")
+        self.assertEqual(harness.judge({("xp", "I6"): [seen]}, [row]).blocking, [])
+        self.assertTrue(harness.judge({("xp", "I6"): [other]}, [row]).blocking)
+        self.assertTrue(harness.judge({("xp", "I6"): [elsewhere]}, [row]).blocking)
+
     def test_a_flaky_row_needs_evidence_and_an_act(self):
         row = dict(self.rows[0], capture="l1", flaky=True)
         with self.assertRaises(ValueError):

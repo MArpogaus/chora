@@ -1707,3 +1707,12 @@ id = "I6"
 look = "xp"
 match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-7"
+finding = "guide-checks r5: xp-ctx-0-7: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the vision card"
