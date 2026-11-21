@@ -48,7 +48,6 @@ mod plane;
 use place::grab_action;
 #[cfg(test)]
 pub(crate) use place::holds_other_claim;
-pub(crate) use place::manages_only_virtual_outputs;
 pub use plane::PlaneGrab;
 pub(crate) use plane::anchor;
 use plane::{local_for, position_for, start_plane_grab};
@@ -2841,8 +2840,6 @@ pub(crate) mod tests {
         super_e_after_the_screens_chord(false);
     }
 
-    /// The same in the test mode, where an injected key counts as a key
-    /// of the person, so that a gate can reach the path.
     /// In the test mode an injected chord of a manager chooses it for the
     /// next windows, as the key of a person does, so that a gate reaches
     /// the choice (construct rx-1).
@@ -2872,6 +2869,8 @@ pub(crate) mod tests {
         assert_eq!(core.state.chosen_manager(), Some("space"));
     }
 
+    /// The same in the test mode, where an injected key counts as a key
+    /// of the person, so that a gate can reach the path.
     #[test]
     fn the_test_mode_keeps_the_keys_of_a_face_window_after_a_chord_of_the_screen() {
         super_e_after_the_screens_chord(true);
