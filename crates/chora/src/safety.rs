@@ -887,6 +887,28 @@ mod tests {
         );
     }
 
+    /// After a blame the load comes in single starved frames, a few
+    /// seconds apart, with fast frames between: each is the first of its
+    /// run, so nothing measured it and nothing proves a slow client. The
+    /// suspect clears after `CALM_FOR` of such frames.
+    #[test]
+    fn an_unmeasured_slow_frame_is_no_sign_that_a_suspect_stays_guilty() {
+        let mut watchdog = Watchdog::default();
+        let start = Instant::now();
+        assert_eq!(
+            slow_for(&mut watchdog, start, 2100, Some("a")),
+            [Action::Blame]
+        );
+        let slow = (SLOW, Duration::ZERO);
+        let fast = (Duration::from_millis(1), Duration::ZERO);
+        let begin = start + Duration::from_millis(2100);
+        for i in 0..2000u32 {
+            let times = if i % 300 == 0 { slow } else { fast };
+            watchdog.note("out", REFRESH, times, begin + REFRESH * i);
+        }
+        assert_eq!(watchdog.suspect, None, "32 s of single starved frames");
+    }
+
     #[test]
     fn a_frame_clock_never_waits_longer_than_it_took() {
         let (took, waited) = Watchdog::default().clock("out").stop();
