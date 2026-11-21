@@ -281,12 +281,18 @@ def fault(breach):
     return re.sub(r"'[^']*'", "''", breach.rsplit(" (evidence", 1)[0])
 
 
+def capture_pattern(capture):
+    """The regex of a `capture`: a label, or a label prefix with a trailing `*`."""
+    return re.escape(capture[:-1]) + r"\S*" if capture.endswith("*") else re.escape(capture)
+
+
 def row_covers(row, breach):
-    """Whether a row names the breach: its `act` and `capture` (the label
-    of a node, in brackets) and `match` all occur in the breach text."""
+    """Whether a row names the breach: its `act`, `capture` (the label of a
+    node, in brackets; a trailing `*` takes every label with that prefix) and
+    `match` all occur in the breach text."""
     return (
         (not row.get("act") or breach.startswith(f"in act {row['act']!r}: "))
-        and (not row.get("capture") or re.search(rf"[( ]{re.escape(row['capture'])}[) ]", breach))
+        and (not row.get("capture") or re.search(rf"[( ]{capture_pattern(row['capture'])}[) ]", breach))
         and row.get("match", "") in breach
     )
 

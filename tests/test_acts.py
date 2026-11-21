@@ -445,7 +445,12 @@ class KnownRed(unittest.TestCase):
         for row in harness.known_red():
             if row["finding"].startswith("guide-checks"):
                 with self.subTest(finding=row["finding"]):
-                    self.assertTrue(row.get("flaky") or row.get("act") and (row.get("capture") or row.get("match")), row)
+                    self.assertTrue(
+                        row.get("flaky")
+                        or row.get("capture", "").endswith("*") and row.get("match")
+                        or row.get("act") and (row.get("capture") or row.get("match")),
+                        row,
+                    )
 
     def test_a_new_acts_tray_breach_is_not_covered_by_a_flaky_row(self):
         row = dict(
@@ -502,6 +507,26 @@ class KnownRed(unittest.TestCase):
         self.assertEqual(harness.judge({("xp", "I6"): [seen]}, [row]).blocking, [])
         self.assertTrue(harness.judge({("xp", "I6"): [other]}, [row]).blocking)
         self.assertTrue(harness.judge({("xp", "I6"): [elsewhere]}, [row]).blocking)
+
+    def test_the_list_names_the_authentic_tahoma_text_of_the_xp_taskbar_buttons(self):
+        rows = [r for r in harness.known_red() if r.get("capture") == "xp-task-*"]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual((row["look"], row["id"]), ("xp", "I6"))
+        self.assertIn("authentic Tahoma 8 pt", row["slice"])
+        size = "on O 'chora-probe' (xp-task-s4-HEADLESS-1) is 11 px, the guide wants 14 px"
+        for act in ("a window opens to hear the keys", "another act"):
+            self.assertEqual(harness.judge({("xp", "I6"): [f"in act {act!r}: {size}"]}, [row]).blocking, [])
+        for other in (
+            size.replace("xp-task-s4", "xp-tasks-s4"),
+            size.replace("xp-task-s4-HEADLESS-1", "xp-ctx-0-7"),
+            size.replace("xp-task-s4-HEADLESS-1", "xp-tray-O"),
+            "on O 'chora-probe' (xp-task-s4-HEADLESS-1) leaves its panel xp-bar [0, 0, 1, 1]",
+            "on O 'chora-probe' (xp-task-s4-HEADLESS-1) has the contrast 2.1:1 (grey on blue), the guide wants 4.5:1",
+        ):
+            with self.subTest(other=other):
+                self.assertTrue(harness.judge({("xp", "I6"): ["in act 'a': " + other]}, [row]).blocking)
+        self.assertTrue(harness.judge({("xp", "I3"): ["in act 'a': " + size]}, [row]).blocking)
 
     def test_a_flaky_row_needs_evidence_and_an_act(self):
         row = dict(self.rows[0], capture="l1", flaky=True)

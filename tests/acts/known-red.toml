@@ -7,7 +7,8 @@
 # label of the node) and `match` (a text of the breach) name one fault:
 # a breach that no row names blocks, and a row that no breach meets is
 # stale and blocks too, unless it says `flaky = true` with an `act` and an
-# `evidence` (two runs of that act, one with the fault and one without).
+# `evidence` (two runs of that act, one with the fault and one without). A
+# `capture` ending in `*` names every node label with that prefix, in every act.
 # An `[[exempt]]` row (`look`, `node`, `reason`) passes the contrast breach of
 # the nodes whose label starts with `node`, in every act, down to its `floor`.
 
@@ -1716,3 +1717,11 @@ id = "I6"
 look = "xp"
 match = "guide wants 14 px"
 slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the vision card"
+
+[[red]]
+capture = "xp-task-*"
+finding = "guide-checks r6: xp-task-*: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the taskbar buttons"
