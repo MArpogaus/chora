@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-21 08:22 UTC)
+## Now (2026-11-21 08:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 %; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:22 week 4.7 % (1.1 %/h over 4.4 h, above pace; PM opus is most of it, lanes cheap: PM reviews short, lanes 2-4); disk 16 G: one build at a time; 6 lanes
-session branch: 598a34ff; 55 greens; t97 green 05:35. F5 series waits for flakes-r (a series now blocks trains for 5 h).
+session branch: 1c599c74; 56 greens; t98 green 08:46 (gate-path, xp-fields, chapters-a, xp-37, flakes-r). F5 series after t99 (blocks trains 5 h).
 burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadline, carried into this week (owner 11-17 15:35).
 
 ## RC (design/rc.md)
@@ -26,8 +26,8 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | handover-mo-r2.md (rc 2: review FIX, rhm-1 MAJOR bare tiling black) | sonnet medium, claude/handover-mo f7dded7a | session_016iS3kNLQayiUMXqd1yigH9 08:14 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, F7, rc 2-3) t98 running 07:30 (gate-path fd8d6d0a MERGE-OK, PM review): xp-fields 9a6506d6, chapters-a 77134283, xp-37 d7b5376e (MERGE-OK 07:10), flakes-r 789aab53 (MERGE-OK 06:43; rfr-1 MINOR co). Then handover-mo r2.
-5. (F5, F7, rc 2) F5 open (r3 2/5); FLK-XP-FACES open; series after t98. t99 after t98: GUIDE-CHECKS b1b8b73a (07:49), CO-KEYS f70d564f, TI-29 1f9a5180, MC-MINOR 12869800 (PM r2 OK; mc-50, rmm-2 open). Running: HANDOVER-MO r2 0.6 %.
+4. (F7, rc 2-3) t99 running 08:46 on 1c599c74: guide-checks b1b8b73a, co-keys f70d564f (conflict camera.rs, known-red.toml resolved by PM: both sides kept), ti-29 1f9a5180, mc-minor 12869800. Then handover-mo r2.
+5. (F5, F7, rc 2) F5 open (r3 2/5); FLK-XP-FACES open; series after t99; mc-50, rmm-2, rfr-1 open. Running: HANDOVER-MO r2 0.6 %.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
