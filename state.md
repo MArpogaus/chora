@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-21 22:47 UTC)
+## Now (2026-11-21 23:38 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:10 week 7.1 % (6.1 + 1.0 Bkk days; 0.41 %/h, under pace 10.3 %); disk: one train at a time
+budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 23:37 week 7.3 % (6.1 + 1.2 Bkk days; 0.37 %/h, under pace 11.8 %); disk: one train at a time
 session branch: 1c9e64f7; 60 greens; t103 green 22:45 (rerun; first run acts flake sh-32); t104 running 22:45 (keys-route, co-hint, kit-cov, split-a). F5 r4 5/5 green (16:21).
 burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried (owner 11-17 15:35).
 
@@ -10,7 +10,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r4, mc r5 meet; P2-R5-CO 18:10: fails T1, T2 (by mouse in a face), I3 MAJOR co-43 (pre-existing); tiling r3 22:03: 0 breaches |
+| 2 | Persona round 4 | xp r4, mc r5 meet; P2-R5-CO 18:10: fails T1, T2 (by mouse in a face), I3 MAJOR co-43 (pre-existing); tiling r4 23:36 NO: I2 x13 (ti-31), T1 xp-owned window (ti-32 verify), T3 (ti-33); L2, T7 vacuous |
 | 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -23,14 +23,14 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| p2-r4-tiling.md (rc 2: tiling round 4, L1-L3 after harness-l) | sonnet medium, claude/p2-r4-tiling 1c9e64f7 | session_016iS3kQNiJYXxaMEnvcEvjD 22:46 |
+| p2-harness-m.md (rc 2: known-red filter, L2, T7 vacuous; r4 harness check) | sonnet medium, claude/p2-harness-m 1c9e64f7 | starting 23:45 |
 | co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | session_016iS3kQftQgVnSgb4hmQy5h 21:51 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) RECORD-V9 r1 blocked 18:25 (no dumps, no old replay, 90 reds); TOUR-FIX 1.2 %, then RECORD r2; t103 merged 22:45 (H-GUARDS, P2-HARNESS-L, TI-XDG); lanes told.
-5. (rc 2-3, process; week-3 D1-D2) running: GATE-WAITS 1.6 %; CO-I3 r3 0.6 %; P2-R4-TILING 0.6 %; next: LOOP-SLEEPS after t104; REVIEW 1 % after RECORD; t104 running: KEYS-ROUTE e16d558e (r2 OK), CO-HINT 51475800, KIT-COV 619da642, SPLIT-A a3c14590 (OK).
+4. (F7, rc 2-3) RECORD-V9 r1 blocked 18:25 (no dumps, no old replay, 90 reds); TOUR-FIX 1.2 %, then RECORD r2, REVIEW 1 %; t103 merged 22:45 (H-GUARDS, P2-HARNESS-L, TI-XDG); lanes told.
+5. (rc 2-3, process; week-3 D1-D2) running: GATE-WAITS 1.6 %; CO-I3 r3 0.6 %; P2-HARNESS-M 0.6 %; P2-R4-TILING done 23:36 (NO); next after t104: ti-32 check on the head, TI-R4 fix lane (ti-31-34), LOOP-SLEEPS; t104 running: KEYS-ROUTE e16d558e, CO-HINT, KIT-COV, SPLIT-A.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
