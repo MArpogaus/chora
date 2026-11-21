@@ -1,0 +1,13 @@
+# kit-cov r1 (F5: coverage of chora-kit files; plans/week-3.md row 42)
+
+Model: haiku, effort high (tests only: unit tests for existing code, no product change)
+Lane: cloud, claude/kit-cov at 892d035c (session head after train 101). Cost at most 0.6 %; stop at 150 k context. One area: tests of crates/chora-kit (src/runtime.rs, src/icons.rs, src/launcher.rs and their #[cfg(test)] modules or crates/chora-kit/tests/).
+Why: plans/week-3.md row 42 on claude/session-log: chora-kit runtime.rs 72.9 % lines; icons.rs and launcher.rs below 85 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `command -v cargo-llvm-cov`; a failure or a missing tool: send_message the PM "kit-cov BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Measure first: `cargo llvm-cov -p chora-kit --summary-only`; the line % of the three files go into the report. A file already at 85 % or more: leave it.
+2) Per file below 85 %: tests for the uncovered behaviour (read `cargo llvm-cov -p chora-kit --text` for the lines). Test behaviour through the public or crate API, one assert per named case; no test that only calls a function without asserting; no sleep (until_ok with a bound if a wait is needed); no change under src/ outside #[cfg(test)] modules. A bug a test finds: keep the failing test with #[ignore = "bug: <one line>"], name it in the report, do not fix it.
+3) One commit per file: `test(kit): cover <file> <what>`.
+Gate: `cargo test -p chora-kit`, `cargo clippy -p chora-kit --all-targets -- -D warnings`, `pre-commit run --all-files` green; then full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/kit-cov merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Run in the background and poll in the same turn; never end a turn to wait.
+Done when: each of the three files at 85 % lines or more (llvm-cov before and after in the report), the gate green.
+Report: reports/kit-cov.md "## r1" on claude/session-log (before and after %, tests added per file, any bug found with file:line, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/kit-cov and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
