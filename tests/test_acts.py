@@ -415,6 +415,21 @@ class KnownRed(unittest.TestCase):
         s.settled_scene([], sleep=lambda _t: None)
         self.assertEqual(len(reads), 4)
 
+    def test_a_construct_session_takes_no_capture_once_construct_is_gone(self):
+        s = object.__new__(harness.Session)
+        s.label, s.looks = "construct", ["xp"]
+        s.core = type("C", (), {"call": staticmethod(lambda m, _p=None: [] if m == "scene.query" else {})})()
+        s.shots = lambda outputs: self.fail("a capture of the flat xp reopens no cube again")
+        self.assertIsNone(s.settled_scene([{"name": "O"}], sleep=lambda _t: None)[2])
+        s.looks = ["construct", "xp"]
+        s.shots = lambda outputs: {"O": (1, [])}
+        self.assertEqual(s.settled_scene([{"name": "O"}], sleep=lambda _t: None)[2], {"O": (1, [])})
+
+    def test_a_snapshot_without_captures_measures_no_contrast(self):
+        after = snap(nodes=snap().nodes + [text_node("l1", "Hello", (0, 0, 70, 14))])
+        after.shots = None
+        self.assertEqual([b for b in invariants.guide_breaches(after) if "capture" in b or "contrast" in b], [])
+
     def test_a_cell_keeps_the_breaches_of_every_act(self):
         s = object.__new__(harness.Session)
         s.results = {}
