@@ -70,3 +70,12 @@ Head f70d564f on claude/co-keys (red 61ce80a8 on e965470a, fix f70d564f).
 
 **Tour:** `demo/tour/run.py --check construct`: 18 acts, 17 green, 1 known (cb-2), 0 red.
 **Gate:** `--only pre-commit,build,test,clippy,construct-hud,construct-extra,doors,acts` PASS 8 of 8. The acts cell shows its one known red (I5 overlap, known-red.toml), not caused here.
+
+## PM review r2 (2026-11-21, PM; builder was the co-keys lane)
+Base e965470a, head f70d564f (7 files, +146 -8); red 61ce80a8 (stub `keys_chord` returns F1, unit test and acts check fail) before f70d564f.
+- rck-1 closed: `hints::keys_chord` names a bare key only while `rt.holds` says its grab held, else the bound chord with a modifier (Super+F1); camera.rs:553 marks the hints stale after every grab rebuild, so a grant change refreshes the hint. Cell: unit test `the_hint_of_the_key_list_names_a_key_that_works`, acts construct (lane gate 8/8).
+- rck-3 closed: a rebound `keys` binding changes the chord; a dropped one leaves no chord (same test).
+- Docs (construct.yaml, configuration.md, construct-style.md) match the code: F1 grabbed in a pane or face only with input.grab-any.
+- tools/lint-ratchet.list unchanged; known-red.toml unchanged (acts I5 row was already listed).
+- rck-7 NIT, hints.rs:110: with several bound `keys` chords the first in BTreeMap order wins; fine today (one default), name it in the doc comment if a second default appears. Backlog.
+Verdict (computed): no BLOCK or MAJOR open -> MERGE-OK on f70d564f; joins t99 with guide-checks b1b8b73a.
