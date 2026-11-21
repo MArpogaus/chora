@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | guide-checks-r6.md (F7: xp-task Tahoma row, I13 proof) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-keys.md (rc 2: co-38, co-40, co-41 MAJOR focus, sheet, key list) | sonnet high, claude/co-keys a76476be | session_016iS3kQPiKokwPWu5EF5vt7 04:26 (restart, brief in prompt; first worker would not act on PM messages, archived) |
 | flakes-r.md (F5: FLK-DOORS-CO, FLK-MATRIX-S1, FLK-XP-FACES) | sonnet high, claude/flakes-r a5b77488 | session_016iS3kQqiW8EoPxjH4tvYxg 04:25 (brief in prompt) |
-| review-chapters-a-r1.md (F7: seeded review of 8435d386) | sonnet medium, claude/chapters-a 8435d386 | starting 04:40 (chapters-a DONE 04:36: xp 28/0/3/0, tiling 27/0/1/0, handover 10/0/1/0 twice) |
+| review-chapters-a-r1.md (F7: seeded review of 8435d386) | sonnet medium, claude/chapters-a 8435d386 | session_016iS3kLkzss7d5A7qAbbsfj 04:38 (chapters-a DONE 04:36: xp 28/0/3/0, tiling 27/0/1/0, handover 10/0/1/0 twice) |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 2-3) t97 running (flakes-q, flakes-p, chapters-b, mc-column); then dcb77733 and check.py to a seeded review.
