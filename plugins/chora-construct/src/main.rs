@@ -743,7 +743,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 23] = [
+const EVENTS: [&str; 24] = [
     "voice.*",
     "assistant.ready",
     "assistant.chat",
@@ -758,6 +758,7 @@ const EVENTS: [&str; 23] = [
     "surface.destroyed",
     "surface.detached",
     "focus.changed",
+    "focus.node",
     "output.changed",
     "output.removed",
     "node.key",
