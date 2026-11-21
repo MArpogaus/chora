@@ -136,3 +136,17 @@ Checks: (1) red first holds: `python3 -I -m pytest tests/test_tour.py -q` is 5 f
 - rca-3, MINOR, demo/tour/chapters/tiling.py:87: `volume_above(40)` is true after any scroll, and the stand-in wpctl (launch.py) sets 100 % for a `5%+` step, so "goes up by one step" is not judged; Fix: have the stand-in honour `N%+` and expect 45.
 - rca-4, MINOR, demo/tour/chapters/xp.py:117 (`logged`), :166 (`box_says`), :152 (`rows_have`): they search the whole log of the session, not what the act added, so a repeated question or box text from an earlier act would pass a later one; the strings differ today. Fix: read the line count before the act, or use a unique string per act.
 - rca-5, MINOR, demo/tour/chapters/xp.py:20-175: `Diff`, `both`, `shown`, `gone`, `logged`, `moved`, `fuzzel_log`, `box_says`, `rows_have`, `volume_is` are imported by tiling.py and handover.py from the xp chapter. Fix: move to demo/tour/chapters/checks.py (or leave and note it).
+
+## r2 (chapters-a-r2; head 186d8506, red 89577b42, on 8435d386 merged with the session head f4f49783 as b74df8f4)
+
+Red first: 89577b42 adds two planted states in tests/test_tour.py; on the code of 8435d386 both fail (`notice_says` does not exist; I5 reports the dialog picture over the title), 28 passed. On 186d8506: 193 passed (`python3 -I -m pytest tests/test_tour.py tests/test_acts.py -q`).
+
+- rca-1: demo/tour/chapters/xp.py:66 `notice_says(word)` reads summary and body of the notices in `shown`; act 3 expects `notice_says("mousepad")`, act 2 expects `Diff(delta=notice_is_new)` (a stale notice of the read before is red). Test `test_notice_check_reads_the_text_of_the_notice`.
+- rca-2: tests/acts/invariants.py `dialog_picture`, `hides`, `covered`, `i5` (a picture whose node is an open entry of a look, or lies under one, hides the text under it; "Limits" updated); unit test `I5.test_a_picture_that_is_a_dialog_hides_the_text_under_it` in tests/test_acts.py. `ca-2` dropped from both xp rows: act 17 (Help) is green on the product, act 18 keeps `I6,expect: ca-1`. No new finding id.
+- rca-3: demo/tour/launch.py `wpctl_stub` reads the last argument and honours `N%+`, `N%-`, `N%`; tiling.py volume row expects `volume_is(45, ...)` (`volume_above` removed); green on the product. Test `test_stand_in_wpctl_steps_by_the_percent`.
+- rca-4: demo/tour/chapters/checks.py `logged`, `rows_have`, `box_says` take the line or call count when the row is declared (before the act) and judge only what comes after; tests `test_logged_reads_only_what_the_act_added` and the changed box_says test.
+- rca-5: demo/tour/chapters/checks.py holds Diff, nodes_of, shown, gone, volume_is, letter_is, both, logged, moved, notice_is_new, fuzzel_log, calls_of, rows_have, first_rows, box_says, LETTER (moved, no behaviour change); tiling.py and handover.py import from it; test `test_shared_checks_live_in_checks_py`.
+
+Tour `demo/tour/run.py --check xp tiling handover`, run twice, equal: xp 31 acts 29 green / 0 inv / 2 known / 0 red; tiling 28 acts 27/0/1/0; handover 11 acts 10/0/1/0; `0 red, 0 broken` (r1: xp 28/0/3/0, the third known was ca-2).
+
+Gate `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,acts,xp-faces`: all six PASS (ci-check 90 s, build 28 s, test 194 s, acts 274 s, xp-faces 15 s). gate-lib left out as briefed.
