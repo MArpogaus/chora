@@ -200,7 +200,7 @@ cell_terminal_keys() {
     until_ok '[ "$(current)" = terminal ]' 20 || fail "Super+Return does not show the terminal: $(current)"
     until_ok '[ "$(ctl query kind:surface | jq length)" -ge 1 ]' 40 || fail "no terminal window"
     sleep 2
-    until_ok 'has_text "Super+ ← →"' 20 || fail "the key list of the terminal page does not name Super with the arrows: $(texts | grep -F '←' | tr '\n' '|')"
+    until_ok 'has_text "Super+← →"' 20 || fail "the key list of the terminal page does not name Super with the arrows: $(texts | grep -F '←' | tr '\n' '|')"
     key Left
     key Escape
     key Ctrl+g
