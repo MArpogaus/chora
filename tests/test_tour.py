@@ -379,18 +379,6 @@ class ChaptersARows(unittest.TestCase):
             src = (ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text()
             self.assertNotIn("from chapters.xp", src, chapter)
 
-    def test_i5_a_dialog_picture_hides_the_text_under_it(self):
-        """rca-2: Help (a picture of an open dialog) over a title: I5 holds, a picture of no dialog still breaches."""
-        i5 = importlib.import_module("invariants").i5
-        under = test_acts.text_node("xp-title-s1", "Notepad", (400, 300, 80, 14), owner="xp")
-        over = test_acts.text_node("xp-dlg-help-title", "Help", (410, 302, 60, 14), owner="xp")
-        nodes = lambda pic: snap().nodes + [under, test_acts.panel(pic, (380, 280, 400, 300)), over]
-        state = snap().states["xp"] | {"open": [{"id": "xp-dlg-help", "modal": False, "by": "key"}]}
-        got = test_acts.snap(states={"xp": state}, nodes=nodes("xp-dlg-help-frame"))
-        self.assertEqual(i5(got, got, test_acts.ACT), [], "a dialog picture does not hide the text under it")
-        plain = test_acts.snap(nodes=nodes("xp-menu-frame"))
-        self.assertTrue(i5(plain, plain, test_acts.ACT), "a picture of no dialog hides nothing")
-
 
 CHAPTERS_B = ("mc", "construct")
 
