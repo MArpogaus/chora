@@ -1,0 +1,15 @@
+# xp-fields r1 (rc 2, xp look): xp-24 MAJOR text fields on the XP grid in the Run box, search and dialogs; ca-1 the Help key list cut at a 720 high output
+
+Model: sonnet, effort high (pixel geometry of one look's widgets with pixel asserts; no core change)
+Lane: cloud, claude/xp-fields at a5b77488 (session head after train 96b). Cost at most 1.2 %; stop at 250 k context. One area: the xp plugin's fields and Help window. Pixel round 1 of 2 this week for xp (rules.md 6).
+Rows (on claude/session-log):
+- xp-24 MAJOR (findings/xp.md, owner 11-16 09:01): text fields poorly aligned: label baseline, field height and padding off the XP grid. verify-maj r1: the fields gate is 3/3 and the chat box is pixel-measured; the Run box is rendered but not measured; search and dialogs are not measured.
+- ca-1 (reports/chapters-a.md "Known rows"): at 1280x720 the key list of Help ends below its pane (row `Mute` at 643 to 657 in a pane of 645 high); at 1280x800 it fits.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "xp-fields BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Red first, own commit: pixel asserts in the xp-fields gate cell (tests/ gate script of `xp-fields`) for the Run box, the search field and one dialog field: field height 21 px (Luna text box), 1 px border #7F9DB9, label baseline aligned with the field text baseline (+-1 px), 3 px inner left padding; and an xp cell at 1280x720 that the last Help key row lies inside its pane. Each assert red on a5b77488 where the product is off; an assert already green stays (no fake red).
+2) Smallest fixes in the xp plugin (shared field drawing in one place, no copy per widget); Help at a short output: the pane scrolls or the window fits the output (POLS: what XP does, a scroll bar).
+3) Gate: `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,xp,xp-fields,xp-faces,xp-question,xp-notepad,acts` green (gate-lib is left out: its selftest fails in lane containers). A red cell you did not cause: name it with its log line; do not rerun to green. Poll in the same turn; never end a turn to wait.
+Captures: before and after PNGs of the Run box, search, one dialog and Help at 720 into reports/evidence/xp-fields-r1/ on claude/session-log, each named with its build sha.
+Done when: every assert green, the gate green, findings/xp.md xp-24 row updated with the cell and sha.
+Report: reports/xp-fields.md "## r1" on claude/session-log (shas, asserts with measured values before and after, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/xp-fields and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
