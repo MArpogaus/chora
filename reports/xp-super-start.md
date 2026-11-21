@@ -26,3 +26,9 @@ Head 31736130 on claude/xp-super-start (unchanged, no code commit). Not reproduc
 - Reading: the path is the one fixed by 363276e8 (core hands the Super release of a chord to the claimant, xp's tap flag is cleared by `key()` at plugins/chora-xp/src/wm/keys.rs:165-172). Not reproduced on current code; no red possible, so no fix (step 3 not applicable).
 - Gate cells not run (no code change); r1's pane-keys cell stays the guard.
 - Suggest closing sh-23 as not reproducible on 31736130 / fixed by 363276e8; if the ricer sees it again, ask for the raw action log (shots 013-014 timing) of that round.
+
+## PM check r2 (2026-11-21 00:20 UTC)
+Verdict: FIX (computed: xs-3 MAJOR open). sh-23 stays open.
+- xs-3 MAJOR: "not reproduced" rests on a partial replay. Shot 014 of the ricer (media/2026-11-20/persona-tiling-r3-ricer/shots/014.png) shows the Start menu open over two foot windows right after Super+Return; 013 shows it shut. The lane replayed only actions 25-29. It skipped actions 1-23 of actions.jsonl in the same file tree: click Apps (50,14), type "edit", Ctrl+u, scroll, click a launcher row (262,230) that opened foot s1 (xp frame), typed commands with Return into s1, click Keys (749,14), Escape. Any of these can leave a Super or tap state behind (the Keys list and Escape most of all). Also the lane's setup A had no client typed into before the chords.
+- xs-4 MINOR: the brief asked for tests/persona/round.sh with the ricer's setup (PERSONA_CHECK=1, round.sh begin); the lane used session.sh only.
+Next: r3 replays the whole action log in order with the same gaps, then cuts the prefix by halves to the action that matters.
