@@ -414,7 +414,7 @@ bin2=$work/bin2
 mkdir "$bin2"
 cat >"$bin2/pre-commit" <<'FAKE'
 #!/bin/bash
-echo "SKIP=${SKIP:-}" >"$FAKE_PRE_COMMIT_LOG"
+echo "SKIP=${SKIP:-} $*" >"$FAKE_PRE_COMMIT_LOG"
 FAKE
 chmod +x "$bin2/pre-commit"
 gate_only() {
@@ -422,7 +422,8 @@ gate_only() {
         MERGE_GATE_RUNS="$work/runs" "$gate" --base HEAD --only pre-commit >"$work/out" 2>&1
 }
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
-check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
+check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale run --all-files"
+check "the pre-commit step runs on all files, as CI does" "$(grep -c -- "--all-files" "$work/pc.log")" 1
 wrap=$work/wrap
 mkdir "$wrap"
 cat >"$wrap/rm" <<'WRAP'
