@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| handover-mo-r2.md (rc 2: review FIX, rhm-1 MAJOR bare tiling black) | sonnet medium, claude/handover-mo f7dded7a | starting 08:2x |
+| handover-mo-r2.md (rc 2: review FIX, rhm-1 MAJOR bare tiling black) | sonnet medium, claude/handover-mo f7dded7a | session_016iS3kNLQayiUMXqd1yigH9 08:14 |
 | mc-minor-r2.md (mc: PM review FIX, rmm-1 MAJOR lint ratchet raised) | sonnet low, claude/mc-minor fb9827a0 | session_016iS3kPHwmhVVmbb4d8eaN4 07:51 |
 
 ## Queue (% week; 5 % reserve)
