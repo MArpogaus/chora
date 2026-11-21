@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 01:26 UTC)
+## Now (2026-11-21 01:27 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 00:26 PM 2.3 % (Bangkok day 11-21); disk 18 G free: one build (train) at a time; 4 lanes
 session branch: 618ae513; 52 greens; t95 red 01:15 (acts: persona-begin needs a begin, co-pane's C2 selftest has none); t95b running at --jobs 1: give-raise, co-hud-load.
@@ -25,12 +25,11 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 |---|---|---|
 | guide-checks-r4.md (F7: rg-9 xp tray exemption, construct restart red) | sonnet medium, claude/guide-checks 9881ccda | session_016iS3kMwg6gNXRJSvVuuage 01:26 |
 | flakes-p-r1.md (F5: FLK-PULL, 1/10 alone) | sonnet high, claude/flakes-p 618ae513 | session_016iS3kPWeWefDk7yoWfkha2 00:31 |
-| flakes-q-r1.md (F5: FLK-HUD-TAB, FLK-XP-FACES) | sonnet high, claude/flakes-q 618ae513 | session_016iS3kPEoGRNCsNpH93eJTX 00:31 |
 | persona-begin-r2.md (RC 2: t95 red, C2 selftest begin) | sonnet medium, claude/persona-begin 4f07fe6c | session_016iS3kMUwWxpyAtCvvNqNG1 01:16 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 2-3) t95b running: give-raise 4b561e79, co-hud-load 06ea05e4; PERSONA-BEGIN r2 (merge head, C2 begin) 0.4 %, own train; then the PM fixes dcb77733 and the check.py merge to a seeded review.
-5. (F5, F7, rc 2) FLAKE-SERIES r3: 2/5 green at --jobs 2 (construct-hud, xp-faces, pull red), kit 91.76 %: F5 not met. Running: GUIDE-CHECKS r4 0.5 % (xp tray exemption, co restart), FLAKES-P, FLAKES-Q 1 % each. After t95: P2-R4-CO, tour-v9 4-5.
+5. (F5, F7, rc 2) FLAKE-SERIES r3: 2/5 green at --jobs 2 (construct-hud, xp-faces, pull red), kit 91.76 %: F5 not met. Running: GUIDE-CHECKS r4 0.5 % (xp tray exemption, co restart), FLAKES-P 1 %. FLAKES-Q r1 MERGE-OK fb85b156: train 96. After t95: P2-R4-CO, tour-v9 4-5.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

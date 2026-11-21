@@ -63,3 +63,7 @@ clippy 17 s, xp-faces 15 s, construct-hud 112 s: all PASS. Then `--only construc
 - FLK-XP-FACES: evidence only (0 of 45 loaded, 3 of 3 gate); the next red names the face of the window.
 - The pre-commit hook of this repository refuses a new comment in a test script, so the `hud_state` and
   `opens_state` helpers carry no header comment; their names say the case.
+
+## PM review r1 (2026-11-21 01:30 UTC; PM is not the builder; small diff)
+Base 618ae513..fb85b156, 4 files, +64 -3. Product: overlay.rs:65 sets opacity 1.0 on a redraw once the plugin's fade time is over (`!open && left <= 0`); a redraw mid-fade still re-fades for `left` ms (overlay.rs:97-98), and scene.rs:752 removes the running animation on any update, which explains the 0.998 opacity. Red test lifecycle.rs a_redraw_after_the_fade_time_leaves_a_late_list_fully_opaque precedes the fix (ec5c52b3 before 26ad8411). Gate scripts only add failure diagnostics. FLK-XP-FACES stays open: 0 of 45, no fix claimed.
+Findings: none open. Verdict (computed): MERGE-OK, joins train 96.
