@@ -8,7 +8,7 @@ from tour import Session, checker_for
 from harness import Expect
 import json, shutil
 from slides import slide
-from chapters.xp import Diff, letter_is, logged, shown, gone, both, LETTER
+from chapters.checks import Diff, letter_is, logged, shown, gone, both, LETTER
 
 LINE1 = "Ward 3: check bed 4 at 14:00"
 LINE2 = "- Monday: plan the week"

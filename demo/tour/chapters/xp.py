@@ -7,8 +7,8 @@ from human import Quick
 from tour import Session, checker_for
 from harness import Expect
 from slides import slide
+from chapters.checks import *
 
-LETTER = "/home/user/notes/letter.txt"
 TEXT = "Dear Anna,\nthank you for the lovely visit.\nThe garden looks wonderful.\nLove, Erika"
 ASK = "How do I make the sound louder?"
 ANSWER = "Open Start, then Control Panel, then Sound, and choose 75%."
@@ -16,17 +16,6 @@ ASK2 = "Please copy my letter to My Documents."
 DONE = "Done. The letter is in My Documents."
 NOSUCH = "nosuchprogram"
 O = "HEADLESS-1"
-
-
-@dataclasses.dataclass
-class Diff(Expect):
-    """An `Expect` that reads both snapshots as well: `delta(before, after)` answers the mismatches
-    (the read before the act is the state that the act changed)."""
-
-    delta: object = None
-
-    def check(self, before, after):
-        return super().check(before, after) + (self.delta(before, after) if self.delta else [])
 
 
 def looks_xp():
@@ -39,22 +28,6 @@ def looks_xp():
     return module
 
 
-def nodes_of(after, *ids):
-    """The ids that the scene has as visible nodes."""
-    have = {n.get("id") for n in after.nodes if n.get("visible", True)}
-    return [i for i in ids if i in have]
-
-
-def shown(*ids):
-    """A check: every id is a visible node."""
-    return lambda after: [f"no node {i}" for i in ids if i not in nodes_of(after, i)]
-
-
-def gone(*ids):
-    """A check: no id is a visible node."""
-    return lambda after: [f"node {i} is still there" for i in nodes_of(after, *ids)]
-
-
 def clock_shown(after):
     """The clock of xp is drawn: a node whose id says clock, or a tray text that is a time."""
     for n in after.nodes:
@@ -62,16 +35,6 @@ def clock_shown(after):
         if "clock" in str(n.get("id")) or (str(n.get("id")).startswith("xp-tray-") and re.search(r"\d:\d\d", text)):
             return []
     return ["no clock node in the scene"]
-
-
-def volume_is(percent, state_file):
-    """A check: the mixer of the session (the stand-in wpctl keeps `volume mute`) holds the level."""
-
-    def check(after):
-        got = round(float(open(state_file).read().split()[0]) * 100)
-        return [] if got == percent else [f"the mixer is at {got} percent, expected {percent}"]
-
-    return check
 
 
 def tooltip_says(want):
@@ -84,21 +47,6 @@ def tooltip_says(want):
     return check
 
 
-def letter_is(text, path=LETTER):
-    """A check: the file that the stand-in editor writes holds the typed text."""
-
-    def check(after):
-        got = open(path).read().rstrip("\n")
-        return [] if got == text else [f"letter.txt holds {got!r}, expected {text!r}"]
-
-    return check
-
-
-def both(*checks):
-    """A check: the mismatches of every check."""
-    return lambda after: [m for check in checks for m in check(after)]
-
-
 def desk_is(number):
     """A check: the desktop of the cube that xp shows on its output (`desks` of its state)."""
 
@@ -109,74 +57,16 @@ def desk_is(number):
     return check
 
 
-def logged(path, needle):
-    """A check: a line of the log file has the text (a call that the fake voice or fuzzel got)."""
+def notice_says(word):
+    """F-1: a notice of chora-notify that is on screen says the word (summary or body; a bus-level
+    check: the card of the frame is looked at in the RECORD run, launch.notify_config keeps it up)."""
 
     def check(after):
-        lines = open(path).read().splitlines() if os.path.exists(path) else []
-        return [] if any(needle in line for line in lines) else [f"no line with {needle!r} in {os.path.basename(path)}"]
+        block = (after.blocks or {}).get("notify") or {}
+        texts = [f"{n.get('summary')} {n.get('body')}" for n in block.get("shown") or [] if isinstance(n, dict)]
+        return [] if any(word.lower() in t.lower() for t in texts) else [f"no notice that says {word!r} in chora-notify: {texts}"]
 
     return check
-
-
-def moved(look="xp"):
-    """A delta: the rect of a window of the look differs from the read before (X2)."""
-    rects = lambda s: [w.get("rect") for w in (s.states.get(look) or {}).get("windows", [])]
-    return lambda before, after: [] if rects(before) != rects(after) else [f"no window of {look} moved: {rects(after)}"]
-
-
-def notice_is_new(before, after):
-    """A delta: chora-notify has a notice that the read before did not know (T6, I9)."""
-
-    def ids(snap):
-        block = snap.blocks.get("notify") or {}
-        return {n.get("id") if isinstance(n, dict) else n for key in ("shown", "closed", "accepted", "waiting") for n in block.get(key) or []}
-
-    return [] if ids(after) - ids(before) else ["no new notice in chora-notify"]
-
-
-def fuzzel_log(directory, stub):
-    """A `fuzzel` in front of the real one on the PATH of the session: it keeps the rows that a
-    launcher or menu of the look gives it (`fuzzel.rows.N`) and runs the real fuzzel on them."""
-    real = shutil.which("fuzzel")
-    open(f"{stub}/fuzzel", "w").write(f"""#!/bin/sh
-d={directory}; n=$(cat $d/fuzzel.n 2>/dev/null || echo 0); n=$((n+1)); echo $n >$d/fuzzel.n
-case " $* " in *" --dmenu "*) tee $d/fuzzel.rows.$n | exec {real} "$@" ;; *) exec {real} "$@" ;; esac
-""")
-    os.chmod(f"{stub}/fuzzel", 0o755)
-
-
-def rows_have(directory, labels):
-    """A check: one call of fuzzel got every label as a row (the power menu: Lock, Shut down, ...)."""
-
-    def check(after):
-        calls = [open(os.path.join(directory, n)).read().splitlines() for n in sorted(os.listdir(directory)) if n.startswith("fuzzel.rows.")]
-        return [] if any(set(labels) <= set(rows) for rows in calls) else [f"no menu with the rows {labels}: {[c[:6] for c in calls]}"]
-
-    return check
-
-
-def first_rows(directory):
-    """The first row that each call of the Run box got from xp."""
-    out = []
-    for name in sorted(os.listdir(directory)):
-        if name.startswith("fuzzel.rows."):
-            out.append(open(os.path.join(directory, name)).read().splitlines()[:1])
-    return out
-
-
-def box_says(directory, text):
-    """A check: the Run box listed `Nothing found for "text"` as its first row (the stand-in of
-    fuzzel keeps what it gets)."""
-    want = f'Nothing found for "{text}"'
-    return lambda after: [] if [want] in first_rows(directory) else [f"the Run box never said {want!r}: {first_rows(directory)}"]
-
-
-def notice_shown(after):
-    """F-1: the notice of Notepad is in `shown` of chora-notify when the act is read (a bus-level
-    check; the card of the frame is looked at in the RECORD run: launch.notify_config keeps it up)."""
-    block = (after.blocks or {}).get("notify") or {}
-    return [] if block.get("shown") or block.get("waiting") else [f"no notice in chora-notify: {block}"]
 
 
 def run(ctx):
@@ -229,11 +119,11 @@ def run(ctx):
         t.act("look", "Erika sits down at the xp desktop", "Desktop picture, taskbar with Start, desktop buttons, the paperclip and the volume in the tray", still="01-01-desktop", lead=0.1, settle=1.0, contract="X1", cells=["doors clock-door"], capture="Q", expect=Expect(focus="xp", verify=clock_shown))
         t.done()
         sx, sy = aim(Q)
-        t.act("pointer", "Start, then Notepad", "The Start menu opens; the editor opens on an empty letter.txt in a window", still="01-02-start-menu", settle=0.5, contract="T1", cells=["act: the Start button opens the Start menu", "act: a click on Notepad starts it"], capture="Q", expect=Expect(open=[], verify=notice_shown))
+        t.act("pointer", "Start, then Notepad", "The Start menu opens; the editor opens on an empty letter.txt in a window", still="01-02-start-menu", settle=0.5, contract="T1", cells=["act: the Start button opens the Start menu", "act: a click on Notepad starts it"], capture="Q", expect=Diff(open=[], delta=notice_is_new))
         open_start(sx, sy)
         x, y = item("Notepad")
         t.reach(x, y); t.click(); t.wait(6.0); t.done()
-        t.act("look", "No text editor is installed: Notepad says so", "A notice names the missing editor (mousepad); no terminal editor opens", still=None, settle=0.2, lead=0.1, contract="T6", cells=["act: the balloon goes when the window of Notepad shows"], capture="Q", expect=Expect(open=[], verify=notice_shown))
+        t.act("look", "No text editor is installed: Notepad says so", "A notice names the missing editor (mousepad); no terminal editor opens", still=None, settle=0.2, lead=0.1, contract="T6", cells=["act: the balloon goes when the window of Notepad shows"], capture="Q", expect=Expect(open=[], verify=notice_says("mousepad")))
         t.wait(1.0); t.still("01-02b-no-editor"); t.wait(1.5); t.done()
         t.flush("card gone")
         S.dismiss_notices()
@@ -313,12 +203,12 @@ def run(ctx):
         t.tap("Escape", 0.4); t.done()
         sx, sy = aim(Q)
         looks = looks_xp()
-        t.act("pointer", "Start, Help and Support", "Help opens on a filled pane", still="01-10d-help", settle=0.8, lead=0.1, contract="T2", cells=["act: Help and Support of the Start menu opens Help on a filled pane", "doors keys-door"], capture="Q", opens=[looks.HELP], known="I5: ca-2 the dialog Help, a picture, over the title of the window under it: I5 counts a picture as not opaque (tests/acts/invariants.py limits)", expect=Expect(open=[looks.HELP], verify=looks.pane_says("Click Start in the bottom left corner and click a program.")))
+        t.act("pointer", "Start, Help and Support", "Help opens on a filled pane", still="01-10d-help", settle=0.8, lead=0.1, contract="T2", cells=["act: Help and Support of the Start menu opens Help on a filled pane", "doors keys-door"], capture="Q", opens=[looks.HELP], expect=Expect(open=[looks.HELP], verify=looks.pane_says("Click Start in the bottom left corner and click a program.")))
         open_start(sx, sy)
         x, y = item("Help and Support")
         t.reach(x, y); t.click(); t.wait(0.8); t.done()
         hx, hy = aim(f"id:{looks.HELP}-content-c-topic-4")
-        t.act("pointer", "Clicks the topic Keyboard shortcuts", "Every key of the list shows inside the window", still="01-10e-keys", settle=0.6, lead=0.1, contract="T2", cells=["act: the topic Keyboard shortcuts lists every key inside the window", "doors keys-door"], capture="Q", known="I5,I6,expect: ca-1 the key list of Help at 1280x720 ends below its pane (the acts hold it at 1280x800); ca-2 for the I5 line", expect=Expect(verify=looks.key_table_whole))
+        t.act("pointer", "Clicks the topic Keyboard shortcuts", "Every key of the list shows inside the window", still="01-10e-keys", settle=0.6, lead=0.1, contract="T2", cells=["act: the topic Keyboard shortcuts lists every key inside the window", "doors keys-door"], capture="Q", known="I6,expect: ca-1 the key list of Help at 1280x720 ends below its pane (the acts hold it at 1280x800)", expect=Expect(verify=looks.key_table_whole))
         t.reach(hx, hy); t.click(); t.wait(0.5); t.done()
         t.act("key", "Escape shuts Help", "Help closes", still=None, settle=0.3, lead=0.1, contract="T2", cells=["act: Escape shuts Help"], capture="Q", closes=[looks.HELP], expect=Expect(open=[]))
         t.tap("Escape", 0.4); t.done()

@@ -7,7 +7,7 @@ from human import Quick
 from tour import Session, checker_for
 from harness import Expect
 from slides import slide
-from chapters.xp import Diff, shown, gone, both, logged, notice_is_new, moved, fuzzel_log, box_says, rows_have, volume_is, first_rows
+from chapters.checks import Diff, shown, gone, both, logged, notice_is_new, moved, fuzzel_log, box_says, rows_have, volume_is, first_rows
 
 NOTES = "/home/user/notes"
 O = "HEADLESS-1"
@@ -82,16 +82,6 @@ def floating_on_top(after, look="tiling"):
     if len(floats) != 1:
         return [f"{len(floats)} floating windows, expected 1"]
     return [] if floats[0]["surface"] == top else [f"the floating window {floats[0]['surface']} is under {top}"]
-
-
-def volume_above(percent, state_file):
-    """A check: the mixer of the session (the stand-in wpctl keeps `volume mute`) is above the level."""
-
-    def check(after):
-        got = round(float(open(state_file).read().split()[0]) * 100)
-        return [] if got > percent else [f"the mixer is at {got} percent, not above {percent}"]
-
-    return check
 
 
 def ran(history, command):
@@ -236,7 +226,7 @@ def run(ctx):
         t.act("key", "Escape closes the chat", "The chat closes", still=None, settle=0.4, lead=0.05, contract="T3", cells=["act: the chat of the helper shuts"], capture="Q", expect=Expect(verify=gone("hud-chat-close")))
         t.tap("Escape", 0.3); t.done()
         t.flush("volume")
-        t.act("pointer", "Scrolls on the volume word of the bar", "The volume goes up by one step", still="02-29-volume", settle=1.0, lead=0.05, contract="T4:volume", cells=["doors volume-door"], capture="Q", expect=Expect(verify=volume_above(40, wpctl_state)))
+        t.act("pointer", "Scrolls on the volume word of the bar", "The volume goes up by one step (40 to 45 percent)", still="02-29-volume", settle=1.0, lead=0.05, contract="T4:volume", cells=["doors volume-door"], capture="Q", expect=Expect(verify=volume_is(45, wpctl_state)))
         t.reach(1018, 24); t.wait(0.5); t.inject([{"scroll": {"dy": -15}}]); t.wait(0.8); t.done()
         t.act("pointer", "Clicks the power icon at the right end of the bar", "A menu opens: Lock, Log out, Restart, Shut down, Screenshot", still="02-30-power-menu", settle=1.0, lead=0.05, contract="T4:power", cells=["doors power-door", "gate-tiling-power.sh"], capture="Q", expect=Expect(verify=rows_have(L.dir, ["Lock", "Log out", "Restart", "Shut down", "Screenshot"])))
         t.reach(1247, 24); t.click(); t.wait(0.8); t.done()

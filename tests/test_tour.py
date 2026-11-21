@@ -312,9 +312,34 @@ class ChaptersARows(unittest.TestCase):
         (d / "letter.txt").write_text("Dear Anna,\nLove, Erika\n")
         self.assertEqual(letter_is("Dear Anna,\nLove, Erika", d / "letter.txt")(snap()), [])
         (d / "fuzzel.rows.1").write_text("Zebra\nalpha\n")
-        self.assertTrue(box_says(str(d), "nosuch")(snap()))
+        check = box_says(str(d), "nosuch")
         (d / "fuzzel.rows.2").write_text('Nothing found for "nosuch"\nZebra\n')
-        self.assertEqual(box_says(str(d), "nosuch")(snap()), [])
+        self.assertEqual(check(snap()), [])
+        self.assertTrue(box_says(str(d), "nosuch")(snap()), "a box of an act before is no answer of this act")
+
+    def test_logged_reads_only_what_the_act_added(self):
+        """rca-4: a line of an earlier act does not pass a later one."""
+        logged = check_of("xp", "logged")
+        log = pathlib.Path(tempfile.mkdtemp(prefix="tour-test-")) / "claims.chat"
+        log.write_text("How do I make the sound louder?\n")
+        check = logged(str(log), "louder")
+        self.assertTrue(check(snap()), "the line of the act before passes")
+        log.write_text("How do I make the sound louder?\nlouder again\n")
+        self.assertEqual(check(snap()), [])
+
+    def test_stand_in_wpctl_steps_by_the_percent(self):
+        """rca-3: `set-volume -l 1.0 SINK 5%+` adds five points; `75%` sets 0.75."""
+        import subprocess
+
+        d = tempfile.mkdtemp(prefix="tour-test-")
+        launch.wpctl_stub(d)
+        wpctl = lambda *a: subprocess.run([f"{d}/wpctl", *a], capture_output=True, text=True).stdout
+        wpctl("set-volume", "-l", "1.0", "@DEFAULT_AUDIO_SINK@", "5%+")
+        self.assertEqual(open(f"{d}/wpctl.state").read().split()[0], "0.45")
+        wpctl("set-volume", "@DEFAULT_AUDIO_SINK@", "10%-")
+        self.assertEqual(open(f"{d}/wpctl.state").read().split()[0], "0.35")
+        wpctl("set-volume", "@DEFAULT_AUDIO_SINK@", "75%")
+        self.assertEqual(open(f"{d}/wpctl.state").read().split()[0], "0.75")
 
     def test_tiling_tiles_turn_red_when_they_overlap_or_the_gaps_differ(self):
         tiles_hold = check_of("tiling", "tiles_hold")
@@ -347,6 +372,12 @@ class ChaptersARows(unittest.TestCase):
         self.assertEqual(notice_says("mousepad")(right), [])
         self.assertTrue(notice_is_new(right, right), "the notice of the read before is no new notice")
         self.assertEqual(notice_is_new(snap(), right), [])
+
+    def test_shared_checks_live_in_checks_py(self):
+        """rca-5: tiling and handover import from chapters/checks.py, not from the xp chapter."""
+        for chapter in ("tiling", "handover"):
+            src = (ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text()
+            self.assertNotIn("from chapters.xp", src, chapter)
 
     def test_i5_a_dialog_picture_hides_the_text_under_it(self):
         """rca-2: Help (a picture of an open dialog) over a title: I5 holds, a picture of no dialog still breaches."""
