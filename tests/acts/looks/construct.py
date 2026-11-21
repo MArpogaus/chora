@@ -196,7 +196,8 @@ def one_to_one(s):
     """A check: the screen shows the output of the front face pixel for
     pixel, so no construct node is left over the face. The boxes of the HUD
     host do not count: its voice island stays at the top right in a face
-    (docs/construct-style.md, rule 22)."""
+    (docs/construct-style.md, rule 22), nor does the resting chip Keys of a
+    face (co-42)."""
 
     def verify(after):
         listing = after.cube or {}
@@ -204,7 +205,11 @@ def one_to_one(s):
             return [f"the cube role: {listing.get('error')}"]
         face = listing["faces"][listing["front"]]["output"]
         screen = s.outputs()[0]["name"]
-        hud = [b["rect"] for b in boxes_on(after).get(screen, []) if b.get("owner") == HUD_HOST]
+        hud = [
+            b["rect"]
+            for b in boxes_on(after).get(screen, [])
+            if b.get("owner") == HUD_HOST or str(b.get("node", "")).startswith("construct-hints")
+        ]
 
         def free(x, y):
             return not any(r[0] <= x < r[0] + r[2] and r[1] <= y < r[1] + r[3] for r in hud)
@@ -528,6 +533,19 @@ def hint_shown(s):
     s.until(lambda: hint_rect(s, KEYS_HINT), 10, "the hint Keys on the screen")
 
 
+def rest_then_click(node):
+    """A cue: wait past the 3 s of the hints of a face, then click the hint
+    `node` where it stands, with no pointer rest low first (co-42)."""
+
+    def cue(s):
+        time.sleep(5.0)
+        s.until(lambda: hint_rect(s, node), 5, f"the hint {node} after 5 s")
+        x, y, bw, bh = hint_rect(s, node)
+        s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
+
+    return cue
+
+
 def keys_default_acts(s):
     """rck-1, rck-4: in a default session, with no grant, the hint Keys of a
     face and of the cube stood back names a key that opens the key list."""
@@ -545,6 +563,13 @@ def keys_default_acts(s):
         expect=Expect(open=[SHEET]),
     )
     s.act("Escape shuts the key list of the hint", [plain("Escape")], closes=[SHEET])
+    s.act(
+        "co-42: the hint Keys of a face stays after 3 s and opens the key list by a click",
+        [rest_then_click(KEYS_HINT)],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act("Escape shuts the key list of the resting hint", [plain("Escape")], closes=[SHEET])
     s.act(
         "Alt+Escape stands back without a grant",
         [key("Alt+Escape")],
