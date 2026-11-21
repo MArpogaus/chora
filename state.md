@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-21 20:38 UTC)
+## Now (2026-11-21 20:41 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 19:59 week 6.9 % (6.1 + 0.8 Bkk days; 0.43 %/h, under pace 9.6 %); disk: one train at a time
-session branch: e87b0ff9; 59 greens; t102 green 19:23 (3 branches); t103 running (harness; conflict merge-gate.sh ci-check, union). F5 r4 5/5 green (16:21).
+session branch: e87b0ff9; 59 greens; t102 green 19:23 (3 branches); t103 red 20:40: acts only (construct I6 passes but known-red; tiling I14 choractl disconnected); no t103 branch touches acts; acts rerun on 1c9e64f7 running (bisect). F5 r4 5/5 green (16:21).
 burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried (owner 11-17 15:35).
 
 ## RC (design/rc.md)
