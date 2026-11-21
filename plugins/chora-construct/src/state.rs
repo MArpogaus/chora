@@ -217,6 +217,25 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
     }
 
+    /// A node of another client that took the keyboard (a click in the xp
+    /// face) leaves the construct holding nothing, not the whole space
+    /// (co-i3 r2, I3 of the persona round 5).
+    #[test]
+    fn a_focused_node_of_another_client_takes_the_focus_off_the_construct() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut c, _core) = construct("state-foreign-node", false);
+        c.active = true;
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": "construct"}));
+        let node = |node: Option<&str>, owner: Option<&str>| chora_scene::Event::FocusNode {
+            node: node.map(String::from),
+            owner: owner.map(String::from),
+        };
+        c.event(node(Some("xp-icons"), Some("xp"))).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+        c.event(node(None, None)).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": "construct"}));
+    }
+
     /// A look that takes the focused pane out of sight gives the keyboard
     /// back to the walk: the focus is never a window that is no shown
     /// window (co-pane r1, I3 of the persona round 3).
