@@ -31,6 +31,10 @@ grep -qE '^Step 0.*cargo check' "$root/$rel" || die "$rel lacks a 'Step 0 ... ca
 if grep -qE 'merge-gate\.sh --only' "$root/$rel"; then
   grep -E 'merge-gate\.sh --only' "$root/$rel" | grep -vq 'ci-check' && die "$rel: a merge-gate.sh --only list lacks ci-check (the earliest gate for cut-check)"
 fi
+# Full gate (friction 11-21 12:06, three red trains from hand-picked --only lists): a Gate line with --only needs "no product code" in the brief.
+if grep -qE 'Gate:.*merge-gate\.sh[^`]*--only' "$root/$rel"; then
+  grep -qiE 'no product (code|change)' "$root/$rel" || die "$rel: its Gate runs --only, but a product-code lane runs the full gate (procedures.md Lane start); say 'no product code' if it is test-only"
+fi
 # Opus gate (critic 11-18: opus started three times while over pace): the budget line decides.
 case "$model" in
   *opus*|*Fable*) grep -m1 '^budget:' "$root/state.md" | grep -qiE 'no new opus' && die "state.md budget line says no new opus today (rules.md 9)" ;;

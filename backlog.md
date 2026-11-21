@@ -369,4 +369,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - rti-7 NIT ti-29 launcher.rs:47: empty program leaves generic name as last word in helper_last.
 - rhm-6 NIT handover-mo: 60314da1 not under a full gate before the train (t100 runs it).
 - rhm-7 NIT handover-mo: gate-tiling-empty-output.sh parts 3-4, flavors/tiling/wallpaper.sh:9 comments name --with-companions as the switch.
-- FLK-DOORS-TILING-CHAT (rc 2, flake or ordering; 11-21 12:06): t99c (c996702a, without handover-mo) doors cell: tiling launcher-chat "missing" (no result row), every other cell pass; the same merges plus handover-mo passed doors in t99b. Log /tmp/merge-gate.kuDr1C/doors.log. Watch in t99d and the F5 series; a second sighting gets a lane.
+- FLK-DOORS-TILING-CHAT (rc 2, flake or ordering; 11-21 12:06; second sighting t99d 12:5x, lane flk-doors-chat r1): t99c (c996702a, without handover-mo) doors cell: tiling launcher-chat "missing" (no result row), every other cell pass; the same merges plus handover-mo passed doors in t99b. Log /tmp/merge-gate.kuDr1C/doors.log. Watch in t99d and the F5 series; a second sighting gets a lane.
