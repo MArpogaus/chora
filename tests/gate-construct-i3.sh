@@ -8,7 +8,7 @@
 # Usage: tests/gate-construct-i3.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
-need_bins chora choractl chora-construct chora-xp
+need_bins chora choractl chora-construct chora-xp chora-probe
 temp_config
 export PATH=$bin:$PATH
 
@@ -19,11 +19,15 @@ until_ok() {
     done
     return 1
 }
+surface_held() { ctl call construct state.get '{}' | python3 -I -c 'import json, sys; sys.exit(0 if json.load(sys.stdin)["focus"].get("surface") else 1)'; }
 holder() { ctl call "$1" state.get '{}' | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["focus"].get("holder") or "-")'; }
 
 session_start 1280x800 -- "$bin/chora-construct"
 grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+"$bin/chora-probe" window 300 200 --report >"$XDG_CONFIG_HOME/pane.log" 2>&1 &
+pids+=($!)
+until_ok 'surface_held' 80 || fail "the construct holds no window in a pane before the cube: $(ctl call construct state.get '{}')"
 ctl call construct cube.open >/dev/null || fail "cube.open failed"
 until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
 echo '[{"pointer_move": {"position": [640, 300]}}, {"click": {}}]' | ctl inject >/dev/null || fail "the click did not inject"
