@@ -736,9 +736,11 @@ class Session:
         return out
 
     def snapshot(self, states=None, events=()):
-        """Read the session; the states when the caller has them."""
+        """Read the session; the states when the caller has them. The boxes
+        are read last, after the answers of the clients: a held cube read
+        straight after its nodes showed one face alone in 2 of 5 runs."""
         outputs = self.outputs()
-        nodes, boxes, shots = self.settled_scene(outputs)
+        nodes, _, shots = self.settled_scene(outputs)
         wallpaper = self.wallpaper
         if wallpaper is None:
             wallpaper = {o["name"] for o in outputs} if self.looks[0] in WALLPAPER else set()
@@ -755,8 +757,8 @@ class Session:
             logs=self.new_log_text(),
             outputs=outputs,
             cube=self.cube(),
-            boxes=boxes,
             blocks=self.blocks(clients),
+            boxes=self.core.call("scene.boxes"),
             shots=shots,
         )
 

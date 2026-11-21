@@ -416,6 +416,21 @@ class KnownRed(unittest.TestCase):
         s.settled_scene([], sleep=lambda _t: None)
         self.assertEqual(len(reads), 4)
 
+    def test_a_snapshot_reads_the_boxes_after_the_clients(self):
+        s = object.__new__(harness.Session)
+        order = []
+        s.core = type("C", (), {"call": staticmethod(lambda m, _p=None: order.append(m) or {})})()
+        s.label, s.looks, s.wallpaper = "construct", ["construct"], set()
+        s.outputs = lambda: []
+        s.settled_scene = lambda outputs: order.append("settled") or ([], {}, None)
+        s.clients = lambda: order.append("clients") or {}
+        s.blocks = lambda clients: order.append("blocks") or {}
+        s.cube = lambda: order.append("cube") or {}
+        s.new_log_text = lambda: {}
+        s.snapshot(states={})
+        self.assertEqual(order[-1], "scene.boxes")
+        self.assertGreater(order.index("scene.boxes"), order.index("blocks"))
+
     def test_a_construct_session_takes_no_capture_once_construct_is_gone(self):
         s = object.__new__(harness.Session)
         s.label, s.looks = "construct", ["xp"]
