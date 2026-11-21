@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 22:45 UTC)
+## Now (2026-11-21 22:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:10 week 7.1 % (6.1 + 1.0 Bkk days; 0.41 %/h, under pace 10.3 %); disk: one train at a time
 session branch: 1c9e64f7; 60 greens; t103 green 22:45 (rerun; first run acts flake sh-32); t104 running 22:45 (keys-route, co-hint, kit-cov, split-a). F5 r4 5/5 green (16:21).
@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| p2-r4-tiling.md (rc 2: tiling round 4, L1-L3 after harness-l) | sonnet medium, claude/p2-r4-tiling 1c9e64f7 | starting 22:45 |
+| p2-r4-tiling.md (rc 2: tiling round 4, L1-L3 after harness-l) | sonnet medium, claude/p2-r4-tiling 1c9e64f7 | session_016iS3kQNiJYXxaMEnvcEvjD 22:46 |
 | co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | session_016iS3kQftQgVnSgb4hmQy5h 21:51 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
