@@ -95,3 +95,12 @@ Review of claude/guide-checks head 4efbf430 over base a78b1a07 (sonnet, high; re
 | rg-10 | MINOR | tests/acts/invariants.py:503 (+ known-red.toml, 135 `match = "guide wants 14 px"` rows) | The "has no font size, the guide wants 14 px" breach contains the `match` of every size row, so a size row hides a harness gap (a run without px) the same as a real small size. | Word the unknown-size breach without "guide wants 14 px" (or make the rows match "px, the guide wants"). |
 | rg-11 | MINOR | tests/acts/invariants.py:240 | `mode` as a KEY_LINE segment gives 7:1 to any label with a `-mode-` part: probe `xp-mode-label`, grey 118 on white, 4.54:1 fails "wants 7:1" although it is no key line or button. | List the `construct-mode-` buttons only (or mark key lines in node meta, as r1 rg-4 said). |
 | rg-8 | NIT | tests/acts/planted.py | open, deferred (known). | |
+
+## r3
+
+Branch claude/guide-checks: red 003b3cf3, fix 9881ccda (on 4efbf430). Status: NOT GREEN, the acts step is red on rg-9.
+
+- rg-9 (MAJOR): the 9 `flaky` rows are gone, judge() now refuses a flaky row without `act` and `evidence`. The tray contrast is NOT the clock: it is white on XP blue, 3.27:1 (3.21:1 at 1:1), a real fault. It shows in a different act each run: run 1 in 10 (act, capture) pairs, run 2 in 1 (xp "Escape shuts Turn Off Computer") and none in construct, run 3 in construct "the pager turns the cube". Rows keyed to an act cannot converge. `settled_scene` (re-read the nodes while a text changes, 5 tries) is in but did not change that; unproven. Rows now: 13 flaky contrast rows with act and evidence (before: 9 rows without act); "the pager turns the cube" VIRTUAL-1 is still unlisted. Why the tray is measured in some acts only is open: suspect screen_texts or the capture, not the clock. Suggest: one row per capture with `acts = [...]`, or find why the measure skips.
+- rg-10: "no font size, its size cannot be checked" no longer contains "guide wants 14 px"; no row needed it (0 known-red rows had no size).
+- rg-11: KEY_LINE has no `mode`; `^construct-mode-` is the anchored list. xp-mode-label gets 4.5:1.
+- Gate (--jobs 1): pre-commit, gate-lib, ci-check, build, test, hud, layout, tiling-audit PASS; acts FAIL: the tray row above and `construct act:construct started again reopens the cube ... within 30 s` (RuntimeError in every one of 3 runs; not touched by this lane, not checked on 4efbf430, no FLK id). test_acts.py 188 pass.
