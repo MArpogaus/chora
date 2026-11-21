@@ -159,3 +159,12 @@ Checks: (1) red first holds: `python3 -I -m pytest tests/test_tour.py tests/test
 
 - rca-6, MINOR, tests/acts/invariants.py:408-412 (`dialog_picture`): the prefix match `node.startswith(d + "-")` lets any image under a dialog id (an icon, a button picture) hide the text under it, not only the frame; the rect test limits it to what the image covers. Fix: match the frame node (`d + "-frame"`) or require the image to be at least the size of the dialog's first text.
 - rca-7, nit, tests/test_tour.py:~385 and tests/test_acts.py:588: the dialog-picture I5 case is tested twice (same states). Fix: keep one.
+
+## r3
+
+- rca-6: `dialog_picture` now matches only the dialog id or `<id>-frame`; an icon under a dialog id no longer hides text. Red test `a27ac73f` (test_acts, red on 186d8506), fix `77134283`.
+- rca-7: duplicate dialog-picture I5 test removed from tests/test_tour.py.
+- Gate: `unittest tests.test_tour tests.test_acts` 193 OK; merge-gate pre-commit PASS, acts PASS (286s). Head 77134283.
+
+## Review r3 (PM, not the builder; small diff)
+186d8506..77134283: red a27ac73f before fix 77134283. `dialog_picture` now matches only `<id>` or `<id>-frame` (rca-6 closed: an icon under a dialog id no longer counts as its picture, test `test_an_icon_under_a_dialog_id_hides_nothing`); the duplicate I5 test left test_tour (rca-7 closed; the test_acts copy keeps the coverage). Lane: unittest 193 OK, gate pre-commit and acts PASS. Verdict: MERGE-OK (0 open). Joins t98.
