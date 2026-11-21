@@ -20,7 +20,7 @@ import subprocess
 import tempfile
 import types
 
-from harness import REPO, Core, Expect, Session, program
+from harness import REPO, Core, Expect, Session, known_red, program
 
 OUT = "HEADLESS-1"
 
@@ -123,6 +123,65 @@ def raw_entry(s):
     apply(s, text("planted-raw", "org.gnome.TextEditor.desktop", [400, 360]))
 
 
+def rect(nid, at, size, color, meta=None):
+    """A rect node of the harness under the overlay."""
+    props = {"size": size, "color": color, "transform": {"translate": at}}
+    if meta:
+        props["meta"] = meta
+    return {"create": {"id": nid, "kind": "rect", "parent": f"screen:{OUT}", "props": props}}
+
+
+def coloured(nid, words, at, size, color):
+    """A text node of a colour, in a font size."""
+    node = text(nid, words, at)
+    node["create"]["props"] |= {"font_size": size, "color": color}
+    return node
+
+
+def faint_text(s):
+    """A cue: grey text on a nearly grey panel (contrast about 1.1:1)."""
+    apply(
+        s,
+        rect("planted-faint-bg", [400, 400], [300, 40], [0.5, 0.5, 0.5, 1]),
+        coloured("planted-faint", "Next step", [410, 408], 16, [0.56, 0.56, 0.56, 1]),
+    )
+
+
+def blank_text(s):
+    """A cue: white text of 16 px on a white panel (contrast 1:1)."""
+    apply(
+        s,
+        rect("planted-blank-bg", [400, 520], [300, 40], [1, 1, 1, 1]),
+        coloured("planted-blank", "Next step", [410, 528], 16, [1, 1, 1, 1]),
+    )
+
+
+def small_text(s):
+    """A cue: white text of 10 px on a dark panel (contrast sound)."""
+    apply(
+        s,
+        rect("planted-small-bg", [400, 460], [300, 40], [0.05, 0.05, 0.05, 1]),
+        coloured("planted-small", "Next step", [410, 468], 10, [1, 1, 1, 1]),
+    )
+
+
+def odd_gaps(s):
+    """A cue: two helper surfaces 13 px apart and two tiles 7 px apart."""
+    surf = {"surface": "planted"}
+    apply(
+        s,
+        rect("planted-gap-a", [100, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
+        rect("planted-gap-b", [213, 100], [100, 60], [0.2, 0.2, 0.2, 1], surf),
+        rect("tb-planted-1", [100, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
+        rect("tb-planted-2", [207, 300], [100, 60], [0.2, 0.2, 0.2, 1]),
+    )
+
+
+def agent_word(s):
+    """A cue: a text with the word of the builders."""
+    apply(s, coloured("planted-agent", "Ask the agent", [400, 520], 16, [1, 1, 1, 1]))
+
+
 def remove(s, *ids):
     """Remove nodes of the harness."""
     apply(s, *({"remove": {"id": i}} for i in ids))
@@ -183,7 +242,9 @@ def persona_check(must):
                 )
 
             subprocess.run([str(persona / "check.py"), "start"], env=check, check=True, timeout=60)
-            must("persona sound", after("sound"), fail=False)
+            listed = {(r["look"], r["id"]) for r in known_red()}
+            sound = [b for b in after("sound") if (b["look"], b["invariant"]) not in listed]
+            must("persona sound", sound, fail=False)
             planted = Core(sock, name="planted-persona")
             black_screen(
                 types.SimpleNamespace(core=planted, outputs=lambda: planted.call("output.list"))
@@ -235,6 +296,22 @@ def run(results):
         remove(s, "planted-text-1", "planted-text-2")
         must("I10 a raw entry shows", cell(s, "raw", "I10", [raw_entry]), fail=True)
         remove(s, "planted-raw")
+
+        must("I6 faint text", cell(s, "faint", "I6", [faint_text]), fail=True)
+        remove(s, "planted-faint-bg", "planted-faint")
+        must("I6 text of its back's colour", cell(s, "blank", "I6", [blank_text]), fail=True)
+        remove(s, "planted-blank-bg", "planted-blank")
+        must("I6 small text", cell(s, "small", "I6", [small_text]), fail=True)
+        remove(s, "planted-small-bg", "planted-small")
+        must("I2 odd gaps", cell(s, "gaps", "I2", [odd_gaps]), fail=True)
+        remove(s, "planted-gap-a", "planted-gap-b", "tb-planted-1", "tb-planted-2")
+        must("I10 the word agent", cell(s, "agent", "I10", [agent_word]), fail=True)
+        remove(s, "planted-agent")
+        apply(s, rect("planted-fixed", [900, 40], [100, 60], [0.2, 0.2, 0.2, 1], {"surface": "p"}))
+        move = lambda _s: apply(s, {"update": {"id": "planted-fixed", "props": {"transform": {"translate": [903, 40]}}}})
+        must("I2 held, a fixed surface moves", cell(s, "moved", "I2", [move], held=0.3), fail=True)
+        must("I2 held, a fixed surface stays", cell(s, "stays", "I2", held=0.3), fail=False)
+        remove(s, "planted-fixed")
 
         planted = Core(s.env["CHORA_SOCKET"], name="planted")
         s.until(lambda: "planted" in s.clients(), 5, "planted client")

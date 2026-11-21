@@ -2,6 +2,1672 @@
 # arch plan). A listed failure does not block the gate step `acts`; a
 # listed pass blocks it, so the row goes in the merge that turns it
 # green. Each row names the look, the id (an invariant such as `I1` or an
-# act `act:NAME`), its finding id and the slice that turns it green. An
-# optional `match` is a text that every breach of the cell must contain,
-# so a row stays red only for the breach it names.
+# act `act:NAME`), its finding id and the slice that turns it green. The
+# optional `act` (the act that first shows the breach), `capture` (the
+# label of the node) and `match` (a text of the breach) name one fault:
+# a breach that no row names blocks, and a row that no breach meets is
+# stale and blocks too, unless it says `flaky = true` with an `act` and an
+# `evidence` (two runs of that act, one with the fault and one without). A
+# `capture` ending in `*` names every node label with that prefix, in every act.
+# An `[[exempt]]` row (`look`, `node`, `reason`) passes the contrast breach of
+# the nodes whose label starts with `node`, in every act, down to its `floor`.
+
+[[exempt]]
+floor = 3.0
+look = "xp"
+node = "xp-tray-"
+reason = "authentic Luna tray, vision card"
+
+[[red]]
+act = "a drag with the modifier on the front face turns the cube"
+capture = "construct-mode-step-in"
+finding = "guide-checks r2: construct-mode-step-in: no whole number of 8"
+id = "I2"
+look = "construct"
+match = "no whole number of 8"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube is held halfway through a turn"
+finding = "guide-checks r2: a held screen-fixed node: screen-fixed"
+id = "I2"
+look = "construct"
+match = "screen-fixed"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Tab right after a new window opens the window list"
+capture = "construct-list-body-scope"
+finding = "guide-checks r2: construct-list-body-scope: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a drag with the modifier on the front face turns the cube"
+capture = "construct-mode-step-in-text"
+finding = "guide-checks r2: construct-mode-step-in-text: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a notice shows"
+capture = "notify-card-body"
+finding = "guide-checks r2: notify-card-body: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens on the front face"
+capture = "xp-task-s4-VIRTUAL-1"
+finding = "guide-checks r2: xp-task-s4-VIRTUAL-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-icon-0"
+finding = "guide-checks r2: xp-icon-0: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-icon-1"
+finding = "guide-checks r2: xp-icon-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-icon-2"
+finding = "guide-checks r2: xp-icon-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-pager-0-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-0-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-pager-1-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-1-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-pager-2-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-2-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-pager-3-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-3-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-task-s4-HEADLESS-1"
+finding = "guide-checks r2: xp-task-s4-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-tray-HEADLESS-1"
+finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube is held halfway through a turn"
+capture = "construct-hints-construct-mode-step-in-keys-0-text"
+finding = "guide-checks r2: construct-hints-construct-mode-step-in-keys-0-text: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube is held halfway through a turn"
+capture = "construct-mode-step-in-text"
+finding = "guide-checks r2: construct-mode-step-in-text: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-icon-0"
+finding = "guide-checks r2: xp-icon-0: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-icon-1"
+finding = "guide-checks r2: xp-icon-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-icon-2"
+finding = "guide-checks r2: xp-icon-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-2: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-3: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-3: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-4: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-0-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-0-VIRTUAL-4: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-1: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-3: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-3: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-4: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-1-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-1-VIRTUAL-4: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-1: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-3: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-2-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-1: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-2: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-3: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-3"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-3: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-pager-3-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-3-VIRTUAL-4: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-1"
+finding = "guide-checks r2: xp-tray-VIRTUAL-1: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-2"
+finding = "guide-checks r2: xp-tray-VIRTUAL-2: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-3"
+finding = "guide-checks r2: xp-tray-VIRTUAL-3: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-4"
+finding = "guide-checks r2: xp-tray-VIRTUAL-4: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the key of the step back stands back"
+capture = "xp-task-s4-VIRTUAL-1"
+finding = "guide-checks r2: xp-task-s4-VIRTUAL-1: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-0"
+finding = "guide-checks r2: construct-help-body-head-0: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-11"
+finding = "guide-checks r2: construct-help-body-head-11: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-11-every"
+finding = "guide-checks r2: construct-help-body-head-11-every: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-14"
+finding = "guide-checks r2: construct-help-body-head-14: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-14-every"
+finding = "guide-checks r2: construct-help-body-head-14-every: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-18"
+finding = "guide-checks r2: construct-help-body-head-18: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-18-every"
+finding = "guide-checks r2: construct-help-body-head-18-every: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-head-7"
+finding = "guide-checks r2: construct-help-body-head-7: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "construct-help-body-scope"
+finding = "guide-checks r2: construct-help-body-scope: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the pager turns the cube"
+capture = "xp-pager-2-VIRTUAL-1"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-1: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the pager turns the cube"
+capture = "xp-pager-2-VIRTUAL-2"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the pager turns the cube"
+capture = "xp-pager-2-VIRTUAL-4"
+finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: the contrast"
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Right of a remote turns the page in dark mc"
+capture = "mc-r1-footer-next"
+finding = "guide-checks r2: mc-r1-footer-next: a word of the builders"
+id = "I10"
+look = "mc"
+match = "a word of the builders"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a second Right of a remote turns on"
+capture = "mc-r0-header-head"
+finding = "guide-checks r2: mc-r0-header-head: a word of the builders"
+id = "I10"
+look = "mc"
+match = "a word of the builders"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a second Right of a remote turns on"
+capture = "mc-s-agents-chapter-title"
+finding = "guide-checks r2: mc-s-agents-chapter-title: a word of the builders"
+id = "I10"
+look = "mc"
+match = "a word of the builders"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a helper starts"
+capture = "mc-r1-right-agents-0-sign"
+finding = "guide-checks r2: mc-r1-right-agents-0-sign: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the chat of the helper opens"
+capture = "mc-r0-right-doors-lock"
+finding = "guide-checks r2: mc-r0-right-doors-lock: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the chat of the helper opens"
+capture = "mc-r0-right-doors-power"
+finding = "guide-checks r2: mc-r0-right-doors-power: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the chat of the helper opens"
+capture = "mc-r0-right-doors-programs"
+finding = "guide-checks r2: mc-r0-right-doors-programs: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the chat of the helper opens"
+capture = "mc-r0-right-doors-volume"
+finding = "guide-checks r2: mc-r0-right-doors-volume: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the helper asks"
+capture = "mc-r1-right-chat-door"
+finding = "guide-checks r2: mc-r1-right-chat-door: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the helper asks"
+capture = "mc-r1-right-chat-title"
+finding = "guide-checks r2: mc-r1-right-chat-title: the contrast"
+id = "I6"
+look = "mc"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a notice shows"
+capture = "notify-card-body"
+finding = "guide-checks r2: notify-card-body: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-0"
+finding = "guide-checks r2: tiling-keys-body-0: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-1-k"
+finding = "guide-checks r2: tiling-keys-body-1-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-11-k"
+finding = "guide-checks r2: tiling-keys-body-11-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-13-k"
+finding = "guide-checks r2: tiling-keys-body-13-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-15-k"
+finding = "guide-checks r2: tiling-keys-body-15-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-17-k"
+finding = "guide-checks r2: tiling-keys-body-17-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-19-k"
+finding = "guide-checks r2: tiling-keys-body-19-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-21-k"
+finding = "guide-checks r2: tiling-keys-body-21-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-23-k"
+finding = "guide-checks r2: tiling-keys-body-23-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-25-k"
+finding = "guide-checks r2: tiling-keys-body-25-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-27-k"
+finding = "guide-checks r2: tiling-keys-body-27-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-29-k"
+finding = "guide-checks r2: tiling-keys-body-29-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-3-k"
+finding = "guide-checks r2: tiling-keys-body-3-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-31-k"
+finding = "guide-checks r2: tiling-keys-body-31-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-33-k"
+finding = "guide-checks r2: tiling-keys-body-33-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-35"
+finding = "guide-checks r2: tiling-keys-body-35: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-36-k"
+finding = "guide-checks r2: tiling-keys-body-36-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-38-k"
+finding = "guide-checks r2: tiling-keys-body-38-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-40-k"
+finding = "guide-checks r2: tiling-keys-body-40-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-42-k"
+finding = "guide-checks r2: tiling-keys-body-42-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-44-k"
+finding = "guide-checks r2: tiling-keys-body-44-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-46-k"
+finding = "guide-checks r2: tiling-keys-body-46-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-48-k"
+finding = "guide-checks r2: tiling-keys-body-48-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-5-k"
+finding = "guide-checks r2: tiling-keys-body-5-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-50"
+finding = "guide-checks r2: tiling-keys-body-50: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-51-k"
+finding = "guide-checks r2: tiling-keys-body-51-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-53-k"
+finding = "guide-checks r2: tiling-keys-body-53-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-55-k"
+finding = "guide-checks r2: tiling-keys-body-55-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-57-k"
+finding = "guide-checks r2: tiling-keys-body-57-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-59-k"
+finding = "guide-checks r2: tiling-keys-body-59-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-61-k"
+finding = "guide-checks r2: tiling-keys-body-61-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-63-k"
+finding = "guide-checks r2: tiling-keys-body-63-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-65-k"
+finding = "guide-checks r2: tiling-keys-body-65-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-67-k"
+finding = "guide-checks r2: tiling-keys-body-67-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-69-k"
+finding = "guide-checks r2: tiling-keys-body-69-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-7-k"
+finding = "guide-checks r2: tiling-keys-body-7-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-71-k"
+finding = "guide-checks r2: tiling-keys-body-71-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-73"
+finding = "guide-checks r2: tiling-keys-body-73: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-74-k"
+finding = "guide-checks r2: tiling-keys-body-74-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-76-k"
+finding = "guide-checks r2: tiling-keys-body-76-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-78-k"
+finding = "guide-checks r2: tiling-keys-body-78-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-80-k"
+finding = "guide-checks r2: tiling-keys-body-80-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-82-k"
+finding = "guide-checks r2: tiling-keys-body-82-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-84-k"
+finding = "guide-checks r2: tiling-keys-body-84-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-86-k"
+finding = "guide-checks r2: tiling-keys-body-86-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-88"
+finding = "guide-checks r2: tiling-keys-body-88: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-89-k"
+finding = "guide-checks r2: tiling-keys-body-89-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-9-k"
+finding = "guide-checks r2: tiling-keys-body-9-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-91-k"
+finding = "guide-checks r2: tiling-keys-body-91-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-93-k"
+finding = "guide-checks r2: tiling-keys-body-93-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-95-k"
+finding = "guide-checks r2: tiling-keys-body-95-k: guide wants 14 px"
+id = "I6"
+look = "tiling"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-h"
+finding = "guide-checks r2: tiling-keys-body-h: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the keys key opens the key list"
+capture = "tiling-keys-body-m"
+finding = "guide-checks r2: tiling-keys-body-m: the contrast"
+id = "I6"
+look = "tiling"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-pager-1-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-1-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-pager-2-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-2-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-pager-3-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-3-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-0"
+finding = "guide-checks r2: xp-session-button-0: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-0"
+finding = "guide-checks r2: xp-session-button-0: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-1"
+finding = "guide-checks r2: xp-session-button-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-1"
+finding = "guide-checks r2: xp-session-button-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-2"
+finding = "guide-checks r2: xp-session-button-2: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-2"
+finding = "guide-checks r2: xp-session-button-2: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-3"
+finding = "guide-checks r2: xp-session-button-3: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-3"
+finding = "guide-checks r2: xp-session-button-3: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-4"
+finding = "guide-checks r2: xp-session-button-4: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-4"
+finding = "guide-checks r2: xp-session-button-4: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-session-button-5"
+finding = "guide-checks r2: xp-session-button-5: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+d puts the windows away"
+capture = "xp-task-s3-HEADLESS-1"
+finding = "guide-checks r2: xp-task-s3-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-0"
+finding = "guide-checks r2: xp-ctx-0-0: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-1"
+finding = "guide-checks r2: xp-ctx-0-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-2"
+finding = "guide-checks r2: xp-ctx-0-2: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-3"
+finding = "guide-checks r2: xp-ctx-0-3: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-5"
+finding = "guide-checks r2: xp-ctx-0-5: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a drag of a window shuts the Start menu"
+capture = "xp-task-s2-HEADLESS-1"
+finding = "guide-checks r2: xp-task-s2-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-icon-0"
+finding = "guide-checks r2: xp-icon-0: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-icon-1"
+finding = "guide-checks r2: xp-icon-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-icon-2"
+finding = "guide-checks r2: xp-icon-2: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-0-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-0-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-1-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-1-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-1-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-1-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-2-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-2-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-2-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-2-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-3-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-3-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-pager-3-HEADLESS-1"
+finding = "guide-checks r2: xp-pager-3-HEADLESS-1: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-tray-HEADLESS-1"
+finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-0"
+finding = "guide-checks r2: xp-item-0: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-1"
+finding = "guide-checks r2: xp-item-1: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-10"
+finding = "guide-checks r2: xp-item-10: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-11"
+finding = "guide-checks r2: xp-item-11: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-12"
+finding = "guide-checks r2: xp-item-12: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-13"
+finding = "guide-checks r2: xp-item-13: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-14"
+finding = "guide-checks r2: xp-item-14: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-15"
+finding = "guide-checks r2: xp-item-15: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-16"
+finding = "guide-checks r2: xp-item-16: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-2"
+finding = "guide-checks r2: xp-item-2: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-3"
+finding = "guide-checks r2: xp-item-3: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-4"
+finding = "guide-checks r2: xp-item-4: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-5"
+finding = "guide-checks r2: xp-item-5: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-6"
+finding = "guide-checks r2: xp-item-6: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-7"
+finding = "guide-checks r2: xp-item-7: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-8"
+finding = "guide-checks r2: xp-item-8: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-item-9"
+finding = "guide-checks r2: xp-item-9: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the Start button opens the Start menu before a drag"
+capture = "xp-menu-frame"
+finding = "guide-checks r2: xp-menu-frame: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the balloon says that Notepad starts under the volume popup"
+capture = "notify-card-body"
+finding = "guide-checks r2: notify-card-body: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the helper asks"
+capture = "xp-icon-2"
+finding = "guide-checks r2: xp-icon-2: the contrast"
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the tooltip of the speaker says the level that the key set"
+capture = "xp-tooltip"
+finding = "guide-checks r2: xp-tooltip: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a click on the speaker opens the volume popup"
+capture = "xp-ctx-0-7"
+finding = "guide-checks r5: xp-ctx-0-7: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the vision card"
+
+[[red]]
+capture = "xp-task-*"
+finding = "guide-checks r6: xp-task-*: guide wants 14 px"
+id = "I6"
+look = "xp"
+match = "guide wants 14 px"
+slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the taskbar buttons"

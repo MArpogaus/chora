@@ -83,6 +83,22 @@ def near(a, b, tolerance=TOLERANCE):
     return sum(abs(p - q) for p, q in zip(a, b)) <= tolerance
 
 
+def gap_findings(nodes, output, unit=4.0):
+    """The tiles (`tb-` borders) of an output whose gap is no whole number
+    of the grid unit (4): the same rule as hud-audit.py `gaps`."""
+    spec = importlib.util.spec_from_file_location(
+        "hud_audit", pathlib.Path(__file__).with_name("hud-audit.py")
+    )
+    hud = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hud)
+    rects = {
+        n["id"]: n["rects"][output]
+        for n in nodes
+        if n.get("id", "").startswith("tb-") and output in (n.get("rects") or {})
+    }
+    return hud.gap_findings(output, rects, unit)
+
+
 def surfaces(nodes):
     found = {}
     for node in nodes:
@@ -358,4 +374,5 @@ def main():
     return 1 if problems else 0
 
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())

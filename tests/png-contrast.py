@@ -28,7 +28,11 @@ def luminance(rgb):
 
 def contrast(path, x, y, w, h):
     """The contrast ratio of the text in the rect and its colours."""
-    lines = list(png.rows(pathlib.Path(path).read_bytes()))
+    return contrast_rows(list(png.rows(pathlib.Path(path).read_bytes())), x, y, w, h)
+
+
+def contrast_rows(lines, x, y, w, h):
+    """The same on decoded rows (RGBA bytes per row), for the act checks."""
     pixels = [
         tuple(lines[r][c * 4:c * 4 + 3])
         for r in range(y, y + h)
