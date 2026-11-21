@@ -499,5 +499,32 @@ class WithChildren(unittest.TestCase):
         self.assertIsNone(self.run_it(self.cube(0), self.child("face-0"), label="xp"))
 
 
+class WaitForApp(unittest.TestCase):
+    """ph-1: round.sh probe waits for the window of the probe in the scene,
+    not a fixed time."""
+
+    def nodes(self, app):
+        return [{"id": "s1", "kind": "surface", "surface": {"app_id": app}}]
+
+    def test_the_window_is_there_at_once(self):
+        self.assertTrue(check.wait_for_app(lambda: self.nodes("chora-probe"), "chora-probe", 20))
+
+    def test_the_window_comes_after_a_few_reads(self):
+        reads = iter([[], [], self.nodes("chora-probe")])
+        got = check.wait_for_app(lambda: next(reads), "chora-probe", 20, sleep=lambda _: None)
+        self.assertTrue(got)
+
+    def test_another_window_is_no_probe(self):
+        ticks = iter(range(0, 100, 5))
+        got = check.wait_for_app(
+            lambda: self.nodes("foot"),
+            "chora-probe",
+            20,
+            sleep=lambda _: None,
+            clock=lambda: next(ticks),
+        )
+        self.assertFalse(got)
+
+
 if __name__ == "__main__":
     unittest.main()
