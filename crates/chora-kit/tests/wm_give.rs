@@ -142,3 +142,55 @@ fn a_created_window_given_away_opens_then_closes_in_order() {
         "{gone:?}"
     );
 }
+
+/// A window given in lands on top of the receiving look and holds the
+/// focus: the look's group goes to the top of its band and the window
+/// takes the keyboard, so that what a person just moved is in front.
+#[test]
+fn a_given_window_is_raised_and_focused_in_the_receiver() {
+    let mut book = Book::new(NAME, false);
+    let adopt = book.apply(&chora_scene::Event::SurfaceDetached {
+        surface: "s2".into(),
+    });
+    assert!(
+        matches!(
+            &adopt[..],
+            [Change::Adopt {
+                origin: Origin::Given,
+                ..
+            }]
+        ),
+        "{adopt:?}"
+    );
+    let opened = book.confirm("s2");
+    let raised = opened.iter().find_map(|c| match c {
+        Change::Apply(commands) => Some(commands.clone()),
+        _ => None,
+    });
+    assert_eq!(
+        raised,
+        Some(vec![
+            Command::Move {
+                id: NAME.into(),
+                parent: None,
+                index: None,
+            },
+            Command::Focus {
+                surface: Some("s2".into()),
+            },
+        ]),
+        "{opened:?}"
+    );
+}
+
+/// A new window is not raised by the book: the look places it.
+#[test]
+fn a_new_window_gets_no_raise_from_the_book() {
+    let mut book = Book::new(NAME, false);
+    book.claim("s1", None, None);
+    let opened = book.confirm("s1");
+    assert!(
+        opened.iter().all(|c| !matches!(c, Change::Apply(_))),
+        "{opened:?}"
+    );
+}

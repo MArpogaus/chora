@@ -338,11 +338,16 @@ impl Book {
     pub fn confirm(&mut self, id: &str) -> Vec<Change> {
         match self.pending.remove(id) {
             Some(Pending::Adopt(origin)) => {
+                let given = origin == Origin::Given;
                 self.windows.insert(id.into(), origin);
-                vec![Change::Phase {
+                let mut changes = vec![Change::Phase {
                     id: id.into(),
                     phase: Phase::Opened,
-                }]
+                }];
+                if given {
+                    changes.push(Change::Apply(self.raise_given(id)));
+                }
+                changes
             }
             Some(Pending::Give(to)) => {
                 self.windows.remove(id);
@@ -359,6 +364,22 @@ impl Book {
             }
             None => Vec::new(),
         }
+    }
+
+    /// What puts a window given in on top of the look and gives it the
+    /// keyboard: the group of the look goes to the top of its band, and
+    /// the window takes the focus.
+    fn raise_given(&self, id: &str) -> Vec<Command> {
+        vec![
+            Command::Move {
+                id: self.name.clone(),
+                parent: None,
+                index: None,
+            },
+            Command::Focus {
+                surface: Some(id.into()),
+            },
+        ]
     }
 
     /// The core refused the commands of a proposal: another window
