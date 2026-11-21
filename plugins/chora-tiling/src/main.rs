@@ -82,12 +82,11 @@ struct Args {
     /// window managers; all outputs without it. Repeatable.
     #[arg(long = "output", value_name = "NAME")]
     outputs: Vec<String>,
-    /// Starts the panel (waybar.sh) and the wallpaper (wallpaper.sh) of the
-    /// flavor, each once: not when its pid file names a running one, as in
-    /// a session whose units or gate started them. For a tiling that
-    /// nothing else dresses, such as the one of a `pane.manager` pane.
-    #[arg(long)]
-    with_companions: bool,
+    /// Accepted and ignored: the panel (waybar.sh) and the wallpaper
+    /// (wallpaper.sh) of the flavor start by default, each once (not when
+    /// its pid file names a running one).
+    #[arg(long = "with-companions", hide = true)]
+    _with_companions: bool,
     /// Write the files of the palette (the colours of the panel, the
     /// launcher, the terminal and the lock screen) and exit.
     #[arg(long)]
@@ -392,9 +391,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     tiling.system = system_for(tiling.settings.value.look.theme);
     tiling.apply_theme(false);
     tiling.start()?;
-    if args.with_companions {
-        theme::start_companions();
-    }
+    theme::start_companions();
     tiling.still = false;
     Ok(serve(&mut tiling)?)
 }

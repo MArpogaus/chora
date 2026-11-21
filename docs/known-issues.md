@@ -116,7 +116,7 @@ COSMETIC
 ## All looks and shared doors
 
 MAJOR
-- sh-23 / sd-h1: xp and tiling in two panes: the tiling output stays black (no bar, no start door), and after a click into it Super+Return opens the xp Start menu in the other pane. Open.
+- sh-23 / sd-h1: xp and tiling in two panes: after a click into the tiling output, Super+Return opened the xp Start menu in the other pane (fixed). The black tiling output, with no bar and no start door, is fixed too: `chora-tiling` starts its bar and wallpaper itself, once.
 - sd-h2: the xp Start menu stays open through a drag and key gives and covers the window. Open.
 - sh-24: a grab gated by the pointer could fall through to the focused client as a raw key. Likely fixed (merge dbdfcce4 names it; 9c4f1301, 0a3224b8 carry the injected flag).
 
