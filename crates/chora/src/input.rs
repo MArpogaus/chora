@@ -48,6 +48,7 @@ mod plane;
 use place::grab_action;
 #[cfg(test)]
 pub(crate) use place::holds_other_claim;
+pub(crate) use place::manages_only_virtual_outputs;
 pub use plane::PlaneGrab;
 pub(crate) use plane::anchor;
 use plane::{local_for, position_for, start_plane_grab};
@@ -170,12 +171,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             }
         }
         Some(KeyAction::Grab(conn, binding, injected)) => {
-            state.note_act(vec![conn]);
-            if !injected && key_state == KeyState::Pressed {
-                state.choose_manager_of(conn);
-            }
-            end_lone_taps_of_others(state, conn);
-            hold_grab(state, conn, binding, code, injected);
+            take_grab(state, (conn, binding, injected), code, key_state);
         }
         Some(KeyAction::Node(owner, event)) => {
             if key_state == KeyState::Pressed {
@@ -194,6 +190,23 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     if key_state == KeyState::Released {
         release_grabs(state, &keyboard.modifier_state());
     }
+}
+
+/// A key that a client grabbed: a press of the user, in the test mode an
+/// injected one too, also chooses the manager of the client (D55).
+fn take_grab(
+    state: &mut State,
+    (conn, binding, injected): (u64, Binding, bool),
+    code: Keycode,
+    key_state: KeyState,
+) {
+    state.note_act(vec![conn]);
+    let real = !injected || state.injected_press_is_real;
+    if real && key_state == KeyState::Pressed {
+        state.choose_manager_of(conn);
+    }
+    end_lone_taps_of_others(state, conn);
+    hold_grab(state, conn, binding, code, injected);
 }
 
 /// Tells the client of a key grab about the press and keeps the grab until

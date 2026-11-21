@@ -429,12 +429,17 @@ chosen manager focuses a window, no client gets a key, and only the
 grabs of managers of virtual outputs wait for it (sh-23). A key of the user that
 a window manager grabbed chooses that one in the same way when its
 claim holds the pointer or the keyboard focus, unless it has the
-keyboard focus anyway: the window that its key starts, such as the
+keyboard focus anyway or the window with the keyboard belongs to a
+window manager of virtual outputs (a face of a cube, a pane): the
+window that its key starts, such as the
 terminal of `Super+Return`, opens where the person is. Elsewhere the
-key changes nothing. The choice ends with
+key changes nothing, so a chord of the screen's manager takes no key
+from the program on a face. The choice ends with
 the next press of the user that chooses nobody, and when the keyboard
 focus changes, for example when the chosen manager focuses its new
-window. An injected press neither chooses nor ends a choice.
+window. An injected press neither chooses nor ends a choice, except
+in the test mode of the headless backend, where it counts as a press
+of the user, as it does for a button.
 
 One case differs. When the pointer is over a pane that forwards into a
 virtual output, no click chose a manager, and the rule of the keyboard

@@ -982,7 +982,10 @@ impl State {
     /// does (D55), when its claim holds the pointer or the keyboard focus:
     /// the window that the key starts opens where the person is. A
     /// manager that has the keyboard focus anyway is chosen by the focus,
-    /// so the key changes nothing then, nor anywhere else.
+    /// so the key changes nothing then, nor anywhere else. Nor does a key
+    /// take the place from the window of a manager of faces that has the
+    /// keyboard: the keys of the person stay with it, as Super+e of its
+    /// Start menu does after a chord of the screen's manager.
     pub fn choose_manager_of(&mut self, conn: u64) {
         let Some(name) = self.ipc.name(conn).map(String::from) else {
             return;
@@ -993,6 +996,10 @@ impl State {
             .focused_node_owner()
             .or_else(|| scene.node(focused?)?.owner.as_deref());
         if focus_owner == Some(name.as_str()) {
+            return;
+        }
+        if focus_owner.is_some_and(|owner| crate::input::manages_only_virtual_outputs(self, owner))
+        {
             return;
         }
         let pointer = self

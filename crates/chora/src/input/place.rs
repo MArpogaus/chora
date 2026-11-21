@@ -81,6 +81,11 @@ pub(crate) fn holds_other_claim(state: &State, conn: u64, place: &str) -> bool {
     let Some(name) = state.ipc.name(conn).filter(|name| *name != place) else {
         return false;
     };
+    manages_only_virtual_outputs(state, name)
+}
+
+/// Whether the claims of the client `name` all lie on virtual outputs.
+pub(crate) fn manages_only_virtual_outputs(state: &State, name: &str) -> bool {
     let virtuals: Vec<_> = (state.assets.virtuals.iter())
         .map(|v| crate::output::output_area(v.output()).to_f64())
         .collect();
