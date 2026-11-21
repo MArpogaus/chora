@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | p2-harness-l-r1.md (rc 2: persona L1-L3, ph-1, ph-2, RPM-1) | sonnet medium, claude/p2-harness-l a84effda | session_016iS3kMzndQRcQR2ZTYuC5D 16:16 |
 | xp-rd-r1.md (rc 6: review-delta rd-2 MEDIUM slider, rd-3 wheel) | sonnet medium, claude/xp-rd a84effda | session_016iS3kPdsb7N22TV7u8MqWn 16:12 |
 | flake-series-r4.md (F5: 5 full gates at --jobs 2) | haiku high, claude/flake-series-r4 1c599c74 | session_016iS3kL8UvFUknonKbwRzEb 12:55 |
-| ti-xdg-r1.md (rc 6: one runtime-dir rule, mkdir guard) | sonnet low, claude/ti-xdg a84effda | starting |
+| ti-xdg-r1.md (rc 6: one runtime-dir rule, mkdir guard) | sonnet low, claude/ti-xdg a84effda | session_016iS3kPEp1dge5wArJRTLrH 16:18 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
 ## Queue (% week; 5 % reserve)
