@@ -152,9 +152,7 @@ cell_keys_door() {
     until_ok keys_open 20 && keys_close
 }
 cell_f1_free() {
-    key F1
-    sleep 0.5
-    ! keys_open || return 1
+    check_keys F1 || return 1
     into_pane || return 1
     key F1
     got_key 59

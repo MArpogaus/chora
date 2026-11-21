@@ -16,6 +16,8 @@
 #                   and Mute
 #   keys-door       a visible door opens the key list by a click
 #   f1-free         F1 is no binding of the look: it reaches the client
+#                   (construct: F1 opens the key list in the walk, and
+#                   reaches the client in a pane without input.grab-any)
 #   launcher-key    Super+Space opens the launcher
 #   launcher-door   a visible door opens the launcher by a click
 #   launcher-chat   the launcher has the row Chat with a helper: a look

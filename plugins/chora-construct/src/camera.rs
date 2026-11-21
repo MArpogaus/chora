@@ -550,6 +550,7 @@ impl Construct {
         if self.keys_with_pane() && self.cube.is_none() {
             self.swallow_for_window()?;
         }
+        self.hints.stale = true;
         self.rt.end_grabs()
     }
 
@@ -628,12 +629,13 @@ impl Construct {
         self.frame()
     }
 
-    /// The chords that the construct binds with a modifier, and the media
-    /// keys: the keys that a window never gets while the keyboard may be
-    /// with it, so that they work from use mode.
+    /// The chords that the construct binds with a modifier, the media
+    /// keys and F1: the keys that a window never gets while the keyboard may
+    /// be with it, so that they work from use mode. F1 has no modifier, so
+    /// the core grabs it only with the grant `input.grab-any`.
     pub(crate) fn grab_keys(&self) -> Vec<(String, Grab)> {
         (self.settings.value.common.bindings.iter())
-            .filter(|(key, _)| key.contains('+') || key.starts_with("XF86"))
+            .filter(|(key, _)| key.contains('+') || key.starts_with("XF86") || *key == "F1")
             .filter_map(|(key, action)| match action {
                 Action::System(system)
                     if matches!(system, System::Terminal | System::Close | System::Run(_))

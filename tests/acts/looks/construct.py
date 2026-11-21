@@ -13,6 +13,7 @@ Without construct the pager of xp switches its desks itself.
 
 import os
 import signal
+import subprocess
 import time
 
 from common import door_acts, helper_acts, keysheet_acts, notice_acts, window_acts
@@ -416,6 +417,263 @@ def stood_back_whole(s):
     return verify
 
 
+def one_holder(after):
+    """`Expect.verify` for co-38: exactly one client says it holds the focus."""
+    claims = sorted(
+        look
+        for look, st in after.states.items()
+        if (st or {}).get("focus", {}).get("holder") == look
+    )
+    return (
+        []
+        if len(claims) == 1
+        else [f"{' and '.join(claims) or 'no client'} say they hold the focus"]
+    )
+
+
+def pull_keep(s):
+    """A cue: cube.pull makes the probe window a pane of the space, which
+    stays; its name is kept for `pane_remove`."""
+    s.pane = s.call("construct", "cube.pull", {"surface": probe_surface(s)}).get("pane")
+
+
+def grab_any(s):
+    """A cue: the grant that lets construct grab a key without Ctrl, Alt or
+    Super, F1 among them; a step back and in makes it grab again."""
+    subprocess.run(
+        [str(s.bin / "choractl"), "grant", "construct", "input.grab-any"],
+        env=s.env,
+        check=True,
+        capture_output=True,
+    )
+    s.call("construct", "view.step_back")
+    s.call("construct", "view.step_in")
+
+
+def activate_probe(s):
+    """A cue: xp gives the keyboard to the window of chora-probe, as a
+    click on it does; the window is the focus of the core."""
+    sid = probe_surface(s)
+    s.call(MANAGER, "activate", {"surface": sid})
+    s.until(
+        lambda: (s.state(MANAGER) or {}).get("focus", {}).get("surface") == sid,
+        10,
+        "xp focuses the window",
+    )
+
+
+def pane_remove(s):
+    """A cue: the pane of `pull_keep` goes, its window back to the face."""
+    s.call("construct", "pane.remove", {"name": s.pane})
+    s.until(lambda: owner_of(s, probe_surface(s)) == MANAGER, 20, "the window back with xp")
+
+
+def hint_rect(s, node):
+    """The rect of the node `node` on the screen, or None."""
+    for n in s.core.call("scene.query", {"selector": f"id:{node}"}) or []:
+        for output, rect in (n.get("rects") or {}).items():
+            if output == s.outputs()[0]["name"]:
+                return rect
+    return None
+
+
+def hint_click(node):
+    """A cue: a click in the middle of the hint `node` on the screen; the
+    pointer rests low first, which shows the hints of a face."""
+
+    def cue(s):
+        w, h = s.outputs()[0]["size"]
+        s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
+        seen = []
+        s.until(
+            lambda: seen.append(hint_rect(s, node)) or seen[-1],
+            10,
+            f"the hint {node} on the screen",
+        )
+        x, y, bw, bh = seen[-1]
+        s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
+
+    return cue
+
+
+SHEET = "construct-help"
+KEYS_HINT = "construct-hint-keys"
+
+
+def press_hinted(node):
+    """A cue: the key that the hint `node` names, pressed as a shortcut; its
+    keycaps are read from the scene."""
+
+    def cue(s):
+        caps = []
+        while True:
+            found = s.core.call(
+                "scene.query", {"selector": f"id:construct-hints-{node}-keys-{len(caps)}-text"}
+            )
+            text = (found or [{}])[0].get("text")
+            if not text:
+                break
+            caps.append(text)
+        if not caps:
+            raise RuntimeError(f"the hint {node} names no key")
+        s.inject([{"shortcut": {"keys": "+".join(caps)}}])
+
+    return cue
+
+
+def hint_shown(s):
+    """A cue: the pointer rests low, which shows the hints of a face."""
+    w, h = s.outputs()[0]["size"]
+    s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
+    s.until(lambda: hint_rect(s, KEYS_HINT), 10, "the hint Keys on the screen")
+
+
+def keys_default_acts(s):
+    """rck-1, rck-4: in a default session, with no grant, the hint Keys of a
+    face and of the cube stood back names a key that opens the key list."""
+    s.act(
+        "Alt+Escape stands back for a face",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act("Return steps into a face", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+    s.act("xp gives the window of a face the keyboard", [activate_probe])
+    s.act(
+        "the hint Keys of a face names a key that opens the key list",
+        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_shown, press_hinted("keys")],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act("Escape shuts the key list of the hint", [plain("Escape")], closes=[SHEET])
+    s.act(
+        "Alt+Escape stands back without a grant",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act(
+        "the hint Keys of the stood back cube names a key that opens the key list",
+        [hint_shown, press_hinted("keys")],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act("Escape shuts the key list of the cube hint", [plain("Escape")], closes=[SHEET])
+    s.act("Return steps in", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+
+
+def cube_navigates(s):
+    """A cue: wait until the cube stands back (mode navigate)."""
+    s.until(
+        lambda: s.cube().get("mode") == "navigate",
+        10,
+        "the cube stands back",
+    )
+
+
+def grab_revoke(s):
+    """A cue: the grant of `grab_any` goes; a step back and in grabs anew."""
+    subprocess.run(
+        [str(s.bin / "choractl"), "revoke", "construct", "input.grab-any"],
+        env=s.env,
+        check=True,
+        capture_output=True,
+    )
+    s.call("construct", "view.step_back")
+    s.call("construct", "view.step_in")
+
+
+def keys_acts(s):
+    """co-38, co-40, co-41 (keys rc 2): after a pane was pulled and the cube
+    stepped back one client holds the focus; Escape shuts the key list of
+    the stood back cube and Return steps in; F1 opens the key list in a
+    face and stood back, and the hint of its key opens it by a click."""
+    keys_default_acts(s)
+    s.act("construct may grab F1 without a modifier", [grab_any])
+    s.act("xp gives the window the keyboard", [activate_probe])
+    s.act(
+        "a window is pulled to a pane of the space",
+        [pull_keep],
+        expect=Expect(cube={"mode": "use"}),
+    )
+    s.act(
+        "Alt+Escape with a pane in the space leaves one client with the focus",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}, verify=one_holder),
+    )
+    s.act(
+        "the pane goes back to its face while the cube stands back",
+        [pane_remove],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act("Super+F1 shows the key list of the stood back cube", [key("Super+F1")], opens=[SHEET])
+    s.act(
+        "Escape shuts the key list of the stood back cube",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[], cube={"mode": "navigate"}),
+    )
+    s.act(
+        "Return steps in after the key list shut",
+        [plain("Return")],
+        expect=Expect(cube={"mode": "use"}),
+    )
+    s.act(
+        "F1 opens the key list in a face", [plain("F1")], opens=[SHEET], expect=Expect(open=[SHEET])
+    )
+    s.act(
+        "Escape shuts the key list of a face",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "the hint Keys of a face opens the key list by a click",
+        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_click(KEYS_HINT)],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act(
+        "Escape shuts the key list opened by the hint",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "Alt+Escape stands back for the key hints",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act(
+        "F1 opens the key list of the stood back cube",
+        [plain("F1")],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act(
+        "Escape shuts the key list of the cube again",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "the chip Keys of the stood back cube opens the key list by a click",
+        [hint_click(KEYS_HINT)],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act(
+        "Escape shuts the key list opened by the chip",
+        [plain("Escape")],
+        closes=[SHEET],
+        expect=Expect(open=[]),
+    )
+    s.act("Return steps in after the chip", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+    s.act(
+        "the grant input.grab-any is revoked again",
+        [grab_revoke],
+        expect=Expect(cube={"mode": "use"}),
+    )
+
+
 def cube_acts(s):
     """The cube turns by key, pager and drag, comes back to 1:1 with no
     construct surface left, stands back and is read held in a turn and at
@@ -494,6 +752,7 @@ def cube_acts(s):
         [pull_and_remove],
         expect=Expect(gone=0, cube={"mode": "use"}),
     )
+    keys_acts(s)
     s.act("the cube stands back", [method("view.step_back")], timeout=30)
     s.act(
         "the cube is held halfway through a turn",

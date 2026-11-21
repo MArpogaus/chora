@@ -45,15 +45,6 @@ match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "a drag with the modifier on the front face turns the cube"
-capture = "construct-mode-step-in-text"
-finding = "guide-checks r2: construct-mode-step-in-text: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "a notice shows"
 capture = "notify-card-body"
 finding = "guide-checks r2: notify-card-body: guide wants 14 px"
@@ -155,7 +146,9 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube is held halfway through a turn"
 capture = "construct-hints-construct-mode-step-in-keys-0-text"
+evidence = "met in 4 of 5 runs of the construct acts at 05c1fc25 (loop 2 did not meet it): the dim of the keys is read mid-fade"
 finding = "guide-checks r2: construct-hints-construct-mode-step-in-keys-0-text: the contrast"
+flaky = true
 id = "I6"
 look = "construct"
 match = "the contrast"
@@ -1671,3 +1664,57 @@ id = "I6"
 look = "xp"
 match = "guide wants 14 px"
 slice = "none: authentic Tahoma 8 pt (11 px), the Luna text of the taskbar buttons"
+
+[[red]]
+act = "the hint Keys of a face names a key that opens the key list"
+capture = "construct-help-body-head-6"
+finding = "guide-checks r2: construct-help-body-head-6: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the hint Keys of a face names a key that opens the key list"
+capture = "construct-help-body-head-10"
+finding = "guide-checks r2: construct-help-body-head-10: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the hint Keys of a face names a key that opens the key list"
+capture = "construct-help-body-head-17"
+finding = "guide-checks r2: construct-help-body-head-17: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the hint Keys of a face names a key that opens the key list"
+capture = "construct-help-body-head-17-every"
+finding = "guide-checks r2: construct-help-body-head-17-every: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the hint Keys of a face names a key that opens the key list"
+capture = "construct-help-body-head-21"
+finding = "guide-checks r2: construct-help-body-head-21: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the hint Keys of a face names a key that opens the key list"
+capture = "construct-help-body-head-21-every"
+finding = "guide-checks r2: construct-help-body-head-21-every: guide wants 14 px"
+id = "I6"
+look = "construct"
+match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"

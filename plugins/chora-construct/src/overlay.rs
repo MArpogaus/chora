@@ -318,15 +318,17 @@ impl Construct {
     }
 
     /// The help takes the keyboard from a window that has it in a face of
-    /// the cube or in a pane (flown into, or pressed in the walk), so that
-    /// Escape and the typed search reach the help and not the program (an
-    /// XP Start menu took Escape); the window is noted for the close.
+    /// the cube, in a pane (flown into, or pressed in the walk) or while the
+    /// cube stands back, where a window that came back to its face may
+    /// hold it, so that Escape and the typed search reach the help and not
+    /// the program (an XP Start menu took Escape); the window is noted for
+    /// the close.
     fn help_takes_keyboard(&mut self) -> Result<(), ClientError> {
-        let in_face =
-            (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use);
-        if !(in_face || self.keys_with_pane()) {
+        if self.cube.is_none() && !self.keys_with_pane() {
             return Ok(());
         }
+        let stood_back = (self.cube.as_ref())
+            .is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Navigate);
         let window = self.focused_surface()?;
         match window.as_deref() {
             Some(surface) if !self.own_window(surface) => {
@@ -334,6 +336,7 @@ impl Construct {
                     host.note_focus(window);
                 }
             }
+            _ if stood_back => {}
             _ => self.help_back = window,
         }
         self.walk_keys = true;
@@ -545,6 +548,14 @@ impl Construct {
             .map_or_else(Vec::new, |(k, _)| crate::glass::chord(k))
     }
 
+    /// The chord of the hint `All keys` in a face or a cube stood back: the
+    /// bound key of the list that works there (`hints::keys_chord`).
+    fn hint_keys_chord(&self) -> Vec<String> {
+        crate::hints::keys_chord(&self.settings.value.common.bindings, |key| {
+            self.rt.holds(key)
+        })
+    }
+
     /// The hints of a set, with the keys of the settings.
     fn hint_items(&self, set: crate::hints::Set) -> Vec<crate::hints::Item> {
         use crate::{
@@ -586,12 +597,19 @@ impl Construct {
                     })
                     .collect()
             }
-            Set::Flown => vec![item(
-                chord(&self.settings.value.fly_out),
-                Word::StepBack,
-                "step-back",
-            )],
-            Set::Cube => self.cube_hints(language),
+            Set::Flown => vec![
+                item(
+                    chord(&self.settings.value.fly_out),
+                    Word::StepBack,
+                    "step-back",
+                ),
+                item(self.hint_keys_chord(), Word::AllKeys, "keys"),
+            ],
+            Set::Cube => {
+                let mut hints = self.cube_hints(language);
+                hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
+                hints
+            }
             Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
     }
@@ -656,6 +674,12 @@ impl Construct {
         } else {
             Vec::new()
         };
+        if matches!(had, Some((crate::hints::Set::Cube, ..)))
+            && set != Some(crate::hints::Set::Cube)
+        {
+            let language = chora_kit::words::Language::of_session();
+            commands.extend(crate::hints::hide_chip_words(&self.cube_hints(language)));
+        }
         if let Some(set) = set {
             let items = self.hint_items(set);
             let out = [self.lens.w, self.lens.h];
