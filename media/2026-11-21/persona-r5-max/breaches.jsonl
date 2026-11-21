@@ -1,0 +1,36 @@
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'CONSTRUCT \u00b7 WALKING' (construct-help-body-scope) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'WALK' (construct-help-body-head-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'PANES' (construct-help-body-head-7) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'HELPER AND CHAT' (construct-help-body-head-11) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-11-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'GIVE A WINDOW' (construct-help-body-head-14) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-14-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'EVERYWHERE' (construct-help-body-head-18) is 11 px, the guide wants 14 px"}
+{"time": 1795283814.566, "action": "click", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-18-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'CONSTRUCT \u00b7 WALKING' (construct-help-body-scope) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'WALK' (construct-help-body-head-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'PANES' (construct-help-body-head-7) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'HELPER AND CHAT' (construct-help-body-head-11) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-11-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'GIVE A WINDOW' (construct-help-body-head-14) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-14-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'EVERYWHERE' (construct-help-body-head-18) is 11 px, the guide wants 14 px"}
+{"time": 1795283817.69, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-18-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'CONSTRUCT \u00b7 WALKING' (construct-help-body-scope) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'WALK' (construct-help-body-head-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'PANES' (construct-help-body-head-7) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'HELPER AND CHAT' (construct-help-body-head-11) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-11-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'GIVE A WINDOW' (construct-help-body-head-14) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-14-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'EVERYWHERE' (construct-help-body-head-18) is 11 px, the guide wants 14 px"}
+{"time": 1795283959.444, "action": "key", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-18-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'CONSTRUCT \u00b7 WALKING' (construct-help-body-scope) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'WALK' (construct-help-body-head-0) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'PANES' (construct-help-body-head-7) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'HELPER AND CHAT' (construct-help-body-head-11) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-11-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'GIVE A WINDOW' (construct-help-body-head-14) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-14-every) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 'EVERYWHERE' (construct-help-body-head-18) is 11 px, the guide wants 14 px"}
+{"time": 1795283961.669, "action": "look", "look": "construct", "invariant": "I6", "breach": "on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-18-every) is 11 px, the guide wants 14 px"}

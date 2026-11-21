@@ -1,0 +1,13 @@
+# co-i3 r2 (rc 2, RC bar: no stray keys; I3 MAJOR fix)
+
+Model: sonnet, effort medium (one small focus fix in the construct plugin behind a red step that exists)
+Lane: cloud, claude/co-i3 at afd63654 (r1 red step on 892d035c). Cost at most 0.8 %; stop at 200 k context. One area: plugins/chora-construct focus state (state.rs, plugin.rs event handling); no core and no xp code (keys-route owns choose_manager_of and xp keys.rs).
+Why: reports/co-i3.md "## r1" on claude/session-log (507e034a): I3 MAJOR, pre-existing. plugins/chora-construct/src/state.rs:66 `None if self.active && !self.overlay => holder construct`; core_focus follows focus.changed (plugin.rs:222, surfaces only), so after a click that focuses xp's node xp-icons (focus.node) construct and xp both say they hold the focus. Red step tests/gate-construct-i3.sh in cell construct-extra.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "co-i3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Unit test first (red): a construct state that saw a focus.node of another client answers holder null (or that client), never construct. Commit.
+2) Fix (KISS, reuse the kit): feed chora_kit's Focus (crates/chora-kit/src/wm/focus.rs) with focus.node events and answer from `taken_by_other` (focus.rs:215), so `None if active && !overlay` holds only with no foreign node; the construct HUD keeps its own focus when it truly has it (cube, overlay, step-in). Subscribe to the event if construct does not yet. docs/api.md only if a reply changes.
+3) The red step tests/gate-construct-i3.sh turns green; the other construct cells stay green.
+Gate: full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/co-i3 merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Run it in the background and poll in the same turn; never end a turn to wait.
+Done when: red unit test and fix commits, gate-construct-i3.sh green, cargo test -p chora-construct green, the full gate green.
+Report: reports/co-i3.md "## r2" on claude/session-log (shas, the test, the fix line, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/co-i3 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.

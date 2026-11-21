@@ -1,0 +1,10 @@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+systemctl --user is-system-running
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+systemctl --user is-system-running
+fuzzel
+systemctl --user is-system-running
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+wpctl get-volume @DEFAULT_AUDIO_SINK@
