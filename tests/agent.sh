@@ -67,7 +67,7 @@ step "1. chora -- chora-tiling starts nested with two windows"
 "$bin/chora-tiling" --print-config | sed 's/^gap: 4$/gap: 0/; s/^  animations: true$/  animations: false/' >"$out/tiling.yaml"
 grep -q '^gap: 0$' "$out/tiling.yaml" || fail "the configuration has no gap option"
 grep -q '^  animations: false$' "$out/tiling.yaml" || fail "the configuration has no animations option"
-CHORA_TEST_ACCEPT_INJECTED_KEYS=1 "$bin/chora" -- "$bin/chora-tiling" --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
+CHORA_TEST_ACCEPT_INJECTED_KEYS=1 "$bin/chora" -- "$bin/chora-tiling" --no-companions --config "$out/tiling.yaml" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"
@@ -333,7 +333,7 @@ kill -0 "$chora_pid" || fail "chora died"
 step "16. a view configures its plugin and adds its nodes"
 config="$out/config"
 mkdir -p "$config/chora/plugins" "$config/chora/views"
-printf 'name: tiling\nexec: %s/chora-tiling --config %s\nconfigure: set_layout\n' "$bin" "$out/tiling.yaml" \
+printf 'name: tiling\nexec: %s/chora-tiling --no-companions --config %s\nconfigure: set_layout\n' "$bin" "$out/tiling.yaml" \
     >"$config/chora/plugins/tiling.yaml"
 cat >"$config/chora/views/work.yaml" <<'VIEW'
 name: work
