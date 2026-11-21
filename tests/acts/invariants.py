@@ -407,9 +407,9 @@ def is_whole(box, size):
 
 def dialog_picture(box, dialogs):
     """Whether a box is a picture of a dialog: an image whose node is an
-    open entry of a look or lies under one (`xp-dlg-help-frame`)."""
+    open entry of a look or is the frame of one (`xp-dlg-help-frame`)."""
     node = box.get("node") or ""
-    return box.get("kind") == "image" and any(node == d or node.startswith(d + "-") for d in dialogs)
+    return box.get("kind") == "image" and any(node in (d, d + "-frame") for d in dialogs)
 
 
 def hides(box, size, shown, dialogs=()):
