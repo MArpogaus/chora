@@ -21,7 +21,7 @@ use crate::{
     context::{Act, Entry},
     control::{self, SCALES, Toggles},
     decoration::{self, BORDER, TITLE},
-    dialog::{self, BLACK, Control, Dialog, Hit, Page},
+    dialog::{self, BLACK, Control, Dialog, Hit, Page, SCROLL, scroll_bar, thumb},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
     wallpaper::{self, Position},
@@ -43,8 +43,6 @@ const SCREEN: Rect = [122, 62, 152, 112];
 /// The list of the backgrounds and the height of its rows.
 const LIST: Rect = [21, 235, 272, 114];
 const ROW: i32 = 17;
-/// The width of a scroll bar.
-const SCROLL: i32 = 17;
 const POSITION: Rect = [303, 286, 75, 21];
 const COLOR: Rect = [303, 333, 74, 21];
 /// The slider of the screen resolution.
@@ -781,7 +779,7 @@ fn screen_saver_tab(theme: &mut Theme, body: Picture, controls: &mut Vec<Control
         .svg(dialog::field([0, 0, 50, 21]))
         .svg(dialog::arrow_button([33, 1, 16, 19], true))
         .svg(r##"<rect x="33" y="1" width="16" height="19" fill="#fff" fill-opacity="0.55"/>"##)
-        .text(Text::new("10", Font::Ui, dialog::GRAY, [4, 0, 26, 21]));
+        .text(dialog::field_text("10", dialog::GRAY, [0, 0, 50, 21], 18));
     controls.extend([
         Control::area(
             "saver",
@@ -880,74 +878,6 @@ impl EffectsDialog {
         }
         Effects::Redraw
     }
-}
-
-/// The farthest the view scrolls: what does not fit.
-fn max_scroll(height: i32, view: i32) -> i32 {
-    (height - view).max(0)
-}
-
-/// The thumb of a scroll bar in a track of a height, for a view of a
-/// height over content of a height, scrolled by an offset: its top in
-/// the track and its height, at least 8 pixels.
-fn thumb(track: i32, view: i32, height: i32, offset: i32) -> (i32, i32) {
-    let max = max_scroll(height, view);
-    if max == 0 || track <= 0 {
-        return (0, track.max(0));
-    }
-    let size = (i64::from(track) * i64::from(view) / i64::from(height.max(1))).max(8);
-    let size = i32::try_from(size).unwrap_or(track).min(track);
-    let top = i64::from(track - size) * i64::from(offset.clamp(0, max)) / i64::from(max);
-    (i32::try_from(top).unwrap_or(0), size)
-}
-
-/// The parts of XP's Luna scroll bar in a rectangle: the arrows at the
-/// ends, the pale track and the blue thumb, as pictures with their
-/// rectangles in the bar.
-fn scroll_bar([w, h]: [i32; 2], (top, size): (i32, i32)) -> [(Rect, Picture); 4] {
-    let track = Picture::new(w, h - 2 * w).svg(format!(
-        r##"<rect width="{w}" height="{}" fill="#FEFEFB"/><rect width="1" height="{}" fill="#F3F1EC"/>"##,
-        h - 2 * w,
-        h - 2 * w
-    ));
-    let arrow = |down: bool| {
-        let mut svg = dialog::arrow_button([0, 0, w, w], false);
-        if !down {
-            svg = format!(
-                r#"<g transform="rotate(180 {c} {c})">{svg}</g>"#,
-                c = f64::from(w) / 2.0
-            );
-        }
-        Picture::new(w, w).svg(svg)
-    };
-    let thumb = Picture::new(w, size).svg(thumb_svg(w, size));
-    [
-        ([0, w, w, h - 2 * w], track),
-        ([0, w + top, w, size], thumb),
-        ([0, 0, w, w], arrow(false)),
-        ([0, h - w, w, w], arrow(true)),
-    ]
-}
-
-/// The blue thumb with its grip of four lines in the middle.
-fn thumb_svg(w: i32, h: i32) -> String {
-    let mut svg = format!(
-        r##"<defs><linearGradient id="t" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C9DAFC"/><stop offset="1" stop-color="#B1C8FA"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#t)" stroke="#9CB6F2"/>"##,
-        w - 1,
-        h - 1
-    );
-    if h > 14 {
-        let mid = h / 2 - 4;
-        for i in 0..4 {
-            let _ = write!(
-                svg,
-                r##"<rect x="5" y="{}" width="7" height="1" fill="#EEF4FE"/><rect x="6" y="{}" width="7" height="1" fill="#8CB0F8"/>"##,
-                mid + 2 * i,
-                mid + 2 * i + 1
-            );
-        }
-    }
-    svg
 }
 
 #[cfg(test)]
