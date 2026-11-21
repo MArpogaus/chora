@@ -409,6 +409,11 @@ class OldBuild(unittest.TestCase):
         self.assertEqual(len(closed), 1)
         self.assertEqual(closed[0][0], 1)
 
+    def test_the_words_of_choractl_for_a_missing_method_count(self):
+        s, closed = self.notify("choractl call notify state.get {}: choractl: notify.state.get is no exported method (code 1)")
+        s.dismiss_notices()
+        self.assertEqual(len(closed), 1)
+
     def test_dismiss_notices_does_not_hide_another_error(self):
         s, closed = self.notify("the core closed the connection during methods.call")
         with self.assertRaises(RuntimeError):
