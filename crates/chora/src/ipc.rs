@@ -2916,6 +2916,45 @@ mod tests {
         assert_eq!(three.as_deref(), Some("a"), "the pointer is in a");
     }
 
+    /// The same key where a window of a manager of a face has the
+    /// keyboard and the pointer rests on the claim of the screen's
+    /// manager: its chord still chooses it for the next new window (M4),
+    /// a window in the look the person pointed at, and the keys of the
+    /// face stay with the face: its own chord ends that choice.
+    #[test]
+    fn a_grabbed_key_of_the_screen_chooses_it_over_the_window_of_a_face() {
+        use crate::input::tests::key_presses;
+        use crate::input::tests::{E, F1, SUPER, face_window_with_a_chord_on_the_screen};
+        use smithay::backend::input::{InputTime, KeyState};
+        let (mut core, mut face, mut space, mut wayland) = face_window_with_a_chord_on_the_screen();
+        let chord = |core: &mut Core, code: u32| {
+            for (code, state) in [
+                (SUPER, KeyState::Pressed),
+                (code, KeyState::Pressed),
+                (code, KeyState::Released),
+                (SUPER, KeyState::Released),
+            ] {
+                let keycode = (code + 8).into();
+                crate::input::key(&mut core.state, keycode, state, InputTime::now(), false);
+            }
+        };
+        chord(&mut core, F1);
+        let got = key_presses(&mut space, &mut core);
+        assert_eq!(got.len(), 1, "the screen gets its chord: {got:?}");
+        wayland.toplevel(&mut core, "two");
+        let two = reserved_for(&core, "s2");
+        assert_eq!(two.as_deref(), Some("space"), "the pointer is in space");
+        chord(&mut core, E);
+        let got = key_presses(&mut face, &mut core);
+        assert!(
+            got.iter().any(|e| e["binding"] == "Super+e"),
+            "the face gets its chord: {got:?}"
+        );
+        wayland.toplevel(&mut core, "three");
+        let three = reserved_for(&core, "s3");
+        assert_eq!(three.as_deref(), Some("face"), "its chord ends the choice");
+    }
+
     /// Where a surface is: `(owner, parent, reserved for)`.
     fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
         let node = core.state.scene.node(surface).unwrap();

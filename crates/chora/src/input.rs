@@ -1204,7 +1204,7 @@ fn axis<I: InputBackend>(state: &mut State, event: &I::PointerAxisEvent) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use serde_json::{Value, json};
     use smithay::{
         backend::input::{ButtonState, InputTime, KeyState},
@@ -1615,7 +1615,7 @@ mod tests {
         );
     }
 
-    const SUPER: u32 = 125;
+    pub(crate) const SUPER: u32 = 125;
 
     fn pointer_focused(core: &Core) -> bool {
         let pointer = core.state.seat.get_pointer().expect("a pointer");
@@ -1647,8 +1647,8 @@ mod tests {
         );
     }
 
-    const E: u32 = 18;
-    const F1: u32 = 59;
+    pub(crate) const E: u32 = 18;
+    pub(crate) const F1: u32 = 59;
 
     /// The `input.key` events of a client, as `BINDING STATE`.
     fn key_stream(client: &mut Client, core: &mut Core) -> Vec<String> {
@@ -2672,7 +2672,7 @@ mod tests {
     const Y: u32 = 21;
 
     /// The `input.key` presses that a client got.
-    fn key_presses(client: &mut Client, core: &mut Core) -> Vec<Value> {
+    pub(crate) fn key_presses(client: &mut Client, core: &mut Core) -> Vec<Value> {
         events(client, core)
             .into_iter()
             .filter(|e| e["event"] == "input.key" && e["state"] == "pressed")
@@ -2791,7 +2791,7 @@ mod tests {
     /// screen's manager does not make it the place of the next keys: the
     /// window of the face still has the keyboard, so Super+e still goes
     /// to the face (construct rx-1).
-    fn face_window_with_a_chord_on_the_screen() -> (Core, Client, Client, Wayland) {
+    pub(crate) fn face_window_with_a_chord_on_the_screen() -> (Core, Client, Client, Wayland) {
         let (mut core, mut face, mut space) = manager_of_a_face_and_one_under_the_pointer();
         let mut wayland = Wayland::connect(&mut core);
         let window = wayland.toplevel(&mut core, "probe");
