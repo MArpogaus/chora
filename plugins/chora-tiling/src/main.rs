@@ -715,14 +715,9 @@ impl Tiling {
     /// The open helper panel keeps its width: the tiles shrink beside it,
     /// and the width comes back when it closes.
     fn helper_panel(&mut self, data: &Value) -> Result<(), ClientError> {
-        let rect = data["rect"]
-            .as_array()
-            .filter(|_| data["open"] == true)
-            .and_then(|r| {
-                let at = |i: usize| r.get(i)?.as_f64();
-                #[allow(clippy::cast_possible_truncation, reason = "logical pixels")]
-                Some([at(0)? as i32, at(1)? as i32, at(2)? as i32, at(3)? as i32])
-            });
+        let rect: Option<[i32; 4]> = serde_json::from_value(data["rect"].clone())
+            .ok()
+            .filter(|_| data["open"] == true);
         let output = data["output"].as_str().unwrap_or_default();
         if self.wm.set_panel(output, rect) {
             self.relayout()?;
