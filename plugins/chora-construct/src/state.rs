@@ -61,11 +61,12 @@ impl Construct {
             self.hidden.iter().any(|h| h == s)
                 || (self.panes.iter()).any(|p| p.attached && p.window() == Some(s))
         };
+        if self.kit_focus.taken_by_other(NAME) {
+            return json!({"holder": null});
+        }
         match self.core_focus.as_deref() {
             Some(surface) if owned(surface) => json!({"holder": NAME, "surface": surface}),
-            None if self.active && !self.overlay && !self.kit_focus.taken_by_other(NAME) => {
-                json!({"holder": NAME})
-            }
+            None if self.active && !self.overlay => json!({"holder": NAME}),
             _ => json!({"holder": null}),
         }
     }
