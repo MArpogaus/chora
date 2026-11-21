@@ -122,3 +122,33 @@ Each red step is intermittent: one red in the full gate and 0 or 1 of 10 alone. 
 ### Verdict
 
 F5 "no flaky gate" is **not met**: 2 of 5 full runs green (runs 3, 4 and 5 red at construct-hud, xp-faces and pull). The intermittent steps need their own rounds: construct-hud (FLK-HUD-TAB), xp-faces, and pull (0 or 1 red of 10 alone). launcher-click (FLK-LAUNCHER) was green in 10 of 10 alone and in both full runs that reached it. F5 coverage (91.76 %) is met. F17 stays open.
+
+## r4
+
+Brief: flake-series-r4 (F5: five full gates in a row green at --jobs 2 on the session head 1c599c74). Lane: cloud, branch claude/flake-series-r4 at 1c599c74 (train 98 green). Model: haiku, effort high. No production code changed; no commit on the code branch; nothing fixed, retimed, ignored or marked known-red.
+
+Setup: step 0 tools present (cargo, sccache, cargo-llvm-cov, foot, python3, ffmpeg), so setup.sh was not run. `git fetch --unshallow` done; `cargo check --workspace` exit 0.
+
+Host (recorded once, before run 1): `nproc` 4; memory 16087 MB total, 10095 MB free, 5434 MB buff/cache, no swap.
+
+Result: **5 of 5 green.** Runs 1 to 5 all exit 0, 49 PASS each, no FAIL line in any log. No red step, so no reruns of single steps were needed. F5 "five full gates in a row" is met on this evidence.
+
+### Gate runs (`tests/merge-gate.sh --jobs 2`, no --push, on 1c599c74)
+
+| run | start (UTC) | end (UTC) | exit | red steps | first failing line |
+|---|---|---|---|---|---|
+| 1 | 12:58:56 | 13:45:16 | 0 | none (49 PASS) | - |
+| 2 | 13:45:16 | 14:24:23 | 0 | none (49 PASS) | - |
+| 3 | 14:24:23 | 15:03:22 | 0 | none (49 PASS) | - |
+| 4 | 15:03:22 | 15:42:39 | 0 | none (49 PASS) | - |
+| 5 | 15:42:39 | 16:21:33 | 0 | none (49 PASS) | - |
+
+Minutes per run: 46.3, 39.1, 39.0, 39.3, 38.9. Logs kept in the lane scratchpad (`r4/run1.log` to `r4/run5.log`, `r4/summary.txt`).
+
+### Reruns of each step alone
+
+None: no step was red in any of the five full runs.
+
+### Verdict
+
+F5 "no flaky gate" is met for this round: 5 of 5 full runs green at --jobs 2 on 1c599c74. F17 status is not changed by this round. The open flake rows from r3 (FLK-HUD-TAB, xp-faces, pull) were not reproduced in these five runs; their evidence is r3's, not this round's.
