@@ -15,3 +15,6 @@ Output: `SKIP: fuzzel 1.9.2 < 1.11` in the step log, summary line `skipped: laun
 
 Selftest: 3 red before (reason text, SKIP line, --push refusal), all ok after.
 Gate: tests/merge-gate.sh --jobs 1, no --only: 49 steps PASS, 0 SKIP, 0 FAIL, "all steps passed".
+
+### PM review r1 (16:20 UTC; PM not the builder; small harness diff, +46 lines)
+Diff a84effda..96a91f1f: tests/merge-gate.sh preflight_tools and tool_minimums, selftest +17. Checks: red commit first (6e21c4e6); version compare by sort -V (1.11 vs 1.11.1 passes, 1.9.2 fails); missing and unknown versions SKIP, never PASS; --push still refuses on SKIP without --allow-skip; the PM machine has fuzzel 1.11.1, so trains stay unchanged. Findings: MINOR rgd-1, merge-gate.sh preflight_tools calls `command -v` twice; one call is enough. Verdict (computed): MERGE-OK; harness branch, so it trains first (t102).
