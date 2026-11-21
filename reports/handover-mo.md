@@ -101,3 +101,10 @@ Branch claude/handover-mo head 60314da1 (ti-29 1f9a5180 merged clean at 4a078baf
 - rhm-6 NIT: 60314da1 touched 12 gate scripts and the full gate did not rerun on it; the train gate (t100) covers it.
 - rhm-7 NIT: comments in gate-tiling-empty-output.sh parts 3 and 4 and flavors/tiling/wallpaper.sh:9 still describe `--with-companions` as the switch.
 Verdict (computed): no open BLOCK or MAJOR: MERGE-OK on 60314da1; joins t100.
+
+## r3
+
+Head  (merge of origin/claude/autonomous-dev-session-3w-i33pg7 plus 73180551).
+Cause: tests/agent.sh:70 and :336 and tests/nested.sh:60 started chora-tiling without --no-companions; since 60314da1 the bar starts and reserves 40 px / moves windows (ys_are 14 407, work area [100,90,1280,760]).
+Fix: --no-companions at those three lines; no product change. Other gate scripts left unchanged: they passed.
+Gate: pre-commit, build, agent, e2e, tiling-audit, tiling-look, doors all PASS (e2e skipped only missing-tool gates).
