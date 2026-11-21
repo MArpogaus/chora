@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 20:07 UTC)
+## Now (2026-11-21 20:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 19:59 week 6.9 % (6.1 + 0.8 Bkk days; 0.43 %/h, under pace 9.6 %); disk: one train at a time
 session branch: e87b0ff9; 59 greens; t102 green 19:23 (3 branches); t103 running (harness; conflict merge-gate.sh ci-check, union). F5 r4 5/5 green (16:21).
@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| keys-route-r2.md (rc 2: rw-1 MAJOR state.rs:1001, M4 reversed) | sonnet high, claude/keys-route 541b92bb | starting |
+| keys-route-r2.md (rc 2: rw-1 MAJOR state.rs:1001, M4 reversed) | sonnet high, claude/keys-route 541b92bb | session_016iS3kLcMj8WwZZXQm3ng6H 20:08 |
 | co-i3-r2.md (rc 2: I3 MAJOR co-43, state.rs:66) | sonnet medium, claude/co-i3 afd63654 | session_016iS3kN5DHMzYVqzbjQCKev 18:47 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
 | split-a-r1.md (F4 headroom: mc, assistant) | sonnet medium, claude/split-a 892d035c | session_016iS3kPvsXkDnbDWVEAfeG1 19:07 |
