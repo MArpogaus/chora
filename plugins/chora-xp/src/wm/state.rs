@@ -106,11 +106,16 @@ impl Wm {
     /// next new window goes to xp, not to the manager of the window.
     pub(super) fn node_focused(
         &mut self,
-        _node: Option<&str>,
+        node: Option<&str>,
         owner: Option<&str>,
     ) -> Vec<chora_scene::Command> {
         self.key_node = owner.map(String::from);
-        Vec::new()
+        let desktop = node == Some(crate::desktop_icons::GROUP) && owner == Some(NAME);
+        if desktop && self.focus_away() {
+            vec![chora_scene::Command::FocusNode { node: None }]
+        } else {
+            Vec::new()
+        }
     }
 
     /// A window of another window manager took the focus last.
