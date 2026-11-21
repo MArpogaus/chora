@@ -548,6 +548,14 @@ impl Construct {
             .map_or_else(Vec::new, |(k, _)| crate::glass::chord(k))
     }
 
+    /// The chord of the hint `All keys` in a face or a cube stood back: the
+    /// bound key of the list that works there (`hints::keys_chord`).
+    fn hint_keys_chord(&self) -> Vec<String> {
+        crate::hints::keys_chord(&self.settings.value.common.bindings, |key| {
+            self.rt.holds(key)
+        })
+    }
+
     /// The hints of a set, with the keys of the settings.
     fn hint_items(&self, set: crate::hints::Set) -> Vec<crate::hints::Item> {
         use crate::{
@@ -595,11 +603,11 @@ impl Construct {
                     Word::StepBack,
                     "step-back",
                 ),
-                item(chord("F1"), Word::AllKeys, "keys"),
+                item(self.hint_keys_chord(), Word::AllKeys, "keys"),
             ],
             Set::Cube => {
                 let mut hints = self.cube_hints(language);
-                hints.push(item(chord("F1"), Word::AllKeys, "keys"));
+                hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
                 hints
             }
             Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],

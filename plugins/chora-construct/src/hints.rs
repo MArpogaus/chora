@@ -98,6 +98,16 @@ pub enum Walking {
     Keys,
 }
 
+/// The chord of the hint `All keys` in a face or a cube stood back: a bound
+/// key of the list, a bare one only while `holds` says its grab held, else
+/// one with a modifier.
+pub fn keys_chord(
+    _bindings: &std::collections::BTreeMap<String, crate::config::Action>,
+    _holds: impl Fn(&str) -> bool,
+) -> Vec<String> {
+    crate::glass::chord("F1")
+}
+
 /// The hints of the walk that apply: the keys to walk and to start a
 /// terminal always, `Return Fly in` when a pane is ahead, `Tab Windows`
 /// from two windows, and the help; at most five.
@@ -833,5 +843,29 @@ mod tests {
             assert!((x - x.round()).abs() < 1e-12, "a whole pixel");
             assert!((y - 308.0).abs() < 1e-12, "8 below the edge");
         }
+    }
+
+    fn bound(config: &str) -> std::collections::BTreeMap<String, crate::config::Action> {
+        let config: crate::config::Config = serde_saphyr::from_str(config).unwrap();
+        config.common.bindings
+    }
+
+    /// rck-1, rck-3: a face names F1 only while its grab held, else the key
+    /// with the modifier; a rebound `keys` binding changes the chord, and a
+    /// dropped one leaves no hint chord.
+    #[test]
+    fn the_hint_of_the_key_list_names_a_key_that_works() {
+        use crate::config::{Action, DEFAULT};
+        use chora_kit::actions::System;
+        let mut bindings = bound(DEFAULT);
+        assert_eq!(keys_chord(&bindings, |k| k == "F1"), ["F1"]);
+        assert_eq!(keys_chord(&bindings, |_| false), ["Super", "F1"]);
+        let keys = Action::System(System::Keys);
+        bindings.remove("F1");
+        bindings.insert("F2".into(), keys);
+        assert_eq!(keys_chord(&bindings, |k| k == "F2"), ["F2"]);
+        assert_eq!(keys_chord(&bindings, |k| k == "F1"), ["Super", "F1"]);
+        bindings.retain(|_, action| *action != Action::System(System::Keys));
+        assert_eq!(keys_chord(&bindings, |_| true), Vec::<String>::new());
     }
 }

@@ -495,11 +495,72 @@ SHEET = "construct-help"
 KEYS_HINT = "construct-hint-keys"
 
 
+def press_hinted(node):
+    """A cue: the key that the hint `node` names, pressed as a shortcut; its
+    keycaps are read from the scene."""
+
+    def cue(s):
+        caps = []
+        while True:
+            found = s.core.call(
+                "scene.query", {"selector": f"id:construct-hints-{node}-keys-{len(caps)}-text"}
+            )
+            text = (found or [{}])[0].get("text")
+            if not text:
+                break
+            caps.append(text)
+        if not caps:
+            raise RuntimeError(f"the hint {node} names no key")
+        s.inject([{"shortcut": {"keys": "+".join(caps)}}])
+
+    return cue
+
+
+def hint_shown(s):
+    """A cue: the pointer rests low, which shows the hints of a face."""
+    w, h = s.outputs()[0]["size"]
+    s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
+    s.until(lambda: hint_rect(s, KEYS_HINT), 10, "the hint Keys on the screen")
+
+
+def keys_default_acts(s):
+    """rck-1, rck-4: in a default session, with no grant, the hint Keys of a
+    face and of the cube stood back names a key that opens the key list."""
+    s.act(
+        "Alt+Escape stands back for a face",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act("Return steps into a face", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+    s.act("xp gives the window of a face the keyboard", [activate_probe])
+    s.act(
+        "the hint Keys of a face names a key that opens the key list",
+        [hint_shown, press_hinted("keys")],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act("Escape shuts the key list of the hint", [plain("Escape")], closes=[SHEET])
+    s.act(
+        "Alt+Escape stands back without a grant",
+        [key("Alt+Escape")],
+        expect=Expect(cube={"mode": "navigate"}),
+    )
+    s.act(
+        "the hint Keys of the stood back cube names a key that opens the key list",
+        [hint_shown, press_hinted("keys")],
+        opens=[SHEET],
+        expect=Expect(open=[SHEET]),
+    )
+    s.act("Escape shuts the key list of the cube hint", [plain("Escape")], closes=[SHEET])
+    s.act("Return steps in", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+
+
 def keys_acts(s):
     """co-38, co-40, co-41 (keys rc 2): after a pane was pulled and the cube
     stepped back one client holds the focus; Escape shuts the key list of
     the stood back cube and Return steps in; F1 opens the key list in a
     face and stood back, and the hint of its key opens it by a click."""
+    keys_default_acts(s)
     s.act("construct may grab F1 without a modifier", [grab_any])
     s.act("xp gives the window the keyboard", [activate_probe])
     s.act(
