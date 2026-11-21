@@ -63,7 +63,9 @@ impl Construct {
         };
         match self.core_focus.as_deref() {
             Some(surface) if owned(surface) => json!({"holder": NAME, "surface": surface}),
-            None if self.active && !self.overlay => json!({"holder": NAME}),
+            None if self.active && !self.overlay && !self.kit_focus.taken_by_other(NAME) => {
+                json!({"holder": NAME})
+            }
             _ => json!({"holder": null}),
         }
     }

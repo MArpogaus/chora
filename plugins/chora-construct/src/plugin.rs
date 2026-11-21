@@ -218,7 +218,7 @@ impl Construct {
         if let Some(created) = chora_kit::wm::Created::of(&event) {
             return self.window_created(&created);
         }
-        if let Some(surface) = chora_kit::wm::focus::changed(&event) {
+        if let Some(surface) = self.kit_focus.hear(&event) {
             self.core_focus = surface.map(String::from);
             if surface.is_some_and(|s| self.own_window(s)) {
                 self.walk_keys = false;
