@@ -26,8 +26,12 @@ light around a surface, never a surface.
 Usage: tests/hud-audit.py OUTPUTS.json NODES.json [OWNER...]
   OWNER  the clients whose nodes count (default: construct assistant)
   A sliced image is made to stretch; the image check leaves it out.
+  gaps      two surfaces that face each other, at most 64 pixels apart, with a
+            gap that is no whole number of the unit (8; the guide: gaps in
+            whole units). Only with `gaps` in AUDIT_KINDS, or `unit` given
+            to audit(): it is no part of the default.
   AUDIT_KINDS  environment: the kinds to report, comma separated
-         (overlap, outside, image, text; default all). The gates of the
+         (overlap, outside, image, text, gaps; default all but gaps). The gates of the
          tiling and mc looks use outside,image and xp image: those looks mark no
          `surface`, so overlap and text findings would be guesses.
 Exit status: 0 no finding, 1 a finding, 2 a usage error.
@@ -40,6 +44,8 @@ import struct
 import sys
 
 EDGE = 2.0
+GAP_UNIT = 8.0
+GAP_FAR = 64.0
 SEEN = 0.05
 NEAR = 0.01
 
@@ -144,14 +150,48 @@ def surfaces_on(nodes, output, screen):
     return marked + loose
 
 
-def audit(outputs, nodes, owners):
-    """The findings, one line each."""
+def facing_gaps(rects, unit):
+    """The pairs (a, b, gap) of rects {id: rect} that face each other within
+    GAP_FAR, with a gap that is no whole number of `unit` (0.5 pixel slack)."""
+    found = []
+    items = sorted(rects.items())
+    for i, (a, ra) in enumerate(items):
+        for b, rb in items[i + 1 :]:
+            spans = (
+                (rb[0] - (ra[0] + ra[2]), ra[0] - (rb[0] + rb[2])),
+                (rb[1] - (ra[1] + ra[3]), ra[1] - (rb[1] + rb[3])),
+            )
+            across = (
+                min(ra[1] + ra[3], rb[1] + rb[3]) - max(ra[1], rb[1]),
+                min(ra[0] + ra[2], rb[0] + rb[2]) - max(ra[0], rb[0]),
+            )
+            for axis in (0, 1):
+                gap = max(spans[axis])
+                if across[axis] <= 0 or not 0.5 < gap <= GAP_FAR:
+                    continue
+                if abs(gap / unit - round(gap / unit)) * unit > 0.5:
+                    found.append((a, b, gap))
+    return found
+
+
+def gap_findings(name, rects, unit):
+    """The `gaps` lines of rects {id: rect} on an output."""
+    return [
+        f"gaps: {name}: {a} and {b} are {gap:g} apart, no whole number of {unit:g}"
+        for a, b, gap in facing_gaps(rects, unit)
+    ]
+
+
+def audit(outputs, nodes, owners, unit=None):
+    """The findings, one line each; `unit` adds the gaps of the surfaces."""
     findings = []
     visible = shown(nodes, owners)
     for output in outputs:
         name, scale = output["name"], output.get("scale", 1.0)
         area = work_area(output)
         surfaces = surfaces_on(visible, name, output["size"])
+        if unit:
+            findings.extend(gap_findings(name, {a: ra for a, ra, _ in surfaces}, unit))
         for i, (a, ra, ma) in enumerate(surfaces):
             if not inside(ra, area):
                 findings.append(f"outside: {name}: {a} {fmt(ra)} leaves the work area {fmt(area)}")
@@ -234,7 +274,7 @@ def main():
     nodes = json.loads(pathlib.Path(sys.argv[2]).read_text())
     owners = set(sys.argv[3:]) or {"construct", "assistant"}
     kinds = os.environ.get("AUDIT_KINDS")
-    findings = audit(outputs, nodes, owners)
+    findings = audit(outputs, nodes, owners, GAP_UNIT if kinds and "gaps" in kinds else None)
     if kinds:
         findings = [f for f in findings if f.split(":", 1)[0] in kinds.split(",")]
     for line in findings:

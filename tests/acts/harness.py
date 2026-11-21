@@ -30,6 +30,7 @@ import json
 import os
 import pathlib
 import queue
+import re
 import shutil
 import signal
 import socket
@@ -74,6 +75,7 @@ class Snapshot:
     cube: dict | None = None
     boxes: dict | None = None
     blocks: dict = dataclasses.field(default_factory=dict)
+    shots: dict | None = dataclasses.field(default_factory=dict)
 
     def by_id(self):
         """The nodes by id."""
@@ -252,11 +254,55 @@ def known_red(path=KNOWN_RED):
         return tomllib.load(f).get("red", [])
 
 
-def judge(results, rows, full=False):
+def exemptions(path=KNOWN_RED):
+    """The exemption rows of the known-red list: a look exempts the contrast
+    of the nodes named by label prefix, in every act."""
+    with open(path, "rb") as f:
+        return tomllib.load(f).get("exempt", [])
+
+
+def exempted(breach, exempt):
+    """Whether an exemption row passes the breach: a contrast breach, on a
+    node whose label starts with the row's `node`, no lower than its `floor`."""
+    found = re.search(r"\((\S+)\) has the contrast ([\d.]+):1", breach)
+    return bool(found) and any(
+        found[1].startswith(row["node"]) and float(found[2]) >= row.get("floor", 0) for row in exempt
+    )
+
+
+def scene_texts(nodes):
+    """{id: text} of the nodes that carry a text."""
+    return {n.get("id"): n.get("text") for n in nodes if n.get("text")}
+
+
+def fault(breach):
+    """A breach without its quoted texts and evidence: the clock and the
+    counts of a label change from act to act, the fault does not."""
+    return re.sub(r"'[^']*'", "''", breach.rsplit(" (evidence", 1)[0])
+
+
+def capture_pattern(capture):
+    """The regex of a `capture`: a label, or a label prefix with a trailing `*`."""
+    return re.escape(capture[:-1]) + r"\S*" if capture.endswith("*") else re.escape(capture)
+
+
+def row_covers(row, breach):
+    """Whether a row names the breach: its `act`, `capture` (the label of a
+    node, in brackets; a trailing `*` takes every label with that prefix) and
+    `match` all occur in the breach text."""
+    return (
+        (not row.get("act") or breach.startswith(f"in act {row['act']!r}: "))
+        and (not row.get("capture") or re.search(rf"[( ]{capture_pattern(row['capture'])}[) ]", breach))
+        and row.get("match", "") in breach
+    )
+
+
+def judge(results, rows, full=False, exempt=()):
     """Hold the results, {(look, id): [breach, ...]}, against the rows.
 
-    A row needs `look`, `id`, `finding` and `slice`; an optional `match`
-    must occur in every breach text of the cell. With `full`, a row
+    A row needs `look`, `id`, `finding` and `slice`; an optional `act`, `capture` and `match`
+    name a breach; each breach of the cell needs a row that covers it,
+    and a row that no breach meets is stale unless it is `flaky`. With `full`, a row
     that did not run blocks too: the list names only what runs.
     """
     listed = {}
@@ -264,20 +310,27 @@ def judge(results, rows, full=False):
         missing = [k for k in ("look", "id", "finding", "slice") if not row.get(k)]
         if missing:
             raise ValueError(f"known-red row {row} lacks {', '.join(missing)}")
-        listed[(row["look"], row["id"])] = row
+        listed.setdefault((row["look"], row["id"]), []).append(row)
+        if row.get("flaky") and not (row.get("evidence") and row.get("act")):
+            raise ValueError(f"flaky known-red row {row['finding']!r} needs an act and an evidence of two runs")
+    for row in exempt:
+        missing = [k for k in ("look", "node", "reason") if not row.get(k)]
+        if missing:
+            raise ValueError(f"exemption row {row} lacks {', '.join(missing)}")
     blocking, red, passed = [], [], []
     for key, breaches in sorted(results.items()):
-        row = listed.get(key)
-        if row and breaches and row.get("match"):
-            row = row if all(row["match"] in b for b in breaches) else None
-        if breaches and row:
+        breaches = [b for b in breaches if not exempted(b, exempt)]
+        cell = listed.get(key, [])
+        unmatched = [b for b in breaches if not any(row_covers(r, b) for r in cell)]
+        stale = [r for r in cell if not r.get("flaky") and not any(row_covers(r, b) for b in breaches)]
+        if breaches and cell and not unmatched and not stale:
             red.append(key)
-        elif breaches:
-            blocking.append(f"FAIL: {key[0]} {key[1]}: {breaches[0]}")
-        elif row:
+        elif unmatched or (breaches and not cell):
+            blocking.append(f"FAIL: {key[0]} {key[1]}: {(unmatched or breaches)[0]}")
+        elif stale:
             blocking.append(
                 f"FAIL: {key[0]} {key[1]} passes but is listed in known-red.toml "
-                f"({row['finding']}); remove the row"
+                f"({stale[0]['finding']}); remove the row"
             )
         else:
             passed.append(key)
@@ -624,6 +677,34 @@ class Session:
         shot = self.core.call("screen.capture", {"output": output, "max_side": side})
         return shot, base64.b64decode(shot["png"])
 
+    def shots(self, outputs):
+        """{output: (scale, rows)}: a capture of each output, for the
+        contrast of the text boxes (I6); an output that does not answer is left out."""
+        out = {}
+        for o in outputs:
+            with contextlib.suppress(RuntimeError, OSError, KeyError):
+                shot, png = self.capture(o["name"], 1280)
+                out[o["name"]] = (shot["width"] / o["size"][0], list(load_png_rows()(png)))
+        return out
+
+    def capturing(self):
+        """Whether a capture of the screen is safe: a capture of the flat xp
+        after construct was killed keeps the core from reopening the cube."""
+        return not (self.label == "construct" and "construct" not in self.looks)
+
+    def settled_scene(self, outputs, tries=5, sleep=time.sleep):
+        """The nodes, the boxes and the captures of a moment in which no
+        text changed while the captures were taken: a clock that redraws
+        at the minute tick would else show its new text on the old pixels."""
+        for attempt in range(tries):
+            nodes = self.core.call("scene.query", {"selector": "*"}) or []
+            boxes = self.core.call("scene.boxes")
+            shots = self.shots(outputs) if self.capturing() else None
+            again = self.core.call("scene.query", {"selector": "*"}) or []
+            if scene_texts(nodes) == scene_texts(again) or attempt == tries - 1:
+                return nodes, boxes, shots
+            sleep(0.3)
+
     def colours(self, output):
         """The number of colours in the work area of an output."""
         shot, png = self.capture(output["name"])
@@ -655,9 +736,11 @@ class Session:
         return out
 
     def snapshot(self, states=None, events=()):
-        """Read the session; the states when the caller has them."""
-        nodes = self.core.call("scene.query", {"selector": "*"}) or []
+        """Read the session; the states when the caller has them. The boxes
+        are read last, after the answers of the clients: a held cube read
+        straight after its nodes showed one face alone in 2 of 5 runs."""
         outputs = self.outputs()
+        nodes, _, shots = self.settled_scene(outputs)
         wallpaper = self.wallpaper
         if wallpaper is None:
             wallpaper = {o["name"] for o in outputs} if self.looks[0] in WALLPAPER else set()
@@ -674,8 +757,9 @@ class Session:
             logs=self.new_log_text(),
             outputs=outputs,
             cube=self.cube(),
-            boxes=self.core.call("scene.boxes"),
             blocks=self.blocks(clients),
+            boxes=self.core.call("scene.boxes"),
+            shots=shots,
         )
 
     def act(
@@ -707,6 +791,8 @@ class Session:
             after = self.snapshot(states, self.watch.drain())
         except (NotQuiet, RuntimeError, OSError, queue.Empty) as err:
             self.record(look, f"act:{name}", [f"{type(err).__name__}: {err}"], name)
+            for log in self.work.glob("*.log"):
+                shutil.copy(log, self.runs / log.name)
             return None
         mismatches = expect.check(before, after) if expect else []
         self.record(look, f"act:{name}", mismatches, name, before, after)
@@ -715,19 +801,23 @@ class Session:
         return after
 
     def record(self, look, key, breaches, act, before=None, after=None):
-        """Keep the first breaches of a cell, with the act, a still and the diff."""
+        """Keep the breaches of a cell, each once at the act that first shows it, with the act, a still and the diff."""
         cell = self.results.setdefault((look, key), [])
-        if not breaches or cell:
+        if not breaches:
             return
         evidence = self.runs / f"{look}-{key.replace(':', '-').replace(' ', '_')}"
+        fresh = not cell
         evidence.mkdir(parents=True, exist_ok=True)
-        if before and after:
+        if fresh and before and after:
             diff = {"before": before.states, "after": after.states}
             (evidence / "states.json").write_text(json.dumps(diff, indent=1))
         with contextlib.suppress(RuntimeError, OSError, KeyError):
-            _, png = self.capture(self.outputs()[0]["name"], 1280)
-            (evidence / "still.png").write_bytes(png)
-        cell += [f"in act {act!r}: {b} (evidence {evidence})" for b in breaches]
+            if fresh:
+                _, png = self.capture(self.outputs()[0]["name"], 1280)
+                (evidence / "still.png").write_bytes(png)
+        seen = {fault(c.split(": ", 1)[1]) for c in cell}
+        new = {fault(b): b for b in reversed(breaches) if fault(b) not in seen}
+        cell += [f"in act {act!r}: {b} (evidence {evidence})" for b in reversed(new.values())]
 
 
 def key(keys):
