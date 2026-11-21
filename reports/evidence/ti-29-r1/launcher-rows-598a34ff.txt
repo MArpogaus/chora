@@ -1,0 +1,18 @@
+Chat with a helper
+Dark look
+Foot
+Foot Client
+Foot Server
+ImageMagick (color depth=q16)
+LibreOffice
+LibreOffice Calc
+LibreOffice Draw
+LibreOffice Impress
+LibreOffice Writer
+Light look
+Screenshot
+Screenshot of an area
+System look
+UXTerm
+Vim
+XTermwpctl get-volume @DEFAULT_AUDIO_SINK@
