@@ -536,11 +536,11 @@ def text_sizes(snap):
     return sizes
 
 
-def least_px(owner, shown):
+def least_px(owner, looks):
     """The least size of text: 14 px, and for xp 11 px (design/product-briefs.md: 8 pt Tahoma at 96 DPI
     is the replica and replaces the floor for xp). A text is xp's when its node is or, a card of
-    chora-notify, when xp is the look shown on its output."""
-    return XP_PX if "xp" in (owner, shown if owner == "notify" else None) else LEAST_PX
+    chora-notify, when xp is the only look of the session (the xp on the faces of a cube is not)."""
+    return XP_PX if owner == "xp" or (owner == "notify" and looks == {"xp"}) else LEAST_PX
 
 
 def guide_breaches(snap):
@@ -548,9 +548,9 @@ def guide_breaches(snap):
     out = []
     sizes = text_sizes(snap)
     nodes = snap.by_id()
+    looks = set(looks_with_state(snap))
     contrast = tool("png-contrast")
     for output, items in sorted(screen_texts(snap).items()):
-        shown = shown_look(snap, output, boxes_on(snap).get(output) or [])
         scale, rows = (snap.shots or {}).get(output) or (None, None)
         if rows is None and items and snap.shots is not None:
             out.append(f"no capture of {output}: the contrast of its text cannot be measured")
@@ -558,7 +558,7 @@ def guide_breaches(snap):
             if not words.strip():
                 continue
             px = sizes.get((label, words))
-            least = least_px((nodes.get(label) or {}).get("owner"), shown)
+            least = least_px((nodes.get(label) or {}).get("owner"), looks)
             if px is None:
                 out.append(f"on {output} {words!r} ({label}) has no font size, its size cannot be checked")
             elif px < least and not STATE_WORD.search(label):
