@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-21 05:16 UTC)
+## Now (2026-11-21 05:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 05:01 PM 3.4 % (day); disk 11 G free: one build (train) at a time; 6 lanes
-session branch: a5b77488; 54 greens; t96b green 04:20. t97 running from 04:23: flakes-q (conflict with co-hud-load: same fade fix, head's kept, both tests), flakes-p, chapters-b, mc-column.
+budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 05:35 week 3.6 %; disk 18 G free: one build (train) at a time; 6 lanes
+session branch: 598a34ff; 55 greens; t97 green 05:35 (flakes-q, flakes-p, chapters-b, mc-column; lanes told to merge). F5 series waits for flakes-r (a series now blocks trains for 5 h).
 burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadline, carried into this week (owner 11-17 15:35).
 
 ## RC (design/rc.md)
@@ -31,7 +31,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | xp-fields-r1.md (rc 2: xp-24 MAJOR fields, ca-1 Help at 720) | sonnet high, claude/xp-fields a5b77488 | session_016iS3kPeyKRMqYvKDzoWpLw 05:16 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, rc 2-3) t97 running (flakes-q, flakes-p, chapters-b, mc-column); review-pm-fixes MERGE-OK (rpm-1 to backlog).
+4. (F6, rc 2-3) t97 green 05:35; next train: chapters-a r2, flakes-r after review.
 5. (F5, F7, rc 2) F5 not met (series r3 2/5 at --jobs 2); open FLK-XP-FACES, FLK-MATRIX-S1, FLK-DOORS-CO. GUIDE-CHECKS r5 PARTIAL (gate-lib red = lane sandbox rm guard: lanes skip it), r6 0.5 %. CO-KEYS 1.5 %. CHAPTERS-A review r1 FIX (2 MAJOR), r2 0.8 %. HANDOVER-MO 1.5 %, XP-FIELDS 1.2 %.
 
 ## Needs owner
