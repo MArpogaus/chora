@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 06:58 UTC)
+## Now (2026-11-21 07:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:27 week 3.9 %; disk 18 G: one build at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35. F5 series waits for flakes-r (a series now blocks trains for 5 h).
@@ -25,13 +25,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 |---|---|---|
 | guide-checks-r6.md (F7: Tahoma, I13) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-keys-r2.md (rc 2: review FIX, rck-1 MAJOR F1 hint without grant) | sonnet medium, claude/co-keys e965470a | session_016iS3kNYV7ASTDhYTq5e5jd 06:58 |
-| chapters-a-r3.md (F7: rca-6 MINOR, rca-7) | sonnet low, claude/chapters-a 186d8506 | session_016iS3kLi7kHW1QDuv6waGH7 06:48 |
 | ti-29-r1.md (rc 2 tiling: launcher order, helper panel covers tile) | sonnet medium, claude/ti-29 598a34ff | session_016iS3kMGHWcQ12HZmuhWrPd 06:25 |
 | xp-37-r1.md (xp MINOR: rxf-1..4, 6; pixel round 2 of 2) | sonnet medium, claude/xp-37 9a6506d6 | session_016iS3kM5HiUCpS3mS1QRtvH 06:28 |
 | gate-path.md (F5: selftest PATH) | sonnet low, claude/gate-path 598a34ff | session_016iS3kNQJyehsuVKCLz4tuV 06:36 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, F7, rc 2-3) t98 red 06:40, gate-lib (rm-guard on PATH; red on 598a34ff too); GATE-PATH 0.3 % fixes, then t98 with it: xp-fields 9a6506d6, chapters-a 186d8506, flakes-r 789aab53 (MERGE-OK 06:43; rfr-1 MINOR co). Then handover-mo r2.
+4. (F6, F7, rc 2-3) t98 red 06:40, gate-lib (rm-guard on PATH; red on 598a34ff too); GATE-PATH 0.3 % fixes, then t98 with it: xp-fields 9a6506d6, chapters-a 77134283 (r3 MERGE-OK 07:01), flakes-r 789aab53 (MERGE-OK 06:43; rfr-1 MINOR co). Then handover-mo r2.
 5. (F5, F7, rc 2) F5 open (r3 2/5); FLK-XP-FACES open, DOORS-CO, MATRIX-S1 fixed in t98; series after t98. Running: GUIDE-CHECKS r6, CO-KEYS r2 0.6 % (r1 FIX 06:58), TI-29 0.8 %, XP-37 0.6 %. HANDOVER-MO review FIX 06:27 (rhm-1 MAJOR: bare `chora -- chora-tiling` has no bar): r2 after ti-29.
 
 ## Needs owner
