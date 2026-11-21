@@ -1195,6 +1195,30 @@ mod tests {
         drop((&mut theme, cache));
     }
 
+    /// A press and release on the label of the slider row, off the track,
+    /// leaves the level alone.
+    #[test]
+    fn a_click_on_the_label_of_the_slider_does_not_set_the_level() {
+        use chora_kit::volume::Volume;
+        let (mut theme, cache) = crate::dialog::tests::theme("slider-label");
+        let reading = Reading::Level(Volume {
+            percent: 40,
+            muted: false,
+        });
+        let mut menu = Menu::new(&theme, volume(reading), [10, 10], SCREEN, 0);
+        let level = &menu.levels[0];
+        let last = level.entries.len() - 1;
+        let [x, y, w, h] = level.row(last);
+        let left = f64::from(level.rect[0] + x + w - TRACK_END - TRACK);
+        let right = left + f64::from(TRACK + TRACK_END);
+        let middle = f64::from(level.rect[1] + y + h / 2);
+        for at in [f64::from(level.rect[0] + x) + 4.0, left - 20.0, right + 2.0] {
+            menu.down = Some((0, last));
+            assert_eq!(menu.release([at, middle]), None, "at {at}");
+        }
+        drop((&mut theme, cache));
+    }
+
     #[test]
     fn the_rows_follow_each_other() {
         let level = Level {
