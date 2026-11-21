@@ -121,7 +121,7 @@ round() {
     "$bin/chora-tiling" --print-config >"$work/chora/chora-tiling.yaml"
     sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
     core_log=$shots/chora-$tag.log
-    CHORA_LOG=$core_log CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling"
+    CHORA_LOG=$core_log CHORA_TEST_KEEP_BUS=1 session_start "$size" -- "$bin/chora-tiling" --no-companions
     grant screen.capture input.inject methods.call
     CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$shots/waybar-$tag.log" 2>&1 &
     run_pid $!

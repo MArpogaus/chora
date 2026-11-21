@@ -17,7 +17,7 @@ need_bins chora choractl chora-tiling
 flavor=$repo/flavors/tiling
 export PATH=$bin:$PATH
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
 run_pid $!
 grant screen.capture
