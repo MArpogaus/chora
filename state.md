@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-21 03:16 UTC)
+## Now (2026-11-21 03:17 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 02:29 PM 2.7 % (Bangkok day 11-21); disk 18 G free: one build (train) at a time: 5 lanes
+budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 02:29 PM 2.7 %; disk 18 G free: one build (train) at a time: 5 lanes
 session branch: f4f49783; 53 greens; t95b green 02:33 (give-raise T7 MAJOR, co-hud-load co-35); t96 red 03:14 at doors (construct launcher-key missing; flake FLK-DOORS-CO, diff only tests/persona); t96b rerun same head.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (5/5 at --jobs 2); F7 tour-v9 building. 0.6 d.
 
@@ -23,8 +23,8 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (5/5 at --jobs 2); F7 tour-v9 b
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| guide-checks-r5.md (F7: xp Volume row, I13 proof, gate-lib selftest) | sonnet medium, claude/guide-checks 06bb5af4 | starting |
-| co-capture.md (rc 2: co-36 MAJOR capture blocks cube reopen) | sonnet high, claude/co-capture f4f49783 | starting |
+| guide-checks-r5.md (F7: xp Volume row, I13 proof, gate-lib selftest) | sonnet medium, claude/guide-checks 06bb5af4 | session_016iS3kPSNHuxM4seDLTGiMs 03:17 |
+| co-capture.md (rc 2: co-36 MAJOR capture blocks cube reopen) | sonnet high, claude/co-capture f4f49783 | session_016iS3kPWudoCEpaHQaXSgts 03:17 |
 | chapters-a.md (F7: xp, tiling, handover rows checked) | sonnet high, claude/chapters-a f4f49783 | session_016iS3kLLge6driZZFcqW4i5 02:29 |
 | p2-r4-co.md (rc 2: construct round 4, run only) | sonnet medium, haiku personas, claude/p2-r4-co a5b77488 | session_016iS3kP7cApKDmicJ986DxZ 02:37 |
 | chapters-b.md (F7: mc, construct rows checked) | sonnet high, claude/chapters-b f4f49783 | session_016iS3kQFBrWrwCWGMfrVhpP 02:29 |
