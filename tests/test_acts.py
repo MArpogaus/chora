@@ -443,7 +443,7 @@ class KnownRed(unittest.TestCase):
         seen = "in act 'new': on O '12:00' (xp-tray-O) has the contrast 1.00:1 (a on a), the guide wants 4.5:1"
         self.assertTrue(harness.judge({("xp", "I1"): [seen]}, [row]).blocking)
 
-    TRAY = {"look": "xp", "node": "xp-tray-", "reason": "authentic Luna tray, vision card"}
+    TRAY = {"look": "xp", "node": "xp-tray-", "floor": 3.0, "reason": "authentic Luna tray, vision card"}
 
     @staticmethod
     def contrast(node, ratio, act="a"):
@@ -466,13 +466,13 @@ class KnownRed(unittest.TestCase):
         self.assertTrue(harness.judge({("xp", "I6"): [small]}, [], exempt=[self.TRAY]).blocking)
 
     def test_an_exemption_row_needs_look_node_and_reason(self):
-        for key in self.TRAY:
+        for key in ("look", "node", "reason"):
             with self.assertRaises(ValueError):
                 harness.judge({}, [], exempt=[{k: v for k, v in self.TRAY.items() if k != key}])
 
     def test_the_list_exempts_the_tray_once_and_has_no_flaky_tray_row(self):
         self.assertEqual([e["node"] for e in harness.exemptions()], ["xp-tray-"])
-        self.assertFalse([r for r in harness.known_red() if "xp-tray" in r.get("capture", "")])
+        self.assertFalse([r for r in harness.known_red() if r.get("flaky") and "xp-tray" in r.get("capture", "")])
 
     def test_a_flaky_row_needs_evidence_and_an_act(self):
         row = dict(self.rows[0], capture="l1", flaky=True)

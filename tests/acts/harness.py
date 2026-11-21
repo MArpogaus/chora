@@ -254,6 +254,22 @@ def known_red(path=KNOWN_RED):
         return tomllib.load(f).get("red", [])
 
 
+def exemptions(path=KNOWN_RED):
+    """The exemption rows of the known-red list: a look exempts the contrast
+    of the nodes named by label prefix, in every act."""
+    with open(path, "rb") as f:
+        return tomllib.load(f).get("exempt", [])
+
+
+def exempted(breach, exempt):
+    """Whether an exemption row passes the breach: a contrast breach, on a
+    node whose label starts with the row's `node`, no lower than its `floor`."""
+    found = re.search(r"\((\S+)\) has the contrast ([\d.]+):1", breach)
+    return bool(found) and any(
+        found[1].startswith(row["node"]) and float(found[2]) >= row.get("floor", 0) for row in exempt
+    )
+
+
 def scene_texts(nodes):
     """{id: text} of the nodes that carry a text."""
     return {n.get("id"): n.get("text") for n in nodes if n.get("text")}
@@ -275,7 +291,7 @@ def row_covers(row, breach):
     )
 
 
-def judge(results, rows, full=False):
+def judge(results, rows, full=False, exempt=()):
     """Hold the results, {(look, id): [breach, ...]}, against the rows.
 
     A row needs `look`, `id`, `finding` and `slice`; an optional `act`, `capture` and `match`
@@ -291,8 +307,13 @@ def judge(results, rows, full=False):
         listed.setdefault((row["look"], row["id"]), []).append(row)
         if row.get("flaky") and not (row.get("evidence") and row.get("act")):
             raise ValueError(f"flaky known-red row {row['finding']!r} needs an act and an evidence of two runs")
+    for row in exempt:
+        missing = [k for k in ("look", "node", "reason") if not row.get(k)]
+        if missing:
+            raise ValueError(f"exemption row {row} lacks {', '.join(missing)}")
     blocking, red, passed = [], [], []
     for key, breaches in sorted(results.items()):
+        breaches = [b for b in breaches if not exempted(b, exempt)]
         cell = listed.get(key, [])
         unmatched = [b for b in breaches if not any(row_covers(r, b) for r in cell)]
         stale = [r for r in cell if not r.get("flaky") and not any(row_covers(r, b) for b in breaches)]
