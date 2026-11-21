@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "tests" / "acts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import ast  # noqa: E402
+import json  # noqa: E402
 import contextlib  # noqa: E402
 import dataclasses  # noqa: E402
 import importlib.util  # noqa: E402
@@ -237,6 +238,123 @@ class TourRows(unittest.TestCase):
 
     def test_check_flag(self):
         self.assertFalse(tour.checking())
+
+
+class Shooter(FakeSession):
+    """A session whose `capture` writes a small PNG."""
+
+    def __init__(self):
+        self.shots = []
+
+    def capture(self, path, output=None):
+        import test_tour_diff as ttd
+
+        pathlib.Path(path).write_bytes(ttd.png(64, 36))
+        self.shots.append((path, output))
+
+
+def boxes_with(*rects):
+    return {"HEADLESS-1": {"size": [1280, 720], "boxes": [{"node": f"t{i}", "kind": "text", "rect": list(r), "text": "hi", "font_size": 14} for i, r in enumerate(rects)]}}
+
+
+class CaptureDumps(unittest.TestCase):
+    """F7 r1: per Q capture the tour writes `<act>.<capture>.png` and `.json` where tests/tour-diff.py reads them."""
+
+    def tour(self, slug="01-xp", boxes=None, snaps=None):
+        work = tempfile.mkdtemp(prefix="tour-dump-")
+        feed = iter(snaps or [snap(), test_acts.snap(boxes=boxes) if boxes else snap()])
+        self.session = Shooter()
+        t = tour.Tour(self.session, work, work + "/w", checker=tour.Checker(lambda: next(feed)))
+        t.begin("1 test", slug)
+        t.run_segment = lambda label="": None
+        self.dir = pathlib.Path(work) / "captures"
+        return t
+
+    def act(self, t, capture="Q"):
+        t.act("look", "an act", "something", capture=capture)
+        t.done()
+        t.flush()
+
+    def diff(self):
+        import test_tour_diff as ttd
+
+        return ttd.diff
+
+    def test_row_id_is_the_letter_of_the_look_and_the_number(self):
+        for slug, want in (("01-xp", "x1"), ("02-tiling", "t1"), ("03-mc-light", "m1"), ("03b-mc-dark", "md1"), ("04-construct", "c1"), ("05-handover", "h1")):
+            t = self.tour(slug)
+            self.act(t)
+            self.assertEqual(t.rows[0]["id"], want, slug)
+
+    def test_a_q_capture_writes_png_and_json(self):
+        t = self.tour(boxes=boxes_with((10, 10, 50, 14), (100, 200, 30, 12)))
+        self.act(t)
+        self.assertTrue((self.dir / "x1.Q.png").read_bytes().startswith(b"\x89PNG"))
+        data = json.loads((self.dir / "x1.Q.json").read_text())
+        self.assertEqual([n["id"] for n in data["nodes"]], ["s1"])
+        self.assertEqual(data["masks"], [[10, 10, 50, 14], [100, 200, 30, 12]])
+
+    def test_tour_diff_reads_the_dump(self):
+        t = self.tour(boxes=boxes_with((10, 10, 50, 14)))
+        self.act(t)
+        rows = self.diff().compare(self.dir, self.dir, [])
+        self.assertEqual([(r["act"], r["capture"], r["verdict"]) for r in rows], [("x1", "Q", "same")])
+
+    def test_a_capture_with_a_dot_keeps_its_act(self):
+        t = self.tour()
+        self.act(t, capture="Q+0.5")
+        rows = self.diff().compare(self.dir, self.dir, [])
+        self.assertEqual([(r["act"], r["capture"]) for r in rows], [("x1", "Q+0.5")])
+
+    def test_a_build_without_scene_boxes_has_no_masks_and_still_a_dump(self):
+        t = self.tour(snaps=[snap(), test_acts.snap(boxes=None)])
+        self.act(t)
+        self.assertEqual(json.loads((self.dir / "x1.Q.json").read_text())["masks"], [])
+        self.assertTrue((self.dir / "x1.Q.png").exists())
+
+    def test_the_check_run_writes_no_dump(self):
+        import os
+
+        os.environ["TOUR_CHECK"] = "1"
+        try:
+            t = self.tour()
+            self.act(t)
+        finally:
+            del os.environ["TOUR_CHECK"]
+        self.assertFalse(self.dir.exists())
+
+    def test_h50_takes_the_frame_in_the_middle_of_the_act(self):
+        """The held frame is half way through the act, not the quiet frame after it; the pointer is masked."""
+        import unittest.mock as mock
+
+        class Frames(Shooter):
+            def ctl(self, *args, **kw):
+                import test_tour_diff as ttd
+
+                out = pathlib.Path(args[args.index("--out") + 1])
+                for n in range(1, int(args[args.index("--frames") + 1]) + 1):
+                    (out / f"frame-{n:05d}.png").write_bytes(ttd.png(8, 8, lambda x, y, n=n: (n, 0, 0)))
+                return ""
+
+        work = tempfile.mkdtemp(prefix="tour-dump-")
+        feed = iter([snap(), snap()])
+        t = tour.Tour(Frames(), work, work + "/w", checker=tour.Checker(lambda: next(feed)))
+        t.begin("1 test", "01-xp")
+        t.px, t.py = 300.0, 200.0
+        with mock.patch.object(tour.subprocess, "run"):
+            t.act("pointer", "a drag", "it moves", settle=0.0, lead=0.0, tail=0.0, capture="H50")
+            start = t.rows[0]["frame"]
+            t.wait(2.0)
+            end = t.frame
+            t.done()
+            t.flush()
+        import test_tour_diff as ttd
+
+        got = (pathlib.Path(work) / "captures" / "x1.H50.png").read_bytes()
+        middle = (start + end) // 2
+        self.assertEqual(got, ttd.png(8, 8, lambda x, y: (middle, 0, 0)))
+        masks = json.loads((pathlib.Path(work) / "captures" / "x1.H50.json").read_text())["masks"]
+        self.assertTrue(any(m[0] <= 300 <= m[0] + m[2] and m[1] <= 200 <= m[1] + m[3] for m in masks), masks)
 
 
 CHAPTERS_A = ("xp", "tiling", "handover")
