@@ -44,6 +44,7 @@ run() {
             kill -0 "$script" 2>/dev/null || break
             sleep 0.2
         done
+        [ -f "$pidfile" ] && touch "$work/$name.seen"
         kill "$script" 2>/dev/null
         wait "$script" 2>/dev/null
     )
@@ -52,13 +53,13 @@ run() {
 command -v jq >/dev/null 2>&1 || echo "note: jq missing, waybar.sh is not covered"
 for round in 1 2; do
     run "wallpaper$round" "$want/chora-tiling/wallpaper.pid" "$flavor/wallpaper.sh"
-    [ -f "$want/chora-tiling/wallpaper.pid" ] || fail "wallpaper.sh run $round did not use $want: $(cat "$work/wallpaper$round.out")"
+    [ -f "$work/wallpaper$round.seen" ] || fail "wallpaper.sh run $round did not use $want: $(cat "$work/wallpaper$round.out")"
     rm -f "$want/chora-tiling/wallpaper.pid"
 done
 if command -v jq >/dev/null 2>&1; then
     for round in 1 2; do
         run "waybar$round" "$want/chora-tiling/panel.pid" "$flavor/waybar/waybar.sh" "$flavor/waybar"
-        [ -f "$want/chora-tiling/panel.pid" ] || fail "waybar.sh run $round did not use $want: $(cat "$work/waybar$round.out")"
+        [ -f "$work/waybar$round.seen" ] || fail "waybar.sh run $round did not use $want: $(cat "$work/waybar$round.out")"
         rm -f "$want/chora-tiling/panel.pid"
     done
 fi
