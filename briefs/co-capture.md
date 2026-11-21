@@ -1,0 +1,14 @@
+# co-capture (rc 2, F7; findings/construct.md co-36 MAJOR, co-37 MINOR): a screen capture never keeps construct from coming back
+
+Model: sonnet, effort high (core and construct process lifecycle: grabs, capture, restart; the cause is unknown)
+Lane: cloud, claude/co-capture at f4f49783 (session head). Cost at most 1.5 %; stop at 250 k context.
+Why: guide-checks r4 (reports/guide-checks.md "## r4" on claude/session-log): with construct killed, one screen.capture of the flat xp, then construct started again: the cube does not reopen within 30 s, construct-again.log "Alt+Super+1..4 is grabbed already"; 3 of 3 red, 3 of 3 green without the capture. The acts harness skips that capture since 1e10b202 (claude/guide-checks), which hides the fault. co-37: the same capture shows the xp tray text at 1.00:1.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "co-capture BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read: tests/gate-construct-cube.sh (the kill and restart cell, co-3), the screen.capture path in the core and its grab release on client exit; `git show origin/claude/guide-checks:tests/acts/` for the r4 repro (read only).
+1) Red first (own commit): a gate cell or a case in an existing construct gate script: kill construct -9, one screen.capture, start construct again, expect the cube reopened within 30 s and the grabs free. It must be red on f4f49783, 3 of 3.
+2) Find the cause (stale grab owner, a capture holding a reference to the dead client, an output frame that is never released); fix it in the core or construct, KISS, the smallest change; the red case goes green 5 of 5. No harness workaround, no longer timeout.
+3) co-37: check whether the capture after the kill reads a frame before the xp face is drawn. If the co-36 fix closes it, show it with the contrast of that capture; else name it with evidence in the report and leave it (MINOR).
+4) Gate: `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,gate-lib,build,test,clippy,cube,construct-hud,construct-extra,doors,acts`. A red cell you did not cause: name it with its log line; do not rerun to green. Poll in the same turn; never end a turn to wait.
+Done when: the new case red on f4f49783 and green 5 of 5 on the branch, the gate green at --jobs 1, co-36 closed with the cell name.
+Report: reports/co-capture.md "## r1" on claude/session-log (shas, cause with file:line, red and green runs); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/co-capture and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
