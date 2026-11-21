@@ -16,10 +16,12 @@ sys.path.insert(0, str(ROOT / "demo" / "tour"))
 sys.path.insert(0, str(ROOT / "tests" / "acts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
+import ast  # noqa: E402
 import contextlib  # noqa: E402
 import dataclasses  # noqa: E402
 import importlib.util  # noqa: E402
 import io  # noqa: E402
+import pathlib  # noqa: E402
 
 import assemble  # noqa: E402
 import launch  # noqa: E402
@@ -235,6 +237,69 @@ class TourRows(unittest.TestCase):
 
     def test_check_flag(self):
         self.assertFalse(tour.checking())
+
+
+CHAPTERS_A = ("xp", "tiling", "handover")
+
+
+def act_calls(chapter):
+    """The `t.act(...)` calls of a chapter file: (line, the keyword names, the keyword nodes)."""
+    tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text())
+    return [
+        (n.lineno, {k.arg for k in n.keywords}, {k.arg: k.value for k in n.keywords})
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "act"
+    ]
+
+
+def check_of(chapter, name):
+    """A check function that a chapter exports (design/tour-v9.md: the rows of the chapter use it)."""
+    module = importlib.import_module(f"chapters.{chapter}")
+    fn = getattr(module, name, None)
+    assert fn is not None, f"chapters/{chapter}.py has no check `{name}`"
+    return fn
+
+
+class ChaptersARows(unittest.TestCase):
+    """F7 (design/tour-v9.md sections 1, 2, 5; lane CHAPTERS-A): every act row of xp, tiling and
+    handover has an `expect` (no bare `inv` row) and a `contract` or `cells`, and an `expect` turns
+    red on a wrong state."""
+
+    def test_every_act_row_has_expect_and_contract_or_cells(self):
+        for chapter in CHAPTERS_A:
+            calls = act_calls(chapter)
+            self.assertGreater(len(calls), 5, chapter)
+            bare = [line for line, kw, _ in calls if "expect" not in kw or not ({"contract", "cells"} & kw)]
+            self.assertEqual(bare, [], f"{chapter}: act rows without expect, or without contract and cells (lines)")
+
+    def test_no_row_is_a_todo_stub(self):
+        for chapter in CHAPTERS_A:
+            todo = [line for line, kw, nodes in act_calls(chapter) if "todo" in kw and getattr(nodes["todo"], "value", True)]
+            self.assertEqual(todo, [], f"{chapter}: todo rows (lines)")
+
+    def test_xp_expect_turns_red_on_a_wrong_volume(self):
+        """x7: the speaker sets 75 %; the mixer of the session holds 40 %."""
+        volume_is = check_of("xp", "volume_is")
+        state = pathlib.Path(tempfile.mkdtemp(prefix="tour-test-")) / "wpctl.state"
+        state.write_text("0.40 0\n")
+        want = Expect(verify=volume_is(75, state))
+        self.assertTrue(want.check(snap(), snap()), "a mixer at 40 % passes for 75 %")
+        state.write_text("0.75 0\n")
+        self.assertEqual(want.check(snap(), snap()), [])
+
+    def test_tiling_expect_turns_red_on_a_wrong_window_count(self):
+        """t3: four terminals tile; the session shows one window."""
+        windows_are = check_of("tiling", "windows_are")
+        self.assertTrue(Expect(verify=windows_are(4, look="xp")).check(snap(), snap()), "one window passes for four")
+        self.assertEqual(Expect(verify=windows_are(1, look="xp")).check(snap(), snap()), [])
+
+    def test_handover_expect_turns_red_on_a_wrong_owner(self):
+        """h3: the window is given to mc; the node still says xp owns it."""
+        owner_is = check_of("handover", "owner_is")
+        want = Expect(verify=owner_is("s1", "mc"))
+        self.assertTrue(want.check(snap(), snap()), "owner xp passes for mc")
+        mine = snap(nodes=[test_acts.surface("s1", "mc", focused=True)])
+        self.assertEqual(want.check(snap(), mine), [])
 
 
 if __name__ == "__main__":
