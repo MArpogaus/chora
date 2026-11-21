@@ -84,3 +84,12 @@ Findings (id, severity, file:line, text, fix):
 - rhm-5 nit plugins/chora-xp/src/wm/keys.rs:151: `button` became `pub(super)` only so tests_moved.rs can call it. Fix: drive the test with `wm.input(Event::InputButton{..})` and keep it private.
 
 Verdict: FIX (computed: one open MAJOR, rhm-1). Counts: BLOCK 0, MAJOR 1, nit 4. The two fixes (ca-4, sd-h2) and the gate are correct and merge-ready by themselves; rhm-1 is a product row that stays open, not a regression of this branch.
+
+## r2
+
+Branch claude/handover-mo head 60314da1 (ti-29 1f9a5180 merged clean at 4a078baf).
+- rhm-1 FIXED. Cause: plugins/chora-tiling/src/main.rs:395 started the companions (waybar.sh, wallpaper.sh) only with `--with-companions`, so the documented `chora -- chora-tiling` painted nothing. Now they start by default (the pid-file guard `companion()` stops doubles); `--with-companions` is accepted and hidden, a no-op; `--no-companions` added because ten gates and the audit start their own waybar with a test config and the default one raced them (tiling-audit red "no layout pill", tiling-look red "focus border"); those gates pass it. Cell: `bare` of tests/gate-tiling-empty-output.sh, red 938f9382 (pixel 0 0 0 at the bar), green ccf7ebab; it also clicks the Apps door. README, docs/configuration.md, docs/known-issues.md:119, construct default manager command `chora-tiling` updated.
+- rhm-2 fixed (a3c006fa): `menu_after closed` polls 1 s and fails if the menu opens at any poll.
+- rhm-3 fixed (a3c006fa): the `sleep 0.5` is a poll until no node has the focus (the press took the keyboard).
+- Gate: pre-commit, ci-check, build, test, clippy, xp, matrix, virtual PASS on ccf7ebab; tiling-audit, tiling-look, doors, acts, launcher-click, tiling-empty PASS after the --no-companions gate change (60314da1 only changes the Args bool to a counter, built and run in tiling-empty 5/5, not rerun in the full gate). Red cells on the way, caused by this fix and corrected: tiling-audit and tiling-look (above).
+- Pre-commit clippy forbade a fourth bool (struct_excessive_bools); no allow added.
