@@ -963,7 +963,6 @@ impl Mc {
 
     /// Places the items of a side: one under the other from the top, the
     /// items of the foot above the lower edge, a row beside its first item.
-    #[allow(clippy::too_many_lines, reason = "one pass over the items of a side")]
     fn stack(
         &mut self,
         items: &[Item],
@@ -971,16 +970,11 @@ impl Mc {
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
-        let gap = self.settings.value.page.gap * self.settings.value.scale.base;
-        let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
-        for item in items {
-            let [_, _, w, h] = self.measure(&item.id, probed)?;
-            heights.push(h.max(baseline));
-            widths.push(w);
-            let after = lefts.last().zip(widths.last()).map(|(l, w)| l + w + gap);
-            let at = left_of(item, width - w + trailing(&item.props), after);
-            lefts.push(at);
-        }
+        let Measures {
+            heights,
+            widths,
+            lefts,
+        } = self.measure_side(items, width, probed)?;
         let (_, foot_end) = lines(items, &heights, true, baseline);
         let keep = fit(items, &heights, height - foot_end - baseline, baseline);
         let (flow, end) = lines_of(items, &heights, false, baseline, &keep);
@@ -996,45 +990,90 @@ impl Mc {
             .into_iter()
             .chain(foot.into_iter().map(|(i, y)| (i, y + foot_top)))
         {
-            let idx = item;
-            let item = &items[idx];
-            let ink = props_ink(&item.props);
-            let shift = self.to_grid(top + y + ink.top + ink.height);
-            commands.push(move_to(item.id.clone(), lefts[idx] + lead(item), y + shift));
-            let centre = y + shift + ink.top + ink.height / 2.0;
-            commands.extend(close_place(item, [lefts[idx], centre]));
-            if item.hit.is_some() {
-                let [x, w] = if item.put.own_width() {
-                    [lefts[idx], widths[idx]]
-                } else {
-                    [0.0, width]
-                };
-                let at = if item.put.at_left() { x } else { item.x };
-                let ink = Ink {
-                    top: ink.top + shift,
-                    ..ink
-                };
-                let beside = items[idx + 1..]
-                    .iter()
-                    .zip(&heights[idx + 1..])
-                    .take_while(|(i, _)| i.put == Put::FootRow && i.hit.is_none())
-                    .map(|(_, h)| *h)
-                    .fold(heights[idx], f64::max);
-                commands.extend(hit_place(&item.id, [x, y, w, beside], at, ink));
-            }
-            if item.put == Put::FootRule {
-                let y = y - (baseline / 2.0).round();
-                commands.push(move_to(format!("{}-rule", item.id), 0.0, y));
-                commands.push(Command::Update {
-                    id: format!("{}-rule", item.id),
-                    props: PropsUpdate {
-                        size: Some([width, 1.0]),
-                        ..PropsUpdate::default()
-                    },
-                });
-            }
+            let side = Side {
+                top,
+                width,
+                heights: &heights,
+                widths: &widths,
+                lefts: &lefts,
+            };
+            commands.extend(self.stack_item(items, item, y, &side));
         }
         Ok(commands)
+    }
+
+    /// The heights, widths and left edges of the items of a side.
+    fn measure_side(
+        &mut self,
+        items: &[Item],
+        width: f64,
+        probed: bool,
+    ) -> Result<Measures, ClientError> {
+        let baseline = self.settings.value.scale.baseline;
+        let gap = self.settings.value.page.gap * self.settings.value.scale.base;
+        let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
+        for item in items {
+            let [_, _, w, h] = self.measure(&item.id, probed)?;
+            heights.push(h.max(baseline));
+            widths.push(w);
+            let after = lefts.last().zip(widths.last()).map(|(l, w)| l + w + gap);
+            let at = left_of(item, width - w + trailing(&item.props), after);
+            lefts.push(at);
+        }
+        Ok(Measures {
+            heights,
+            widths,
+            lefts,
+        })
+    }
+
+    /// The commands that put item `idx` of a side at `y`.
+    fn stack_item(&self, items: &[Item], idx: usize, y: f64, side: &Side) -> Vec<Command> {
+        let baseline = self.settings.value.scale.baseline;
+        let Side {
+            top,
+            width,
+            heights,
+            widths,
+            lefts,
+        } = *side;
+        let item = &items[idx];
+        let ink = props_ink(&item.props);
+        let shift = self.to_grid(top + y + ink.top + ink.height);
+        let mut commands = vec![move_to(item.id.clone(), lefts[idx] + lead(item), y + shift)];
+        let centre = y + shift + ink.top + ink.height / 2.0;
+        commands.extend(close_place(item, [lefts[idx], centre]));
+        if item.hit.is_some() {
+            let [x, w] = if item.put.own_width() {
+                [lefts[idx], widths[idx]]
+            } else {
+                [0.0, width]
+            };
+            let at = if item.put.at_left() { x } else { item.x };
+            let ink = Ink {
+                top: ink.top + shift,
+                ..ink
+            };
+            let beside = items[idx + 1..]
+                .iter()
+                .zip(&heights[idx + 1..])
+                .take_while(|(i, _)| i.put == Put::FootRow && i.hit.is_none())
+                .map(|(_, h)| *h)
+                .fold(heights[idx], f64::max);
+            commands.extend(hit_place(&item.id, [x, y, w, beside], at, ink));
+        }
+        if item.put == Put::FootRule {
+            let y = y - (baseline / 2.0).round();
+            commands.push(move_to(format!("{}-rule", item.id), 0.0, y));
+            commands.push(Command::Update {
+                id: format!("{}-rule", item.id),
+                props: PropsUpdate {
+                    size: Some([width, 1.0]),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
+        commands
     }
 
     /// What a click on a door does: the action of its key.
@@ -1521,4 +1560,21 @@ mod tests {
             "foot -o bg=ff8000 {x}"
         );
     }
+}
+
+/// The heights, widths and left edges of the items of a side.
+struct Measures {
+    heights: Vec<f64>,
+    widths: Vec<f64>,
+    lefts: Vec<f64>,
+}
+
+/// The measures of the items of a side, borrowed.
+#[derive(Clone, Copy)]
+struct Side<'a> {
+    top: f64,
+    width: f64,
+    heights: &'a [f64],
+    widths: &'a [f64],
+    lefts: &'a [f64],
 }
