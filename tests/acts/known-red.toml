@@ -1459,35 +1459,8 @@ slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
 act = "a window opens"
-capture = "xp-task-s1-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s1-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
 capture = "xp-tray-HEADLESS-1"
 finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens for Show Desktop"
-capture = "xp-task-s3-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s3-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens for the drag"
-capture = "xp-task-s2-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s2-HEADLESS-1: guide wants 14 px"
 id = "I6"
 look = "xp"
 match = "guide wants 14 px"
@@ -1656,15 +1629,6 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "the balloon goes when the window of Notepad shows"
-capture = "xp-task-s5-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s5-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the balloon says that Notepad starts under the volume popup"
 capture = "notify-card-body"
 finding = "guide-checks r2: notify-card-body: guide wants 14 px"
@@ -1683,27 +1647,9 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "the keys key opens the key list"
-capture = "xp-task-helppanel-HEADLESS-1"
-finding = "guide-checks r2: xp-task-helppanel-HEADLESS-1: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the tooltip of the speaker says the level that the key set"
 capture = "xp-tooltip"
 finding = "guide-checks r2: xp-tooltip: guide wants 14 px"
-id = "I6"
-look = "xp"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the window of Notepad shows"
-capture = "xp-task-s4-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s4-HEADLESS-1: guide wants 14 px"
 id = "I6"
 look = "xp"
 match = "guide wants 14 px"

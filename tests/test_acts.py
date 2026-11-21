@@ -529,6 +529,12 @@ class KnownRed(unittest.TestCase):
         row = rows[0]
         self.assertEqual((row["look"], row["id"]), ("xp", "I6"))
         self.assertIn("authentic Tahoma 8 pt", row["slice"])
+        per_node = [
+            r["capture"]
+            for r in harness.known_red()
+            if (r["look"], r["id"]) == ("xp", "I6") and r.get("capture", "").startswith("xp-task-") and "14 px" in r.get("match", "")
+        ]
+        self.assertEqual(per_node, ["xp-task-*"])
         size = "on O 'chora-probe' (xp-task-s4-HEADLESS-1) is 11 px, the guide wants 14 px"
         for act in ("a window opens to hear the keys", "another act"):
             self.assertEqual(harness.judge({("xp", "I6"): [f"in act {act!r}: {size}"]}, [row]).blocking, [])
