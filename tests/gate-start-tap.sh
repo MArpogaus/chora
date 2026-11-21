@@ -56,10 +56,11 @@ inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 super() { inject "[{\"key\": {\"key\": \"Super_L\", \"state\": \"$1\"}}]"; }
 menu_open() { [ "$(ctl query id:xp-menu | jq -r ".[0].visible")" = true ]; }
 menu_after() {
-    for _ in $(seq 10); do
+    for _ in $(seq 5); do
         sleep 0.2
-        if menu_open; then [ "$1" = open ] && return 0; else [ "$1" = closed ] && return 0; fi
+        if menu_open; then [ "$1" = open ] && return 0; [ "$1" = closed ] && return 1; fi
     done
+    [ "$1" = closed ] && return 0
     return 1
 }
 close_menu() {
@@ -133,7 +134,10 @@ cell_return() {
     before=$(ctl query "owner:tiling kind:surface" | jq length)
     inject "[{\"pointer_move\": {\"position\": [640, 500], \"output\": \"$TI\"}},
       {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]"
-    sleep 0.5
+    for _ in $(seq 25); do
+        ctl query '*' | jq -e 'all(.[]; .focused != true)' >/dev/null && break
+        sleep 0.2
+    done
     inject '[{"key": {"key": "Super_L", "state": "pressed"}}, {"key": {"key": "Return", "state": "pressed"}},
       {"key": {"key": "Return", "state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]'
     local opened=0
