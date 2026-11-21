@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 18:11 UTC)
+## Now (2026-11-21 18:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 17:45 week 6.1 % (0.44 %/h since reset, under pace 8.3 %; 6 lanes); disk: one train at a time on the PM machine (not a lane limit); 6 lanes
 session branch: 892d035c; 58 greens; t101 green 17:45 (7 branches); t102 running. F5 series r4 5/5 green at --jobs 2 (16:21).
@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 |---|---|---|
 | co-hint-r1.md (rc 2, F7: co-42 hint) | sonnet medium, claude/co-hint c69354ae | session_016iS3kL6rhVtqF6gejqFJ7c 14:10 |
 | keys-route-r1.md (rc 2, Queue 5: stray keys) | sonnet high, claude/keys-route 892d035c | session_016iS3kLf6vLYHFxmrD54UXA 17:48 |
-| co-i3-r1.md (rc 2: I3 two focus holders) | sonnet medium, claude/co-i3 892d035c | starting |
+| co-i3-r1.md (rc 2: I3 two focus holders) | sonnet medium, claude/co-i3 892d035c | session_016iS3kL7ozbradqHHUyEBsD 18:12 |
 | kit-cov-r1.md (F5: kit coverage, row 42) | haiku high, claude/kit-cov 892d035c | session_016iS3kMkZ848r7NTUByYjVq 17:54 |
 | record-v9-r1.md (F7, rc 11: tour v9 take and diff) | sonnet medium, claude/record-v9 892d035c | session_016iS3kP27Gxp9nLotrS2Xgm 17:46 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
