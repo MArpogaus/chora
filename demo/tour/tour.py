@@ -89,6 +89,38 @@ def mmss(frame):
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
 
+NO_METHOD = re.compile(r"no method|has no method|method not found|unknown method", re.IGNORECASE)
+BUS_IDS = 24
+"""How many notification ids `close_on_bus` tries on a build that cannot list the open cards."""
+
+
+class OldCore:
+    """The connection of the harness to a core that may lack `scene.boxes` (the build 733967aa of the
+    v8 replay): that one call answers `None` (a snapshot without boxes: no masks, the invariants
+    that read boxes find nothing) and says so once; any other error, and any other method, goes
+    through."""
+
+    OPTIONAL = ("scene.boxes",)
+
+    def __init__(self, core):
+        self.core = core
+        self.missing = set()
+
+    def call(self, method, params=None, **kw):
+        try:
+            return self.core.call(method, params, **kw)
+        except RuntimeError as err:
+            if method not in self.OPTIONAL or not NO_METHOD.search(str(err)):
+                raise
+            if method not in self.missing:
+                print(f"core: no {method} on this build, the snapshots have no boxes", flush=True)
+            self.missing.add(method)
+            return None
+
+    def __getattr__(self, name):
+        return getattr(self.core, name)
+
+
 class Session:
     """A running chora session of this tour: its socket and its pids."""
 
@@ -120,10 +152,29 @@ class Session:
     def dismiss_notices(self):
         """Close the cards that chora-notify shows: `launch.notify_config` keeps a card up for the
         whole recording, so the chapter lets it go where a person would have (a card shows for
-        about ten seconds), and it does not lie over the acts that follow."""
-        state = self.call("notify", "state.get")
+        about ten seconds), and it does not lie over the acts that follow. A build whose
+        chora-notify has no `state.get` (733967aa, the replay of tour v8) is closed on the bus."""
+        try:
+            state = self.call("notify", "state.get")
+        except RuntimeError as err:
+            if not NO_METHOD.search(str(err)):
+                raise
+            self.close_on_bus(range(1, BUS_IDS + 1))
+            return
         for note in (state.get("shown") if isinstance(state, dict) else None) or []:
             self.call("notify", "notify.close", {"id": note["id"]})
+
+    def close_on_bus(self, ids):
+        """The old path: `CloseNotification` of org.freedesktop.Notifications for each id (the
+        ids of a session count from 1; one that is not open is no error). Said once."""
+        if not getattr(self, "bus_said", False):
+            self.bus_said = True
+            print("notify: no state.get on this build, the cards are closed on the bus", flush=True)
+        for n in ids:
+            subprocess.run(
+                ["busctl", "--user", "call", "org.freedesktop.Notifications", "/org/freedesktop/Notifications", "org.freedesktop.Notifications", "CloseNotification", "u", str(n)],
+                env=self.env, capture_output=True, timeout=10, check=False,
+            )
 
     def capture(self, path, output=None):
         """A PNG of an output (the scene, no pointer) at the moment; the first output when `output` is None."""
@@ -172,12 +223,15 @@ class Checker:
         h.env = dict(env)
         h.runtime = pathlib.Path(env["XDG_RUNTIME_DIR"])
         h.connect(env["CHORA_SOCKET"], "tour-check")
+        h.core = OldCore(h.core)
         return cls(h.snapshot)
 
     def snapshot(self):
         return self.source()
 
     def judge(self, row, expect, before, after):
+        """The red lines of an act. On a build without `scene.boxes` (OldCore) the boxes cannot be
+        read, so "missing boxes" is no breach there."""
         import dataclasses
 
         import harness
@@ -188,6 +242,8 @@ class Checker:
         red = expect.check(before, after) if expect else []
         for key, check in invariants.ALL.items():
             red += [f"{key}: {b}" for b in check(before, after, act)]
+        if after.boxes is None:
+            red = [line for line in red if "missing boxes" not in line]
         return red
 
 

@@ -56,6 +56,9 @@ def rows_of(out, files):
 
 
 def main(argv):
+    """With TOUR_BASELINE set (the replay on 733967aa) a chapter that stops at an act the old build
+    cannot do is `baseline: none` from there on, with its reason (design/tour-v9.md section 6), and
+    no BROKE; `baseline-none.json` in the folder of the take lists them."""
     check = "--check" in argv
     names = [a for a in argv if not a.startswith("--")] or list(CHAPTERS)
     unknown = [n for n in names if n not in CHAPTERS]
@@ -69,12 +72,19 @@ def main(argv):
         out = os.environ.get("TOUR_OUT", "/tmp/claude-0/tour-v9")
         os.makedirs(out, exist_ok=True)
     os.environ["TOUR_OUT"] = out
+    baseline = bool(os.environ.get("TOUR_BASELINE"))
     red = 0
     broke = 0
+    none = []
     for name in names:
         try:
             importlib.import_module(f"chapters.{name}").run(Ctx(out, check))
-        except Exception:  # noqa: BLE001
+        except Exception as err:  # noqa: BLE001
+            if baseline:
+                reason = " ".join(str(err).split())
+                none.append({"chapter": name, "reason": reason, "trace": traceback.format_exc()})
+                print(f"chapter {name}: baseline: none from the act that stopped it: {reason}")
+                continue
             broke += 1
             print(f"chapter {name}: BROKE\n{traceback.format_exc()}")
             continue
@@ -85,13 +95,16 @@ def main(argv):
         for r in rows:
             if r.get("status") == "RED":
                 print(f"  RED act {r['act']}: {r['description']}: {'; '.join(r['red'])}")
+    if none and not check:
+        with open(os.path.join(out, "baseline-none.json"), "w", encoding="utf-8") as f:
+            json.dump(none, f, indent=1)
     if check:
         shutil.rmtree(out, ignore_errors=True)
-    else:
+    elif not baseline:
         import assemble
 
         assemble.main()
-    print(f"tour: {'check' if check else 'record'}: {red} red, {broke} broken")
+    print(f"tour: {'check' if check else 'record'}: {red} red, {broke} broken" + (f", {len(none)} baseline: none" if none else ""))
     return 1 if red or broke else 0
 
 
