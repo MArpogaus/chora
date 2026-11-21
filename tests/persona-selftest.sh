@@ -201,6 +201,12 @@ PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" drag "$tx" 
     fail "act.py drag failed"
 until_ok "[ \"\$(rect)\" != '$before' ]" 20 || fail "the probe window did not move: still $before"
 ok "the probe window has a title bar and a drag moves it ($before to $(rect))"
+PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/check.py" wait-app chora-probe 5 ||
+    fail "check.py wait-app does not find the probe window in the scene"
+msg=$(PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/check.py" wait-app no-such-app 1 2>&1) &&
+    fail "check.py wait-app passed for an app that has no window"
+case $msg in *"no window of no-such-app"*) ;; *) fail "check.py wait-app gave no message: $msg" ;; esac
+ok "check.py wait-app finds the probe window and fails with a message for a missing one"
 body=$(state | jq -r --arg s "$surface" '.windows[] | select(.surface == $s) | .rect | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"')
 read -r bx by <<<"$body"
 PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" click "$bx" "$by" >/dev/null || fail "act.py click failed"
