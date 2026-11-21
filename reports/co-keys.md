@@ -31,3 +31,26 @@ Commits (author Marcel Arpogaus, no attribution lines):
 - co-39 (cb-2) stays known: the sheet of the stood-back cube still overlaps the chip row (acts: `Turn left` over `construct-help-body-note`); the new hint widens the capsule, nothing fixed it.
 - F1 in a face needs `choractl grant construct input.grab-any`; without it the hint click is the way. The acts grant it in the cell `construct may grab F1 without a modifier`.
 - A stood-back cube whose pane went back to xp still loses the keyboard to xp until the next key list or step; the brief did not ask for more.
+
+## Review r1
+
+Seeded review (briefs/review-co-keys-r1.md), claude/co-keys head e965470a against a5384bde, one round, read-only on code. Step 0: `git fetch --unshallow`, `cargo check --workspace` ok.
+
+**Checks**
+1. Core order: `focus_of_scene` (`crates/chora/src/state.rs:1082`) is the only place that emits `focus.changed`; both `State::focus` and the transaction effect `Effect::Focus` go through it, so `tell_key_node` runs before `focus.changed` on every path. `told_node` dedupes, so `after_events` (`state.rs:521`) does not tell `focus.node` twice. Listeners: xp (`keys.rs:332` `focus_moved`, `dispatch.rs:31`) now has `key_node` set when the surface goes, which is the fix; the reverse step-in order (`focus.node{null}` then `focus.changed{s1}`) changes nothing for xp, because `left_foreign` reads `core_focus`. tiling (`main.rs:700`) treats both events alike, so order does not matter there; mc and construct do not subscribe to `focus.node`. `cargo test -p chora`: 642 passed. The unit test fails with the new line removed (left `["focus.changed","focus.node"]`), so it is a real guard; the lane had not run it red.
+2. Red first: c98457e8 holds only the tour rows and the acts before the fixes. But f5bdc61f rewrites those red acts (grant, hint click), see rck-4.
+3. construct: `grab_keys` (`camera.rs:637`) adds F1. Without the grant the core answers MISSING_CAPABILITY, `Runtime::grab` (`chora-kit/src/runtime.rs:375`) logs that once and returns Ok(false), so `regrab` goes on and F1 reaches the program (doors `f1-free`). `help_takes_keyboard` with any cube: when the cube stands back, a foreign window is only noted (`note_focus`) and `help_back` stays empty, so the close leaves the keyboard with the look (Return steps in). In a face the close behaves as before. Nothing is stranded. `cargo test -p chora-construct`: 261 passed.
+4. Stray keys: without the grant, F1 reaches the program of a pane or face as before; nothing new reaches clients. The docs do not match the code (rck-2).
+5. The acts and the doors cell wait on state (`until`, `until_ok`), with one fixed sleep (rck-5). Known-red: only the co-39 row (`tests/acts/known-red.toml`), plus the tour's cb-2 row.
+
+**Findings**
+- rck-1, MAJOR, plugins/chora-construct/src/overlay.rs:598: the hint `F1 All keys` of Set::Flown shows in a face and in a pane. There F1 works only with `input.grab-any`, which nothing grants construct by default, so in a default session the hint names a key that goes to the program (co-41 POLS). The face case `F1 opens the key list in a face` is green only because the acts grant it. Fix: name F1 in that hint only when its grab held (`rt.grab` returned true), else the bound modifier key (`keys_of(System::Keys)`, Super+F1).
+- rck-2, MINOR, docs/configuration.md:961 (also docs/construct-style.md:226, plugins/chora-construct/construct.yaml:29): these say F1 opens the list in a pane and a face "so the program of a pane or face does not get F1". The code does that only with the grant (doors `f1-free` asserts the opposite without it). Fix: say F1 is grabbed in a pane or face only with `input.grab-any`, and that without it F1 reaches the program and Super+F1 or the hint opens the list.
+- rck-3, MINOR, plugins/chora-construct/src/overlay.rs:602 (and :598): both hints hard-code `chord("F1")` where the walk hint uses `keys_of(System::Keys)`, so a user who drops or rebinds `F1: keys` still sees `F1 All keys`. Fix: take the chord from the bindings, together with rck-1.
+- rck-4, MINOR, tests/acts/looks/construct.py:503: the fix commit f5bdc61f rewrote the red acts of c98457e8. It added the `grab_any` grant and replaced `hint_box`, so `F1 opens the key list in a face` went green through a test change, not a code change. No cell covers F1 in a face without the grant. Fix: keep a cell for the default session (no grant) that asserts the face hint names a key that opens the list.
+- rck-5, MINOR, tests/acts/looks/construct.py:543: `wait(1.0)` uses a fixed sleep between Alt+Escape and Return to wait for the step back. On a slow runner Return lands mid-glide. Fix: wait with `s.until` for cube mode `navigate` instead of the sleep.
+- rck-6, NIT, tests/acts/looks/construct.py:440: the grant `input.grab-any` from `grab_any` is never revoked, so every later construct act runs with it. Fix: `choractl revoke construct input.grab-any` (`grants.revoke`) at the end of `keys_acts`.
+
+Known, not findings: co-39 (cb-2), the stood-back cube that loses keys to xp after a pane went back, rfr-1.
+
+**Verdict: FIX** (0 BLOCK, 1 MAJOR rck-1, 4 MINOR, 1 NIT).
