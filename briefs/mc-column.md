@@ -1,0 +1,14 @@
+# mc-column (rc 2, F7; findings/mc.md mc-54 MAJOR): Super+n brings the whole mc column back
+
+Model: sonnet, effort high (mc column cross-fade and scene regions; the cause is unknown: product or count)
+Lane: cloud, claude/mc-column at a76476be (claude/chapters-b, MERGE-OK, joins train 97). Cost at most 1 %; stop at 250 k context.
+Why: chapters-b r1 (reports/chapters-b.md "## r1" on claude/session-log, id cb-4): `demo/tour/run.py --check mc` twice: after the second Super+n the mc column has 24 visible texts, 72 before the first Super+n. Either the column does not come back in full, or a stale cross-fade region keeps nodes and the count reads both.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "mc-column BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read: demo/tour/chapters/mc.py (rows "Super+n hides the column", "Super+n brings the column back", column_back_to), the Super+n path and the column cross-fade in the chora-mc crate, tests/gate-mc-column.sh.
+1) Decide product or count with evidence: scene.list after each Super+n (node ids, region, visible), a capture of the column before and after. Write the answer with file:line in the report.
+2) Red first (own commit): a case in tests/gate-mc-column.sh (or a chora-mc unit test) for the true fault: hide, show, expect the same visible column nodes as before the hide and no stale region left. Red on a76476be 3 of 3.
+3) Fix it, KISS, the smallest change: in chora-mc if the column does not come back or a region is kept; in the tour check only if the product is right and the count was wrong (then the tour row loses its `known`). Green 5 of 5; the tour row "Super+n brings the column back" green with no `known` in `demo/tour/run.py --check mc`, twice.
+4) Gate: `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,mc-paths,mc-sofa,mc-column,mc-handover,doors,acts`. gate-lib is left out: its selftest fails in lane containers (fixed in guide-checks r5). A red cell you did not cause: name it with its log line; do not rerun to green. Poll in the same turn; never end a turn to wait.
+Done when: the cause named, the new case red on a76476be and green 5 of 5, the tour row green twice, the gate green at --jobs 1, mc-54 closed with the cell name.
+Report: reports/mc-column.md "## r1" on claude/session-log (shas, cause with file:line, red and green runs); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/mc-column and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
