@@ -363,3 +363,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - rx37-1, rx37-2 NIT (reports/xp-37.md Review r1): gate-xp-fields header 4.5; time zone box by node id.
 - rgp-1, rgp-2 NIT (gate-path review r1): selftest wrapper check weak; wrapper PATH leaks into later cases.
 - rg-12 MINOR (guide-checks review r3): exempted() ignores the row look and floor is optional, so the xp-tray- exemption passes in mc, tiling, construct; NITs rg-13..16 in reports/guide-checks.md.
+- rmm-3 NIT (mc-minor): chora-assistant falls back to Face::serif(18) while the mc spec says chat body 19/28.
+- harness: lint-ratchet accepts a raised allow line in pre-commit; require `ratchet-raise:` in the commit message (mc-minor r1 raised 360 to 362).

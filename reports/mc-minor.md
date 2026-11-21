@@ -32,3 +32,10 @@ Branch claude/mc-minor at fb9827a0 (red d3cc19de, fix 6fa86c16, gate cell fb9827
 - mc-50 open: no mc node found; the yellow square reads as the pointer marker of the headless capture (p2-r3-tiling, sofa). No cell.
 - Lint ratchet allow 360 to 362 (two too_many_lines with reasons).
 - Captures: none; this container has no compositor session, so no after PNGs in reports/evidence/mc-minor-r1/.
+
+## PM review r1b (fb9827a0; PM not the builder)
+Range 598a34ff..fb9827a0, 10 files +193 -22; red d3cc19de before fix 6fa86c16. Checks: mc-41 hit spans the wrapped lines (region.rs); mc-14 key text without the thin space after "+", the unit test and gate-mc-paths follow it; mc-13 copy, empty font, heads, divider in layout.rs and build.rs; mc-50 left open with a reason (pointer marker of the headless capture).
+- rmm-1 MAJOR tools/lint-ratchet.list:2: allow 360 to 362 ("A count only falls"): two new `clippy::too_many_lines` allows (layout.rs `panel`, minor.rs test). Fix: split `panel` (title, lines, empty parts) and the test into helpers; ratchet back to 360.
+- rmm-2 MINOR: no after captures (brief asked); the units and mc-* cells stand as evidence; captures in the next compositor run.
+- rmm-3 NIT: README says chat body 19 while chora-assistant still falls back to 18 (Face::serif(18)); backlog, outside mc.
+Verdict computed: FIX (rmm-1). Earliest gate: pre-commit lint-ratchet accepts a raised allow line; harness backlog item (a raise needs `ratchet-raise:` in the message).
