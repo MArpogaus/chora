@@ -942,6 +942,11 @@ impl Menu {
         let entry = &menu.entries[index];
         if inside && entry.enabled && entry.slider.is_some() {
             let left = x + w - TRACK_END - TRACK;
+            let on_track =
+                (f64::from(left - TRACK_END)..=f64::from(left + TRACK + TRACK_END)).contains(&px);
+            if !on_track {
+                return None;
+            }
             let along = ((px - f64::from(left)) / f64::from(TRACK)).clamp(0.0, 1.0);
             #[expect(
                 clippy::cast_possible_truncation,
