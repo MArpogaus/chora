@@ -150,3 +150,12 @@ Red first: 89577b42 adds two planted states in tests/test_tour.py; on the code o
 Tour `demo/tour/run.py --check xp tiling handover`, run twice, equal: xp 31 acts 29 green / 0 inv / 2 known / 0 red; tiling 28 acts 27/0/1/0; handover 11 acts 10/0/1/0; `0 red, 0 broken` (r1: xp 28/0/3/0, the third known was ca-2).
 
 Gate `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,acts,xp-faces`: all six PASS (ci-check 90 s, build 28 s, test 194 s, acts 274 s, xp-faces 15 s). gate-lib left out as briefed.
+
+## Review r2 (review-chapters-a-r2; read-only; head 186d8506, red 89577b42, base b74df8f4)
+
+Verdict: **MERGE-OK**. Findings: 0 BLOCK, 0 MAJOR, 1 MINOR, 1 nit.
+
+Checks: (1) red first holds: `python3 -I -m pytest tests/test_tour.py tests/test_acts.py -q` is 2 failed/187 passed on 89577b42 (rca-1 `notice_says` missing, rca-2 I5 on the dialog picture) and 193 passed on 186d8506. (2) rca-1: `notice_says` reads summary+body of `shown`; act 3 expects `notice_says("mousepad")`, act 2 `Diff(delta=notice_is_new)`; planted stale text is red. (3) rca-2: `hides` gains `dialog_picture` only (an image whose node is, or lies under, an open entry of a look); a picture of no dialog still breaches (test), no other invariant touched; `ca-2` is gone from demo/tour and tests/acts, nothing else newly hidden. (4) rca-3: stand-in wpctl honours `N%+`, `N%-`, `N%` (test), tiling expects `volume_is(45)`, stub stays in the tour session env. (5) rca-4: `logged`, `rows_have`, `box_says` count lines/calls at declare time (before the act). (6) rca-5: the moved bodies equal the old ones except the three rca-4 changes; no new dependency, no gate cell, tour.py untouched. (7) `demo/tour/run.py --check xp tiling handover`: xp 31/29/0/2/0, tiling 28/27/0/1/0, handover 11/10/0/1/0, `0 red, 0 broken`: equal to the r2 report.
+
+- rca-6, MINOR, tests/acts/invariants.py:408-412 (`dialog_picture`): the prefix match `node.startswith(d + "-")` lets any image under a dialog id (an icon, a button picture) hide the text under it, not only the frame; the rect test limits it to what the image covers. Fix: match the frame node (`d + "-frame"`) or require the image to be at least the size of the dialog's first text.
+- rca-7, nit, tests/test_tour.py:~385 and tests/test_acts.py:588: the dialog-picture I5 case is tested twice (same states). Fix: keep one.
