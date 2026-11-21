@@ -910,6 +910,25 @@ mod tests {
     }
 
     #[test]
+    fn an_output_that_went_starts_a_new_run_when_it_returns() {
+        let mut core = Core::new();
+        let output = core.add_output("HDMI-1", (800, 600));
+        for _ in 0..60 {
+            core.state.time.advance(REFRESH);
+            core.state
+                .frame_took("HDMI-1", REFRESH, (SLOW, Duration::ZERO));
+        }
+        assert!(core.state.watchdog.slow("HDMI-1"), "a run of slow frames");
+        core.state.remove_output(&output);
+        core.state.time.advance(Duration::from_secs(5));
+        core.add_output("HDMI-1", (800, 600));
+        assert!(
+            !core.state.watchdog.slow("HDMI-1"),
+            "the run of the plug before is not forgotten"
+        );
+    }
+
+    #[test]
     fn a_frame_clock_never_waits_longer_than_it_took() {
         let (took, waited) = Watchdog::default().clock("out").stop();
         assert!(waited <= took);
