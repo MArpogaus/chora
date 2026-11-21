@@ -8,10 +8,10 @@
 #
 # Steps: red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
 # layout, tiling-audit, tiling-look, tiling-empty, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e. `layout` audits
-# the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper, also with `--with-companions` alone. `chat-keys` opens the
+# the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
-# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh) and ends with the click that
+# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh), the Super tap of xp beside tiling on two outputs (gate-start-tap.sh) and ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
@@ -237,7 +237,7 @@ clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh && BIN=$repo/target/debug tests/gate-start-tap.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh

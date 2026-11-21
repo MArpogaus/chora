@@ -358,6 +358,24 @@ mod tests {
         assert_eq!(open_ids(&wm), Vec::<String>::new(), "open after the give");
     }
 
+    /// sd-h2: a window that comes to xp, by a give or a drag, shuts the
+    /// Start menu, which covered it.
+    #[test]
+    fn a_window_that_comes_shuts_the_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("state-adopt-menu");
+        wm.method("start_menu", json!({"open": true})).unwrap();
+        assert_eq!(open_ids(&wm), ["xp-menu"]);
+        assert!(
+            wm.adopt("s1", Some("foot".into()), None).unwrap(),
+            "xp takes it"
+        );
+        assert_eq!(
+            open_ids(&wm),
+            Vec::<String>::new(),
+            "open after the window came"
+        );
+    }
+
     /// The same for the drag that carries the window out (`pull_out`).
     #[test]
     fn a_give_with_the_drag_shuts_the_start_menu() {

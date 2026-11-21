@@ -31,7 +31,7 @@ export DBUS_SESSION_BUS_ADDRESS=$bus
 export CHORA_TEST_KEEP_BUS=1
 unset CHORA_FLAVOR_DIR
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
 run_pid $!
 grant screen.capture input.inject methods.call

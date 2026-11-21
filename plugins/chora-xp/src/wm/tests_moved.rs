@@ -323,6 +323,19 @@ mod keys {
         assert!(!wm.menu.is_open(), "no tap after a combination");
     }
 
+    /// ca-4: Super held and a drag with the left button on the desktop
+    /// turns the cube; the release of Super after it opens no Start menu.
+    #[test]
+    fn a_super_drag_opens_no_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("keys-tap-drag");
+        wm.key("Super+Super_L");
+        let _ = wm.button("Super+BTN_LEFT", PressState::Pressed, [900.0, 250.0]);
+        let _ = wm.button("Super+BTN_LEFT", PressState::Released, [500.0, 250.0]);
+        assert_eq!(wm.tap, Some(true), "a button went with Super");
+        let _ = wm.key_released("Super+Super_L");
+        assert!(!wm.menu.is_open(), "no tap after a drag");
+    }
+
     /// Super+d puts the windows of the desktop away, and brings the same
     /// ones back.
     #[test]

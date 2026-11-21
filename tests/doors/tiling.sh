@@ -22,7 +22,7 @@ doors_fakes
 fuzzel_stand_in
 export CHORA_FLAVOR_DIR=$flavor HOME=$fakes/home XDG_PICTURES_DIR=$fakes/pictures
 mkdir -p "$HOME"
-CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-tiling"
+CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$fakes/waybar.log" 2>&1 &
 run_pid $!
 grant screen.capture input.inject methods.call
