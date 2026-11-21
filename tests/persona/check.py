@@ -214,12 +214,23 @@ class Run:
         return [h for h in map(json.loads, lines) if h["t"] >= since]
 
     def breaches(self):
-        """The recorded breaches, [(invariant, text)], outside known-red.toml."""
+        """The recorded breaches outside known-red.toml: a row hides only the
+        breaches it names (its capture and match), not the whole pair."""
         path = self.dir / "breaches.jsonl"
         lines = path.read_text().splitlines() if path.exists() else []
-        rows = {(r["look"], r["id"]) for r in harness.known_red()}
+        rows = harness.known_red()
         found = [json.loads(line) for line in lines]
-        return [b for b in found if (b["look"], b["invariant"]) not in rows]
+        return [b for b in found if not named(rows, b)]
+
+
+def named(rows, breach):
+    """Whether a known-red row of the look and invariant names the breach.
+    A row has no act here: the persona's actions are no acts of the list."""
+    return any(
+        (r["look"], r["id"]) == (breach["look"], breach["invariant"])
+        and harness.row_covers({k: v for k, v in r.items() if k != "act"}, breach["breach"])
+        for r in rows
+    )
 
 
 def after(run, action):
