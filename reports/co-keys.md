@@ -54,3 +54,28 @@ Seeded review (briefs/review-co-keys-r1.md), claude/co-keys head e965470a agains
 Known, not findings: co-39 (cb-2), the stood-back cube that loses keys to xp after a pane went back, rfr-1.
 
 **Verdict: FIX** (0 BLOCK, 1 MAJOR rck-1, 4 MINOR, 1 NIT).
+
+## r2
+
+Head f70d564f on claude/co-keys (red 61ce80a8 on e965470a, fix f70d564f).
+
+**Red first (61ce80a8, 3 of 3 red on e965470a):** unit test `hints::tests::the_hint_of_the_key_list_names_a_key_that_works` (rck-3), act cell `the hint Keys of a face names a key that opens the key list` and the invariant cell `construct I4` (rck-1, rck-4; default session, no grant, the window of the face has the keyboard).
+
+**Fix (f70d564f), green 5 of 5** (unit test, act cell, I4, the other construct acts, revoke act):
+- rck-1, rck-3: `hints::keys_chord` takes the chord from the `keys` bindings: a bare key only while `rt.holds` says its grab held, else the first with a modifier (Super+F1); a dropped binding gives no chord. Set::Flown and Set::Cube use it; `regrab` marks the hints stale so a new grant redraws them.
+- rck-2: docs/configuration.md, docs/construct-style.md and construct.yaml say F1 is grabbed in a pane or face only with `input.grab-any`, else it reaches the program and Super+F1 or the hint opens the list.
+- rck-5: `wait(1.0)` became the cue `cube_navigates` (`s.until` cube mode navigate).
+- rck-6: act `the grant input.grab-any is revoked again` ends `keys_acts`.
+- rck-4: new cells in `keys_default_acts` keep the default session (no grant) covered; the stood-back cube hint cell was green on e965470a too (F1 works there without the grant).
+
+**Tour:** `demo/tour/run.py --check construct`: 18 acts, 17 green, 1 known (cb-2), 0 red.
+**Gate:** `--only pre-commit,build,test,clippy,construct-hud,construct-extra,doors,acts` PASS 8 of 8. The acts cell shows its one known red (I5 overlap, known-red.toml), not caused here.
+
+## PM review r2 (2026-11-21, PM; builder was the co-keys lane)
+Base e965470a, head f70d564f (7 files, +146 -8); red 61ce80a8 (stub `keys_chord` returns F1, unit test and acts check fail) before f70d564f.
+- rck-1 closed: `hints::keys_chord` names a bare key only while `rt.holds` says its grab held, else the bound chord with a modifier (Super+F1); camera.rs:553 marks the hints stale after every grab rebuild, so a grant change refreshes the hint. Cell: unit test `the_hint_of_the_key_list_names_a_key_that_works`, acts construct (lane gate 8/8).
+- rck-3 closed: a rebound `keys` binding changes the chord; a dropped one leaves no chord (same test).
+- Docs (construct.yaml, configuration.md, construct-style.md) match the code: F1 grabbed in a pane or face only with input.grab-any.
+- tools/lint-ratchet.list unchanged; known-red.toml unchanged (acts I5 row was already listed).
+- rck-7 NIT, hints.rs:110: with several bound `keys` chords the first in BTreeMap order wins; fine today (one default), name it in the doc comment if a second default appears. Backlog.
+Verdict (computed): no BLOCK or MAJOR open -> MERGE-OK on f70d564f; joins t99 with guide-checks b1b8b73a.
