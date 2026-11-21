@@ -230,6 +230,13 @@ impl Watchdog {
         }
     }
 
+    /// Forgets the frames of an output that went away: a run of slow
+    /// frames cut by an unplug must not blame at the first slow frame
+    /// after a replug.
+    pub fn forget(&mut self, output: &str) {
+        self.outputs.remove(output);
+    }
+
     /// The clock for the next frame of an output.
     pub fn clock(&self, output: &str) -> FrameClock {
         self.clock_in(output, tasks())
