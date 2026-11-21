@@ -58,3 +58,43 @@ sighting. No code.
 `789aab53`, twice, both all PASS (run 1: pre-commit 4 s, ci-check 40 s, build 26 s, test 207 s, clippy 14 s,
 xp-faces 15 s, matrix 293 s, doors 370 s, acts 279 s; run 2: 4, 21, 0, 159, 1, 15, 302, 374, 276 s). gate-lib left
 out as briefed.
+
+## Review r1
+
+Review of `claude/flakes-r` head `789aab53` (base `a5b77488`), 11-21, one round, seeded. `git fetch --unshallow` and
+`cargo check --workspace` green; `cargo test -p chora-construct` 262 of 262 at head. No gate run (the lane ran it).
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR, 1 MINOR, 4 NIT).
+
+Checks:
+1. FLK-DOORS-CO fix `4a1466f5`: OK. The core sends `InputKey` only to the connection that holds the grab
+   (`crates/chora/src/input.rs:298`), so an event for a binding that is no longer held is a press that went out while
+   the grab stood; `let_go_grab` acts for it only without a pane and without a cube, and only for a chord of
+   `grab_keys`; a held grab wins (`rt.action(..).or_else(..)`), so no double action; chords outside `grab_keys`
+   (give keys, swallows) still reach `fly_out` as before, so no key that a client should get is eaten.
+2. Red first: OK. Order `a9c48e02` (test) before `4a1466f5` (fix); at `a9c48e02` the test fails
+   (`the chord of the launcher did nothing in the walk`, lifecycle.rs:476), at head it passes.
+3. FLK-MATRIX-S1 `789aab53`: OK. `card_gone` waits on a state (`construct-start` has no visible node; `hud::fade` to 0
+   sets `visible: false` at the end), 50 x 0.2 s is a bound on a poll of the state, not a sleep for the race. It hides
+   no product bug in the test; the product question is rfr-1.
+4. `gate-xp-faces.sh`, `gate-construct-hud.sh`: OK. Only `opens_state` and `hud_state` are new and are used on the
+   failure path; the asserts (`on_face`, `until_ok` conditions) are unchanged, no skip, same exit status.
+5. FLK-XP-FACES: OK. 30 of 30 loaded plus 2 of 2 in the gate, row stays OPEN in backlog.md with the evidence; no fake fix.
+
+Findings:
+- rfr-1, MINOR (product, for the ledger), plugins/chora-construct/src/overlay.rs:778 and start.rs:254: the start card
+  fades out over FADE_OUT (120 ms, longer when the scene animation lags under load) and its `construct-start-glass`
+  takes the pointer until `visible: false` lands, so a press or drag that starts just after the first pane appears
+  lands on a card nobody sees; fix: hide the card at once (or let its nodes take no pointer) when the first pane exists.
+- rfr-2, NIT, plugins/chora-construct/src/input.rs:118: `let_go_grab` does not look at `self.active` or `self.overlay`,
+  so a chord that arrives late after the construct stopped serving would now start the launcher or a terminal where it
+  did nothing before; fix: return `None` unless `self.active && !self.overlay`.
+- rfr-3, NIT, plugins/chora-construct/src/lifecycle.rs:457: the red test covers the launcher chord only; no test pins
+  the limits (in a pane the chord still ends in `fly_out`, with a cube open nothing runs, a chord outside `grab_keys`
+  does nothing); fix: add those three small cases next to it.
+- rfr-4, NIT, tests/gate-handover-matrix.sh:333: when the card stays visible after the 10 s the loop ends without a
+  word and the drag then fails with the old message `shows no point`; fix: `|| fail "construct-start still visible"`
+  after the loop (a `card_gone` check at its end).
+- rfr-5, NIT, plugins/chora-construct/src/overlay.rs:65 (from `26ad8411`, in via merge `e1ed73d1`): the line
+  `opacity: (!open && left <= 0.0).then_some(1.0)` repeats what the `else` branch at overlay.rs:104 already sets
+  (`06ea05e4`, kept by the merge); harmless, but it is a second fix of FLK-HUD-TAB that the report does not name and
+  that has no test of its own; fix: drop one of the two and name the other in the report.
