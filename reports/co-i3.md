@@ -10,3 +10,11 @@ Lane claude/co-i3 at 892d035c. Result: **not a regression of t101**; the breach 
 **Red step** `tests/gate-construct-i3.sh` (cell `construct-extra` of tests/merge-gate.sh): headless session, cube.open, one injected click at (640, 300) in the front face, then `state.get` of construct and xp. On 892d035c: `FAIL: construct and xp each say they hold the focus after a click on the desktop of the xp face (construct: construct, xp: xp)`. Commit afd63654 `test(construct): I3 one focus holder on a click in the xp face (red)` (the hook caps a subject at 68 characters, so "single" went out of the subject).
 
 **Fix proposal** (one line): in `focus_value` the construct says holder null while a node of another client has the focus (feed the chora_kit `Focus` with `focus.node` events and ask `taken_by_other`), so that `None if active && !overlay` needs no foreign node; the keys-route lane that owns choose_manager_of should take it together with its focus tracking.
+
+## r2
+
+Head `2b571478` on claude/co-i3 (merged with origin/claude/autonomous-dev-session-3w-i33pg7: already up to date).
+
+- Red unit test `9903d353` `state::tests::a_focused_node_of_another_client_takes_the_focus_off_the_construct` (failed: holder construct, wanted null).
+- Fix `66cccb18` (`state.rs` focus_value: `None if self.active && !self.overlay && !self.kit_focus.taken_by_other(NAME)`; `kit_focus` is a chora_kit `Focus` fed in `plugin.rs on_event` through `hear`) and `2b571478` (the subscription lacked `focus.node`: the first full gate still showed the i3 FAIL; `EVENTS` in main.rs now lists it). No reply changes, docs/api.md untouched.
+- `cargo test -p chora-construct`: 266 passed. Full `tests/merge-gate.sh --jobs 1`: all steps passed, construct-extra PASS (includes gate-construct-i3.sh).
