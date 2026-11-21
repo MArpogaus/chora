@@ -20,9 +20,9 @@ Now <= `date -u`; a session-branch change needs a status/ change; the budget lin
 Brief (Model line `^Model: (haiku|sonnet|opus|Fable)`, opus/Fable "because <reason>") -> Lanes row naming the brief
 -> commit, push -> git push origin <fullsha>:refs/heads/claude/X (fetch the object first) -> tools/start_lane.sh
 -> create_session(source_url https://github.com/MArpogaus/chora, source_revision claude/X, model claude-sonnet-5-5 |
-claude-opus-5-5 | claude-haiku-5-5, effort, tags ["chora-lane"], prompt "You are a build lane of the chora session.
-Read your brief with `git fetch origin claude/session-log && git show origin/claude/session-log:briefs/X.md` and
-follow it exactly, in this same turn, until done or blocked. The PM session is <pm id>.") -> send_later 6-7 min
+claude-opus-5-5 | claude-haiku-5-5, effort, tags ["chora-lane"], prompt "You are a build lane of the chora session (PM <pm id>, your parent). Your brief is briefs/X.md on
+claude/session-log; its full text is below. Follow it exactly, in this same turn, until done or blocked." + the brief text
+(11-21: a fetch of the brief was refused, a pasted brief by message ignored) -> send_later 6-7 min
 start check -> session id into Lanes. Step 0: no setup.sh (auto mode refuses it in lanes, 11-20 00:48); rely on env setup. Handback: archive the worker.
 
 ## Seeded review (owner 06:12)

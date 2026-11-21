@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 04:27 UTC)
+## Now (2026-11-21 04:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 04:05 PM 3.1 %; disk 18 G free: one build (train) at a time; 5 lanes
 session branch: a5b77488; 54 greens; t96b green 04:20 (persona-begin harness; lanes told to merge). t97 running from 04:23: flakes-q (conflict with co-hud-load: same fade fix, head's kept, both tests), flakes-p, chapters-b, mc-column.
