@@ -57,6 +57,17 @@ pub fn apps(
     apps
 }
 
+/// The program of the row that opens the chat with a helper.
+const HELPER_PROGRAM: &str = "chora-chat";
+
+/// The programs with the row of the chat with a helper after the others,
+/// each group sorted as before. The program is the last of the words.
+#[must_use]
+pub fn helper_last(mut apps: Vec<App>) -> Vec<App> {
+    apps.sort_by_cached_key(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM));
+    apps
+}
+
 /// What the answer of the list calls for.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Answer<'a> {
@@ -268,9 +279,18 @@ fn entry_dirs(first: Option<PathBuf>, shared: &[PathBuf], xdg: Vec<PathBuf>) -> 
 /// directory in front of the folder that every look shares and the XDG
 /// ones, for the entries of a flavor.
 pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
+    run_ordered(fuzzel, terminal, first, false);
+}
+
+/// Like [`run`], and with `helper_last` the row of the chat with a helper
+/// stands after the programs.
+pub fn run_ordered(fuzzel: &[String], terminal: &str, first: Option<PathBuf>, helper_last: bool) {
     let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
-    let apps = apps(entries, terminal, desktop_entry::on_path);
+    let mut apps = apps(entries, terminal, desktop_entry::on_path);
+    if helper_last {
+        apps = self::helper_last(apps);
+    }
     if let Some(command) = choose_reporting(fuzzel, &apps, &mut tell) {
         crate::launch::run(&command, None);
     }
@@ -307,6 +327,21 @@ mod tests {
             names.contains(&"Chat with a helper".to_owned()),
             "{names:?}"
         );
+    }
+
+    #[test]
+    fn the_helper_row_can_stand_after_the_programs() {
+        let list = apps(
+            [
+                entry("Chat with a helper", "chora-chat"),
+                entry("Zed", "foot"),
+            ],
+            "foot",
+            |_| true,
+        );
+        assert_eq!(list[0].name, "Chat with a helper");
+        let names: Vec<String> = helper_last(list).into_iter().map(|a| a.name).collect();
+        assert_eq!(names, ["Zed", "Chat with a helper"]);
     }
 
     fn on_path(program: &str) -> bool {

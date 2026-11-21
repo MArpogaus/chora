@@ -68,6 +68,8 @@ pub struct Output {
     pub area: Rect,
     /// The whole output in scene coordinates.
     pub full: Rect,
+    /// The open helper panel at a side: the tiles keep clear of it.
+    panel: Option<Rect>,
     /// One bit per shown tag.
     selected: u16,
     previous: u16,
@@ -235,6 +237,7 @@ impl Wm {
             name: name.into(),
             area,
             full,
+            panel: None,
             selected: 1,
             previous: 1,
             tags: vec![tag; self.config.tags],
@@ -247,6 +250,18 @@ impl Wm {
                 window.at = None;
             }
         }
+    }
+
+    /// Reserves the width of the helper panel `rect` on the output `name`
+    /// (none gives it back); whether anything changed.
+    pub fn set_panel(&mut self, name: &str, rect: Option<Rect>) -> bool {
+        let mut changed = false;
+        for output in &mut self.outputs {
+            let wanted = if output.name == name { rect } else { None };
+            changed |= output.panel != wanted;
+            output.panel = wanted;
+        }
+        changed
     }
 
     /// Removes an output; its windows go to the first other output, or wait
@@ -678,7 +693,10 @@ impl Wm {
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
-            (layout::shrink(output.area, edge), output.full),
+            (
+                layout::shrink(layout::beside(output.area, output.panel), edge),
+                output.full,
+            ),
             Some(top_at),
             tag.params,
         );
@@ -1243,6 +1261,19 @@ mod tests {
             wm.add_window(id);
         }
         wm
+    }
+
+    #[test]
+    fn a_panel_is_reserved_on_one_output_only() {
+        let mut wm = wm(&[]);
+        wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 80]);
+        let rect = Some([60, 0, 40, 60]);
+        assert!(wm.set_panel("A", rect));
+        assert!(!wm.set_panel("A", rect), "unchanged");
+        assert!(wm.set_panel("B", rect), "moves to B and leaves A");
+        assert!(!wm.set_panel("B", rect));
+        assert!(wm.set_panel("B", None));
+        assert!(!wm.set_panel("A", None), "A was cleared by the move");
     }
 
     fn shown(wm: &Wm) -> Vec<(String, Option<[i32; 2]>)> {
