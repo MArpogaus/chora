@@ -72,18 +72,25 @@ pub fn arrange(
     }
 }
 
-/// The `area` without the width of a side `panel` that lies in it: the
-/// panel docks at the side of the area that its middle is nearer to, and
-/// the tiles take what is left.
+/// How far a side panel may stand from the edge and the top and bottom of
+/// the area, in pixels: the gap of the chat to the edge of the output.
+const DOCK: i32 = 24;
+
+/// The `area` without the width of a side `panel`: a rect that fills the
+/// height of the area and touches its left or its right edge. A centred,
+/// top, bottom, full-width or empty rect leaves the area whole.
 pub fn beside(area: Rect, panel: Option<Rect>) -> Rect {
-    let Some([px, _, pw, _]) = panel else {
+    let Some([px, py, pw, ph]) = panel else {
         return area;
     };
     let [x, y, w, h] = area;
-    if pw <= 0 || px >= x + w || px + pw <= x {
+    let tall = py <= y + DOCK && py + ph >= y + h - DOCK;
+    let left = px <= x + DOCK;
+    let right = px + pw >= x + w - DOCK;
+    if pw <= 0 || !tall || left == right {
         return area;
     }
-    if 2 * px + pw >= 2 * x + w {
+    if right {
         [x, y, (px - x).clamp(0, w), h]
     } else {
         let cut = (px + pw - x).clamp(0, w);

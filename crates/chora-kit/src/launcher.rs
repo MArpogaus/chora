@@ -61,10 +61,10 @@ pub fn apps(
 const HELPER_PROGRAM: &str = "chora-chat";
 
 /// The programs with the row of the chat with a helper after the others,
-/// each group sorted as before.
+/// each group sorted as before. The program is the last of the words.
 #[must_use]
 pub fn helper_last(mut apps: Vec<App>) -> Vec<App> {
-    apps.sort_by_cached_key(|a| a.words.iter().any(|w| w == HELPER_PROGRAM));
+    apps.sort_by_cached_key(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM));
     apps
 }
 

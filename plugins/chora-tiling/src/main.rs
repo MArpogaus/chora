@@ -694,7 +694,11 @@ impl Tiling {
         self.voiced.hear_asking(&event, &mut self.rt.conn);
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
+            self.clear_panel()?;
             return self.name_theme();
+        }
+        if matches!(&event, Event::ClientDisconnected { name } if name == "assistant") {
+            return self.clear_panel();
         }
         if let Event::Emitted {
             event: name,
@@ -720,6 +724,14 @@ impl Tiling {
             .filter(|_| data["open"] == true);
         let output = data["output"].as_str().unwrap_or_default();
         if self.wm.set_panel(output, rect) {
+            self.relayout()?;
+        }
+        Ok(())
+    }
+
+    /// Gives the width of the helper panel back on every output.
+    fn clear_panel(&mut self) -> Result<(), ClientError> {
+        if self.wm.set_panel("", None) {
             self.relayout()?;
         }
         Ok(())

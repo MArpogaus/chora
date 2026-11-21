@@ -11,7 +11,8 @@
 # helper chat, in the rounds of 2026-11-20), where a hand, which moves the
 # pointer many times, starts the row under it. The cell uses the harness only:
 # act.py look, click Apps or Programs, click the Mid row. Mid, the second row
-# of the list (the helper row stands last in tiling), must start, and
+# of the list in tiling (the helper row stands last) and the third in the
+# construct (the helper row stands first), must start, and
 # Alpha, the highlighted first row, must not.
 #
 # 1. tests/test_act_pointer.py (judged at the end): act.py click, drag, move and scroll without
