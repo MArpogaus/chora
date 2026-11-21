@@ -192,6 +192,46 @@ cell_clock_door() { ink_at "$clock_x"; }
 
 doors_run tiling
 status=$?
+
+check() {
+    if "$2"; then echo "check tiling $1 pass"; else echo "check tiling $1 fail"; fi
+}
+rows_of() { sed -n 's/^row //p' "$marks"; }
+check_launcher_order() {
+    unmark
+    key Super+space
+    marked '^row ' || return 1
+    local first
+    first=$(rows_of | head -n 1)
+    { [ "$first" != "Chat with a helper" ] && [ -n "$first" ]; } || why "the first row is \"$first\"" || return 1
+    rows_of | grep -qx "Chat with a helper" || why "no helper row" || return 1
+}
+tile_rects() { ctl query kind:surface | jq -c '[.[] | select(.owner == null or .owner == "tiling") | .rects | to_entries[0].value]'; }
+panel_rect() { ctl query id:hud-chat | jq -c '.[0].rects | to_entries[0].value'; }
+check_helper_beside_tiles() {
+    "$bin/chora-probe" window 40 120 200 --report >"$work/window2" 2>&1 &
+    pids+=($!)
+    sleep 2
+    chat_close
+    key Super+a
+    until_ok chat_open || why "no chat" || return 1
+    sleep 1
+    local panel tiles narrow wide
+    panel=$(panel_rect)
+    tiles=$(tile_rects)
+    echo "note: panel $panel tiles $tiles" >&2
+    jq -ne --argjson p "$panel" --argjson t "$tiles" '
+        ($t | length) >= 2 and
+        all($t[]; . as $r | ($r[0] + $r[2] <= $p[0]) or ($p[0] + $p[2] <= $r[0]) or ($r[1] + $r[3] <= $p[1]) or ($p[1] + $p[3] <= $r[1]))' >/dev/null ||
+        { chat_close; why "a tile meets the panel: panel $panel tiles $tiles"; return 1; }
+    narrow=$(jq -n --argjson t "$tiles" '[$t[] | .[0] + .[2]] | max')
+    chat_close
+    sleep 1
+    wide=$(tile_rects | jq '[.[] | .[0] + .[2]] | max')
+    [ "$wide" -gt "$narrow" ] || why "closing the chat gave no width back: $narrow -> $wide" || return 1
+}
+check launcher-order check_launcher_order
+check helper-beside-tiles check_helper_beside_tiles
 layout_audit "tiling doors" >/dev/null
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"
