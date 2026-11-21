@@ -62,6 +62,7 @@ impl Construct {
             PropsUpdate {
                 transform: Some(chora_scene::Transform::translate(0.0, 0.0, 0.0)),
                 visible: Some(true),
+                opacity: (!open && left <= 0.0).then_some(1.0),
                 meta: Some(hud::list_meta("open")),
                 ..PropsUpdate::default()
             },
