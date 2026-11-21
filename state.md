@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-21 09:59 UTC)
+## Now (2026-11-21 11:21 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 %; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 09:18 week 4.8 % (0.9 %/h over 5.3 h, above pace; PM opus is most of it, lanes cheap: PM reviews short, lanes 2-4); disk 16 G: one build at a time; 6 lanes
-session branch: 1c599c74; 56 greens; t98 green 08:46 (gate-path, xp-fields, chapters-a, xp-37, flakes-r). F5 series after t99 (blocks trains 5 h).
+budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 %; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:21 week 5.0 % (0.7 %/h over 7.4 h, on pace; PM opus most of it; lanes 2); disk 16 G: one build at a time; 6 lanes
+session branch: 1c599c74; 56 greens; t98 green 08:46 (gate-path, xp-fields, chapters-a, xp-37, flakes-r). F5 series after t99c (blocks trains 5 h).
 burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadline, carried into this week (owner 11-17 15:35).
 
 ## RC (design/rc.md)
@@ -23,10 +23,11 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| co-keys-r3.md (rc 2, F7: t99 red, three construct acts) | sonnet medium, claude/co-keys f70d564f | starting |
+| co-keys-r3.md (rc 2, F7: t99 red, three construct acts) | sonnet medium, claude/co-keys f70d564f | session_016iS3kMdG5AZVg4Vkvm6R5t 09:59 |
+| handover-mo-r3.md (rc 2: t99b red at agent, tests/agent.sh lacks --no-companions) | sonnet low, claude/handover-mo 60314da1 | starting |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) t99 red (acts: 3 construct rows of co-keys with guide-checks); t99b running on 1c599c74: guide-checks b1b8b73a, ti-29, mc-minor, handover-mo 60314da1. Then RECORD-V9 1.2 % on its head; CO-KEYS r3 0.6 % joins t100.
+4. (F7, rc 2-3) t99b red 11:19 at agent (handover-mo: tests/agent.sh:70 starts the bar); t99c running on c996702a: guide-checks, ti-29, mc-minor. Then RECORD-V9 1.2 % on its head; CO-KEYS r3 0.6 % and HANDOVER-MO r3 0.3 % join t100.
 5. (F5, F7, rc 2) F5 series after t99b (r3 2/5, blocks trains 5 h); then REVIEW opus 1 % after RECORD; FLK-XP-FACES open; mc-50, rmm-2, rfr-1 open (MINOR, after the tour).
 
 ## Needs owner
