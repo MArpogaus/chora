@@ -41,6 +41,7 @@ L is the look the task runs on (default: the first flavor); FILE is the
 
 import contextlib
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
@@ -178,6 +179,12 @@ class Run:
         calls = len(self.calls.read_text().splitlines())
         text = f'{{"snap": {dump(snap)}, "marks": {json.dumps(marks)}, "calls": {calls}}}'
         (self.state_dir / f"{name}.json").write_text(text)
+        (self.state_dir / f"{name}.config").write_text(config_digest(self.dir))
+
+    def config_at(self, name):
+        """The config digest kept with the snapshot `name`, None when absent."""
+        path = self.state_dir / f"{name}.config"
+        return path.read_text() if path.exists() else None
 
     def observe(self, action, snap):
         """What the contracts read later: what was open, the helper, and the
@@ -268,6 +275,9 @@ def after(run, action):
     run.save("last", now, run.marks())
 
 
+NEEDS_EVENT = {"T7", "C2", "L3"}
+
+
 def left_open(look, snap):
     """The key list of the look when the persona left it open: a window
     that stays by itself, which no contract holds against a person. A menu
@@ -293,6 +303,7 @@ class Ctx:
     keys: list
     entries: list
     left: list = dataclasses.field(default_factory=list)
+    config: tuple | None = None
     notes: list = dataclasses.field(default_factory=list)
 
     def opened(self, sheet):
@@ -715,6 +726,18 @@ def scene_line(snap, look):
     return f" [scene: {', '.join(words)}]" if words else ""
 
 
+def config_digest(folder):
+    """A digest of the config files of the session folder: the private config
+    home and the xp.yaml."""
+    files = sorted(p for p in (pathlib.Path(folder) / "config").rglob("*") if p.is_file())
+    files.append(pathlib.Path(folder) / "xp.yaml")
+    sha = hashlib.sha256()
+    for p in files:
+        if p.is_file():
+            sha.update(str(p.name).encode() + p.read_bytes())
+    return sha.hexdigest()
+
+
 def has_config(run):
     """Whether the session has a config that a reload can change: a file that
     is not empty in the private config home or the xp.yaml of the session."""
@@ -765,6 +788,7 @@ def end(run, args):
         parse_chords([a for a in actions if a["time"] >= since]),
         entries,
         left_open(look, now),
+        (run.config_at(name), config_digest(run.dir)),
     )
     bad = 0
     breaches = [b for b in run.breaches() if b["time"] >= since]
@@ -774,6 +798,9 @@ def end(run, args):
             sys.exit(f"check.py: no contract for {task}")
         if task == "L2" and not has_config(run):
             print("task L2 not measured (no config)")
+            continue
+        if task.partition(":")[0] in NEEDS_EVENT and not ctx.hist:
+            print(f"task {task} not reached (no event since begin)")
             continue
         mismatches = expect.check(before, now)
         bad += bool(mismatches)

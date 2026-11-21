@@ -243,11 +243,12 @@ def look_state(holder_surface, windows, holder="self"):
     return {"windows": windows, "focus": focus, "open": [], "busy": []}
 
 
-def goal(run, before, after, task, hist=(), look=None):
+def goal(run, before, after, task, hist=None, look=None):
     """One goal: `begin` is the snapshot `before`, the scene at `end` is
     `after`, `hist` the toplevels the persona's actions saw."""
     run.save("begin", before, {})
     run.scene = after
+    hist = [[]] if hist is None else hist
     with open(run.state_dir / "history.jsonl", "a", encoding="utf-8") as f:
         for i, tops in enumerate(hist):
             row = {"t": time.time() + 1 + i, "action": "x", "open": [], "helper": {}}
@@ -398,7 +399,7 @@ class NoEvent(unittest.TestCase):
     def test_t7_without_an_event_is_not_reached(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
-            status, out = goal(run, one_window("s1"), one_window("s1"), "T7")
+            status, out = goal(run, one_window("s1"), one_window("s1"), "T7", hist=())
             self.assertEqual(status, 0, out)
             self.assertIn("task T7 not reached (no event since begin)", out)
             self.assertNotIn("pass", task_line(out, "T7"))
@@ -413,7 +414,7 @@ class NoEvent(unittest.TestCase):
         for task in ("C2", "L3"):
             with self.subTest(task), tempfile.TemporaryDirectory() as folder:
                 run = FakeRun(folder, one_window("s1"))
-                _, out = goal(run, one_window("s1"), one_window("s1"), task)
+                _, out = goal(run, one_window("s1"), one_window("s1"), task, hist=())
                 self.assertIn(f"task {task} not reached", out)
 
 
@@ -538,7 +539,7 @@ class SceneState(unittest.TestCase):
             run = FakeRun(folder, cube_snap("navigate", front=3))
             run.s.label = "construct"
             run.save("begin", cube_snap("navigate", front=3), {})
-            _, out = run_end(run, "T7")
+            _, out = goal(run, cube_snap("navigate", front=3), cube_snap("navigate", front=3), "T7")
             line = next(x for x in out.splitlines() if x.startswith("task T7"))
             self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)
 
