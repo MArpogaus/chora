@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 07:50 UTC)
+## Now (2026-11-21 07:51 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:30 week 4.4 % (1.3 %/h over 3.5 h, above pace: 5 lanes, sixth slot held); disk 16 G: one build at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35. F5 series waits for flakes-r (a series now blocks trains for 5 h).
@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 |---|---|---|
 | co-keys-r2.md (rc 2: review FIX, rck-1 MAJOR F1 hint without grant) | sonnet medium, claude/co-keys e965470a | session_016iS3kNYV7ASTDhYTq5e5jd 06:58 |
 | ti-29-r2.md (rc 2 tiling: review FIX 07:37, rti-1 MAJOR any chat rect reserved) | sonnet medium, claude/ti-29 99caf20c | session_016iS3kLPucY6en7C8TDzL3g 07:37 |
-| mc-minor-r2.md (mc: PM review FIX, rmm-1 MAJOR lint ratchet raised) | sonnet low, claude/mc-minor fb9827a0 | starting |
+| mc-minor-r2.md (mc: PM review FIX, rmm-1 MAJOR lint ratchet raised) | sonnet low, claude/mc-minor fb9827a0 | session_016iS3kPHwmhVVmbb4d8eaN4 07:51 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, F7, rc 2-3) t98 running 07:30 (gate-path fd8d6d0a MERGE-OK, PM review): xp-fields 9a6506d6, chapters-a 77134283, xp-37 d7b5376e (MERGE-OK 07:10), flakes-r 789aab53 (MERGE-OK 06:43; rfr-1 MINOR co). Then handover-mo r2.
