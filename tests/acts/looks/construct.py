@@ -13,6 +13,7 @@ Without construct the pager of xp switches its desks itself.
 
 import os
 import signal
+import subprocess
 import time
 
 from common import door_acts, helper_acts, keysheet_acts, notice_acts, window_acts
@@ -436,6 +437,19 @@ def pull_keep(s):
     s.pane = s.call("construct", "cube.pull", {"surface": probe_surface(s)}).get("pane")
 
 
+def grab_any(s):
+    """A cue: the grant that lets construct grab a key without Ctrl, Alt or
+    Super, F1 among them; a step back and in makes it grab again."""
+    subprocess.run(
+        [str(s.bin / "choractl"), "grant", "construct", "input.grab-any"],
+        env=s.env,
+        check=True,
+        capture_output=True,
+    )
+    s.call("construct", "view.step_back")
+    s.call("construct", "view.step_in")
+
+
 def activate_probe(s):
     """A cue: xp gives the keyboard to the window of chora-probe, as a
     click on it does; the window is the focus of the core."""
@@ -454,16 +468,24 @@ def pane_remove(s):
     s.until(lambda: owner_of(s, probe_surface(s)) == MANAGER, 20, "the window back with xp")
 
 
-def hint_box(node):
-    """A cue: a click in the middle of the box of the hint `node` on the
-    screen; the pointer rests low first, which shows the hints of a face."""
+def hint_rect(s, node):
+    """The rect of the node `node` on the screen, or None."""
+    for n in s.core.call("scene.query", {"selector": f"id:{node}"}) or []:
+        for output, rect in (n.get("rects") or {}).items():
+            if output == s.outputs()[0]["name"]:
+                return rect
+    return None
+
+
+def hint_click(node):
+    """A cue: a click in the middle of the hint `node` on the screen; the
+    pointer rests low first, which shows the hints of a face."""
 
     def cue(s):
-        screen = s.outputs()[0]
-        w, h = screen["size"]
+        w, h = s.outputs()[0]["size"]
         s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
-        s.until(lambda: box(s, node), 10, f"a box of {node}")
-        x, y, bw, bh = box(s, node)
+        s.until(lambda: hint_rect(s, node), 10, f"the hint {node} on the screen")
+        x, y, bw, bh = hint_rect(s, node)
         s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
 
     return cue
@@ -478,6 +500,7 @@ def keys_acts(s):
     stepped back one client holds the focus; Escape shuts the key list of
     the stood back cube and Return steps in; F1 opens the key list in a
     face and stood back, and the hint of its key opens it by a click."""
+    s.act("construct may grab F1 without a modifier", [grab_any])
     s.act("xp gives the window the keyboard", [activate_probe])
     s.act(
         "a window is pulled to a pane of the space",
@@ -517,7 +540,7 @@ def keys_acts(s):
     )
     s.act(
         "the hint Keys of a face opens the key list by a click",
-        [hint_box(KEYS_HINT)],
+        [key("Alt+Escape"), wait(1.0), plain("Return"), hint_click(KEYS_HINT)],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )
@@ -546,7 +569,7 @@ def keys_acts(s):
     )
     s.act(
         "the chip Keys of the stood back cube opens the key list by a click",
-        [hint_box(KEYS_HINT)],
+        [hint_click(KEYS_HINT)],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )

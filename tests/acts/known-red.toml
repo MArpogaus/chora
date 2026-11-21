@@ -5,3 +5,11 @@
 # act `act:NAME`), its finding id and the slice that turns it green. An
 # optional `match` is a text that every breach of the cell must contain,
 # so a row stays red only for the breach it names.
+
+[[red]]
+act = "Super+F1 shows the key list of the stood back cube"
+finding = "co-39 (cb-2): the key list of the stood-back cube overlaps the chips"
+id = "I5"
+look = "construct"
+match = "construct-help-body"
+slice = "none yet: MINOR, the sheet and the chip row share the foot"
