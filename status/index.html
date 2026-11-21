@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T04:06:00Z",
+  updated: "2026-11-21T04:26:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 0,                       // % of the new week used (reset 04:00)
@@ -67,15 +67,15 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % (met); the five-run series at 2 jobs was 2 of 5 green (00:30 UTC); two lanes fix the three red steps"],
-    ["F6", "Every change through the merge gate", "done", "53 green merges, all reviewed (audit r4); train 95b green (tiling hand-over raise, construct HUD load); train 96 runs the persona harness fix alone"],
+    ["F6", "Every change through the merge gate", "done", "54 green merges, all reviewed (audit r4); train 96b green (persona harness fix); train 97 merges the two flake fixes, the tour checks and the mc column count"],
     ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
     "New week from 04:00 UTC (11:00 Bangkok). Goals F5 (no flaky tests) and F7 (no visual regression) missed the Saturday deadline and carry over; the six others stay met.",
-    "Train 96 (persona harness fix) reruns after a door flake; then train 97 merges the two flake fixes and the mc and construct tour checks.",
-    "construct: persona round 4 fails on one task: the key list is not found by mouse or F1 (new MAJOR). A lane fixes a capture fault that keeps construct from coming back; the key-list and focus faults come next.",
-    "mc: the side column does not fully come back after it is hidden (new MAJOR); a lane checks and fixes it. Tour v9: design-guide checks in round 6; xp, tiling and handover tour rows get real checks."
+    "Train 97 runs: two flake fixes, the mc and construct tour checks, and the mc column count (mc-54 was a count fault, not a product fault; closed).",
+    "construct: a lane fixes the three key-list and focus faults (F1 and a chip open the key list, Escape shuts it, one client holds the focus).",
+    "F5: a new lane hunts the three open flakes under load. F7: design-guide checks in round 6; xp, tiling and handover tour rows get real checks."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
