@@ -4708,6 +4708,39 @@ mod tests {
         );
     }
 
+    /// A transaction that lets the surface go and gives the keyboard to a
+    /// node of its own (the step back of the construct) tells `focus.node`
+    /// before `focus.changed`: a window manager that hears the surface go
+    /// then knows that a node of another client has the keys, and does not
+    /// give them to its icons (co-38).
+    #[test]
+    fn a_node_that_takes_the_keyboard_is_told_before_the_surface_goes() {
+        let mut core = Core::new();
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "one");
+        let mut a = core.named("a");
+        let mut b = core.named("b");
+        b.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.node", "focus.changed"]}),
+        );
+        let setup = json!({"commands": [
+            {"create": {"id": "menu", "kind": "rect", "parent": "root",
+                "props": {"size": [10, 10]}}},
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"focus": {"surface": "s1"}},
+        ]});
+        a.ok(&mut core, "scene.apply", setup);
+        b.events_now(&mut core);
+        let step = json!({"commands": [{"focus": {}}, {"focus_node": {"node": "menu"}}]});
+        a.ok(&mut core, "scene.apply", step);
+        let heard: Vec<String> = (b.events_now(&mut core).into_iter())
+            .filter_map(|e| e["params"]["event"].as_str().map(str::to_owned))
+            .collect();
+        assert_eq!(heard, ["focus.node", "focus.changed"]);
+    }
+
     /// `surface.created` carries the `parent` of a dialog as it is at the
     /// first commit; a later `set_parent` sends no event (docs/api.md,
     /// D116; rc-6).

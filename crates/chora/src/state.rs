@@ -1075,6 +1075,10 @@ impl State {
     }
 
     /// Moves the focus that a transaction set; the scene knows it already.
+    /// A node that took the keyboard in the same transaction (the step back
+    /// of the construct: no surface, then its own node) is told first, so
+    /// that a window manager that hears the surface go does not give its
+    /// icons the keys that a node of another client has.
     fn focus_of_scene(&mut self, surface: Option<&str>) {
         let previous = std::mem::replace(&mut self.focus_wanted, surface.map(Into::into));
         if surface.is_some() {
@@ -1082,6 +1086,7 @@ impl State {
         }
         self.update_focus();
         if previous.as_deref() != surface {
+            self.tell_key_node();
             self.emit(&Event::FocusChanged {
                 surface: surface.map(Into::into),
             });
