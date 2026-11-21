@@ -323,7 +323,7 @@ fn cube_manager() -> String {
 fn managers() -> std::collections::BTreeMap<String, String> {
     [
         ("xp", "chora-xp"),
-        ("tiling", "chora-tiling --with-companions"),
+        ("tiling", "chora-tiling"),
         ("mc", "chora-mc --manage-windows"),
     ]
     .map(|(name, command)| (name.to_owned(), command.to_owned()))
@@ -990,10 +990,11 @@ mod tests {
         assert_eq!(keys(&config, "Back to the start"), None);
     }
 
-    /// F1 is no binding. `Super+F1` shows the help in the group
-    /// Everywhere, `Super+/` is the silent alias, and no row stands twice.
+    /// `F1` and `Super+F1` show the help, the row stands in the group
+    /// Everywhere under `Super+F1`, `Super+/` is the silent alias, and no
+    /// row stands twice.
     #[test]
-    fn super_f1_shows_the_help_and_f1_is_free() {
+    fn f1_and_super_f1_show_the_help() {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
         assert_eq!(
             config.common.bindings.get("Super+F1"),
@@ -1003,8 +1004,10 @@ mod tests {
             config.common.bindings.get("Super+slash"),
             Some(&Action::System(System::Keys))
         );
-        assert_eq!(config.common.bindings.get("F1"), None);
-        assert_eq!(config.action("F1", &[]), None);
+        assert_eq!(
+            config.common.bindings.get("F1"),
+            Some(&Action::System(System::Keys))
+        );
         let groups = config.help_groups(false);
         let keys_of = |head: &str| -> Vec<Vec<String>> {
             (groups.iter().filter(|g| g.head == head))

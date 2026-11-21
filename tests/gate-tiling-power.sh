@@ -30,7 +30,7 @@ export XDG_PICTURES_DIR=$fake/pictures
 mkdir -p "$HOME"
 unset CHORA_FLAVOR_DIR
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
 run_pid $!
 grant screen.capture input.inject methods.call

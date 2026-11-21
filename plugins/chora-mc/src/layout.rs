@@ -323,61 +323,102 @@ impl Mc {
         let (Some([x, y, w, h]), Some(geo)) = (self.place(name, panel), self.geometry(name)) else {
             return Vec::new();
         };
-        let indent = geo.note + geo.gap;
-        let id = panel_id(name, &panel.id);
+        let at = Spot {
+            name,
+            id: panel_id(name, &panel.id),
+            indent: geo.note + geo.gap,
+            y,
+            w,
+            h,
+        };
         let mut commands = vec![create(
-            &id,
+            &at.id,
             NodeKind::Group,
             &panels_id(name),
             PropsUpdate {
-                transform: Some(translate(x - indent, y)),
-                size: Some([w + indent, self.whole_lines(panel, h)]),
+                transform: Some(translate(x - at.indent, y)),
+                size: Some([w + at.indent, self.whole_lines(panel, h)]),
                 clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
                 opacity: panel.opacity,
                 effects: self.blur_effect(panel).map(|e| vec![e]),
                 ..PropsUpdate::default()
             },
         )];
-        let text = |ty: &Type, text: &str, x: f64, y: f64, wrap: bool| PropsUpdate {
-            transform: Some(translate(x, y)),
-            max_width: wrap.then_some(w),
-            ..ty.props(text)
-        };
-        let add = |part: &str, props| create(&format!("{id}-{part}"), NodeKind::Text, &id, props);
-        if !panel.title.is_empty() {
-            let title = self.ty("heading", panel.title_style.as_ref());
-            let at = self.lift(y, 0.0, &title);
-            commands.push(add("title", text(&title, &panel.title, indent, at, true)));
+        commands.extend(self.panel_title(&at, panel));
+        commands.extend(self.panel_body(&at, panel));
+        commands
+    }
+
+    /// The title node of a panel, if it has a title.
+    fn panel_title(&self, at: &Spot, panel: &Panel) -> Option<Command> {
+        if panel.title.is_empty() {
+            return None;
         }
+        let local = panel
+            .title_style
+            .as_ref()
+            .filter(|_| !panel.lines.is_empty());
+        let title = self.ty("heading", local);
+        let y = self.lift(at.y, 0.0, &title);
+        Some(at.add("title", at.text(&title, &panel.title, y, true)))
+    }
+
+    /// The rows, the lines or the empty text of a panel.
+    fn panel_body(&self, at: &Spot, panel: &Panel) -> Vec<Command> {
         let top = self.lines_top(panel);
         let body = self.ty("body", panel.style.as_ref());
         if let Some(rows) = panel.columns() {
-            let note = self.ty("margin", panel.note_style.as_ref());
-            let shown = lines_shown(h - top, body.line);
-            for (i, (time, line)) in rows.iter().take(shown).enumerate() {
-                let row = row_top(top, i, body.line);
-                let at = self.lift(y, row, &body);
-                let hit = ([indent, at, w, body.line], body.ink());
-                commands.extend(self.row_hit(name, &id, i, hit));
-                let words = text(&body, line, indent, at, true);
-                commands.push(add(&format!("line-{i}"), words));
-                if !time.is_empty() {
-                    let at = self.lift(y, row, &note);
-                    commands.push(add(&format!("note-{i}"), text(&note, time, 0.0, at, false)));
-                }
-            }
+            self.panel_rows(at, panel, &rows)
         } else if !panel.lines.is_empty() {
-            if name == manage::OVERVIEW {
-                commands.extend(self.overview_hits(name, &id, panel, [indent, top, w, body.line]));
-            }
-            let props = text(&body, &panel.text(), indent, self.lift(y, top, &body), true);
-            commands.push(add("lines", props));
+            self.panel_lines(at, panel, top, &body)
         } else if !panel.empty.is_empty() {
-            let quiet = self.quiet(&body);
-            let props = text(&quiet, &panel.empty, indent, self.lift(y, top, &body), true);
-            commands.push(add("empty", props));
+            self.panel_empty(at, panel, top)
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn panel_rows(&self, at: &Spot, panel: &Panel, rows: &[(&str, &str)]) -> Vec<Command> {
+        let top = self.lines_top(panel);
+        let body = &self.ty("body", panel.style.as_ref());
+        let mut commands = Vec::new();
+        let note = self.ty("margin", panel.note_style.as_ref());
+        let shown = lines_shown(at.h - top, body.line);
+        for (i, (time, line)) in rows.iter().take(shown).enumerate() {
+            let row = row_top(top, i, body.line);
+            let y = self.lift(at.y, row, body);
+            let hit = ([at.indent, y, at.w, body.line], body.ink());
+            commands.extend(self.row_hit(at.name, &at.id, i, hit));
+            let words = at.text(body, line, y, true);
+            commands.push(at.add(&format!("line-{i}"), words));
+            if !time.is_empty() {
+                let y = self.lift(at.y, row, &note);
+                let props = at.text_at(&note, time, [0.0, y], false);
+                commands.push(at.add(&format!("note-{i}"), props));
+            }
         }
         commands
+    }
+
+    fn panel_lines(&self, at: &Spot, panel: &Panel, top: f64, body: &Type) -> Vec<Command> {
+        let mut commands = Vec::new();
+        if at.name == manage::OVERVIEW {
+            let hit = [at.indent, top, at.w, body.line];
+            commands.extend(self.overview_hits(at.name, &at.id, panel, hit));
+        }
+        let props = at.text(body, &panel.text(), self.lift(at.y, top, body), true);
+        commands.push(at.add("lines", props));
+        commands
+    }
+
+    fn panel_empty(&self, at: &Spot, panel: &Panel, top: f64) -> Vec<Command> {
+        let plain = panel
+            .style
+            .clone()
+            .map(|s| crate::config::Style { base: None, ..s });
+        let quiet = self.quiet(&self.ty("body", plain.as_ref()));
+        let props = at.text(&quiet, &panel.empty, self.lift(at.y, top, &quiet), true);
+        vec![at.add("empty", props)]
     }
 
     /// The hit of each line of the overview.
@@ -589,4 +630,39 @@ fn row_top(top: f64, i: usize, line: f64) -> f64 {
     #[expect(clippy::cast_precision_loss, reason = "rows of one screen")]
     let rows = i as f64;
     top + rows * line
+}
+
+/// Where one panel sits: its id, margin indent and box.
+struct Spot<'a> {
+    name: &'a str,
+    id: String,
+    indent: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+impl Spot<'_> {
+    /// A text node of the panel at the indent.
+    fn text(&self, ty: &Type, text: &str, y: f64, wrap: bool) -> PropsUpdate {
+        self.text_at(ty, text, [self.indent, y], wrap)
+    }
+
+    fn text_at(&self, ty: &Type, text: &str, [x, y]: [f64; 2], wrap: bool) -> PropsUpdate {
+        PropsUpdate {
+            transform: Some(translate(x, y)),
+            max_width: wrap.then_some(self.w),
+            ..ty.props(text)
+        }
+    }
+
+    /// A child text node `part` of the panel group.
+    fn add(&self, part: &str, props: PropsUpdate) -> Command {
+        create(
+            &format!("{}-{part}", self.id),
+            NodeKind::Text,
+            &self.id,
+            props,
+        )
+    }
 }

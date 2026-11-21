@@ -121,17 +121,21 @@ fn shift(path: &Path) -> io::Result<()> {
 
 /// Gives the folder mode 0700 through a handle that is not a symlink: a
 /// symlinked folder is refused, because a chmod on its path would change
-/// the folder it points to.
+/// the folder it points to. Linux says `ENOTDIR`, not `ELOOP`, for a
+/// symlink under `O_DIRECTORY | O_NOFOLLOW`.
 fn private_folder(dir: &Path) -> io::Result<()> {
     let folder = fs::OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
         .open(dir)
-        .map_err(|err| match err.raw_os_error() {
-            Some(libc::ELOOP) => {
+        .map_err(|err| {
+            let refused = matches!(err.raw_os_error(), Some(libc::ELOOP | libc::ENOTDIR));
+            let symlink = fs::symlink_metadata(dir).is_ok_and(|m| m.file_type().is_symlink());
+            if refused && symlink {
                 io::Error::other(format!("the log folder {} is a symlink", dir.display()))
+            } else {
+                err
             }
-            _ => err,
         })?;
     folder.set_permissions(fs::Permissions::from_mode(0o700))
 }
@@ -249,7 +253,8 @@ mod tests {
         fs::set_permissions(&target, fs::Permissions::from_mode(0o755)).unwrap();
         let logs = dir.join("logs");
         std::os::unix::fs::symlink(&target, &logs).unwrap();
-        assert!(File::open_in(&logs, "chora", MAX_BYTES).is_err());
+        let err = File::open_in(&logs, "chora", MAX_BYTES).err().unwrap();
+        assert!(err.to_string().contains("is a symlink"), "{err}");
         let mode = fs::metadata(&target).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o755, "the target of the symlink keeps its mode");
         assert_eq!(fs::read_dir(&target).unwrap().count(), 0, "nothing in it");

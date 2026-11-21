@@ -76,7 +76,7 @@ start_round() {
     "$bin/chora-tiling" --print-config >"$work/chora/chora-tiling.yaml"
     sed -i "s/^  theme: system/  theme: $theme/" "$work/chora/chora-tiling.yaml"
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds:\n- {when: {space: tiling}, folder: tiling}\n' >"$work/chora/chora-assistant.yaml"
-    session_start 1280x800 -- "$bin/chora-tiling"
+    session_start 1280x800 -- "$bin/chora-tiling" --no-companions
     grant screen.capture input.inject methods.call
     CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$shots/waybar-$theme.log" 2>&1 &
     run_pid $!

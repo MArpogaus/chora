@@ -98,6 +98,21 @@ pub enum Walking {
     Keys,
 }
 
+/// The chord of the hint `All keys` in a face or a cube stood back: a bound
+/// key of the list, a bare one only while `holds` says its grab held, else
+/// one with a modifier.
+pub fn keys_chord(
+    bindings: &std::collections::BTreeMap<String, crate::config::Action>,
+    holds: impl Fn(&str) -> bool,
+) -> Vec<String> {
+    let keys = crate::config::Action::System(chora_kit::actions::System::Keys);
+    (bindings.iter())
+        .filter(|(key, action)| **action == keys && (key.contains('+') || holds(key)))
+        .map(|(key, _)| crate::glass::chord(key))
+        .next()
+        .unwrap_or_default()
+}
+
 /// The hints of the walk that apply: the keys to walk and to start a
 /// terminal always, `Return Fly in` when a pane is ahead, `Tab Windows`
 /// from two windows, and the help; at most five.
@@ -569,6 +584,22 @@ pub fn places(look: &Look, items: &[Item], out: [f64; 2]) -> Vec<[f64; 2]> {
         .collect()
 }
 
+/// The commands that hide the words of the chips among `items`: the hints
+/// of a cube went while it stands back (the key list covers the screen),
+/// and no mode redraw hides a chip then.
+#[must_use]
+pub fn hide_chip_words(items: &[Item]) -> Vec<Command> {
+    (items.iter().filter(|item| item.chip))
+        .map(|item| Command::Update {
+            id: format!("{}-text", item.hit),
+            props: PropsUpdate {
+                visible: Some(false),
+                ..PropsUpdate::default()
+            },
+        })
+        .collect()
+}
+
 /// The commands that take the hints away; the chips of a cube go back to
 /// hiding with their mode.
 #[must_use]
@@ -585,6 +616,29 @@ pub fn remove() -> Vec<Command> {
 mod tests {
     use super::*;
     use crate::{config::Config, hud::Metrics};
+
+    #[test]
+    fn the_words_of_the_chips_hide_when_the_hints_of_a_cube_go() {
+        let item = |hit: &str, chip| Item {
+            keys: vec!["Return".into()],
+            word: "Step in".into(),
+            keys_last: false,
+            hit: hit.into(),
+            chip,
+        };
+        let items = [
+            item("construct-mode-turn-left", true),
+            item("construct-hint-keys", false),
+        ];
+        let hidden: Vec<_> = hide_chip_words(&items)
+            .into_iter()
+            .filter_map(|c| match c {
+                Command::Update { id, props } if props.visible == Some(false) => Some(id),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(hidden, ["construct-mode-turn-left-text"]);
+    }
 
     #[test]
     fn the_walk_shows_the_hints_that_apply_and_at_most_five() {
@@ -833,5 +887,29 @@ mod tests {
             assert!((x - x.round()).abs() < 1e-12, "a whole pixel");
             assert!((y - 308.0).abs() < 1e-12, "8 below the edge");
         }
+    }
+
+    fn bound(config: &str) -> std::collections::BTreeMap<String, crate::config::Action> {
+        let config: crate::config::Config = serde_saphyr::from_str(config).unwrap();
+        config.common.bindings
+    }
+
+    /// rck-1, rck-3: a face names F1 only while its grab held, else the key
+    /// with the modifier; a rebound `keys` binding changes the chord, and a
+    /// dropped one leaves no hint chord.
+    #[test]
+    fn the_hint_of_the_key_list_names_a_key_that_works() {
+        use crate::config::{Action, DEFAULT};
+        use chora_kit::actions::System;
+        let mut bindings = bound(DEFAULT);
+        assert_eq!(keys_chord(&bindings, |k| k == "F1"), ["F1"]);
+        assert_eq!(keys_chord(&bindings, |_| false), ["Super", "F1"]);
+        let keys = Action::System(System::Keys);
+        bindings.remove("F1");
+        bindings.insert("F2".into(), keys);
+        assert_eq!(keys_chord(&bindings, |k| k == "F2"), ["F2"]);
+        assert_eq!(keys_chord(&bindings, |k| k == "F1"), ["Super", "F1"]);
+        bindings.retain(|_, action| *action != Action::System(System::Keys));
+        assert_eq!(keys_chord(&bindings, |_| true), Vec::<String>::new());
     }
 }

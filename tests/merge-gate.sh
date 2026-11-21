@@ -8,10 +8,10 @@
 #
 # Steps: red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
 # layout, tiling-audit, tiling-look, tiling-empty, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e. `layout` audits
-# the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper, also with `--with-companions` alone. `chat-keys` opens the
+# the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
-# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh) and ends with the click that
+# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh), the Super tap of xp beside tiling on two outputs (gate-start-tap.sh) and ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
@@ -37,8 +37,8 @@
 # such as tests/gate-lib.sh and tests/ci-local.sh do not count (the rule
 # lives in tests/red-first.sh, which the commit-msg hook runs). Else the step
 # prints RED-FIRST MISSING with the subject and fails, unless the commit body
-# has a line `No test: <reason>`. `pre-commit` runs the hooks over the same
-# range, with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
+# has a line `No test: <reason>`. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
+# with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
 # tools/size-ratchet (a file over 1,500 production lines may not grow) and
@@ -50,6 +50,8 @@
 # PASS, and the summary after the steps lists each SKIP step with its reasons. A train
 # stays honest: `--push` refuses while any step is SKIP unless the step is named by
 # `--allow-skip` (a host gap the owner knows, e.g. `--allow-skip launcher-click`).
+# Before the steps, tool_minimums (one table: tool|minimum|steps|source) is checked: a tool
+# older than its minimum, or missing, makes its steps SKIP with `SKIP: <tool> <found> < <min>`.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -227,9 +229,9 @@ default_steps() {
     cat <<STEPS
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
-pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
+pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --all-files
 gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
-ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh
+ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -237,7 +239,7 @@ clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh && BIN=$repo/target/debug tests/gate-start-tap.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
@@ -359,9 +361,36 @@ check_full_history() {
     return 1
 }
 
+tool_minimums() {
+    cat <<TOOLS
+fuzzel|1.11|launcher-click|findings/mc.md mc-47 (1.9.2 ignores clicks, 1.11.1 works), tests/gate-package-deps.sh (fuzzel >= 1.11)
+TOOLS
+}
+
+preflight_tools() {
+    local tool min need _source found i
+    while IFS='|' read -r tool min need _source; do
+        [ -n "$tool" ] || continue
+        found=$(command -v "$tool" >/dev/null 2>&1 &&
+            { "$tool" --version 2>/dev/null | sed -n 's/^[^0-9]*\([0-9][0-9.]*\).*/\1/p' | head -n 1; })
+        command -v "$tool" >/dev/null 2>&1 || found=missing
+        [ "$found" = missing ] || [ -n "$found" ] || found=unknown
+        case $found in
+        missing | unknown) ;;
+        *) [ "$(printf '%s\n%s\n' "$min" "$found" | sort -V | head -n 1)" = "$min" ] && continue ;;
+        esac
+        for i in "${!step_names[@]}"; do
+            case ",$need," in *",${step_names[$i]},"*)
+                step_commands[i]="echo 'SKIP: $tool $found < $min'" ;;
+            esac
+        done
+    done < <(tool_minimums)
+}
+
 check_free_space || exit 1
 check_full_history || exit 1
 warn_on_drift
+preflight_tools
 
 . "$repo/tests/gate-lock.sh"
 gate_lock merge-gate || die "cannot take the gate lock"

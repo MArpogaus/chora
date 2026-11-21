@@ -51,18 +51,18 @@ nodes = json.load(sys.stdin)
 x, y, w, h = next(iter(nodes[0]["rects"].values()))
 print(f"{x + w / 2:.1f}, {y + h / 2:.1f}")'
 }
-probes=0
+probe_n=0
 taken() { call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "chora-probe"), "missing"))'; }
 list_with_probe() {
     local switch=$1
     printf 'test_accept_injected_keys: true\n' >"$work/chora/chora-construct.yaml"
     session_start 1280x800 -- "$bin/chora-tiling"
     grant input.inject methods.call methods.privileged
-    "$bin/chora-probe" window 200 40 40 >"$work/probe-$probes.log" 2>&1 &
+    "$bin/chora-probe" window 200 40 40 >"$work/probe-$probe_n.log" 2>&1 &
     pids+=($!)
-    probes=$((probes + 1))
+    probe_n=$((probe_n + 1))
     until_ok 'ctl query "kind:surface owner:tiling" | grep -q app_id' 80 || fail "tiling took no window"
-    "$bin/chora-construct" --overlay >"$work/construct-$probes.log" 2>&1 &
+    "$bin/chora-construct" --overlay >"$work/construct-$probe_n.log" 2>&1 &
     pids+=($!)
     until_ok 'call construct construct.list >/dev/null 2>&1' || fail "the overlay does not answer"
     call construct construct.load '{"name": "empty"}' >/dev/null || fail "construct.load"

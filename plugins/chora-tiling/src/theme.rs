@@ -567,7 +567,7 @@ pub fn start_companions() {
     use std::os::unix::process::CommandExt;
     if runtime_dir().is_none() {
         eprintln!(
-            "chora-tiling: --with-companions needs the runtime directory; no panel, no wallpaper"
+            "chora-tiling: the companions need the runtime directory; no panel, no wallpaper"
         );
         return;
     }
@@ -578,7 +578,7 @@ pub fn start_companions() {
             continue;
         }
         let Some(file) = dirs.iter().map(|d| d.join(script)).find(|f| f.is_file()) else {
-            eprintln!("chora-tiling: --with-companions: no {script} in {dirs:?}");
+            eprintln!("chora-tiling: companions: no {script} in {dirs:?}");
             continue;
         };
         let bus =
@@ -596,7 +596,7 @@ pub fn start_companions() {
             Ok(mut child) => {
                 std::thread::spawn(move || child.wait());
             }
-            Err(err) => eprintln!("chora-tiling: --with-companions: {script}: {err}"),
+            Err(err) => eprintln!("chora-tiling: companions: {script}: {err}"),
         }
     }
 }

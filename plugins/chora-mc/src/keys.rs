@@ -57,9 +57,9 @@ pub struct Row {
 }
 
 impl Row {
-    fn new(key: String, words: &str, binding: Option<&str>) -> Self {
+    fn new(key: &str, words: &str, binding: Option<&str>) -> Self {
         Self {
-            key,
+            key: key.replace("+\u{2009}", "+"),
             words: words.to_owned(),
             binding: binding.map(str::to_owned),
         }
@@ -103,14 +103,14 @@ fn page_row(config: &Config, next: &keysheet::Row<Look>, plain: bool) -> Option<
         .find(|(_, a)| **a == Action::Look(Look::PreviousScene))
         .map(|(k, _)| k.as_str())?;
     let keys = page_keys(previous, &next.binding, plain);
-    Some(Row::new(keys, "Turn the page", Some(&next.binding)))
+    Some(Row::new(&keys, "Turn the page", Some(&next.binding)))
 }
 
 /// A row of kit as a row of the column: its first key, as a click on the
 /// row acts like it.
 fn row_of(row: &keysheet::Row<Look>) -> Row {
     let key = row.chords.first().cloned().unwrap_or_default();
-    Row::new(key, &row.words, Some(&row.binding))
+    Row::new(&key, &row.words, Some(&row.binding))
 }
 
 /// The rows that always show; `plain` on a page, where the arrows alone
@@ -128,7 +128,7 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
     rows.extend(
         find(&|a| *a == Action::Look(Look::Toggle(crate::region::Region::Right))).map(row_of),
     );
-    rows.push(Row::new("Esc".to_owned(), "Back one step", None));
+    rows.push(Row::new("Esc", "Back one step", None));
     rows
 }
 
@@ -177,15 +177,15 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             let first = Action::Look(Look::Scene(config.default_scene.clone()));
             let binding = sheet(config).into_iter().find(|r| r.action == first);
             let binding = binding.map(|r| r.binding);
-            let home = Row::new("Home".to_owned(), "First page", binding.as_deref());
+            let home = Row::new("Home", "First page", binding.as_deref());
             found.push((rank, 1, home));
         }
     }
     let (give, words) = keysheet::give_row(Language::En);
-    found.push((8, usize::MAX, Row::new(give, &words, None)));
+    found.push((8, usize::MAX, Row::new(&give, &words, None)));
     found.sort_by_key(|(rank, at, _)| (*rank, *at));
     let mut rows: Vec<Row> = found.into_iter().map(|(_, _, row)| row).collect();
-    rows.push(Row::new("Esc".to_owned(), "Back one step", None));
+    rows.push(Row::new("Esc", "Back one step", None));
     rows
 }
 
@@ -221,7 +221,7 @@ mod tests {
         assert_eq!(rows.len(), 6, "{rows:?}");
         assert_eq!(rows[0].key, "Super+F1");
         assert_eq!(rows[0].words, "All keys");
-        assert_eq!(rows[1].key, "Super+\u{2009}←\u{2009}→");
+        assert_eq!(rows[1].key, "Super+←\u{2009}→");
         assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
         assert_eq!(rows[2].key, "Super+Space");
         assert_eq!(rows[5].binding, None);

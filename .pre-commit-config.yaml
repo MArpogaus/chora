@@ -30,6 +30,11 @@ repos:
     entry: tests/no-agent-trailers.sh
     language: script
     stages: [commit-msg]
+  - id: ratchet-raise
+    name: a raised count in tools/*-ratchet.list needs a `ratchet-raise:` line
+    entry: tests/ratchet-raise.sh
+    language: script
+    stages: [commit-msg]
   - id: commit-message-length
     name: commit message length (subject 68, body lines 72 characters)
     entry: python3 -I tests/commit-message-length.py
@@ -65,10 +70,10 @@ repos:
     exclude: ^tests/(no-foreign-kill\.sh|guards\.sh)$
     stages: [pre-commit]
   - id: mkdir-runtime
-    name: mkdir -p under XDG_RUNTIME_DIR has -m 700 in flavors/ and plugins/ shell scripts
+    name: mkdir -p has -m 700 on runtime paths, and in flavors/ unless marked mkdir-ok (reason)
     entry: tests/mkdir-runtime.sh
     language: script
-    files: ^(flavors|plugins)/.*\.sh$
+    files: ^((flavors|plugins)/|tests/(?!guards\.sh))[^ ]*\.sh$
     stages: [pre-commit]
   - id: guards
     name: guard test (tests/guards.sh proves the commit guards red and green)
@@ -91,7 +96,7 @@ repos:
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.17.3
+  rev: v0.17.5
   hooks:
   - id: ruff-check
     args: [--fix]
@@ -138,7 +143,7 @@ repos:
 
 # Allowed words are in _typos.toml, next to the German voice phrases.
 - repo: https://github.com/crate-ci/typos
-  rev: v1.52.0
+  rev: v1.52.2
   hooks:
   - id: typos
     args: [--force-exclude]   # pre-commit passes the file names

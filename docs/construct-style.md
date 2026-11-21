@@ -223,9 +223,10 @@ mockups rendered over real captures.
     its blur rises over 200 ms, and disappears over 120 ms. The island
     grows into the chat over 240 ms. Nothing bounces, slides or scales.
 25. **One help for every look.** `Super+F1`, with `Super+/` as a
-    silent alias, opens the bindings overlay. `F1` is no binding and
-    reaches the program of a pane, except while a cube stands back, where
-    no program is there and `F1` opens it too. It lists the
+    silent alias, opens the bindings overlay. `F1` opens it too, in the walk and while a cube stands
+    back; in a pane or a face the construct grabs F1 only with the grant
+    `input.grab-any`, else F1 reaches the program there and `Super+F1` or the
+    hint `All keys` opens the list (the hint names the key that works). It lists the
     keys that the focused look holds now and the keys shared by every
     look, grouped and searchable. Each window manager declares its keys
     with words through `chora-kit`, so the overlay never lists a key

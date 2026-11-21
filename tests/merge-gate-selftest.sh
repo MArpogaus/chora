@@ -58,6 +58,23 @@ run_gate() {
     pushes=$(grep -c '^push ' "$work/git.log")
 }
 
+mkdir "$work/old" "$work/new" "$work/empty"
+printf '#!/bin/bash\necho "fuzzel version: 1.9.2 +cairo"\n' >"$work/old/fuzzel"
+printf '#!/bin/bash\necho "fuzzel version: 1.11.1 +cairo"\n' >"$work/new/fuzzel"
+chmod +x "$work/old/fuzzel" "$work/new/fuzzel"
+printf 'launcher-click|echo ran\nother|true\n' >"$work/steps"
+PATH="$work/old:$PATH" run_gate
+check "fuzzel 1.9.2: the step that needs it says SKIP" "$(grep -c 'launcher-click *SKIP' "$work/out")" 1
+check "fuzzel 1.9.2: the reason names tool, found and minimum" "$(grep -c 'skipped: launcher-click (fuzzel 1.9.2 < 1.11)' "$work/out")" 1
+check "fuzzel 1.9.2: other steps stay PASS" "$(grep -c 'other *PASS' "$work/out")" 1
+check "fuzzel 1.9.2: the run is not red" "$rc" 0
+PATH="$work/old:$PATH" run_gate --push session
+check "fuzzel 1.9.2: --push refuses without --allow-skip" "$rc" 1
+PATH="$work/old:$PATH" run_gate --push session --allow-skip launcher-click
+check "fuzzel 1.9.2: --allow-skip lets --push go on" "$pushes" 1
+PATH="$work/new:$PATH" run_gate
+check "fuzzel 1.11.1: the step runs and passes" "$(grep -c 'launcher-click *PASS' "$work/out")" 1
+
 printf 'one|true\ntwo|true\n' >"$work/steps"
 run_gate
 check "a passing run exits 0" "$rc" 0
@@ -414,7 +431,7 @@ bin2=$work/bin2
 mkdir "$bin2"
 cat >"$bin2/pre-commit" <<'FAKE'
 #!/bin/bash
-echo "SKIP=${SKIP:-}" >"$FAKE_PRE_COMMIT_LOG"
+echo "SKIP=${SKIP:-} $*" >"$FAKE_PRE_COMMIT_LOG"
 FAKE
 chmod +x "$bin2/pre-commit"
 gate_only() {
@@ -422,7 +439,8 @@ gate_only() {
         MERGE_GATE_RUNS="$work/runs" "$gate" --base HEAD --only pre-commit >"$work/out" 2>&1
 }
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
-check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
+check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale run --all-files"
+check "the pre-commit step runs on all files, as CI does" "$(grep -c -- "--all-files" "$work/pc.log")" 1
 wrap=$work/wrap
 mkdir "$wrap"
 cat >"$wrap/rm" <<'WRAP'

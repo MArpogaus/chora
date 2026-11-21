@@ -26,8 +26,10 @@ pane_distance: 2000
 # helper), lock, power (the power menu), screenshot, `volume: up`,
 # `volume: down` or `volume: mute`, and `run: COMMAND`. The old names
 # help, volume_up, volume_down and mute and the old name `keys` of this
-# whole setting still load for one release. F1 is no binding: it
-# reaches the program of a pane. The keys launcher, keys, chat, lock,
+# whole setting still load for one release. F1 is bound to keys
+# too; in a pane or face the construct grabs it only with the grant
+# input.grab-any, else it reaches the program there and Super+F1 or the
+# hint opens the key list. The keys launcher, keys, chat, lock,
 # power, screenshot and the volume keys work in the walk and while the
 # camera is in a pane. The space takes the keyboard, so the walk keys need no modifier. A key
 # that starts or closes something names Super, as in Super+t, so that
@@ -56,6 +58,7 @@ bindings:
   Super+x: close
   Tab: windows
   Super+F1: keys
+  F1: keys
   Super+slash: keys
   Super+c: cube
   Super+a: chat

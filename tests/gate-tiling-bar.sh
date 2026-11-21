@@ -54,7 +54,7 @@ PY
 ok "every label of the bar, empty tags included, passes 4.5:1"
 
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 PATH=$bin:$PATH CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/tmp/claude-0/wb.log 2>&1 &
 run_pid $!
 shot=$(mktemp /tmp/gate-bar.XXXXXX.png)

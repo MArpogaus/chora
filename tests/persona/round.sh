@@ -12,7 +12,8 @@
 #                                   starts a chora-probe window with
 #                                   --report in the session of NAME, on the
 #                                   socket name (WAYLAND_DISPLAY, not the
-#                                   path), fails when it does not stay up and
+#                                   path), waits up to 20 s for its window in
+#                                   the scene, fails when it does not show and
 #                                   prints PROBE_REPORT=<file> for
 #                                   check.py end --probe (T5)
 #        tests/persona/round.sh begin NAME
@@ -80,7 +81,7 @@ start() {
 }
 
 probe() {
-    local env_file session_dir socket report pid
+    local env_file session_dir socket report pid waited
     env_file=$(cat "$dir/run/$name.env" 2>/dev/null) || { echo "no session $name" >&2; exit 1; }
     session_dir=$(dirname "$env_file")
     socket=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$session_dir/headless.out")
@@ -92,10 +93,11 @@ probe() {
     WAYLAND_DISPLAY=$socket XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file") \
         setsid bash -c 'echo $$ >"$1"; shift; exec "$@"' _ "$report.pid" \
         "$dir/bin/chora-probe" window 200 200 200 --report >"$report" 2>"$report.err" </dev/null &
-    sleep 3
+    PERSONA_ENV=$env_file python3 -I "$repo/tests/persona/check.py" wait-app chora-probe 20
+    waited=$?
     pid=$(cat "$report.pid" 2>/dev/null || true)
-    if [[ -z $pid ]] || ! kill -0 "$pid" 2>/dev/null; then
-        echo "the probe did not stay up (WAYLAND_DISPLAY=$socket): $(cat "$report.err" 2>/dev/null)" >&2
+    if [[ $waited -ne 0 ]] || [[ -z $pid ]] || ! kill -0 "$pid" 2>/dev/null; then
+        echo "the probe window did not show within 20 s (WAYLAND_DISPLAY=$socket): $(cat "$report.err" 2>/dev/null)" >&2
         exit 1
     fi
     echo "PROBE_REPORT=$report"

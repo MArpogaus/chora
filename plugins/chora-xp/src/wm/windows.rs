@@ -18,8 +18,10 @@ impl Wm {
     }
 
     /// Takes a surface that the book proposes into a hidden group with
-    /// its decoration and focuses it. It shows once it has a size. True
-    /// when the window is xp's now; false when the core refused it.
+    /// its decoration and focuses it; the menus shut, so that the Start
+    /// menu does not cover a window that came (sd-h2). It shows once it
+    /// has a size. True when the window is xp's now; false when the core
+    /// refused it.
     pub(super) fn adopt(
         &mut self,
         surface: &str,
@@ -53,6 +55,10 @@ impl Wm {
             self.opened.retain(|s| s != surface);
             self.focused = previous;
             return Ok(false);
+        }
+        let shut = self.shut_surfaces();
+        if !shut.is_empty() {
+            self.apply(shut)?;
         }
         let Some(node) = self.rt.conn.query(&format!("id:{surface}"))?.pop() else {
             return Ok(true);

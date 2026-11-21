@@ -16,6 +16,8 @@
 #                   and Mute
 #   keys-door       a visible door opens the key list by a click
 #   f1-free         F1 is no binding of the look: it reaches the client
+#                   (construct: F1 opens the key list in the walk, and
+#                   reaches the client in a pane without input.grab-any)
 #   launcher-key    Super+Space opens the launcher
 #   launcher-door   a visible door opens the launcher by a click
 #   launcher-chat   the launcher has the row Chat with a helper: a look
@@ -192,7 +194,9 @@ echo fuzzel "\$@" >>"$marks"
 echo "data \$XDG_DATA_DIRS" >>"$marks"
 case " \$* " in
 *" --dmenu "*)
-    sed 's/^/row /' >>"$marks"
+    # the last row has no newline: end it, or a line of another stand-in
+    # (waybar polls wpctl) joins it and the row does not match
+    sed 's/^/row /; \$a\\' >>"$marks"
     cat "$fakes/choice" 2>/dev/null
     ;;
 esac
