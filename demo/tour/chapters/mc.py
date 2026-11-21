@@ -156,9 +156,9 @@ panels:
     for name, body in SCENES.items():
         open(f"{d}/{name}.yaml", "w").write(body)
     env = L.start([f"{BIN}/chora-mc", "--manage-windows"], flavor="mc",
-      extra_config={"chora-mc.yaml": f"theme: {THEME}\ntest_accept_injected_keys: true\n"},
+      extra_config={"chora-mc.yaml": f"theme: {THEME}\ntest_accept_injected_keys: true\n", "chora-notify.yaml": notify_config(position="bottom_left")},
       xp=True,
-      companions=[[f"{BIN}/chora-notify"], [f"{BIN}/chora-assistant"]])
+      companions=[[f"{BIN}/chora-notify", "--assets", f"{REPO}/plugins/chora-mc/notify"], [f"{BIN}/chora-assistant"]])
     S = Session(env, L.pids, BIN)
     time.sleep(5)
     def ps(scene, panel, lines):
