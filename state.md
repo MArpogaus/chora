@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 |---|---|---|
 | guide-checks-r6.md (F7: Tahoma, I13) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-keys-r2.md (rc 2: review FIX, rck-1 MAJOR F1 hint without grant) | sonnet medium, claude/co-keys e965470a | session_016iS3kNYV7ASTDhYTq5e5jd 06:58 |
-| ti-29-r2.md (rc 2 tiling: review FIX 07:37, rti-1 MAJOR any chat rect reserved) | sonnet medium, claude/ti-29 99caf20c | starting |
+| ti-29-r2.md (rc 2 tiling: review FIX 07:37, rti-1 MAJOR any chat rect reserved) | sonnet medium, claude/ti-29 99caf20c | session_016iS3kLPucY6en7C8TDzL3g 07:37 |
 | mc-minor-r1.md (mc MINOR: mc-50, 41, 14, 13; pixel 1 of 2) | sonnet medium, claude/mc-minor 598a34ff | session_016iS3kQXNCT5mFuyYRjdF89 07:09 |
 
 ## Queue (% week; 5 % reserve)
