@@ -24,8 +24,8 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | guide-checks-r4.md (F7: rg-9 xp tray exemption, construct restart red) | sonnet medium, claude/guide-checks 9881ccda | session_016iS3kMwg6gNXRJSvVuuage 01:26 |
-| chapters-a.md (F7: xp, tiling, handover rows checked) | sonnet high, claude/chapters-a f4f49783 | starting |
-| chapters-b.md (F7: mc, construct rows checked) | sonnet high, claude/chapters-b f4f49783 | starting |
+| chapters-a.md (F7: xp, tiling, handover rows checked) | sonnet high, claude/chapters-a f4f49783 | session_016iS3kLLge6driZZFcqW4i5 02:29 |
+| chapters-b.md (F7: mc, construct rows checked) | sonnet high, claude/chapters-b f4f49783 | session_016iS3kQFBrWrwCWGMfrVhpP 02:29 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 2-3) t96 running: persona-begin dad65a95 alone (harness); then tell lanes to merge; train 97: flakes-q fb85b156, flakes-p bd3ecad4; then the PM fixes dcb77733 and the check.py merge to a seeded review.
