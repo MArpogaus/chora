@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-21 03:44 UTC)
+## Now (2026-11-21 04:05 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 02:29 PM 2.7 %; disk 18 G free: one build (train) at a time: 5 lanes
+budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 04:05 PM 3.1 %; disk 11 G free: one build (train) at a time; 5 lanes
 session branch: f4f49783; 53 greens; t95b green 02:33 (give-raise T7 MAJOR, co-hud-load co-35); t96 red 03:14 at doors (construct launcher-key missing; flake FLK-DOORS-CO, diff only tests/persona); t96b rerun same head.
-burn-down: F1-F4, F6, F8 met (audit r4); F5 open (5/5 at --jobs 2); F7 tour-v9 building. 0.6 d.
+burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadline, carried into this week (owner 11-17 15:35).
 
 ## RC (design/rc.md)
 | # | Criterion | State |

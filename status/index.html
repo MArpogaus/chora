@@ -57,10 +57,10 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T02:28:00Z",
-  start: "2026-11-19T05:55:00Z",   // budget reset (owner)
-  end: "2026-11-21T03:59:00Z",     // foundation deadline and next reset
-  budget: 65,                      // % of the week used (owner's reading)
+  updated: "2026-11-21T04:06:00Z",
+  start: "2026-11-21T04:00:00Z",   // budget reset (owner)
+  end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
+  budget: 0,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
@@ -72,10 +72,10 @@ const S = {
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 95b is green: the tiling hand-over raise fix and the construct HUD load fix are merged. Train 96 merges the persona harness fix; then the two flake fixes (train 97).",
-    "Flakes: the five-run series was 2 of 5 green, so goal F5 is not met yet. Two lanes now fix the three steps that failed (construct HUD, xp faces, construct pull).",
-    "xp: the Start menu that opened by itself was not reproduced in a full replay; it goes to the known issues.",
-    "Tour v9: the design-guide checks are in their fourth round; two lanes now give every tour act a real check (xp, tiling, handover; mc, construct)."
+    "New week from 04:00 UTC (11:00 Bangkok). Goals F5 (no flaky tests) and F7 (no visual regression) missed the Saturday deadline and carry over; the six others stay met.",
+    "Train 96 (persona harness fix) reruns after a door flake; then train 97 merges the two flake fixes and the mc and construct tour checks.",
+    "construct: persona round 4 fails on one task: the key list is not found by mouse or F1 (new MAJOR). A lane fixes a capture fault that keeps construct from coming back; the key-list and focus faults come next.",
+    "mc: the side column does not fully come back after it is hidden (new MAJOR); a lane checks and fixes it. Tour v9: design-guide checks in round 6; xp, tiling and handover tour rows get real checks."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
@@ -83,7 +83,7 @@ const S = {
 
 <div class="wrap">
   <header>
-    <p class="meta">chora · foundation week · until Sat 21 Nov 03:59 UTC (10:59 Bangkok)</p>
+    <p class="meta">chora · week 2 · F5 and F7 carried over · until Sat 28 Nov 03:59 UTC (10:59 Bangkok)</p>
     <h1>Are we on plan?</h1>
   </header>
 
@@ -144,7 +144,7 @@ const S = {
     '</div><span class="v">' + pct + ' %</span><small>' + note + '</small></div>';
 
   document.getElementById("bars").innerHTML =
-    bar("Time", timePct, "track-ok", hoursLeft + " h left until Saturday's deadline") +
+    bar("Time", timePct, "track-ok", hoursLeft + " h left in the week") +
     bar("Budget", S.budget, spendOk ? "done" : "risk",
         (spendOk ? "Spending on pace" : "Spending too slowly") + " (the line marks where time is; the aim is to use the whole week)", timePct) +
     bar("Goals met", metPct, met * 100 / n >= timePct - 15 ? "track-ok" : "risk",
