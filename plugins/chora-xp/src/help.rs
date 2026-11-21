@@ -628,6 +628,9 @@ mod tests {
     fn a_table_that_fits_has_no_scroll_bar() {
         let tall = HelpDialog::new(KEYBOARD, rows(&defaults(), all), [0, 0, 1280, 800]);
         assert_eq!(tall.max_top(), 0, "the table fits at 800");
+        let wide = HelpDialog::new(KEYBOARD, rows(&defaults(), all), [0, 0, 1280, 1024]);
+        assert_eq!(wide.max_top(), 0, "the table fits at 1024");
+        assert!(wide.bar().is_none());
         assert!(tall.bar().is_none());
     }
 

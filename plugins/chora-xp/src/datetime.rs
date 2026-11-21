@@ -430,6 +430,29 @@ mod tests {
     use crate::dialog::tests::{preview, theme};
 
     #[test]
+    fn the_month_box_draws_its_text_through_the_field_text() {
+        let area = [0, 0, 1280, 800];
+        let now = chrono::NaiveDate::from_ymd_opt(2026, 3, 5)
+            .unwrap()
+            .and_hms_opt(10, 0, 0)
+            .unwrap();
+        let dialog = DateDialog::new(now, area);
+        let [_, _, w, h] = MONTH;
+        let want = dialog::field_text(MONTHS[2], WHITE, [0, 0, w, h], 20);
+        let texts: Vec<_> = dialog
+            .month_box()
+            .layers
+            .into_iter()
+            .filter_map(|l| match l {
+                chora_draw::theme::Layer::Text(t) => Some(t),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts.len(), 1);
+        assert_eq!(texts[0].rect, want.rect, "the text stands as in a field");
+    }
+
+    #[test]
     fn months_have_their_days_and_leap_years_a_29th_of_february() {
         assert_eq!(days_in_month(2003, 4), 30);
         assert_eq!(days_in_month(2026, 12), 31);

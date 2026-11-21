@@ -395,6 +395,12 @@ pub fn combo([w, h]: [i32; 2], text: &str, enabled: bool) -> Picture {
     picture.text(field_text(text, color, [0, 0, w, h], 20))
 }
 
+/// The lines that a click on a scroll bar scrolls.
+#[cfg(test)]
+pub fn bar_click(_y: i32, _track: i32, _grip: (i32, i32), _page: i64) -> i64 {
+    0
+}
+
 /// The width of a scroll bar.
 pub const SCROLL: i32 = 17;
 
@@ -1157,6 +1163,16 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use super::*;
+
+    #[test]
+    fn a_click_on_a_scroll_bar_is_a_line_at_an_arrow_and_a_page_in_the_track() {
+        let click = |y| bar_click(y, 100, (20, 30), 5);
+        assert_eq!(click(5), -1, "the up arrow");
+        assert_eq!(click(17 + 100 + 3), 1, "the down arrow");
+        assert_eq!(click(17 + 10), -5, "the track above the grip");
+        assert_eq!(click(17 + 80), 5, "the track below the grip");
+        assert_eq!(click(17 + 30), 0, "the grip");
+    }
 
     /// The theme of the source tree, with a cache of its own for a test.
     pub fn theme(test: &str) -> (Theme, PathBuf) {
