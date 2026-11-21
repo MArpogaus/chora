@@ -7,7 +7,8 @@
 #    tiling takes the keyboard from it, then a tap of Super: the Start
 #    menu of xp stays closed.
 # 2. Super+Return then opens a window of tiling on the output of its
-#    pane, and xp keeps its one window.
+#    pane, and xp keeps its one window; the Start menu of xp stays shut
+#    and typing reaches the new window.
 #
 # Usage: tests/gate-construct-pane-keys.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its code later
@@ -68,4 +69,12 @@ inject '[{"key": {"key": "Super_L", "state": "pressed"}}, {"key": {"key": "Retur
 until_ok 'test "$(windows_of tiling)" -gt 0' 60 || fail "Super+Return after a click into the pane of tiling opened no window of tiling (xp has $(windows_of xp))"
 [ "$(windows_of xp)" = 1 ] || fail "Super+Return after a click into the pane of tiling opened a window of xp"
 ok "Super+Return after a click into the pane of tiling opens a window of tiling"
+sleep 1.5
+[ "$(menu_open)" = no ] || fail "Super+Return after a click into the pane of tiling leaves the Start menu of xp open over the terminal (sh-23)"
+mark=$XDG_CONFIG_HOME/super-return-typed
+rm -f "$mark"
+inject "[{\"text\": {\"text\": \"touch $mark\\n\"}}]"
+until_ok 'test -e "$mark"' 40 || fail "typing after Super+Return does not reach the new window of tiling (no $mark)"
+[ "$(menu_open)" = no ] || fail "typing after Super+Return opened the Start menu of xp"
+ok "after Super+Return the Start menu of xp stays shut and typing reaches the new window"
 ok "gate-construct-pane-keys: the keys follow the click into a manager pane"
