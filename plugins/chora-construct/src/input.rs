@@ -115,6 +115,22 @@ impl Construct {
         Ok(())
     }
 
+    /// The grab of a chord that the core still sent although a regrab let
+    /// it go (the keyboard went back to the walk while the press was on
+    /// its way): in the walk it is the key of the walk, so it acts as the
+    /// grab would have.
+    fn let_go_grab(&self, binding: &str) -> Option<Grab> {
+        if self.in_pane() || self.cube.is_some() {
+            return None;
+        }
+        (self.grab_keys().into_iter())
+            .find(|(key, _)| {
+                key.parse::<chora_scene::Binding>()
+                    .is_ok_and(|b| b.to_string() == binding)
+            })
+            .map(|(_, grab)| grab)
+    }
+
     /// A typed key did nothing: the HUD says that the keys walk and which
     /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
     pub(crate) fn keys_walk(&mut self) {
@@ -257,19 +273,17 @@ impl Construct {
                 state: PressState::Pressed,
                 .. // injected: the runtime drops an injected binding key unless it accepts them
             } => {
-                return match self.rt.action(&binding) {
-                    Some(&Grab::Give(to)) => self.give_key(to),
+                let grab = (self.rt.action(&binding).cloned()).or_else(|| self.let_go_grab(&binding));
+                return match grab {
+                    Some(Grab::Give(to)) => self.give_key(to),
                     Some(Grab::Swallow) => Ok(()),
-                    Some(&Grab::Own(Own::Windows)) => self.open_list(),
-                    Some(&Grab::Own(_)) => {
+                    Some(Grab::Own(Own::Windows)) => self.open_list(),
+                    Some(Grab::Own(_)) => {
                         self.cube_key();
                         Ok(())
                     }
                     Some(Grab::Key(System::Terminal)) => self.terminal_beside(),
-                    Some(Grab::Key(system)) => {
-                        let system = system.clone();
-                        self.grabbed_key(&system)
-                    }
+                    Some(Grab::Key(system)) => self.grabbed_key(&system),
                     _ => self.fly_out(),
                 };
             }
