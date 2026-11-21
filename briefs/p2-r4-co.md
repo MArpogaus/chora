@@ -1,7 +1,7 @@
 # p2-r4-co (RC 2 persona round 4 on construct): after co-pane (t94b), co-hud-load and give-raise (t95b) and persona-begin (t96)
 
 Model: sonnet, effort medium (driver of a scripted round; personas are haiku subagents, model haiku)
-Lane: cloud, branch claude/p2-r4-co at SHA_BASE (session head after train 96). Run only: no product or test code changes. One round, stop at 250 k. Cost about 1 %.
+Lane: cloud, branch claude/p2-r4-co at a5b77488 (session head f4f49783 plus persona-begin dad65a95, the train 96 merge). Run only: no product or test code changes. One round, stop at 250 k. Cost about 1 %.
 Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`; then `bash tests/persona/round.sh --help` and one smoke `round.sh begin smoke` + `check.py end smoke` on construct (the begin of r2 must work: t95 was red there). A failure: send_message the PM "p2-r4-co BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read on claude/session-log: reports/p2-plan.md sections 1, 2 (construct rows); reports/p2-r3-co.md (r3 and its stop rule); reports/co-pane.md, reports/persona-begin.md; findings/construct.md rows co-25 and up; feedback/README.md; tests/persona/README.md on the branch.
 Items:
