@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 06:00 UTC)
+## Now (2026-11-21 06:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 05:35 week 3.6 %; disk 18 G free: one build (train) at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35 (flakes-q, flakes-p, chapters-b, mc-column; lanes told to merge). F5 series waits for flakes-r (a series now blocks trains for 5 h).
@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | flakes-r.md (F5: FLK-DOORS-CO, FLK-MATRIX-S1, FLK-XP-FACES) | sonnet high, claude/flakes-r a5b77488 | session_016iS3kQqiW8EoPxjH4tvYxg 04:25 |
 | chapters-a-r2.md (F7: rca-1, rca-2 MAJOR; 3 MINOR) | sonnet medium, claude/chapters-a 8435d386 | session_016iS3kP8KLcJuSKhSkhQbso 05:01 |
 | handover-mo-r1.md (rc 2: sh-23, sd-h1, sd-h2, ca-4 two-output MAJORs) | opus medium, claude/handover-mo a5b77488 | session_016iS3kMiT7ZFUvvmZSp7dwY 05:16 |
-| review-xp-fields-r1.md (rc 2: xp-24, ca-1; build 9a6506d6 done 05:57, 11 cells green) | sonnet high, claude/xp-fields 9a6506d6 | starting 06:02 |
+| review-xp-fields-r1.md (rc 2: xp-24, ca-1; build 9a6506d6 done 05:57, 11 cells green) | sonnet high, claude/xp-fields 9a6506d6 | session_016iS3kPVNMrMZMEre4XNuVL 06:01 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 2-3) t97 green 05:35; next train: chapters-a r2, flakes-r after review.
