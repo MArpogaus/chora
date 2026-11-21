@@ -3,6 +3,7 @@
 Model: opus, effort high, because the diff changes the core input path (choose_manager_of, injected_press_is_real, key grabs) where a wrong rule sends stray keys; the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/keys-route head 541b92bb, base 892d035c (8 files, +201 -16). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green, 49/49).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "review-keys-route BLOCKED: <line>" and stop.
 Read briefs/keys-route-r1.md (done criteria) and reports/keys-route.md "## r1" on claude/session-log; `git diff 892d035c..541b92bb`.
 Checks, each with its command and files:
 1) Core (crates/chora/src/input.rs, input/place.rs, state.rs; 7125cc62): choose_manager_of honours injected_press_is_real the way buttons do; the escape hatch (press_action: VT switch, Quit, Reset, RevokeAll) stays first and untouched; a pressed key goes to exactly one client or to none by a named binding; no held chord survives a focus or manager change. `cargo test -p chora input::`; read against docs/api.md input.key (changed in the same commit?).
