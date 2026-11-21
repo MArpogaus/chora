@@ -624,6 +624,57 @@ class I5(unittest.TestCase):
         ]
         self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
 
+    def test_a_look_under_the_wallpaper_of_another_is_not_on_the_screen(self):
+        nodes = [
+            text_node("mc-r1-right-doors-volume", "Volume 50%", (988, 756, 87, 28)),
+            panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertEqual(breaches("I5", snap(), snap(nodes=nodes)), [])
+
+    def test_a_picture_of_mc_over_xp_text_may_be_translucent(self):
+        nodes = [
+            text_node("xp-icons-label", "Documents", (988, 756, 87, 28), owner="xp"),
+            panel("mc-bg", (0, 0, 1280, 800), owner="mc"),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_a_picture_of_its_own_look_between_its_texts_hides_nothing(self):
+        nodes = [
+            text_node("mc-a", "Volume 50%", (988, 756, 87, 28)),
+            panel("mc-bg", (0, 0, 1280, 800), owner="mc"),
+            text_node("mc-b", "Mute", (1060, 778, 12, 14)),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_mc_drawn_over_xp_while_xp_has_the_focus_is_no_cover(self):
+        """rv-r4-1: xp text, the picture of mc over the whole output, mc
+        text. xp is the look shown (it holds the focus), so a picture of mc
+        is no wallpaper of the look shown and the overlap is a breach."""
+        nodes = snap().nodes + [
+            text_node("xp-icons-label", "Documents", (988, 756, 87, 28), owner="xp"),
+            panel("mc-bg", (0, 0, 1280, 800), owner="mc"),
+            text_node("mc-volume", "Volume 50%", (1000, 760, 87, 28)),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_the_wallpaper_hides_nothing_above_it(self):
+        nodes = [
+            panel("xp-wall-HEADLESS-1", (0, 0, 1280, 800)),
+            text_node("mc-r1-right-doors-volume", "Volume 50%", (988, 756, 87, 28)),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
+    def test_a_picture_of_part_of_the_output_hides_nothing(self):
+        nodes = [
+            text_node("mc-r1-right-doors-volume", "Volume 50%", (988, 756, 87, 28)),
+            panel("xp-panel-HEADLESS-1", (0, 770, 1280, 30)),
+            text_node("xp-pager-0-HEADLESS-1", "1", (1060, 778, 12, 14), owner="xp"),
+        ]
+        self.assertTrue(breaches("I5", snap(), snap(nodes=nodes)))
+
     def test_an_opaque_window_between_hides_the_lower_text(self):
         nodes = [
             text_node("a", "label", (20, 20, 80, 14)),
@@ -1056,12 +1107,26 @@ class PersonaContracts(unittest.TestCase):
         states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
         two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
         after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
-        self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"]), before, after), [])
+        self.assertEqual(verdict("T1", ctx(left=["xp-dlg-help"], keys=[59]), before, after), [])
+
+    def test_t1_a_key_list_that_opened_unasked_stays_red(self):
+        before = snap()
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        two = [surface("s1", "xp"), surface("s2", "xp", focused=True)]
+        after = snap(states=states, nodes=two, toplevels={"s1", "s2"})
+        unasked = ctx(left=["xp-dlg-help"], hist=[seen(["xp-dlg-help"])])
+        self.assertIn("expected open []", verdict("T1", unasked, before, after)[0])
+
+    def test_t4_a_key_list_that_opened_unasked_stays_red(self):
+        states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
+        calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
+        call = ctx(calls=calls, left=["xp-dlg-help"], hist=[seen(["xp-dlg-help"])])
+        self.assertIn("expected open", verdict("T4:volume", call, snap(), snap(states=states))[0])
 
     def test_t4_the_key_list_of_the_persona_may_stay_open(self):
         states = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-dlg-help"}], "busy": []}}
         calls = ["wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"]
-        call = ctx(calls=calls, left=["xp-dlg-help"])
+        call = ctx(calls=calls, left=["xp-dlg-help"], keys=[59])
         self.assertEqual(verdict("T4:volume", call, snap(), snap(states=states)), [])
         call = ctx(calls=calls)
         menu = {"xp": {"windows": [], "focus": {}, "open": [{"id": "xp-menu"}], "busy": []}}
@@ -1336,10 +1401,12 @@ class PersonaContracts(unittest.TestCase):
         left = ["xp-dlg-help"]
         lock = ["swaylock -f"]
         self.assertIn("expected open", verdict("T4:lock", ctx(calls=lock), snap(), help_open)[0])
-        self.assertEqual(verdict("T4:lock", ctx(calls=lock, left=left), snap(), help_open), [])
+        self.assertEqual(
+            verdict("T4:lock", ctx(calls=lock, left=left, keys=[59]), snap(), help_open), []
+        )
         self.assertIn(
             "expected open",
-            verdict("T4:lock", ctx(calls=lock, left=left), snap(), menu_open)[0],
+            verdict("T4:lock", ctx(calls=lock, left=left, keys=[59]), snap(), menu_open)[0],
         )
         hist = [seen(["xp-dlg-help"], keysheet=[])]
         self.assertEqual(verdict("T2", ctx(hist=hist, left=left), snap(), help_open), [])
@@ -1551,6 +1618,55 @@ class GuideWords(unittest.TestCase):
     def test_plural_and_snake_case_fail(self):
         self.assertTrue(breaches("I10", snap(), self.shown("Two HUDs")))
         self.assertTrue(breaches("I10", snap(), self.shown("agent_id")))
+
+
+class WithChildren(unittest.TestCase):
+    """check.with_children reads the state of xp, tiling or mc only as the
+    manager of a face of the cube (`cube.list`), and a window of it shows
+    only while its face is at the front (co-pane r2, rv-7)."""
+
+    FACES = [{"output": f"VIRTUAL-{n}", "manager": "xp", "health": "up"} for n in (1, 2)]
+
+    class Session:
+        label = "construct"
+
+        def state(self, look):
+            return {
+                "windows": [
+                    {"surface": "s1", "output": "VIRTUAL-1", "shown": True},
+                    {"surface": "s2", "output": "VIRTUAL-2", "shown": True},
+                ],
+                "focus": {"holder": look, "surface": "s1"},
+                "open": [],
+                "busy": [],
+            }
+
+    def child(self, cube):
+        states = {"construct": {"windows": [], "focus": {"holder": None}, "open": [], "busy": []}}
+        nodes = [surface("s1", "xp", focused=True), surface("s2", "xp")]
+        after = snap(states=states, nodes=nodes, toplevels={"s1", "s2"}, cube=cube)
+        return check.with_children(self.Session(), after)
+
+    def test_the_manager_of_a_face_is_read_and_only_its_front_face_shows(self):
+        after = self.child({"faces": self.FACES, "front": 0, "turning": False, "mode": "use"})
+        shown = {w["surface"]: w["shown"] for w in after.states["xp"]["windows"]}
+        self.assertEqual(shown, {"s1": True, "s2": False})
+        self.assertEqual(invariants.i3(snap(), after, Act("a")), [])
+
+    def test_a_focus_on_a_face_that_is_not_at_the_front_is_a_breach(self):
+        after = self.child({"faces": self.FACES, "front": 1, "turning": False, "mode": "use"})
+        found = invariants.i3(snap(), after, Act("a"))
+        self.assertEqual(found, ["the focused s1 is no shown window of xp"])
+
+    def test_a_client_that_manages_no_face_is_no_look(self):
+        for cube in (
+            {"error": "no client exports cube.list"},
+            {"faces": [{"output": "VIRTUAL-1", "manager": "tiling", "health": "up"}], "front": 0},
+        ):
+            after = self.child(cube)
+            self.assertNotIn("xp", after.states)
+            found = invariants.i1(snap(), after, Act("a"))
+            self.assertIn("the toplevel s1 is owned by xp, which is no look", found)
 
 
 if __name__ == "__main__":

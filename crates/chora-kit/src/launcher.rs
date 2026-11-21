@@ -121,9 +121,14 @@ enum Asked {
     Failed(String),
 }
 
-/// Shows the rows with `fuzzel --dmenu`. A fuzzel that prints nothing
-/// and exits was closed by the person (it exits 1 on Escape); one that
-/// exits non-zero with a message on stderr, or cannot start, failed.
+/// Shows the rows with `fuzzel --dmenu`. The exit code cannot tell a
+/// close from a failure (fuzzel exits 1 on Escape and on every error),
+/// so the stderr decides: a fuzzel that prints nothing and whose first
+/// line starting with "err:" (its log prefix, after trimming) is absent
+/// was closed by the person, whatever its exit code, a signal included;
+/// one with such a line failed, and the text after the prefix is why.
+/// A warning or info line alone is no failure. One that cannot start
+/// failed too.
 fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
     let Some((program, args)) = fuzzel.split_first() else {
         return Asked::Failed("no launcher command".into());
@@ -151,9 +156,26 @@ fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
         return Asked::Line(line);
     }
     let err = String::from_utf8_lossy(&out.stderr);
-    match err.lines().map(str::trim).find(|l| !l.is_empty()) {
-        Some(first) if !out.status.success() => Asked::Failed(first.to_owned()),
-        _ => Asked::Closed,
+    match err.lines().find_map(|l| l.trim().strip_prefix("err:")) {
+        Some(why) => Asked::Failed(without_position(why.trim()).to_owned()),
+        None => Asked::Closed,
+    }
+}
+
+/// The reason without the "<file>.c:<line>: " that fuzzel puts in front
+/// of it: a person has no use for its source position.
+fn without_position(why: &str) -> &str {
+    let rest = why.split_once(".c:").filter(|(file, _)| {
+        !file.is_empty()
+            && file
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_-".contains(c))
+    });
+    let Some((_, rest)) = rest else { return why };
+    let digits = rest.chars().take_while(char::is_ascii_digit).count();
+    match rest[digits..].strip_prefix(": ") {
+        Some(reason) if digits > 0 => reason,
+        _ => why,
     }
 }
 
@@ -413,11 +435,31 @@ mod tests {
     fn a_launcher_that_fails_says_why_once() {
         let (_dir, fuzzel) = stand_in(
             "chora-launcher-fail",
-            "echo 'bad key' >&2; echo 'second line' >&2; exit 1",
+            "echo ' err: config.c:17: [colors].prompt: invalid key' >&2; echo ' err: second' >&2; exit 1",
         );
         let (got, said) = reports(&fuzzel);
         assert_eq!(got, None);
-        assert_eq!(said, ["Run could not start: bad key"]);
+        assert_eq!(said, ["Run could not start: [colors].prompt: invalid key"]);
+    }
+
+    #[test]
+    fn an_err_line_after_a_warning_is_the_reason() {
+        let (_dir, fuzzel) = stand_in(
+            "chora-launcher-warn-err",
+            "echo 'warn: something' >&2; echo ' err: bad ini' >&2; exit 1",
+        );
+        let (got, said) = reports(&fuzzel);
+        assert_eq!(got, None);
+        assert_eq!(said, ["Run could not start: bad ini"]);
+    }
+
+    #[test]
+    fn a_warning_then_escape_stays_silent() {
+        let (_dir, fuzzel) = stand_in(
+            "chora-launcher-warn-escape",
+            "echo 'warning: [colors].prompt ignored' >&2; exit 1",
+        );
+        assert_eq!(reports(&fuzzel), (None, vec![]));
     }
 
     #[test]

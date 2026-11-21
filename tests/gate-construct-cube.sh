@@ -55,6 +55,11 @@
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
+#   INJECT_LAG  seconds before each injection (default 0): the start of a
+#         choractl on a loaded machine, the stress of the keys in a row
+#   CLOCK_EDGE  seconds before a minute change at which a still check starts
+#         (default: at once): the clocks of the construct and of xp draw at
+#         the change, the stress of a check across a minute
 # pid_of NAME gives the first process of the binary NAME in this session.
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
@@ -81,7 +86,7 @@ quick() {
 }
 now_ms() { echo $(($(date +%s%N) / 1000000)); }
 call() { ctl call construct "$@"; }
-inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
+inject() { sleep "${INJECT_LAG:-0}"; echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 virtuals() { ctl outputs | python3 -I -c 'import json, sys; print(" ".join(sorted(o["name"] for o in json.load(sys.stdin) if o.get("virtual"))))'; }
 bars() {
     local n=0 o
@@ -149,12 +154,47 @@ ok "a click near the corner of the xp window on the front face came at (3, 2): 1
 width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
 edge() { ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); print(round(n[0]['rects']['HEADLESS-1'][$2]) if n and n[0]['rects'] else -1)"; }
 drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items()))'; }
+scene_dump() { ctl query '*' >"$1" 2>/dev/null || echo '[]' >"$1"; }
+drew_what() {
+    python3 -I - "$work/still-before.json" "$work/still-after.json" <<'PY'
+import json, sys
+def load(path):
+    try:
+        return {n["id"]: n for n in json.load(open(path))}
+    except (OSError, ValueError):
+        return {}
+before, after = load(sys.argv[1]), load(sys.argv[2])
+lines = []
+for id_ in sorted(set(before) | set(after)):
+    a, b = before.get(id_), after.get(id_)
+    if a is None or b is None:
+        lines.append(f"{id_}: {'new' if a is None else 'gone'}")
+        continue
+    keys = [k for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)]
+    for k in keys:
+        lines.append(f"{id_}.{k}: {json.dumps(a.get(k))[:60]} -> {json.dumps(b.get(k))[:60]}")
+print("; ".join(lines[:12]) if lines else f"no node changed in {len(after)} nodes")
+PY
+}
+clock_clear() {
+    local second
+    second=$((10#$(date +%S)))
+    [ "$second" -ge 6 ] && [ "$second" -le 52 ]
+}
 still() {
-    local before
+    local before after at
+    STILL_WHY=""
+    [ -z "${CLOCK_EDGE:-}" ] || until_ok '[ "$((10#$(date +%S)))" = "$((60 - CLOCK_EDGE))" ]' 250
     for _ in 1 2; do
+        until_ok 'clock_clear' 240 || { STILL_WHY="no second 6 to 52 of a minute came"; return 1; }
         before=$(drawn)
+        at=$(date +%T)
+        scene_dump "$work/still-before.json"
         sleep 2
-        [ "$before" != "$(drawn)" ] || return 0
+        scene_dump "$work/still-after.json"
+        after=$(drawn)
+        [ "$before" != "$after" ] || return 0
+        STILL_WHY="$STILL_WHY [window $at: $before -> $after; drew: $(drew_what)]"
     done
     return 1
 }
@@ -266,7 +306,7 @@ ok "the face label capsule takes the short shadow, 0 1 2 at 0.06 and 0 4 12 at 0
 [ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le $((800 - 32)) ] || fail "the chips leave the margin of 32 at the bottom"
 ok "the chips are the hints of the cube at the bottom centre, at least 24 px high"
 sleep 2
-still || fail "a still cube draws: $(drawn)"
+still || fail "a still cube draws: $STILL_WHY"
 ok "a still cube renders 0 passes and has no damage, by render.stats"
 call view.step_in >/dev/null || fail "view.step_in"
 until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
@@ -307,9 +347,7 @@ key Ctrl+Alt+Right
 until_ok 'front_is 1' 20 || fail "Ctrl+Alt+Right did not turn the cube in use mode"
 key Ctrl+Alt+Left
 until_ok 'front_is 0' 20 || fail "Ctrl+Alt+Left did not turn the cube back in use mode"
-key Ctrl+Alt+Right
-key Ctrl+Alt+Right
-key Ctrl+Alt+Right
+inject '[{"shortcut": {"keys": "Ctrl+Alt+Right"}}, {"shortcut": {"keys": "Ctrl+Alt+Right"}}, {"shortcut": {"keys": "Ctrl+Alt+Right"}}]'
 until_ok 'front_is 2' 20 || fail "a turn key during a turn did not queue one turn: $(prop construct-cube-face-1 forward) $(prop construct-cube-face-2 forward) $(prop construct-cube-face-3 forward)"
 sleep 1
 front_is 2 || fail "a third turn key during a turn turned on"
@@ -568,7 +606,7 @@ floats() {
     [ "$lower_lift" -gt 800 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
     [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
     [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
-    still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }
+    still || { echo "a still cube with floating windows draws: $STILL_WHY"; return 1; }
     call view.step_in >/dev/null || return 1
     until_ok "$stepped_in" 20 || return 1
     until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||

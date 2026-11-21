@@ -186,6 +186,60 @@ fn the_shadow_packs_the_lift_and_the_yaw() {
     }
 }
 
+/// A drag grabs the world (co-pane r2, rv-6): the scene follows the hand,
+/// as the cube does (docs/cube-modes.md). A drag to the right moves the
+/// pane ahead to the right on the screen, a drag down moves it down.
+#[test]
+fn a_drag_takes_the_scene_along_with_the_hand() {
+    let lens = space::Lens::new(1280.0, 800.0);
+    let (at, size) = ([0.0, 2000.0], [640.0, 400.0]);
+    let middle = |pose: &Pose| {
+        let m = space::pane_matrix(&lens, pose, at, size, 0.0);
+        space::project(&m, 320.0, 200.0)
+    };
+    let rest = middle(&Pose::default());
+    let mut pose = Pose::default();
+    turn(&mut pose, None, 40.0, 0.0);
+    assert!(middle(&pose)[0] > rest[0] + 1.0, "right with the hand");
+    let mut pose = Pose::default();
+    turn(&mut pose, None, -40.0, 0.0);
+    assert!(middle(&pose)[0] < rest[0] - 1.0, "left with the hand");
+    let mut pose = Pose::default();
+    turn(&mut pose, None, 0.0, 40.0);
+    assert!(middle(&pose)[1] > rest[1] + 1.0, "down with the hand");
+    let mut pose = Pose::default();
+    turn(&mut pose, None, 0.0, -40.0);
+    assert!(middle(&pose)[1] < rest[1] - 1.0, "up with the hand");
+}
+
+/// The direction of the look is written in the same words in F5 and in
+/// the docs of the walk (rw-2): the scene follows the hand, and a press
+/// on the window of a pane starts no look.
+#[test]
+fn the_docs_say_the_direction_of_the_look_as_f5_does() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let words = |path: &str| {
+        let text = std::fs::read_to_string(root.join(path)).unwrap();
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    };
+    let sentences = [
+        "The drag grabs the world: the scene follows the hand, so a drag to \
+         the right turns the view to the left and a drag down tilts it up",
+        "A press that lands on the window of a pane gives that window the \
+         keyboard and starts no look",
+    ];
+    for path in [
+        "plans/construct-requirements.md",
+        "docs/cube-modes.md",
+        "docs/configuration.md",
+    ] {
+        let text = words(path);
+        for sentence in sentences {
+            assert!(text.contains(sentence), "{path}: {sentence}");
+        }
+    }
+}
+
 /// A walk during a drag stays: the drag turns only (live bug: the
 /// camera jumped back to the press when the key `w` was released).
 #[test]
@@ -210,8 +264,8 @@ fn a_walk_during_a_drag_keeps_its_place() {
         (pose.x - to.x).abs() < 1e-9 && (pose.z - to.z).abs() < 1e-9,
         "{pose:?}"
     );
-    assert!((pose.yaw - 70.0 * LOOK_RATE).abs() < 1e-9);
-    assert!((pose.pitch - 5.0 * LOOK_RATE).abs() < 1e-9);
+    assert!((pose.yaw + 70.0 * LOOK_RATE).abs() < 1e-9);
+    assert!((pose.pitch + 5.0 * LOOK_RATE).abs() < 1e-9);
 }
 
 /// The offsets of `pane.move` add up, as the camera looks.

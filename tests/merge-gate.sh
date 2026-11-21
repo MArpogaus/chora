@@ -11,7 +11,7 @@
 # the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper, also with `--with-companions` alone. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
-# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` ends with the click that
+# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh) and ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
@@ -40,7 +40,8 @@
 # has a line `No test: <reason>`. `pre-commit` runs the hooks over the same
 # range, with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
-# `ci-check` also runs tools/size-ratchet (a file over 1,500 production lines may not grow) and
+# `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
+# tools/size-ratchet (a file over 1,500 production lines may not grow) and
 # tools/cut-check (blocking: a plugin depending on a plugin or an extra workspace crate, an asset or
 # link that leaves its crate, a name of another plugin beyond tools/cut-known.toml; it reports the
 # new match arms on a kit enum since the merge base), each with its self-test.
@@ -59,7 +60,8 @@
 # so N=3 on 4 CPUs keeps their times. red-first to clippy and 2d-guard (a
 # cold cargo build of its base) run one at a time. A line is printed when
 # a step ends; after a failed step no further step starts and the running
-# ones are stopped.
+# ones are stopped: each step runs in its own process group, and the gate ends
+# the whole group of each running step on exit (TERM, KILL after 5 s) and waits.
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
 #                            [--base REF] [--jobs N] [--allow-skip STEP,...] [--red-first-check]
@@ -226,8 +228,8 @@ default_steps() {
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
-gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
-ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh
+gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
+ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -235,7 +237,7 @@ clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
@@ -261,7 +263,7 @@ winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh
 pane-keys|BIN=$repo/target/debug tests/gate-construct-pane-keys.sh
 walk|BIN=$repo/target/debug tests/gate-construct-walk.sh
-keys|BIN=$repo/target/debug tests/gate-construct-keys.sh && BIN=$repo/target/debug tests/gate-probe-hangup.sh
+keys|BIN=$repo/target/debug tests/gate-construct-keys.sh && BIN=$repo/target/debug tests/gate-construct-keys-persona.sh && BIN=$repo/target/debug tests/gate-probe-hangup.sh
 pixels|tests/gate-construct-pixels.sh
 mc-paths|BIN=$repo/target/debug tests/gate-mc-paths.sh
 mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh
@@ -373,10 +375,24 @@ declare -A running=()
 declare -A started=()
 skipped_steps=()
 skipped_reasons=()
+group_alive() {
+    kill -0 -- "-$1" 2>/dev/null
+}
 stop_children() {
-    local pid
+    local pid tries alive
     for pid in "${!running[@]}"; do
-        kill "$pid" 2>/dev/null
+        kill -TERM -- "-$pid" 2>/dev/null
+    done
+    for ((tries = 0; tries < 50; tries++)); do
+        alive=0
+        for pid in "${!running[@]}"; do
+            ! group_alive "$pid" || alive=1
+        done
+        [ "$alive" = 1 ] || break
+        sleep 0.1
+    done
+    for pid in "${!running[@]}"; do
+        ! group_alive "$pid" || kill -KILL -- "-$pid" 2>/dev/null
     done
     for pid in "${!running[@]}"; do
         wait "$pid" 2>/dev/null
@@ -401,7 +417,7 @@ log_failed() {
 
 start_step() {
     local log=$run_dir/${step_names[$1]}.log
-    (cd "$repo" && exec bash -c "${step_commands[$1]}") >"$log" 2>&1 &
+    (cd "$repo" && exec setsid bash -c "${step_commands[$1]}") >"$log" 2>&1 &
     running[$!]=$1
     started[$!]=$SECONDS
 }

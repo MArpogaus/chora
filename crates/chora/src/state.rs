@@ -247,6 +247,8 @@ pub struct State {
     pub lock: Option<Lock>,
     /// The surface node that plugins focused.
     focus_wanted: Option<String>,
+    /// The node with the keyboard that `focus.node` told last.
+    told_node: Option<String>,
     /// The watchdog of the render times.
     pub watchdog: Watchdog,
     /// The rect or image node of a press and its button, until the button
@@ -446,6 +448,7 @@ impl State {
             inject_mark: None,
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
+            told_node: None,
             node_grab: None,
             press_via: None,
             client_drag: false,
@@ -515,6 +518,7 @@ impl State {
         // The focus follows the protocols, for example after a popup grab
         // ended.
         self.update_focus();
+        self.tell_key_node();
         self.ipc_flush();
         if let Err(err) = self.display_handle.flush_clients() {
             tracing::warn!(?err, "flushing the wayland clients failed");
@@ -1107,6 +1111,18 @@ impl State {
         self.layer_focus.is_some()
     }
 
+    /// Tells the clients with `focus.node` when the node that has the
+    /// keyboard changed, by `focus_node`, a click, a lock or a client that
+    /// went: the focused surface stays, so no `focus.changed` says it.
+    fn tell_key_node(&mut self) {
+        let (node, owner) = self.key_node().unzip();
+        if node == self.told_node {
+            return;
+        }
+        self.told_node.clone_from(&node);
+        self.emit(&Event::FocusNode { node, owner });
+    }
+
     /// The node of `focus_node` that gets the keys, and its owner: not while
     /// the session is locked or a layer surface takes the keyboard.
     pub fn key_node(&self) -> Option<(String, String)> {
@@ -1424,6 +1440,43 @@ mod tests {
         let panel = click_layer(&mut core, &mut wayland, &output);
         assert_eq!(keyboard(&core), Some(panel.surface.id().protocol_id()));
         assert_eq!(core.state.key_node(), None);
+    }
+
+    /// `focus.node` tells the node that has the keys (`key_node`): an
+    /// exclusive layer surface takes them from the node of a client, so the
+    /// clients hear that no node has them, and hear the node again when the
+    /// layer surface goes (rw-4).
+    #[test]
+    fn an_exclusive_layer_surface_is_told_as_the_end_of_the_node_focus() {
+        let (mut core, mut wayland, mut wm, _first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        wm.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["focus.node"]}),
+        );
+        let desk = apply(&json!([
+            {"create": {"id": "desk", "kind": "rect", "parent": "root", "props": {"size": [1, 1]}}},
+            {"focus_node": {"node": "desk"}},
+        ]));
+        wm.ok(&mut core, "scene.apply", desk);
+        let told = |wm: &mut Client, core: &mut Core| -> Vec<Value> {
+            (wm.events_now(core).into_iter())
+                .map(|e| e["params"].clone())
+                .filter(|e| e["event"] == "focus.node")
+                .map(|e| e["node"].clone())
+                .collect()
+        };
+        assert_eq!(told(&mut wm, &mut core), [json!("desk")]);
+        let launcher = wayland.layer(&mut core, Layer::Overlay, KeyboardInteractivity::Exclusive);
+        assert_eq!(
+            told(&mut wm, &mut core),
+            [Value::Null],
+            "the launcher has the keys, no node"
+        );
+        wayland.destroy_layer(&mut core, &launcher);
+        assert_eq!(told(&mut wm, &mut core), [json!("desk")]);
     }
 
     #[test]

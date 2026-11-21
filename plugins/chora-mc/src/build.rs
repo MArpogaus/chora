@@ -16,6 +16,20 @@ impl Mc {
         self.rt.conn.apply(commands)
     }
 
+    /// Applies a transaction that the core may refuse. The writes and
+    /// fades that it starts are noted once the core accepts it, so that
+    /// one tracker sees every path.
+    pub(crate) fn try_apply(
+        &mut self,
+        commands: &[Command],
+    ) -> Result<Option<super::RpcError>, ClientError> {
+        let refused = self.rt.conn.try_apply(commands.to_vec())?;
+        if refused.is_none() {
+            self.note_writes(commands);
+        }
+        Ok(refused)
+    }
+
     /// Creates the group of a scene with its panels and its window.
     pub(crate) fn scene_commands(&self, name: &str) -> Vec<Command> {
         let shown = self.current.as_deref() == Some(name);
@@ -45,17 +59,17 @@ impl Mc {
         base: Vec<Command>,
         scenes: Vec<(String, Vec<Command>)>,
     ) -> Result<(), ClientError> {
-        let all = (base.iter())
+        let all: Vec<Command> = (base.iter())
             .chain(scenes.iter().flat_map(|(_, c)| c))
             .cloned()
             .collect();
-        let Some(err) = self.rt.conn.try_apply(all)? else {
+        let Some(err) = self.try_apply(&all)? else {
             return Ok(());
         };
         eprintln!("chora-mc: {err}; the scenes go one by one");
         self.apply(base)?;
         for (name, commands) in scenes {
-            if let Some(err) = self.rt.conn.try_apply(commands)? {
+            if let Some(err) = self.try_apply(&commands)? {
                 eprintln!("chora-mc: scene {name}: {err}; left out");
                 self.scenes.remove(&name);
                 self.windows.remove(&name);
@@ -218,7 +232,7 @@ impl Mc {
         let regions = self.regions();
         self.fade = FADE;
         fades.extend(regions?);
-        if let Some(err) = self.rt.conn.try_apply(fades)? {
+        if let Some(err) = self.try_apply(&fades)? {
             eprintln!("chora-mc: {err}; the theme builds anew");
             return Ok(false);
         }

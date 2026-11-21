@@ -22,7 +22,7 @@ from common import (
     ready,
     window_acts,
 )
-from harness import REPO, Expect, click, drag_title, key, program
+from harness import REPO, Expect, click, drag_title, key, program, text
 
 HELP = "xp-dlg-help"
 MENU = "xp-menu"
@@ -32,14 +32,15 @@ SPEAKER = "xp-speaker-HEADLESS-1"
 
 WPCTL = """#!/bin/sh
 state="$FAKE_STATE"
-[ -f "$state" ] || echo "0.50 0" >"$state"
+put() { echo "$1" >"$state.$$" && mv "$state.$$" "$state"; }
+[ -f "$state" ] || put "0.50 0"
 read -r volume mute <"$state"
 case "$1" in
 get-volume)
     if [ "$mute" = 1 ]; then echo "Volume: $volume [MUTED]"; else echo "Volume: $volume"; fi ;;
 set-mute)
     case "$3" in 1) mute=1 ;; 0) mute=0 ;; toggle) mute=$((1 - mute)) ;; esac
-    echo "$volume $mute" >"$state" ;;
+    put "$volume $mute" ;;
 set-volume)
     for last; do :; done
     case "$last" in
@@ -47,7 +48,7 @@ set-volume)
     *%-) volume=$(awk -v v="$volume" -v p="${last%\\%-}" 'BEGIN{v-=p/100; if (v<0) v=0; printf "%.2f", v}') ;;
     *%) volume=$(awk -v p="${last%\\%}" 'BEGIN{printf "%.2f", p/100}') ;;
     esac
-    echo "$volume $mute" >"$state" ;;
+    put "$volume $mute" ;;
 esac
 """
 EDITOR = """#!/bin/sh
@@ -294,6 +295,72 @@ def volume_acts(s):
     s.act(
         "Escape shuts the volume popup", [key("Escape")], closes=[CONTEXT], expect=Expect(open=[])
     )
+    s.act(
+        "the speaker opens the volume popup for an outside click",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT], verify=mixer_is(75, False)),
+    )
+    s.act(
+        "a click outside shuts the volume popup and leaves the mixer alone",
+        [click(400, 300)],
+        closes=[CONTEXT],
+        expect=Expect(open=[], verify=mixer_is(75, False)),
+    )
+    s.act(
+        "a window opens to hear the keys that the volume popup holds back",
+        [program("chora-probe", "window", "40", "120", "200", "--report", log="popup-probe.log")],
+        expect=Expect(new_window={"app_id": "chora-probe"}),
+    )
+    s.act(
+        "the speaker opens the volume popup over the window",
+        [click_node(SPEAKER)],
+        opens=[CONTEXT],
+        expect=Expect(open=[CONTEXT]),
+    )
+    s.act(
+        "keys with the volume popup open leave the popup and the window alone",
+        [text("qz"), key("Up")],
+        expect=Expect(open=[CONTEXT], verify=probe_heard_no_key(s)),
+    )
+    s.act(
+        "Escape shuts the volume popup over the window",
+        [key("Escape")],
+        closes=[CONTEXT],
+        expect=Expect(open=[]),
+    )
+    s.act(
+        "the same keys reach the window with the popup shut",
+        [text("q")],
+        expect=Expect(verify=probe_heard_key(s)),
+    )
+    s.act("the window of the key check closes", [lambda s: s.procs.pop().terminate()])
+
+
+def probe_keys(s):
+    """The `key` lines that the probe window printed."""
+    log = s.work / "popup-probe.log"
+    return [ln for ln in log.read_text().splitlines() if ln.startswith("key ")]
+
+
+def probe_heard_no_key(s):
+    """A check: the window heard no key."""
+
+    def check(_after):
+        heard = probe_keys(s)
+        return [] if not heard else [f"the window heard {heard} through the popup"]
+
+    return check
+
+
+def probe_heard_key(s):
+    """A check: the window hears a key once the popup is shut (the control
+    of the check above)."""
+
+    def check(_after):
+        return [] if probe_keys(s) else ["the window heard no key with the popup shut"]
+
+    return check
 
 
 def item_node(s, text):

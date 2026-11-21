@@ -28,6 +28,10 @@ impl Wm {
             let commands = self.focus_moved(surface);
             return self.apply(commands);
         }
+        if let Event::FocusNode { owner, .. } = &event {
+            self.key_node.clone_from(owner);
+            return Ok(());
+        }
         let commands = match event {
             Event::SurfaceDetached { .. } => return self.window_left(&event),
             Event::SurfaceDestroyed { ref surface } => {
@@ -72,9 +76,17 @@ impl Wm {
                 self.voice_state(heard)
             }
             Event::InputUngrabbed { binding } => self.ungrabbed(&binding),
-            Event::ClientConnected { name } if name == "voice" && heard => self.trays(),
+            Event::ClientConnected { name } => {
+                self.refresh_looks();
+                if name == "voice" && heard {
+                    self.trays()
+                } else {
+                    Vec::new()
+                }
+            }
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
+                self.refresh_looks();
                 if name == "voice" && heard {
                     self.trays()
                 } else {

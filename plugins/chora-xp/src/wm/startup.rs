@@ -3,12 +3,13 @@
 use chora_kit::wm::Created;
 
 use super::{
-    BARS, Bar, ClientError, Command, Config, DESKTOPS, DIALOGS, DesktopIcons, EVENTS, Effects,
-    ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu, Mixer, NAME,
-    NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip, WALLPAPERS,
-    WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
+    BARS, Bar, ClientError, Command, Config, DESKTOP, DESKTOPS, DIALOGS, DesktopIcons, EVENTS,
+    Effects, ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
+    Mixer, NAME, NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip,
+    WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
     hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window, without_reserve,
 };
+use chora_scene::Order;
 
 impl Wm {
     /// Connects, creates the scene of the plugin and adopts the windows
@@ -60,6 +61,7 @@ impl Wm {
             opened: Vec::new(),
             focused: None,
             core_focus: None,
+            key_node: None,
             bars: Vec::new(),
             menu,
             drag: None,
@@ -79,6 +81,8 @@ impl Wm {
             fade_shader: None,
             context: None,
             sys_window: None,
+            looks: Vec::new(),
+            looks_failed: false,
             last_icon: None,
             panels: Vec::new(),
             hide_at: None,
@@ -110,6 +114,7 @@ impl Wm {
         wm.create_scene(old_root)?;
         wm.grab()?;
         wm.rt.announce(&EVENTS, methods)?;
+        wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
         wm.sync_cube_keys();
@@ -181,6 +186,41 @@ impl Wm {
         self.apply(commands)
     }
 
+    /// The two roots of the plugin and their groups: the desktop in the
+    /// background order (D89), and the windows, the taskbars, the dialogs
+    /// and the menus in the root that holds the claim.
+    fn roots(&self) -> Vec<Command> {
+        let group = |id: &str, parent: &str| Command::Create {
+            id: id.into(),
+            kind: NodeKind::Group,
+            parent: parent.into(),
+            props: PropsUpdate::default(),
+        };
+        let mut commands = vec![
+            group(NAME, ROOT),
+            Command::Create {
+                id: DESKTOP.into(),
+                kind: NodeKind::Group,
+                parent: ROOT.into(),
+                props: PropsUpdate {
+                    order: Some(Order::Background),
+                    ..PropsUpdate::default()
+                },
+            },
+        ];
+        for id in [WALLPAPERS, desktop_icons::GROUP] {
+            commands.push(group(id, DESKTOP));
+        }
+        let mut ids = [WINDOWS, BARS, DIALOGS, MENUS];
+        if !self.taskbar.on_top {
+            ids.swap(0, 1);
+        }
+        for id in ids {
+            commands.push(group(id, NAME));
+        }
+        commands
+    }
+
     /// The groups, the wallpapers, the taskbars and the hidden menu, in
     /// one transaction, and XP's logon sound. It fails if another instance
     /// runs.
@@ -192,12 +232,6 @@ impl Wm {
             .map(|o| without_reserve(&self.reserved, o))
             .collect();
         self.theme.set_scale(max_scale(&outputs));
-        let group = |id: &str, parent: &str| Command::Create {
-            id: id.into(),
-            kind: NodeKind::Group,
-            parent: parent.into(),
-            props: PropsUpdate::default(),
-        };
         let mut commands: Vec<Command> = old_root
             .then(|| Command::Remove {
                 id: NAME.into(),
@@ -205,23 +239,14 @@ impl Wm {
             })
             .into_iter()
             .collect();
-        commands.push(group(NAME, ROOT));
-        let mut ids = [
-            WALLPAPERS,
-            desktop_icons::GROUP,
-            WINDOWS,
-            BARS,
-            DIALOGS,
-            MENUS,
-        ];
-        if !self.taskbar.on_top {
-            ids.swap(2, 3);
-        }
-        for id in ids {
-            commands.push(group(id, NAME));
-        }
+        commands.extend(self.roots());
         for desktop in 0..DESKTOPS {
-            commands.push(group(&desk_id(desktop), WINDOWS));
+            commands.push(Command::Create {
+                id: desk_id(desktop),
+                kind: NodeKind::Group,
+                parent: WINDOWS.into(),
+                props: PropsUpdate::default(),
+            });
             if desktop != self.desktop {
                 commands.push(Command::Update {
                     id: desk_id(desktop),

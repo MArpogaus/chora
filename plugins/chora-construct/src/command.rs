@@ -184,13 +184,14 @@ fn icon(look: &Look, id: &str, parent: &str, [x, y]: [f64; 2]) -> Vec<Command> {
 }
 
 /// The footer at `y` of a panel `w` wide: hints of keys at the left, one
-/// at the right.
+/// at the right; with `button` the one at the right is a hit that a press
+/// takes, as the Close of the key sheet.
 fn footer(
     look: &Look,
     parent: &str,
     items: &[(Vec<String>, String)],
     y: f64,
-    w: f64,
+    (w, button): (f64, bool),
 ) -> Vec<Command> {
     let m = &look.glass;
     let small = face(Type::Small, 400);
@@ -221,6 +222,20 @@ fn footer(
             [x + used + gap, top + 2.0],
             m.muted,
         ));
+        if k == last && button {
+            let [left, width] = [x - 8.0, used + gap + word_w.ceil() + 16.0];
+            let mut hit = rect(
+                &format!("{parent}-foot-{k}-hit"),
+                parent,
+                [left, top - 4.0, width, 32.0],
+                8.0,
+                [0.0; 4],
+            );
+            if let Command::Create { props, .. } = &mut hit {
+                props.input = Some(InputMode::Accept);
+            }
+            commands.push(hit);
+        }
         x += used + gap + word_w.ceil() + 16.0;
     }
     commands
@@ -268,7 +283,7 @@ pub fn list(look: &Look, model: &ListModel<'_>, parent: &str, out: [f64; 2]) -> 
         LIST_BODY,
         &model.footer,
         top + rows_h,
-        LIST_WIDTH,
+        (LIST_WIDTH, false),
     ));
     commands
 }
@@ -583,7 +598,7 @@ pub fn help(
             m.muted,
         ));
     }
-    commands.extend(footer(look, &body, &model.footer, foot + 1.0, w));
+    commands.extend(footer(look, &body, &model.footer, foot + 1.0, (w, true)));
     commands
 }
 
@@ -874,5 +889,63 @@ mod tests {
                 "{dark}"
             );
         }
+    }
+
+    /// co-pane r2 (rv-4): only the key sheet has a Close that a press hits;
+    /// the footer of the window list has no node that nothing handles.
+    #[test]
+    fn only_the_key_sheet_makes_the_close_a_hit() {
+        let config: crate::config::Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
+            metrics: &metrics,
+        };
+        let close = || (vec!["Esc".to_owned()], "Close".to_owned());
+        let hits = |commands: &[Command]| {
+            commands
+                .iter()
+                .filter_map(|c| match c {
+                    Command::Create { id, .. } if id.contains("-foot-") && id.ends_with("-hit") => {
+                        Some(id.clone())
+                    }
+                    _ => None,
+                })
+                .count()
+        };
+        let sheet = HelpModel {
+            groups: &[],
+            query: "",
+            sel: 0,
+            scope: String::new(),
+            placeholder: String::new(),
+            every_look: String::new(),
+            or: String::new(),
+            note: String::new(),
+            footer: vec![close()],
+        };
+        let sheet = help(&look, &sheet, ("help", "root"), [1280.0, 720.0]);
+        assert_eq!(hits(&sheet), 1, "the key sheet has a Close to press");
+        let model = ListModel {
+            rows: &[],
+            sel: 0,
+            hovered: None,
+            query: "",
+            count: String::new(),
+            placeholder: String::new(),
+            footer: [close(), close(), close()],
+            thumb_shader: None,
+        };
+        let windows = list(&look, &model, "root", [1280.0, 720.0]);
+        assert_eq!(
+            hits(&windows),
+            0,
+            "the window list has no hit nothing handles"
+        );
     }
 }

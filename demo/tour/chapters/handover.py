@@ -107,9 +107,9 @@ def run(ctx):
         t.pointer_output = XP
         t.jump(640, 360)
         t.wait(0.3)
-        t.act("look", "Two screens: xp on the left, tiling on the right (empty)", "xp desktop with taskbar; tiling desktop empty", still="05-01-two-screens", known="construct and xp each say they hold the focus on a four-output session (I3)")
+        t.act("look", "Two screens: xp on the left, tiling on the right (empty)", "xp desktop with taskbar; tiling desktop empty", still="05-01-two-screens", known="I3: construct and xp each say they hold the focus on a four-output session")
         t.done()
-        t.act("pointer", "Click Start", "The Start menu opens on the xp screen", still="05-02-start", opens=["xp-menu"], known="construct and xp each say they hold the focus on a four-output session (I3)")
+        t.act("pointer", "Click Start", "The Start menu opens on the xp screen", still="05-02-start", opens=["xp-menu"], known="I3: construct and xp each say they hold the focus on a four-output session")
         goto(50, 705, XP, 1.0); t.click(); t.done()
         ex, ey = find_item("Notepad", XP)
         t.act("pointer", "Click Notepad", "A text editor opens on the xp screen", settle=1.0, still="05-03-editor-open", contract="T1", capture="Q", expect=Expect(new_window={"owner": "xp"}), closes=["xp-menu"])
@@ -185,6 +185,6 @@ def run(ctx):
         t.chunks.append(ach)
         slide(f"{L.dir}/slide.png", 5, "handover", ['One window travels between xp, tiling, the construct', 'and mc: by dragging and by key.', 'Two screens side by side.'], accent=(115, 218, 202))
         t.finish("05-handover.mp4", slide=f"{L.dir}/slide.png")
-        json.dump({"rows": t.rows, "observed": t.observed}, open(f"{OUT}/rows-ch5.json", "w"), indent=1)
+        json.dump({"rows": t.rows, "observed": t.observed}, open(f"{OUT}/rows-handover.json", "w"), indent=1)
     finally:
         L.stop()

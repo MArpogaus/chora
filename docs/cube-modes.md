@@ -48,6 +48,13 @@ in a construct without a cube and in xp (principle 1).
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
 | close the cube, in navigate mode | none | `Escape`; the key list names it | `cube.close` |
 
+In navigate mode a drag on the empty space looks around, as in the
+space without a cube (F5 of `plans/construct-requirements.md`). The
+drag grabs the world: the scene follows the hand, so a drag to the right
+turns the view to the left and a drag down tilts it up. A press that
+lands on the window of a pane gives that window the keyboard and starts
+no look.
+
 `Ctrl+Alt+Left` and `Ctrl+Alt+Right` are the turn keys of the cube of
 xp on a screen. On virtual outputs xp does not grab them, so the cube of
 the construct is the one cube that they turn.
@@ -60,6 +67,13 @@ construct has the keyboard, and `Escape` closes the cube, so that the
 person is never stuck in it; `Return` steps in. `F1` reaches the program
 of a pane, but stood back no program is there, so it shows the keys.
 An open key list takes `Escape` first and closes itself.
+
+In use mode the program of the face keeps `Super`: the press of `Super`
+reaches it, and so do its own `Super` chords, such as `Super+E` and
+`Super+D` of xp, and its tap of `Super`, which opens the Start menu of
+xp. A grabbed `Super` chord of the construct, such as `Super+F1`, is
+no tap: the core ends the tap that the program holds without its
+release, so the Start menu does not open unasked.
 
 ## The visible way in
 
@@ -198,7 +212,10 @@ cube stands back, the windows of the panes take no pointer input.
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never
 covers it; a pane behind the resting front face in use mode is in the
-window list as `covered`. A pane that was pulled out or moved stays in
+window list as `covered`. On a single screen the drag cannot leave the
+face, so a press on a title bar shows the hint "Ask the helper to pull
+this window out" until the button goes up (`cube.pull` does it). A pane
+that was pulled out or moved stays in
 view when the cube stands back, and a drag drops it on a face again; if
 it stood in front of the cube, it moves beside the cube while the cube
 stands back, so that the cube shows whole, and goes home when the cube

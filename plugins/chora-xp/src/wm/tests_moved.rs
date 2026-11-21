@@ -556,7 +556,7 @@ mod keys {
     fn without_a_dialog_the_desktop_does_not_fade() {
         let (wm, _methods) = wm_on_fake_core("no-fade");
         assert!(!wm.fading(), "no fade");
-        assert!(wm.fade_frame(Instant::now()).is_none());
+        assert_eq!(wm.fade_frame(Instant::now()), Vec::new());
     }
 }
 
@@ -816,13 +816,17 @@ mod choices {
         assert!(wm.fade.is_some(), "the dialog starts the fade");
         assert!(wm.fading(), "the desktop fades");
         assert!(
-            wm.fade_frame(Instant::now()).is_some(),
+            !wm.fade_frame(Instant::now()).is_empty(),
             "a frame of the fade"
         );
         wm.choose(Choice::Cancel);
         assert!(wm.fade.is_none(), "the fade ends with the dialog");
         assert!(!wm.fading());
-        assert!(wm.fade_frame(Instant::now()).is_none(), "no frame after it");
+        assert_eq!(
+            wm.fade_frame(Instant::now()),
+            Vec::new(),
+            "no frame after it"
+        );
     }
 }
 
@@ -1071,4 +1075,102 @@ mod press {
         wm.press_taskbar(taskbar::Part::Pager(2));
         assert!(wm.effects.turn.is_some(), "the cube turns");
     }
+}
+
+/// xp-tidy pr1-1: the window menu opens from a cache of the looks that
+/// run; the core is asked at a start and at a client event, not at the
+/// press (a slow core must not hold the menu).
+#[test]
+fn the_window_menu_opens_without_asking_the_core_for_the_clients() {
+    let core = chora_kit::testing::FakeCore::start();
+    core.outputs(json!([fake_output()]));
+    core.respond(|method, _| match method {
+        "scene.apply" => Some(Value::Null),
+        "clients.list" => Some(json!([{"name": "mc", "methods": ["window.give"]}])),
+        _ => None,
+    });
+    let methods = core.record(|method, _| Some(method.to_owned()));
+    let mut wm = wm_on_kit_core(&core, "menu-cache");
+    own_window(&mut wm, "s1");
+    let from = methods.lock().unwrap().len();
+    wm.open_system("s1", [150, 110]);
+    assert!(
+        !sent(&methods, from).iter().any(|m| m == "clients.list"),
+        "the press asked for the clients: {:?}",
+        sent(&methods, from)
+    );
+    wm.node_key("Escape");
+    let from = methods.lock().unwrap().len();
+    let connected = chora_scene::Event::ClientConnected { name: "mc".into() };
+    wm.event(connected).unwrap();
+    assert_eq!(
+        sent(&methods, from)
+            .iter()
+            .filter(|m| *m == "clients.list")
+            .count(),
+        1,
+        "a client event refreshes the cache once"
+    );
+    let from = methods.lock().unwrap().len();
+    wm.open_system("s1", [150, 110]);
+    assert!(
+        !sent(&methods, from).iter().any(|m| m == "clients.list"),
+        "the press asked for the clients after the refresh"
+    );
+}
+
+/// xp-tidy pr1-2: a failed `clients.list` leaves one warn line, and the
+/// Send To rows stay gray.
+#[test]
+fn a_failed_clients_list_warns_once() {
+    if chora_kit::testing::in_child() {
+        let core = chora_kit::testing::FakeCore::start();
+        core.outputs(json!([fake_output()]));
+        core.respond(|method, _| match method {
+            "scene.apply" => Some(Value::Null),
+            "clients.list" => Some(json!([])),
+            _ => None,
+        });
+        let mut wm = wm_on_kit_core(&core, "list-failed");
+        for _ in 0..2 {
+            core.refuse_next("clients.list");
+            let connected = chora_scene::Event::ClientConnected { name: "mc".into() };
+            wm.event(connected).unwrap();
+        }
+        return;
+    }
+    let log = chora_kit::testing::stderr_of("wm::tests_moved::a_failed_clients_list_warns_once");
+    let lines: Vec<&str> = log.lines().filter(|l| l.contains("clients.list")).collect();
+    assert_eq!(lines.len(), 1, "one warn line: {log:?}");
+    assert!(lines[0].starts_with("chora-xp: clients.list"), "{lines:?}");
+}
+
+/// xp-tidy pr3-1: a look that exports `window.give` after its connected
+/// event is listed when the system menu opens.
+#[test]
+fn a_look_that_exports_give_late_is_listed_at_menu_open() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let ready = std::sync::Arc::new(AtomicBool::new(false));
+    let core = chora_kit::testing::FakeCore::start();
+    core.outputs(json!([fake_output()]));
+    let flag = ready.clone();
+    core.respond(move |method, _| match method {
+        "scene.apply" => Some(Value::Null),
+        "clients.list" => {
+            let methods: &[&str] = if flag.load(Ordering::SeqCst) {
+                &["window.give"]
+            } else {
+                &[]
+            };
+            Some(json!([{"name": "mc", "methods": methods}]))
+        }
+        _ => None,
+    });
+    let mut wm = wm_on_kit_core(&core, "late-give");
+    own_window(&mut wm, "s1");
+    let connected = chora_scene::Event::ClientConnected { name: "mc".into() };
+    wm.event(connected).unwrap();
+    ready.store(true, Ordering::SeqCst);
+    wm.open_system("s1", [150, 110]);
+    assert_eq!(wm.looks, ["mc"], "the look is listed at the open");
 }

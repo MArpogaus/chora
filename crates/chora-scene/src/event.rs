@@ -74,6 +74,16 @@ pub enum Event {
         /// The focused surface node; `None` without a focus.
         surface: Option<String>,
     },
+    /// A node took the keyboard with `focus_node`, or no node has it any
+    /// more: the focused surface stays, so that a window manager learns
+    /// here that another client holds the keyboard meanwhile (I3).
+    #[serde(rename = "focus.node")]
+    FocusNode {
+        /// The node with the keyboard; `None` when no node has it.
+        node: Option<String>,
+        /// The client that owns the node.
+        owner: Option<String>,
+    },
     /// A client, or a taskbar for it, asks for a change that a plugin
     /// decides, for example fullscreen.
     #[serde(rename = "surface.requested")]
@@ -520,6 +530,7 @@ pub const NAMES: &[&str] = &[
     "surface.destroyed",
     "surface.detached",
     "focus.changed",
+    "focus.node",
     "surface.requested",
     "node.requested",
     "input.key",

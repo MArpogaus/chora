@@ -71,11 +71,15 @@ impl Host for Acting<'_> {
     }
 
     fn failed(&mut self, failure: Failure) -> Result<(), Infallible> {
-        match failure {
-            Failure::NoScript(script) => self.wm.cannot_do(&script),
-            Failure::NotStarted(name) => eprintln!("chora-xp: {name} did not start"),
-            Failure::NotGiven { to, why } => eprintln!("chora-xp: give to {to}: {why}"),
-        }
+        let line = match failure {
+            Failure::NoScript(script) => {
+                self.wm.cannot_do(&script);
+                return Ok(());
+            }
+            Failure::NotStarted(name) => format!("{name} did not start"),
+            Failure::NotGiven { to, why } => format!("give to {to}: {why}"),
+        };
+        eprintln!("chora-xp: {line}");
         Ok(())
     }
 
@@ -321,8 +325,21 @@ impl Wm {
     /// A window of `chora-xp` that gets the focus while none of them has
     /// it looks active again and takes Alt+Space. Without a focused
     /// surface, as when a node of another client takes the keyboard, no
-    /// window of `chora-xp` has it either.
+    /// window of `chora-xp` has it either. When the focus leaves a window of
+    /// another look and no node of another client has the keys, the desktop
+    /// icons get them again: a click on the desktop could not give them
+    /// while that window still had the focus.
     pub(super) fn focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
+        let left_foreign = self.focus_away();
+        let mut commands = self.window_focus_moved(surface);
+        if left_foreign && self.focused.is_none() && !self.focus_away() && !self.node_away() {
+            commands.push(self.desktop_keys());
+        }
+        commands
+    }
+
+    /// The part of [`Self::focus_moved`] about the windows of `chora-xp`.
+    fn window_focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
         self.core_focus = surface.map(Into::into);
         if let Some(surface) = surface.filter(|s| self.index(s).is_some()) {
             if self.focused.is_some() {

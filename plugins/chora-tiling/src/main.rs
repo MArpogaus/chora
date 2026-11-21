@@ -439,7 +439,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 20] = [
     "voice.state",
     "voice.say",
     "voice.remove",
@@ -457,6 +457,7 @@ const EVENTS: [&str; 19] = [
     "pointer.entered",
     "pointer.pressed",
     "focus.changed",
+    "focus.node",
     "input.button",
     "node.key",
 ];
@@ -696,7 +697,7 @@ impl Tiling {
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
-        if self.focus.hear(&event).is_some() {
+        if self.focus.hear(&event).is_some() || matches!(event, Event::FocusNode { .. }) {
             return Ok(());
         }
         match event {
@@ -1014,9 +1015,10 @@ impl Tiling {
     /// Focuses a window under the pointer. While another window manager
     /// has the focus, the focused window of tiling takes it again.
     fn pointer_focus(&mut self, node: &str, clicked: bool, moved: bool) -> bool {
-        let took = self.wm.pointer_focus(node, clicked, moved, self.focus.lost);
-        if took {
-            self.focus.take();
+        let lost = self.focus.lost_to_other(NAME);
+        let took = self.wm.pointer_focus(node, clicked, moved, lost);
+        if took && lost {
+            self.focus.reclaim();
         }
         took
     }

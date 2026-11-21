@@ -65,6 +65,32 @@ question_cell() {
     inside "$card" "$yes" || fail "${scale}x: the Yes button ($yes) is not in the card ($card)"
     inside "$card" "$no" || fail "${scale}x: the No button ($no) is not in the card ($card)"
     [ "${yes##* }" = 28 ] || fail "${scale}x: the Yes button is not 28 px high: $yes"
+    local card_png chat_png cx cy cw ch bx by hy yy
+    read -r card_png chat_png <<<"$(jq -r '[(.[] | select(.id == "hud-card").image), (.[] | select(.id == "hud-chat").image)] | join(" ")' "$nodes")"
+    read -r cx cy cw ch <<<"$card"
+    read -r bx by _ _ <<<"$chat"
+    read -r _ hy _ _ <<<"$hint"
+    read -r _ yy _ _ <<<"$yes"
+    [ $((cy + ch)) -le "$hy" ] || fail "${scale}x: the card ($card) reaches the typing hint ($hint)"
+    python3 -I - "$card_png" "$chat_png" "$scale" "$((cx - bx))" "$((cy - by))" "$cw" "$ch" "$((yy - cy))" <<'PY' || fail "${scale}x: the card is not under the transcript or not set at 14 px"
+import sys
+from PIL import Image
+card, chat, scale, x, y, w, h, buttons = Image.open(sys.argv[1]).convert("RGBA"), Image.open(sys.argv[2]).convert("RGBA"), *map(int, sys.argv[3:])
+x, y, w, h = x * scale, y * scale, w * scale, h * scale
+under = chat.crop((x, y, x + w, y + h)).getcolors(1 << 20)
+assert len(under) == 1, f"the transcript runs under the card: {len(under)} colors there"
+bands, start = [], None
+for row in range(card.height):
+    ink = any(sum(card.getpixel((col, row))[:3]) < 330 and card.getpixel((col, row))[3] > 200 for col in range(card.width))
+    if ink and start is None:
+        start = row
+    if not ink and start is not None:
+        bands.append(row - start)
+        start = None
+lines = [b for b in bands if b > 3 * scale]
+assert len(lines) >= 5, f"the card has {len(lines)} lines of text: {bands}"
+assert min(lines) >= 9 * scale, f"a line of the card is under 14 px: {bands}"
+PY
     [ "$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")" = 1 ] || fail "${scale}x: the hint is not shown once"
     ok "${scale}x: the question card is in the balloon with Yes and No buttons, the typing hint once: $hint"
     gate_cleanup 0

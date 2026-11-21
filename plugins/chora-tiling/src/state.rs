@@ -55,7 +55,7 @@ impl Tiling {
             })
             .collect();
         let mut focus = self.focus.state(NAME, |s| self.wm.has(s));
-        if self.keys_open() {
+        if self.keys_open() && !self.focus.taken_by_other(NAME) {
             focus.holder = Some(NAME.to_owned());
         }
         let open = self.open.state();

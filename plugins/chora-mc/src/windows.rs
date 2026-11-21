@@ -1,4 +1,4 @@
-use chora_kit::wm::{Book, Change, Origin, Phase, Why, focus::Policy};
+use chora_kit::wm::{Book, Change, Created, Origin, Phase, Why, focus::Policy};
 use chora_scene::Event;
 
 use super::{
@@ -17,8 +17,12 @@ impl Policy for Mc {
 
 /// What mc knows of the app of a surface that the book proposes.
 pub(crate) enum Named {
-    /// The event of the core said it, if it had one.
-    Is(Option<String>),
+    /// The event of the core said it: the app id, if it had one, and the
+    /// activation token that mapped the window, if one did.
+    Is {
+        app_id: Option<String>,
+        token: Option<String>,
+    },
     /// The core says it: the surface lost its parent.
     Ask,
 }
@@ -27,14 +31,21 @@ impl Mc {
     /// An event of the life of a window: the book decides which windows
     /// are mc's, and mc settles what it proposes.
     pub(crate) fn lifecycle(&mut self, event: &Event) -> Result<(), ClientError> {
-        let named = Book::announced_app(event)
-            .map_or(Named::Ask, |app_id| Named::Is(app_id.map(str::to_owned)));
+        let token = Created::of(event).and_then(|created| created.token);
+        let named = Book::announced_app(event).map_or(Named::Ask, |app_id| Named::Is {
+            app_id: app_id.map(str::to_owned),
+            token,
+        });
         let changes = self.book.apply(event);
         self.settle(changes, &named)
     }
 
     /// Does what the book says, in order. A detached window of mc leaves
     /// no data: the proposal that follows puts it back.
+    /// A new window that the core reserved for mc (mc holds the claim of
+    /// its output, `to` names it) is `new` in the book and keeps the token
+    /// of its `surface.created`, which finds the scene that started it
+    /// (mc-42).
     pub(crate) fn settle(
         &mut self,
         changes: Vec<Change>,
@@ -43,9 +54,13 @@ impl Mc {
         for change in changes {
             match change {
                 Change::Adopt { id, origin } => {
-                    let token = match &origin {
-                        Origin::New { token } => token.as_deref(),
-                        Origin::Given | Origin::Kept => None,
+                    let token = match (&origin, named) {
+                        (Origin::New { token: Some(token) }, _) => Some(token.as_str()),
+                        (Origin::New { .. } | Origin::Given, Named::Is { token, .. }) => {
+                            token.as_deref()
+                        }
+                        (Origin::New { token: None } | Origin::Given, Named::Ask)
+                        | (Origin::Kept, _) => None,
                     };
                     let next = match self.take(&id, named, token) {
                         Ok(true) => self.book.confirm(&id),
@@ -101,7 +116,7 @@ impl Mc {
             return Ok(true);
         }
         let app_id = match named {
-            Named::Is(app_id) => app_id.clone(),
+            Named::Is { app_id, .. } => app_id.clone(),
             Named::Ask => {
                 let nodes: Vec<Value> =
                     (self.rt.conn).call("scene.query", Query::new(format!("id:{surface}")))?;
@@ -161,7 +176,7 @@ impl Mc {
         };
         let new = !commands.is_empty();
         commands.extend(self.place_window(&name, surface, true));
-        if let Some(err) = self.rt.conn.try_apply(commands)? {
+        if let Some(err) = self.try_apply(&commands)? {
             eprintln!("chora-mc: {surface}: {err}");
             if new {
                 self.scenes.remove(&name);
@@ -171,13 +186,29 @@ impl Mc {
             return Ok(false);
         }
         self.windows.insert(name.clone(), surface.into());
+        self.plain_turn = self.take_plain_start(&name);
         if let Err(err) = self.show(&name, user) {
             chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", name, err.message));
         }
+        self.plain_turn = false;
         if new {
             self.renumber()?;
         }
         Ok(true)
+    }
+
+    /// Whether a plain turn started the program of scene `name` and that
+    /// scene shows: the start counts once (mc-42). A window of another
+    /// scene does not leave the start: `show` of that scene clears it.
+    /// The name match stays as a guard of its own, because the kept name
+    /// is what keeps `plain_start` an `Option` and the struct at three
+    /// bools, the limit of clippy.
+    fn take_plain_start(&mut self, name: &str) -> bool {
+        let own = self.plain_start.as_deref() == Some(name);
+        if own {
+            self.plain_start = None;
+        }
+        own && self.current.as_deref() == Some(name)
     }
 
     /// Takes the window of a docked app that started. It waits hidden
@@ -358,7 +389,7 @@ mod tests {
             window["origin"].clone()
         };
         assert_eq!(origin("s1"), "new");
-        assert_eq!(origin("s2"), "given");
+        assert_eq!(origin("s2"), "new");
         assert!(!state.to_string().contains("t1"), "no token: {state}");
         assert_eq!(state["open"], serde_json::json!([]), "no key list open");
     }

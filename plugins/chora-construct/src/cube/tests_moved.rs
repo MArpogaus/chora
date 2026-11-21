@@ -149,6 +149,88 @@ fn a_pane_and_a_cube_hold_no_unbound_super_chord() {
     );
 }
 
+/// The program of a face (xp) holds the tap of Super and its own Super
+/// chords: a cube in use mode grabs no lone tap, or the press of Super
+/// would go to the construct and xp would never see Super go down, nor
+/// get its Win+E (rw-1). The tap that a chord of the construct leaves is
+/// no tap for xp: the core ends it without its release
+/// (`a_grabbed_key_ends_the_tap_of_a_lone_modifier_of_another_client`).
+#[test]
+fn a_cube_in_use_mode_leaves_the_super_tap_to_the_program() {
+    use chora_kit::modes::Act;
+    let (mut construct, _) = on_core("leave-tap", |_, _| None);
+    construct.cube = Some(host_of(FACES));
+    construct.regrab().unwrap();
+    for chord in ["Super+Super_L", "Super+Super_R", "Super+e", "Super+q"] {
+        assert!(
+            construct.rt.action(chord).is_none(),
+            "{chord} stays with the program of the face in use mode"
+        );
+    }
+    let host = construct.cube.as_mut().expect("the cube");
+    assert!(host.view.act(Act::StepBack), "the cube stands back");
+    construct.regrab().unwrap();
+    assert!(
+        construct.rt.action("Super+Super_L").is_none(),
+        "standing back, the construct holds no tap"
+    );
+}
+
+/// A press on a pane in the walk gives its window the keyboard where the
+/// pane stands; the camera is in no pane. The construct then swallows the
+/// unbound Super chords and the tap of Super for that window, and keeps
+/// its own chords, as in a pane that the camera flew into (co-25, persona
+/// Max of p2-r2); the walk that takes the keyboard back lets them go.
+#[test]
+fn a_pane_window_with_the_keyboard_from_a_press_holds_the_super_chords() {
+    use chora_kit::runtime::Plugin as _;
+    let (mut construct, _) = on_core("swallow-pressed", |_, _| None);
+    construct.panes.push(crate::Pane {
+        name: "probe".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    construct.regrab().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "the walk holds none"
+    );
+    let focus = chora_kit::testing::focus_changed;
+    construct.event(focus(Some("s1"))).unwrap();
+    assert!(!construct.in_pane(), "the camera is in no pane");
+    for chord in ["Super+q", "Super+d", "Super+Tab", "Super+Super_L"] {
+        assert!(
+            construct.rt.action(chord).is_some(),
+            "{chord} reaches the pressed window"
+        );
+    }
+    assert!(
+        construct.rt.action("Super+F1").is_some(),
+        "the key list keeps its key"
+    );
+    let _ = construct.keys_to_the_walk();
+    construct.regrab().unwrap();
+    assert!(
+        construct.rt.action("Super+q").is_none(),
+        "the walk took the keyboard; the core still focuses s1"
+    );
+    construct.event(focus(Some("s1"))).unwrap();
+    assert!(construct.rt.action("Super+q").is_some(), "s1 has it again");
+    construct.event(focus(None)).unwrap();
+    for chord in ["Super+q", "Super+Super_L", "Super+F1"] {
+        assert!(
+            construct.rt.action(chord).is_none(),
+            "{chord} stays held after the walk took the keyboard"
+        );
+    }
+}
+
 /// A held cube turns with the hand; a hand that holds nothing moves nothing
 /// and releases nothing.
 #[test]

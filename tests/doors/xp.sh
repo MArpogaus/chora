@@ -187,7 +187,10 @@ helper_word_shows() {
 }
 cell_helper_door() {
     settle
-    until_ok helper_word_shows 80 || { echo "FAIL: helper-door: no helper word shows" >&2; return 1; }
+    until_ok helper_word_shows 80 || {
+        echo "FAIL: helper-door: no helper word shows: tip '$(node_text xp-tooltip)', helper node $(ctl query "id:xp-helper-$output" | jq -c '.[0] | {meta, visible}'), voice $(ctl call voice state 2>&1 | head -c 300)" >&2
+        return 1
+    }
     local clicks=0
     while [ "$clicks" -lt 3 ]; do
         clicks=$((clicks + 1))

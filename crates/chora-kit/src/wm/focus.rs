@@ -74,15 +74,37 @@ pub struct Focus {
     node: Option<String>,
     /// The surface that the core focuses, as it told or the look sent.
     core: Option<String>,
+    /// The owner of a node that took the keyboard, as `focus.node` told,
+    /// unless it is the own node of `node`: the focused surface stays, but
+    /// no window has the keys meanwhile.
+    away: Option<String>,
 }
 
 impl Focus {
     /// Takes in a `focus.changed` of the core and returns its surface, as
     /// [`changed`]; other events change nothing.
     pub fn hear<'a>(&mut self, event: &'a Event) -> Option<Option<&'a str>> {
+        if let Event::FocusNode { node, owner } = event {
+            self.away = (node.as_ref())
+                .filter(|n| Some(n.as_str()) != self.node.as_deref())
+                .and(owner.clone());
+            return None;
+        }
         let surface = changed(event)?;
         self.moved(surface);
         Some(surface)
+    }
+
+    /// The own node that has the keyboard, as the look sent it.
+    #[must_use]
+    pub fn node(&self) -> Option<&str> {
+        self.node.as_deref()
+    }
+
+    /// The core does not focus the own node any more: another client took
+    /// the keyboard with a node, which tells the look nothing.
+    pub fn drop_node(&mut self) {
+        self.node = None;
     }
 
     /// The surface that the core focuses, as it told or the look sent.
@@ -110,15 +132,17 @@ impl Focus {
         if self.surface.as_deref() == Some(surface) {
             self.lose();
             self.surface = None;
+            self.core = None;
         }
     }
 
     /// Another client took the keyboard without a window, as a chat that
-    /// opens over the look.
+    /// opens over the look. Its field is a layer surface: the node of the
+    /// look loses the keyboard, but the core still focuses the window
+    /// under the field, which stays the holder (I3).
     pub fn lose(&mut self) {
         self.lost = true;
         self.node = None;
-        self.core = None;
     }
 
     /// A window of the look takes the focus back: the next transaction
@@ -128,6 +152,14 @@ impl Focus {
             self.lost = false;
             self.sent = false;
         }
+    }
+
+    /// A click or a pointer on a window of the look that the look had lost
+    /// to another client or node ([`Focus::lost_to_other`]): the next
+    /// transaction sends the focus, even when it is the one sent before.
+    pub fn reclaim(&mut self) {
+        self.lost = false;
+        self.sent = false;
     }
 
     /// Whether a transaction sends the focus `focus`.
@@ -163,11 +195,36 @@ impl Focus {
         Command::FocusNode { node }
     }
 
-    /// Who holds the keyboard; `own` tells the windows of the look. A
-    /// window of the look that the core focuses holds it, also one that
-    /// the look did not send.
+    /// Who holds the keyboard, seen from the look `name`; `own` tells the
+    /// windows of the look. A window of the look that the core focuses
+    /// holds it, also one that the look did not send; a node of the look
+    /// itself that `focus.node` tells is no loss.
     #[must_use]
-    pub fn holder(&self, own: impl Fn(&str) -> bool) -> Holder {
+    pub fn holder(&self, name: &str, own: impl Fn(&str) -> bool) -> Holder {
+        if self.taken_by_other(name) {
+            return Holder::Foreign;
+        }
+        self.held(own)
+    }
+
+    /// Whether a node of another client than `name` has the keyboard.
+    #[must_use]
+    pub fn taken_by_other(&self, name: &str) -> bool {
+        self.away.as_deref().is_some_and(|owner| owner != name)
+    }
+
+    /// Whether the look `name` has lost the keyboard that it sent: another
+    /// client took it ([`Focus::lost`]), a node of another client has it, or
+    /// the core focuses another surface than the sent one, or none.
+    #[must_use]
+    pub fn lost_to_other(&self, name: &str) -> bool {
+        self.lost
+            || self.taken_by_other(name)
+            || (self.sent && self.surface.is_some() && self.core != self.surface)
+    }
+
+    /// Who holds the keyboard, without the node of `focus.node`.
+    fn held(&self, own: impl Fn(&str) -> bool) -> Holder {
         if let Some(node) = &self.node {
             return Holder::Node(node.clone());
         }
@@ -181,7 +238,7 @@ impl Focus {
     /// The focus of `state.get` of the look `name`.
     #[must_use]
     pub fn state(&self, name: &str, own: impl Fn(&str) -> bool) -> state::Focus {
-        let (holder, surface) = match self.holder(own) {
+        let (holder, surface) = match self.holder(name, own) {
             Holder::Window(surface) => (Some(name.into()), Some(surface)),
             Holder::Node(_) => (Some(name.into()), None),
             Holder::Foreign | Holder::Nobody => (None, None),

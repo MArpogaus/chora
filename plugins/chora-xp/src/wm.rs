@@ -85,6 +85,10 @@ use crate::{
 const VOLUME_AGAIN: Duration = Duration::from_secs(5);
 /// The client name, and the group of all nodes of the plugin.
 pub const NAME: &str = "xp";
+/// The root group of the wallpaper and the icons, in the background order
+/// (D89): the windows of another window manager on the same output show
+/// above the desktop of xp, as above the page of mc.
+const DESKTOP: &str = "xp-desktop";
 const WALLPAPERS: &str = "xp-wallpapers";
 const WINDOWS: &str = "xp-windows";
 const BARS: &str = "xp-bars";
@@ -114,7 +118,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 25] = [
+const EVENTS: [&str; 26] = [
     "client.connected",
     "client.disconnected",
     "surface.created",
@@ -131,6 +135,7 @@ const EVENTS: [&str; 25] = [
     "output.removed",
     "input.key",
     "focus.changed",
+    "focus.node",
     "node.key",
     "input.button",
     "input.moved",
@@ -277,6 +282,8 @@ pub struct Wm {
     focused: Option<String>,
     /// The surface of the last `focus.changed`; read only by `state.get`.
     core_focus: Option<String>,
+    /// The owner of the node with the keyboard, as `focus.node` told.
+    key_node: Option<String>,
     bars: Vec<Bar>,
     menu: Menu,
     drag: Option<Drag>,
@@ -313,6 +320,11 @@ pub struct Wm {
     context: Option<(context::Menu, Rect)>,
     /// The window of the open system menu.
     sys_window: Option<String>,
+    /// The client names of the looks that take a window, as of the last
+    /// client event: the Send To rows read it, the press asks no one.
+    looks: Vec<String>,
+    /// The last `clients.list` failed (one warn line per streak).
+    looks_failed: bool,
     /// The last press on the icon of a title bar, for the double click.
     last_icon: Option<(String, Instant)>,
     /// The settings of Taskbar and Start Menu Properties.

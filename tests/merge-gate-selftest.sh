@@ -424,7 +424,7 @@ gate_only() {
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
 check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
 mkdir "$work/nopc"
-for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout; do
+for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout setsid ps; do
     ln -s "$(command -v "$tool")" "$work/nopc/$tool"
 done
 rm -rf "$work/runs"
@@ -556,6 +556,8 @@ check "gate-lib: the step runs merge-gate-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/merge-gate-selftest.sh')" 1
 check "gate-lib: the step runs cells-for-selftest.sh" \
     "$(grep '^gate-lib|' "$gate" | grep -c 'tests/cells-for-selftest.sh')" 1
+check "gate-lib: the step runs matrix-cap-selftest.sh" \
+    "$(grep '^gate-lib|' "$gate" | grep -c 'tests/matrix-cap-selftest.sh')" 1
 
 printf 'one|true\nlauncher|echo "SKIP: fuzzel 1.9.2 < 1.11"\nthree|echo "ok: three"\n' >"$work/steps"
 run_gate
@@ -599,6 +601,17 @@ check "ci-check: the step runs before build in the step list" \
     "$("$gate" --list | grep -nx -e ci-check -e build | head -1 | cut -d: -f2)" ci-check
 check "ci-check: tools/cut-check is the first command of the step" \
     "$(grep '^ci-check|' "$gate" | cut -d'|' -f2 | grep -c '^tools/cut-check ')" 1
+
+mark="orphan-mark-$$-$RANDOM"
+rm -f "$work/orphan.pids"
+printf 'fail|sleep 1; exit 1\nsib|bash -c "echo \\$\\$ >>%s; sleep 60; : %s" & wait\n' "$work/orphan.pids" "$mark" >"$work/steps"
+run_gate --jobs 2
+check "orphan: a red step fails the gate" "$rc" 1
+sleep 0.5
+# shellcheck disable=SC2009
+check "orphan: no process of a sibling step is alive after the gate exits" \
+    "$(ps -eo args= | grep -c -e "${mark/mark/mar[k]}" | tr -d " ")" 0
+while read -r orphan_pid; do kill -KILL "$orphan_pid" 2>/dev/null; done <"$work/orphan.pids"
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"

@@ -9,7 +9,7 @@ use chora_kit::wm::{Change, Created, Phase, Why};
 use chora_scene::Event;
 use serde_json::Value;
 
-use super::{ClientError, Command, Construct, LOOK};
+use super::{ClientError, Construct};
 
 impl Construct {
     /// A surface was created: the book says whether it is free for the
@@ -49,6 +49,7 @@ impl Construct {
                 .conn
                 .apply(vec![chora_kit::wm::focus::give(surface)]);
         }
+        self.walk_keys = true;
         self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }
 
@@ -148,9 +149,8 @@ impl Construct {
     fn forget_window(&mut self, surface: &str) -> Result<(), ClientError> {
         if self.launcher_window.as_deref() == Some(surface) {
             self.launcher_window = None;
-            return self.rt.conn.apply(vec![Command::FocusNode {
-                node: Some(LOOK.into()),
-            }]);
+            let walk = self.keys_to_the_walk();
+            return self.rt.conn.apply(vec![walk]);
         }
         self.hidden.retain(|s| s != surface);
         self.forget(surface)
@@ -260,7 +260,7 @@ mod tests {
             window["origin"].clone()
         };
         assert_eq!(origin("s1"), "new");
-        assert_eq!(origin("s2"), "given");
+        assert_eq!(origin("s2"), "new");
         assert!(!state.to_string().contains("t1"), "no token in the state");
     }
 

@@ -89,7 +89,10 @@ fn two_looks_in_two_panes_do_not_both_hold_the_focus() {
     both_hear([&mut xp, &mut tiling], "t1");
     assert_eq!(tiling.state(), holds("tiling", Some("t1")));
     assert_eq!(xp.state(), state::Focus::default(), "xp lost the focus");
-    assert_eq!(xp.focus.holder(|s| xp.book.has(s)), Holder::Foreign);
+    assert_eq!(
+        xp.focus.holder(xp.name, |s| xp.book.has(s)),
+        Holder::Foreign
+    );
     assert!(
         !xp.focus.sends(Some("x1")),
         "a relayout of xp takes no focus"
@@ -111,7 +114,10 @@ fn a_look_holds_the_focus_of_its_own_node() {
             node: Some("page".into())
         }
     );
-    assert_eq!(mc.focus.holder(|_| false), Holder::Node("page".into()));
+    assert_eq!(
+        mc.focus.holder(mc.name, |_| false),
+        Holder::Node("page".into())
+    );
     assert_eq!(mc.state(), holds("mc", None));
     mc.focus.hear(&changed(Some("other")));
     assert_eq!(mc.state(), state::Focus::default());
@@ -140,7 +146,10 @@ fn the_policy_says_where_the_focus_goes_after_a_window() {
     assert_eq!(after(&look, "t1", &Why::Destroyed), None, "t1 had no focus");
     assert_eq!(after(&look, "t3", &Why::Given("xp".into())), None);
     look.focus.gave("t3");
-    assert_eq!(look.focus.holder(|s| look.book.has(s)), Holder::Foreign);
+    assert_eq!(
+        look.focus.holder(look.name, |s| look.book.has(s)),
+        Holder::Foreign
+    );
     look.focus.lose();
     assert_eq!(
         after(&look, "t3", &Why::Destroyed),
@@ -154,21 +163,87 @@ fn the_policy_says_where_the_focus_goes_after_a_window() {
 #[test]
 fn the_holder_is_a_window_of_the_book() {
     let mut look = Look::new("tiling", &["t1"]);
-    assert_eq!(look.focus.holder(|s| look.book.has(s)), Holder::Nobody);
+    assert_eq!(
+        look.focus.holder(look.name, |s| look.book.has(s)),
+        Holder::Nobody
+    );
     look.focus.sent(Some("t1".into()));
     assert_eq!(
-        look.focus.holder(|s| look.book.has(s)),
+        look.focus.holder(look.name, |s| look.book.has(s)),
         Holder::Window("t1".into())
     );
     look.focus.sent(Some("gone".into()));
-    assert_eq!(look.focus.holder(|s| look.book.has(s)), Holder::Nobody);
+    assert_eq!(
+        look.focus.holder(look.name, |s| look.book.has(s)),
+        Holder::Nobody
+    );
     look.focus.hear(&changed(Some("t1")));
     assert_eq!(
-        look.focus.holder(|s| look.book.has(s)),
+        look.focus.holder(look.name, |s| look.book.has(s)),
         Holder::Window("t1".into()),
         "a window of the look that the core focused holds it"
     );
     let command = look.focus.to(Some("t1".into()));
     assert!(matches!(command, Command::Focus { .. }));
     assert!(look.focus.sent && !look.focus.sends(Some("t1")));
+}
+
+/// The `focus.node` of the core, read from its JSON as a client gets it.
+fn node_event(node: Option<&str>, owner: Option<&str>) -> Event {
+    serde_json::from_value(serde_json::json!({"event": "focus.node", "node": node, "owner": owner}))
+        .unwrap()
+}
+
+/// I3, p2r2 ricer: tiling and xp on one output. Tiling focused its window
+/// t1, then the Start menu of xp took the keyboard with a node, which
+/// leaves the focused surface as it is: tiling holds no focus while the
+/// node of xp has the keyboard, and holds it again when the node lets go.
+#[test]
+fn a_node_of_another_look_takes_the_focus_from_the_window() {
+    let mut tiling = Look::new("tiling", &["t1"]);
+    tiling.focus.sent(Some("t1".into()));
+    tiling.focus.hear(&changed(Some("t1")));
+    assert_eq!(tiling.state(), holds("tiling", Some("t1")));
+    tiling.focus.hear(&node_event(Some("xp-menu"), Some("xp")));
+    assert_eq!(
+        tiling.state(),
+        state::Focus::default(),
+        "the menu of xp has the keyboard"
+    );
+    assert_eq!(
+        tiling.focus.holder(tiling.name, |s| tiling.book.has(s)),
+        Holder::Foreign
+    );
+    tiling.focus.hear(&node_event(None, None));
+    assert_eq!(
+        tiling.state(),
+        holds("tiling", Some("t1")),
+        "the keyboard is back on t1"
+    );
+    tiling
+        .focus
+        .hear(&node_event(Some("tiling-keys"), Some("tiling")));
+    assert_eq!(
+        tiling.state(),
+        holds("tiling", Some("t1")),
+        "an own node is no loss"
+    );
+}
+
+/// rw-5: an own node that the look does not track (the key list of
+/// tiling, no `to_node`) is no loss for `holder` either: it answers the
+/// window of the look, as `state` does.
+#[test]
+fn holder_and_state_agree_for_an_own_node_that_is_not_tracked() {
+    let mut tiling = Look::new("tiling", &["t1"]);
+    tiling.focus.sent(Some("t1".into()));
+    tiling.focus.hear(&changed(Some("t1")));
+    tiling
+        .focus
+        .hear(&node_event(Some("tiling-keys"), Some("tiling")));
+    assert_eq!(tiling.state(), holds("tiling", Some("t1")));
+    assert_eq!(
+        tiling.focus.holder(tiling.name, |s| tiling.book.has(s)),
+        Holder::Window("t1".into())
+    );
 }

@@ -25,6 +25,17 @@ ENTRIES = [
 ]
 
 
+NOTICE_SECONDS = 600
+
+
+def notify_config(position="bottom_right"):
+    """The chora-notify.yaml of every session of the tour, in one place. chora-notify expires a card
+    on the wall clock (default 10 s) and `choractl record` steps the scene clock (a frame takes
+    seconds of wall time), so a card was gone before its frames were reached (tour r1 F-1, rt-2).
+    This keeps it for NOTICE_SECONDS. Notify on the scene clock is the product fix (backlog)."""
+    return f"position: {position}\nshortest: {NOTICE_SECONDS}\nlongest: {NOTICE_SECONDS}\n"
+
+
 def wpctl_stub(directory):
     path = os.path.join(directory, "wpctl")
     state = os.path.join(directory, "wpctl.state")
@@ -137,7 +148,7 @@ class Launcher:
         os.makedirs(f"{self.dir}/stub", exist_ok=True)
         os.makedirs(f"{self.dir}/config/chora", exist_ok=True)
         wpctl_stub(f"{self.dir}/stub")
-        for name, text in (extra_config or {}).items():
+        for name, text in {"chora-notify.yaml": notify_config(), **(extra_config or {})}.items():
             with open(f"{self.dir}/config/chora/{name}", "w") as f:
                 f.write(text)
         env = self.base_env()
