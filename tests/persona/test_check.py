@@ -409,6 +409,39 @@ class Covered(unittest.TestCase):
             self.assertIn("windows lost ['s2']", out)
 
 
+class KnownRedNamesBreaches(unittest.TestCase):
+    """A known-red row hides only the breaches it names (capture, match); an
+    unlisted breach of the same look and invariant prints."""
+
+    ROWS = [{"look": "xp", "id": "I6", "capture": "xp-a", "match": "wants 14 px", "finding": "f", "slice": "s"}]
+
+    def lines(self, *texts):
+        rows = [{"time": 1.0, "action": "x", "look": "xp", "invariant": "I6", "breach": t} for t in texts]
+        return "".join(json.dumps(r) + "\n" for r in rows)
+
+    def found(self, *texts):
+        original = check.harness.known_red
+        check.harness.known_red = lambda: self.ROWS
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                run = FakeRun(folder, snap())
+                (run.dir / "breaches.jsonl").write_text(self.lines(*texts))
+                return [b["breach"] for b in run.breaches()]
+        finally:
+            check.harness.known_red = original
+
+    def test_a_listed_breach_is_hidden(self):
+        self.assertEqual(self.found("(xp-a) guide wants 14 px"), [])
+
+    def test_another_element_of_the_same_pair_prints(self):
+        text = "(xp-b) guide wants 14 px"
+        self.assertEqual(self.found("(xp-a) guide wants 14 px", text), [text])
+
+    def test_another_text_of_the_same_pair_prints(self):
+        text = "(xp-a) overlaps (xp-c)"
+        self.assertEqual(self.found(text), [text])
+
+
 def pane_node(visible=True):
     return {"id": "construct-pane-s1", "kind": "group", "owner": "construct", "visible": visible}
 
