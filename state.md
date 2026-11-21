@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 18:46 UTC)
+## Now (2026-11-21 18:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 17:45 week 6.1 % (0.44 %/h since reset, under pace 8.3 %; 6 lanes); disk: one train at a time on the PM machine (not a lane limit); 6 lanes
 session branch: 892d035c; 58 greens; t101 green 17:45 (7 branches); t102 running. F5 series r4 5/5 green at --jobs 2 (16:21).
@@ -10,7 +10,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | # | Criterion | State |
 |---|---|---|
 | 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r4, mc r5 meet; P2-R5-CO 18:10: fails T1, T2 (by mouse in a face), I3 MAJOR (pre-existing, co-i3 r1 507e034a); tiling r3 22:03: 0 breaches |
+| 2 | Persona round 4 | xp r4, mc r5 meet; P2-R5-CO 18:10: fails T1, T2 (by mouse in a face), I3 MAJOR co-43 (pre-existing); tiling r3 22:03: 0 breaches |
 | 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
 | 4 | CI green | green on 29e2cd77 13:13 |
 | 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 |---|---|---|
 | co-hint-r1.md (rc 2, F7: co-42 hint) | sonnet medium, claude/co-hint c69354ae | session_016iS3kL6rhVtqF6gejqFJ7c 14:10 |
 | keys-route-r1.md (rc 2, Queue 5: stray keys) | sonnet high, claude/keys-route 892d035c | session_016iS3kLf6vLYHFxmrD54UXA 17:48 |
-| co-i3-r2.md (rc 2: I3 MAJOR fix, construct state.rs:66) | sonnet medium, claude/co-i3 afd63654 | starting |
+| co-i3-r2.md (rc 2: I3 MAJOR co-43, state.rs:66) | sonnet medium, claude/co-i3 afd63654 | session_016iS3kN5DHMzYVqzbjQCKev 18:47 |
 | kit-cov-r1.md (F5: kit coverage, row 42) | haiku high, claude/kit-cov 892d035c | session_016iS3kMkZ848r7NTUByYjVq 17:54 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
