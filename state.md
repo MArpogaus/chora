@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-21 08:20 UTC)
+## Now (2026-11-21 08:22 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:30 week 4.4 % (1.3 %/h over 3.5 h, above pace: 5 lanes, sixth slot held); disk 16 G: one build at a time; 6 lanes
+budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 %; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:22 week 4.7 % (1.1 %/h over 4.4 h, above pace; PM opus is most of it, lanes cheap: PM reviews short, lanes 2-4); disk 16 G: one build at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35. F5 series waits for flakes-r (a series now blocks trains for 5 h).
 burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadline, carried into this week (owner 11-17 15:35).
 
