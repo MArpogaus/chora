@@ -39,3 +39,8 @@ Range 598a34ff..fb9827a0, 10 files +193 -22; red d3cc19de before fix 6fa86c16. C
 - rmm-2 MINOR: no after captures (brief asked); the units and mc-* cells stand as evidence; captures in the next compositor run.
 - rmm-3 NIT: README says chat body 19 while chora-assistant still falls back to 18 (Face::serif(18)); backlog, outside mc.
 Verdict computed: FIX (rmm-1). Earliest gate: pre-commit lint-ratchet accepts a raised allow line; harness backlog item (a raise needs `ratchet-raise:` in the message).
+
+## r2 (head 12869800)
+rmm-1 fixed: both new too_many_lines allows dropped. `Mc::panel` (layout.rs) split into panel_title, panel_body, panel_rows, panel_lines, panel_empty with a `Spot` struct; the second allow was on `stack` in region.rs (not a minor.rs test): split into measure_side and stack_item. Ratchet allow 360. No change of behaviour: cargo test -p chora-mc 189 pass, clippy clean.
+Merge of autonomous-dev-session-3w-i33pg7: already an ancestor (598a34ff), no-op.
+Gate (--jobs 1, pre-commit,ci-check,build,test,clippy,acts,doors,mc-paths,mc-sofa,mc-column,mc-handover): all PASS.
