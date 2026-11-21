@@ -108,3 +108,6 @@ Head  (merge of origin/claude/autonomous-dev-session-3w-i33pg7 plus 73180551).
 Cause: tests/agent.sh:70 and :336 and tests/nested.sh:60 started chora-tiling without --no-companions; since 60314da1 the bar starts and reserves 40 px / moves windows (ys_are 14 407, work area [100,90,1280,760]).
 Fix: --no-companions at those three lines; no product change. Other gate scripts left unchanged: they passed.
 Gate: pre-commit, build, agent, e2e, tiling-audit, tiling-look, doors all PASS (e2e skipped only missing-tool gates).
+
+## PM review r3
+MERGE-OK on 73180551 (test-only: tests/agent.sh:70,:336 and tests/nested.sh:60 pass --no-companions; no product change). Lane gate green: pre-commit, build, agent, e2e, tiling-audit, tiling-look, doors. Joins t100 with co-keys r3.
