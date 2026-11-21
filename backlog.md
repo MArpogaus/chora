@@ -354,3 +354,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - HARNESS (11-20 t93 red): xp-tidy changed flavors/shared/screenshot.sh but its lane gate list had no tiling-look; earliest gate: a path-to-cell map (tools/cells-for <diff>) that start_lane.sh puts into each brief's --only list.
 - TOUR (11-20 review-tour-one r2, MINOR/nit): rt-8 SCRIPT_CLIENTS drops every client named choractl (fix: --name tour); rt-9 dismiss_notices skips queued waiting cards; rt-10 quiet_snapshot timeout silent; rt-11 tour-probe.py hardcoded /tmp; rt-12 known="I4,I5" partial drop.
 - GIVE-TOP (give-raise PM check rv-1, rv-2, MINOR): matrix assert that the given window is the receiver's top window inside its group, and an assert for mc and construct receivers.
+- HARNESS (11-21 xp-super-start r3, sh-23 not reproduced): persona rounds dump `choractl query xp` (open menus, focus) at each `act.py look` into the round dir, so a one-off state names itself.

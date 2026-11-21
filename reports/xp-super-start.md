@@ -41,3 +41,8 @@ Head 31736130 on claude/xp-super-start (unchanged, no code commit). Not reproduc
 - Not copied from the ricer's run: the persona's helper transcript seed and its clock (its shot shows 21:52, mine 00:23), the exact timing of actions inside fuzzel. Everything the log holds is replayed.
 - No red cell possible, no fix, no gate cells run (no code change). Lint ratchet untouched.
 - Reading: with the whole log, 3 of 3 stay shut, as r1 and r2. sh-23 is not reproduced on 31736130. If the ricer's state differs, the unlogged parts are the helper transcript seed and anything not sent through act.py (the persona ran one `which` in its own shell); next step would be a replay that also seeds the transcript, or a ricer round with the xp state (choractl query xp, `open`) dumped at each look.
+
+## PM check r3 (2026-11-21 00:29 UTC)
+Verdict: done, not reproduced (brief r3 done criterion "3 full replays never reproduce"). Checked: replay-a/015 matches the ricer's 014 layout (two foot, desk 1, same rects) with no Start menu; probe valid (Super_L tap opens xp-item-0). xs-3 closed (full log replayed), xs-4 closed (round.sh, PERSONA_CHECK=1).
+Difference left: the ricer's 014 has the pointer on the bar's Keys item (yellow marker) and a seeded helper transcript; neither is in act.py's log.
+sh-23: MAJOR -> known issue "xp Start menu seen open once after Super+Return in a persona run; not reproduced in 3+3+3 replays". Harness backlog H: persona rounds dump `choractl query xp` at each look, so a repeat names its state. No merge (no code).
