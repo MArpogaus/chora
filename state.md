@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | flakes-r.md (F5: FLK-DOORS-CO, FLK-MATRIX-S1, FLK-XP-FACES) | sonnet high, claude/flakes-r a5b77488 | session_016iS3kQqiW8EoPxjH4tvYxg 04:25 |
 | review-chapters-a-r2.md (F7: rca-1..5) | sonnet medium, claude/chapters-a 186d8506 | session_016iS3kPH9fAtTCPw6p3DmZd 06:05 |
 | ti-29-r1.md (rc 2 tiling: launcher order, helper panel covers tile) | sonnet medium, claude/ti-29 598a34ff | session_016iS3kMGHWcQ12HZmuhWrPd 06:25 |
-| xp-37-r1.md (xp MINOR: rxf-1..4, 6; pixel round 2 of 2) | sonnet medium, claude/xp-37 9a6506d6 | starting |
+| xp-37-r1.md (xp MINOR: rxf-1..4, 6; pixel round 2 of 2) | sonnet medium, claude/xp-37 9a6506d6 | session_016iS3kM5HiUCpS3mS1QRtvH 06:28 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, rc 2-3) t97 green 05:35; next train: xp-fields 9a6506d6 (MERGE-OK), chapters-a r2 after review; flakes-r later.
