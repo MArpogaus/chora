@@ -28,3 +28,7 @@ Verdict (computed): no BLOCK or MAJOR: MERGE-OK, head 4f07fe6c, joins train 95.
 - fix dad65a95: `check begin` right before the give in the construct case; no other `check end` without a begin in tests/ (probe-check.sh, round.sh already begin). check.py unchanged.
 - head: dad65a95. Cells PASS: pre-commit, ci-check, build, doors, acts; tests/persona-selftest.sh twice green.
 - gate-lib FAIL (3 checks of merge-gate-selftest: "leaves no log directory" got 4/6, want 0), identical on the untouched session head 618ae513, so not from this lane; not touched.
+
+## PM review r2 (2026-11-21 01:50 UTC; PM is not the builder; small diff)
+d72ca975..dad65a95: tests/persona-selftest.sh:245 adds `check begin` before the give in construct C2, the exact t95 red (acts: "no `begin` for this goal"). The merge d72ca975 is red at C2 first, as briefed. Lane gate-lib "leaves no log directory" 4/6 is the lane container: gate-lib passed on 618ae513 in t94b and t95b here.
+Findings: none open. Verdict (computed): MERGE-OK; harness branch: train 96 alone, then flakes-q in train 97.
