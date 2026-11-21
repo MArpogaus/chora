@@ -241,6 +241,21 @@ mod tests {
         assert_eq!(beside(area, Some([2000, 0, 10, 10])), area);
     }
 
+    #[test]
+    fn a_centred_full_width_top_bottom_or_empty_rect_leaves_the_area_whole() {
+        use super::beside;
+        let area = [0, 40, 1280, 740];
+        assert_eq!(beside(area, Some([440, 52, 400, 736])), area, "centred");
+        assert_eq!(beside(area, Some([12, 52, 1256, 736])), area, "full width");
+        assert_eq!(beside(area, Some([868, 52, 400, 300])), area, "top half");
+        assert_eq!(
+            beside(area, Some([868, 500, 400, 280])),
+            area,
+            "bottom half"
+        );
+        assert_eq!(beside(area, Some([868, 52, 0, 736])), area, "no width");
+    }
+
     use super::*;
 
     const AREA: Rect = [0, 0, 100, 60];

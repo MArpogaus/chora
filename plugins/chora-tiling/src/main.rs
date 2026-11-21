@@ -1923,6 +1923,56 @@ mod tests {
         assert!(tiling.dragged.is_some(), "an injected press in a test");
     }
 
+    fn panel_data(open: bool, rect: &Value) -> Event {
+        Event::Emitted {
+            event: "assistant.chat".into(),
+            client: "assistant".into(),
+            data: serde_json::json!({"output": "A", "open": open, "rect": rect}),
+        }
+    }
+
+    /// A tiling with one output whose panel is open.
+    fn with_open_panel(tag: &str) -> Tiling {
+        let (mut tiling, _) = on_fake_core_with(tag, &[]);
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling
+            .handle(panel_data(true, &serde_json::json!([60, 0, 40, 60])))
+            .unwrap();
+        tiling
+    }
+
+    #[test]
+    fn a_null_rect_or_a_closed_chat_gives_the_panel_back() {
+        let mut tiling = with_open_panel("panel-null");
+        assert!(!tiling.wm.set_panel("A", Some([60, 0, 40, 60])), "open");
+        tiling.handle(panel_data(true, &Value::Null)).unwrap();
+        assert!(!tiling.wm.set_panel("A", None), "null rect cleared it");
+        tiling
+            .handle(panel_data(true, &serde_json::json!([60, 0, 40, 60])))
+            .unwrap();
+        tiling
+            .handle(panel_data(false, &serde_json::json!([60, 0, 40, 60])))
+            .unwrap();
+        assert!(!tiling.wm.set_panel("A", None), "open false cleared it");
+    }
+
+    #[test]
+    fn the_panel_goes_with_the_assistant() {
+        let gone = Event::ClientDisconnected {
+            name: "assistant".into(),
+        };
+        let ready = Event::Emitted {
+            event: "assistant.ready".into(),
+            client: "assistant".into(),
+            data: Value::Null,
+        };
+        for (tag, event) in [("panel-gone", gone), ("panel-ready", ready)] {
+            let mut tiling = with_open_panel(tag);
+            tiling.handle(event).unwrap();
+            assert!(!tiling.wm.set_panel("A", None), "{tag}: still reserved");
+        }
+    }
+
     fn tiler(windows: &[&str]) -> Wm {
         let mut wm = Wm::new(settings::parse(crate::config::DEFAULT).unwrap());
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);

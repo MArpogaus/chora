@@ -1263,6 +1263,19 @@ mod tests {
         wm
     }
 
+    #[test]
+    fn a_panel_is_reserved_on_one_output_only() {
+        let mut wm = wm(&[]);
+        wm.set_output("B", [100, 0, 100, 60], [100, 0, 100, 80]);
+        let rect = Some([60, 0, 40, 60]);
+        assert!(wm.set_panel("A", rect));
+        assert!(!wm.set_panel("A", rect), "unchanged");
+        assert!(wm.set_panel("B", rect), "moves to B and leaves A");
+        assert!(!wm.set_panel("B", rect));
+        assert!(wm.set_panel("B", None));
+        assert!(!wm.set_panel("A", None), "A was cleared by the move");
+    }
+
     fn shown(wm: &Wm) -> Vec<(String, Option<[i32; 2]>)> {
         wm.arrange().into_iter().map(|p| (p.id, p.at)).collect()
     }
