@@ -301,6 +301,23 @@ mod tests {
         );
     }
 
+    /// HT-rx-1: the Start menu of xp has the keys when the foreign window
+    /// that had the focus goes: the icons do not take them from the menu.
+    #[test]
+    fn the_desktop_icons_leave_the_keys_of_the_start_menu_of_xp() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-menu");
+        wm.event(focus("t1")).unwrap();
+        let taken = json!({"event": "focus.node", "node": "xp-menu", "owner": "xp"});
+        wm.event(serde_json::from_value(taken).unwrap()).unwrap();
+        assert!(wm.own_node(), "the menu of xp has the keyboard");
+        let sent = wm.focus_moved(None);
+        assert!(
+            sent.iter()
+                .all(|c| !matches!(c, chora_scene::Command::FocusNode { .. })),
+            "the icons took the keys from the open Start menu: {sent:?}"
+        );
+    }
+
     /// The core says that the icons of xp hold the keyboard while a window
     /// of another look has the focus: xp sent them the keys from a view of
     /// the focus older than the window's, so it takes them back. The icons
