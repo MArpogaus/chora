@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 07:40 UTC)
+## Now (2026-11-21 07:41 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:30 week 4.4 % (1.3 %/h over 3.5 h, above pace: 5 lanes, sixth slot held); disk 16 G: one build at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35. F5 series waits for flakes-r (a series now blocks trains for 5 h).
@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-guide-checks-r3.md (F7: seeded review r3-r6, b1b8b73a) | sonnet high, claude/guide-checks b1b8b73a | starting |
+| review-guide-checks-r3.md (F7: seeded review r3-r6, b1b8b73a) | sonnet high, claude/guide-checks b1b8b73a | session_016iS3kQfRPPBDixu94bK3Xk 07:41 |
 | co-keys-r2.md (rc 2: review FIX, rck-1 MAJOR F1 hint without grant) | sonnet medium, claude/co-keys e965470a | session_016iS3kNYV7ASTDhYTq5e5jd 06:58 |
 | ti-29-r2.md (rc 2 tiling: review FIX 07:37, rti-1 MAJOR any chat rect reserved) | sonnet medium, claude/ti-29 99caf20c | session_016iS3kLPucY6en7C8TDzL3g 07:37 |
 | mc-minor-r1.md (mc MINOR: mc-50, 41, 14, 13; pixel 1 of 2) | sonnet medium, claude/mc-minor 598a34ff | session_016iS3kQXNCT5mFuyYRjdF89 07:09 |
