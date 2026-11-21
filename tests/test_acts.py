@@ -443,6 +443,37 @@ class KnownRed(unittest.TestCase):
         seen = "in act 'new': on O '12:00' (xp-tray-O) has the contrast 1.00:1 (a on a), the guide wants 4.5:1"
         self.assertTrue(harness.judge({("xp", "I1"): [seen]}, [row]).blocking)
 
+    TRAY = {"look": "xp", "node": "xp-tray-", "reason": "authentic Luna tray, vision card"}
+
+    @staticmethod
+    def contrast(node, ratio, act="a"):
+        return f"in act {act!r}: on O '12:00' ({node}) has the contrast {ratio:.2f}:1 (#fff on #3a6ea5), the guide wants 4.5:1"
+
+    def test_a_tray_text_breach_passes_by_one_exemption_in_any_act(self):
+        for look, act in (("xp", "a"), ("construct", "b")):
+            seen = self.contrast("xp-tray-VIRTUAL-1", 3.27, act)
+            verdict = harness.judge({(look, "I6"): [seen]}, [], exempt=[self.TRAY])
+            self.assertEqual(verdict.blocking, [])
+            self.assertIn((look, "I6"), verdict.passed)
+
+    def test_the_same_breach_on_another_xp_node_still_fails(self):
+        seen = self.contrast("xp-clock-O", 3.27)
+        self.assertTrue(harness.judge({("xp", "I6"): [seen]}, [], exempt=[self.TRAY]).blocking)
+
+    def test_a_tray_breach_that_is_not_the_luna_contrast_still_fails(self):
+        self.assertTrue(harness.judge({("xp", "I6"): [self.contrast("xp-tray-O", 1.0)]}, [], exempt=[self.TRAY]).blocking)
+        small = "in act 'a': on O '12:00' (xp-tray-O) is 12 px, the guide wants 14 px"
+        self.assertTrue(harness.judge({("xp", "I6"): [small]}, [], exempt=[self.TRAY]).blocking)
+
+    def test_an_exemption_row_needs_look_node_and_reason(self):
+        for key in self.TRAY:
+            with self.assertRaises(ValueError):
+                harness.judge({}, [], exempt=[{k: v for k, v in self.TRAY.items() if k != key}])
+
+    def test_the_list_exempts_the_tray_once_and_has_no_flaky_tray_row(self):
+        self.assertEqual([e["node"] for e in harness.exemptions()], ["xp-tray-"])
+        self.assertFalse([r for r in harness.known_red() if "xp-tray" in r.get("capture", "")])
+
     def test_a_flaky_row_needs_evidence_and_an_act(self):
         row = dict(self.rows[0], capture="l1", flaky=True)
         with self.assertRaises(ValueError):
