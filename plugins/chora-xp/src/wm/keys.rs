@@ -144,8 +144,18 @@ impl Wm {
     }
 
     /// A grabbed pointer button: the pointer turns the cube for `cube`,
-    /// and any other action runs at the press.
-    fn button(&mut self, binding: &str, state: PressState, position: [f64; 2]) -> Vec<Command> {
+    /// and any other action runs at the press. A press while Super is held
+    /// makes the release of Super no tap (ca-4): a Super drag on the
+    /// desktop turns the cube and opens no Start menu.
+    pub(super) fn button(
+        &mut self,
+        binding: &str,
+        state: PressState,
+        position: [f64; 2],
+    ) -> Vec<Command> {
+        if let (Some(used), PressState::Pressed) = (&mut self.tap, state) {
+            *used = true;
+        }
         match (self.rt.action(binding), state) {
             (Some(KeyAction::Look(Look::Cube)), PressState::Pressed) => self.grab_cube(position),
             (Some(KeyAction::Look(Look::Cube)), PressState::Released) => {

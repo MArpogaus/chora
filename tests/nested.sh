@@ -57,7 +57,7 @@ wait_for test -S "$XDG_RUNTIME_DIR/wayland-1"
 export WAYLAND_DISPLAY=wayland-1
 
 step "1. chora -- chora-tiling starts nested"
-"$bin/chora" -- "$bin/chora-tiling" >"$out/chora.log" 2>&1 &
+"$bin/chora" -- "$bin/chora-tiling" --no-companions >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
 wait_for compgen -G "$XDG_RUNTIME_DIR/chora/wayland-*[0-9].sock"

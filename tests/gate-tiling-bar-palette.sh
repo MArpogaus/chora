@@ -42,7 +42,7 @@ round() {
     line="$lr $lg $lb"
     "$bin/chora-tiling" --print-config >"$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
     sed -i "s/^  theme: system/  theme: $theme/" "$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
-    env_file=$XDG_CONFIG_HOME/$tag.env session_start "$size" -- "$bin/chora-tiling"
+    env_file=$XDG_CONFIG_HOME/$tag.env session_start "$size" -- "$bin/chora-tiling" --no-companions
     grant screen.capture
     PATH=$bin:$PATH CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$XDG_CONFIG_HOME/wb-$tag.log" 2>&1 &
     run_pid $!

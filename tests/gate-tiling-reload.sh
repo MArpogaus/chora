@@ -18,7 +18,7 @@ printf '#!/bin/sh\nexit 1\n' >"$fake/busctl"
 chmod +x "$fake/busctl"
 export PATH=$fake:$bin:$PATH
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 export CHORA_FLAVOR_DIR=$flavor
 setsid dbus-run-session -- sh "$flavor/wallpaper.sh" >/dev/null 2>&1 &
 run_pid $!

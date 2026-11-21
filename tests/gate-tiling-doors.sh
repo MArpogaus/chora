@@ -24,7 +24,7 @@ export PATH=$fake:$bin:$PATH
 export CHORA_FLAVOR_DIR=$flavor
 temp_config
 tmp_dirs+=("$fake")
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
 run_pid $!
 grant screen.capture input.inject
