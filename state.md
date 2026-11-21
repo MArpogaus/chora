@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 07:08 UTC)
+## Now (2026-11-21 07:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC (owner reset); old week ended near 70 % (owner 14:39: 65 %); pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:27 week 3.9 %; disk 18 G: one build at a time; 6 lanes
 session branch: 598a34ff; 55 greens; t97 green 05:35. F5 series waits for flakes-r (a series now blocks trains for 5 h).
@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | guide-checks-r6.md (F7: Tahoma, I13) | sonnet medium, claude/guide-checks 07aa97d4 | session_016iS3kMLifBUjoYFXgqaZ75 03:44 |
 | co-keys-r2.md (rc 2: review FIX, rck-1 MAJOR F1 hint without grant) | sonnet medium, claude/co-keys e965470a | session_016iS3kNYV7ASTDhYTq5e5jd 06:58 |
 | ti-29-r1.md (rc 2 tiling: launcher order, helper panel covers tile) | sonnet medium, claude/ti-29 598a34ff | session_016iS3kMGHWcQ12HZmuhWrPd 06:25 |
-| mc-minor-r1.md (mc MINOR: mc-50, 41, 14, 13; pixel 1 of 2) | sonnet medium, claude/mc-minor 598a34ff | starting |
+| mc-minor-r1.md (mc MINOR: mc-50, 41, 14, 13; pixel 1 of 2) | sonnet medium, claude/mc-minor 598a34ff | session_016iS3kQXNCT5mFuyYRjdF89 07:09 |
 | gate-path.md (F5: selftest PATH) | sonnet low, claude/gate-path 598a34ff | session_016iS3kNQJyehsuVKCLz4tuV 06:36 |
 
 ## Queue (% week; 5 % reserve)
