@@ -395,9 +395,25 @@ class KnownRed(unittest.TestCase):
         self.assertTrue(harness.judge({("xp", "I1"): [one]}, rows).blocking, "row two is stale")
 
     def test_a_flaky_row_may_stay_unseen(self):
-        rows = [dict(self.rows[0], capture="l1"), dict(self.rows[0], capture="l2", flaky=True)]
+        rows = [dict(self.rows[0], capture="l1"), dict(self.rows[0], act="a", capture="l2", flaky=True, evidence="run 1 with, run 2 without, in act 'a'")]
         one = "in act 'a': on O 'One' (l1) is small"
         self.assertEqual(harness.judge({("xp", "I1"): [one]}, rows).blocking, [])
+
+    def test_the_scene_is_read_again_while_a_text_changes(self):
+        s = object.__new__(harness.Session)
+        clock = iter(["12:00", "12:01", "12:01", "12:01"])
+        reads = []
+
+        def call(method, _params=None):
+            if method == "scene.query":
+                reads.append(1)
+                return [{"id": "c", "text": next(clock)}]
+            return {}
+
+        s.core = type("C", (), {"call": staticmethod(call)})()
+        s.shots = lambda outputs: {}
+        s.settled_scene([], sleep=lambda _t: None)
+        self.assertEqual(len(reads), 4)
 
     def test_a_cell_keeps_the_breaches_of_every_act(self):
         s = object.__new__(harness.Session)

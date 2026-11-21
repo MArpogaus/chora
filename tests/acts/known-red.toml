@@ -6,8 +6,8 @@
 # optional `act` (the act that first shows the breach), `capture` (the
 # label of the node) and `match` (a text of the breach) name one fault:
 # a breach that no row names blocks, and a row that no breach meets is
-# stale and blocks too, unless it says `flaky = true` (a fault that the
-# capture shows in some runs only, so it names no act).
+# stale and blocks too, unless it says `flaky = true` with an `act` and an
+# `evidence` (two runs of that act, one with the fault and one without).
 
 [[red]]
 act = "a drag with the modifier on the front face turns the cube"
@@ -213,15 +213,6 @@ finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
 id = "I6"
 look = "construct"
 match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: the contrast"
-flaky = true
-id = "I6"
-look = "construct"
-match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -531,30 +522,12 @@ match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-capture = "xp-tray-VIRTUAL-1"
-finding = "guide-checks r2: xp-tray-VIRTUAL-1: the contrast"
-flaky = true
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-tray-VIRTUAL-2"
 finding = "guide-checks r2: xp-tray-VIRTUAL-2: guide wants 14 px"
 id = "I6"
 look = "construct"
 match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-capture = "xp-tray-VIRTUAL-2"
-finding = "guide-checks r2: xp-tray-VIRTUAL-2: the contrast"
-flaky = true
-id = "I6"
-look = "construct"
-match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -567,30 +540,12 @@ match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-capture = "xp-tray-VIRTUAL-3"
-finding = "guide-checks r2: xp-tray-VIRTUAL-3: the contrast"
-flaky = true
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the cube opens with one xp on four faces"
 capture = "xp-tray-VIRTUAL-4"
 finding = "guide-checks r2: xp-tray-VIRTUAL-4: guide wants 14 px"
 id = "I6"
 look = "construct"
 match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-capture = "xp-tray-VIRTUAL-4"
-finding = "guide-checks r2: xp-tray-VIRTUAL-4: the contrast"
-flaky = true
-id = "I6"
-look = "construct"
-match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -732,15 +687,6 @@ slice = "none yet: the look is not fixed in this lane"
 act = "without construct the pager of xp switches the desk"
 capture = "xp-pager-3-HEADLESS-1"
 finding = "guide-checks r2: xp-pager-3-HEADLESS-1: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: the contrast"
-flaky = true
 id = "I6"
 look = "construct"
 match = "the contrast"
@@ -1449,27 +1395,9 @@ match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: the contrast"
-flaky = true
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "Super+d puts the windows away"
 capture = "xp-task-s3-HEADLESS-1"
 finding = "guide-checks r2: xp-task-s3-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: the contrast"
-flaky = true
 id = "I6"
 look = "xp"
 match = "the contrast"
@@ -1635,15 +1563,6 @@ finding = "guide-checks r2: xp-tray-HEADLESS-1: guide wants 14 px"
 id = "I6"
 look = "xp"
 match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-capture = "xp-tray-HEADLESS-1"
-finding = "guide-checks r2: xp-tray-HEADLESS-1: the contrast"
-flaky = true
-id = "I6"
-look = "xp"
-match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -1878,4 +1797,147 @@ finding = "guide-checks r2: xp-task-s4-HEADLESS-1: guide wants 14 px"
 id = "I6"
 look = "xp"
 match = "guide wants 14 px"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-1"
+evidence = "run smwbed9z shows it in act 'the cube opens with one xp on four faces', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-1: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-2"
+evidence = "run smwbed9z shows it in act 'the cube opens with one xp on four faces', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-2: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-3"
+evidence = "run smwbed9z shows it in act 'the cube opens with one xp on four faces', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-3: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "the cube opens with one xp on four faces"
+capture = "xp-tray-VIRTUAL-4"
+evidence = "run smwbed9z shows it in act 'the cube opens with one xp on four faces', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-4: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "back at 1:1 no construct surface is left once the hint went"
+capture = "xp-tray-VIRTUAL-1"
+evidence = "run smwbed9z shows it in act 'back at 1:1 no construct surface is left once the hint went', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-1: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "back at 1:1 no construct surface is left once the hint went"
+capture = "xp-tray-VIRTUAL-2"
+evidence = "run smwbed9z shows it in act 'back at 1:1 no construct surface is left once the hint went', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-2: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "back at 1:1 no construct surface is left once the hint went"
+capture = "xp-tray-VIRTUAL-3"
+evidence = "run smwbed9z shows it in act 'back at 1:1 no construct surface is left once the hint went', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-3: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "back at 1:1 no construct surface is left once the hint went"
+capture = "xp-tray-VIRTUAL-4"
+evidence = "run smwbed9z shows it in act 'back at 1:1 no construct surface is left once the hint went', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-VIRTUAL-4: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "construct killed mid-turn leaves the windows with a flat xp within 3 s"
+capture = "xp-tray-HEADLESS-1"
+evidence = "run smwbed9z shows it in act 'construct killed mid-turn leaves the windows with a flat xp within 3 s', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-HEADLESS-1: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "without construct the pager of xp switches the desk"
+capture = "xp-tray-HEADLESS-1"
+evidence = "run smwbed9z shows it in act 'without construct the pager of xp switches the desk', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-HEADLESS-1: the contrast"
+flaky = true
+id = "I6"
+look = "construct"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "a window opens"
+capture = "xp-tray-HEADLESS-1"
+evidence = "run smwbed9z shows it in act 'a window opens', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-HEADLESS-1: the contrast"
+flaky = true
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Super+Shift+e opens Turn Off Computer"
+capture = "xp-tray-HEADLESS-1"
+evidence = "run smwbed9z shows it in act 'Super+Shift+e opens Turn Off Computer', run vtr27slu does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-HEADLESS-1: the contrast"
+flaky = true
+id = "I6"
+look = "xp"
+match = "the contrast"
+slice = "none yet: the look is not fixed in this lane"
+
+[[red]]
+act = "Escape shuts Turn Off Computer"
+capture = "xp-tray-HEADLESS-1"
+evidence = "run vtr27slu shows it in act 'Escape shuts Turn Off Computer', run smwbed9z does not (same binaries, same code)"
+finding = "guide-checks r3: xp-tray-HEADLESS-1: the contrast"
+flaky = true
+id = "I6"
+look = "xp"
+match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"

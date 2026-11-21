@@ -254,6 +254,11 @@ def known_red(path=KNOWN_RED):
         return tomllib.load(f).get("red", [])
 
 
+def scene_texts(nodes):
+    """{id: text} of the nodes that carry a text."""
+    return {n.get("id"): n.get("text") for n in nodes if n.get("text")}
+
+
 def fault(breach):
     """A breach without its quoted texts and evidence: the clock and the
     counts of a label change from act to act, the fault does not."""
@@ -284,6 +289,8 @@ def judge(results, rows, full=False):
         if missing:
             raise ValueError(f"known-red row {row} lacks {', '.join(missing)}")
         listed.setdefault((row["look"], row["id"]), []).append(row)
+        if row.get("flaky") and not (row.get("evidence") and row.get("act")):
+            raise ValueError(f"flaky known-red row {row['finding']!r} needs an act and an evidence of two runs")
     blocking, red, passed = [], [], []
     for key, breaches in sorted(results.items()):
         cell = listed.get(key, [])
@@ -653,6 +660,19 @@ class Session:
                 out[o["name"]] = (shot["width"] / o["size"][0], list(load_png_rows()(png)))
         return out
 
+    def settled_scene(self, outputs, tries=5, sleep=time.sleep):
+        """The nodes, the boxes and the captures of a moment in which no
+        text changed while the captures were taken: a clock that redraws
+        at the minute tick would else show its new text on the old pixels."""
+        for attempt in range(tries):
+            nodes = self.core.call("scene.query", {"selector": "*"}) or []
+            boxes = self.core.call("scene.boxes")
+            shots = self.shots(outputs)
+            again = self.core.call("scene.query", {"selector": "*"}) or []
+            if scene_texts(nodes) == scene_texts(again) or attempt == tries - 1:
+                return nodes, boxes, shots
+            sleep(0.3)
+
     def colours(self, output):
         """The number of colours in the work area of an output."""
         shot, png = self.capture(output["name"])
@@ -685,8 +705,8 @@ class Session:
 
     def snapshot(self, states=None, events=()):
         """Read the session; the states when the caller has them."""
-        nodes = self.core.call("scene.query", {"selector": "*"}) or []
         outputs = self.outputs()
+        nodes, boxes, shots = self.settled_scene(outputs)
         wallpaper = self.wallpaper
         if wallpaper is None:
             wallpaper = {o["name"] for o in outputs} if self.looks[0] in WALLPAPER else set()
@@ -703,9 +723,9 @@ class Session:
             logs=self.new_log_text(),
             outputs=outputs,
             cube=self.cube(),
-            boxes=self.core.call("scene.boxes"),
+            boxes=boxes,
             blocks=self.blocks(clients),
-            shots=self.shots(outputs),
+            shots=shots,
         )
 
     def act(

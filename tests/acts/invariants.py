@@ -237,7 +237,7 @@ SEAM = 1.0
 HELD_SLACK = 0.5
 LEAST_PX = 14
 STATE_WORD = re.compile(r"-state$")
-KEY_LINE = re.compile(r"(?:^|[-_])(?:keys?|keycap|button|btn|mode)(?:[-_]|$)|-k$")
+KEY_LINE = re.compile(r"(?:^|[-_])(?:keys?|keycap|button|btn)(?:[-_]|$)|-k$|^construct-mode-")
 READ = 4.5
 READ_KEY = 7.0
 LEADING = 0.25
@@ -500,7 +500,7 @@ def guide_breaches(snap):
                 continue
             px = sizes.get((label, words))
             if px is None:
-                out.append(f"on {output} {words!r} ({label}) has no font size, the guide wants {LEAST_PX} px")
+                out.append(f"on {output} {words!r} ({label}) has no font size, its size cannot be checked")
             elif px < LEAST_PX and not STATE_WORD.search(label):
                 out.append(f"on {output} {words!r} ({label}) is {px:g} px, the guide wants {LEAST_PX} px")
             if rows is None:
