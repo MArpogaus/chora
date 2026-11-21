@@ -93,3 +93,11 @@ Branch claude/handover-mo head 60314da1 (ti-29 1f9a5180 merged clean at 4a078baf
 - rhm-3 fixed (a3c006fa): the `sleep 0.5` is a poll until no node has the focus (the press took the keyboard).
 - Gate: pre-commit, ci-check, build, test, clippy, xp, matrix, virtual PASS on ccf7ebab; tiling-audit, tiling-look, doors, acts, launcher-click, tiling-empty PASS after the --no-companions gate change (60314da1 only changes the Args bool to a counter, built and run in tiling-empty 5/5, not rerun in the full gate). Red cells on the way, caused by this fix and corrected: tiling-audit and tiling-look (above).
 - Pre-commit clippy forbade a fourth bool (struct_excessive_bools); no allow added.
+
+## PM review r2 (2026-11-21, f7dded7a..60314da1, ti-29 merge excluded)
+- rhm-1 closed: red 938f9382 (cell `bare` in tests/gate-tiling-empty-output.sh: bare `chora-tiling --output HEADLESS-2` beside xp, bar drawn within 5 s, Apps starts the launcher) before ccf7ebab; main.rs:398 `if !args.no_companions` starts companions by default, pid-file guard keeps one; README and known-issues sh-23 updated.
+- rhm-2 closed: gate-start-tap.sh `menu_after closed` polls 1 s and fails on an open menu. rhm-3 closed: the 0.5 s sleep is a poll of focus cleared (25 x 0.2 s).
+- `--no-companions` (POLS): hidden from no user path; 12 tiling gates that start their own waybar pass it. `--with-companions` kept hidden as a no-op (Count, so repeats parse). tools/lint-ratchet.list unchanged.
+- rhm-6 NIT: 60314da1 touched 12 gate scripts and the full gate did not rerun on it; the train gate (t100) covers it.
+- rhm-7 NIT: comments in gate-tiling-empty-output.sh parts 3 and 4 and flavors/tiling/wallpaper.sh:9 still describe `--with-companions` as the switch.
+Verdict (computed): no open BLOCK or MAJOR: MERGE-OK on 60314da1; joins t100.

@@ -367,3 +367,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - harness: lint-ratchet accepts a raised allow line in pre-commit; require `ratchet-raise:` in the commit message (mc-minor r1 raised 360 to 362).
 - rck-7 NIT co-keys hints.rs:110: several bound keys chords, first in BTreeMap order wins; document if a second default appears.
 - rti-7 NIT ti-29 launcher.rs:47: empty program leaves generic name as last word in helper_last.
+- rhm-6 NIT handover-mo: 60314da1 not under a full gate before the train (t100 runs it).
+- rhm-7 NIT handover-mo: gate-tiling-empty-output.sh parts 3-4, flavors/tiling/wallpaper.sh:9 comments name --with-companions as the switch.
