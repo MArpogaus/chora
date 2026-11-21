@@ -18,3 +18,11 @@ Product findings: none new.
 Checks: `tests/persona-selftest.sh` green (with the wait-app line), `python3 -m pytest tests/persona -q` 40 passed, `pre-commit run --files` on the four changed files clean. Note: the red-first hook counts only tests/test_*.py, tests/*-selftest.sh and gate-*.sh as tests, so tests/persona/test_check.py alone does not satisfy it; the ph-1 red commit touches persona-selftest.sh for that.
 
 Gate: `tests/merge-gate.sh --jobs 1` (no --only) on the branch (merged with origin/claude/autonomous-dev-session-3w-i33pg7, already up to date): all steps passed, 49 PASS cells, exit 0, nothing pushed by the gate.
+
+### PM review r1 (17:47 UTC, a84effda..1bf67e98, 4 files +101 -5)
+- ph-1 closed: round.sh probe waits with `check.py wait-app chora-probe 20` (polls scene.query every 0.5 s, bounded) instead of `sleep 3`; round.sh has only `set -u`, so `waited=$?` is reached and the message names the 20 s. Red e97b433a/0b1a6eb9 (selftest, wait_for_app unit tests), fix 1bf67e98.
+- RPM-1 closed: WithChildren x5 pins with_children (front face shown, other face hidden, unshown stays hidden, no manager not read, other look no children); 13071a4c.
+- L1, L3, ph-2 closed by selftest lines in the report; L2 stays open (not measured), named in the report, no claim made.
+- Lane gate: full merge-gate --jobs 1, 49 PASS, exit 0.
+- Findings: 0 BLOCK, 0 MAJOR, 0 MINOR. NIT: a probe that dies at once still costs the full 20 s wait (no early exit on a dead pid); record only.
+- Verdict: MERGE-OK (computed). Joins train 103.
