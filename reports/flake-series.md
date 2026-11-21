@@ -78,3 +78,47 @@ The coverage run overlapped the first reruns of `tiling-audit` (about 10:16 to 1
 ### Verdict
 
 F5 "no flaky gate" is **not met**: 5 of 5 full runs red, and `launcher-click` is red in 10 of 10 isolated reruns on this host. F5 coverage (91.73 %) is met. F17 stays open. The `launcher-click` failure is the next thing to look at; `acts` (xp mixer read, mc header overlap) and `tiling-audit` (fullscreen bar) are intermittent and need their own rounds.
+
+## r3
+
+Brief: flake-series-r3 (F5: five full gates green in a row at --jobs 2 on train 92c, and the chora-kit coverage figure). Lane: cloud, branch claude/flake-series-r3 at dcb77733 (train 92c head: flakes-l, flakes-n, flakes-o merged). Model: haiku, effort high. No production code changed; no commit on the code branch; nothing fixed, retimed, ignored or marked known-red.
+
+Setup: step 0 tools present (cargo, sccache, cargo-llvm-cov, foot, python3, ffmpeg), so setup.sh was not run. `git fetch --unshallow` done; `cargo check --workspace` exit 0.
+
+Result: **2 of 5 green.** Runs 1 and 2 exit 0; runs 3, 4 and 5 exit 1. F5 "no flaky gate" is **not met**. Coverage (91.76 %) is met.
+
+### Gate runs (`tests/merge-gate.sh --jobs 2`, no --push, on dcb77733)
+
+| run | start (UTC) | end (UTC) | exit | red steps | first failing line |
+|---|---|---|---|---|---|
+| 1 | 21:33:05 | 22:17:11 | 0 | none (49 PASS) | - |
+| 2 | 22:17:11 | 22:53:33 | 0 | none (49 PASS) | - |
+| 3 | 22:53:33 | 23:20:14 | 1 | construct-hud (31 PASS before it) | `FAIL: light-1280x720@1.5: Tab opened no list: {"camera":…` (the FLK-HUD-TAB symptom) |
+| 4 | 23:20:14 | 23:27:32 | 1 | xp-faces (13 PASS before it) | `MISMATCH opens-under-pointer: measured gap, expected pass`, then `FAIL: 1 cells differ from EXPECTED` |
+| 5 | 23:27:32 | 23:52:46 | 1 | pull (28 PASS before it) | `FAIL: the second window is no pane: {` |
+
+### Reruns of each step alone (`tests/merge-gate.sh --only <step>`, 10 each)
+
+| step | reds of 10 | cause line (first red) |
+|---|---|---|
+| construct-hud | **0 of 10** | - (red once in the full gate, run 3; green in all 10 reruns) |
+| launcher-click | **0 of 10** | - |
+| xp-faces | **0 of 10** | - (red once in the full gate, run 4) |
+| pull | **1 of 10** (rerun 2) | `FAIL: the second window is no pane: {` (same as run 5) |
+
+Each red step is intermittent: one red in the full gate and 0 or 1 of 10 alone. Nothing was fixed, ignored, retimed or marked known-red. The red steps are construct-hud (FLK-HUD-TAB), xp-faces and pull; launcher-click (FLK-LAUNCHER) was green in all 10 alone and in every full run.
+
+### Coverage (`env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-kit --features testing --summary-only`, exit 0)
+
+- Lines: 9996 total, 824 missed, **91.76 %** (F5 needs 80 %: met).
+- Functions: 89.28 % (1390 total). Regions: 92.44 %.
+- Five files with the most uncovered lines (missed / total lines):
+  1. runtime.rs: 182 / 672 (72.92 %)
+  2. launch.rs: 78 / 908 (91.41 %)
+  3. icons.rs: 65 / 341 (80.94 %)
+  4. effects.rs: 58 / 334 (82.63 %)
+  5. launcher.rs: 44 / 298 (85.23 %)
+
+### Verdict
+
+F5 "no flaky gate" is **not met**: 2 of 5 full runs green (runs 3, 4 and 5 red at construct-hud, xp-faces and pull). The intermittent steps need their own rounds: construct-hud (FLK-HUD-TAB), xp-faces, and pull (0 or 1 red of 10 alone). launcher-click (FLK-LAUNCHER) was green in 10 of 10 alone and in both full runs that reached it. F5 coverage (91.76 %) is met. F17 stays open.
