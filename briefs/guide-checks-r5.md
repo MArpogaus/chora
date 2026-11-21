@@ -1,0 +1,14 @@
+# guide-checks r5 (F7, RC 11): acts green at --jobs 1 on guide-checks
+
+Model: sonnet, effort medium (one row, one flake proof, one harness fix, each with a red test)
+Lane: cloud, claude/guide-checks at 06bb5af4 (r4 PARTIAL). Cost at most 0.5 %; stop at 200 k context.
+Why: reports/guide-checks.md "## r4": acts red on xp I6 'Volume' 11 px (act "a click on the speaker opens the volume popup", xp-ctx-0-7, no row); construct I13 red 2 of 5 on the branch, 3 of 3 green on the session head; gate-lib red inside the gate because merge-gate-selftest counts every /tmp/merge-gate.* directory.
+PM decisions: (a) xp text in Tahoma 8 pt (11 px) is authentic Luna (vision card); it takes one known-red row in the form of the xp-icon rows of tests/acts/known-red.toml, keyed to the node xp-ctx-0-7 and its capture, reason "authentic Tahoma 8 pt". No new exemption kind. (b) The construct core fault behind the capture skip of r4 is co-36, lane co-capture; do not touch it here.
+Step 0 (no setup script): `git fetch --unshallow`, `git fetch origin claude/autonomous-dev-session-3w-i33pg7` and merge it (resolve in favour of the head's harness), `cargo build --workspace`; a failure: send_message the PM "guide-checks r5 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore.
+1) (a) the known-red row; test_acts.py shows the row matches only that node and act.
+2) I13: run the construct acts 5 times on the merged head and 5 times on the session head alone (same commands, logs kept). Red on both: backlog row FLK-CO-I13 on claude/session-log with the log lines, leave it. Red only with this branch: find the cause and fix it here with a red test first. Green 10 of 10: say so, no row.
+3) gate-lib: red test first, then merge-gate-selftest counts only the run directories it made itself (own TMPDIR or a list), so a running or earlier gate never fails it. Show the selftest green with another /tmp/merge-gate.* directory present.
+4) Gate: `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,gate-lib,hud,layout,tiling-audit,acts`, plus `python3 -I -m pytest tests/test_acts.py -q`. A red cell you did not cause: name it with its log line; do not rerun to green. Poll in the same turn; never end a turn to wait.
+Done when: acts and gate-lib green at --jobs 1 on the merged head, or the only red is a named FLK row proven red on the session head alone.
+Report: append "## r5" to reports/guide-checks.md on claude/session-log (shas, red and fix per item); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/guide-checks and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
