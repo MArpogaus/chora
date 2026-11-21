@@ -219,6 +219,15 @@ jq -e 'any(.[]; .role == "agent" and (.text | length > 0))' "$dir/voice/entries.
     fail "no agent entry answers hello: $(cat "$dir/voice/entries.json")"
 ok "the helper works on hello, rests and answers"
 
+check_py() { PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/check.py" "$@"; }
+check_py start || fail "check.py start failed"
+if out=$(check_py end T7 2>&1); then fail "check.py end T7 gave a verdict without a begin: $out"; fi
+case $out in *begin*) ;; *) fail "check.py end without a begin does not name the begin: $out" ;; esac
+check_py begin || fail "check.py begin failed"
+out=$(check_py end T7 2>&1) || fail "check.py end T7 is red with its own begin: $out"
+if out=$(check_py end T7 2>&1); then fail "a second check.py end T7 reused the begin or the end of the goal before: $out"; fi
+ok "check.py end holds each goal to its own begin and uses it up"
+
 stop_session
 rm -rf "$dir"
 mkdir "$dir"
@@ -233,6 +242,7 @@ until_ok "admin state xp >/dev/null 2>&1" 80 || fail "construct: the cube starts
 sleep 4
 act key Super+t
 until_ok "admin query kind:surface | jq -e 'length > 0' >/dev/null" 80 || fail "construct: no terminal came"
+check begin || fail "construct: check.py begin failed"
 admin give xp --surface s1 >/dev/null || fail "construct: the give of s1 to xp failed"
 until_ok "admin state xp | jq -e '.windows | length > 0' >/dev/null" 80 ||
     fail "construct: no window in the face of xp: $(admin state xp | jq -c .windows)"
