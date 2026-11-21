@@ -23,7 +23,7 @@ Brief (Model line `^Model: (haiku|sonnet|opus|Fable)`, opus/Fable "because <reas
 claude-opus-5-5 | claude-haiku-5-5, effort, tags ["chora-lane"], prompt "You are a build lane of the chora session (PM <pm id>, your parent). Your brief is briefs/X.md on
 claude/session-log; its full text is below. Follow it exactly, in this same turn, until done or blocked." + the brief text
 (11-21: a fetch of the brief was refused, a pasted brief by message ignored) -> send_later 6-7 min
-start check -> session id into Lanes. Step 0: no setup.sh (auto mode refuses it in lanes, 11-20 00:48); rely on env setup. Handback: archive the worker.
+start check -> session id into Lanes. Step 0: no setup.sh (auto mode refuses it in lanes, 11-20 00:48); rely on env setup. Handback: archive the worker. Product code: the lane runs the full gate, no --only (t99b).
 
 ## Seeded review (owner 06:12)
 Base..head and diffstat; the brief's done criteria as checks; known findings by id; a command and files per check;
