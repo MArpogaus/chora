@@ -79,3 +79,19 @@ Base e965470a, head f70d564f (7 files, +146 -8); red 61ce80a8 (stub `keys_chord`
 - tools/lint-ratchet.list unchanged; known-red.toml unchanged (acts I5 row was already listed).
 - rck-7 NIT, hints.rs:110: with several bound `keys` chords the first in BTreeMap order wins; fine today (one default), name it in the doc comment if a second default appears. Backlog.
 Verdict (computed): no BLOCK or MAJOR open -> MERGE-OK on f70d564f; joins t99 with guide-checks b1b8b73a.
+
+## r3
+
+Branch claude/co-keys, head c69354ae. Merged guide-checks b1b8b73a (caa61cd9): camera.rs merged clean (co-keys doc comment, `pub(crate) fn grab_keys` and the F1 filter kept); known-red.toml taken from guide-checks, then rows added only for breaches the run met.
+
+Commits: 1e7cc905 fix(construct) hide the chip words under the key list (unit test in the same commit: a red-only commit failed clippy as dead code); 05c1fc25 test(acts) face hint; c69354ae test(acts) flaky row.
+
+Cause per row:
+- I5 'Turn left' over the sheet note, and I6 'Turn right' 1.00:1: the Turn words are chip nodes of the modes (`construct-mode-turn-*-text`), set visible by `hints::chip_word` (hints.rs:418). When the key list opens, `hint_set` is None (`busy` on `self.help`, overlay.rs:~520) and `draw_hints` removes only HINTS and HITS (hints.rs `remove`), and `draw_modes` skips the chips while stood back (modes.rs:~268). The words stayed under the 880x763 sheet, which spans y 18 to 781 on 800 px. Fix: overlay.rs `draw_hints` hides the chip words (new `hints::hide_chip_words`) when the Cube hints go. Sheet and chips need no move.
+- Face act "no the hint Keys on the screen": the hint is drawn, but only for 3 s after the step in (`FLOWN`, overlay.rs:~505). The pointer at the bottom shows it only through `hint_pointer`, fed by `Event::InputMoved`, which the core sends only during a held button grab (crates/chora/src/input.rs:630); over a face no pointer event reaches the construct. So the act passed before the merge only because the old harness was fast; the guide-checks harness captures every snapshot and the 3 s were gone. Fix in the act (construct.py keys_default_acts): stand back, wait, step in, then look at once. hint_click keeps the rect it saw (it crashed once on a None after the hint timed out). Product gap left open: a resting pointer does not show the hint over a face (needs a pointer event over a face; not done, not KISS).
+
+known-red.toml: six rows I6 'guide wants 14 px' (help heads 6, 10, 17, 17-every, 21, 21-every of the cube sheet) now first met in the face act; one row removed (a drag with the modifier: construct-mode-step-in-text contrast, gone with the lingering chip words); the held-turn row construct-hints-construct-mode-step-in-keys-0-text marked flaky (met in 4 of 5 runs). No row for I5/I6 Turn chips.
+
+Cells (construct acts, 5 runs): I5 pass 5/5, I6 Turn contrast gone 5/5, face act 5/5, stood back act 5/5; I2 and the 14 px I6 rows red as listed. Runs 1 and 5 each had one stale row (step-in-text, fixed by the row removal; step-in-keys flaky, row marked).
+
+Gate (--jobs 1): pre-commit, build, test, clippy, doors, construct-hud, construct-extra PASS. acts FAIL: one blocking cell, not mine: xp I6 in act 'a click on Notepad starts it under the volume popup': 'Starting Notepad' (notify-card-body) 1.04:1, guide wants 4.5:1 (acts.log line `FAIL: xp I6 ...`, 231 pass, 5 known red, 1 blocking); every construct cell is pass or listed. The persona selftest failed once on 'FAIL: no click on Notepad' (first merge run) and passed in the gate run; not rerun to green, a flake of the persona session.
