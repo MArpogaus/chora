@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-21 00:30 UTC)
+## Now (2026-11-21 00:31 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week reset 05:55 Thu; owner 14:39: 65 % at 71 % time; 35 % left; at 21:00 7 h left = up to 5 %/h shared; under-spending; tokens.py 00:26 PM 2.3 % (Bangkok day 11-21); disk 18 G free: one build (train) at a time; 3 lanes
 session branch: 618ae513 (t94b green at --jobs 1: co-pane, tour-diff, tour-one, xp-tidy); 52 greens; t95 running at --jobs 1: give-raise, persona-begin, co-hud-load (co-35).
@@ -24,8 +24,8 @@ burn-down: audit r4 14:23: F1-F4, F6, F8 met; F5 open (bar 5/5 at --jobs 2); F7 
 | Lane | Model, branch | State |
 |---|---|---|
 | guide-checks-r3.md (F7: review r2 FIX, rg-9 MAJOR flaky rows, rg-10, rg-11) | sonnet medium, claude/guide-checks 4efbf430 | session_016iS3kN5ar7g9J3RE64oRKz 23:42 |
-| flakes-p-r1.md (F5: FLK-PULL, 1/10 alone) | sonnet high, claude/flakes-p 618ae513 | starting |
-| flakes-q-r1.md (F5: FLK-HUD-TAB, FLK-XP-FACES) | sonnet high, claude/flakes-q 618ae513 | starting |
+| flakes-p-r1.md (F5: FLK-PULL, 1/10 alone) | sonnet high, claude/flakes-p 618ae513 | session_016iS3kPWeWefDk7yoWfkha2 00:31 |
+| flakes-q-r1.md (F5: FLK-HUD-TAB, FLK-XP-FACES) | sonnet high, claude/flakes-q 618ae513 | session_016iS3kPEoGRNCsNpH93eJTX 00:31 |
 
 ## Queue (% week; 5 % reserve)
 4. (F6, F5, rc 3) t95 running: give-raise 4b561e79, persona-begin 4f07fe6c, co-hud-load 06ea05e4 (co-35); then the PM fixes dcb77733 and the check.py merge to a seeded review.
