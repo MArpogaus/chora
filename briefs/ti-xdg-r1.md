@@ -1,0 +1,14 @@
+# ti-xdg r1 (rc 6: KIT-SEC MINOR-1, H-mkdir): one runtime-dir rule for the flavor scripts
+
+Model: sonnet, effort low (two shell scripts, one rule, one pre-commit check)
+Lane: cloud, claude/ti-xdg at a84effda. Cost at most 0.82 %; stop at 150 k context. One area: flavors/**/*.sh, their selftests, .pre-commit-config.yaml (one local hook).
+Why: plans/week-3.md row 43 and backlog.md TI-XDG (claude/session-log). flavors/tiling/wallpaper.sh:12 and waybar/waybar.sh:29 fall back to `$(mktemp -d)` without XDG_RUNTIME_DIR, so every run gets a new directory and never finds the pid of an earlier panel; flavors/shared/screenshot.sh:38 runs `mkdir -p` without a mode.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "ti-xdg BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Rule (PM decision, KISS and POLS): without XDG_RUNTIME_DIR a script uses one fixed directory `${TMPDIR:-/tmp}/chora-$(id -u)`, made with `mkdir -m 700`; if it exists and is not owned by the user or is not mode 700, the script says so on stderr in one line and exits 1. One shared helper (e.g. flavors/shared/runtime.sh, sourced) holds the rule; no copy per script.
+1) Red first: a selftest commit where two runs of wallpaper.sh (and waybar.sh) without XDG_RUNTIME_DIR use the same directory, and a foreign-owned or 755 directory is refused; it fails on a84effda.
+2) Fix: the helper, used by wallpaper.sh, waybar.sh and any other flavor script that needs a runtime dir; screenshot.sh keeps its target dir (user pictures, not runtime) but names why no mode is needed in one comment, or uses -m 700 if it is a runtime dir.
+3) Guard: a local pre-commit hook that fails on `mkdir -p` without `-m` in flavors/**/*.sh and tests/*.sh runtime paths, with an allow comment `# mkdir-ok: <reason>` for user-facing dirs; show it passes on the fixed tree and fails on a planted line (selftest).
+4) Gate: full `tests/merge-gate.sh --jobs 1` (no --only) green on the branch merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Start runs in the background and poll in the same turn; never end a turn to wait.
+Done when: one rule, one helper, the red selftest green, the hook in place, full gate green.
+Report: reports/ti-xdg.md "## r1" on claude/session-log (red and green sha, files, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/ti-xdg and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.

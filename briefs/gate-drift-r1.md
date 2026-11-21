@@ -1,0 +1,13 @@
+# gate-drift r1 (F6, rc 3): tool versions checked before the gate steps
+
+Model: sonnet, effort medium (one shell script and its selftest; the version list needs judgement)
+Lane: cloud, claude/gate-drift at 1c599c74. Cost at most 0.95 %; stop at 150 k context. One area: tests/merge-gate.sh preflight and tests/merge-gate-selftest.sh (plus one list file if needed).
+Why: plans/week-3.md row 36 (claude/session-log). Disk (6 GB, D90), shallow (R18) and drift warning exist since 037d1282 and fc404a90 (reports/debt-f4.md:17, H11 closed): do not redo them. Open: a tool too old makes a cell red or silently useless (mc-47: fuzzel 1.9.2 ignores clicks, 1.11.1 works; findings/mc.md:37).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "gate-drift BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) List the external tools the gate steps call (fuzzel, foot, grim, wtype or the injector, pre-commit, cargo-deny, cargo-machete, others you find) with the minimum version each needs and the source of that minimum (finding, changelog or test); tools without a known minimum stay out.
+2) Red test first: a merge-gate-selftest case where a stubbed tool on PATH reports a version under the minimum and the run does not say SKIP for the steps that use it (commit it red).
+3) Preflight: before the steps, a too-old or missing tool marks the steps that need it SKIP with `SKIP: <tool> <found> < <min>` (the existing SKIP mechanism and --allow-skip), never red, never a silent PASS. KISS: one table in the script, one function; at most 80 lines added.
+4) Gate: the full gate `tests/merge-gate.sh --jobs 1` (no --only) green on the branch merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Start runs in the background and poll in the same turn; never end a turn to wait.
+Done when: the selftest red before and green after, the version table with sources, full gate green with no new SKIP on this container.
+Report: reports/gate-drift.md "## r1" on claude/session-log (shas, version table, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/gate-drift and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
