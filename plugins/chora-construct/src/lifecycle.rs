@@ -454,6 +454,39 @@ mod tests {
         );
     }
 
+    /// FLK-HUD-TAB: under load the core starts and steps the fade later
+    /// than the plugin counts it, so a redraw can come when the plugin's
+    /// clock says the 160 ms are over and the core's fade has 20 ms left.
+    /// The redraw must not leave the list at the opacity of that moment
+    /// (0.998 in the failing runs, where Tab then "opened no list").
+    #[test]
+    fn a_redraw_after_the_fade_time_leaves_a_late_list_fully_opaque() {
+        let core = FakeCore::start();
+        let mut construct = flavor(&core, "list-late");
+        surface(&core.model(), "s1");
+        construct.event(created("s1", None)).unwrap();
+        construct.open_list().unwrap();
+        let back = std::time::Duration::from_millis(200);
+        let list = construct.list.as_mut().unwrap();
+        list.opened = list.opened.checked_sub(back).unwrap();
+        core.model().lock().unwrap().scene.advance(140.0);
+        construct
+            .event(Event::PointerEntered {
+                node: format!("{}0", crate::command::LIST_ROW),
+                moved: false,
+                injected: false,
+            })
+            .unwrap();
+        let model = core.model();
+        let mut model = model.lock().unwrap();
+        model.scene.advance(1000.0);
+        let opacity = model.scene.node(crate::hud::LIST).unwrap().props.opacity;
+        assert!(
+            (opacity - 1.0).abs() < f64::EPSILON,
+            "the redraw stopped the fade of the list: {opacity}"
+        );
+    }
+
     /// kit7-a2 (D116): a press on the window of a pane gives it the
     /// keyboard; a new window that comes as a pane without a flight takes
     /// the keyboard back to the walk, as a new window takes it in the
