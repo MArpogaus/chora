@@ -16,3 +16,11 @@ No new lint allow. Commit hooks (fmt, clippy, no inline comments) passed on ever
 Gate: `tests/merge-gate.sh --jobs 1` (no --only): all steps passed (49 PASS, no FAIL, no SKIP), exit 0. Opt-in `tests/gate-watchdog-starved.sh`: both lines ok ("a starved host makes the watchdog blame nobody"; "frames that cost too much by themselves still blame their client"), exit 0. `cargo test -p chora --lib safety` 27 passed; `cargo test -p chora-scene logs` 6 passed.
 
 Note: CM-R1 had no red step (pinning test of documented behaviour, rule 8 needs red only for a fix).
+
+### PM review r1 (2026-11-21 14:45 UTC; PM not the builder; diff 66 lines in 3 files)
+- rv-1: `measured = run.over` read before the update; `run.last` only on measured slow frames. Red e6e80a7e, fix 4768ca68. OK.
+- rv-5: `Watchdog::forget` on output removal (output.rs:147). Red 09320703, fix 9a9351ef. OK.
+- rv-2: ENOTDIR or ELOOP plus symlink_metadata names the symlink; other errors pass through unchanged. Red 3639bb39, fix 1db1a50f. OK.
+- CM-R1: already on base (ff69a833); no change needed.
+- Gate --jobs 1 full 49/0/0, watchdog-starved ok (lane report). No open MAJOR.
+Verdict (computed): MERGE-OK at 1db1a50f; joins t100.
