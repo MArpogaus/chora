@@ -37,3 +37,8 @@ None. No test is `#[ignore]`d.
 - `cargo test -p chora-kit`: pass (lib 319, integration suites all ok).
 - `pre-commit run --all-files`: pass on the second run. The first run's cargo fmt reformatted the new tests, and the vale hook failed once with "Text file busy" in its installer; the second run passed.
 - `tests/merge-gate.sh --jobs 1` (no --only) on claude/kit-cov merged with origin/claude/autonomous-dev-session-3w-i33pg7: all steps passed, 49 cells PASS, 0 FAIL, nothing pushed by the gate. The first gate run failed ci-check on a guard (GR1) for `start_grabs` followed directly by `end_grabs`; the test was changed to grab inside the new set and the gate was re-run green.
+
+## Review r1 (PM, 2026-11-21 19:30 UTC; tests-only diff, PM not the builder)
+Base..head 892d035c..619da642: d09677f8 (icons.rs +129), 619da642 (runtime.rs +258); 20 new #[test], no production line changed.
+Checks: diff touches only #[cfg(test)] blocks of crates/chora-kit (git diff --stat: 2 files, 387+, 0-); file tests use crate::testing::TempDir and unique names (no shared /tmp path, no env::set_var, no sleep, no #[ignore]); coverage numbers from the lane (runtime 70.39 -> 89.00 %, icons 80.94 -> 99.32 %) meet row 42 (>= 85 %); lane gate 49 cells PASS at --jobs 1.
+Findings: 0 BLOCK, 0 MAJOR. Verdict: MERGE-OK (joins t104 after t103).
