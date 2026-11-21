@@ -463,5 +463,41 @@ class SceneState(unittest.TestCase):
             self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)
 
 
+class WithChildren(unittest.TestCase):
+    """with_children counts a window of a face manager as shown only while
+    its face is at the front (RPM-1)."""
+
+    def cube(self, front=0):
+        faces = [{"manager": "xp", "output": "face-0"}, {"manager": None, "output": "face-1"}]
+        return {"faces": faces, "front": front}
+
+    def child(self, output, shown=True):
+        return {"windows": [{"surface": "s2", "shown": shown, "output": output}]}
+
+    def run_it(self, cube, state, label="construct", clients=("construct", "xp")):
+        snapshot = snap(states={"construct": {}}, cube=cube, clients=clients)
+        out = check.with_children(Reader(label, clients, {"xp": state}), snapshot)
+        return out.states.get("xp")
+
+    def test_a_child_window_on_the_front_face_is_shown(self):
+        got = self.run_it(self.cube(0), self.child("face-0"))
+        self.assertTrue(got["windows"][0]["shown"])
+
+    def test_a_child_window_on_another_face_is_not_shown(self):
+        got = self.run_it(self.cube(1), self.child("face-0"))
+        self.assertFalse(got["windows"][0]["shown"])
+
+    def test_a_window_the_child_does_not_show_stays_hidden(self):
+        got = self.run_it(self.cube(0), self.child("face-0", shown=False))
+        self.assertFalse(got["windows"][0]["shown"])
+
+    def test_a_client_that_manages_no_face_is_not_read(self):
+        cube = {"faces": [{"manager": None, "output": "face-0"}], "front": 0}
+        self.assertIsNone(self.run_it(cube, self.child("face-0")))
+
+    def test_another_look_reads_no_children(self):
+        self.assertIsNone(self.run_it(self.cube(0), self.child("face-0"), label="xp"))
+
+
 if __name__ == "__main__":
     unittest.main()
