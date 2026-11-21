@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | Lane | Model, branch | State |
 |---|---|---|
 | co-keys-r3.md (rc 2, F7: t99 red, three construct acts) | sonnet medium, claude/co-keys f70d564f | session_016iS3kMdG5AZVg4Vkvm6R5t 09:59 |
-| handover-mo-r3.md (rc 2: t99b red at agent, tests/agent.sh lacks --no-companions) | sonnet low, claude/handover-mo 60314da1 | starting |
+| handover-mo-r3.md (rc 2: t99b red at agent, tests/agent.sh lacks --no-companions) | sonnet low, claude/handover-mo 60314da1 | session_016iS3kPjHXYK3k9Nqd1xnpY 11:21 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) t99b red 11:19 at agent (handover-mo: tests/agent.sh:70 starts the bar); t99c running on c996702a: guide-checks, ti-29, mc-minor. Then RECORD-V9 1.2 % on its head; CO-KEYS r3 0.6 % and HANDOVER-MO r3 0.3 % join t100.
