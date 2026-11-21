@@ -284,6 +284,7 @@ focus = json.load(sys.stdin).get("focus") or {}
 print("%s:%s/%s" % (sys.argv[1], focus.get("holder"), focus.get("surface")), end=" ")' "$look"
     done
 }
+xp_let_go() { ctl state xp | python3 -I -c 'import json, sys; sys.exit(any(w["surface"] == sys.argv[1] for w in json.load(sys.stdin)["windows"]))' "$surface"; }
 pane_has_keyboard() { [ "$(ctl state construct | python3 -I -c 'import json, sys; f = json.load(sys.stdin)["focus"]; print(f.get("holder"), f.get("surface"))')" = "construct $surface" ]; }
 pair_cell() {
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
@@ -292,6 +293,7 @@ inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
 sleep 1
 first=$(pane_name "$surface")
+until_ok xp_let_go 20 || fail "xp still lists the window after the drop: $(keyboard_holder)"
 until_ok pane_has_keyboard 20 ||
     fail "after the drop the keyboard is not with the window of the pane: $(keyboard_holder); the new window goes to the manager that holds it"
 "$bin/chora-probe" window 200 40 120 --server-deco >"$work/pair-probe2.log" 2>&1 &
