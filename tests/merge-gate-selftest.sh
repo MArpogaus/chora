@@ -432,9 +432,16 @@ exec rm "$@"
 WRAP
 chmod +x "$wrap/rm"
 PATH="$wrap:$PATH"
+real_tool() {
+    local f
+    for f in $(type -aP "$1"); do
+        [ "$(head -c2 "$f")" = '#!' ] || { echo "$f"; return; }
+    done
+    command -v "$1"
+}
 mkdir "$work/nopc"
 for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env df awk timeout setsid ps; do
-    ln -s "$(command -v "$tool")" "$work/nopc/$tool"
+    ln -s "$(real_tool "$tool")" "$work/nopc/$tool"
 done
 rm -rf "$work/runs"
 PATH="$work/nopc" gate_only
@@ -445,7 +452,7 @@ cl=$repo/tests/ci-local.sh
 nobin=$work/nobin
 mkdir "$nobin"
 for tool in bash sed mktemp dirname tail rm cat; do
-    ln -s "$(command -v "$tool")" "$nobin/$tool"
+    ln -s "$(real_tool "$tool")" "$nobin/$tool"
 done
 ci_local() {
     PATH="$nobin" TMPDIR="$work/ci-tmp" "$cl" "$@" >"$work/out" 2>&1
