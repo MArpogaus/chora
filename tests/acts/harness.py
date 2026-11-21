@@ -75,7 +75,7 @@ class Snapshot:
     cube: dict | None = None
     boxes: dict | None = None
     blocks: dict = dataclasses.field(default_factory=dict)
-    shots: dict = dataclasses.field(default_factory=dict)
+    shots: dict | None = dataclasses.field(default_factory=dict)
 
     def by_id(self):
         """The nodes by id."""
@@ -681,6 +681,11 @@ class Session:
                 out[o["name"]] = (shot["width"] / o["size"][0], list(load_png_rows()(png)))
         return out
 
+    def capturing(self):
+        """Whether a capture of the screen is safe: a capture of the flat xp
+        after construct was killed keeps the core from reopening the cube."""
+        return not (self.label == "construct" and "construct" not in self.looks)
+
     def settled_scene(self, outputs, tries=5, sleep=time.sleep):
         """The nodes, the boxes and the captures of a moment in which no
         text changed while the captures were taken: a clock that redraws
@@ -688,7 +693,7 @@ class Session:
         for attempt in range(tries):
             nodes = self.core.call("scene.query", {"selector": "*"}) or []
             boxes = self.core.call("scene.boxes")
-            shots = self.shots(outputs)
+            shots = self.shots(outputs) if self.capturing() else None
             again = self.core.call("scene.query", {"selector": "*"}) or []
             if scene_texts(nodes) == scene_texts(again) or attempt == tries - 1:
                 return nodes, boxes, shots
@@ -778,6 +783,8 @@ class Session:
             after = self.snapshot(states, self.watch.drain())
         except (NotQuiet, RuntimeError, OSError, queue.Empty) as err:
             self.record(look, f"act:{name}", [f"{type(err).__name__}: {err}"], name)
+            for log in self.work.glob("*.log"):
+                shutil.copy(log, self.runs / log.name)
             return None
         mismatches = expect.check(before, after) if expect else []
         self.record(look, f"act:{name}", mismatches, name, before, after)

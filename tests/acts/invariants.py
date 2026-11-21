@@ -527,8 +527,8 @@ def guide_breaches(snap):
     sizes = text_sizes(snap)
     contrast = tool("png-contrast")
     for output, items in sorted(screen_texts(snap).items()):
-        scale, rows = snap.shots.get(output) or (None, None)
-        if rows is None and items:
+        scale, rows = (snap.shots or {}).get(output) or (None, None)
+        if rows is None and items and snap.shots is not None:
             out.append(f"no capture of {output}: the contrast of its text cannot be measured")
         for _i, label, words, rect in items:
             if not words.strip():
