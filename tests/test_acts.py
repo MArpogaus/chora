@@ -1620,6 +1620,13 @@ class GuideSize(unittest.TestCase):
     def test_a_card_of_the_notice_in_xp_is_xp_size(self):
         self.assertEqual([b for b in breaches("I6", snap(), self.sized(11, "notify-card-body", "notify")) if " px" in b], [])
 
+    def test_a_card_in_a_construct_session_keeps_fourteen(self):
+        """The xp that holds the focus on a face of the cube is no xp session: the card there is the plain one."""
+        states = snap().states | {"construct": {"windows": [], "focus": {"holder": None}, "open": [], "busy": []}}
+        node = text_node("notify-card-body", "Hello", (100, 100, 80, 20), owner="notify") | {"font_size": 11}
+        after = snap(states=states, nodes=snap().nodes + [node], shots=shot(at=(100, 104, 70, 10)), clients={"xp", "construct", "acts"})
+        self.assertTrue(any("is 11 px, the guide wants 14 px" in b for b in breaches("I6", snap(), after)))
+
     def test_the_other_looks_keep_fourteen(self):
         for owner in ("mc", "tiling", "construct"):
             self.assertTrue(any("is 11 px, the guide wants 14 px" in b for b in breaches("I6", snap(), self.sized(11, f"{owner}-line", owner))), owner)
