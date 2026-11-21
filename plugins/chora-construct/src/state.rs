@@ -238,6 +238,28 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["focus"], json!({"holder": "construct"}));
     }
 
+    /// A click in the xp face while an owned window has the keys: the
+    /// foreign node holds the focus, not the construct (co-i3 r3, rv-1).
+    #[test]
+    fn a_foreign_node_takes_the_focus_off_an_owned_window_too() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut c, _core) = construct("state-foreign-over-window", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.core_focus = Some("s1".into());
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        let node = |node: Option<&str>, owner: Option<&str>| chora_scene::Event::FocusNode {
+            node: node.map(String::from),
+            owner: owner.map(String::from),
+        };
+        c.event(node(Some("xp-icons"), Some("xp"))).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+        c.event(node(None, None)).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], held);
+    }
+
     /// A look that takes the focused pane out of sight gives the keyboard
     /// back to the walk: the focus is never a window that is no shown
     /// window (co-pane r1, I3 of the persona round 3).
