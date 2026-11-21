@@ -11,3 +11,8 @@ Cause: tests/doors/lib.sh fuzzel_stand_in (`sed 's/^/row /' >>"$marks"`). The la
 Fix: the stand-in ends its last row with a newline (`sed 's/^/row /; $a\'`). A test fix, so no red test commit. After it: tiling.sh 26 of 26 runs without launcher-chat missing (was 11 of 22).
 
 Gate: `tests/merge-gate.sh --jobs 1` full on ec8de7b7: all steps passed (doors 369 s, e2e 286 s). Doors alone `--only build,doors`: 5 of 5 PASS (369-374 s). Not pushed to the train branch.
+
+### PM review r1 (2026-11-21 16:01 UTC)
+- ec8de7b7 (tests/doors/lib.sh:204-206): `sed 's/^/row /; $a\'` ends the last dmenu row with a newline only if it lacks one (GNU sed); a waybar wpctl line can no longer join `row Chat with a helper`. Test-only, 3 lines, no product change; the cause and repro (tiling.sh 11/22 red before, 26/26 after) are named; full gate green on the fix.
+- MINOR (no action): a concurrent writer could still split a line if writes interleave mid-line; not seen in 26 runs.
+- Verdict (computed): no open MAJOR -> MERGE-OK at ec8de7b7; joins t101 after t100.
