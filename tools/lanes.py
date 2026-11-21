@@ -23,6 +23,7 @@ CODE = Path("/home/user/chora")
 BASE_BRANCH = "claude/autonomous-dev-session-3w-i33pg7"
 LOG_BRANCH = "claude/session-log"
 MAX_LANES = 6
+RESERVE = 5
 MAX_COMMITS_HOUR = 3
 REVIEW_MAX_AGE = timedelta(hours=12)
 TAG = re.compile(r"\((?:rc [^)]*|process|F\d[^)]*)\)")
@@ -92,6 +93,12 @@ def flags(state, now, recent_commits, in_base, report_time):
     last_hour = [t for t in recent_commits if now - t <= timedelta(hours=1)]
     if len(last_hour) > MAX_COMMITS_HOUR:
         out.append(f"rule 9: {len(last_hour)} commits on {LOG_BRANCH} in the last hour, limit {MAX_COMMITS_HOUR}")
+    week = re.search(r"\bweek (\d+(?:\.\d+)?) %", state)
+    if week:
+        planned = sum(float(p) for q in queue for p in re.findall(r"(\d+(?:\.\d+)?) %", q))
+        room = 100 - float(week.group(1)) - RESERVE
+        if planned > room:
+            out.append(f"budget: Queue plans {planned:g} %, room is {room:g} % (week {week.group(1)} % used, {RESERVE} % reserve)")
     if len(rows) > MAX_LANES:
         out.append(f"rule 5: {len(rows)} lanes, limit {MAX_LANES}")
     return out
