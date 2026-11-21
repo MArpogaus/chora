@@ -61,8 +61,9 @@ def clock_shown():
 
 
 def column_count(nodes):
-    """How many texts of the margin column (the nodes `mc-rN-right-*`) are visible."""
-    return len([n for n in nodes if n.get("kind") == "text" and n.get("visible") and "-right-" in str(n.get("id"))])
+    """How many texts of the margin column (the nodes `mc-rN-right-*`) are drawn: visible with a rect
+    on an output. A closed list or a hidden column keeps `visible` and has no rect (mc-54)."""
+    return len([n for n in nodes if n.get("kind") == "text" and n.get("visible") and n.get("rects") and "-right-" in str(n.get("id"))])
 
 
 def column_fewer_than(count):
@@ -227,7 +228,7 @@ panels:
         columns = column_count(S.query("*"))
         t.act("key", "Super+n hides the column: the page is larger for the sofa", "The column goes; the recipe page widens", still=f"03-07-wide-{THEME}", settle=0.8, lead=0.1, cells=["doors clock-door"], capture="Q", expect=Expect(verify=all_of(clock_shown(), column_fewer_than(columns))))
         t.key("Super+n"); t.wait(1.0); t.done()
-        t.act("key", "Super+n brings the column back", "The column shows again", still=None, settle=0.4, lead=0.1, cells=["doors clock-door"], capture="Q", expect=Expect(verify=all_of(clock_shown(), column_back_to(columns))), known="expect: cb-4 the column of mc has 24 visible texts after the second Super+n, 72 before the first (the regions of the cross-fade: a stale one, or the column does not come back)")
+        t.act("key", "Super+n brings the column back", "The column shows again", still=None, settle=0.4, lead=0.1, cells=["doors clock-door"], capture="Q", expect=Expect(verify=all_of(clock_shown(), column_back_to(columns))))
         t.key("Super+n"); t.wait(0.8); t.done()
         t.flush("alarm")
         S.call("mc", "notify.push", {"title": "Spaghetti is ready", "body": "Drain it now", "urgency": "critical"})

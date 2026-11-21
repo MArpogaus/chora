@@ -295,6 +295,29 @@ class ChaptersB(unittest.TestCase):
         self.assertTrue(mc.chat_is(True)(chat))
         self.assertEqual(mc.chat_is(False)(chat), [])
 
+    def test_mc_column_counts_the_texts_that_are_drawn(self):
+        """mc-54 (cb-4): the closed list of all keys (`mc-r1-right-*`) and a hidden column keep
+        `visible: true` but no rect on any output, so nothing is drawn. The count of the column
+        reads the texts with a rect: 24 drawn before Super+n, none while it hides, 24 again after."""
+        from chapters import mc
+
+        def text(region, name, rects):
+            return {"id": f"mc-{region}-right-{name}", "kind": "text", "visible": True, "rects": rects}
+
+        drawn = {"HEADLESS-1": [888.0, 110.0, 204.0, 28.0]}
+        column = lambda rects: [text("r0", f"keys-{i}", rects) for i in range(24)]
+        stale = [text("r1", f"keys-{i}", {}) for i in range(48)]
+        before = column(drawn) + stale
+        hidden = column({})
+        back = column(drawn)
+        self.assertEqual(mc.column_count(before), 24)
+        self.assertEqual(mc.column_count(hidden), 0)
+        self.assertEqual(mc.column_count(back), 24)
+        self.assertEqual(mc.column_fewer_than(24)(dataclasses.replace(snap("xp"), nodes=hidden)), [])
+        self.assertTrue(mc.column_fewer_than(24)(dataclasses.replace(snap("xp"), nodes=back)))
+        self.assertEqual(mc.column_back_to(24)(dataclasses.replace(snap("xp"), nodes=back)), [])
+        self.assertTrue(mc.column_back_to(24)(dataclasses.replace(snap("xp"), nodes=hidden)))
+
     def test_construct_expects_turn_red_on_a_planted_state(self):
         """Planted wrong state: the cube is on face 0 where the act says face 1; s1 is still a pane."""
         from chapters import construct
