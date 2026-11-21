@@ -23,3 +23,9 @@ Checks:
 - pre-commit run --all-files: all pass except shellcheck, SC2178 in tests/gate-injected-presses.sh line 54 (`probes=0`). Not caused by this branch (file untouched); the commit hooks and the gate's pre-commit cell pass.
 
 Gate: tests/merge-gate.sh --jobs 1 (full): all steps passed, 50 cells, 0 FAIL.
+
+### PM review r1 (builder not the reviewer)
+- a606a00f on a84effda: 3 version lines, 3 doc lines. setup-uv pin 68559e99 matches Dependabot PR #94 exactly; ruff v0.17.5 and typos v1.52.2 match #107, #108. The four "already on the head" rows check out in Cargo.lock and the workflow pins.
+- MINOR: "DEFERRED DEPENDENCIES" sits under the last look's section in the style of a severity heading; a later docs round may give it its own `##`.
+- Out of scope, harness backlog: shellcheck SC2178 in tests/gate-injected-presses.sh:54 under `pre-commit run --all-files` (not from this branch).
+- Verdict MERGE-OK (0 BLOCK, 0 MAJOR); joins the next train after t101.
