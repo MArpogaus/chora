@@ -211,7 +211,7 @@ dialog_cell() {
     gate_cleanup 0
     pids=()
     [ "${#reds[@]}" = 0 ] || fail "${#reds[@]} measures are off the grid: ${reds[*]}"
-    ok "${scale}x: the year, time, month and time zone fields of Date and Time, the Wait field and the screen saver list of Display are 21 px high with a border of 1 px; the text stands 3 px inside (time zone $zone_pad, Wait $wait_pad); Wait and its field stand on one baseline ($base, $label)"
+    ok "${scale}x: the year, time, month and time zone fields of Date and Time, the Wait field and the screen saver list of Display are 21 px high with a border of 1 px; the text stands 3 to 4 px inside (time zone $zone_pad, Wait $wait_pad); Wait and its field stand on one baseline ($base, $label)"
 }
 if [ -z "${RUNBOX_ONLY:-}" ]; then
     dialog_cell 1
