@@ -28,10 +28,10 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5, F7 open past the 11-21 03:59 deadli
 | flakes-r.md (F5: FLK-DOORS-CO, FLK-MATRIX-S1, FLK-XP-FACES) | sonnet high, claude/flakes-r a5b77488 | session_016iS3kQqiW8EoPxjH4tvYxg 04:25 |
 | ti-29-r1.md (rc 2 tiling: launcher order, helper panel covers tile) | sonnet medium, claude/ti-29 598a34ff | session_016iS3kMGHWcQ12HZmuhWrPd 06:25 |
 | xp-37-r1.md (xp MINOR: rxf-1..4, 6; pixel round 2 of 2) | sonnet medium, claude/xp-37 9a6506d6 | session_016iS3kM5HiUCpS3mS1QRtvH 06:28 |
-| gate-path.md (F5 harness: selftest under rm-guard PATH) | sonnet low, claude/gate-path 598a34ff | starting |
+| gate-path.md (F5: selftest PATH) | sonnet low, claude/gate-path 598a34ff | session_016iS3kNQJyehsuVKCLz4tuV 06:36 |
 
 ## Queue (% week; 5 % reserve)
-4. (F6, F7, rc 2-3) t98 red 06:40, gate-lib (rm-guard on PATH breaks selftest; red on 598a34ff too); GATE-PATH 0.3 % fixes, then t98 with it: xp-fields 9a6506d6 + chapters-a 186d8506 (MERGE-OK). Then flakes-r, handover-mo r2.
+4. (F6, F7, rc 2-3) t98 red 06:40, gate-lib (rm-guard on PATH; red on 598a34ff too); GATE-PATH 0.3 % fixes, then t98 with it: xp-fields 9a6506d6 + chapters-a 186d8506 (MERGE-OK). Then flakes-r, handover-mo r2.
 5. (F5, F7, rc 2) F5 open (r3 2/5); FLK-XP-FACES, FLK-MATRIX-S1, FLK-DOORS-CO. Running: GUIDE-CHECKS r6, CO-KEYS, TI-29 0.8 %, XP-37 0.6 %. HANDOVER-MO review FIX 06:27 (rhm-1 MAJOR: bare `chora -- chora-tiling` has no bar): r2 after ti-29. Audit: BLOCK/MAJOR 0/3.
 
 ## Needs owner
