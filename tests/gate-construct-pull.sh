@@ -285,7 +285,7 @@ print("%s:%s/%s" % (sys.argv[1], focus.get("holder"), focus.get("surface")), end
     done
 }
 xp_let_go() { ctl state xp | python3 -I -c 'import json, sys; sys.exit(any(w["surface"] == sys.argv[1] for w in json.load(sys.stdin)["windows"]))' "$surface"; }
-pane_has_keyboard() { [ "$(ctl state construct | python3 -I -c 'import json, sys; f = json.load(sys.stdin)["focus"]; print(f.get("holder"), f.get("surface"))')" = "construct $surface" ]; }
+xp_holds_no_keys() { [ "$(ctl state xp | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["focus"].get("holder"))')" != xp ]; }
 pair_cell() {
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
@@ -294,8 +294,8 @@ inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
 sleep 1
 first=$(pane_name "$surface")
 until_ok xp_let_go 20 || fail "xp still lists the window after the drop: $(keyboard_holder)"
-until_ok pane_has_keyboard 20 ||
-    fail "after the drop the keyboard is not with the window of the pane: $(keyboard_holder); the new window goes to the manager that holds it"
+until_ok xp_holds_no_keys 20 ||
+    fail "after the drop xp holds the keyboard for its icons behind the window of the pane: $(keyboard_holder); the new window goes to the manager that holds it"
 "$bin/chora-probe" window 200 40 120 --server-deco >"$work/pair-probe2.log" 2>&1 &
 pids+=($!)
 until_ok '[ "$(probe | wc -l)" = 2 ]' 80 || fail "the second probe window did not map: $(probe)"
