@@ -102,10 +102,15 @@ pub enum Walking {
 /// key of the list, a bare one only while `holds` says its grab held, else
 /// one with a modifier.
 pub fn keys_chord(
-    _bindings: &std::collections::BTreeMap<String, crate::config::Action>,
-    _holds: impl Fn(&str) -> bool,
+    bindings: &std::collections::BTreeMap<String, crate::config::Action>,
+    holds: impl Fn(&str) -> bool,
 ) -> Vec<String> {
-    crate::glass::chord("F1")
+    let keys = crate::config::Action::System(chora_kit::actions::System::Keys);
+    (bindings.iter())
+        .filter(|(key, action)| **action == keys && (key.contains('+') || holds(key)))
+        .map(|(key, _)| crate::glass::chord(key))
+        .next()
+        .unwrap_or_default()
 }
 
 /// The hints of the walk that apply: the keys to walk and to start a

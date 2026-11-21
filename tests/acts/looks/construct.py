@@ -555,6 +555,27 @@ def keys_default_acts(s):
     s.act("Return steps in", [plain("Return")], expect=Expect(cube={"mode": "use"}))
 
 
+def cube_navigates(s):
+    """A cue: wait until the cube stands back (mode navigate)."""
+    s.until(
+        lambda: s.cube().get("mode") == "navigate",
+        10,
+        "the cube stands back",
+    )
+
+
+def grab_revoke(s):
+    """A cue: the grant of `grab_any` goes; a step back and in grabs anew."""
+    subprocess.run(
+        [str(s.bin / "choractl"), "revoke", "construct", "input.grab-any"],
+        env=s.env,
+        check=True,
+        capture_output=True,
+    )
+    s.call("construct", "view.step_back")
+    s.call("construct", "view.step_in")
+
+
 def keys_acts(s):
     """co-38, co-40, co-41 (keys rc 2): after a pane was pulled and the cube
     stepped back one client holds the focus; Escape shuts the key list of
@@ -601,7 +622,7 @@ def keys_acts(s):
     )
     s.act(
         "the hint Keys of a face opens the key list by a click",
-        [key("Alt+Escape"), wait(1.0), plain("Return"), hint_click(KEYS_HINT)],
+        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_click(KEYS_HINT)],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )
@@ -641,6 +662,11 @@ def keys_acts(s):
         expect=Expect(open=[]),
     )
     s.act("Return steps in after the chip", [plain("Return")], expect=Expect(cube={"mode": "use"}))
+    s.act(
+        "the grant input.grab-any is revoked again",
+        [grab_revoke],
+        expect=Expect(cube={"mode": "use"}),
+    )
 
 
 def cube_acts(s):

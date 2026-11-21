@@ -550,6 +550,7 @@ impl Construct {
         if self.keys_with_pane() && self.cube.is_none() {
             self.swallow_for_window()?;
         }
+        self.hints.stale = true;
         self.rt.end_grabs()
     }
 
