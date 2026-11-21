@@ -333,7 +333,7 @@ impl HelpDialog {
 
     /// The wheel: a line for every row of height that it scrolled.
     pub fn wheel(&mut self, dy: f64) -> bool {
-        if self.topic != KEYBOARD {
+        if self.topic != KEYBOARD || dy == 0.0 {
             return false;
         }
         let lines = (dy / f64::from(self.row)).round().clamp(-1000.0, 1000.0) as i64;
