@@ -361,3 +361,5 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLK-XP-FACES (11-21 flake-series r3): xp-faces "MISMATCH opens-under-pointer: measured gap" in full run 4 at --jobs 2, 0 of 10 alone; for flakes-q. OPEN, evidence only (flakes-q r1): 0 of 45 loaded runs and 3 of 3 gate runs; diagnostic fb85b156 logs the move, the window rects and the times; reports/flakes-q.md. flakes-r r1: 30 of 30 green loaded (3 streams, 2 busy loops, a build loop beside), gate 2 of 2; still not reproduced, row stays OPEN on evidence (diagnostic fb85b156 logs the state at the next sighting).
 - RPM-1 MINOR (11-21 review-pm-fixes r1): tests/persona/test_check.py has no selftest of with_children (child look windows count as shown). 0.1 %.
 - rx37-1, rx37-2 NIT (reports/xp-37.md Review r1): gate-xp-fields header 4.5; time zone box by node id.
+- rgp-1, rgp-2 NIT (gate-path review r1): selftest wrapper check weak; wrapper PATH leaks into later cases.
+- rg-12 MINOR (guide-checks review r3): exempted() ignores the row look and floor is optional, so the xp-tray- exemption passes in mc, tiling, construct; NITs rg-13..16 in reports/guide-checks.md.
