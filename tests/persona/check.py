@@ -19,6 +19,9 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/check.py COMMAND
                          (a persona declares no open) and every disconnect
                          counts as declared (I14 still reads panics and
                          failed effects)
+  wait-app APP_ID [SECS] wait until a window of APP_ID is in the scene (default
+                         20 s); exit status 1 with a message when it is not
+                         (round.sh probe)
   end [--look L] [--probe FILE] TASK...
                          the contract of each task against the snapshot of
                          the `begin` of this goal: T1..T7, X1, X2, L1..L3, M1, M2, C1..C3;
@@ -709,6 +712,18 @@ def has_config(run):
     return any(p.is_file() and p.stat().st_size for p in files)
 
 
+def wait_for_app(read_nodes, app_id, timeout, sleep=time.sleep, clock=time.monotonic):
+    """Whether a surface of `app_id` is in the scene within `timeout` seconds."""
+    deadline = clock() + timeout
+    while True:
+        nodes = read_nodes() or []
+        if any((n.get("surface") or {}).get("app_id") == app_id for n in nodes):
+            return True
+        if clock() >= deadline:
+            return False
+        sleep(0.5)
+
+
 def end(run, args):
     """Check the tasks against the snapshot of this goal's `begin`."""
     look, probe, tasks = run.s.label, None, []
@@ -785,6 +800,16 @@ def main():
                 with open(run.state_dir / "errors.log", "a", encoding="utf-8") as f:
                     f.write(traceback.format_exc())
             return 0
+        if command == "wait-app" and args:
+            secs = float(args[1]) if len(args) > 1 else 20.0
+
+            def scene():
+                return run.s.core.call("scene.query", {"selector": "*"})
+
+            if wait_for_app(scene, args[0], secs):
+                return 0
+            print(f"no window of {args[0]} in the scene after {secs:g} s", file=sys.stderr)
+            return 1
         if command == "end":
             return end(run, args)
         sys.exit(__doc__)
