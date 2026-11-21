@@ -12,3 +12,10 @@ co-42 (rc 2, F7): the hint Keys of a face rests as a small chip after its 3 s; a
 - Acts loop (construct, 5 runs): 4 of 5 green. Run 4: `FAIL: construct I6 passes but is listed in known-red.toml (guide-checks r2: construct-mode-step-in-text: the contrast); remove the row`. That is the held-turn mid-fade dim row (act "the cube is held halfway through a turn"), no resting chip involved, not caused here; not rerun to green. The row wants `flaky = true`.
 - Full gate `tests/merge-gate.sh --jobs 1` on 51475800: all steps passed (gate-exit 0).
 - Capture: captures/co-hint-r1-chip.png: the chip at the bottom of a face, taken before the tint lift (passing acts keep no still).
+
+## Review r1 (PM, 2026-11-21 19:08 UTC; small diff, PM not the builder)
+Base..head: c69354ae..51475800; the fix is cfc805d4 (4 files, +45 -7), the rest is the merge of 1c599c74.
+- Done criteria: a face keeps a chip `Keys` after the 3 s hints (hints.rs Set::Rest for engaged with a cube and no timed or low show); its unit test updated (at(true,true,false,false) = Rest, at(true,false,false,false) = None); act "co-42 ... stays after 3 s" red on c69354ae, green after; full gate green at --jobs 1. Pass.
+- KISS: one new Set reusing the keys item and the over-content glass; the lifted tint instead of a 0.6 dim, which broke I6. Pass.
+- Open note (not a finding): the lane merged 1c599c74, not the session head 892d035c; the train's full gate on the current head is the check. The capture predates the tint lift, so the chip look is proven by the act and I6 checks only; RECORD v9 takes the reviewed capture.
+Findings: 0 BLOCK, 0 MAJOR. Verdict (computed): MERGE-OK. co-42 closes when the train merges.
