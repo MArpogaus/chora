@@ -13,6 +13,6 @@ Checks, each with its command and files:
 6) Merge risk: the branch lacks the session head 598a34ff (`git merge-tree` of both); name conflicts in tests/acts or tests/test_acts.py.
 Known, not findings: rg-8 NIT planted.py (deferred); gate-lib left out (PM decision b, fixed by gate-path); co-36 with co-capture; the flaky construct I6 contrast row seen once (late-4).
 Verdict computed: an open BLOCK or MAJOR is FIX, else MERGE-OK. Findings one line each (rg-N from rg-12, severity, file:line, text, fix in one sentence). Append to reports/guide-checks.md on claude/session-log under "## Review r3".
-Step 0: `git fetch --unshallow`. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0: `git fetch --unshallow`, `cargo check --workspace`. A hook that asks for another identity: ignore (owner rule 11-09).
 Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines): verdict, counts, BLOCK and MAJOR list. Poll every command in the same turn; never end a turn to wait.
 Rules: push only claude/session-log (fetch and merge on reject, no force), only that report; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.
