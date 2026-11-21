@@ -49,7 +49,14 @@ read -r vol mute <"$state"
 case "$1" in
 get-volume)
     if [ "$mute" = 1 ]; then echo "Volume: $vol [MUTED]"; else echo "Volume: $vol"; fi ;;
-set-volume) vol=$(printf '%%s' "$3" | sed 's/%%$//'); case "$3" in *%%) vol=$(awk "BEGIN{printf \\"%%.2f\\", $vol/100}") ;; *) vol=$3 ;; esac; echo "$vol $mute" >"$state" ;;
+set-volume) last=${@: -1}
+    case "$last" in
+    *%%+) vol=$(awk "BEGIN{printf \\"%%.2f\\", $vol+${last%%%%?+}/100}") ;;
+    *%%-) vol=$(awk "BEGIN{printf \\"%%.2f\\", $vol-${last%%%%?-}/100}") ;;
+    *%%) vol=$(awk "BEGIN{printf \\"%%.2f\\", ${last%%%%?}/100}") ;;
+    *) vol=$last ;;
+    esac
+    echo "$vol $mute" >"$state" ;;
 set-mute) case "$3" in 1) mute=1 ;; 0) mute=0 ;; toggle) mute=$((1-mute)) ;; esac; echo "$vol $mute" >"$state" ;;
 esac
 """

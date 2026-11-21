@@ -41,7 +41,8 @@ text of outside programs (waybar, mako) and SVG text in a picture are not
 seen. Images count as not opaque, so a menu image over a label does not
 hide it for I5, except a picture of the whole output that belongs to the
 look of the upper text (a wallpaper): the look under it is not on the
-screen. I12 sees a held window only where a look reports `held`
+screen, and a picture that is a dialog (its node is an open entry of a
+look, or lies under one) hides the text under it. I12 sees a held window only where a look reports `held`
 in its `windows`, which acts snapshot once quiet. I13 reads the faces
 as the acts hold them, at rest and halfway through a turn.
 """
@@ -404,18 +405,30 @@ def is_whole(box, size):
     return box.get("kind") == "image" and list(box["rect"]) == [0, 0, *(size or [0, 0])]
 
 
-def hides(box, size, shown):
-    """Whether a box is opaque or the wallpaper of the look shown: a
-    picture of the whole output that belongs to that look. The boxes report
-    no opacity, so a picture of another look (mc drawn over xp while xp is
-    shown) is no cover and an overlap under it stays a breach."""
-    return bool(box.get("opaque")) or (is_whole(box, size) and box.get("owner") == shown)
+def dialog_picture(box, dialogs):
+    """Whether a box is a picture of a dialog: an image whose node is an
+    open entry of a look or is the frame of one (`xp-dlg-help-frame`)."""
+    node = box.get("node") or ""
+    return box.get("kind") == "image" and any(node in (d, d + "-frame") for d in dialogs)
 
 
-def covered(boxes, low, high, rect, size, shown):
+def hides(box, size, shown, dialogs=()):
+    """Whether a box is opaque, a dialog or the wallpaper of the look shown:
+    a picture of the whole output that belongs to that look. The boxes
+    report no opacity, so a picture of another look (mc drawn over xp while
+    xp is shown) is no cover and an overlap under it stays a breach."""
+    return (
+        bool(box.get("opaque"))
+        or dialog_picture(box, dialogs)
+        or (is_whole(box, size) and box.get("owner") == shown)
+    )
+
+
+def covered(boxes, low, high, rect, size, shown, dialogs=()):
     """Whether an opaque box between two indices covers a rect."""
     return any(
-        hides(b, size, shown) and inside(rect, b["rect"], 0.0) for b in boxes[low + 1 : high + 1]
+        hides(b, size, shown, dialogs) and inside(rect, b["rect"], 0.0)
+        for b in boxes[low + 1 : high + 1]
     )
 
 
@@ -426,6 +439,7 @@ def i5(_before, after, _act):
     out = []
     boxes = boxes_on(after)
     sizes = sizes_of(after)
+    dialogs = {o.get("id") for s in looks_with_state(after).values() for o in s.get("open") or []}
     for output, items in sorted(screen_texts(after).items()):
         shown = shown_look(after, output, boxes[output])
         for n, (ia, la, ta, ra) in enumerate(items):
@@ -435,7 +449,7 @@ def i5(_before, after, _act):
                     continue
                 low, high = sorted((ia, ib))
                 size = sizes[output]
-                if low != high and covered(boxes[output], low, high, where, size, shown):
+                if low != high and covered(boxes[output], low, high, where, size, shown, dialogs):
                     continue
                 out.append(f"on {output} {ta!r} ({la}) overlaps {tb!r} ({lb}) at {where}")
     return out

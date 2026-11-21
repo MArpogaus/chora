@@ -21,7 +21,7 @@ use chora_kit::{
 
 use crate::{
     config::{KeyAction, Look},
-    dialog::{Control, Dialog, Hit, Page},
+    dialog::{Control, Dialog, Hit, Page, SCROLL, bar_click, scroll_bar, thumb},
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
     wm::fallback,
@@ -242,6 +242,27 @@ fn fit(rows: &[Row], area: Rect) -> ([i32; 2], i32) {
     ([SIZE[0], height], row)
 }
 
+/// A line of the table of keys: the heading of a group or a row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Item {
+    Group(&'static str),
+    Row(usize),
+}
+
+/// The lines of the table of `rows`: each group opens with its heading.
+fn items(rows: &[Row]) -> Vec<Item> {
+    let mut items = Vec::new();
+    let mut group_now = "";
+    for (i, row) in rows.iter().enumerate() {
+        if row.group != group_now {
+            group_now = row.group;
+            items.push(Item::Group(row.group));
+        }
+        items.push(Item::Row(i));
+    }
+    items
+}
+
 /// The open help.
 pub struct HelpDialog {
     /// The window.
@@ -250,6 +271,9 @@ pub struct HelpDialog {
     rows: Vec<Row>,
     size: [i32; 2],
     row: i32,
+    /// The first line of the table that shows, when the table is higher
+    /// than the window.
+    top: usize,
 }
 
 impl HelpDialog {
@@ -263,7 +287,97 @@ impl HelpDialog {
             rows,
             size,
             row,
+            top: 0,
         }
+    }
+
+    fn height_of(&self, item: Item) -> i32 {
+        match item {
+            Item::Group(_) => GROUP_GAP + GROUP_ROW,
+            Item::Row(_) => self.row,
+        }
+    }
+
+    /// The height of the window for the table.
+    const fn room(&self) -> i32 {
+        self.size[1] - BOTTOM - TABLE_TOP
+    }
+
+    /// How many lines of the table from `top` fit in the window.
+    fn shown(&self, top: usize) -> usize {
+        let mut y = 0;
+        items(&self.rows)
+            .into_iter()
+            .skip(top)
+            .take_while(|item| {
+                y += self.height_of(*item);
+                y <= self.room()
+            })
+            .count()
+    }
+
+    /// The first line that shows when the table is at its end.
+    fn max_top(&self) -> usize {
+        let all = items(&self.rows).len();
+        (0..all)
+            .find(|top| self.shown(*top) == all - top)
+            .unwrap_or(0)
+    }
+
+    /// Scrolls the table by lines, within its ends; whether it moved.
+    pub fn scroll(&mut self, lines: i64) -> bool {
+        let top = i64::try_from(self.top).unwrap_or(0).saturating_add(lines);
+        let top = usize::try_from(top.max(0)).unwrap_or(0).min(self.max_top());
+        std::mem::replace(&mut self.top, top) != top
+    }
+
+    /// The wheel: a line for every row of height that it scrolled.
+    pub fn wheel(&mut self, dy: f64) -> bool {
+        if self.topic != KEYBOARD {
+            return false;
+        }
+        let lines = (dy / f64::from(self.row)).round().clamp(-1000.0, 1000.0) as i64;
+        self.scroll(if lines == 0 {
+            dy.signum() as i64
+        } else {
+            lines
+        })
+    }
+
+    /// A click on the scroll bar: a line at an arrow, a page in the track.
+    fn click_bar(&mut self, y: i32) {
+        let track = self.room() - 2 * SCROLL;
+        let all = items(&self.rows).len();
+        let page = i64::try_from(self.shown(self.top)).unwrap_or(1).max(1);
+        let grip = thumb(
+            track,
+            i32::try_from(self.shown(self.top)).unwrap_or(0),
+            i32::try_from(all).unwrap_or(0),
+            i32::try_from(self.top).unwrap_or(0),
+        );
+        let lines = bar_click(y, track, grip, page);
+        self.scroll(lines);
+    }
+
+    /// The scroll bar of the table, when the table does not fit.
+    fn bar(&self) -> Option<Control> {
+        if self.topic != KEYBOARD || self.max_top() == 0 {
+            return None;
+        }
+        let all = i32::try_from(items(&self.rows).len()).unwrap_or(0);
+        let view = i32::try_from(self.shown(self.top)).unwrap_or(0);
+        let top = i32::try_from(self.top).unwrap_or(0);
+        let height = self.room();
+        let grip = thumb(height - 2 * SCROLL, view, all, top);
+        let mut picture = Picture::new(SCROLL, height);
+        for (rect, part) in scroll_bar([SCROLL, height], grip) {
+            picture = picture.layers_of(part, [rect[0], rect[1]]);
+        }
+        Some(Control::area(
+            "scroll",
+            [self.size[0] - SCROLL - 4, TABLE_TOP, SCROLL, height],
+            picture,
+        ))
     }
 
     /// Shows a topic.
@@ -273,9 +387,13 @@ impl HelpDialog {
 
     /// A click: a topic of the pane opens, the close button closes.
     pub fn click(&mut self, hit: &Hit) -> Click {
-        let Hit::Control(name, _) = hit else {
+        let Hit::Control(name, at) = hit else {
             return Click::Close;
         };
+        if name == "scroll" {
+            self.click_bar(at[1]);
+            return Click::Redraw;
+        }
         if let Some(i) = name
             .strip_prefix("topic-")
             .and_then(|i| i.parse::<usize>().ok())
@@ -298,7 +416,8 @@ impl HelpDialog {
             ),
             texts: Vec::new(),
         };
-        let controls = self.pane(&mut canvas);
+        let mut controls = self.pane(&mut canvas);
+        controls.extend(self.bar());
         self.heading(&mut canvas);
         if self.topic == KEYBOARD {
             self.table(theme, &mut canvas);
@@ -359,39 +478,48 @@ impl HelpDialog {
     }
 
     fn table(&self, theme: &Theme, canvas: &mut Canvas) {
-        let mut y = 100;
-        let mut group_now = "";
-        for row in &self.rows {
-            if row.group != group_now {
-                group_now = row.group;
-                y += 8;
-                canvas.text(
-                    group_now,
-                    Font::BodyBold,
-                    NAVY,
-                    [PAGE_LEFT, y, PAGE_WIDTH, GROUP_ROW],
-                );
-                y += GROUP_ROW;
-                canvas.rule(y, "#7F9DB9");
+        let mut y = TABLE_TOP;
+        for item in items(&self.rows).into_iter().skip(self.top) {
+            if y + self.height_of(item) > TABLE_TOP + self.room() {
+                break;
             }
-            let mut x = PAGE_LEFT;
-            for chord in &row.keys {
-                let width = theme.text_width(chord, Font::Body).ceil() as i32 + 16;
-                canvas.cap(
-                    chord,
-                    [x, y + (self.row - CAP_HEIGHT) / 2 + 1, width, CAP_HEIGHT],
-                );
-                x += width + 8;
-                if chord != row.keys.last().unwrap_or(chord) {
-                    canvas.text("or", Font::Body, GREY, [x, y, OR_WIDTH, self.row]);
-                    x += OR_WIDTH + 8;
+            match item {
+                Item::Group(group) => {
+                    y += GROUP_GAP;
+                    canvas.text(
+                        group,
+                        Font::BodyBold,
+                        NAVY,
+                        [PAGE_LEFT, y, PAGE_WIDTH, GROUP_ROW],
+                    );
+                    y += GROUP_ROW;
+                    canvas.rule(y, "#7F9DB9");
+                }
+                Item::Row(i) => {
+                    self.line(theme, canvas, &self.rows[i], y);
+                    y += self.row;
+                    canvas.rule(y - 1, "#E6E4DB");
                 }
             }
-            let rect = [PAGE_LEFT + 214, y, PAGE_WIDTH - 214, self.row];
-            canvas.text(&row.text, Font::Body, INK, rect);
-            y += self.row;
-            canvas.rule(y - 1, "#E6E4DB");
         }
+    }
+
+    fn line(&self, theme: &Theme, canvas: &mut Canvas, row: &Row, y: i32) {
+        let mut x = PAGE_LEFT;
+        for chord in &row.keys {
+            let width = theme.text_width(chord, Font::Body).ceil() as i32 + 16;
+            canvas.cap(
+                chord,
+                [x, y + (self.row - CAP_HEIGHT) / 2 + 1, width, CAP_HEIGHT],
+            );
+            x += width + 8;
+            if chord != row.keys.last().unwrap_or(chord) {
+                canvas.text("or", Font::Body, GREY, [x, y, OR_WIDTH, self.row]);
+                x += OR_WIDTH + 8;
+            }
+        }
+        let rect = [PAGE_LEFT + 214, y, PAGE_WIDTH - 214, self.row];
+        canvas.text(&row.text, Font::Body, INK, rect);
     }
 }
 
@@ -483,6 +611,30 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
         assert!(pairs > 0, "no binding has two chords");
         assert!(ors >= pairs, "{ors} words 'or' for {pairs} bindings");
+    }
+
+    #[test]
+    fn a_table_that_fits_has_no_scroll_bar() {
+        let tall = HelpDialog::new(KEYBOARD, rows(&defaults(), all), [0, 0, 1280, 800]);
+        assert_eq!(tall.max_top(), 0, "the table fits at 800");
+        let wide = HelpDialog::new(KEYBOARD, rows(&defaults(), all), [0, 0, 1280, 1024]);
+        assert_eq!(wide.max_top(), 0, "the table fits at 1024");
+        assert!(wide.bar().is_none());
+        assert!(tall.bar().is_none());
+    }
+
+    #[test]
+    fn a_table_higher_than_a_short_output_scrolls_to_its_last_row() {
+        let rows = rows(&defaults(), all);
+        let lines = items(&rows).len();
+        let mut short = HelpDialog::new(KEYBOARD, rows, [0, 0, 1280, 690]);
+        assert!(short.max_top() > 0, "the table overflows at 690");
+        assert!(short.bar().is_some());
+        assert!(short.scroll(1000));
+        assert_eq!(short.shown(short.top), lines - short.top);
+        assert!(!short.scroll(1), "no line below the last");
+        assert!(short.scroll(-1000) && short.top == 0);
+        assert!(short.wheel(100.0) && short.top > 0, "the wheel scrolls");
     }
 
     #[test]

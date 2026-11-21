@@ -485,6 +485,23 @@ impl Wm {
         commands
     }
 
+    /// The wheel over a node: the table of keys of Help and Support
+    /// scrolls.
+    pub(super) fn scrolled(&mut self, node: &str, dy: f64) -> Vec<Command> {
+        let Some(i) = self.panels.iter().position(|p| p.window_ref().owns(node)) else {
+            return Vec::new();
+        };
+        let moved = match &mut self.panels[i] {
+            Panel::Help(panel) => panel.wheel(dy),
+            _ => false,
+        };
+        if moved {
+            self.redraw_panel(i)
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Shows the page of a dialog again.
     pub(super) fn redraw_panel(&mut self, i: usize) -> Vec<Command> {
         match &mut self.panels[i] {
