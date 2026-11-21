@@ -13,7 +13,7 @@ set -u
 status=0
 for file in "$@"; do
     found=$(awk '
-        /^[[:space:]]*#/ { next }
+        /^[[:space:]]*#/ { prev = $0; next }
         {
             line = $0
             if (match(line, /^[[:space:]]*(export[[:space:]]+|local[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=/)) {
@@ -25,12 +25,14 @@ for file in "$@"; do
                 else for (v in tainted)
                     if (rhs ~ ("\\$\\{?" v "([^A-Za-z0-9_]|$)")) { tainted[name] = 1; break }
             }
+            lastline = prev; prev = $0
             if (line !~ /(^|[^[:alnum:]_-])mkdir[[:space:]]/) next
             if (line !~ /mkdir[[:space:]]+(-[[:alpha:]]+[[:space:]]+)*-[[:alpha:]]*p/) next
             if (line ~ /-m[[:space:]]*0?700|-[[:alpha:]]*m[[:space:]]*0?700|--mode[= ][[:space:]]*0?700/) next
             hit = (line ~ /XDG_RUNTIME_DIR/)
             if (!hit) for (v in tainted)
                 if (line ~ ("\\$\\{?" v "([^A-Za-z0-9_]|$)")) { hit = 1; break }
+            if (!hit && FILENAME ~ /(^|\/)flavors\// && line !~ /mkdir-ok:/ && lastline !~ /mkdir-ok:/) hit = 1
             if (hit) print FILENAME ":" NR ":" $0
         }' "$file")
     [ -z "$found" ] && continue

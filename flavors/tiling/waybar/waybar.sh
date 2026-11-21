@@ -26,7 +26,7 @@ command -v jq >/dev/null 2>&1 || {
     exit 1
 }
 dir=$1
-runtime=${XDG_RUNTIME_DIR:-$(mktemp -d)}
+. "$(dirname "$0")/../../shared/runtime.sh"
 config=$runtime/chora-tiling-waybar.json
 style=$runtime/chora-tiling-waybar
 

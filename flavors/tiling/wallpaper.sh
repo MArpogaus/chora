@@ -9,7 +9,7 @@
 # session is gone, so that one that `chora-tiling --with-companions`
 # started outlives no session.
 # Usage: sh wallpaper.sh
-runtime=${XDG_RUNTIME_DIR:-$(mktemp -d)}
+. "$(dirname "$0")/../shared/runtime.sh"
 pids=$runtime/chora-tiling
 # shellcheck disable=SC2174
 mkdir -p -m 700 "$pids"
