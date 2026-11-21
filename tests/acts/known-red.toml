@@ -146,7 +146,9 @@ slice = "none yet: the look is not fixed in this lane"
 [[red]]
 act = "the cube is held halfway through a turn"
 capture = "construct-hints-construct-mode-step-in-keys-0-text"
+evidence = "met in 4 of 5 runs of the construct acts at 05c1fc25 (loop 2 did not meet it): the dim of the keys is read mid-fade"
 finding = "guide-checks r2: construct-hints-construct-mode-step-in-keys-0-text: the contrast"
+flaky = true
 id = "I6"
 look = "construct"
 match = "the contrast"
