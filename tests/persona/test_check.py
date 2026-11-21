@@ -322,11 +322,32 @@ class NoConfig(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, snap())
             (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
-            status, out = goal(run, snap(), self.after(), "L2")
+            run.save("begin", snap(), {})
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: notepad\n")
+            run.scene = self.after()
+            status, out = run_end(run, "L2")
             self.assertEqual(status, 0, out)
             self.assertIn("task L2 pass", out)
             status, out = goal(run, snap(), snap(), "L2")
             self.assertEqual(status, 1, out)
+
+    def test_a_run_that_changed_nothing_is_red(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
+            status, out = goal(run, snap(), self.after(), "L2")
+            self.assertEqual(status, 1, out)
+            self.assertIn("the config value did not change", task_line(out, "L2"))
+
+    def test_a_change_the_look_did_not_take_is_red(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            run.save("begin", snap(), {})
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: notepad\n")
+            run.scene = snap()
+            status, out = run_end(run, "L2")
+            self.assertEqual(status, 1, out)
+            self.assertIn("the look is not back with the focus", task_line(out, "L2"))
 
 
 class GivenAway(unittest.TestCase):
