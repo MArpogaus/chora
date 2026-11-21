@@ -1,0 +1,7 @@
+choractl: the node "s1" shows no point [347.3089756893912, 248.07783977813656] (code 1)
+FAIL: inject [{"pointer_move": {"node": "s1", "point": [347.3089756893912,248.07783977813656]}},
+      {"key": {"key": "Super_L", "state": "pressed"}},
+      {"button": {"state": "pressed", "hold": true}},
+      {"pointer_move": {"position": [640, 400], "output": "HEADLESS-3"}},
+      {"button": {"state": "released"}},
+      {"key": {"key": "Super_L", "state": "released"}}]
