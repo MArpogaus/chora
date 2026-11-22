@@ -765,7 +765,7 @@ to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
 scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
 header and the footer, and `Super+F1` for all keys, with `Super+slash` as a
 silent alias that has no row of its own. `Super+Space` starts the launcher,
-and its list has the entry Chat with a helper. `Super+Shift+Escape` locks the
+and its list has the entry Chat with a helper. `Super+Right` and `Super+Left` turn to the next and the previous page, `Super+o` opens the overview and `Super+F12` shows the test sheet in the drawer. On a page, which has no program, a plain `Right` and `Left` also turn the page, `Home` and `XF86HomePage` go to the first page and `Escape` goes back one step; `XF86Back` goes back from a window too. `Super` with the left mouse button drags a window (only with `--manage-windows`). Changed since rc 3: `Super+a` opens the chat (it went to the agenda), `Super+Return` goes to the terminal scene (it toggled the drawer) and `Super+Home` goes to the agenda. `Super+Shift+Escape` locks the
 screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
 down) and `Super+Print` takes a screenshot; these three run the scripts that
 every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
