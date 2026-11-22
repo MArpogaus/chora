@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| ti-38-r1.md (F7, rc 2: ti-38 MAJOR, joining look takes the keyboard) | opus high, claude/ti-38 e86b3cfa | starting |
+| ti-38-r1.md (F7, rc 2: ti-38 MAJOR, joining look takes the keyboard) | opus high, claude/ti-38 e86b3cfa | session_016iS3kP4PwZqxBu9ivmLzFw 04:14 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) TOUR-FIX r2 done 03:40 87fdbeb9 (66 to 84 red, +18 ti-31; gate red only tiling-look clock = ti-37, fixed by t105); REVIEW r2 MERGE-OK 03:50 (5 MINOR rv-1..5: r3 with ti-31); PM 11-22: inner gap 10 of tiling-v2 holds, ti-31 a check fault for r3; then train, RECORD r2.
