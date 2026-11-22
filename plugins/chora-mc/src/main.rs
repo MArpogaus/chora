@@ -1860,6 +1860,15 @@ mod tests {
         assert!(!mc.agents.iter().any(|a| a.name == "voice"));
         assert!(mc.solo.is_none() && !mc.texts.contains_key("confirm"));
         assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
+        let head = mc.scenes["agents"]
+            .chapter
+            .running_head
+            .clone()
+            .unwrap_or_default();
+        assert!(
+            !head.to_lowercase().contains("agent"),
+            "the head says {head:?}"
+        );
     }
 
     /// mc never claims the indicator of voice: the HUD host does.
@@ -1916,6 +1925,27 @@ mod tests {
     fn key_items(mc: &super::Mc, scene: &str) -> usize {
         let items = mc.items(scene).into_values().flat_map(|(items, _)| items);
         items.filter(|i| i.id.contains("-keys-")).count()
+    }
+
+    fn door_items(mc: &super::Mc, scene: &str) -> usize {
+        let items = mc.items(scene).into_values().flat_map(|(items, _)| items);
+        items.filter(|i| i.id.contains("-doors-")).count()
+    }
+
+    /// The doors of the column, with their hit areas, are not under the
+    /// chat panel: they go while the chat is open and come back with the
+    /// close (mc-56).
+    #[test]
+    fn the_doors_of_the_column_go_while_the_chat_is_open() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _) = crate::testing::mc("chat-doors", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        assert!(door_items(&mc, &first) > 0, "the doors show");
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        assert_eq!(door_items(&mc, &first), 0, "no door under the chat");
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert!(door_items(&mc, &first) > 0, "the doors are back");
     }
 
     /// Another output or another client than the host changes nothing.

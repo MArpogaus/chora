@@ -286,7 +286,7 @@ xp-run|BIN=$repo/target/debug tests/gate-xp-run.sh
 demo|BIN=$repo/target/debug tests/gate-demo.sh
 tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh && BIN=$repo/target/debug tests/gate-tiling-spacing.sh && BIN=$repo/target/debug tests/gate-tiling-notice.sh
 tiling-theme|BIN=$repo/target/debug tests/gate-tiling-theme.sh
-known-red-mc-host|BIN=$repo/target/debug tests/gate-mc-host.sh
+mc-host|BIN=$repo/target/debug tests/gate-mc-host.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }
