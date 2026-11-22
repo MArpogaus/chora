@@ -8,7 +8,7 @@ Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`
 2) Every 10 minutes sample RSS (kB) and open fds of the core and each plugin process by pid (/proc/<pid>/status VmRSS, ls /proc/<pid>/fd | wc -l) into /tmp/sim-long/samples.csv (time, workflow, process, rss_kb, fds).
 3) A stall: a workflow step that exceeds the watchdog bound named in the README or its script; a death: the core or a plugin exits. Record each with its log lines.
 4) Write a section "## sim-long 2026-11-22" at the end of tests/battle/RESULTS.md: hours run, passes per workflow, growth per hour of RSS and fds per process (first vs last hour, linear fit), deaths, stalls, findings. Commit it with samples.csv summarised (not the raw csv; keep the csv out of git).
-Gate: `tests/merge-gate.sh --only pre-commit` on claude/sim-long (only RESULTS.md changes; no product code, so no full gate).
+Gate: `tests/merge-gate.sh --only pre-commit,ci-check` on claude/sim-long (only RESULTS.md changes; no product code, so no full gate).
 Done when: at least 3 hours run; the RESULTS.md section with the table; every growth over 5 % per hour or any stall or death named as a finding (look, cell, log line).
 Report: reports/sim-long.md "## r1" on claude/session-log (hours, table summary, findings with ids sl-1..); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
 Rules: push claude/sim-long and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
