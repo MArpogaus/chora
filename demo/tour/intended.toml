@@ -7,6 +7,11 @@
 # A v8 open row that is gone in v9 needs a row here too. tests/tour-diff.py reads it with
 # --intended; a diff with no row is a regression.
 
+# 733967aa cannot run these: the replay of the handover chapter stops at handover.py:190, where
+# the row `xp-ctx-1-0` (the Send To row of the xp context menu, xp-give 22fead94) does not exist,
+# so no capture from the Send To act on was taken there (record-v9 r1).
+baseline_none = ["h2.Q", "h3.Q", "h3b.Q", "h4.Q", "h5.H50", "h6.Q", "h7.Q"]
+
 [[change]]
 act = "h2"
 cause = "xp-give Send To row (22fead94)"
