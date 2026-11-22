@@ -6,6 +6,7 @@
 
 use std::time::{Duration, Instant};
 
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
@@ -185,7 +186,8 @@ pub enum Press {
 /// What the user answers. `Always` is reserved for the questions of a
 /// grant (design/grants.md); no card offers it yet, and the voice service
 /// does not take it yet.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum Answer {
     /// Allow this once.
     Yes,
@@ -200,6 +202,28 @@ impl Answer {
     #[must_use]
     pub fn of(yes: bool) -> Self {
         if yes { Self::Yes } else { Self::No }
+    }
+}
+
+/// The parameters of the method `confirm` of the voice service: the
+/// answer of a person to the question that waits, as `yes` or `no`.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ConfirmCall {
+    /// The answer as written; [`ConfirmCall::yes`] reads it.
+    pub answer: Answer,
+}
+
+impl ConfirmCall {
+    /// Whether the answer allows; `None` for `always`, which `confirm`
+    /// does not take while it is reserved.
+    #[must_use]
+    pub fn yes(self) -> Option<bool> {
+        match self.answer {
+            Answer::Yes => Some(true),
+            Answer::No => Some(false),
+            Answer::Always => None,
+        }
     }
 }
 
@@ -306,6 +330,25 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// The parameters of `confirm` are `yes` or `no`, nothing else: not
+    /// the reserved `always`, not another word, not another key.
+    #[test]
+    fn confirm_takes_yes_or_no_and_nothing_else() {
+        let read = |params: Value| serde_json::from_value::<ConfirmCall>(params);
+        assert_eq!(read(json!({"answer": "yes"})).unwrap().yes(), Some(true));
+        assert_eq!(read(json!({"answer": "no"})).unwrap().yes(), Some(false));
+        assert_eq!(read(json!({"answer": "always"})).unwrap().yes(), None);
+        for bad in [
+            json!({"answer": "Yes"}),
+            json!({"answer": "maybe"}),
+            json!({"answer": true}),
+            json!({"answer": "yes", "always": true}),
+            json!({}),
+        ] {
+            assert!(read(bad.clone()).is_err(), "{bad}");
+        }
+    }
 
     fn question(data: &Value) -> Question {
         Question::from_event(data, Some("Atlas")).unwrap()
