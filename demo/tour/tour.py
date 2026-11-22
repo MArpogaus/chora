@@ -65,9 +65,16 @@ LOOK_LETTERS = {"01-xp": "x", "02-tiling": "t", "04-construct": "c", "05-handove
 CAPTURES = "captures"
 
 
-def act_id(slug, number):
-    """The id of an act in the files of a take: the letter of its look and its number in the chapter
-    (`x3`, `t10`, `m4`; `md4` in the dark mc chapter, which numbers again from 1), as intended.toml names it."""
+def act_id(slug, number, scene=None, seen=None):
+    """The id of an act in the files of a take: the scene id of design/tour-v9.md that the act names
+    with `scene=` (`h2` is the Send To act of the handover), and for a later act of the same scene
+    the scene id and a letter (`h1`, `h1b`, `h1c`); `seen` counts the acts of each scene so far. An
+    act without a scene is the letter of its look and its number in the chapter (`x3`; `md4` in the
+    dark mc chapter). intended.toml names an act by this id."""
+    if scene:
+        seen = {} if seen is None else seen
+        seen[scene] = seen.get(scene, 0) + 1
+        return scene if seen[scene] == 1 else f"{scene}{chr(ord('a') + seen[scene] - 1)}"
     if "-mc-" in slug:
         letter = "md" if slug.endswith("dark") else "m"
     else:
@@ -302,6 +309,7 @@ class Tour:
         self.frame = 0
         self.chapter_frames = 0
         self.act_no = 0
+        self.scenes_seen = {}
         self.stills_wanted = []
         self.cuts = []
 
@@ -426,13 +434,14 @@ class Tour:
         self.stills_wanted.append((max(1, at), name))
         return at
 
-    def act(self, kind, description, expected, still=None, settle=0.8, lead=None, tail=None, *, expect=None, contract=None, cells=(), capture=None, todo=False, known=None, opens=(), closes=(), disconnects=()):
+    def act(self, kind, description, expected, still=None, settle=0.8, lead=None, tail=None, *, expect=None, contract=None, cells=(), capture=None, todo=False, known=None, opens=(), closes=(), disconnects=(), scene=None):
         """Open an act: pause, mark its start. Use with a following `done`.
 
         An act is a row of design/tour-v9.md: `expect` (an `Expect` of tests/acts/harness.py,
         judged with every invariant at the next read of the session after `done`), `contract`
         (a persona contract, T1..M2), `cells` (the gate cells the act repeats on screen),
-        `capture` (Q, Q+t, H50), `todo` (a stub for an act that waits for xp-give: no
+        `capture` (Q, Q+t, H50), `scene` (the scene id of design/tour-v9.md, `h2`; it names the act in the dumps
+        and in intended.toml), `todo` (a stub for an act that waits for xp-give: no
         check, a `todo` row) and `known` (`"I4: why"`: the invariant that is red today and why,
         the way a row of tests/acts/known-red.toml does; only a red of that invariant is shown
         as `known` and not counted, any other red of the act stays `RED`; a `known` act that
@@ -448,7 +457,7 @@ class Tour:
         self.act_no += 1
         row = {
             "chapter": self.chapter,
-            "id": act_id(self.slug, self.act_no),
+            "id": act_id(self.slug, self.act_no, scene, self.scenes_seen),
             "act": self.act_no,
             "frame": self.frame + 1,
             "kind": kind,
