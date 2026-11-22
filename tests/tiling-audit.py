@@ -55,6 +55,7 @@ colors.css by the gate.
 import importlib.util
 import json
 import pathlib
+import re
 import sys
 
 TOKENS = {
@@ -83,9 +84,22 @@ def near(a, b, tolerance=TOLERANCE):
     return sum(abs(p - q) for p, q in zip(a, b)) <= tolerance
 
 
-def gap_findings(nodes, output, unit=4.0):
-    """The tiles (`tb-` borders) of an output whose gap is no whole number
-    of the grid unit (4): the same rule as hud-audit.py `gaps`."""
+SHIPPED = pathlib.Path(__file__).resolve().parent.parent / "plugins" / "chora-tiling" / "tiling.yaml"
+
+
+def inner_gap(path=SHIPPED):
+    """`look.gap_inner` of the tiling config that the build ships: the gap
+    between two tiles, which is not a multiple of the grid unit (ti-31)."""
+    found = re.search(r"^\s+gap_inner:\s*(\d+(?:\.\d+)?)\s*(?:#.*)?$", path.read_text(), re.M)
+    return float(found.group(1)) if found else None
+
+
+def gap_findings(nodes, output, unit=4.0, inner=-1):
+    """The tiles (`tb-` borders) of an output whose gap is neither the inner
+    gap of the shipped tiling config (`inner`, read from it when left out)
+    nor a whole number of the grid unit (4): the rule of hud-audit.py `gaps`."""
+    if inner == -1:
+        inner = inner_gap()
     spec = importlib.util.spec_from_file_location(
         "hud_audit", pathlib.Path(__file__).with_name("hud-audit.py")
     )
@@ -96,7 +110,11 @@ def gap_findings(nodes, output, unit=4.0):
         for n in nodes
         if n.get("id", "").startswith("tb-") and output in (n.get("rects") or {})
     }
-    return hud.gap_findings(output, rects, unit)
+    return [
+        line
+        for (a, b, gap), line in zip(hud.facing_gaps(rects, unit), hud.gap_findings(output, rects, unit))
+        if inner is None or abs(gap - inner) > 0.5
+    ]
 
 
 def surfaces(nodes):

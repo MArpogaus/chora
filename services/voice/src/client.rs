@@ -100,20 +100,6 @@ impl Claims {
     }
 }
 
-/// The parameters of `confirm`.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "lowercase")]
-enum Answer {
-    Yes,
-    No,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ConfirmParams {
-    answer: Answer,
-}
-
 /// The parameters of `confirm.answer`: the id as `voice.confirm` sends it.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -884,8 +870,11 @@ impl Plugin for Client {
             "sleep" => Call::Sleep,
             "wake" => Call::Wake,
             "confirm" => {
-                let ConfirmParams { answer } = runtime::params(params)?;
-                Call::Confirm(matches!(answer, Answer::Yes))
+                let confirm: chora_kit::ask::ConfirmCall = runtime::params(params)?;
+                let yes = confirm
+                    .yes()
+                    .ok_or_else(|| RpcError::new(RpcError::INVALID_PARAMS, "answer: yes or no"))?;
+                Call::Confirm(yes)
             }
             "talk" => {
                 let Talk { down } = runtime::params(params)?;
@@ -1145,6 +1134,99 @@ mod tests {
             let _answer = ask_key(&tx, &config, &patch);
             assert!(rx.try_recv().is_err(), "a question for {patch}");
         }
+    }
+
+    /// A `settings.set` call as the core delivers it.
+    fn set_call(call: u64, params: Value) -> chora_scene::Event {
+        chora_scene::Event::MethodCalled {
+            call,
+            caller: "hud".into(),
+            method: "settings.set".into(),
+            params,
+            confined: false,
+            connection: 1,
+        }
+    }
+
+    /// A client on a fake core, and what it answered to calls
+    /// (`methods.return`), as JSON.
+    fn held_client(
+        core: &chora_kit::testing::FakeCore,
+    ) -> (
+        super::Client,
+        mpsc::Receiver<Input>,
+        chora_kit::testing::Log,
+        chora_kit::testing::TempDir,
+    ) {
+        let returned =
+            core.record(|method, params| (method == "methods.return").then(|| params.to_string()));
+        let dir = chora_kit::testing::TempDir::new("chora-voice-db7c");
+        let file = dir.path().join("voice.yaml");
+        let settings = chora_kit::settings::File::<Config>::load(file, "{}").unwrap();
+        let (tx, rx) = mpsc::channel();
+        let client = super::Client {
+            rt: core.runtime("voice"),
+            settings,
+            tx,
+            claims: Claims::default(),
+            confirming: false,
+            waiting: None,
+        };
+        (client, rx, returned, dir)
+    }
+
+    /// The answer to the call, as the caller heard it: its code and text.
+    fn heard(returned: &chora_kit::testing::Log, call: u64) -> (i64, String) {
+        let lines = returned.lock().unwrap();
+        let answer = (lines.iter())
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .find(|a| a["call"] == call)
+            .expect("the caller got an answer");
+        let error = &answer["error"];
+        let message = error["message"].as_str().unwrap_or_default();
+        (
+            error["code"].as_i64().unwrap_or_default(),
+            message.to_owned(),
+        )
+    }
+
+    /// Review secfix c r2, DB7 c: through `hold_security`, a security
+    /// change that hides text is REJECTED with the refusal, so that the
+    /// caller hears why, while no question reaches the core and nothing
+    /// waits.
+    #[test]
+    fn hold_security_rejects_a_change_that_hides_text() {
+        let core = chora_kit::testing::FakeCore::start();
+        let (mut client, rx, returned, _dir) = held_client(&core);
+        let hidden = json!({"record_dir": "/tmp/rec\u{1b}]/home/user\u{7}"});
+        assert!(client.hold_security(set_call(7, hidden)).unwrap().is_none());
+        assert!(rx.try_recv().is_err(), "no question for a hidden text");
+        assert!(client.waiting.is_none(), "nothing waits");
+        let (status, message) = heard(&returned, 7);
+        assert_eq!(status, RpcError::REJECTED);
+        assert!(message.contains("settings.set: Refused"), "{message}");
+    }
+
+    /// The same call with a change that shows is rejected too, but it
+    /// asks for a key and waits: the two paths are told apart.
+    #[test]
+    fn hold_security_asks_for_a_change_that_shows() {
+        let core = chora_kit::testing::FakeCore::start();
+        let (mut client, rx, returned, _dir) = held_client(&core);
+        let shown = json!({"allow_programs": ["sh"]});
+        assert!(client.hold_security(set_call(8, shown)).unwrap().is_none());
+        let asked = rx.try_recv();
+        assert!(matches!(
+            asked,
+            Ok(Input::Agent(crate::agents::Event::Ask {
+                physical: true,
+                ..
+            }))
+        ));
+        assert!(client.waiting.is_some(), "a change that shows waits");
+        let (status, message) = heard(&returned, 8);
+        assert_eq!(status, RpcError::REJECTED);
+        assert!(message.contains("waits for the user"), "{message}");
     }
 
     /// A confined connection cannot answer by `confirm`, push to talk or

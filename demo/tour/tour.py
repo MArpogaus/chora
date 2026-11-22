@@ -7,6 +7,7 @@ the state of the session (queries), so that the next act aims at what is
 on the screen. Frames become an H.264 chunk and are deleted at once.
 """
 
+import ast
 import json
 import math
 import os
@@ -61,9 +62,108 @@ def red_key(line):
     return "snapshot" if line.startswith("no snapshot") else "expect"
 
 
+LOOK_LETTERS = {"01-xp": "x", "02-tiling": "t", "04-construct": "c", "05-handover": "h"}
+CAPTURES = "captures"
+
+
+def act_id(slug, number, scene=None, seen=None):
+    """The id of an act in the files of a take: the scene id of design/tour-v9.md that the act names
+    with `scene=` (`h2` is the Send To act of the handover), and for a later act of the same scene
+    the scene id and a letter (`h1`, `h1b`, `h1c`); `seen` counts the acts of each scene so far. An
+    act without a scene is the letter of its look and its number in the chapter (`x3`; `md4` in the
+    dark mc chapter). intended.toml names an act by this id."""
+    if scene:
+        seen = {} if seen is None else seen
+        seen[scene] = seen.get(scene, 0) + 1
+        return scene if seen[scene] == 1 else f"{scene}{chr(ord('a') + seen[scene] - 1)}"
+    if "-mc-" in slug:
+        letter = "md" if slug.endswith("dark") else "m"
+    else:
+        letter = LOOK_LETTERS.get(slug, slug[:1])
+    return f"{letter}{number}"
+
+
+TAKEN = set()
+"""The `<id>.<capture>` names of the captures this process took (run.py: what a stopped chapter did reach)."""
+
+
+def planned(chapter):
+    """The `<id>.<capture>` of every capture that a chapter file plans, in file order: the `t.act(...)`
+    calls with a `capture=`, their `scene=` letters as `act_id` gives them, a call in a `for` over a
+    literal list repeated once per item. What tests/tour-diff.py needs for `baseline_none`: the
+    captures of the candidate that a stopped chapter of the baseline replay never reached."""
+    tree = ast.parse(open(os.path.join(HERE, "chapters", f"{chapter}.py"), encoding="utf-8").read())
+    names, seen = [], {}
+
+    def repeats(node):
+        it = node.iter
+        if isinstance(it, ast.Call) and getattr(it.func, "id", "") == "enumerate" and it.args:
+            it = it.args[0]
+        return len(it.elts) if isinstance(it, (ast.List, ast.Tuple)) else 1
+
+    def visit(node, times):
+        if isinstance(node, ast.For):
+            for child in [*node.body, *node.orelse]:
+                visit(child, times * repeats(node))
+            return
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "act":
+            kw = {k.arg: k.value.value for k in node.keywords if isinstance(k.value, ast.Constant)}
+            for _ in range(times):
+                ident = act_id("", 0, kw.get("scene"), seen)
+                if kw.get("capture"):
+                    names.append(f"{ident}.{kw['capture']}")
+        for child in ast.iter_child_nodes(node):
+            visit(child, times)
+
+    visit(tree, 1)
+    return names
+
+
+def text_masks(boxes, output=None):
+    """The rects of the text boxes of one output in a `scene.boxes` answer (the first output when
+    `output` is None), for the pixel diff to ignore; none when the build has no `scene.boxes`."""
+    if not boxes:
+        return []
+    entry = boxes.get(output) if output in boxes else next(iter(boxes.values()), None)
+    return [[round(v) for v in b["rect"]] for b in (entry or {}).get("boxes") or [] if b.get("kind") == "text" and b.get("rect")]
+
+
 def mmss(frame):
     seconds = int(frame / FPS)
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+NO_METHOD = re.compile(r"no (?:exported )?method|method not found|unknown method", re.IGNORECASE)
+BUS_IDS = 24
+"""How many notification ids `close_on_bus` tries on a build that cannot list the open cards."""
+
+
+class OldCore:
+    """The connection of the harness to a core that may lack `scene.boxes` (the build 733967aa of the
+    v8 replay): that one call answers `None` (a snapshot without boxes: no masks, the invariants
+    that read boxes find nothing) and says so once; any other error, and any other method, goes
+    through. Only `Checker.attach` with TOUR_BASELINE set wraps the core in it: on the candidate a
+    lost `scene.boxes` is an error and a red act."""
+
+    OPTIONAL = ("scene.boxes",)
+
+    def __init__(self, core):
+        self.core = core
+        self.missing = set()
+
+    def call(self, method, params=None, **kw):
+        try:
+            return self.core.call(method, params, **kw)
+        except RuntimeError as err:
+            if method not in self.OPTIONAL or not NO_METHOD.search(str(err)):
+                raise
+            if method not in self.missing:
+                print(f"core: no {method} on this build, the snapshots have no boxes", flush=True)
+            self.missing.add(method)
+            return None
+
+    def __getattr__(self, name):
+        return getattr(self.core, name)
 
 
 class Session:
@@ -97,10 +197,33 @@ class Session:
     def dismiss_notices(self):
         """Close the cards that chora-notify shows: `launch.notify_config` keeps a card up for the
         whole recording, so the chapter lets it go where a person would have (a card shows for
-        about ten seconds), and it does not lie over the acts that follow."""
-        state = self.call("notify", "state.get")
+        about ten seconds), and it does not lie over the acts that follow. A build whose
+        chora-notify has no `state.get` (733967aa, the replay of tour v8) is closed on the bus."""
+        try:
+            state = self.call("notify", "state.get")
+        except RuntimeError as err:
+            if not NO_METHOD.search(str(err)):
+                raise
+            self.close_on_bus(range(1, BUS_IDS + 1))
+            return
         for note in (state.get("shown") if isinstance(state, dict) else None) or []:
             self.call("notify", "notify.close", {"id": note["id"]})
+
+    def close_on_bus(self, ids):
+        """The old path: `CloseNotification` of org.freedesktop.Notifications for each id (the
+        ids of a session count from 1; one that is not open is no error). Said once."""
+        if not getattr(self, "bus_said", False):
+            self.bus_said = True
+            print("notify: no state.get on this build, the cards are closed on the bus", flush=True)
+        for n in ids:
+            subprocess.run(
+                ["busctl", "--user", "call", "org.freedesktop.Notifications", "/org/freedesktop/Notifications", "org.freedesktop.Notifications", "CloseNotification", "u", str(n)],
+                env=self.env, capture_output=True, timeout=10, check=False,
+            )
+
+    def capture(self, path, output=None):
+        """A PNG of an output (the scene, no pointer) at the moment; the first output when `output` is None."""
+        self.ctl("capture", *(["--output", output] if output else []), path)
 
     def query(self, selector):
         out = self.ctl("query", selector, check=False)
@@ -130,8 +253,9 @@ class Checker:
     invariant of invariants.ALL. `source` answers a `harness.Snapshot`; `Checker.attach` reads the
     live session of the tour as the persona check does."""
 
-    def __init__(self, source):
+    def __init__(self, source, baseline=False):
         self.source = source
+        self.baseline = baseline
 
     @classmethod
     def attach(cls, env, looks, runs, wallpaper=None):
@@ -145,12 +269,19 @@ class Checker:
         h.env = dict(env)
         h.runtime = pathlib.Path(env["XDG_RUNTIME_DIR"])
         h.connect(env["CHORA_SOCKET"], "tour-check")
-        return cls(h.snapshot)
+        baseline = bool(os.environ.get("TOUR_BASELINE"))
+        if baseline:
+            h.core = OldCore(h.core)
+        return cls(h.snapshot, baseline)
 
     def snapshot(self):
         return self.source()
 
     def judge(self, row, expect, before, after):
+        """The red lines of an act. On the build of the baseline replay (TOUR_BASELINE: OldCore, no
+        `scene.boxes`) the boxes cannot be read, so "missing boxes" is no breach there; on the
+        candidate it stays red. The design exemptions of tests/acts/known-red.toml
+        (`[[exempt]]`: the Luna tray down to 3.0:1) hold here too; its known-red rows do not."""
         import dataclasses
 
         import harness
@@ -161,7 +292,10 @@ class Checker:
         red = expect.check(before, after) if expect else []
         for key, check in invariants.ALL.items():
             red += [f"{key}: {b}" for b in check(before, after, act)]
-        return red
+        if self.baseline and after.boxes is None:
+            red = [line for line in red if "missing boxes" not in line]
+        exempt = harness.exemptions()
+        return [line for line in red if not harness.exempted(line, exempt)]
 
 
 def checker_for(session, looks, work, wallpaper=None):
@@ -204,6 +338,10 @@ class Tour:
         self.armed = []
         self.quiet_gap = 0.3
         self.quiet_timeout = 20.0
+        self.segments = 0
+        self._act_segment = 0
+        self.frames_wanted = []
+        self.held = {}
 
     def begin(self, chapter, slug):
         self.chapter = chapter
@@ -213,6 +351,7 @@ class Tour:
         self.frame = 0
         self.chapter_frames = 0
         self.act_no = 0
+        self.scenes_seen = {}
         self.stills_wanted = []
         self.cuts = []
 
@@ -337,13 +476,14 @@ class Tour:
         self.stills_wanted.append((max(1, at), name))
         return at
 
-    def act(self, kind, description, expected, still=None, settle=0.8, lead=None, tail=None, *, expect=None, contract=None, cells=(), capture=None, todo=False, known=None, opens=(), closes=(), disconnects=()):
+    def act(self, kind, description, expected, still=None, settle=0.8, lead=None, tail=None, *, expect=None, contract=None, cells=(), capture=None, todo=False, known=None, opens=(), closes=(), disconnects=(), scene=None):
         """Open an act: pause, mark its start. Use with a following `done`.
 
         An act is a row of design/tour-v9.md: `expect` (an `Expect` of tests/acts/harness.py,
         judged with every invariant at the next read of the session after `done`), `contract`
         (a persona contract, T1..M2), `cells` (the gate cells the act repeats on screen),
-        `capture` (Q, Q+t, H50), `todo` (a stub for an act that waits for xp-give: no
+        `capture` (Q, Q+t, H50), `scene` (the scene id of design/tour-v9.md, `h2`; it names the act in the dumps
+        and in intended.toml), `todo` (a stub for an act that waits for xp-give: no
         check, a `todo` row) and `known` (`"I4: why"`: the invariant that is red today and why,
         the way a row of tests/acts/known-red.toml does; only a red of that invariant is shown
         as `known` and not counted, any other red of the act stays `RED`; a `known` act that
@@ -359,6 +499,7 @@ class Tour:
         self.act_no += 1
         row = {
             "chapter": self.chapter,
+            "id": act_id(self.slug, self.act_no, scene, self.scenes_seen),
             "act": self.act_no,
             "frame": self.frame + 1,
             "kind": kind,
@@ -383,6 +524,7 @@ class Tour:
 
             self.expects[id(row)] = expect or harness.Expect()
         self.rows.append(row)
+        self._act_segment = self.segments
         self._open = (row, still, settle, tail)
         return row
 
@@ -390,6 +532,9 @@ class Tour:
         row, still, settle, tail = self._open
         if row["status"] == "todo":
             return
+        if row["capture"] == "H50" and not checking():
+            start = row["frame"] if self.segments == self._act_segment else 1
+            self.frames_wanted.append(((start + self.frame) // 2, f"{row['id']}.H50", (self.px, self.py)))
         self.wait(settle)
         if still:
             self.still(still)
@@ -439,6 +584,8 @@ class Tour:
             keys = known_keys(row["known"]) if row.get("known") else []
             row["hidden"] = [line for line in lines if red_key(line) in keys]
             row["red"] = [line for line in lines if red_key(line) not in keys]
+            if after is not None:
+                self.dump(row, after)
             if row["red"]:
                 row["status"] = "RED"
                 print(f"RED act {row['act']} {row['description']}: {row['red']}", flush=True)
@@ -453,10 +600,58 @@ class Tour:
         if after is not None:
             self.before = after
 
+    def dump(self, row, after):
+        """The files of a capture for tests/tour-diff.py, in `<out>/captures`: `<id>.<capture>.json`
+        (the nodes of `scene.query`, the rects of the text boxes of `scene.boxes` as masks, the colour
+        of every check) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
+        the frame in the middle of the act (taken by `run_segment`; the pointer is masked). Nothing
+        is written by `--check`. Only the held frame that `copy_held` took in this take is kept; any other
+        picture is taken again, and an old one in the folder is never left beside the new json."""
+        if not row.get("capture"):
+            return
+        name = f"{row['id']}.{row['capture']}"
+        TAKEN.add(name)
+        if checking():
+            return
+        folder = os.path.join(self.out, CAPTURES)
+        os.makedirs(folder, exist_ok=True)
+        png = os.path.join(folder, f"{name}.png")
+        masks = text_masks(after.boxes, self.pointer_output or self.output)
+        if row["capture"] == "H50":
+            at = self.held.get(name)
+            if at:
+                masks.append([round(at[0]) - 2, round(at[1]) - 2, 28, 36])
+        if not (row["capture"] == "H50" and name in self.held):
+            if os.path.exists(png):
+                os.remove(png)
+            try:
+                self.s.capture(png, self.pointer_output or self.output)
+            except Exception as err:  # noqa: BLE001
+                print(f"capture: no picture for {name}: {type(err).__name__}: {err}", flush=True)
+        import invariants
+
+        lines = row["red"] + row["hidden"]
+        red = {red_key(line) for line in lines}
+        checks = {key: "red" if key in red else "green" for key in [*invariants.ALL, "expect"]}
+        with open(os.path.join(folder, f"{name}.json"), "w", encoding="utf-8") as f:
+            json.dump({"nodes": after.nodes, "masks": masks, "checks": checks}, f)
+
+    def copy_held(self, frames_dir, count):
+        """The frames in the middle of the acts that hold a motion (capture H50) become their `<id>.H50.png`."""
+        folder = os.path.join(self.out, CAPTURES)
+        for at, name, pointer in self.frames_wanted:
+            src = os.path.join(frames_dir, f"frame-{min(max(1, at), count):05d}.png")
+            if os.path.exists(src):
+                os.makedirs(folder, exist_ok=True)
+                shutil.copy(src, os.path.join(folder, f"{name}.png"))
+                self.held[name] = pointer
+        self.frames_wanted = []
+
     def run_segment(self, label=""):
         """Record the pending cues as one chunk, keep the stills."""
         if self.frame <= 0:
             return
+        self.segments += 1
         count = self.frame + 1
         frames_dir = os.path.join(self.work, "frames")
         shutil.rmtree(frames_dir, ignore_errors=True)
@@ -488,6 +683,7 @@ class Tour:
                     if os.path.exists(src):
                         shutil.copy(src, os.path.join(self.out, "stills", f"{name}-{tag}.png"))
             self.stills_wanted = []
+            self.copy_held(dirs[0], count)
             self.chunk_no += 1
             chunk = os.path.join(self.work, f"{self.slug}-{self.chunk_no:03d}.mkv")
             subprocess.run(
@@ -519,6 +715,7 @@ class Tour:
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(self.out, "stills", f"{name}.png"))
         self.stills_wanted = []
+        self.copy_held(frames_dir, count)
         count = self.apply_cuts(frames_dir, count)
         self.chunk_no += 1
         chunk = os.path.join(self.work, f"{self.slug}-{self.chunk_no:03d}.mkv")
