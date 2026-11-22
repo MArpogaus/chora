@@ -9,6 +9,8 @@
 # Usage: tests/gate-construct-k1.sh   BIN: directory with the binaries
 #   THEME  light (default) or dark
 #   SHOTS  a directory that keeps the captures as construct-THEME-*.png
+#   K1_RACE  1 (test only) reads the pose at once after the walk, to keep
+#            the race with a walk that has not come to rest red
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-construct
@@ -47,7 +49,7 @@ shot "$shots/construct-$theme-pane.png"
 ok "foot is the pane $pane at $before"
 
 for k in e e e a a s s; do key "$k"; done
-sleep 0.6
+[ -n "${K1_RACE:-}" ] || sleep 0.6
 after=$(node "id:$pane" 'n[0]["rects"]')
 [ "$after" != "$before" ] || fail "the walk did not move the pane: $after"
 shot "$shots/construct-$theme-walk.png"
