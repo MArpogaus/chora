@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tour-fix-r2.md (F7, rc 11: r2 87fdbeb9 closes rw-1..4, 7) | sonnet high, claude/tour-fix 87fdbeb9 | starting 03:42 |
+| review-tour-fix-r2.md (F7, rc 11: r2 87fdbeb9 closes rw-1..4, 7) | sonnet high, claude/tour-fix 87fdbeb9 | session_016iS3kMoK4vNSGXYttz7WwU 03:43 |
 | ti-r4-r1.md (F7, rc 2: ti-32 MAJOR verify, ti-33) | sonnet high, claude/ti-r4 1c9e64f7 | session_016iS3kM7GXTMuqxfoDNWLxn 02:23 |
 
 ## Queue (% week; 5 % reserve)
