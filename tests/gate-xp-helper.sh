@@ -13,7 +13,7 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 cell=${1:-all}
 if [ "$cell" = all ]; then
-    for c in xp29-click xp30-helper xp30-none xp30-once; do
+    for c in xp29-click xp30-helper xp30-none xp30-once xp28-editor; do
         bash "$0" "$c" || exit 1
     done
     exit 0
@@ -24,9 +24,14 @@ shots=${SHOTS:-$(mktemp -d /tmp/gate-xp-helper.XXXXXX)}
 mkdir -p "$shots"
 
 temp_config
-export HOME=$XDG_CONFIG_HOME/home
-export XDG_STATE_HOME=$XDG_CONFIG_HOME/state
-mkdir -p "$HOME" "$XDG_STATE_HOME"
+work=$XDG_CONFIG_HOME
+export HOME=$work/home
+export XDG_STATE_HOME=$work/state
+export XDG_DATA_HOME=$work/data
+export XDG_DATA_DIRS=$work/none
+mkdir -p "$HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$work/chora"
+sed "s|^editor:.*|editor: foot -a notepad sh -c 'sleep 600'|" "$repo/plugins/chora-xp/xp.yaml" >"$work/chora/chora-xp.yaml"
+export PATH=$bin:$PATH
 CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
 grant screen.capture
 grant input.inject
@@ -108,6 +113,29 @@ xp30-once)
     t=$(balloon)
     [ -z "$t" ] || fail "xp-30: the second start of the same state greets again: $t"
     ok "xp-30: the second start is quiet"
+    ;;
+xp28-editor)
+    need foot
+    click_at() {
+        echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
+    }
+    click_at 50 785
+    for _ in $(seq 40); do
+        ctl query id:xp-menu | jq -e '.[0].visible == true' >/dev/null && break
+        sleep 0.25
+    done
+    sleep 1
+    item=$(ctl query kind:image | jq -c '[.[] | select(.meta.text == "Notepad" and (.id | startswith("xp-item-")))] | .[0]')
+    read -r x y w h < <(jq -r '.rects | to_entries[0].value | map(floor) | join(" ")' <<<"$item")
+    click_at $((x + w / 2)) $((y + h / 2))
+    ctl wait --timeout 15 'app_id:notepad kind:surface' >/dev/null || fail "xp-28: Notepad did not start"
+    sleep 1
+    ctl capture "$shots/xp-28-editor.png" >/dev/null
+    icons=$(ctl query kind:image | jq -r '[.[] | select(.id | test("^xp-icon-[0-9]")) | .rects | to_entries[0].value | select(.[0] < 200) | .[0] + .[2]] | max')
+    left=$(ctl query 'app_id:notepad kind:surface' | jq -r '.[0].rects | to_entries[0].value | .[0]')
+    frame=$(ctl query 'app_id:notepad kind:surface' | jq -c '[.[0].id, .[0].rects]')
+    [ "$(echo "$left >= $icons" | bc)" = 1 ] || fail "xp-28: the editor starts at x $left, over the column of the desktop icons (it ends at x $icons): $frame"
+    ok "xp-28: the editor starts at x $left, right of the icon column (x $icons)"
     ;;
 esac
 gate_cleanup 0
