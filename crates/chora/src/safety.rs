@@ -815,6 +815,18 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_thread_that_appears_mid_frame_is_not_credited_its_whole_wait() {
+        let tasks = crate::testing::TempDir::unmade("chora-new-thread");
+        schedstat(&tasks, "1", "1 0 1\n");
+        let clock = FrameClock::start_in(&tasks);
+        std::thread::sleep(Duration::from_millis(40));
+        schedstat(&tasks, "1", "1 0 1\n");
+        schedstat(&tasks, "2", "1 400000000 1\n");
+        let (_, waited) = clock.stop_in(&tasks);
+        assert_eq!(waited, Duration::ZERO, "a thread the first read missed");
+    }
+
     /// A `/proc/self/task` of the main thread and four renderer threads,
     /// each with a wait in milliseconds.
     struct Tasks(crate::testing::TempDir);
