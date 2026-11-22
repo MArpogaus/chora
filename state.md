@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 19:52 UTC)
+## Now (2026-11-22 19:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 19:01 PM 4.9 % (Bangkok 11-22) + 0.6 % (11-23), week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes
 session branch: 6b01c976 (t108 green 13:01); 63 greens. t109g red: FLK-CUBE-SETTLE; t109h red 19:30 construct-extra K1 fly-out pose 2 px (FLAKE-K1 fixes). t110 from 19:50 (aeaf8138 = t109h + Queue 6; conflicts gate steps, known-red resolved).
@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | mc-helper-r1.md (rc 1: mc-57, 56, 55; 1 %) | sonnet medium, claude/mc-helper ac538e82 | session_016iS3kPf9yfyEu48CsZyHxX 19:37 |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 4e46028b | session_016iS3kLAsJPbPUQ193bX8zu 19:25 |
 | core-fix-r1.md (rc 9: mch-1..4, ratchet 362; 0.8 %) | sonnet medium, claude/core-fix 46e98b3e | session_016iS3kLGtC2Po7TiyJVrWmQ 19:35 ok |
-| review-xp-helper-r1.md (rc 1: xp-30, xp-28 fixes; 0.5 %) | sonnet high, claude/xp-helper eda60a6b | starting |
+| review-xp-helper-r1.md (rc 1: xp-30, xp-28 fixes; 0.5 %) | sonnet high, claude/xp-helper eda60a6b | session_016iS3kNKZyhdkrDbA2c9Q9W 19:53 |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
