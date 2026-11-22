@@ -651,6 +651,43 @@ class OldBuild(unittest.TestCase):
         path = pathlib.Path(out_dir) / "baseline-none.json"
         return code, out.getvalue(), json.loads(path.read_text()) if path.exists() else None
 
+    def take(self, args, out_dir, chapter="handover"):
+        """run.py with a chapter that does nothing, on `out_dir`; the exit code."""
+        import os
+        import types
+
+        module = types.ModuleType(f"chapters.{chapter}")
+        module.run = lambda ctx: None
+        sys.modules[f"chapters.{chapter}"] = module
+        os.environ["TOUR_OUT"] = out_dir
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), mock.patch.object(assemble, "main"):
+                return run.main(args)
+        finally:
+            for key in ("TOUR_BASELINE", "TOUR_OUT", "TOUR_CHECK"):
+                os.environ.pop(key, None)
+            del sys.modules[f"chapters.{chapter}"]
+
+    def test_a_take_starts_with_an_empty_captures_folder(self):
+        """rv-2: the png and json of an act that was renamed, or whose snapshot failed, of an earlier take
+        in the same TOUR_OUT are gone, or tests/tour-diff.py compares a picture of no act."""
+        out_dir = tempfile.mkdtemp(prefix="tour-old-")
+        old = pathlib.Path(out_dir) / "captures"
+        old.mkdir()
+        for name in ("h5.Q.png", "h5.Q.json"):
+            (old / name).write_bytes(b"old")
+        self.assertEqual(self.take(["handover"], out_dir), 0)
+        self.assertEqual(sorted(p.name for p in old.glob("*")), [])
+        self.assertEqual(out_dir, str(old.parent))
+
+    def test_a_check_leaves_the_folder_of_the_record_alone(self):
+        out_dir = tempfile.mkdtemp(prefix="tour-keep-")
+        keep = pathlib.Path(out_dir) / "captures"
+        keep.mkdir()
+        (keep / "h5.Q.png").write_bytes(b"old")
+        self.assertEqual(self.take(["--check", "handover"], out_dir), 0)
+        self.assertTrue((keep / "h5.Q.png").exists())
+
     def test_another_error_on_the_baseline_is_broke(self):
         """rw-4: a TypeError of the harness, a dead core: the take fails loud, nothing is `baseline: none`."""
         for error in (TypeError("act() got an unexpected keyword argument"), RuntimeError("the core closed the connection")):
