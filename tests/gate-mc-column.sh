@@ -251,6 +251,25 @@ until_ok '! shown_notices | grep -qx "Update ready"' 20 || fail "notify.clear le
 column_at 1280x720 888 336 308
 column_at 1920x1080 1416 448 280
 
+head_at() {
+    local size=$1
+    kill "${pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    pids=()
+    env_file=$(mktemp /tmp/gate-env.XXXXXX) session_start "$size"
+    grant screen.capture input.inject
+    "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc-head-$size.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start at $size"
+    until_ok 'has_text "AGENDA"' || fail "no first screen at $size"
+    sleep 1
+    has_text "1  AGENDA" || fail "the running head is cut at $size: $(texts | grep AGEN | tr '\n' '|')"
+    texts | grep -qE '[0-9]{2}:[0-9]{2}$' || fail "the clock lost its time at $size: $(texts | grep -E 'NOV|:' | tr '\n' '|')"
+    shot "head-$size"
+    ok "at $size the running head stands whole beside the time of the clock"
+}
+head_at 1024x768
+
 alone_session() {
     kill "${pids[@]}" 2>/dev/null
     wait 2>/dev/null
