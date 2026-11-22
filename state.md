@@ -9,7 +9,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
 | # | Criterion | State |
 |---|---|---|
-| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: ti-38 r2; RECORD-V9 |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: ti-38 review r2; RECORD-V9 |
 | 2 | Persona round 4 | xp, mc meet; co T1 T2, tiling I2 T1 T3 open |
 | 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; open: flake-hint, flake-wait |
 | 4, 5 | CI green on a PR; packaging | pre-commit green on 6b01c976; CI PR at release |
@@ -22,7 +22,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4, merge conflicts; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
+| review-ti-38-r2.md (F7, rc 1, 2: ti-38 r2 a1f3c8d7 49/49 green; core; 0.5 %) | opus high, claude/ti-38 a1f3c8d7 | starting 15:08 |
 | flake-hint-r1.md (F5, rc 3: ldm-2 hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
 | flake-wait-r1.md (F5, rc 3, 9: FLK-PULL-DRAG, FLK-GIVE-POINT, gate leaks; 1 %) | sonnet medium, claude/flake-wait 6b01c976 | session_016iS3kLfksC26x7cKnd3hBR 14:42 |
 | xp-38-r1.md (rc 1, 3: notify card 1.04:1, twice; 0.8 %) | sonnet medium, claude/xp-38 6b01c976 | session_016iS3kLMbUMw4vZ3TDqcxR6 15:03 |
