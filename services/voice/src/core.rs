@@ -363,6 +363,9 @@ pub struct Core {
     /// Only a key answers the question of the sub-agent. A question of
     /// the reply does not change it.
     sub_physical: bool,
+    /// The id of the card of the sub-agent question that waits, which a
+    /// newer card may have replaced on the screen.
+    sub_shown: Option<u64>,
     /// The questions so far, the one on the screen, and since when it
     /// shows.
     confirms: u64,
@@ -443,6 +446,7 @@ impl Core {
             sub_confirm: None,
             sub_until: now,
             sub_physical: false,
+            sub_shown: None,
             confirms: 0,
             shown: None,
             shown_at: now,
@@ -653,6 +657,7 @@ impl Core {
                 self.confirm_from = Some(Instant::now());
                 let name = note.ask.as_ref().map(|(name, _)| agents::title(name));
                 effects.extend(self.show((note.text, note.detail), note.physical, name));
+                self.sub_shown = self.shown;
             }
             self.sub_physical = note.physical;
             self.sub_confirm = note.ask;
@@ -1173,8 +1178,22 @@ impl Core {
     }
 
     /// The question `id` cannot show whole: a no, with the error earcon;
-    /// another id, such as that of a question that ended, is nothing.
+    /// another id, such as that of a question that ended, is nothing. The
+    /// card of a sub-agent question that a newer card replaced on the
+    /// screen is a no for that question alone: it is never left to wait
+    /// for an answer without a screen.
     fn unshowable(&mut self, id: u64) -> Vec<Effect> {
+        if self.sub_shown == Some(id) && self.shown != Some(id) {
+            self.sub_shown = None;
+            if let Some((name, answer)) = self.sub_confirm.take() {
+                crate::log::info(&format!(
+                    "confirm {name}: the replaced question is too long for the own HUD, a no"
+                ));
+                let _ = answer.send(false);
+                return self.earcon(Earcon::Error).into_iter().collect();
+            }
+            return Vec::new();
+        }
         if !self.confirming() || self.shown != Some(id) {
             return Vec::new();
         }
