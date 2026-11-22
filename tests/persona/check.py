@@ -41,6 +41,7 @@ L is the look the task runs on (default: the first flavor); FILE is the
 
 import contextlib
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
@@ -178,6 +179,12 @@ class Run:
         calls = len(self.calls.read_text().splitlines())
         text = f'{{"snap": {dump(snap)}, "marks": {json.dumps(marks)}, "calls": {calls}}}'
         (self.state_dir / f"{name}.json").write_text(text)
+        (self.state_dir / f"{name}.config").write_text(config_digest(self.dir))
+
+    def config_at(self, name):
+        """The config digest kept with the snapshot `name`, None when absent."""
+        path = self.state_dir / f"{name}.config"
+        return path.read_text() if path.exists() else None
 
     def observe(self, action, snap):
         """What the contracts read later: what was open, the helper, and the
@@ -214,12 +221,23 @@ class Run:
         return [h for h in map(json.loads, lines) if h["t"] >= since]
 
     def breaches(self):
-        """The recorded breaches, [(invariant, text)], outside known-red.toml."""
+        """The recorded breaches outside known-red.toml: a row hides only the
+        breaches it names (its capture and match), not the whole pair."""
         path = self.dir / "breaches.jsonl"
         lines = path.read_text().splitlines() if path.exists() else []
-        rows = {(r["look"], r["id"]) for r in harness.known_red()}
+        rows = harness.known_red()
         found = [json.loads(line) for line in lines]
-        return [b for b in found if (b["look"], b["invariant"]) not in rows]
+        return [b for b in found if not named(rows, b)]
+
+
+def named(rows, breach):
+    """Whether a known-red row of the look and invariant names the breach.
+    A row has no act here: the persona's actions are no acts of the list."""
+    return any(
+        (r["look"], r["id"]) == (breach["look"], breach["invariant"])
+        and harness.row_covers({k: v for k, v in r.items() if k != "act"}, breach["breach"])
+        for r in rows
+    )
 
 
 def after(run, action):
@@ -257,6 +275,9 @@ def after(run, action):
     run.save("last", now, run.marks())
 
 
+NEEDS_EVENT = {"T7", "C2", "L3"}
+
+
 def left_open(look, snap):
     """The key list of the look when the persona left it open: a window
     that stays by itself, which no contract holds against a person. A menu
@@ -282,6 +303,7 @@ class Ctx:
     keys: list
     entries: list
     left: list = dataclasses.field(default_factory=list)
+    config: tuple | None = None
     notes: list = dataclasses.field(default_factory=list)
 
     def opened(self, sheet):
@@ -581,6 +603,21 @@ def verify_only_keys_open(ctx):
     return verify
 
 
+def verify_reloaded(ctx):
+    """L2: the config value changed against the begin, and the reload took:
+    the look answers again and holds the focus. The state answer has no
+    reload counter, so the read of the value is the digest of the files."""
+
+    def verify(after_):
+        begin, now = ctx.config or (None, None)
+        out = [] if begin != now else ["the config value did not change since the begin"]
+        if (after_.states.get(ctx.look) or {}).get("focus", {}).get("holder") != ctx.look:
+            out.append(f"the look is not back with the focus after the reload ({ctx.look})")
+        return out
+
+    return verify
+
+
 def verify_all(*verifiers):
     """The mismatches of every verifier."""
     return lambda after_: [m for verifier in verifiers for m in verifier(after_)]
@@ -640,7 +677,7 @@ def contracts(task, ctx, before):
             ),
         ),
         "L1": Expect(focus=ctx.look, verify=verify_closed(ctx, before)),
-        "L2": Expect(focus=ctx.look),
+        "L2": Expect(focus=ctx.look, verify=verify_reloaded(ctx)),
         "L3": Expect(verify=verify_focus_kept(ctx, before)),
         "M1": Expect(verify=verify_page_changed(ctx, before)),
         "M2": Expect(open=ctx.left, focus="mc"),
@@ -704,6 +741,18 @@ def scene_line(snap, look):
     return f" [scene: {', '.join(words)}]" if words else ""
 
 
+def config_digest(folder):
+    """A digest of the config files of the session folder: the private config
+    home and the xp.yaml."""
+    files = sorted(p for p in (pathlib.Path(folder) / "config").rglob("*") if p.is_file())
+    files.append(pathlib.Path(folder) / "xp.yaml")
+    sha = hashlib.sha256()
+    for p in files:
+        if p.is_file():
+            sha.update(str(p.name).encode() + p.read_bytes())
+    return sha.hexdigest()
+
+
 def has_config(run):
     """Whether the session has a config that a reload can change: a file that
     is not empty in the private config home or the xp.yaml of the session."""
@@ -754,6 +803,7 @@ def end(run, args):
         parse_chords([a for a in actions if a["time"] >= since]),
         entries,
         left_open(look, now),
+        (run.config_at(name), config_digest(run.dir)),
     )
     bad = 0
     breaches = [b for b in run.breaches() if b["time"] >= since]
@@ -763,6 +813,9 @@ def end(run, args):
             sys.exit(f"check.py: no contract for {task}")
         if task == "L2" and not has_config(run):
             print("task L2 not measured (no config)")
+            continue
+        if task.partition(":")[0] in NEEDS_EVENT and not ctx.hist:
+            print(f"task {task} not reached (no event since begin)")
             continue
         mismatches = expect.check(before, now)
         bad += bool(mismatches)
