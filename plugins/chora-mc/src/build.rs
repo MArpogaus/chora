@@ -155,6 +155,7 @@ impl Mc {
         self.left = None;
         self.sigs.clear();
         self.shape = Some(self.shape_of());
+        self.themed = Some(self.theme_of());
         let names: Vec<String> = self.scenes.keys().cloned().collect();
         names.iter().try_for_each(|name| self.align(name))?;
         self.autostart();
@@ -181,13 +182,23 @@ impl Mc {
         commands
     }
 
-    /// The settings without the theme.
+    /// The settings without the theme and the write effect, which new
+    /// text reads when it writes: no node that stands depends on them.
     pub(crate) fn shape_of(&self) -> Value {
         let mut shape = serde_json::to_value(&self.settings.value).unwrap_or_default();
         if let Some(map) = shape.as_object_mut() {
             map.remove("theme");
+            map.remove("write");
         }
         shape
+    }
+
+    /// The theme of the settings.
+    pub(crate) fn theme_of(&self) -> Value {
+        serde_json::to_value(&self.settings.value)
+            .ok()
+            .and_then(|mut v| v.get_mut("theme").map(Value::take))
+            .unwrap_or_default()
     }
 
     /// After a change of the theme alone: the nodes fade to their new

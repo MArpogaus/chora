@@ -376,6 +376,8 @@ struct Mc {
     /// The settings of the last build without the theme: a change of the
     /// theme alone fades the colors.
     shape: Option<Value>,
+    /// The theme of the nodes that stand.
+    themed: Option<Value>,
     /// The keyboard focus that mc gave and the core moved
     /// (`kit::wm::focus`).
     focus: Focus,
@@ -563,6 +565,7 @@ impl Mc {
             sigs: BTreeMap::new(),
             fitting: HashMap::new(),
             shape: None,
+            themed: None,
             rendered: None,
             focus: Focus::default(),
             core_focus: None,
@@ -857,12 +860,18 @@ impl Plugin for Mc {
         }
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
+        let same_shape = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
+        let theme_only = same_shape && self.themed != Some(self.theme_of());
+        let no_look = same_shape && !theme_only;
         self.rt.start_grabs();
         self.grab_all()
             .and_then(|()| self.rt.end_grabs())
             .and_then(|()| {
+                if no_look {
+                    return Ok(());
+                }
                 if theme_only && self.recolor()? {
+                    self.themed = Some(self.theme_of());
                     return Ok(());
                 }
                 self.build()
