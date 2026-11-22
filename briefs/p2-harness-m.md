@@ -1,0 +1,13 @@
+# p2-harness-m (RC 2 persona harness, from reports/p2-r4-tiling.md "## r4" harness check)
+
+Model: sonnet, effort medium (three small test-harness fixes behind red tests; no product code)
+Lane: cloud, branch claude/p2-harness-m at 1c9e64f7 (session branch after train 103). Cost at most 0.6 %; stop at 200 k context. One area: tests/persona (check.py, harness.py, their tests, README); no product code.
+Why: p2-r4 harness check on claude/session-log (5272de69): (1) `breaches()` (check.py:220) drops every breach of a (look, invariant) pair once known-red has any row for it, so 661 xp I6 and 106 tiling I6 rows never printed; (2) L2 contract is only Expect(focus=look) (check.py:643): a persona who changed nothing passes; (3) T7 passes when no handover happened (vacuous).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "p2-harness-m BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Known-red filter: a known-red row hides only the breaches it names (element ids or text it lists); an unlisted breach of the same (look, invariant) prints. Red test first (a breach of a listed pair with another element prints), then the fix. Name the count of known-red rows whose match changed.
+2) L2: the contract also verifies that the config value changed against the begin baseline and that the reload took (the gap in the state answer); a run with no change is red. Red test, fix.
+3) T7 (and any contract whose verify needs an event): no event since begin is "not reached" (a third outcome, printed as such, never pass). Red test, fix; list the other contracts this applies to.
+Gate: `python3 -m pytest tests/persona -q` green and full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/p2-harness-m merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Run it in the background and poll in the same turn; never end a turn to wait.
+Done when: three red and three fix commits, the persona tests and the full gate green.
+Report: reports/p2-harness-m.md "## r1" on claude/session-log (shas, tests, each fix line, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/p2-harness-m and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.

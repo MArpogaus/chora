@@ -1,0 +1,4 @@
+{"time": 1795302530.584, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.052, "result": {"path": "/tmp/persona.Q8aheU/shots/013.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795302532.499, "action": "key", "args": {"combo": "Super+x"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1795302534.367, "action": "key", "args": {"combo": "Super+g"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795302536.253, "action": "key", "args": {"combo": "Super+p"}, "ok": true, "seconds": 0.012, "result": "ok"}

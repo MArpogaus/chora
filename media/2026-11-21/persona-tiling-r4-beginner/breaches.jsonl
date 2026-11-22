@@ -1,0 +1,106 @@
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 shows this list again. Esc closes it.' (tiling-keys-body-h) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Mouse' (tiling-keys-body-m) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Windows' (tiling-keys-body-0) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+J' (tiling-keys-body-1-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+K' (tiling-keys-body-3-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Tab' (tiling-keys-body-5-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+U' (tiling-keys-body-7-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+J' (tiling-keys-body-9-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+K' (tiling-keys-body-11-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Return' (tiling-keys-body-13-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+C' (tiling-keys-body-15-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Space' (tiling-keys-body-17-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F' (tiling-keys-body-19-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+M' (tiling-keys-body-21-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+M' (tiling-keys-body-23-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+M' (tiling-keys-body-25-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+T' (tiling-keys-body-27-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+N' (tiling-keys-body-29-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+N' (tiling-keys-body-31-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+drag' (tiling-keys-body-33-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Programs' (tiling-keys-body-35) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Return' (tiling-keys-body-36-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+R / Super+Space' (tiling-keys-body-38-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+A' (tiling-keys-body-40-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Esc' (tiling-keys-body-42-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+E' (tiling-keys-body-44-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Print' (tiling-keys-body-46-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+S' (tiling-keys-body-48-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Layouts' (tiling-keys-body-50) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Space' (tiling-keys-body-51-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+Space' (tiling-keys-body-53-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+L' (tiling-keys-body-55-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+H' (tiling-keys-body-57-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-59-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-61-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-63-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-65-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-67-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-69-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+O' (tiling-keys-body-71-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Tags' (tiling-keys-body-73) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+1-9' (tiling-keys-body-74-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-76-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-78-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-80-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2192' (tiling-keys-body-82-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2190' (tiling-keys-body-84-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Esc' (tiling-keys-body-86-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'System' (tiling-keys-body-88) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Vol+ / Vol- / Mute' (tiling-keys-body-89-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+R' (tiling-keys-body-91-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 / Super+/' (tiling-keys-body-93-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301697.722, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Alt+1-4' (tiling-keys-body-95-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 shows this list again. Esc closes it.' (tiling-keys-body-h) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Mouse' (tiling-keys-body-m) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Windows' (tiling-keys-body-0) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+J' (tiling-keys-body-1-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+K' (tiling-keys-body-3-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Tab' (tiling-keys-body-5-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+U' (tiling-keys-body-7-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+J' (tiling-keys-body-9-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+K' (tiling-keys-body-11-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Return' (tiling-keys-body-13-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+C' (tiling-keys-body-15-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Space' (tiling-keys-body-17-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F' (tiling-keys-body-19-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+M' (tiling-keys-body-21-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+M' (tiling-keys-body-23-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+M' (tiling-keys-body-25-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+T' (tiling-keys-body-27-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+N' (tiling-keys-body-29-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+N' (tiling-keys-body-31-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+drag' (tiling-keys-body-33-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Programs' (tiling-keys-body-35) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Return' (tiling-keys-body-36-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+R / Super+Space' (tiling-keys-body-38-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+A' (tiling-keys-body-40-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Esc' (tiling-keys-body-42-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+E' (tiling-keys-body-44-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Print' (tiling-keys-body-46-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+S' (tiling-keys-body-48-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Layouts' (tiling-keys-body-50) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Space' (tiling-keys-body-51-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+Space' (tiling-keys-body-53-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+L' (tiling-keys-body-55-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+H' (tiling-keys-body-57-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-59-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-61-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-63-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-65-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-67-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-69-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+O' (tiling-keys-body-71-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Tags' (tiling-keys-body-73) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+1-9' (tiling-keys-body-74-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-76-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-78-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-80-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2192' (tiling-keys-body-82-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2190' (tiling-keys-body-84-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Esc' (tiling-keys-body-86-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'System' (tiling-keys-body-88) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Vol+ / Vol- / Mute' (tiling-keys-body-89-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+R' (tiling-keys-body-91-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 / Super+/' (tiling-keys-body-93-k) is 13 px, the guide wants 14 px"}
+{"time": 1795301701.328, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Alt+1-4' (tiling-keys-body-95-k) is 13 px, the guide wants 14 px"}

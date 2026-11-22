@@ -373,3 +373,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - H: shellcheck SC2178 in tests/gate-injected-presses.sh:54 under pre-commit --all-files (deps r1, 11-21); a harness lane fixes it.
 
 - RXR-1 (MINOR, xp, after the RC): help.rs:340 a touchpad wheel step under half a row scrolls a full line; accumulate sub-row deltas (reports/xp-rd.md PM review r1).
+- (harness, p2 r4) check.py breaches() drops every breach of a (look, invariant) with any known-red row (check.py:220): 661 xp I6 hidden; L2 contract is only focus (check.py:643); T7 passes when no handover happened (vacuous). Lane P2-HARNESS-M.

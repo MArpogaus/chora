@@ -1,0 +1,661 @@
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:12 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302760.986, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:12 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:12 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302766.731, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:12 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:12 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302768.582, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:12 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302783.77, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302787.022, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302791.98, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302799.052, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302802.558, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302807.757, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'foot' (xp-task-s1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795302811.096, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:13 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303046.078, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.49:1 ((255, 255, 255) on (15, 141, 234)), the guide wants 4.5:1"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303047.802, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.49:1 ((255, 255, 255) on (15, 141, 234)), the guide wants 4.5:1"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303049.853, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303051.897, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303062.639, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.49:1 ((255, 255, 255) on (15, 141, 234)), the guide wants 4.5:1"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303064.644, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.49:1 ((255, 255, 255) on (15, 141, 234)), the guide wants 4.5:1"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303072.848, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.49:1 ((255, 255, 255) on (15, 141, 234)), the guide wants 4.5:1"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303077.75, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303080.997, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:17 PM' (xp-tray-HEADLESS-1) has the contrast 3.43:1 ((255, 255, 255) on (17, 143, 233)), the guide wants 4.5:1"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:18 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303085.112, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:18 PM' (xp-tray-HEADLESS-1) has the contrast 3.21:1 ((255, 255, 255) on (14, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:18 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303088.007, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:18 PM' (xp-tray-HEADLESS-1) has the contrast 3.21:1 ((255, 255, 255) on (14, 149, 238)), the guide wants 4.5:1"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303324.626, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303329.433, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303332.421, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303337.389, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303340.322, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303345.437, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303348.416, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 shows this list again. Esc closes it.' (tiling-keys-body-h) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Mouse' (tiling-keys-body-m) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Windows' (tiling-keys-body-0) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+J' (tiling-keys-body-1-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+K' (tiling-keys-body-3-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Tab' (tiling-keys-body-5-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+U' (tiling-keys-body-7-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+J' (tiling-keys-body-9-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+K' (tiling-keys-body-11-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Return' (tiling-keys-body-13-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+C' (tiling-keys-body-15-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Space' (tiling-keys-body-17-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F' (tiling-keys-body-19-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+M' (tiling-keys-body-21-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+M' (tiling-keys-body-23-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+M' (tiling-keys-body-25-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+T' (tiling-keys-body-27-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+N' (tiling-keys-body-29-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+N' (tiling-keys-body-31-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+drag' (tiling-keys-body-33-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Programs' (tiling-keys-body-35) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Return' (tiling-keys-body-36-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+R / Super+Space' (tiling-keys-body-38-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+A' (tiling-keys-body-40-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Esc' (tiling-keys-body-42-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+E' (tiling-keys-body-44-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Print' (tiling-keys-body-46-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+S' (tiling-keys-body-48-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Layouts' (tiling-keys-body-50) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Space' (tiling-keys-body-51-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+Space' (tiling-keys-body-53-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+L' (tiling-keys-body-55-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+H' (tiling-keys-body-57-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-59-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-61-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-63-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-65-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-67-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-69-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+O' (tiling-keys-body-71-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Tags' (tiling-keys-body-73) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+1-9' (tiling-keys-body-74-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-76-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-78-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-80-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2192' (tiling-keys-body-82-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2190' (tiling-keys-body-84-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Esc' (tiling-keys-body-86-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'System' (tiling-keys-body-88) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Vol+ / Vol- / Mute' (tiling-keys-body-89-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+R' (tiling-keys-body-91-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 / Super+/' (tiling-keys-body-93-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Alt+1-4' (tiling-keys-body-95-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((21, 24, 32) on (21, 24, 32)), the guide wants 4.5:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((21, 24, 32) on (21, 24, 32)), the guide wants 4.5:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.35:1 ((206, 207, 209) on (49, 106, 200)), the guide wants 4.5:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.35:1 ((206, 207, 209) on (49, 106, 200)), the guide wants 4.5:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.21:1 ((201, 203, 208) on (49, 106, 200)), the guide wants 4.5:1"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303576.337, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) has the contrast 2.96:1 ((207, 208, 209) on (14, 122, 195)), the guide wants 4.5:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 shows this list again. Esc closes it.' (tiling-keys-body-h) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Mouse' (tiling-keys-body-m) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Windows' (tiling-keys-body-0) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+J' (tiling-keys-body-1-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+K' (tiling-keys-body-3-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Tab' (tiling-keys-body-5-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+U' (tiling-keys-body-7-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+J' (tiling-keys-body-9-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+K' (tiling-keys-body-11-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Return' (tiling-keys-body-13-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+C' (tiling-keys-body-15-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Space' (tiling-keys-body-17-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F' (tiling-keys-body-19-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+M' (tiling-keys-body-21-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+M' (tiling-keys-body-23-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+M' (tiling-keys-body-25-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+T' (tiling-keys-body-27-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+N' (tiling-keys-body-29-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+N' (tiling-keys-body-31-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+drag' (tiling-keys-body-33-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Programs' (tiling-keys-body-35) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Return' (tiling-keys-body-36-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+R / Super+Space' (tiling-keys-body-38-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+A' (tiling-keys-body-40-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Esc' (tiling-keys-body-42-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+E' (tiling-keys-body-44-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Print' (tiling-keys-body-46-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+S' (tiling-keys-body-48-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Layouts' (tiling-keys-body-50) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+Space' (tiling-keys-body-51-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+Space' (tiling-keys-body-53-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+L' (tiling-keys-body-55-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+H' (tiling-keys-body-57-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-59-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-61-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-63-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-65-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-67-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-69-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+O' (tiling-keys-body-71-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Tags' (tiling-keys-body-73) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+1-9' (tiling-keys-body-74-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-76-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-78-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-80-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2192' (tiling-keys-body-82-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+\\u2009\u2190' (tiling-keys-body-84-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Esc' (tiling-keys-body-86-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'System' (tiling-keys-body-88) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Vol+ / Vol- / Mute' (tiling-keys-body-89-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Ctrl+R' (tiling-keys-body-91-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+F1 / Super+/' (tiling-keys-body-93-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Super+Alt+1-4' (tiling-keys-body-95-k) is 13 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((21, 24, 32) on (21, 24, 32)), the guide wants 4.5:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((21, 24, 32) on (21, 24, 32)), the guide wants 4.5:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.35:1 ((206, 207, 209) on (49, 106, 200)), the guide wants 4.5:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.35:1 ((206, 207, 209) on (49, 106, 200)), the guide wants 4.5:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.21:1 ((201, 203, 208) on (49, 106, 200)), the guide wants 4.5:1"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303579.749, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) has the contrast 2.96:1 ((207, 208, 209) on (14, 122, 195)), the guide wants 4.5:1"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303583.837, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303586.913, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:26 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303827.556, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303829.6, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303834.643, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303836.632, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303843.762, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303848.543, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303850.455, "action": "key", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303853.743, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Documents' (xp-icon-0) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.74:1 ((254, 254, 255) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.58:1 ((247, 249, 254) on (58, 128, 244)), the guide wants 4.5:1"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) is 11 px, the guide wants 14 px"}
+{"time": 1795303859.955, "action": "type", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 '11:30 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (14, 147, 237)), the guide wants 4.5:1"}
