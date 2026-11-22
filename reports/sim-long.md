@@ -77,3 +77,8 @@ drops all effects".
 **Next:** sl-3 is a reproducible core death in the confined-agent
 scenario (18 of 18). Its trigger and the hang need a fix owner; this
 lane does not change product code.
+
+## PM review r1 (10:06 UTC, 7a6c0eb8..ce451499: tests/battle/RESULTS.md +90, no product code)
+- Checks: run 3 h 05 min, 89 passes, tables match the per-pass logs named; brief done criteria met (report, findings with log lines, no product change).
+- Findings go to the ledger: sl-3 MAJOR (core abort, 18/18, any client can trigger it: core must stay safe); sl-1 MAJOR (W9 core RSS +236 % in under 3 min, 18/18); sl-2 MEDIUM; sl-4 MEDIUM (voice, nine items, fakes vs flow open); sl-5 MEDIUM; sl-6 LOW unconfirmed; sl-7 method LOW (3 h single core next round); sl-8 LOW env noise.
+- Verdict on the branch (doc only): MERGE-OK; joins t109. Next: CORE-DIAG r1 (opus high) pins causes of sl-3 and sl-1 with repro and red-test plan; fix round after split-c merges (same core files).
