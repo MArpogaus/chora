@@ -37,7 +37,76 @@ const ASK_WAIT: Duration = Duration::from_millis(500);
 /// The most tries to ask the voice agent for its state after it connected.
 const ASK_TRIES: u8 = 20;
 
+/// How long after the start the paperclip greets, when no question to the
+/// voice agent is open.
+pub const GREET_AFTER: Duration = Duration::from_millis(1500);
+
+/// How long the greeting stays in the balloon.
+const GREET_FOR: Duration = Duration::from_secs(12);
+
+/// The file whose presence says that the paperclip greeted.
+fn greeted_file() -> Option<std::path::PathBuf> {
+    Some(
+        chora_scene::paths::state_home()?
+            .join("chora")
+            .join("assistant-greeted"),
+    )
+}
+
+/// Whether the paperclip has not greeted yet in this state of the session.
+pub fn greeting_pending() -> bool {
+    greeted_file().is_some_and(|file| !file.exists())
+}
+
+/// Remembers the greeting; a failure leaves the greeting for the next start.
+fn remember_greeting() {
+    let Some(file) = greeted_file() else {
+        return;
+    };
+    if let Some(dir) = file.parent()
+        && let Err(err) = std::fs::create_dir_all(dir).and_then(|()| std::fs::write(&file, b"1\n"))
+    {
+        eprintln!("chora-assistant: the greeting is not remembered: {err}");
+    }
+}
+
 impl Agent {
+    /// When the greeting is due.
+    pub fn greet_due(&self) -> Option<Instant> {
+        self.greet
+    }
+
+    /// The first time that the figure of xp shows, the paperclip greets in
+    /// its balloon: how to ask and how to close, or that no helper is set
+    /// up. It never greets twice.
+    pub fn greet_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        if self.greet.is_none_or(|at| at > now) {
+            return Ok(());
+        }
+        if self.state_ask.is_some() {
+            self.greet = Some(now + ASK_EVERY);
+            return Ok(());
+        }
+        self.greet = None;
+        if self.assistant.is_none()
+            || self.values.chat().form != ChatForm::Xp
+            || self.card.is_some()
+        {
+            return Ok(());
+        }
+        let helper = self.voice.is_some() || !self.helpers.is_empty();
+        let word = if helper {
+            Word::Greeting
+        } else {
+            Word::GreetingNoHelper
+        };
+        let text = word.text(self.language);
+        remember_greeting();
+        self.said = Some((text.to_owned(), now + GREET_FOR));
+        let commands = self.say(text, GREET_FOR, now);
+        self.apply(commands)
+    }
+
     /// Asks the voice agent for its state, so that the figure shows after
     /// a start or restart of chora-assistant while the agent is awake.
     pub fn ask_voice(&mut self) -> Result<(), ClientError> {

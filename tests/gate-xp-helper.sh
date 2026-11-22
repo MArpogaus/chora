@@ -50,7 +50,11 @@ start_assistant() {
 stop_assistant() {
     kill "$apid"
     wait "$apid" 2>/dev/null
-    sleep 0.5
+    for _ in $(seq 100); do
+        [ "$(ctl query id:hud-figure | jq length)" = 0 ] && return 0
+        sleep 0.2
+    done
+    fail "the nodes of the stopped paperclip stay"
 }
 click() {
     echo "[{\"pointer_move\": {\"node\": \"$1\", \"point\": [10, 10]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" | ctl inject >/dev/null
@@ -65,7 +69,7 @@ wait_balloon() {
     return 1
 }
 greets() {
-    wait_balloon || fail "$1: the paperclip greets with no balloon at the first start"
+    wait_balloon || fail "$1: the paperclip greets with no balloon at the first start: $(ctl query id:hud-line | jq -c .) $(tail -n 3 "$shots"/assistant.*.log)"
     echo "$t" | grep -qi "ask" || fail "$1: the greeting does not name how to ask: $t"
     echo "$t" | grep -qi "close" || fail "$1: the greeting does not name how to close: $t"
 }

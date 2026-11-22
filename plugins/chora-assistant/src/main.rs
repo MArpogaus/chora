@@ -194,6 +194,8 @@ struct Agent {
     card_family: String,
     language: Language,
     assistant: Option<Assistant>,
+    /// When the paperclip greets, at the first start of a session state.
+    greet: Option<Instant>,
     /// The camera of the construct is in a pane: the island dims.
     in_pane: bool,
     /// The client name of the voice agent and its state, while it is
@@ -411,6 +413,7 @@ impl Agent {
             card_family: HOST_FAMILY.to_owned(),
             language: Language::of_session(),
             assistant: None,
+            greet: voice::greeting_pending().then(|| Instant::now() + voice::GREET_AFTER),
             in_pane: false,
             voice: None,
             muted: false,
@@ -604,6 +607,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             agent.switch_due(now),
             agent.chat_due(now),
             agent.ask_due(),
+            agent.greet_due(),
             agent.flash_due(),
         ]
         .into_iter()
@@ -618,6 +622,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             runtime::dispatch(&mut agent, event)?;
         }
         agent.ask_step(Instant::now())?;
+        agent.greet_step(Instant::now())?;
         agent.flash_step(Instant::now())?;
         agent.chat_step(Instant::now())?;
         agent.assistant_step(Instant::now())?;
@@ -990,6 +995,7 @@ mod tests {
             card_family: HOST_FAMILY.to_owned(),
             language: Language::En,
             assistant: None,
+            greet: None,
             in_pane: false,
             voice: None,
             muted: false,
