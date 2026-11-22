@@ -345,6 +345,24 @@ impl Construct {
         self.regrab()
     }
 
+    /// A cube that opens takes the keyboard from the window of a pane that
+    /// it covers: the focus is a window that shows, never one that no one
+    /// sees, so a key stays out of it until a face takes the keyboard
+    /// (co-46). The keyboard goes to nobody, as the cube stays a place for
+    /// the windows of its faces.
+    pub(crate) fn covered_focus_to_nobody(&mut self) -> Result<(), ClientError> {
+        let Some(focus) = (self.core_focus.clone()).filter(|f| self.own_window(f)) else {
+            return Ok(());
+        };
+        let seen = (self.panes.iter()).any(|p| p.window() == Some(&focus) && self.in_sight(p));
+        if seen {
+            return Ok(());
+        }
+        self.core_focus = None;
+        self.walk_keys = true;
+        self.rt.conn.apply(vec![chora_kit::wm::focus::release()])
+    }
+
     /// Whether the pane is on the output for the camera now: in front of
     /// the eye, inside the depth of the view and not behind a cube.
     pub(crate) fn in_sight(&self, p: &Pane) -> bool {
