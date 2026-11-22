@@ -63,3 +63,11 @@ The other cells (scene.save 2.4-3.8 s, theme settings.set 2.0-3.7 s) are not the
 ### Gate
 Full `tests/merge-gate.sh --jobs 2` (no --only) on claude/mc-scale ac538e82 (merged with origin/claude/autonomous-dev-session-3w-i33pg7, already up to date): 57 steps PASS, EXIT 0, no SKIP, no foreign red.
 A first full run on 75623a87 failed at `acts` only: mc I10 blocking (capture rename above; my cause, fixed in ac538e82). Every other step of that run had passed up to it.
+
+## PM review r1 (2026-11-22 19:40 UTC; PM not the builder; 43 lines)
+Range 6b01c976..ac538e82 (+43/-6): red 4380c958, fix 75623a87, known-red rename ac538e82.
+- Cause checked: shape_of() kept `write`, so settings.set of write.* took the build path (300 panels, about 3 s). Now `write` leaves the shape, and `themed` holds the theme of the nodes that stand: same shape and same theme = no build and no recolor (main.rs:863-876). Theme change still recolors; recolor refused still builds, and build() sets `themed` (build.rs:158). OK.
+- Unit test a_write_setting_that_changes_no_look_rebuilds_nothing: duration and enabled change, query count unchanged. OK, red first (4380c958).
+- known-red.toml I10: capture names r0/r1 swap, because the acts no longer rebuild (region numbers stay from the first build). Still red, same match, same finding (mc-55). Accepted; LOW: the swap rests on build order, mc-55 should key by text, not region index.
+- Lane: 10/10 settings.set under load 364-796 ms; full gate 57 PASS on ac538e82.
+Findings: 0 MAJOR, 1 LOW (above). Verdict: MERGE-OK. Joins t110.
