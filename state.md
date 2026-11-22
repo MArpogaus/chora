@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 14:21 UTC)
+## Now (2026-11-22 15:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
-session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 red 13:54 in pull (title drag, 1 of 5: 4 cell reruns green, flake FLK-PULL-DRAG); t109b cd7beeac = t109 + t110 (core-diag, log-down-xp, mesh-churn) at --jobs 2 from 14:22.
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 14:56 PM day 4.3 %, week about 11.5 % (lanes est. +1.7 since 12:45); under pace: 6 lanes full
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 red 13:54: pull flake FLK-PULL-DRAG (4 reruns green). t109b cd7beeac (t109 + core-diag, log-down-xp, mesh-churn) red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c same head from 14:41.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
@@ -11,7 +11,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: ti-38 r2; RECORD-V9 |
 | 2 | Persona round 4 | xp, mc meet; co T1 T2, tiling I2 T1 T3 open |
-| 3 | 3 greens, no flake | open: flake-hint, series r5 |
+| 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; open: flake-hint, flake-wait |
 | 4, 5 | CI green on a PR; packaging | pre-commit green on 6b01c976; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK 13:35 (0 MAJOR, rd-5 MEDIUM: MC-FOCUS); Thu round |
 | 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
@@ -24,16 +24,16 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 |---|---|---|
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4, merge conflicts; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
 | flake-hint-r1.md (F5, rc 3: ldm-2 hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
-| flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
-| mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | session_016iS3kNytLH7EhG5sJybjcm 13:37 |
+| flake-wait-r1.md (F5, rc 3, 9: FLK-PULL-DRAG, FLK-GIVE-POINT, gate leaks; 1 %) | sonnet medium, claude/flake-wait 6b01c976 | session_016iS3kLfksC26x7cKnd3hBR 14:42 |
+| xp-38-r1.md (rc 1, 3: notify card 1.04:1, twice; 0.8 %) | sonnet medium, claude/xp-38 6b01c976 | session_016iS3kLMbUMw4vZ3TDqcxR6 15:03 |
 | record-v9-r1.md (F7, rc 11: v9 take vs v8; 1.2 %) | sonnet medium, claude/record-v9 6b01c976 | session_016iS3kPEnmatu6w5XewDQLy 13:33 |
 | docs-rc-r1.md (rc 8: CHANGELOG, known issues, mc keys; 0.8 %) | sonnet low, claude/docs-rc 6b01c976 | session_016iS3kLAuHWp9BSjW4taJuA 13:55 |
 
 ## Queue (% week; 5 % reserve)
 3. DOCS-RC r1 now (under pace); r2 on the Thu head.
 4. (rc 1, F7) tour round after ti-38 r2 merges;
-5. (rc 3; 0 %) t109b from 14:22 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
-6. (rc 9) after t109b: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
+5. (rc 3; 0 %) t109c from 14:41 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
+6. (rc 9) next train: MC-FOCUS e22f824d (PM review MERGE-OK). After t109c: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
