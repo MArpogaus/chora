@@ -45,3 +45,17 @@ Findings:
 - rx-6, MINOR, tests/gate-xp-helper.sh:124 and :128: the xp28-editor cell waits for the surface, then a bare `sleep 1` is the only wait for the frame position it asserts (also `sleep 1` after the menu shows); a slow host reads the pre-placement x and false-fails. Fix: poll (ctl query) until the notepad surface rect is non-zero and equal on two reads, as the other cells wait on a state.
 - rx-7, NIT, tests/gate-xp-helper.sh:3-12 and :136: the header lists no xp28-editor cell; the cell uses `bc` but `need bc` is missing (a missing bc reads as a false FAIL). Fix: add the cell to the header and `need bc` (or compare with jq).
 - rx-8, NIT, words.rs:455 and :458: the de greetings use du/dein/dich, every other de word uses Sie. Fix: Sie forms ("Ich bin Ihr Helfer", "Klicken Sie mich an").
+
+## r2
+
+Head bd5af4b3 on claude/xp-helper (82588a07 red, 4c20c21d words+state dir, bd5af4b3 placement). Base already an ancestor (merged tree = head).
+
+- rx-1 MAJOR: red (82588a07, cell reads the greeting for an X): `FAIL: xp-30: the greeting names an X that the balloon does not have: Hi, I am your helper. Click me to ask for something. Click the X on my balloon to close it.` Green (4c20c21d): `ok: xp-30: the first start greets once: Hi, I am your helper. Click me to ask for something. This balloon closes by itself.` No new art.
+- rx-2: no-helper greeting says "Click me to see what to do. This balloon closes by itself."; new cell xp29-none: `ok: xp-29: a click on the paperclip opens the chat (no helper)` (it passed on first run; the chat opens, so the promise holds).
+- rx-3: voice.rs remember_greeting uses chora_scene::paths::private_dir.
+- rx-4, rx-5: COLUMN removed; DesktopIcons::strip(area) = right edge of the last cell column, 0 off the icon output; Places::place takes it. Red: compile errors E0599 (no strip) and E0061 (place arity) from the two new unit tests (windows_start_right_of_the_icons_of_their_area, the_strip_of_icons_ends_at_the_right_edge_of_the_placed_icons); green: chora-xp 335 passed, 0 failed.
+- rx-6, rx-7: xp28-editor polls the Notepad item and the frame rect (non-zero, equal on two reads); header lists it; `need bc`.
+- rx-8: de greetings in Sie forms.
+- 5/5 each cell in a row: xp29-click, xp29-none, xp30-helper, xp30-none, xp30-once, xp28-editor all ok (xp-28: editor at x 116, icons end x 88).
+- Full gate `merge-gate.sh --jobs 2`: 59 PASS, 0 red, EXIT 0 (/tmp/gate.log, run dir /tmp/merge-gate.KZMIE4; xp-helper PASS 33s).
+- Greeting capture: /tmp/gate-xp-helper.*/xp-30-helper.png (last run of the cell, in the lane container).
