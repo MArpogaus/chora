@@ -534,6 +534,9 @@ fn transaction_error(error: &TransactionError) -> RpcError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     use serde_json::json;
 
     use super::*;
@@ -962,11 +965,45 @@ mod tests {
         assert!(wm.closed(&mut core));
     }
 
+    /// Test-only load: `CHORA_TX_LOAD=1` spawns busy threads (four per
+    /// available core) that spin until dropped.
+    struct BusyThreads(Arc<AtomicBool>, Vec<std::thread::JoinHandle<()>>);
+
+    /// One thread that spins until `stop` is set.
+    fn spin_until(stop: Arc<AtomicBool>) -> std::thread::JoinHandle<()> {
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::Relaxed) {
+                std::hint::spin_loop();
+            }
+        })
+    }
+
+    impl BusyThreads {
+        fn from_env() -> Self {
+            let stop = Arc::new(AtomicBool::new(false));
+            let load = std::env::var("CHORA_TX_LOAD").as_deref() == Ok("1");
+            let cores = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+            let n = if load { 4 * cores } else { 0 };
+            let handles = (0..n).map(|_| spin_until(stop.clone())).collect();
+            Self(stop, handles)
+        }
+    }
+
+    impl Drop for BusyThreads {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+            for h in self.1.drain(..) {
+                let _ = h.join();
+            }
+        }
+    }
+
     /// sl-3: one `scene.apply` of 10000 creates under the root answers
     /// before the hang watchdog calls the main loop stalled (3 s,
     /// `hang::STALL_AFTER`). The commands of `repro-sl3.sh`, under
     /// `MAX_LINE`.
     #[test]
+    #[allow(clippy::print_stderr, reason = "the test prints its time")]
     fn a_big_transaction_answers_before_the_stall_line() {
         let mut core = Core::new();
         let mut wm = core.named("wm");
@@ -980,6 +1017,7 @@ mod tests {
             "params": {"commands": commands}});
         let mut line = request.to_string().into_bytes();
         line.push(b'\n');
+        let busy = BusyThreads::from_env();
         let start = Instant::now();
         let mut sent = 0;
         let mut responses = Vec::new();
@@ -993,6 +1031,8 @@ mod tests {
             responses.extend(wm.responses());
         }
         let time = start.elapsed();
+        drop(busy);
+        eprintln!("sl-3 wall {time:?}");
         assert_eq!(responses.len(), 1, "{responses:?}");
         assert!(responses[0].get("result").is_some(), "{:?}", responses[0]);
         assert!(time < Duration::from_secs(3), "{time:?}");
