@@ -88,3 +88,11 @@ Full `tests/merge-gate.sh --jobs 2` (no --only) on claude/tiling-theme at
 already up to date at 6b01c976), detached: 58 steps PASS, 0 red, no foreign
 red, `all steps passed; no --push, nothing is pushed`, `EXIT 0`, including
 tiling-theme (PASS 18 s) and e2e (PASS 256 s).
+
+## PM review r1 (2026-11-22 19:26 UTC)
+Range 6b01c976..4e46028b, one commit, 3 files +30/-8 (44 lines; PM review, PM not the builder).
+- ti-39: place() (dress.rs) now sends opacity 1 on the two jump branches, as the move did; a jump ends a running open at full opacity. Unit `a_jump_ends_an_open_that_still_runs_with_the_opacity_1` covers both branches. Red first: the gate script was the known-red row `known-red-tiling-theme` (red on the head, filed); it now runs as step `tiling-theme` in the full gate.
+- main.rs test narrowed to the window id: the group's opacity 1 is the group, the window's requested look stays (D58). Sound, not a weakened assert.
+- ti-11: no code; shown fixed by 6092aee3, 773031b4 (report cell).
+- Gate: full --jobs 2, 58 PASS, EXIT 0 (lane).
+Verdict (computed): 0 open MAJOR -> MERGE-OK. Joins t110 with 4e46028b.
