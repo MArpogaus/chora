@@ -1,0 +1,16 @@
+# tiling-round r1 (rc 2, 1: persona round 4 tiling T1, T3, I2; TF-1)
+
+Model: sonnet, effort medium (one look, three persona findings with existing contracts; routine)
+Lane: cloud, claude/tiling-round at 011db749 (claude/tiling-fix r1 head, MERGE-OK, in train t111). Cost at most 1 %; stop at 250 k context. One area: plugins/chora-tiling, flavors/tiling, tests/gate-tiling-*.sh, tests/persona (tiling contracts only).
+Why (reports/p2-r4-tiling.md on claude/session-log, RC row 2 open "tiling I2 T1 T3"): T1 ricer: "Super+Return in tiling+xp opens an xp-owned window (s1), not tiling" (line 18, 51); T3 Kemal: "Super+a: panel opened, persona never typed (focus into the input unverified)" (line 13, 52); I2 Kemal: "tb-s2 and tb-s3 are 10 apart, no whole number of 4" (line 11, 50). TF-1 (backlog.md): tests/tiling-scripts-selftest.sh:95 clock selftest skips silently without PIL or Inter.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "tiling-round BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) T1: reproduce with tiling and xp both running (the persona setup of p2-r4); say whether the owner is setup or product (file:line). Product: the window opened by the key of a look belongs to that look; a gate cell asserts the owner of the Super+Return window.
+2) T3: after Super+a, typed text reaches the chat input with no click; a gate cell types after Super+a and reads the input text. If it already holds, paste the cell line and close T3.
+3) I2: measure the gaps tb-s2/tb-s3/tb-s4 on the session head; fix to a whole number of 4 (design spacing), or show it at 0 and close it with the line.
+4) TF-1: print a skip line naming the missing PIL or Inter.
+Each fix has its own test commit before it, also for unit tests; red shown on that commit (paste the red line).
+After: every new cell 5/5; tests/persona tiling contracts T1, T3 pass for kemal and ricer (paste).
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only) on claude/tiling-round merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7, detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. A red cell you did not cause: name it with its log line; do not rerun to green.
+Done when: T1, T3, I2, TF-1 each fixed with red then green commits (or closed with evidence), the cells 5/5, the gate green or its foreign reds named.
+Report: reports/tiling-round.md "## r1" on claude/session-log (shas, causes, red and green lines, counts, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/tiling-round and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

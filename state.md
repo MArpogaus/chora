@@ -25,8 +25,9 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | flake-hint-r1.md (F5, rc 3: hint act; 0.8 %) | sonnet medium, claude/flake-hint d2634fe0 | done 22:41, PM review MERGE-OK; t111 |
 | cube-settle-r2.md (F5, rc 3: float steps under load; 0.6 %) | sonnet medium, claude/cube-settle e905195e | done 23:05, PM review MERGE-OK; t111 |
 | mc-round-r1.md (rc 3, 9, 1: FLK-MC-SCALE, MH-2, MC-HEAD, MH-1; 1 %) | sonnet medium, claude/mc-round 42585079 | session_016iS3kPDDmVwVQ6Mocgk14G 21:40 |
-| tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 011db749 | done 21:28, PM review MERGE-OK (tf-1, tf-2 MINOR); t111 |
+| tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 011db749 | done 21:28, PM review MERGE-OK; t111 |
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | session_016iS3kLAyzZ7Uff7AJRj4wH 22:57 |
+| tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | starting |
 | xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle bd5af4b3 | session_016iS3kM1upUA2pS1qWuZ3JY 21:38 (xp-helper r2 MERGE-OK, rides in it) |
 
 ## Queue (% week; 5 % reserve)
