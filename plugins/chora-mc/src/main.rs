@@ -1662,6 +1662,22 @@ mod tests {
         assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
+    /// While the chat is open its box lies over the doors, so the column
+    /// has none; the doors come back when it shuts.
+    #[test]
+    fn the_doors_leave_while_the_chat_is_open() {
+        let mut mc = crate::testing::mc("doors-chat", [1280, 800]).0;
+        mc.show("agenda", false).unwrap();
+        let doors = |mc: &super::Mc| {
+            (right_items(mc).iter())
+                .filter(|i| i.hit.as_deref().is_some_and(|h| h.starts_with("door:")))
+                .count()
+        };
+        assert_eq!(doors(&mc), 5);
+        mc.chat = crate::Chat::Open;
+        assert_eq!(doors(&mc), 0);
+    }
+
     /// A chat that cannot open says so in a critical notice of
     /// the notification server, not only in a log.
     #[test]
