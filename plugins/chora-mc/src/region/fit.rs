@@ -119,12 +119,14 @@ fn kept(count: usize, share: f64) -> usize {
     (count as f64 * share).floor().max(0.0) as usize
 }
 
-/// Shortens a clock of the end of a line that does not fit the `room` left
-/// by the head and the middle; its width is then the room.
-pub(super) fn clock_gives_way(end: &mut [(&Item, f64, f64)], room: f64) -> Vec<Command> {
+/// Shortens the clock of the end of a line by the `over` that the end
+/// takes beyond the room left by the head and the middle, so that the head
+/// keeps its letters; the clock keeps its last words, its width falls.
+pub(super) fn clock_gives_way(end: &mut [(&Item, f64, f64)], over: f64) -> Vec<Command> {
     let mut commands = Vec::new();
     for (item, w, _) in end {
-        if item.id.ends_with("-clock") && *w > room && room > 0.0 {
+        if item.id.ends_with("-clock") && over > 0.0 && *w > over {
+            let room = *w - over;
             commands.push(shorten_front(item, room / *w));
             *w = room;
         }

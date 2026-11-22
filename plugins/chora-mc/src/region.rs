@@ -1127,7 +1127,8 @@ impl Mc {
         };
         let (start, middle, mut end) = (group(|s| s < 0), group(|s| s == 0), group(|s| s > 0));
         let taken = [&start, &middle].map(|g| if g.is_empty() { 0.0 } else { span(g) + gap });
-        let mut commands = clock_gives_way(&mut end, width - taken.iter().sum::<f64>());
+        let over = span(&end) - (width - taken.iter().sum::<f64>());
+        let mut commands = clock_gives_way(&mut end, over);
         let end_x = (width - span(&end)).max(0.0);
         let high = if end.is_empty() { end_x } else { end_x - gap };
         let low = if start.is_empty() {
