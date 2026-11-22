@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-22 15:39 UTC)
+## Now (2026-11-22 16:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 14:56 PM day 4.3 %, week about 11.5 % (lanes est. +1.7 since 12:45); under pace: 6 lanes full
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 16:15 PM day 4.9 %, week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes full
 session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109b cd7beeac (t109 + core-diag, log-down-xp, mesh-churn) red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c red 15:37: construct-extra FLK-K1 (2nd). t109d rerun from 15:38.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
