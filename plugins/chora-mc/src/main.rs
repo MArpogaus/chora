@@ -2343,6 +2343,43 @@ mod tests {
         assert!(mc.writing.is_empty());
     }
 
+    /// A panel below the text area of the page shows nothing while it
+    /// writes, so it gets no write effect: the end of the write then
+    /// changes the few panels that show, not 300 (FLK-MC-SCALE: 300 effect
+    /// updates held the loop of mc for 0.4 s, 6 s under load, and the
+    /// next `settings.set` waited behind them).
+    #[test]
+    fn a_panel_below_the_page_gets_no_write_effect() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-below", [640, 480]);
+        mc.shader = "/write.frag".into();
+        let panels: Vec<serde_json::Value> = (0..300)
+            .map(|i| {
+                json!({"id": format!("p{i}"), "cell": [i % 20, i / 20, 1, 1],
+                    "title": format!("T{i}"), "lines": [format!("{i}\tline")]})
+            })
+            .collect();
+        mc.method(
+            "scene.save",
+            json!({"name": "many", "grid": [20, 15], "panels": panels}),
+        )
+        .unwrap();
+        mc.show("many", true).unwrap();
+        let effects = |id: &str| {
+            let core = model.lock().unwrap();
+            core.scene
+                .node(&super::panel_id("many", id))
+                .unwrap()
+                .props
+                .effects
+                .len()
+        };
+        let writing = (0..300).filter(|i| effects(&format!("p{i}")) > 0).count();
+        assert_eq!(effects("p0"), 1, "the first panel writes");
+        assert_eq!(effects("p299"), 0, "the last is far below the page");
+        assert!(writing < 100, "{writing} of 300 panels write");
+    }
+
     /// A build removes the nodes whose write animation runs and makes new
     /// ones without it, so no end of it comes: mc is quiet at once, not
     /// busy with a write that nobody finishes (mc-49).
