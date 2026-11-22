@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 |---|---|---|
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4 done, merge 7a6c0eb8 conflicts, construct act rerun; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
 | looks1-mc-r1.md (rc 1 looks: 10 mc known-red rows; 1.4 %) | sonnet medium, claude/looks1-mc 7a6c0eb8 | session_016iS3kLPWJtz5XGMi6Uc9Hm 06:45 |
-| core-diag-r1.md (rc 9: sl-3 core abort, sl-1 RSS; fix r2 after split-c; 1.5 %) | opus high, claude/core-diag 3b14c825 | starting 10:06 |
+| core-diag-r1.md (rc 9: sl-3, sl-1; fix r2 after split-c; 1.5 %) | opus high, claude/core-diag 3b14c825 | session_016iS3kNKAfUC9uW4aC6aYcG 10:06 |
 | split-c-r1.md (F4: core ipc, mesh 1,398, 1,387; 1.6 %) | sonnet high, claude/split-c 3b14c825 | session_016iS3kLgYFEr3MtcBnvaXq9 09:28 |
 | split-b-r1.md (F4: voice core, agents 1,420, 1,410; 1.6 %) | sonnet medium, claude/split-b 3b14c825 | session_016iS3kQcGNziaNKrScfwCsx 09:06 |
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
