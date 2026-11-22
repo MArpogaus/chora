@@ -17,6 +17,8 @@ sys.path.insert(0, str(ROOT / "tests" / "acts"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import ast  # noqa: E402
+import json  # noqa: E402
+from unittest import mock  # noqa: E402
 import contextlib  # noqa: E402
 import dataclasses  # noqa: E402
 import importlib.util  # noqa: E402
@@ -49,6 +51,9 @@ class FakeSession:
 
     def rect(self, selector, output=None):
         return None
+
+    def capture(self, path, output=None):
+        pass
 
 
 class Fixed(tour.Checker):
@@ -237,6 +242,475 @@ class TourRows(unittest.TestCase):
 
     def test_check_flag(self):
         self.assertFalse(tour.checking())
+
+
+class Shooter(FakeSession):
+    """A session whose `capture` writes a small PNG."""
+
+    def __init__(self):
+        self.shots = []
+
+    def capture(self, path, output=None):
+        import test_tour_diff as ttd
+
+        pathlib.Path(path).write_bytes(ttd.png(64, 36))
+        self.shots.append((path, output))
+
+
+def boxes_with(*rects):
+    return {"HEADLESS-1": {"size": [1280, 720], "boxes": [{"node": f"t{i}", "kind": "text", "rect": list(r), "text": "hi", "font_size": 14} for i, r in enumerate(rects)]}}
+
+
+class CaptureDumps(unittest.TestCase):
+    """F7 r1: per Q capture the tour writes `<act>.<capture>.png` and `.json` where tests/tour-diff.py reads them."""
+
+    def tour(self, slug="01-xp", boxes=None, snaps=None):
+        work = tempfile.mkdtemp(prefix="tour-dump-")
+        feed = iter(snaps or [snap(), test_acts.snap(boxes=boxes) if boxes else snap()])
+        self.session = Shooter()
+        t = tour.Tour(self.session, work, work + "/w", checker=tour.Checker(lambda: next(feed)))
+        t.begin("1 test", slug)
+        t.run_segment = lambda label="": None
+        self.dir = pathlib.Path(work) / "captures"
+        return t
+
+    def act(self, t, capture="Q"):
+        t.act("look", "an act", "something", capture=capture)
+        t.done()
+        t.flush()
+
+    def diff(self):
+        import test_tour_diff as ttd
+
+        return ttd.diff
+
+    def test_row_id_without_a_scene_is_the_letter_of_the_look_and_the_number(self):
+        for slug, want in (("01-xp", "x1"), ("02-tiling", "t1"), ("03-mc-light", "m1"), ("03b-mc-dark", "md1"), ("04-construct", "c1"), ("05-handover", "h1")):
+            t = self.tour(slug)
+            self.act(t)
+            self.assertEqual(t.rows[0]["id"], want, slug)
+
+    def test_a_q_capture_writes_png_and_json(self):
+        t = self.tour(boxes=boxes_with((10, 10, 50, 14), (100, 200, 30, 12)))
+        self.act(t)
+        self.assertTrue((self.dir / "x1.Q.png").read_bytes().startswith(b"\x89PNG"))
+        data = json.loads((self.dir / "x1.Q.json").read_text())
+        self.assertEqual([n["id"] for n in data["nodes"]], ["s1"])
+        self.assertEqual(data["masks"], [[10, 10, 50, 14], [100, 200, 30, 12]])
+
+    def test_tour_diff_reads_the_dump(self):
+        t = self.tour(boxes=boxes_with((10, 10, 50, 14)))
+        self.act(t)
+        rows = self.diff().compare(self.dir, self.dir, [])
+        self.assertEqual([(r["act"], r["capture"], r["verdict"]) for r in rows], [("x1", "Q", "same")])
+
+    def test_a_capture_with_a_dot_keeps_its_act(self):
+        t = self.tour()
+        self.act(t, capture="Q+0.5")
+        rows = self.diff().compare(self.dir, self.dir, [])
+        self.assertEqual([(r["act"], r["capture"]) for r in rows], [("x1", "Q+0.5")])
+
+    def test_a_build_without_scene_boxes_has_no_masks_and_still_a_dump(self):
+        t = self.tour(snaps=[snap(), test_acts.snap(boxes=None)])
+        self.act(t)
+        self.assertEqual(json.loads((self.dir / "x1.Q.json").read_text())["masks"], [])
+        self.assertTrue((self.dir / "x1.Q.png").exists())
+
+    def test_a_new_take_keeps_no_stale_picture(self):
+        """rw-1: a run folder with an old `x1.Q.png` (and an old H50 one the take did not copy) gets the new pictures."""
+        t = self.tour(snaps=[snap() for _ in range(6)])
+        self.dir.mkdir(parents=True)
+        stale = b"\x89PNG stale"
+        (self.dir / "x1.Q.png").write_bytes(stale)
+        (self.dir / "x2.H50.png").write_bytes(stale)
+        self.act(t)
+        self.assertNotEqual((self.dir / "x1.Q.png").read_bytes(), stale)
+        t.act("look", "another", "something", capture="H50")
+        t.done()
+        t.flush()
+        self.assertNotEqual((self.dir / "x2.H50.png").read_bytes(), stale)
+
+    def test_a_failed_capture_leaves_no_old_picture_behind(self):
+        t = self.tour()
+        self.dir.mkdir(parents=True)
+        (self.dir / "x1.Q.png").write_bytes(b"old")
+        self.session.capture = lambda path, output=None: (_ for _ in ()).throw(RuntimeError("no screen"))
+        self.act(t)
+        self.assertFalse((self.dir / "x1.Q.png").exists())
+
+    def test_the_check_run_writes_no_dump(self):
+        import os
+
+        os.environ["TOUR_CHECK"] = "1"
+        try:
+            t = self.tour()
+            self.act(t)
+        finally:
+            del os.environ["TOUR_CHECK"]
+        self.assertFalse(self.dir.exists())
+
+    def test_h50_takes_the_frame_in_the_middle_of_the_act(self):
+        """The held frame is half way through the act, not the quiet frame after it; the pointer is masked."""
+        import unittest.mock as mock
+
+        class Frames(Shooter):
+            def ctl(self, *args, **kw):
+                import test_tour_diff as ttd
+
+                out = pathlib.Path(args[args.index("--out") + 1])
+                for n in range(1, int(args[args.index("--frames") + 1]) + 1):
+                    (out / f"frame-{n:05d}.png").write_bytes(ttd.png(8, 8, lambda x, y, n=n: (n, 0, 0)))
+                return ""
+
+        work = tempfile.mkdtemp(prefix="tour-dump-")
+        feed = iter([snap(), snap()])
+        t = tour.Tour(Frames(), work, work + "/w", checker=tour.Checker(lambda: next(feed)))
+        t.begin("1 test", "01-xp")
+        t.px, t.py = 300.0, 200.0
+        with mock.patch.object(tour.subprocess, "run"):
+            t.act("pointer", "a drag", "it moves", settle=0.0, lead=0.0, tail=0.0, capture="H50")
+            start = t.rows[0]["frame"]
+            t.wait(2.0)
+            end = t.frame
+            t.done()
+            t.flush()
+        import test_tour_diff as ttd
+
+        got = (pathlib.Path(work) / "captures" / "x1.H50.png").read_bytes()
+        middle = (start + end) // 2
+        self.assertEqual(got, ttd.png(8, 8, lambda x, y: (middle, 0, 0)))
+        masks = json.loads((pathlib.Path(work) / "captures" / "x1.H50.json").read_text())["masks"]
+        self.assertTrue(any(m[0] <= 300 <= m[0] + m[2] and m[1] <= 200 <= m[1] + m[3] for m in masks), masks)
+
+
+class SceneIds(unittest.TestCase):
+    """rw-2: dumps and intended.toml name an act by the scene id of design/tour-v9.md (`scene=` of the
+    act), not by its number in the chapter; a later act of the same scene takes a letter (`h1b`)."""
+
+    CHAPTERS = ("xp", "tiling", "mc", "construct", "handover")
+
+    def acts(self, chapter):
+        """(description source, scene id or None) of every `t.act(...)` of a chapter file, in file order."""
+        tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text())
+        calls = sorted((n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "act"), key=lambda c: c.lineno)
+        out = []
+        for c in calls:
+            scene = next((k.value.value for k in c.keywords if k.arg == "scene" and isinstance(k.value, ast.Constant)), None)
+            out.append((ast.unparse(c.args[1]), scene))
+        return out
+
+    def test_every_act_names_its_scene(self):
+        import re
+
+        for chapter in self.CHAPTERS:
+            bare = [d for d, scene in self.acts(chapter) if not (scene and re.fullmatch(r"[xtmch]\d+", scene))]
+            self.assertEqual(bare, [], f"{chapter}: acts without a scene id like x3")
+
+    @staticmethod
+    def design_scenes():
+        """The scene ids of the tables of design/tour-v9.md: the file of the checkout, else the one of
+        origin/claude/session-log (the design lives on that branch)."""
+        import re
+        import subprocess
+
+        path = ROOT / "design" / "tour-v9.md"
+        if path.exists():
+            text = path.read_text()
+        else:
+            run = subprocess.run(["git", "show", "origin/claude/session-log:design/tour-v9.md"], cwd=ROOT, capture_output=True, text=True)
+            if run.returncode:
+                raise unittest.SkipTest("design/tour-v9.md is neither in the checkout nor on origin/claude/session-log")
+            text = run.stdout
+        return set(re.findall(r"^\| ([xtmch]\d+) \|", text, re.M))
+
+    def test_every_scene_id_is_one_of_design_tour_v9(self):
+        known = self.design_scenes()
+        self.assertTrue({"x1", "t1", "m1", "c1", "h1"} <= known, known)
+        for chapter in self.CHAPTERS:
+            odd = sorted({scene for d, scene in self.acts(chapter) if scene not in known and scene not in self.OFF_DESIGN.get(chapter, ())})
+            self.assertEqual(odd, [], f"{chapter}: scene ids that design/tour-v9.md does not name")
+
+    OFF_DESIGN = {"xp": ("x12",)}
+    """rv-1: the three cube acts of xp (Ctrl+Alt+Right, Ctrl+Alt+Left, Super drag) keep `x12`, an id the design
+    does not name: the one that fits, c3 (turn by key, by drag), is taken by 8 acts of the construct chapter, whose
+    ids `c3`, `c3b` .. would be the same files in `captures/` (a take of the tour writes all chapters to one folder).
+    The design says "Not in xp: the cube"; the PM decides whether it names x12 or the acts move."""
+
+    def test_the_off_design_ids_are_three_acts_of_xp_and_the_design_has_not_caught_up(self):
+        known = self.design_scenes()
+        self.assertEqual(known & {"x12"}, set(), "design/tour-v9.md names x12 now: empty OFF_DESIGN")
+        self.assertEqual([d[:20] for d, scene in self.acts("xp") if scene == "x12"], ["'Ctrl+Alt+Right: tur", "'Ctrl+Alt+Left: back", "'Super held, drags o"])
+
+    def test_the_send_to_act_is_h2_and_start_is_h1(self):
+        scene = {d: s for d, s in self.acts("handover")}
+        send = [s for d, s in scene.items() if "Send To" in d]
+        start = [s for d, s in scene.items() if d.startswith("'Click Start")]
+        self.assertEqual((send, start), (["h2"], ["h1"]))
+
+    def test_a_second_act_of_a_scene_has_its_letter(self):
+        work = tempfile.mkdtemp(prefix="tour-scene-")
+        t = tour.Tour(FakeSession(), work, work + "/w")
+        t.begin("5 handover", "05-handover")
+        t.run_segment = lambda label="": None
+        for n, scene in enumerate(["h1", "h1", "h1", "h2", "h1"]):
+            t.act("look", f"act {n}", "x", lead=0.0, tail=0.0, scene=scene)
+        self.assertEqual([r["id"] for r in t.rows], ["h1", "h1b", "h1c", "h2", "h1d"])
+
+    def test_the_chapters_use_each_scene_of_intended_toml(self):
+        import tomllib
+
+        table = tomllib.loads((ROOT / "demo" / "tour" / "intended.toml").read_text())
+        scenes = {s for chapter in self.CHAPTERS for _, s in self.acts(chapter)}
+        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in scenes], [])
+
+    def test_the_first_row_of_h2_is_the_send_to_act(self):
+        """The row that intended.toml calls h2 carries the Send To act, not the Start click."""
+        work = tempfile.mkdtemp(prefix="tour-scene-")
+        t = tour.Tour(FakeSession(), work, work + "/w")
+        t.begin("5 handover", "05-handover")
+        t.run_segment = lambda label="": None
+        for text, scene in (("Click Start", "h1"), ("Click Notepad", "h1"), ("Title-bar right click, Send To, Tiling desktop", "h2")):
+            t.act("look", text, "x", lead=0.0, tail=0.0, scene=scene)
+        self.assertEqual({r["id"]: r["description"] for r in t.rows}["h2"], "Title-bar right click, Send To, Tiling desktop")
+
+
+class OldBuild(unittest.TestCase):
+    """F7 r1: the v9 harness replays on 733967aa, which has no `scene.boxes` and no `state.get` of
+    chora-notify (design/tour-v9.md section 6): it degrades, it does not break."""
+
+    class Core:
+        def __init__(self, error=None):
+            self.error = error
+            self.calls = []
+
+        def call(self, method, params=None, timeout=10):
+            self.calls.append(method)
+            if self.error and method in ("scene.boxes", "scene.query"):
+                raise RuntimeError(f"{method}: {self.error}")
+            return {"ok": method}
+
+    def test_a_core_without_scene_boxes_answers_none(self):
+        core = tour.OldCore(self.Core("no method"))
+        self.assertIsNone(core.call("scene.boxes"))
+        self.assertEqual(core.call("screen.capture"), {"ok": "screen.capture"})
+        self.assertEqual(core.missing, {"scene.boxes"})
+
+    def test_a_real_error_of_scene_boxes_is_not_hidden(self):
+        core = tour.OldCore(self.Core("the output is gone"))
+        with self.assertRaises(RuntimeError):
+            core.call("scene.boxes")
+
+    def test_only_scene_boxes_may_be_missing(self):
+        core = tour.OldCore(self.Core("no method"))
+        with self.assertRaises(RuntimeError):
+            core.call("scene.query", {"selector": "*"})
+
+    def notify(self, error):
+        closed = []
+
+        class Notify(tour.Session):
+            def call(self, client, method, params=None):
+                raise RuntimeError(error)
+
+            def close_on_bus(self, ids):
+                closed.append(list(ids))
+
+        return Notify({}, [], ""), closed
+
+    def test_dismiss_notices_without_state_get_closes_on_the_bus(self):
+        s, closed = self.notify("methods.call: notify has no method state.get")
+        s.dismiss_notices()
+        self.assertEqual(len(closed), 1)
+        self.assertEqual(closed[0][0], 1)
+
+    def test_the_words_of_choractl_for_a_missing_method_count(self):
+        s, closed = self.notify("choractl call notify state.get {}: choractl: notify.state.get is no exported method (code 1)")
+        s.dismiss_notices()
+        self.assertEqual(len(closed), 1)
+
+    def test_dismiss_notices_does_not_hide_another_error(self):
+        s, closed = self.notify("the core closed the connection during methods.call")
+        with self.assertRaises(RuntimeError):
+            s.dismiss_notices()
+        self.assertEqual(closed, [])
+
+    def test_a_build_without_boxes_is_not_red_for_missing_boxes(self):
+        class Missing(tour.Checker):
+            pass
+
+        before = test_acts.snap(boxes=None)
+        helper = test_acts.snap(boxes=None, nodes=[{"id": "hud-chat", "kind": "node", "owner": "assistant", "meta": {"surface": "chat"}, "rects": {"HEADLESS-1": [0, 0, 10, 10]}}])
+        got = tour.Checker(lambda: before, baseline=True).judge({"description": "an act"}, None, before, helper)
+        self.assertEqual([line for line in got if "missing boxes" in line], [])
+
+    def test_the_candidate_keeps_missing_boxes_red(self):
+        """rw-3: without TOUR_BASELINE a build that lost `scene.boxes` is red, never green on nothing."""
+        before = test_acts.snap(boxes=None)
+        helper = test_acts.snap(boxes=None, nodes=[{"id": "hud-chat", "kind": "node", "owner": "assistant", "meta": {"surface": "chat"}, "rects": {"HEADLESS-1": [0, 0, 10, 10]}}])
+        got = tour.Checker(lambda: before).judge({"description": "an act"}, None, before, helper)
+        self.assertEqual([line for line in got if "missing boxes" in line], ["I8: missing boxes: no scene.boxes answer for the helper surfaces"])
+
+    def test_the_candidate_prints_every_box_invariant(self):
+        import invariants
+
+        planted = {key: (lambda before, after, act, key=key: [f"{key} planted"]) for key in ("I5", "I6", "I8", "I9")}
+        with mock.patch.dict(invariants.ALL, planted, clear=True):
+            got = tour.Checker(lambda: snap()).judge({"description": "an act"}, None, snap(), snap())
+        self.assertEqual(got, [f"{key}: {key} planted" for key in planted])
+
+    def attached(self, baseline):
+        """The core that `Checker.attach` leaves in the harness, with TOUR_BASELINE set or not."""
+        import os
+
+        import harness
+
+        session = mock.MagicMock()
+        session.core = object()
+        if baseline:
+            os.environ["TOUR_BASELINE"] = "1"
+        try:
+            with mock.patch.object(harness, "Session", return_value=session):
+                tour.Checker.attach({"XDG_RUNTIME_DIR": "/tmp", "CHORA_SOCKET": "/tmp/s"}, ["xp"], "/tmp/evidence")
+        finally:
+            os.environ.pop("TOUR_BASELINE", None)
+        return session.core
+
+    def test_only_the_baseline_core_may_lack_boxes(self):
+        self.assertIsInstance(self.attached(True), tour.OldCore)
+        self.assertNotIsInstance(self.attached(False), tour.OldCore)
+
+    def test_the_exemption_of_the_list_holds_in_the_tour_too(self):
+        """The one design exemption of tests/acts/known-red.toml (the Luna tray, down to 3.0:1) is no red line of a row; known-red rows are not applied."""
+        import invariants
+
+        tray = "on O '6:34 PM' (xp-tray-O) has the contrast {}:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1"
+        pager = "on O '2' (xp-pager-1-O) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+        lines = [tray.format("3.21"), tray.format("2.90"), pager]
+        shown = {"I6": lambda before, after, act: list(lines)}
+        with mock.patch.dict(invariants.ALL, shown, clear=True):
+            got = tour.Checker(lambda: snap()).judge({"description": "an act"}, None, snap(), snap())
+        self.assertEqual(got, ["I6: " + tray.format("2.90"), "I6: " + pager])
+
+    def test_a_chapter_that_cannot_run_on_the_baseline_is_none_with_its_reason(self):
+        import os
+        import types
+
+        module = types.ModuleType("chapters.xp")
+
+        def boom(ctx):
+            raise RuntimeError("choractl call xp-give: no method window.give")
+
+        module.run = boom
+        sys.modules["chapters.xp"] = module
+        os.environ["TOUR_BASELINE"] = "1"
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = run.main(["--check", "xp"])
+        finally:
+            del os.environ["TOUR_BASELINE"]
+            del sys.modules["chapters.xp"]
+            os.environ.pop("TOUR_CHECK", None)
+        text = out.getvalue()
+        self.assertEqual(code, 0, text)
+        self.assertIn("baseline: none", text)
+        self.assertIn("no method window.give", text)
+        self.assertNotIn("BROKE", text)
+
+
+    def baseline_take(self, error, chapter="handover"):
+        """run.py on the baseline (not `--check`) with a chapter that dumps h1.Q and then raises `error`;
+        (exit code, output, the baseline-none.json it wrote or None)."""
+        import os
+        import types
+
+        out_dir = tempfile.mkdtemp(prefix="tour-none-")
+
+        def stops(ctx):
+            work = tempfile.mkdtemp(prefix="tour-none-w-")
+            t = tour.Tour(Shooter(), ctx.out, work + "/w", checker=tour.Checker(lambda: snap()))
+            t.begin("5 handover", "05-handover")
+            t.run_segment = lambda label="": None
+            t.act("look", "Click Start", "x", lead=0.0, tail=0.0, scene="h1", capture="Q")
+            t.done()
+            t.flush()
+            raise error
+
+        module = types.ModuleType(f"chapters.{chapter}")
+        module.run = stops
+        sys.modules[f"chapters.{chapter}"] = module
+        os.environ.update(TOUR_BASELINE="1", TOUR_OUT=out_dir)
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = run.main([chapter])
+        finally:
+            for key in ("TOUR_BASELINE", "TOUR_OUT", "TOUR_CHECK"):
+                os.environ.pop(key, None)
+            del sys.modules[f"chapters.{chapter}"]
+        path = pathlib.Path(out_dir) / "baseline-none.json"
+        return code, out.getvalue(), json.loads(path.read_text()) if path.exists() else None
+
+    def take(self, args, out_dir, chapter="handover"):
+        """run.py with a chapter that does nothing, on `out_dir`; the exit code."""
+        import os
+        import types
+
+        module = types.ModuleType(f"chapters.{chapter}")
+        module.run = lambda ctx: None
+        sys.modules[f"chapters.{chapter}"] = module
+        os.environ["TOUR_OUT"] = out_dir
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), mock.patch.object(assemble, "main"):
+                return run.main(args)
+        finally:
+            for key in ("TOUR_BASELINE", "TOUR_OUT", "TOUR_CHECK"):
+                os.environ.pop(key, None)
+            del sys.modules[f"chapters.{chapter}"]
+
+    def test_a_take_starts_with_an_empty_captures_folder(self):
+        """rv-2: the png and json of an act that was renamed, or whose snapshot failed, of an earlier take
+        in the same TOUR_OUT are gone, or tests/tour-diff.py compares a picture of no act."""
+        out_dir = tempfile.mkdtemp(prefix="tour-old-")
+        old = pathlib.Path(out_dir) / "captures"
+        old.mkdir()
+        for name in ("h5.Q.png", "h5.Q.json"):
+            (old / name).write_bytes(b"old")
+        self.assertEqual(self.take(["handover"], out_dir), 0)
+        self.assertEqual(sorted(p.name for p in old.glob("*")), [])
+        self.assertEqual(out_dir, str(old.parent))
+
+    def test_a_check_leaves_the_folder_of_the_record_alone(self):
+        out_dir = tempfile.mkdtemp(prefix="tour-keep-")
+        keep = pathlib.Path(out_dir) / "captures"
+        keep.mkdir()
+        (keep / "h5.Q.png").write_bytes(b"old")
+        self.assertEqual(self.take(["--check", "handover"], out_dir), 0)
+        self.assertTrue((keep / "h5.Q.png").exists())
+
+    def test_another_error_on_the_baseline_is_broke(self):
+        """rw-4: a TypeError of the harness, a dead core: the take fails loud, nothing is `baseline: none`."""
+        for error in (TypeError("act() got an unexpected keyword argument"), RuntimeError("the core closed the connection")):
+            code, text, none = self.baseline_take(error)
+            self.assertEqual(code, 1, text)
+            self.assertIn("BROKE", text)
+            self.assertNotIn("baseline: none from", text)
+            self.assertIsNone(none)
+
+    def test_baseline_none_json_names_the_captures_that_did_not_run(self):
+        code, text, none = self.baseline_take(RuntimeError("choractl call xp-give: no method window.give"))
+        self.assertEqual(code, 0, text)
+        (entry,) = none
+        self.assertEqual(entry["chapter"], "handover")
+        self.assertNotIn("h1.Q", entry["names"])
+        self.assertIn("h2.Q", entry["names"])
+        self.assertIn("h7.Q", entry["names"])
+        self.assertTrue(all(name.partition(".")[2] for name in entry["names"]), entry["names"])
+
+    def test_the_names_of_the_plan_follow_the_loops_of_a_chapter(self):
+        planned = tour.planned("tiling")
+        self.assertEqual(len(planned), len(set(planned)))
+        self.assertEqual([n for n in planned if n.startswith("t3")], [f"t3{letter}.Q" for letter in ("", *"bcdefgh")])
 
 
 CHAPTERS_A = ("xp", "tiling", "handover")
@@ -460,6 +934,12 @@ class ChaptersB(unittest.TestCase):
         pane = dataclasses.replace(after, nodes=[{"id": "s1", "kind": "surface", "owner": "xp"}])
         self.assertTrue(construct.window_is_pane(pane))
         self.assertEqual(construct.window_back_on_face(pane), [])
+
+    def test_mc_starts_chora_notify_as_the_mc_session_does(self):
+        """tests/gate-mc-sofa.sh: `chora-notify --assets plugins/chora-mc/notify` (card text 19 px, bottom left); the plain default drew the card at 11 px and the tour read it as a breach of the mc."""
+        text = (ROOT / "demo" / "tour" / "chapters" / "mc.py").read_text()
+        self.assertIn('f"{BIN}/chora-notify", "--assets", f"{REPO}/plugins/chora-mc/notify"', text)
+        self.assertIn('notify_config(position="bottom_left")', text)
 
 
 if __name__ == "__main__":
