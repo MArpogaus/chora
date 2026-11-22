@@ -16,8 +16,8 @@ F14 | 11-12 | rc | cube cell "construct does not answer while the wm is deaf" fa
 A5 | 10-31 | rc | flaky `speech::tests::a_pause_stops_the_sound_and_the_resume_plays_the_cut_sentence_again`; a chora-voice test flaked once in a gate on 11-12 (which one is not recorded).
 A17 | 11-09 | rc | focus under load: the matrix gate sometimes ends a window in xp without keyboard focus (cgive and voice cells); claude/focus-flake is merged: confirm closed or reproduce.
 F1 | 11-10 | rc | the focus race fixed in tiling (1275e15: a stale `focus` after a hand) may exist in the hand code of xp, mc and construct: check each with the same kind of test.
-T2 | 11-11 | rc | gate-construct-hud.sh pins a stale help row count ("21 rows, not 18"): fix the count or count from config.
-T3 | 11-11 | rc | gate-construct-windows fails ("d1 is not shown with tiling" on 536aaee; exit 143 at the 11-09 baseline): find the cause.
+T2 | 11-11 | rc | gate-construct-hud.sh pins a stale help row count ("21 rows, not 18"): fix the count or count from config. DONE (gate-alive r1 11-22): gate-construct-hud.sh no longer pins a count (2c5d810a removed it); green in step construct-hud.
+T3 | 11-11 | rc | gate-construct-windows fails ("d1 is not shown with tiling" on 536aaee; exit 143 at the 11-09 baseline): find the cause. DONE (gate-alive r1 11-22): no longer red; gate-construct-windows is green in construct-extra (0355c2bc) and on 1c9e64f7 + a7ffdf22 (162 s step).
 
 - H-move (harness, 11-17 16:11): tests/no-inline-comments.py counts moved lines as added, so a pure move must hoist body `//` into `///` (mv2-mc review: misleading docs, build.rs:68, show.rs:10, layout.rs:440). Fix: skip lines git --color-moved marks as moved. Then KIT2 mc rewords those docs.
 - mv2-xp prep deleted 44 comments; two carried hazards (restart: kept-root removal makes windows new; wallpaper-gray: bounds of all outputs). Restore as item docs in the xp KIT slice.
