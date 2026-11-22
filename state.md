@@ -26,6 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | co-46-r1.md (rc 1: hidden keys; 1 %) | sonnet high, claude/co-46 6b01c976 | session_016iS3kPkq3PWcVkMRxyrwRU 15:16 |
 | flake-k1-r1.md (F5, rc 3: FLK-K1; 0.6 %) | sonnet medium, claude/flake-k1 6b01c976 | session_016iS3kLrYViY6AbWZ3NAnes 15:39 |
 | mc-scale-r1.md (F5, rc 3, 9: FLK-MC-SCALE; 0.8 %) | sonnet medium, claude/mc-scale 6b01c976 | starting |
+| xp-minor-r1.md (rc 1, 3: ti-43, 44, xp-28; 1 %) | sonnet medium, claude/xp-minor a1f3c8d7 | starting |
 
 ## Queue (% week; 5 % reserve)
 3. DOCS-RC r2 (pr-1..5) on the Thu head.

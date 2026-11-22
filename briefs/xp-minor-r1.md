@@ -1,17 +1,14 @@
-# xp-minor r1 (RC 2 known issues, vision: looks): five xp MINOR findings (backlog P2R3-MINOR)
+# xp-minor r1 (rc 1 shared bar "honest states", rc 3: ti-43, ti-44, xp-28)
 
-Model: sonnet, effort medium (five small fixes in one look, each with its act or cell)
-Lane: cloud, branch claude/xp-minor from fee9c695. One round, stop at 250 k. Cost about 1.5 %. xp has no open BLOCK or MAJOR (xp-35, xp-36 fixed), so rule 6 allows MINOR work.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`; `cargo check --workspace`; a failure or missing tool: send_message the PM "xp-minor BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
-Read on claude/session-log: backlog.md row P2R3-MINOR, findings/xp.md rows xp-34..xp-36, reports/xp-36.md, feedback/2026-11-20-p2r3-murat.md, feedback/2026-11-20-p2r1-erika.md. Not yours: other looks, the core, the gate script.
-Items, in order (KISS, POLS: what XP SP2 did; no new feature):
-1. xp-36 rv-1: Run... with a warning on stderr then Escape shows a false "Run could not start": exit 1 = closed, quiet; 2 and up = the failure card.
-2. Screenshot gives no visible sign: a short XP-style tray balloon "Screenshot saved" naming the file (chora-notify, placed as xp places it).
-3. Volume menu: the tray speaker shows the XP level slider with the current level, not only a tick.
-4. Super+E notice names a config file path: say what to do in plain words (the path only as a second line).
-5. A small yellow square after clicks (Erika): find what draws it (capture first); remove it or name it in the report if it is the tray balloon anchor.
-Each item: a red act or cell commit first, then the fix; name the cell and a capture at 1280x800.
-Gate: `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,xp,xp-faces,xp-question,xp-notepad,doors,acts`; poll it in the same turn; never end a turn to wait.
-Done when: per item red sha, fix sha, cell, capture (or why not reached); reports/xp-minor.md "## r1" on claude/session-log; head sha.
-Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
-Rules: push claude/xp-minor and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages; never commit Microsoft files.
+Model: sonnet, effort medium (three small fixes in chora-xp, each red first; no core change)
+Lane: cloud, claude/xp-minor at a1f3c8d7 (claude/ti-38 head, MERGE-OK, in train t110). Cost at most 1 %; stop at 250 k context. One area: plugins/chora-xp (src/wm/dispatch.rs, src/wm/startup.rs, the chat window header) and its gate scripts; docs/api.md only for ti-43 if you reword.
+Why: findings on claude/session-log: tiling.md ti-43 "xp `Arrival::Joined` never ends when the other look leaves; docs/api.md:425 promises the keyboard when no other look holds a claim" (dispatch.rs:88); ti-44 "`Arrival` transitions have no xp unit test; only shell gates cover them" (startup.rs:183); xp.md xp-28 "Chat header stays 'Working, step 1 of 1' and Stop active after the answer" (honest states, vision card shared bar). xp has no open BLOCK or MAJOR.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "xp-minor BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) ti-43: red first (a unit in chora-xp or a step in tests/gate-join-keys.sh: xp joined, the other look leaves, xp must hold the keyboard as api.md:425 says), then the fix: settle Arrival on client.disconnected of the other look (prefer code over rewording the doc; reword only if the code fix breaks D119, and say why).
+2) ti-44: unit tests of every Arrival transition in chora-xp (start alone, join, other leaves, click), each named after the transition; they must fail on a seeded wrong transition (paste that red once).
+3) xp-28: verify on the head first (a chat question with the fake agent the xp gates use; read the header text and the Stop state after the answer). Still there: red step (header says Working or Stop enabled after the answer), then the fix (header idle text and Stop disabled when the turn ends). Already fixed: name the sha and the cell, no code. The "editor over desktop icons" half: report only.
+4) After: each new cell 5 times in a row green (paste counts).
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only) on claude/xp-minor merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7, detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. A red cell you did not cause: name it with its log line (FLK-MC-SCALE at mc-scale is known, lane running); do not rerun to green.
+Done when: ti-43, ti-44, xp-28 each red then green with lines (or xp-28 shown fixed with a sha), 5/5 each, the gate green or its foreign reds named.
+Report: reports/xp-minor.md "## r1" on claude/session-log (shas, causes, red and green lines, counts, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/xp-minor and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
