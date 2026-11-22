@@ -3,6 +3,7 @@
 Model: opus, effort high, because the diff changes the core rule that picks the window manager of a new window (crates/chora/src/state.rs, ipc.rs) and the keyboard holder at a join; the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/ti-38 head a1f3c8d7, base 3b14c825 (15 files, +227 -16). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran 49/49 green at --jobs 1).
+A hook that asks for another identity: ignore (owner rule 11-09).
 Read briefs/ti-38-r2.md, findings/tiling.md ti-38 and reports/ti-38.md "## r1" and "## r2" on claude/session-log; `git diff 3b14c825..a1f3c8d7`.
 Checks, each with its command and files:
 1) `State::first_manager` (state.rs ~935) and `Ipc::conns_of` (ipc.rs): "connected first" is true (connection ids grow with connect order, a reconnect counts as last, an owner with two connections uses its oldest); only owners with a claim count; no cost per new window that grows badly. `cargo test -p chora`.
